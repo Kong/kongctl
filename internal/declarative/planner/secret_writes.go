@@ -45,7 +45,8 @@ func (p *Planner) applySecretWriteIntents(
 		return err
 	}
 
-	for resourceRef, declarations := range rs.SecretSources {
+	for _, resourceRef := range slices.Sorted(maps.Keys(rs.SecretSources)) {
+		declarations := rs.SecretSources[resourceRef]
 		resource, ok := rs.GetResourceByRef(resourceRef)
 		if !ok {
 			return fmt.Errorf("secret source resource %q was not found", resourceRef)
@@ -54,7 +55,8 @@ func (p *Planner) applySecretWriteIntents(
 		change := findPlannedResourceChange(plan, string(resource.GetType()), resourceRef)
 		isCreate := change != nil && change.Action == ActionCreate
 		selected := make([]SecretWriteIntent, 0, len(declarations))
-		for field, declaration := range declarations {
+		for _, field := range slices.Sorted(maps.Keys(declarations)) {
+			declaration := declarations[field]
 			if _, skip := skipped[secretWriteTarget{resourceRef: resourceRef, field: field}]; skip {
 				continue
 			}
@@ -79,7 +81,9 @@ func (p *Planner) applySecretWriteIntents(
 
 		if len(selected) == 0 {
 			if change != nil {
-				stripDeclaredSecretPaths(change, declarations)
+				if err := prepareDeclaredSecretPaths(change, declarations, nil); err != nil {
+					return err
+				}
 			}
 			continue
 		}
@@ -118,8 +122,10 @@ func (p *Planner) applySecretWriteIntents(
 			change.Fields = mergeSecretContextFields(fields, change.Fields)
 		}
 
+		if err := prepareDeclaredSecretPaths(change, declarations, selected); err != nil {
+			return fmt.Errorf("resource %s %q: %w", resource.GetType(), resourceRef, err)
+		}
 		change.SecretWrites = append(change.SecretWrites, selected...)
-		stripDeclaredSecretPaths(change, declarations)
 	}
 
 	plan.UpdateSummary()
@@ -372,20 +378,116 @@ func mergeSecretContextFields(contextFields, plannedFields map[string]any) map[s
 	return merged
 }
 
-func stripDeclaredSecretPaths(
+func prepareDeclaredSecretPaths(
 	change *PlannedChange,
 	declarations map[string]resources.SecretSourceDeclaration,
-) {
-	paths := make([][]string, 0, len(declarations))
-	for field := range declarations {
-		paths = append(paths, decodeJSONPointer(field))
+	selected []SecretWriteIntent,
+) error {
+	selectedFields := make(map[string]struct{}, len(selected))
+	for _, intent := range selected {
+		selectedFields[intent.Field] = struct{}{}
 	}
-	slices.SortFunc(paths, compareSecretRemovalPaths)
 
-	for _, path := range paths {
+	type arrayGroup struct {
+		prefix   []string
+		paths    map[string][]string
+		selected int
+	}
+	groups := make(map[string]*arrayGroup)
+	paths := make(map[string][]string, len(declarations))
+	for field := range declarations {
+		path := decodeJSONPointer(field)
+		paths[field] = path
+		prefix, ok := secretArrayPrefix(path)
+		if !ok {
+			continue
+		}
+		key := strings.Join(prefix, "\x00")
+		group := groups[key]
+		if group == nil {
+			group = &arrayGroup{prefix: prefix, paths: make(map[string][]string)}
+			groups[key] = group
+		}
+		group.paths[field] = path
+		if _, ok := selectedFields[field]; ok {
+			group.selected++
+		}
+	}
+
+	groupedFields := make(map[string]struct{})
+	for _, key := range slices.Sorted(maps.Keys(groups)) {
+		group := groups[key]
+		for field := range group.paths {
+			groupedFields[field] = struct{}{}
+		}
+		switch {
+		case group.selected == 0:
+			removeSecretPath(change.Fields, group.prefix)
+			removeSecretChangedPath(change.ChangedFields, group.prefix)
+		case group.selected != len(group.paths):
+			return fmt.Errorf(
+				"write-only array field /%s must be written as a complete group; select all configured values",
+				strings.Join(group.prefix, "/"),
+			)
+		default:
+			for _, field := range slices.Sorted(maps.Keys(group.paths)) {
+				path := group.paths[field]
+				if !maskDirectSecretArrayElement(change.Fields, path) {
+					removeSecretPath(change.Fields, path)
+				}
+			}
+			removeSecretChangedPath(change.ChangedFields, group.prefix)
+		}
+	}
+
+	nonArrayPaths := make([][]string, 0, len(paths)-len(groupedFields))
+	for field, path := range paths {
+		if _, grouped := groupedFields[field]; !grouped {
+			nonArrayPaths = append(nonArrayPaths, path)
+		}
+	}
+	slices.SortFunc(nonArrayPaths, compareSecretRemovalPaths)
+	for _, path := range nonArrayPaths {
 		removeSecretPath(change.Fields, path)
 		removeSecretChangedPath(change.ChangedFields, path)
 	}
+	return nil
+}
+
+func secretArrayPrefix(segments []string) ([]string, bool) {
+	for i, segment := range segments {
+		if _, err := strconv.Atoi(segment); err == nil {
+			return slices.Clone(segments[:i]), true
+		}
+	}
+	return nil, false
+}
+
+func maskDirectSecretArrayElement(fields map[string]any, segments []string) bool {
+	var current any = fields
+	for i, segment := range segments {
+		switch typed := current.(type) {
+		case map[string]any:
+			next, ok := typed[segment]
+			if !ok {
+				return false
+			}
+			current = next
+		case []any:
+			index, err := strconv.Atoi(segment)
+			if err != nil || index < 0 || index >= len(typed) {
+				return false
+			}
+			if i == len(segments)-1 {
+				typed[index] = nil
+				return true
+			}
+			current = typed[index]
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // Array elements must be removed from the highest index down so earlier

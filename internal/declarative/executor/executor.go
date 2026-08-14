@@ -36,8 +36,9 @@ type Executor struct {
 	// planner-to-SDK request mappings.
 	payloadContracts map[string]payloadContract
 	// Track created resources during execution
-	createdResources map[string]string // changeID -> resourceID
-	cacheMu          sync.RWMutex
+	createdResources      map[string]string         // changeID -> resourceID
+	createdResourceFields map[string]map[string]any // changeID -> resolved non-secret fields
+	cacheMu               sync.RWMutex
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
@@ -206,20 +207,21 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		deckRunner = deck.NewRunner()
 	}
 	e := &Executor{
-		client:             client,
-		reporter:           reporter,
-		dryRun:             dryRun,
-		payloadContracts:   make(map[string]payloadContract),
-		createdResources:   make(map[string]string),
-		refToID:            make(map[string]map[string]string),
-		stateCache:         state.NewCache(),
-		deckRunner:         deckRunner,
-		konnectToken:       opts.KonnectToken,
-		konnectTokenSource: opts.KonnectTokenSource,
-		konnectBaseURL:     opts.KonnectBaseURL,
-		executionMode:      opts.Mode,
-		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
-		resolvedSecrets:    make(map[string]map[string]string),
+		client:                client,
+		reporter:              reporter,
+		dryRun:                dryRun,
+		payloadContracts:      make(map[string]payloadContract),
+		createdResources:      make(map[string]string),
+		createdResourceFields: make(map[string]map[string]any),
+		refToID:               make(map[string]map[string]string),
+		stateCache:            state.NewCache(),
+		deckRunner:            deckRunner,
+		konnectToken:          opts.KonnectToken,
+		konnectTokenSource:    opts.KonnectTokenSource,
+		konnectBaseURL:        opts.KonnectBaseURL,
+		executionMode:         opts.Mode,
+		planBaseDir:           strings.TrimSpace(opts.PlanBaseDir),
+		resolvedSecrets:       make(map[string]map[string]string),
 	}
 
 	e.concurrency = DefaultMaxConcurrency
@@ -926,7 +928,15 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 		return err
 	}
-	if err := e.injectResolvedSecretWrites(change); err != nil {
+	// Hydrate unresolved refs and parent IDs before capturing the resolved
+	// non-secret fields that later dependency references may need.
+	e.hydrateKnownReferenceIDs(change, plan)
+
+	resolvedReferenceChange, err := cloneChangeForExecution(change)
+	if err == nil {
+		err = e.injectResolvedSecretWrites(change)
+	}
+	if err != nil {
 		execError := ExecutionError{
 			ChangeID:     change.ID,
 			ResourceType: change.ResourceType,
@@ -948,11 +958,6 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	if resolvedName := getResourceName(change.Fields); resolvedName != "" {
 		resourceName = resolvedName
 	}
-
-	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
-	// This restores deterministic downstream ID propagation without mutating
-	// future groups concurrently.
-	e.hydrateKnownReferenceIDs(change, plan)
 
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
@@ -1066,6 +1071,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
+			if e.createdResourceFields == nil {
+				e.createdResourceFields = make(map[string]map[string]any)
+			}
+			e.createdResourceFields[change.ID] = resolvedReferenceChange.Fields
 
 			// Track by resource type and ref so resolve*Ref helpers can find IDs
 			// created during this execution without making additional API calls.
@@ -1104,7 +1113,7 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 
 	depRefs := make(map[string]createdDependencyReference, len(change.DependsOn))
 	for _, depID := range change.DependsOn {
-		createdID, ok := e.getCreatedResourceID(depID)
+		createdID, resolvedFields, ok := e.getCreatedResource(depID)
 		if !ok || createdID == "" {
 			continue
 		}
@@ -1114,10 +1123,13 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			continue
 		}
 
+		if resolvedFields == nil {
+			resolvedFields = depChange.Fields
+		}
 		depRefs[depChange.ResourceRef] = createdDependencyReference{
 			id:          createdID,
 			resourceRef: depChange.ResourceRef,
-			fields:      depChange.Fields,
+			fields:      resolvedFields,
 		}
 	}
 
@@ -1241,11 +1253,11 @@ func fieldPathValue(current any, segments []string) (any, bool) {
 	return fieldPathValue(next, segments[1:])
 }
 
-func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
+func (e *Executor) getCreatedResource(changeID string) (string, map[string]any, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	id, ok := e.createdResources[changeID]
-	return id, ok
+	return id, e.createdResourceFields[changeID], ok
 }
 
 func findPlannedChangeByID(plan *planner.Plan, changeID string) *planner.PlannedChange {

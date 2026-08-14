@@ -46,6 +46,8 @@ func TestApplySecretWriteIntentsMergesIntoOrdinaryUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
 	assert.Equal(t, "Updated", plan.Changes[0].Fields[FieldDisplayName])
+	config := plan.Changes[0].Fields[FieldDCRProviderConfig].(map[string]any)
+	assert.NotContains(t, config, FieldAPIKey)
 	require.Len(t, plan.Changes[0].SecretWrites, 1)
 }
 
@@ -216,7 +218,7 @@ func TestSecretWritePlanSerializationContainsMetadataButNoValue(t *testing.T) {
 	assert.Equal(t, plan.Changes[0].SecretWrites, roundTrip.Changes[0].SecretWrites)
 }
 
-func TestStripDeclaredSecretPathsRemovesArrayElementsWithoutNullPlaceholders(t *testing.T) {
+func TestPrepareDeclaredSecretPathsRemovesUnselectedArrayWithoutNullPlaceholders(t *testing.T) {
 	fieldsConfig := map[string]any{
 		"issuer":        "https://issuer.example.test",
 		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
@@ -236,7 +238,7 @@ func TestStripDeclaredSecretPathsRemovesArrayElementsWithoutNullPlaceholders(t *
 		"/config/client_secret/1": {},
 	}
 
-	stripDeclaredSecretPaths(&change, declarations)
+	require.NoError(t, prepareDeclaredSecretPaths(&change, declarations, nil))
 
 	assert.NotContains(t, fieldsConfig, "client_secret")
 	assert.NotContains(t, changedConfig, "client_secret")
@@ -244,6 +246,66 @@ func TestStripDeclaredSecretPathsRemovesArrayElementsWithoutNullPlaceholders(t *
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), `"client_secret":[null]`)
 	assert.NotContains(t, string(data), "__SECRET__:")
+}
+
+func TestPrepareDeclaredSecretPathsPreservesSelectedArrayShape(t *testing.T) {
+	fieldsConfig := map[string]any{
+		"client_id":     []any{"first-client", "second-client"},
+		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
+	}
+	change := PlannedChange{Fields: map[string]any{"config": fieldsConfig}}
+	declarations := map[string]resources.SecretSourceDeclaration{
+		"/config/client_secret/0": {},
+		"/config/client_secret/1": {},
+	}
+	selected := []SecretWriteIntent{
+		{Field: "/config/client_secret/0"},
+		{Field: "/config/client_secret/1"},
+	}
+
+	require.NoError(t, prepareDeclaredSecretPaths(&change, declarations, selected))
+	assert.Equal(t, []any{"first-client", "second-client"}, fieldsConfig["client_id"])
+	assert.Equal(t, []any{nil, nil}, fieldsConfig["client_secret"])
+}
+
+func TestPrepareDeclaredSecretPathsRejectsPartialArraySelection(t *testing.T) {
+	change := PlannedChange{Fields: map[string]any{"config": map[string]any{
+		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
+	}}}
+	declarations := map[string]resources.SecretSourceDeclaration{
+		"/config/client_secret/0": {},
+		"/config/client_secret/1": {},
+	}
+
+	err := prepareDeclaredSecretPaths(&change, declarations, []SecretWriteIntent{{
+		Field: "/config/client_secret/0",
+	}})
+	require.ErrorContains(t, err, "must be written as a complete group")
+}
+
+func TestApplySecretWriteIntentsOrdersSecretOnlyChangesDeterministically(t *testing.T) {
+	first := dcrSecretResourceSet(t).DCRProviders[0]
+	first.Ref = "z-provider"
+	first.Name = "z-provider"
+	second := dcrSecretResourceSet(t).DCRProviders[0]
+	second.Ref = "a-provider"
+	second.Name = "a-provider"
+	resourceSet := &resources.ResourceSet{DCRProviders: []resources.DCRProviderResource{first, second}}
+	resourceSet.AddSecretSource("z-provider", "/dcr_config/api_key", envSecretExpression("Z_API_KEY"), false)
+	resourceSet.AddSecretSource("a-provider", "/dcr_config/api_key", envSecretExpression("A_API_KEY"), false)
+
+	for range 20 {
+		plan := NewPlan("1.0", "test", PlanModeApply)
+		err := (&Planner{}).applySecretWriteIntents(
+			context.Background(), plan, resourceSet, Options{WriteSecrets: true},
+		)
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 2)
+		assert.Equal(t, "a-provider", plan.Changes[0].ResourceRef)
+		assert.Equal(t, "temp-1:u:dcr_provider:a-provider", plan.Changes[0].ID)
+		assert.Equal(t, "z-provider", plan.Changes[1].ResourceRef)
+		assert.Equal(t, "temp-2:u:dcr_provider:z-provider", plan.Changes[1].ID)
+	}
 }
 
 func TestAIGatewayConsumerCredentialAPIKeyIsExcludedFromComparison(t *testing.T) {

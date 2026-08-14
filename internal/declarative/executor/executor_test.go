@@ -667,6 +667,54 @@ func TestExecutor_hydrateKnownReferenceIDs_UsesRequestedReferenceField(t *testin
 	assert.Equal(t, "mask-sensitive-data", policies[0])
 }
 
+func TestExecutor_hydrateKnownReferenceIDs_UsesResolvedNonSecretDependencyField(t *testing.T) {
+	exec := New(nil, nil, false)
+	exec.createdResources["1:c:ai_gateway_policy:mask-sensitive-data"] = "policy-id-123"
+	exec.createdResourceFields["1:c:ai_gateway_policy:mask-sensitive-data"] = map[string]any{
+		planner.FieldName: "resolved-policy-name",
+		planner.FieldConfig: map[string]any{
+			"token": nil,
+		},
+	}
+
+	plan := &planner.Plan{
+		Changes: []planner.PlannedChange{
+			{
+				ID:           "1:c:ai_gateway_policy:mask-sensitive-data",
+				Action:       planner.ActionCreate,
+				ResourceType: planner.ResourceTypeAIGatewayPolicy,
+				ResourceRef:  "mask-sensitive-data",
+				Fields: map[string]any{
+					planner.FieldName: tags.EnvPlaceholderPrefix + "POLICY_NAME",
+				},
+			},
+			{
+				ID:           "2:c:ai_gateway_agent:booking-agent",
+				Action:       planner.ActionCreate,
+				ResourceType: planner.ResourceTypeAIGatewayAgent,
+				ResourceRef:  "booking-agent",
+				DependsOn:    []string{"1:c:ai_gateway_policy:mask-sensitive-data"},
+				Fields: map[string]any{
+					planner.FieldPolicies: []any{tags.RefPlaceholderPrefix + "mask-sensitive-data#name"},
+				},
+				References: map[string]planner.ReferenceInfo{
+					planner.FieldPolicies + ".0": {
+						Ref: tags.RefPlaceholderPrefix + "mask-sensitive-data#name",
+						ID:  resources.UnknownReferenceID,
+					},
+				},
+			},
+		},
+	}
+
+	change := &plan.Changes[1]
+	exec.hydrateKnownReferenceIDs(change, plan)
+
+	assert.Equal(t, "resolved-policy-name", change.References[planner.FieldPolicies+".0"].ID)
+	assert.Equal(t, "resolved-policy-name", change.Fields[planner.FieldPolicies].([]any)[0])
+	assert.Equal(t, tags.EnvPlaceholderPrefix+"POLICY_NAME", plan.Changes[0].Fields[planner.FieldName])
+}
+
 func TestExecutor_hydrateKnownReferenceIDs_PopulatesArrayResolvedIDs(t *testing.T) {
 	exec := New(nil, nil, false)
 	exec.createdResources["1:c:cp:member-a"] = "cp-id-a"
