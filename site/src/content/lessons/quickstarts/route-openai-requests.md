@@ -164,10 +164,10 @@ kongctl apply -f ai-gateway.yaml
 The plan creates the AI Gateway and its data plane certificate, provider, and
 model resources.
 
-## Read the connection endpoints
+## Run a local dataplane
 
-Read the gateway's configuration and telemetry endpoint hostnames into
-environment variables:
+The local dataplane needs the gateway's configuration and telemetry endpoint
+hostnames to connect to Konnect. Read them into environment variables:
 
 ```shell label="Set the configuration endpoint"
 export AIGW_CONTROL_PLANE="$(kongctl get ai-gateway \
@@ -190,7 +190,7 @@ echo "Configuration: ${AIGW_CONTROL_PLANE}"
 echo "Telemetry:     ${AIGW_TELEMETRY}"
 ```
 
-## Start the local data plane
+### Start the dataplane
 
 Start Kong AI Gateway in Docker and mount the certificate pair read-only:
 
