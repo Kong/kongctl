@@ -845,6 +845,10 @@ A runnable example is available in
 
 ## Write-only Secret Fields
 
+For a complete create, rotation, saved-plan, composition, and aggregate-write
+walkthrough, see the
+[Secrets example](examples/declarative/secrets/README.md).
+
 Some Konnect APIs accept secret values on create or update but do not return
 them from `get` or `list` responses. Common examples include:
 
@@ -902,10 +906,17 @@ kongctl plan -f config.yaml \
   --write-secret workforce-idp \
   --output-file rotation.json
 
-# Every configured, supported secret
+# Every eligible configured secret
 kongctl plan -f config.yaml --write-secrets \
   --output-file rotation.json
 ```
+
+`--write-secrets` is best-effort across the complete configuration. It writes
+every eligible configured secret and reports skipped create-only or otherwise
+ineligible fields as warnings on standard error. The warnings are also kept in
+saved plan metadata for later review. If the flag finds no writable secrets,
+the command succeeds with a warning. An exact `--write-secret` selector remains
+strict and fails if its requested field cannot be written.
 
 Selectors use `[resource-type:]resource-ref[#field]`. `plan`, `diff`, and
 direct configuration-based `apply` and `sync` accept them. A saved plan already

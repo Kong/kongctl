@@ -65,7 +65,7 @@ func TestApplySecretWriteIntentsAutomaticallyIncludesCreateSecrets(t *testing.T)
 	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
 }
 
-func TestApplySecretWriteIntentsRejectsExistingCreateOnlyCredential(t *testing.T) {
+func TestApplySecretWriteIntentsWarnsForExistingCreateOnlyCredentialWithWriteSecrets(t *testing.T) {
 	credential := resources.AIGatewayConsumerCredentialResource{
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
 	}
@@ -75,10 +75,100 @@ func TestApplySecretWriteIntentsRejectsExistingCreateOnlyCredential(t *testing.T
 	}}
 	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
 
-	err := (&Planner{}).applySecretWriteIntents(context.Background(), NewPlan("1.0", "test", PlanModeApply), resourceSet,
-		Options{WriteSecrets: true})
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	require.NoError(t, (&Planner{}).applySecretWriteIntents(
+		context.Background(), plan, resourceSet, Options{WriteSecrets: true},
+	))
+	require.Len(t, plan.Warnings, 2)
+	assert.Contains(t, plan.Warnings[0].Message, "--write-secrets skipped")
+	assert.Contains(t, plan.Warnings[0].Message, "create-only")
+	assert.Contains(t, plan.Warnings[1].Message, "did not select any writable secret fields")
+	assert.Zero(t, plan.Summary.SecretWrites)
+}
+
+func TestApplySecretWriteIntentsReportsAllUnwritableSecrets(t *testing.T) {
+	resourceSet := dcrSecretResourceSet(t)
+	first := resources.AIGatewayConsumerCredentialResource{
+		BaseResource: resources.BaseResource{Ref: "consumer-key-a"},
+	}
+	first.SetKonnectID("remote-credential-a")
+	second := resources.AIGatewayConsumerCredentialResource{
+		BaseResource: resources.BaseResource{Ref: "consumer-key-b"},
+	}
+	second.SetKonnectID("remote-credential-b")
+	resourceSet.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{first, second}
+	resourceSet.AddSecretSource("consumer-key-a", "/api_key", envSecretExpression("CONSUMER_KEY_A"), false)
+	resourceSet.AddSecretSource("consumer-key-b", "/api_key", envSecretExpression("CONSUMER_KEY_B"), false)
+	plan := NewPlan("1.0", "test", PlanModeApply)
+
+	err := (&Planner{}).applySecretWriteIntents(
+		context.Background(),
+		plan,
+		resourceSet,
+		Options{WriteSecrets: true},
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Warnings, 2)
+	assert.Contains(t, plan.Warnings[0].Message, "consumer-key-a")
+	assert.Contains(t, plan.Warnings[1].Message, "consumer-key-b")
+	require.Len(t, plan.Changes, 1)
+	assert.Equal(t, "dcr", plan.Changes[0].ResourceRef)
+	assert.Equal(t, 1, plan.Summary.SecretWrites)
+}
+
+func TestApplySecretWriteIntentsAllowsWriteSecretsWithNoConfiguredSecrets(t *testing.T) {
+	plan := NewPlan("1.0", "test", PlanModeApply)
+
+	err := (&Planner{}).applySecretWriteIntents(
+		context.Background(),
+		plan,
+		&resources.ResourceSet{},
+		Options{WriteSecrets: true},
+	)
+	require.NoError(t, err)
+	assert.Empty(t, plan.Changes)
+	assert.Zero(t, plan.Summary.SecretWrites)
+	require.Len(t, plan.Warnings, 1)
+	assert.Contains(t, plan.Warnings[0].Message, "did not select any writable secret fields")
+}
+
+func TestApplySecretWriteIntentsRejectsExplicitExistingCreateOnlyCredential(t *testing.T) {
+	credential := resources.AIGatewayConsumerCredentialResource{
+		BaseResource: resources.BaseResource{Ref: "consumer-key"},
+	}
+	credential.SetKonnectID("remote-credential-id")
+	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+		credential,
+	}}
+	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+
+	err := (&Planner{}).applySecretWriteIntents(
+		context.Background(),
+		NewPlan("1.0", "test", PlanModeApply),
+		resourceSet,
+		Options{WriteSecretSelectors: []string{"consumer-key#api_key"}},
+	)
 	require.ErrorContains(t, err, "create-only")
 	require.ErrorContains(t, err, "declare a new resource")
+}
+
+func TestApplySecretWriteIntentsExplicitSelectorRemainsStrictWithWriteSecrets(t *testing.T) {
+	credential := resources.AIGatewayConsumerCredentialResource{
+		BaseResource: resources.BaseResource{Ref: "consumer-key"},
+	}
+	credential.SetKonnectID("remote-credential-id")
+	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+		credential,
+	}}
+	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+
+	err := (&Planner{}).applySecretWriteIntents(
+		context.Background(),
+		NewPlan("1.0", "test", PlanModeApply),
+		resourceSet,
+		Options{WriteSecrets: true, WriteSecretSelectors: []string{"consumer-key#api_key"}},
+	)
+	require.ErrorContains(t, err, "create-only")
 }
 
 func TestApplySecretWriteIntentsRejectsSelectingCreateOnlyFieldDuringReplacement(t *testing.T) {
