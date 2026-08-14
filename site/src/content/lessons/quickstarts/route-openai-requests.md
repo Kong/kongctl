@@ -226,8 +226,12 @@ Allow the container a few seconds to connect, then list the gateway nodes:
 kongctl get ai-gateway nodes --gateway-name "OpenAI LLM Gateway"
 ```
 
-The output should include the new data plane node. If it does not appear,
-inspect the container logs:
+The output should include the new data plane node. If it appears, continue to
+the next step.
+
+### Troubleshoot the connection (optional)
+
+Only inspect the container logs if the data plane node does not appear:
 
 ```shell label="Inspect the data plane logs"
 docker logs openai-llm-data-plane
