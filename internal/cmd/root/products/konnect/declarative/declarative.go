@@ -90,7 +90,7 @@ func addSecretWriteFlags(command *cobra.Command) {
 	command.Flags().StringArray(writeSecretFlagName, nil,
 		"Write configured secrets selected by [resource-type:]resource-ref[#field] (repeatable)")
 	command.Flags().Bool(writeSecretsFlagName, false,
-		"Write all configured, supported write-only secrets")
+		"Write all eligible configured write-only secrets, warning when fields are skipped")
 }
 
 func secretWriteOptions(command *cobra.Command) ([]string, bool, error) {
@@ -1089,6 +1089,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
+	displayPlanWarnings(command.ErrOrStderr(), plan)
 
 	if err := normalizeDeckBaseDirs(plan, outputFile); err != nil {
 		return err
@@ -1358,6 +1359,9 @@ func runDiff(command *cobra.Command, args []string) error {
 	// Display diff based on output format
 	outputFormat, _ := command.Flags().GetString("output")
 	fullContent, _ := command.Flags().GetBool("full-content")
+	if outputFormat != textOutputFormat {
+		displayPlanWarnings(command.ErrOrStderr(), plan)
+	}
 
 	switch outputFormat {
 	case "json":
@@ -1386,16 +1390,10 @@ func runDiff(command *cobra.Command, args []string) error {
 
 func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
 	out := command.OutOrStdout()
+	displayPlanWarnings(command.ErrOrStderr(), plan)
 
 	// Handle empty plan
 	if plan.IsEmpty() {
-		if len(plan.Warnings) > 0 {
-			fmt.Fprintln(out, "Warnings:")
-			for _, warning := range plan.Warnings {
-				fmt.Fprintf(out, "  ⚠ [%s] %s\n", warning.ChangeID, warning.Message)
-			}
-			fmt.Fprintln(out)
-		}
 		fmt.Fprintln(out, "No changes detected. Konnect is up to date.")
 		return nil
 	}
@@ -1420,15 +1418,6 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 		summaryParts = append(summaryParts, fmt.Sprintf("%d secret write", plan.Summary.SecretWrites))
 	}
 	fmt.Fprintf(out, "Plan: %s\n\n", strings.Join(summaryParts, ", "))
-
-	// Display warnings if any
-	if len(plan.Warnings) > 0 {
-		fmt.Fprintln(out, "Warnings:")
-		for _, warning := range plan.Warnings {
-			fmt.Fprintf(out, "  ⚠ [%s] %s\n", warning.ChangeID, warning.Message)
-		}
-		fmt.Fprintln(out)
-	}
 
 	// Group changes by namespace
 	changesByNamespace := make(map[string][]*planner.PlannedChange)
@@ -1593,6 +1582,15 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	}
 
 	return nil
+}
+
+func displayPlanWarnings(out io.Writer, plan *planner.Plan) {
+	if plan == nil || len(plan.Warnings) == 0 {
+		return
+	}
+	for _, warning := range plan.Warnings {
+		fmt.Fprintf(out, "Warning: %s\n", warning.Message)
+	}
 }
 
 func pointerToDisplayField(pointer string) string {
@@ -2081,11 +2079,14 @@ func runApply(command *cobra.Command, args []string) error {
 	if err := validateApplyPlan(plan, planFile); err != nil {
 		return err
 	}
+	if outputFormat != textOutputFormat {
+		displayPlanWarnings(command.ErrOrStderr(), plan)
+	}
 
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
 		if outputFormat == textOutputFormat {
-			common.DisplayPlanSummary(plan, command.OutOrStderr())
+			common.DisplayPlanSummary(plan, command.ErrOrStderr())
 			return nil
 		}
 		// Use consistent output format with empty result
@@ -2101,7 +2102,7 @@ func runApply(command *cobra.Command, args []string) error {
 
 	// Show plan summary for text format (both regular and dry-run)
 	if outputFormat == textOutputFormat {
-		common.DisplayPlanSummary(plan, command.OutOrStderr())
+		common.DisplayPlanSummary(plan, command.ErrOrStderr())
 
 		// Show confirmation prompt for non-dry-run, non-auto-approve
 		if !dryRun && !autoApprove {
@@ -2950,11 +2951,14 @@ func runSync(command *cobra.Command, args []string) error {
 	if err := validateSyncPlan(plan, planFile); err != nil {
 		return err
 	}
+	if outputFormat != textOutputFormat {
+		displayPlanWarnings(command.ErrOrStderr(), plan)
+	}
 
 	// Check if plan is empty (no changes needed)
 	if plan.IsEmpty() {
 		if outputFormat == textOutputFormat {
-			common.DisplayPlanSummary(plan, command.OutOrStderr())
+			common.DisplayPlanSummary(plan, command.ErrOrStderr())
 			return nil
 		}
 		// Use consistent output format with empty result
@@ -2970,7 +2974,7 @@ func runSync(command *cobra.Command, args []string) error {
 
 	// Show plan summary for text format (both regular and dry-run)
 	if outputFormat == textOutputFormat {
-		common.DisplayPlanSummary(plan, command.OutOrStderr())
+		common.DisplayPlanSummary(plan, command.ErrOrStderr())
 
 		// Show confirmation prompt for non-dry-run, non-auto-approve
 		if !dryRun && !autoApprove {

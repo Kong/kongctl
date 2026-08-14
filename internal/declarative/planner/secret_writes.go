@@ -40,6 +40,10 @@ func (p *Planner) applySecretWriteIntents(
 	if err != nil {
 		return err
 	}
+	skipped, err := validateSecretWriteSelection(plan, rs, opts, selectors)
+	if err != nil {
+		return err
+	}
 
 	for resourceRef, declarations := range rs.SecretSources {
 		resource, ok := rs.GetResourceByRef(resourceRef)
@@ -49,15 +53,11 @@ func (p *Planner) applySecretWriteIntents(
 
 		change := findPlannedResourceChange(plan, string(resource.GetType()), resourceRef)
 		isCreate := change != nil && change.Action == ActionCreate
-		existedRemotely := resource.GetKonnectID() != ""
 		selected := make([]SecretWriteIntent, 0, len(declarations))
 		for field, declaration := range declarations {
-			capability, supported := secrets.Match(resource.GetType(), field)
-			if !supported {
-				return fmt.Errorf("resource %s %q field %s is not a supported write-only field",
-					resource.GetType(), resourceRef, field)
+			if _, skip := skipped[secretWriteTarget{resourceRef: resourceRef, field: field}]; skip {
+				continue
 			}
-
 			if declaration.DeprecatedBareEnv {
 				warningID := changeID(change)
 				if warningID == "" {
@@ -72,23 +72,6 @@ func (p *Planner) applySecretWriteIntents(
 			requested := opts.WriteSecrets || matchesSecretSelector(selectors, resource, field)
 			if !isCreate && !requested {
 				continue
-			}
-			if isCreate && !capability.Create {
-				return fmt.Errorf("resource %s %q field %s cannot be written on create",
-					resource.GetType(), resourceRef, field)
-			}
-			if isCreate && existedRemotely && requested && !capability.Update {
-				return fmt.Errorf(
-					"resource %s %q field %s is create-only and belongs to an existing resource; "+
-						"declare a new resource to rotate it",
-					resource.GetType(), resourceRef, field,
-				)
-			}
-			if !isCreate && !capability.Update {
-				return fmt.Errorf(
-					"resource %s %q field %s is create-only; declare a new resource to rotate it",
-					resource.GetType(), resourceRef, field,
-				)
 			}
 
 			selected = append(selected, SecretWriteIntent{Field: field, Expression: declaration.Expression})
@@ -139,14 +122,123 @@ func (p *Planner) applySecretWriteIntents(
 		stripDeclaredSecretPaths(change, declarations)
 	}
 
-	for _, selector := range selectors {
-		if !selector.matched {
-			return fmt.Errorf("--write-secret selector %q did not match a configured write-only field",
-				formatSecretSelector(selector))
+	plan.UpdateSummary()
+	if opts.WriteSecrets && plan.Summary.SecretWrites == 0 {
+		plan.AddWarning("", "--write-secrets did not select any writable secret fields")
+	}
+	return nil
+}
+
+type pendingSecretWriteWarning struct {
+	changeID string
+	message  string
+}
+
+type secretWriteTarget struct {
+	resourceRef string
+	field       string
+}
+
+func validateSecretWriteSelection(
+	plan *Plan,
+	rs *resources.ResourceSet,
+	opts Options,
+	selectors []*secretSelector,
+) (map[secretWriteTarget]struct{}, error) {
+	problems := make([]string, 0)
+	warnings := make([]pendingSecretWriteWarning, 0)
+	skipped := make(map[secretWriteTarget]struct{})
+	for resourceRef, declarations := range rs.SecretSources {
+		resource, ok := rs.GetResourceByRef(resourceRef)
+		if !ok {
+			problems = append(problems, fmt.Sprintf("secret source resource %q was not found", resourceRef))
+			continue
+		}
+
+		change := findPlannedResourceChange(plan, string(resource.GetType()), resourceRef)
+		isCreate := change != nil && change.Action == ActionCreate
+		existedRemotely := resource.GetKonnectID() != ""
+		for field := range declarations {
+			capability, supported := secrets.Match(resource.GetType(), field)
+			if !supported {
+				problems = append(problems, fmt.Sprintf(
+					"resource %s %q field %s is not a supported write-only field",
+					resource.GetType(), resourceRef, field,
+				))
+				continue
+			}
+
+			explicitlyRequested := matchesSecretSelector(selectors, resource, field)
+			requested := opts.WriteSecrets || explicitlyRequested
+			if !isCreate && !requested {
+				continue
+			}
+			switch {
+			case isCreate && !capability.Create:
+				problems = append(problems, fmt.Sprintf(
+					"resource %s %q field %s cannot be written on create",
+					resource.GetType(), resourceRef, field,
+				))
+			case isCreate && existedRemotely && requested && !capability.Update:
+				message := fmt.Sprintf(
+					"resource %s %q field %s is create-only and belongs to an existing resource; "+
+						"declare a new resource to rotate it",
+					resource.GetType(), resourceRef, field,
+				)
+				if opts.WriteSecrets && !explicitlyRequested {
+					skipped[secretWriteTarget{resourceRef: resourceRef, field: field}] = struct{}{}
+					warnings = append(warnings, pendingSecretWriteWarning{
+						changeID: secretWriteWarningID(change, resourceRef),
+						message:  "--write-secrets skipped " + message,
+					})
+				} else {
+					problems = append(problems, message)
+				}
+			case !isCreate && !capability.Update:
+				message := fmt.Sprintf(
+					"resource %s %q field %s is create-only; declare a new resource to rotate it",
+					resource.GetType(), resourceRef, field,
+				)
+				if opts.WriteSecrets && !explicitlyRequested {
+					skipped[secretWriteTarget{resourceRef: resourceRef, field: field}] = struct{}{}
+					warnings = append(warnings, pendingSecretWriteWarning{
+						changeID: secretWriteWarningID(change, resourceRef),
+						message:  "--write-secrets skipped " + message,
+					})
+				} else {
+					problems = append(problems, message)
+				}
+			}
 		}
 	}
-	plan.UpdateSummary()
-	return nil
+
+	for _, selector := range selectors {
+		if !selector.matched {
+			problems = append(problems, fmt.Sprintf(
+				"--write-secret selector %q did not match a configured write-only field",
+				formatSecretSelector(selector),
+			))
+		}
+	}
+	if len(problems) > 0 {
+		slices.Sort(problems)
+		return nil, fmt.Errorf("secret write selection cannot be completed:\n  - %s", strings.Join(problems, "\n  - "))
+	}
+
+	slices.SortFunc(warnings, func(a, b pendingSecretWriteWarning) int {
+		return strings.Compare(a.message, b.message)
+	})
+	for _, warning := range warnings {
+		plan.AddWarning(warning.changeID, warning.message)
+	}
+	return skipped, nil
+}
+
+func secretWriteWarningID(change *PlannedChange, resourceRef string) string {
+	if id := changeID(change); id != "" {
+		return id
+	}
+	return resourceRef
 }
 
 func parseSecretSelectors(raw []string, rs *resources.ResourceSet) ([]*secretSelector, error) {

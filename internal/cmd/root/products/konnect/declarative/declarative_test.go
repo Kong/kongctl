@@ -1123,6 +1123,21 @@ func TestDisplayTextDiff_RedactsDeferredEnvValues(t *testing.T) {
 	assert.NotContains(t, out.String(), "__ENV__:PORTAL_AUTH_STRATEGY")
 }
 
+func TestDisplayTextDiff_WritesWarningsToStderr(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddWarning("consumer-key", "--write-secrets skipped create-only field /api_key")
+
+	var stdout, stderr bytes.Buffer
+	command := &cobra.Command{}
+	command.SetOut(&stdout)
+	command.SetErr(&stderr)
+
+	err := displayTextDiff(command, plan, false)
+	require.NoError(t, err)
+	assert.NotContains(t, stdout.String(), "--write-secrets skipped")
+	assert.Contains(t, stderr.String(), "Warning: --write-secrets skipped create-only field /api_key")
+}
+
 func TestDisplayTextDiff_ShowsUnknownReferencesAsPending(t *testing.T) {
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
 	plan.AddChange(planner.PlannedChange{
