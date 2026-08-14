@@ -114,6 +114,43 @@ func TestAIGatewayVaultPlannerIgnoresWriteOnlySecretDrift(t *testing.T) {
 	require.NotContains(t, desiredPlanPayload[FieldConfig].(map[string]any), "token")
 }
 
+func TestAIGatewayVaultPlannerComparesPublicVaultReferences(t *testing.T) {
+	currentPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+			"token":       "{vault://support-secrets/old-hcv-token}",
+		},
+	}
+	desiredPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+			"token":       "{vault://support-secrets/new-hcv-token}",
+		},
+	}
+
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	currentCompare = scrubAIGatewayVaultWriteOnlyFields(currentCompare).(map[string]any)
+	desiredCompare = scrubAIGatewayVaultWriteOnlyFields(desiredCompare).(map[string]any)
+	currentPlanPayload := scrubAIGatewayVaultWriteOnlyFields(currentPayload).(map[string]any)
+	desiredPlanPayload := scrubAIGatewayVaultWriteOnlyFields(desiredPayload).(map[string]any)
+
+	changedFields := diffAIGatewayPayloads(currentPlanPayload, desiredPlanPayload, currentCompare, desiredCompare)
+	require.Contains(t, changedFields, FieldConfig)
+	require.Equal(
+		t,
+		"{vault://support-secrets/new-hcv-token}",
+		changedFields[FieldConfig].New.(map[string]any)["token"],
+	)
+}
+
 func TestAIGatewayVaultPlannerSendsWriteOnlySecretsOnObservableUpdate(t *testing.T) {
 	var currentVault kkComps.AIGatewayVault
 	require.NoError(t, json.Unmarshal([]byte(`{

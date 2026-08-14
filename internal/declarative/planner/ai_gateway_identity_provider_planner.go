@@ -411,6 +411,9 @@ func scrubAIGatewayIdentityProviderSecretFields(value any) any {
 		result := make(map[string]any, len(typed))
 		for key, val := range typed {
 			if isAIGatewayIdentityProviderSecretField(key) {
+				if references, ok := projectPublicVaultReferences(val); ok {
+					result[key] = references
+				}
 				continue
 			}
 			result[key] = scrubAIGatewayIdentityProviderSecretFields(val)

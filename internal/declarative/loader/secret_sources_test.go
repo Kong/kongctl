@@ -107,8 +107,14 @@ organization:
 }
 
 func TestLoaderAllowsPublicVaultReferenceOnReviewedSecretField(t *testing.T) {
-	const reference = "{vault://support-secrets/openai-auth-header}"
-	config := `
+	references := []string{
+		"{vault://support-secrets/openai-auth-header}",
+		"${vault['support-secrets']['openai-auth-header']}",
+	}
+
+	for _, reference := range references {
+		t.Run(reference, func(t *testing.T) {
+			config := `
 ai_gateways:
   - ref: gateway
     name: gateway
@@ -126,13 +132,54 @@ ai_gateways:
                 value: "` + reference + `"
 `
 
+			rs, err := New().LoadFile(writeLoaderTestFile(t, config))
+			require.NoError(t, err)
+			assert.Empty(t, rs.GetSecretSources("provider"))
+			auth := rs.AIGatewayProviders[0].Config["auth"].(map[string]any)
+			headers := auth["headers"].([]any)
+			header := headers[0].(map[string]any)
+			assert.Equal(t, reference, header["value"])
+		})
+	}
+}
+
+func TestLoaderPreservesVaultReferenceAlongsideDeferredArraySecret(t *testing.T) {
+	const reference = "{vault://support-secrets/primary-client-secret}"
+	config := `
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+    identity_providers:
+      - ref: provider
+        name: provider
+        type: openid-connect
+        display_name: Provider
+        config:
+          cache_tokens_salt: support-cache-salt
+          issuer: https://issuer.example.test
+          client_id:
+            - primary-client
+            - fallback-client
+          client_secret:
+            - "` + reference + `"
+            - !secret {source: !env FALLBACK_CLIENT_SECRET}
+`
+
 	rs, err := New().LoadFile(writeLoaderTestFile(t, config))
 	require.NoError(t, err)
-	assert.Empty(t, rs.GetSecretSources("provider"))
-	auth := rs.AIGatewayProviders[0].Config["auth"].(map[string]any)
-	headers := auth["headers"].([]any)
-	header := headers[0].(map[string]any)
-	assert.Equal(t, reference, header["value"])
+	declarations := rs.GetSecretSources("provider")
+	require.Len(t, declarations, 1)
+	declaration := declarations["/config/client_secret/1"]
+	require.Len(t, declaration.Expression.Parts, 1)
+	assert.Equal(t, "FALLBACK_CLIENT_SECRET", declaration.Expression.Parts[0].Source.Reference)
+
+	clientSecrets := rs.AIGatewayIdentityProviders[0].Config["client_secret"].([]any)
+	require.Len(t, clientSecrets, 2)
+	assert.Equal(t, reference, clientSecrets[0])
+	secretPlaceholder, ok := clientSecrets[1].(string)
+	require.True(t, ok)
+	assert.True(t, tags.IsSecretPlaceholder(secretPlaceholder))
 }
 
 func TestLoaderNormalizesDeprecatedBareEnvSecretWithoutResolvingIt(t *testing.T) {

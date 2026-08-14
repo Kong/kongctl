@@ -1058,7 +1058,7 @@ func portalIdentityProviderConfigDiffValue(config *kkComps.IdentityProviderConfi
 		return map[string]any{
 			FieldType:        "oidc",
 			"issuer_url":     config.OIDCIdentityProviderConfigOutput.IssuerURL,
-			"client_id":      config.OIDCIdentityProviderConfigOutput.ClientID,
+			FieldClientID:    config.OIDCIdentityProviderConfigOutput.ClientID,
 			"scopes":         config.OIDCIdentityProviderConfigOutput.Scopes,
 			"claim_mappings": config.OIDCIdentityProviderConfigOutput.ClaimMappings,
 		}
@@ -1081,7 +1081,7 @@ func portalIdentityProviderConfigDiffValueFromCreate(config *kkComps.CreateIdent
 		diffValue := map[string]any{
 			FieldType:        "oidc",
 			"issuer_url":     config.OIDCIdentityProviderConfig.IssuerURL,
-			"client_id":      config.OIDCIdentityProviderConfig.ClientID,
+			FieldClientID:    config.OIDCIdentityProviderConfig.ClientID,
 			"scopes":         config.OIDCIdentityProviderConfig.Scopes,
 			"claim_mappings": config.OIDCIdentityProviderConfig.ClaimMappings,
 		}

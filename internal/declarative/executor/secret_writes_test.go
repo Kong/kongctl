@@ -128,6 +128,41 @@ func TestAIGatewayIdentityProviderAdapterMapsInjectedClientSecrets(t *testing.T)
 	)
 }
 
+func TestAIGatewayIdentityProviderAdapterPreservesVaultReferenceBesideInjectedSecret(t *testing.T) {
+	const reference = "{vault://support-secrets/primary-client-secret}"
+	t.Setenv("FALLBACK_SECRET", "fallback")
+	plan := secretExecutionPlan(secretExecutionIntent("/config/client_secret/1", "FALLBACK_SECRET"))
+	plan.Changes[0].Fields = map[string]any{
+		planner.FieldName:        "support-oidc",
+		planner.FieldType:        "openid-connect",
+		planner.FieldDisplayName: "Support OIDC",
+		planner.FieldConfig: map[string]any{
+			"cache_tokens_salt": "support-cache-salt",
+			"client_id":         []any{"primary-client", "fallback-client"},
+			"client_secret":     []any{reference, nil},
+		},
+	}
+	executor := &Executor{}
+
+	require.NoError(t, executor.preflightSecretWrites(plan))
+	change, err := cloneChangeForExecution(&plan.Changes[0])
+	require.NoError(t, err)
+	require.NoError(t, executor.injectResolvedSecretWrites(change))
+
+	var request kkComps.UpdateAIGatewayIdentityProviderRequest
+	err = NewAIGatewayIdentityProviderAdapter(nil).MapUpdateFields(
+		t.Context(), nil, change.Fields, &request, nil,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
+	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
+	assert.Equal(
+		t,
+		[]string{reference, "fallback"},
+		request.AIGatewayIdentityProviderOpenIDConnect.Config.ClientSecret,
+	)
+}
+
 func TestResolvedSecretDoesNotReachPlanReporterOrExecutionResult(t *testing.T) {
 	const sentinel = "resolved-secret-sentinel"
 	t.Setenv("SECRET", sentinel)

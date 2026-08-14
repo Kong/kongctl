@@ -490,6 +490,36 @@ func maskDirectSecretArrayElement(fields map[string]any, segments []string) bool
 	return false
 }
 
+func projectPublicVaultReferences(value any) (any, bool) {
+	switch typed := value.(type) {
+	case string:
+		if secrets.IsVaultReference(typed) {
+			return typed, true
+		}
+	case []string:
+		projected := make([]any, len(typed))
+		found := false
+		for i, entry := range typed {
+			if secrets.IsVaultReference(entry) {
+				projected[i] = entry
+				found = true
+			}
+		}
+		return projected, found
+	case []any:
+		projected := make([]any, len(typed))
+		found := false
+		for i, entry := range typed {
+			if reference, ok := projectPublicVaultReferences(entry); ok {
+				projected[i] = reference
+				found = true
+			}
+		}
+		return projected, found
+	}
+	return nil, false
+}
+
 // Array elements must be removed from the highest index down so earlier
 // removals do not shift the indexes of fields that have not been removed yet.
 func compareSecretRemovalPaths(a, b []string) int {

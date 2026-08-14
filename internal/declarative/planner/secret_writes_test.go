@@ -268,6 +268,24 @@ func TestPrepareDeclaredSecretPathsPreservesSelectedArrayShape(t *testing.T) {
 	assert.Equal(t, []any{nil, nil}, fieldsConfig["client_secret"])
 }
 
+func TestPrepareDeclaredSecretPathsPreservesVaultReferenceSibling(t *testing.T) {
+	const reference = "{vault://support-secrets/primary-client-secret}"
+	fieldsConfig := map[string]any{
+		"client_id":     []any{"primary-client", "fallback-client"},
+		"client_secret": []any{reference, "__SECRET__:fallback"},
+	}
+	change := PlannedChange{Fields: map[string]any{"config": fieldsConfig}}
+	declarations := map[string]resources.SecretSourceDeclaration{
+		"/config/client_secret/1": {},
+	}
+
+	require.NoError(t, prepareDeclaredSecretPaths(&change, declarations, []SecretWriteIntent{{
+		Field: "/config/client_secret/1",
+	}}))
+	assert.Equal(t, []any{"primary-client", "fallback-client"}, fieldsConfig["client_id"])
+	assert.Equal(t, []any{reference, nil}, fieldsConfig["client_secret"])
+}
+
 func TestPrepareDeclaredSecretPathsRejectsPartialArraySelection(t *testing.T) {
 	change := PlannedChange{Fields: map[string]any{"config": map[string]any{
 		"client_secret": []any{"__SECRET__:first", "__SECRET__:second"},
