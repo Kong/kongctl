@@ -662,10 +662,7 @@ func findChildByName(parent *cobra.Command, name string) *cobra.Command {
 
 func findChildByNameOrAlias(parent *cobra.Command, name string) *cobra.Command {
 	for _, child := range parent.Commands() {
-		if child.Name() == name {
-			return child
-		}
-		if slices.Contains(child.Aliases, name) {
+		if child.Name() == name || slices.Contains(child.Aliases, name) {
 			return child
 		}
 	}
@@ -681,16 +678,10 @@ func syntheticOwnedBy(command *cobra.Command, extensionID string) bool {
 }
 
 func mergeAliases(command *cobra.Command, aliases []string) {
-	seen := map[string]struct{}{}
-	for _, alias := range command.Aliases {
-		seen[alias] = struct{}{}
-	}
 	for _, alias := range aliases {
-		if _, ok := seen[alias]; ok {
-			continue
+		if !slices.Contains(command.Aliases, alias) {
+			command.Aliases = append(command.Aliases, alias)
 		}
-		command.Aliases = append(command.Aliases, alias)
-		seen[alias] = struct{}{}
 	}
 }
 
