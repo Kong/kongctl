@@ -1,0 +1,24 @@
+_defaults:
+  kongctl:
+    namespace: event-gateways-bc-comprehensive-test
+
+event_gateways:
+  - ref: egw-cp-for-bc-test
+    name: egw-cp-for-bc-test
+    description: "EGW CP for Backend Cluster Test"
+    backend_clusters:
+      - ref: default-backend-cluster
+        name: default-backend-cluster
+        description: "Backend Cluster with SCRAM auth"
+        bootstrap_servers:
+          - "egw-backend-1.example.com:9094"
+          - "egw-backend-2.example.com:9095"
+        authentication:
+          type: sasl_scram
+          algorithm: sha512
+          username: ${env["scram-username"]}
+          password: ${env["scram-password"]}
+        tls:
+          enabled: true
+          tls_versions:
+            - tls13
