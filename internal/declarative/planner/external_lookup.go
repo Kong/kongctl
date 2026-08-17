@@ -758,30 +758,41 @@ func setStringFieldByPath(resource resources.Resource, path, value string) error
 		}
 	}
 
-	current := reflect.ValueOf(resource)
-	for part := range strings.SplitSeq(path, ".") {
-		for current.Kind() == reflect.Pointer {
-			if current.IsNil() {
-				return fmt.Errorf("field %s is nil", path)
-			}
-			current = current.Elem()
-		}
-		current = findSettableTaggedField(current, part)
-		if !current.IsValid() {
-			return fmt.Errorf("field %s not found", path)
-		}
-	}
-	for current.Kind() == reflect.Pointer {
-		if current.IsNil() {
-			return fmt.Errorf("field %s is nil", path)
-		}
-		current = current.Elem()
+	current, err := resolveFieldPath(resource, path)
+	if err != nil {
+		return err
 	}
 	if current.Kind() != reflect.String || !current.CanSet() {
 		return fmt.Errorf("field %s is not a settable string", path)
 	}
 	current.SetString(value)
 	return nil
+}
+
+// resolveFieldPath walks a dotted field path through a resource using the
+// yaml/json struct tags, unwrapping pointers along the way, and returns the
+// addressable value at the end of the path.
+func resolveFieldPath(resource resources.Resource, path string) (reflect.Value, error) {
+	current := reflect.ValueOf(resource)
+	for part := range strings.SplitSeq(path, ".") {
+		for current.Kind() == reflect.Pointer {
+			if current.IsNil() {
+				return reflect.Value{}, fmt.Errorf("field %s is nil", path)
+			}
+			current = current.Elem()
+		}
+		current = findSettableTaggedField(current, part)
+		if !current.IsValid() {
+			return reflect.Value{}, fmt.Errorf("field %s not found", path)
+		}
+	}
+	for current.Kind() == reflect.Pointer {
+		if current.IsNil() {
+			return reflect.Value{}, fmt.Errorf("field %s is nil", path)
+		}
+		current = current.Elem()
+	}
+	return current, nil
 }
 
 func stringFieldByPath(resource resources.Resource, path string) (string, error) {
@@ -802,24 +813,9 @@ func stringFieldByPath(resource resources.Resource, path string) (string, error)
 		}
 	}
 
-	current := reflect.ValueOf(resource)
-	for part := range strings.SplitSeq(path, ".") {
-		for current.Kind() == reflect.Pointer {
-			if current.IsNil() {
-				return "", fmt.Errorf("field %s is nil", path)
-			}
-			current = current.Elem()
-		}
-		current = findSettableTaggedField(current, part)
-		if !current.IsValid() {
-			return "", fmt.Errorf("field %s not found", path)
-		}
-	}
-	for current.Kind() == reflect.Pointer {
-		if current.IsNil() {
-			return "", fmt.Errorf("field %s is nil", path)
-		}
-		current = current.Elem()
+	current, err := resolveFieldPath(resource, path)
+	if err != nil {
+		return "", err
 	}
 	if current.Kind() != reflect.String {
 		return "", fmt.Errorf("field %s is not a string", path)
@@ -832,7 +828,7 @@ func findSettableTaggedField(value reflect.Value, name string) reflect.Value {
 		return reflect.Value{}
 	}
 	typeOfValue := value.Type()
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		fieldInfo := typeOfValue.Field(i)
 		for _, tagName := range []string{"yaml", "json"} {
 			tag := strings.Split(fieldInfo.Tag.Get(tagName), ",")[0]
@@ -841,7 +837,7 @@ func findSettableTaggedField(value reflect.Value, name string) reflect.Value {
 			}
 		}
 	}
-	for i := 0; i < value.NumField(); i++ {
+	for i := range value.NumField() {
 		fieldInfo := typeOfValue.Field(i)
 		if !fieldInfo.Anonymous {
 			continue

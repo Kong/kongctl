@@ -227,8 +227,8 @@ func runGet(id string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper) 
 	return res.GetTeamResponse(), nil
 }
 
-func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
-	cfg config.Hook, skipSystemTeams bool,
+func fetchTeams(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
+	cfg config.Hook, skipSystemTeams bool, filter *kkOps.ListTeamsQueryParamFilter,
 ) ([]kkComps.TeamResponse, error) {
 	var pageNumber int64 = 1
 	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
@@ -243,12 +243,12 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 		req := kkOps.ListTeamsRequest{
 			PageSize:   new(requestPageSize),
 			PageNumber: new(pageNumber),
+			Filter:     filter,
 		}
 
 		res, err := kkClient.ListOrganizationTeams(helper.GetContext(), req)
 		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
+			return nil, err
 		}
 
 		data := res.GetTeamCollectionResponse().Data
@@ -273,53 +273,30 @@ func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 	return allData, nil
 }
 
+func runList(kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
+	cfg config.Hook, skipSystemTeams bool,
+) ([]kkComps.TeamResponse, error) {
+	allData, err := fetchTeams(kkClient, helper, cfg, skipSystemTeams, nil)
+	if err != nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
+	}
+	return allData, nil
+}
+
 func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd.Helper,
 	cfg config.Hook, skipSystemTeams bool,
 ) ([]kkComps.TeamResponse, error) {
-	var pageNumber int64 = 1
-	requestPageSize := int64(cfg.GetInt(common.RequestPageSizeConfigPath))
-	if requestPageSize < 1 {
-		requestPageSize = int64(common.DefaultRequestPageSize)
+	filter := &kkOps.ListTeamsQueryParamFilter{
+		Name: &kkComps.LegacyStringFieldFilter{
+			Eq: new(name),
+		},
 	}
 
-	var allData []kkComps.TeamResponse
-	var totalFetched int
-
-	for {
-		req := kkOps.ListTeamsRequest{
-			PageSize:   new(requestPageSize),
-			PageNumber: new(pageNumber),
-			Filter: &kkOps.ListTeamsQueryParamFilter{
-				Name: &kkComps.LegacyStringFieldFilter{
-					Eq: new(name),
-				},
-			},
-		}
-
-		res, err := kkClient.ListOrganizationTeams(helper.GetContext(), req)
-		if err != nil {
-			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list OrganizationTeams", err, helper.GetCmd(), attrs...)
-		}
-
-		data := res.GetTeamCollectionResponse().Data
-		totalFetched += len(data)
-
-		// Filter out system teams if flag is set
-		for _, team := range data {
-			if skipSystemTeams && team.SystemTeam != nil && *team.SystemTeam {
-				continue
-			}
-			allData = append(allData, team)
-		}
-
-		totalItems := res.GetTeamCollectionResponse().Meta.Page.Total
-
-		if totalFetched >= int(totalItems) {
-			break
-		}
-
-		pageNumber++
+	allData, err := fetchTeams(kkClient, helper, cfg, skipSystemTeams, filter)
+	if err != nil {
+		attrs := cmd.TryConvertErrorToAttrs(err)
+		return nil, cmd.PrepareExecutionError("Failed to list OrganizationTeams", err, helper.GetCmd(), attrs...)
 	}
 
 	if len(allData) > 0 {
