@@ -98,6 +98,20 @@ steps:
                 name: "{{ .vars.serviceName }}"
                 display_name: "Payments Service"
 
+      - name: 005-plan-no-op-after-create
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
       - name: 003-get-service-by-id
         run:
           - get
@@ -301,6 +315,20 @@ steps:
                 custom_fields.slack_channel.name: "#payments-platform"
                 custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
                 labels."KONGCTL-protected": null
+
+      - name: 003-plan-no-op-after-update
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 005-sync-delete-catalog-service
     inputOverlayDirs:
