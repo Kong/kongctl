@@ -296,7 +296,7 @@ func runListByName(name string, kkClient helpers.OrganizationTeamAPI, helper cmd
 	allData, err := fetchTeams(kkClient, helper, cfg, skipSystemTeams, filter)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return nil, cmd.PrepareExecutionError("Failed to list OrganizationTeams", err, helper.GetCmd(), attrs...)
+		return nil, cmd.PrepareExecutionError("Failed to list Teams", err, helper.GetCmd(), attrs...)
 	}
 
 	if len(allData) > 0 {

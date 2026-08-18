@@ -741,19 +741,20 @@ func (r *externalLookupResolver) lookupEventGatewayVirtualCluster(
 
 func setStringFieldByPath(resource resources.Resource, path, value string) error {
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
-		if implementation.ServiceReference == nil {
-			return fmt.Errorf("service is not configured")
-		}
-		service := implementation.ServiceReference.GetService()
-		if service == nil {
-			return fmt.Errorf("service is not configured")
-		}
 		switch path {
-		case "service.id":
-			service.ID = value
-			return nil
-		case "service.control_plane_id":
-			service.ControlPlaneID = value
+		case "service.id", "service.control_plane_id":
+			if implementation.ServiceReference == nil {
+				return fmt.Errorf("service is not configured")
+			}
+			service := implementation.ServiceReference.GetService()
+			if service == nil {
+				return fmt.Errorf("service is not configured")
+			}
+			if path == "service.id" {
+				service.ID = value
+			} else {
+				service.ControlPlaneID = value
+			}
 			return nil
 		}
 	}
@@ -798,17 +799,14 @@ func resolveFieldPath(resource resources.Resource, path string) (reflect.Value, 
 func stringFieldByPath(resource resources.Resource, path string) (string, error) {
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
 		switch path {
-		case "service.id":
+		case "service.id", "service.control_plane_id":
 			if implementation.ServiceReference == nil || implementation.ServiceReference.GetService() == nil {
 				return "", nil
 			}
 			service := implementation.ServiceReference.GetService()
-			return service.ID, nil
-		case "service.control_plane_id":
-			if implementation.ServiceReference == nil || implementation.ServiceReference.GetService() == nil {
-				return "", nil
+			if path == "service.id" {
+				return service.ID, nil
 			}
-			service := implementation.ServiceReference.GetService()
 			return service.ControlPlaneID, nil
 		}
 	}
@@ -831,7 +829,7 @@ func findSettableTaggedField(value reflect.Value, name string) reflect.Value {
 	for i := range value.NumField() {
 		fieldInfo := typeOfValue.Field(i)
 		for _, tagName := range []string{"yaml", "json"} {
-			tag := strings.Split(fieldInfo.Tag.Get(tagName), ",")[0]
+			tag, _, _ := strings.Cut(fieldInfo.Tag.Get(tagName), ",")
 			if tag == name {
 				return value.Field(i)
 			}
