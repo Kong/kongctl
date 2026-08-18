@@ -123,6 +123,7 @@ steps:
               fields:
                 total_changes: 5
                 by_action.CREATE: 5
+                secret_writes: 4
           - select: >-
               length(changes[?resource_type=='ai_gateway_model_provider'])
             expect:
@@ -137,6 +138,9 @@ steps:
                 fields.type: bedrock
                 fields.config.auth.type: aws
                 fields.config.auth.access_key_id: fake-access-key-id
+                secret_writes[0].field: /config/auth/secret_access_key
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_PROVIDER_BEDROCK_SECRET
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-azure'] | [0]
             expect:
@@ -146,6 +150,9 @@ steps:
                 fields.type: azure
                 fields.config.instance: support-openai-resource
                 fields.config.auth.params[0].value: "2024-06-01"
+                secret_writes[0].field: /config/auth/headers/0/value
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-gemini'] | [0]
             expect:
@@ -154,6 +161,9 @@ steps:
                 fields.name: support-gemini
                 fields.type: gemini
                 fields.config.auth.headers[0].name: x-goog-api-key
+                secret_writes[0].field: /config/auth/headers/0/value
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_PROVIDER_GEMINI_KEY
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-openai'] | [0]
             expect:
@@ -162,6 +172,10 @@ steps:
                 fields.name: support-openai
                 fields.type: openai
                 fields.config.auth.headers[0].name: Authorization
+                secret_writes[0].field: /config/auth/headers/0/value
+                secret_writes[0].expression.parts[0].literal: "Bearer "
+                secret_writes[0].expression.parts[1].source.kind: env
+                secret_writes[0].expression.parts[1].source.reference: KONGCTL_E2E_MODEL_PROVIDER_OPENAI_KEY
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -258,7 +272,96 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
-  - name: 004-plan-apply-update
+  - name: 004-write-selected-secret
+    commands:
+      - name: 000-plan-selected-secret-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-selected-secret.json"
+        env:
+          KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY: ""
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secret
+          - "support-azure#config.auth.headers[].value"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                secret_writes: 1
+          - select: >-
+              changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-azure'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                secret_writes[0].field: /config/auth/headers/0/value
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY
+      - name: 001-apply-selected-secret-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-selected-secret.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+  - name: 005-write-all-declared-secrets
+    commands:
+      - name: 000-plan-all-secret-updates
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-all-secrets.json"
+        env:
+          KONGCTL_E2E_MODEL_PROVIDER_BEDROCK_SECRET: ""
+          KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY: ""
+          KONGCTL_E2E_MODEL_PROVIDER_GEMINI_KEY: ""
+          KONGCTL_E2E_MODEL_PROVIDER_OPENAI_KEY: ""
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secrets
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.UPDATE: 4
+                secret_writes: 4
+          - select: >-
+              length(changes[?resource_type=='ai_gateway_model_provider' && secret_writes])
+            expect:
+              fields:
+                "@": 4
+      - name: 001-apply-all-secret-updates
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-all-secrets.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+
+  - name: 006-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update
     commands:
@@ -271,12 +374,15 @@ steps:
           - "{{ .workdir }}/config.yaml"
           - --mode
           - apply
+          - --write-secret
+          - "support-azure#config.auth.headers[].value"
         assertions:
           - select: summary
             expect:
               fields:
                 total_changes: 1
                 by_action.UPDATE: 1
+                secret_writes: 1
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='{{ .vars.azure_provider_ref }}'] | [0]
             expect:
@@ -286,6 +392,7 @@ steps:
                 fields.display_name: "{{ .vars.azure_provider_updated_display_name }}"
                 fields.labels.team: platform
                 fields.config.auth.params[0].value: "2024-10-01-preview"
+                secret_writes[0].field: /config/auth/headers/0/value
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -331,7 +438,7 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
-  - name: 005-dump-round-trip
+  - name: 007-dump-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-ai-gateway-with-model-providers
@@ -381,7 +488,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 006-sync-delete-model-providers
+  - name: 008-sync-delete-model-providers
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:

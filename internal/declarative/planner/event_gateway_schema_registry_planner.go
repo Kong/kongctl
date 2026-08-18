@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -299,7 +300,8 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 	}
 
 	// Compare config fields using RawConfig (SDK Config struct is opaque/empty).
-	// password is write-only and is never returned by the API, so it is skipped.
+	// Plaintext passwords are omitted from reads, while public vault references are
+	// returned and can participate in normal desired-state comparison.
 	desiredConf := conf.Config
 	currentSchemaType, _ := current.RawConfig["schema_type"].(string)
 	if currentSchemaType != string(desiredConf.SchemaType) {
@@ -336,6 +338,16 @@ func (p *Planner) shouldUpdateSchemaRegistry(
 			currentUsername, _ := currentAuth["username"].(string)
 			if currentUsername != desiredAuth.Username {
 				changes["config.authentication.username"] = FieldChange{Old: currentUsername, New: desiredAuth.Username}
+			}
+
+			if desiredPassword := desiredAuth.Password; secrets.IsVaultReference(desiredPassword) {
+				currentPassword, _ := currentAuth["password"].(string)
+				if currentPassword != desiredPassword {
+					changes["config.authentication.password"] = FieldChange{
+						Old: currentPassword,
+						New: desiredPassword,
+					}
+				}
 			}
 		} else {
 			changes["config.authentication"] = FieldChange{Old: nil, New: desiredConf.Authentication}
