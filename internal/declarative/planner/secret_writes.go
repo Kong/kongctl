@@ -351,6 +351,15 @@ func changeID(change *PlannedChange) string {
 }
 
 func secretResourceFields(resource resources.Resource) (map[string]any, error) {
+	if credential, ok := resource.(*resources.AIGatewayConsumerCredentialResource); ok {
+		fields, err := credential.MutablePayloadMap()
+		if err != nil {
+			return nil, fmt.Errorf("failed to build secret write context for %s %q: %w",
+				resource.GetType(), resource.GetRef(), err)
+		}
+		return fields, nil
+	}
+
 	data, err := json.Marshal(resource)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build secret write context for %s %q: %w",

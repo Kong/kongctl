@@ -40,6 +40,7 @@ ai_gateways:
           - ref: support-agent-key
             name: support-agent-key
             type: api-key
+            api_key: !secret {source: !env KONGCTL_E2E_AI_GATEWAY_CONSUMER_API_KEY}
             display_name: "Support Agent API Key"
             ttl: 0
             labels:

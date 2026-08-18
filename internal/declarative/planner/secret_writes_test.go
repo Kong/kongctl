@@ -67,6 +67,48 @@ func TestApplySecretWriteIntentsAutomaticallyIncludesCreateSecrets(t *testing.T)
 	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
 }
 
+func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t *testing.T) {
+	placeholder, err := tags.BuildSecretPlaceholder(envSecretExpression("CONSUMER_API_KEY"))
+	require.NoError(t, err)
+	ttl := int64(0)
+	credential := resources.AIGatewayConsumerCredentialResource{
+		BaseResource:      resources.BaseResource{Ref: "consumer-key"},
+		AIGatewayConsumer: "consumer",
+		CreateAIGatewayConsumerCredentialRequest: kkComps.CreateAIGatewayConsumerCredentialRequest{
+			Name:        "consumer-key",
+			DisplayName: "Consumer key",
+			Type:        kkComps.CreateAIGatewayConsumerCredentialRequestTypeAPIKey,
+			TTL:         &ttl,
+			APIKey:      &placeholder,
+		},
+	}
+	resourceSet := &resources.ResourceSet{
+		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{credential},
+	}
+	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_API_KEY"), false)
+	fields, err := credential.MutablePayloadMap()
+	require.NoError(t, err)
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	plan.AddChange(PlannedChange{
+		ID:           "1:create:ai_gateway_consumer_credential:consumer-key",
+		ResourceType: string(resources.ResourceTypeAIGatewayConsumerCredential),
+		ResourceRef:  "consumer-key",
+		Action:       ActionCreate,
+		Fields:       fields,
+		Namespace:    DefaultNamespace,
+	})
+
+	require.NoError(t, (&Planner{}).applySecretWriteIntents(context.Background(), plan, resourceSet, Options{}))
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	assert.NotContains(t, change.Fields, resources.SchemaFieldAIGatewayConsumer)
+	assert.Equal(t, "consumer-key", change.Fields[FieldName])
+	assert.Equal(t, "Consumer key", change.Fields[FieldDisplayName])
+	assert.NotContains(t, change.Fields, FieldAPIKey)
+	require.Len(t, change.SecretWrites, 1)
+	assert.Equal(t, "/api_key", change.SecretWrites[0].Field)
+}
+
 func TestApplySecretWriteIntentsWarnsForExistingCreateOnlyCredentialWithWriteSecrets(t *testing.T) {
 	credential := resources.AIGatewayConsumerCredentialResource{
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
