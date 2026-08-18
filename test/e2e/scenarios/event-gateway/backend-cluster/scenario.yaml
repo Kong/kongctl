@@ -249,6 +249,73 @@ steps:
                 tls.tls_versions:
                   - "tls12"
                   - "tls13"
+  - name: 003-plan-update-to-sasl-scram
+    inputOverlayDirs:
+      - overlays/002-update-to-sasl-scram
+    commands:
+      - name: 001-plan-scram-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-scram-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_backend_cluster' && resource_ref=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.bcRef }}"
+      - name: 002-apply-scram-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-scram-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-scram-update
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                authentication.type: sasl_scram
+                authentication.algorithm: sha512
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 004-update-tls-fields
     inputOverlayDirs:
       - overlays/003-update-tls-fields
