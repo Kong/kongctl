@@ -745,44 +745,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-mcp-servers
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_mcp_servers"
-          - "--filter-name={{ .vars.server_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_mcp_servers[0]"
-            expect:
-              fields:
-                name: "{{ .vars.server_name }}"
-          - select: "ai_gateway_mcp_servers[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
-      - name: 003-dump-root-identity-providers
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_identity_providers"
-          - "--filter-name={{ .vars.identity_provider_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_identity_providers[0]"
-            expect:
-              fields:
-                name: "{{ .vars.identity_provider_name }}"
-                display_name: "{{ .vars.identity_provider_display_name }}"
-                type: key-auth
-          - select: "ai_gateway_identity_providers[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 006-apply-root-listener-by-id-lookup
     skipInputs: true

@@ -376,27 +376,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-model-providers
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_model_providers"
-          - "--filter-name={{ .vars.azure_provider_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_model_providers[0]"
-            expect:
-              fields:
-                name: "{{ .vars.azure_provider_name }}"
-                type: azure
-                display_name: "{{ .vars.azure_provider_updated_display_name }}"
-                config.instance: support-openai-resource
-          - select: "ai_gateway_model_providers[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 006-sync-delete-model-providers
     inputOverlayDirs:

@@ -289,26 +289,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-vaults
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_vaults"
-          - "--filter-name={{ .vars.vault_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_vaults[0]"
-            expect:
-              fields:
-                name: "{{ .vars.vault_name }}"
-                type: env
-                config.prefix: SUPPORT_UPDATED_
-          - select: "ai_gateway_vaults[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-vault
     inputOverlayDirs:

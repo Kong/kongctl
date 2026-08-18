@@ -313,26 +313,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-agents
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_agents"
-          - "--filter-name={{ .vars.agent_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_agents[0]"
-            expect:
-              fields:
-                name: "{{ .vars.agent_name }}"
-                type: a2a
-                display_name: "{{ .vars.agent_updated_display_name }}"
-          - select: "ai_gateway_agents[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-agent
     inputOverlayDirs:

@@ -262,6 +262,27 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
+      - name: 009-dump-filtered-gateway-with-models
+        skipInputs: true
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateways
+          - "--filter-name={{ .vars.gateway_ref }}"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: ai_gateways
+            expect:
+              fields:
+                "length(@)": 1
+          - select: >-
+              ai_gateways[0].models[?name=='{{ .vars.model_name }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.model_name }}"
+                display_name: "Support GPT"
 
   - name: 002-sync-delete
     inputOverlayDirs:

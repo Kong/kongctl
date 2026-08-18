@@ -291,25 +291,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-data-plane-certificates
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_data_plane_certificates"
-          - "--filter-name={{ .vars.cert_title }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_data_plane_certificates[0]"
-            expect:
-              fields:
-                title: "{{ .vars.cert_title }}"
-                description: "{{ .vars.cert_rotated_description }}"
-          - select: "ai_gateway_data_plane_certificates[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-certificate
     inputOverlayDirs:

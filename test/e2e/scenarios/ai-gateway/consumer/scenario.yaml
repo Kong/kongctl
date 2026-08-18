@@ -451,48 +451,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-consumers
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_consumers"
-          - "--filter-name={{ .vars.consumer_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_consumers[0]"
-            expect:
-              fields:
-                name: "{{ .vars.consumer_name }}"
-                type: api-key
-                display_name: "{{ .vars.consumer_updated_display_name }}"
-          - select: "ai_gateway_consumers[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
-      - name: 003-dump-root-consumer-credentials
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_consumer_credentials"
-          - "--filter-name={{ .vars.credential_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_consumer_credentials[0]"
-            expect:
-              fields:
-                name: "{{ .vars.credential_name }}"
-                type: api-key
-                display_name: "{{ .vars.credential_display_name }}"
-                labels.phase: create
-                "api_key == null": true
-          - select: "ai_gateway_consumer_credentials[0].ai_gateway_consumer != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-credential
     inputOverlayDirs:

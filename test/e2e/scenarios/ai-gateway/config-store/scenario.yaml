@@ -154,16 +154,18 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
-      - name: 003-dump-root
+      - name: 003-dump-ai-gateway-with-children
         skipInputs: true
         run:
           - dump
           - declarative
-          - --resources=ai_gateway_config_stores
+          - --resources=ai_gateways
+          - --include-child-resources
         outputFormat: none
         parseAs: yaml
         assertions:
-          - select: "ai_gateway_config_stores[?name=='{{ .vars.store_name }}'] | [0]"
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].config_stores[?name=='{{ .vars.store_name }}'] | [0]
             expect:
               fields:
                 name: "{{ .vars.store_name }}"
