@@ -320,25 +320,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-consumer-groups
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_consumer_groups"
-          - "--filter-name={{ .vars.consumer_group_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_consumer_groups[0]"
-            expect:
-              fields:
-                name: "{{ .vars.consumer_group_name }}"
-                display_name: "{{ .vars.consumer_group_updated_display_name }}"
-          - select: "ai_gateway_consumer_groups[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-consumer-group
     inputOverlayDirs:

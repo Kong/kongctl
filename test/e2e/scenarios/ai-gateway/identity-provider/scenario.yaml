@@ -346,26 +346,6 @@ steps:
             expect:
               fields:
                 total_changes: 0
-      - name: 002-dump-root-identity-providers
-        run:
-          - dump
-          - declarative
-          - "--resources=ai_gateway_identity_providers"
-          - "--filter-name={{ .vars.identity_provider_name }}"
-          - "--default-namespace={{ .vars.namespace }}"
-        outputFormat: none
-        parseAs: yaml
-        assertions:
-          - select: "ai_gateway_identity_providers[0]"
-            expect:
-              fields:
-                name: "{{ .vars.identity_provider_name }}"
-                type: key-auth
-                config.key_names[1]: apikey
-          - select: "ai_gateway_identity_providers[0].ai_gateway != ''"
-            expect:
-              fields:
-                "@": true
 
   - name: 005-sync-delete-identity-provider
     inputOverlayDirs:

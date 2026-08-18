@@ -786,7 +786,7 @@ func TestFilterOptionsHasFilter(t *testing.T) {
 	}
 }
 
-func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testing.T) {
+func TestNormalizeResourceListMapsSupportedAliases(t *testing.T) {
 	tests := []struct {
 		input string
 		want  []string
@@ -799,9 +799,6 @@ func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testi
 		{input: "ai-gateway", want: []string{"ai_gateways"}},
 		{input: "ai-gateways", want: []string{"ai_gateways"}},
 		{input: "aigw", want: []string{"ai_gateways"}},
-		{input: "ai-gateway-model-provider", want: []string{"ai_gateway_model_providers"}},
-		{input: "ai_gateway_model_provider", want: []string{"ai_gateway_model_providers"}},
-		{input: "ai_gateway_model_providers", want: []string{"ai_gateway_model_providers"}},
 		{input: "ai_gateways,analytics.dashboards", want: []string{"ai_gateways", "analytics.dashboards"}},
 	}
 
@@ -813,6 +810,70 @@ func TestNormalizeResourceListMapsDashboardAliasesToAnalyticsDashboards(t *testi
 			}
 			if strings.Join(got, ",") != strings.Join(tt.want, ",") {
 				t.Fatalf("expected %v, got %v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestNormalizeResourceListRejectsAIGatewayChildren(t *testing.T) {
+	resources := []string{
+		"ai-gateway-model-provider",
+		"ai-gateway-model-providers",
+		"ai_gateway_model_provider",
+		"ai_gateway_model_providers",
+		"ai-gateway-identity-provider",
+		"ai-gateway-identity-providers",
+		"ai_gateway_identity_provider",
+		"ai_gateway_identity_providers",
+		"ai-gateway-policy",
+		"ai-gateway-policies",
+		"ai_gateway_policy",
+		"ai_gateway_policies",
+		"ai-gateway-agent",
+		"ai-gateway-agents",
+		"ai_gateway_agent",
+		"ai_gateway_agents",
+		"ai-gateway-consumer",
+		"ai-gateway-consumers",
+		"ai_gateway_consumer",
+		"ai_gateway_consumers",
+		"ai-gateway-consumer-credential",
+		"ai-gateway-consumer-credentials",
+		"ai_gateway_consumer_credential",
+		"ai_gateway_consumer_credentials",
+		"ai-gateway-consumer-group",
+		"ai-gateway-consumer-groups",
+		"ai_gateway_consumer_group",
+		"ai_gateway_consumer_groups",
+		"ai-gateway-model",
+		"ai-gateway-models",
+		"ai_gateway_model",
+		"ai_gateway_models",
+		"ai-gateway-mcp-server",
+		"ai-gateway-mcp-servers",
+		"ai_gateway_mcp_server",
+		"ai_gateway_mcp_servers",
+		"ai-gateway-config-store",
+		"ai-gateway-config-stores",
+		"ai_gateway_config_store",
+		"ai_gateway_config_stores",
+		"aigw-config-store",
+		"ai-gateway-vault",
+		"ai-gateway-vaults",
+		"ai_gateway_vault",
+		"ai_gateway_vaults",
+		"ai-gateway-data-plane-certificate",
+		"ai-gateway-data-plane-certificates",
+		"ai_gateway_data_plane_certificate",
+		"ai_gateway_data_plane_certificates",
+		"aigw-dpc",
+		"aigw-dpcs",
+	}
+
+	for _, resource := range resources {
+		t.Run(resource, func(t *testing.T) {
+			if _, err := normalizeResourceList(resource, declarativeAllowedResources); err == nil {
+				t.Fatalf("expected %q to be rejected", resource)
 			}
 		})
 	}
