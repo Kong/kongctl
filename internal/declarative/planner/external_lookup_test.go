@@ -329,3 +329,17 @@ func nestedEnvExternalPlaceholder(t *testing.T, tag string, variable string) str
 	require.True(t, strings.HasPrefix(placeholder, tags.ExternalPlaceholderPrefix))
 	return placeholder
 }
+
+func TestSetStringFieldByPathScopesServiceCheckToServicePaths(t *testing.T) {
+	t.Parallel()
+
+	// A service path on an implementation without a configured service still errors.
+	svcErr := setStringFieldByPath(&resources.APIImplementationResource{}, "service.id", "svc")
+	require.ErrorContains(t, svcErr, "service is not configured")
+
+	// A non-service path falls through to field resolution instead of reporting
+	// the service as unconfigured.
+	otherErr := setStringFieldByPath(&resources.APIImplementationResource{}, "missing", "v")
+	require.Error(t, otherErr)
+	require.NotContains(t, otherErr.Error(), "service is not configured")
+}
