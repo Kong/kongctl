@@ -87,6 +87,11 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.bcRef }}"
+                description: "Backend Cluster for Dump Test"
+                "bootstrap_servers[0]": "egw-backend-1.example.com:9092"
+                "length(bootstrap_servers)": 2
+                authentication.type: anonymous
+                tls.enabled: true
           - name: dataplane-certificate-present
             select: >-
               event_gateways[?name=='{{ .vars.egwName }}'] | [0].data_plane_certificates[?name=='{{ .vars.dataplaneCertName }}'] | [0]
