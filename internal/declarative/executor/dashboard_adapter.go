@@ -69,9 +69,6 @@ func (a *DashboardAdapter) MapUpdateLabels(
 		execCtx.Namespace,
 		execCtx.Protection,
 	)
-	if update.Labels == nil {
-		update.Labels = make(map[string]string)
-	}
 }
 
 func (a *DashboardAdapter) Create(

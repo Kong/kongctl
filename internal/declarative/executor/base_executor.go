@@ -53,6 +53,15 @@ type ManagedLabelResourceOperations[TCreate any, TUpdate any] interface {
 	ManagedLabelOperations[TUpdate]
 }
 
+func mapPointerUpdateLabels(
+	destination *map[string]*string,
+	execCtx *ExecutionContext,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	*destination = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
+}
+
 // ResourceInfo provides common resource information
 type ResourceInfo interface {
 	GetID() string

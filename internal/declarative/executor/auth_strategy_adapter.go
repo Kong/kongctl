@@ -105,7 +105,7 @@ func (a *AuthStrategyAdapter) MapUpdateLabels(
 	desiredLabels map[string]string,
 	currentLabels map[string]string,
 ) {
-	update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
+	mapPointerUpdateLabels(&update.Labels, execCtx, desiredLabels, currentLabels)
 }
 
 // Create creates a new auth strategy

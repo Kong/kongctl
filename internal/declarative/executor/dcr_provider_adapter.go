@@ -90,7 +90,7 @@ func (a *DCRProviderAdapter) MapUpdateLabels(
 	desiredLabels map[string]string,
 	currentLabels map[string]string,
 ) {
-	update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
+	mapPointerUpdateLabels(&update.Labels, execCtx, desiredLabels, currentLabels)
 }
 
 func (a *DCRProviderAdapter) Create(ctx context.Context, req kkComps.CreateDcrProviderRequest,
