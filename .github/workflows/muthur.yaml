@@ -35,6 +35,14 @@ jobs:
           permission-contents: read
           permission-members: read
 
+      # The composite checks the PR head out at the workspace root. Initialize that root as a Git
+      # repository first so checkout updates it in place instead of deleting the nested KSAI action.
+      - name: Checkout trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
       - name: Checkout ksai action
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
