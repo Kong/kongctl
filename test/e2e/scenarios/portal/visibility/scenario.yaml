@@ -310,6 +310,37 @@ steps:
             expect:
               fields:
                 total_changes: 0
+      - name: 002-dump-portal-with-children
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - "--filter-name={{ .vars.portalName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-portal.yaml"
+        assertions:
+          - select: "portals[?name=='{{ .vars.portalName }}'] | [0]"
+            expect:
+              fields:
+                auto_approve_applications: true
+                default_api_visibility: "private"
+                authentication_enabled: false
+                rbac_enabled: false
+      - name: 003-plan-from-portal-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-portal.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 006-delete-cleanup
     commands:
