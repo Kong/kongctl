@@ -1,0 +1,59 @@
+name: Agentic Reviewer
+
+concurrency:
+  group: agentic-review-${{ github.actor_id }}-${{ github.event.issue.number }}-${{ github.event.comment.id }}
+  cancel-in-progress: false
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  muthur:
+    if: >-
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/muthur')
+    name: Muthur review bot trigger
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Generate Kong token
+        id: app-token-kong
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: |
+            kongctl
+            ksai
+          permission-contents: read
+          permission-members: read
+
+      - name: Checkout ksai action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.app-token-kong.outputs.token }}
+          ref: e8ca95d97d39229af2588c08937ab6f56b4ac316 # ai-reviewer-federated/v1.13.0
+          path: ./.github/actions/ksai
+          sparse-checkout: .github/actions/ai-reviewer-federated
+          persist-credentials: false
+
+      - name: Run agentic reviewer
+        uses: ./.github/actions/ksai/.github/actions/ai-reviewer-federated
+        with:
+          trigger_phrase: "/muthur"
+          authorization_github_token: ${{ steps.app-token-kong.outputs.token }}
+          source_org_github_token: ${{ github.token }}
+          federation_rule_id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+          organization_id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+          service_account_id: svac_017oc62PsXm82aqHWzHYgjfM
+          workspace_id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+          kong_org_github_token: ${{ steps.app-token-kong.outputs.token }}
+          ksai_ref: e8ca95d97d39229af2588c08937ab6f56b4ac316
