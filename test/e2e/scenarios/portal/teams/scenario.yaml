@@ -165,7 +165,37 @@ steps:
     inputOverlayDirs:
       - overlays/002-update-team
     commands:
-      - name: 000-plan-update
+      - name: 000-diff-update
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_team' &&
+                       resource_ref=='{{ .vars.backendTeamRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.backendTeamRef }}"
+          - select: >-
+              changes[?resource_type=='portal_team' &&
+                       resource_ref=='{{ .vars.backendTeamRef }}'] | [0].changed_fields.description
+            expect:
+              fields:
+                old: "Backend developers working on APIs"
+                new: "Updated: Backend API developers"
+
+      - name: 001-plan-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
         env:
@@ -192,7 +222,7 @@ steps:
                 resource_ref: "{{ .vars.backendTeamRef }}"
                 fields.description: "Updated: Backend API developers"
 
-      - name: 001-apply-update
+      - name: 002-apply-update
         outputFormat: json
         env:
           KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
@@ -209,7 +239,7 @@ steps:
                 applied: 1
                 failed: 0
 
-      - name: 002-verify-team-updated
+      - name: 003-verify-team-updated
         env:
           KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
           KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
@@ -233,6 +263,25 @@ steps:
             expect:
               fields:
                 description: "Frontend developers building UIs"
+
+      - name: 004-diff-no-changes
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='portal_team']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 003-sync-delete-team
     inputOverlayDirs:
