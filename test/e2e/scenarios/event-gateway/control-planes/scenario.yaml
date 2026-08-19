@@ -81,7 +81,24 @@ steps:
             expect:
               fields:
                 "@": "Initial description for My Event Gateway CP"
-  - name: 002-apply-update
+
+  - name: 002-plan-create-idempotency
+    commands:
+      - name: 000-plan-create-idempotency
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/event-gateways.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-apply-update
     inputOverlayDirs:
       - overlays/002-update-fields
     commands:
@@ -121,7 +138,49 @@ steps:
                 labels.owner: "platform-eng"
                 labels.lifecycle: "production"
                 labels."KONGCTL-namespace": "event-gateways-comprehensive"
-  - name: 003-sync-delete
+
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name=My Event Gateway CP"
+          - "--default-namespace=event-gateways-comprehensive"
+        assertions:
+          - select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: event-gateways-comprehensive
+          - select: "event_gateways[?name=='My Event Gateway CP'] | [0]"
+            expect:
+              fields:
+                name: "My Event Gateway CP"
+                description: "Updated description for My Event Gateway CP"
+                labels.owner: "platform-eng"
+                labels.lifecycle: "production"
+
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/003-sync-delete
     commands:
