@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"reflect"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -166,18 +167,12 @@ func verifyStringManagedLabels[T any](
 func assertAllProtectableResourcesCovered(t *testing.T, covered map[resources.ResourceType]bool) {
 	t.Helper()
 
-	resourceSet := resources.ResourceSet{
-		Portals:                   []resources.PortalResource{{}},
-		APIs:                      []resources.APIResource{{}},
-		CatalogServices:           []resources.CatalogServiceResource{{}},
-		AIGateways:                []resources.AIGatewayResource{{}},
-		Dashboards:                []resources.DashboardResource{{}},
-		EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{{}},
-		ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{{}},
-		DCRProviders:              []resources.DCRProviderResource{{}},
-		ControlPlanes:             []resources.ControlPlaneResource{{}},
-		OrganizationTeams:         []resources.OrganizationTeamResource{{}},
-	}
+	resourceSet := resources.ResourceSet{}
+	populateStructSlices(&resourceSet)
+	resourceSet.Analytics = &resources.AnalyticsResource{}
+	populateStructSlices(resourceSet.Analytics)
+	resourceSet.Organization = &resources.OrganizationResource{}
+	populateStructSlices(resourceSet.Organization)
 
 	protectable := make(map[resources.ResourceType]bool)
 	err := resourceSet.ForEachNamespaceParticipant(func(participant resources.NamespaceParticipant) error {
@@ -188,4 +183,14 @@ func assertAllProtectableResourcesCovered(t *testing.T, covered map[resources.Re
 	})
 	require.NoError(t, err)
 	assert.Equal(t, protectable, covered)
+}
+
+func populateStructSlices(target any) {
+	value := reflect.ValueOf(target).Elem()
+	for i := range value.NumField() {
+		field := value.Field(i)
+		if field.CanSet() && field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Struct {
+			field.Set(reflect.MakeSlice(field.Type(), 1, 1))
+		}
+	}
 }

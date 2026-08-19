@@ -918,13 +918,10 @@ func (a *FooAdapter) MapCreateFields(
 }
 
 func (a *FooAdapter) MapUpdateFields(
-    _ context.Context, execCtx *ExecutionContext,
+    _ context.Context, _ *ExecutionContext,
     fields map[string]any, update *components.UpdateFooRequest,
-    currentLabels map[string]string,
+    _ map[string]string,
 ) error {
-    namespace := execCtx.Namespace
-    protection := execCtx.Protection
-
     // Only include changed fields
     for field, value := range fields {
         switch field {
@@ -939,26 +936,18 @@ func (a *FooAdapter) MapUpdateFields(
         }
     }
 
-    // Handle labels
-    desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-    if desiredLabels != nil {
-        plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-        if plannerCurrentLabels != nil {
-            currentLabels = plannerCurrentLabels
-        }
-
-        labelsMap := labels.BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
-
-        // Convert to SDK format
-        update.Labels = labels.ConvertStringMapToPointerMap(labelsMap)
-        // OR: update.Labels = labelsMap
-    } else if currentLabels != nil {
-        // No label changes, preserve with updated protection
-        labelsMap := labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
-        update.Labels = labels.ConvertStringMapToPointerMap(labelsMap)
-    }
-
     return nil
+}
+
+func (a *FooAdapter) MapUpdateLabels(
+    execCtx *ExecutionContext,
+    update *components.UpdateFooRequest,
+    desiredLabels map[string]string,
+    currentLabels map[string]string,
+) {
+    mapPointerUpdateLabels(
+        &update.Labels, execCtx, desiredLabels, currentLabels,
+    )
 }
 
 func (a *FooAdapter) Create(
@@ -1003,14 +992,20 @@ func (a *FooAdapter) SupportsUpdate() bool {
 **ADD TO**: `internal/declarative/executor/executor.go`
 ```go
 type Executor struct {
-    fooAdapter *FooAdapter
-    // ... existing adapters
+    fooExecutor *BaseExecutor[
+        components.CreateFooRequest,
+        components.UpdateFooRequest,
+    ]
+    // ... existing executors
 }
 
 func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor {
     return &Executor{
-        fooAdapter: NewFooAdapter(client),
-        // ... other adapters
+        fooExecutor: NewManagedLabelBaseExecutor[
+            components.CreateFooRequest,
+            components.UpdateFooRequest,
+        ](NewFooAdapter(client), client, dryRun),
+        // ... other executors
     }
 }
 
@@ -1023,35 +1018,17 @@ func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChan
 }
 
 func (e *Executor) executeFooChange(ctx context.Context, change planner.PlannedChange) error {
-    execCtx := &ExecutionContext{
-        PlannedChange: &change,
-        Namespace:     change.Namespace,
-        Protection:    change.Protection,
-    }
-
     switch change.Action {
     case planner.ActionCreate:
-        var req components.CreateFooRequest
-        if err := e.fooAdapter.MapCreateFields(ctx, execCtx, change.Fields, &req); err != nil {
-            return err
-        }
-        id, err := e.fooAdapter.Create(ctx, req, change.Namespace, execCtx)
-        if err != nil {
-            return err
-        }
-        e.trackCreatedResource(change.ResourceRef, id)
-        return nil
+        _, err := e.fooExecutor.Create(ctx, change)
+        return err
 
     case planner.ActionUpdate:
-        var req components.UpdateFooRequest
-        if err := e.fooAdapter.MapUpdateFields(ctx, execCtx, change.Fields, &req, nil); err != nil {
-            return err
-        }
-        _, err := e.fooAdapter.Update(ctx, change.ResourceID, req, change.Namespace, execCtx)
+        _, err := e.fooExecutor.Update(ctx, change)
         return err
 
     case planner.ActionDelete:
-        return e.fooAdapter.Delete(ctx, change.ResourceID, execCtx)
+        return e.fooExecutor.Delete(ctx, change)
     }
 
     return fmt.Errorf("unknown action: %s", change.Action)

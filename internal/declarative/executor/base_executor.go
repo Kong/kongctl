@@ -183,6 +183,12 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
 	}
 	if labelOps, ok := b.ops.(ManagedLabelOperations[TUpdate]); ok {
+		if rawCurrentLabels, present := change.Fields[planner.FieldCurrentLabels]; present {
+			currentLabels = labels.ExtractLabelsFromField(rawCurrentLabels)
+			if currentLabels == nil {
+				currentLabels = make(map[string]string)
+			}
+		}
 		desiredLabels := currentLabels
 		if rawDesiredLabels, labelsChanged := change.Fields[planner.FieldLabels]; labelsChanged {
 			desiredLabels = labels.ExtractLabelsFromField(rawDesiredLabels)
