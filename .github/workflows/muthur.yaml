@@ -1,0 +1,205 @@
+name: Muthur
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number to review"
+        required: true
+      actor:
+        description: "username to authorize against CODEOWNERS"
+        required: true
+
+jobs:
+  gate:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/muthur'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.authz.outputs.authorized }}
+      triggered: ${{ steps.trigger.outputs.triggered }}
+    steps:
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Mint this repository's read token
+        id: authz-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+          permission-members: read
+
+      - name: Check out trusted ksai code for the gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.ksai-token.outputs.token }}
+          path: _ksai-authz
+          repository: Kong/ksai
+          ref: e8ca95d97d39229af2588c08937ab6f56b4ac316 # ai-reviewer-federated/v1.13.0
+          sparse-checkout: |
+            .github/actions/codeowners-authz
+            .github/scripts
+          persist-credentials: false
+
+      - name: Check the comment actually invokes the reviewer
+        id: trigger
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TRIGGER: "/muthur"
+          SCRIPTS: ${{ github.workspace }}/_ksai-authz/.github/scripts
+        with:
+          script: |
+            if (context.eventName === 'workflow_dispatch') {
+              return core.setOutput('triggered', 'true');
+            }
+
+            const body = context.payload.comment?.body ?? '';
+            const escapedTrigger = process.env.TRIGGER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const match = body.match(new RegExp(`(^|\\s)${escapedTrigger}(?=\\s|$)`));
+            if (!match) {
+              return core.setOutput('triggered', 'false');
+            }
+
+            const { parseOptions, ownsVerb, DEFAULT_VERB } = require(
+              `${process.env.SCRIPTS}/kreview-select-arm.cjs`,
+            );
+            const loadConfig = require(`${process.env.SCRIPTS}/muthur-config.cjs`);
+            const config = await loadConfig({
+              github,
+              core,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const verbAliases = config.error ? undefined : config.aliases;
+            const parsed = parseOptions(
+              body.slice(match.index + match[0].length).trimStart(),
+              { verbAliases },
+            );
+            core.setOutput(
+              'triggered',
+              ownsVerb('reviewer', parsed.verb ?? DEFAULT_VERB) ? 'true' : 'false',
+            );
+
+      - name: Authorize requester against CODEOWNERS
+        id: authz
+        uses: ./_ksai-authz/.github/actions/codeowners-authz
+        with:
+          github-token: ${{ steps.authz-token.outputs.token }}
+          username: ${{ inputs.actor || github.event.comment.user.login }}
+
+  review:
+    needs: gate
+    if: ${{ needs.gate.outputs.authorized == 'true' && needs.gate.outputs.triggered == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    concurrency:
+      group: muthur-${{ inputs.pr || github.event.issue.number || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Mint this repository's read token
+        id: authz-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+          permission-members: read
+
+      - name: Check out the private ksai reviewer action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.ksai-token.outputs.token }}
+          ref: e8ca95d97d39229af2588c08937ab6f56b4ac316 # ai-reviewer-federated/v1.13.0
+          path: .github/actions/ksai
+          sparse-checkout: .github/actions/ai-reviewer-federated
+          persist-credentials: false
+
+      - name: Run agentic reviewer
+        uses: ./.github/actions/ksai/.github/actions/ai-reviewer-federated
+        with:
+          trigger_phrase: "/muthur"
+          pr_number: ${{ inputs.pr }}
+          actor: ${{ inputs.actor }}
+          comment_body: ${{ github.event_name == 'workflow_dispatch' && '/muthur review this pull request' || '' }}
+          source_org_github_token: ${{ github.token }}
+          authorization_github_token: ${{ steps.authz-token.outputs.token }}
+          kong_org_github_token: ${{ steps.ksai-token.outputs.token }}
+          ksai_ref: e8ca95d97d39229af2588c08937ab6f56b4ac316
+          federation_rule_id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+          organization_id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+          service_account_id: svac_017oc62PsXm82aqHWzHYgjfM
+          workspace_id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+
+  clear-request:
+    needs: [gate, review]
+    if: >-
+      always() && needs.gate.result == 'success' &&
+      (needs.review.result == 'success' ||
+       (github.event_name == 'workflow_dispatch' && needs.gate.outputs.authorized != 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Check out the private clear-request action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.ksai-token.outputs.token }}
+          ref: 16c43bffb476084281c64f1e15802709a5e38580 # clear-review-request/v1.0.0
+          path: .github/actions/ksai-clear-request
+          sparse-checkout: .github/actions/clear-review-request
+          persist-credentials: false
+
+      - name: Clear the review request
+        uses: ./.github/actions/ksai-clear-request/.github/actions/clear-review-request
+        with:
+          pr_number: ${{ inputs.pr || github.event.issue.number }}
+          team_slug: ${{ vars.MUTHUR_REVIEW_TEAM || 'muthur' }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          refused-actor: ${{ needs.gate.outputs.authorized != 'true' && inputs.actor || '' }}

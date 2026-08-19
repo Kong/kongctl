@@ -1,0 +1,61 @@
+name: Muthur (auto request)
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  request:
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !contains(github.event.pull_request.labels.*.name, 'no-muthur')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Mint a token that can resolve the team
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-members: read
+          permission-pull-requests: write
+
+      - name: Request the review from the team
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          TEAM: ${{ vars.MUTHUR_REVIEW_TEAM || 'muthur' }}
+        run: |
+          requested=$(gh api --method POST "repos/${REPO}/pulls/${PR}/requested_reviewers" \
+            -f "reviewers[]" \
+            -f "team_reviewers[]=${TEAM}" \
+            --jq '(.requested_teams // [])[].slug')
+          if ! printf '%s\n' "${requested}" | grep -qxiF "${TEAM}"; then
+            echo "::error::${TEAM} is not a requested reviewer on #${PR} after asking for it"
+            exit 1
+          fi
+
+      - name: Run the review on the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.event.repository.default_branch }}
+          PR: ${{ github.event.pull_request.number }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          gh workflow run muthur.yaml \
+            --repo "${REPO}" \
+            --ref "${REF}" \
+            --field pr="${PR}" \
+            --field actor="${ACTOR}"
