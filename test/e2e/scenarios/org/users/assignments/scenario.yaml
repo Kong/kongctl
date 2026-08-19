@@ -219,7 +219,9 @@ steps:
                 entity_region: us
 
       - name: 006-dump-team-with-users
+        outputFormat: none
         parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
         run:
           - dump
           - declarative
@@ -309,6 +311,20 @@ steps:
                 role_name: Viewer
                 entity_type_name: APIs
                 entity_region: "*"
+
+      - name: 007-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 002-cleanup
     inputOverlayDirs:
