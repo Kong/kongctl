@@ -158,8 +158,23 @@ func removePayloadPath(value any, path []string) {
 func validationChange(change planner.PlannedChange) planner.PlannedChange {
 	result := change
 	result.Fields = cloneValidationFields(change.Fields)
-	result.References = maps.Clone(change.References)
+	result.References = cloneValidationReferences(change.References)
 	for field, reference := range result.References {
+		if reference.IsArray {
+			if len(reference.ResolvedIDs) < len(reference.Refs) {
+				reference.ResolvedIDs = append(
+					reference.ResolvedIDs,
+					make([]string, len(reference.Refs)-len(reference.ResolvedIDs))...,
+				)
+			}
+			for i := range reference.Refs {
+				if reference.ResolvedIDs[i] == "" {
+					reference.ResolvedIDs[i] = "payload-validation-id"
+				}
+			}
+			result.References[field] = reference
+			continue
+		}
 		if !reference.HasResolvedID() {
 			reference.ID = "payload-validation-id"
 		}
@@ -170,6 +185,27 @@ func validationChange(change planner.PlannedChange) planner.PlannedChange {
 		parent := *result.Parent
 		parent.ID = "payload-validation-id"
 		result.Parent = &parent
+	}
+	return result
+}
+
+func cloneValidationReferences(references map[string]planner.ReferenceInfo) map[string]planner.ReferenceInfo {
+	if references == nil {
+		return nil
+	}
+	result := make(map[string]planner.ReferenceInfo, len(references))
+	for field, reference := range references {
+		reference.Refs = slices.Clone(reference.Refs)
+		reference.ResolvedIDs = slices.Clone(reference.ResolvedIDs)
+		reference.LookupFields = maps.Clone(reference.LookupFields)
+		if reference.LookupArrays != nil {
+			lookupArrays := make(map[string][]string, len(reference.LookupArrays))
+			for name, values := range reference.LookupArrays {
+				lookupArrays[name] = slices.Clone(values)
+			}
+			reference.LookupArrays = lookupArrays
+		}
+		result[field] = reference
 	}
 	return result
 }
@@ -216,12 +252,12 @@ func (e *Executor) registerPayloadContracts(contracts ...payloadContract) {
 
 func (e *Executor) validatePlanPayloads(ctx context.Context, plan *planner.Plan) error {
 	if err := planner.ValidatePlanCompatibility(plan); err != nil {
-		return err
+		return e.withPlanCompatibilityGuidance(err)
 	}
 	for i := range plan.Changes {
 		change := plan.Changes[i]
-		change.Fields = maps.Clone(change.Fields)
-		change.References = maps.Clone(change.References)
+		change.Fields = cloneValidationFields(change.Fields)
+		change.References = cloneValidationReferences(change.References)
 		if err := e.resolveDeferredEnvPlaceholders(&change); err != nil {
 			return fmt.Errorf(
 				"incompatible plan change %d (%q): failed to resolve deferred environment values: %w",
@@ -241,15 +277,24 @@ func (e *Executor) validatePlanPayloads(ctx context.Context, plan *planner.Plan)
 			continue
 		}
 		if err := contract.ValidatePayload(ctx, change); err != nil {
-			return fmt.Errorf(
-				"incompatible plan change %d (%q) for %s %s: %w; regenerate the plan",
+			err = fmt.Errorf(
+				"incompatible plan change %d (%q) for %s %s: %w",
 				i,
 				change.ID,
 				change.Action,
 				change.ResourceType,
 				err,
 			)
+			return e.withPlanCompatibilityGuidance(err)
 		}
 	}
 	return nil
+}
+
+func (e *Executor) withPlanCompatibilityGuidance(err error) error {
+	message := strings.TrimSuffix(err.Error(), "; regenerate the plan")
+	if e.planBaseDir != "" {
+		return fmt.Errorf("%s; regenerate the plan", message)
+	}
+	return fmt.Errorf("%s; this is an internal planner-to-executor contract violation", message)
 }

@@ -685,15 +685,16 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
 	}
+	if e.reporter != nil && plan != nil {
+		e.reporter.StartExecution(plan)
+	}
 	if err := e.validatePlanPayloads(ctx, plan); err != nil {
 		result.Errors = append(result.Errors, ExecutionError{Error: err.Error()})
 		result.FailureCount = 1
+		if e.reporter != nil {
+			e.reporter.FinishExecution(result)
+		}
 		return result
-	}
-
-	// Notify reporter of execution start
-	if e.reporter != nil {
-		e.reporter.StartExecution(plan)
 	}
 
 	// Choose execution strategy.
