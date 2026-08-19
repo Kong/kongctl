@@ -212,7 +212,7 @@ func (p *Planner) planListenerCreatesForNewGateway(
 			resources.ResourceTypeEventGatewayListenerPolicy,
 		) && len(listenerPolicies) > 0 {
 			p.planListenerPolicyCreatesForNewListener(
-				namespace, gatewayRef, listener.Ref, listener.Name,
+				namespace, "", gatewayRef, listener.Ref, listener.Name,
 				listenerChangeID, listenerPolicies, plan,
 			)
 		}

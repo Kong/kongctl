@@ -1,0 +1,23 @@
+event_gateways:
+  - ref: "{{ .vars.egw_name }}"
+    _external:
+      selector:
+        matchFields:
+          name: "{{ .vars.egw_name }}"
+    listeners:
+      - ref: "{{ .vars.listener_ref }}"
+        name: "{{ .vars.listener_name }}"
+        description: "{{ .vars.listener_description }}"
+        ports:
+          - 19092
+        addresses:
+          - localhost
+        policies:
+          - ref: "{{ .vars.listener_policy_ref }}"
+            name: "{{ .vars.listener_policy_name }}"
+            description: "{{ .vars.listener_policy_description }}"
+            type: forward_to_virtual_cluster
+            enabled: true
+            config:
+              type: sni
+              sni_suffix: ".external-sync.example.com"

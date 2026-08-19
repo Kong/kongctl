@@ -180,6 +180,37 @@ func TestEventGatewayByNameDependenciesAreScopedToGateway(t *testing.T) {
 	require.NotContains(t, planChange(t, plan, policyID).References, FieldEventGatewayVirtualClusterID)
 }
 
+func TestNewListenerPolicyRetainsExistingGatewayID(t *testing.T) {
+	var policy resources.EventGatewayListenerPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"ref":"policy",
+		"name":"policy-name",
+		"type":"forward_to_virtual_cluster",
+		"config":{"type":"sni","sni_suffix":".example.com"}
+	}`), &policy))
+
+	planner := &Planner{logger: slog.Default()}
+	plan := NewPlan("1.0", "test", PlanModeSync)
+	require.NoError(t, planner.planEventGatewayListenerPolicyChanges(
+		t.Context(),
+		nil,
+		"default",
+		"gateway-id",
+		"gateway-ref",
+		"listener-name",
+		"",
+		"listener-ref",
+		"listener-create",
+		[]resources.EventGatewayListenerPolicyResource{policy},
+		plan,
+	))
+
+	policyID := plannedChangeID(t, plan, ResourceTypeEventGatewayListenerPolicy, "policy")
+	gatewayRef := planChange(t, plan, policyID).References[FieldEventGatewayID]
+	require.Equal(t, "gateway-ref", gatewayRef.Ref)
+	require.Equal(t, "gateway-id", gatewayRef.ID)
+}
+
 func TestEventGatewayExplicitRefsRemainDependencies(t *testing.T) {
 	backendCluster := resources.EventGatewayBackendClusterResource{
 		Ref: "backend",
