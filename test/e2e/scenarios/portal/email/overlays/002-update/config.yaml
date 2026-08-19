@@ -1,4 +1,3 @@
-{{- $uid := uuidv4 | trunc 8 -}}
 _defaults:
   kongctl:
     namespace: portal-email-config
@@ -11,7 +10,7 @@ portals:
       namespace: portal-email-config
     email_config:
       ref: portal-email-config
-      domain_name: null
+      domain_name: "{{ .vars.emailDomain }}"
       from_name: "Kong Portal Team"
-      from_email: "team@{{ $uid }}.mail.kongctl-e2e.io"
-      reply_to_email: "help@{{ $uid }}.mail.kongctl-e2e.io"
+      from_email: "team@{{ .vars.emailDomain }}"
+      reply_to_email: "help@{{ .vars.emailDomain }}"

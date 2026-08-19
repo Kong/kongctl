@@ -31,6 +31,11 @@ steps:
       - name: 000-plan-email-config
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-email-config.json"
+        recordVar:
+          name: emailDomain
+          responsePath: >-
+            changes[?resource_type=='portal_email_config' && resource_ref=='{{ .vars.emailConfigRef }}'] |
+            [0].fields.domain_name
         run:
           - plan
           - -f
@@ -113,6 +118,65 @@ steps:
               fields:
                 applied: 1
                 failed: 0
+
+  - name: 002b-idempotency-after-update
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-idempotent
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002c-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-portal-email-config
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - "--resources=portals"
+          - --include-child-resources
+          - --default-namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - select: "_defaults.kongctl"
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: "portals[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.portalRef }}"
+          - select: "portals[?name=='{{ .vars.portalRef }}'] | [0].email_config"
+            expect:
+              fields:
+                from_name: "Kong Portal Team"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-sync-remove-email-config
     inputOverlayDirs:
