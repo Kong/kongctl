@@ -236,8 +236,34 @@ func (p *portalPlannerImpl) planPortalDeletes(
 	protectionErrors := &ProtectionErrorCollector{}
 
 	for _, desiredPortal := range desired {
-		// External portals are not managed by kongctl - skip
+		// External portals are not deleted, but their explicitly declared pages are.
 		if desiredPortal.IsExternal() {
+			portalID := desiredPortal.GetKonnectID()
+			if portalID == "" {
+				return fmt.Errorf("external portal %q has no resolved ID", desiredPortal.GetRef())
+			}
+			pages := make([]resources.PortalPageResource, 0)
+			for _, page := range p.planner.desiredPortalPages {
+				if page.Portal == desiredPortal.Ref {
+					pages = append(pages, page)
+				}
+			}
+			if len(pages) > 0 {
+				parentNamespace := DefaultNamespace
+				if desiredPortal.Kongctl != nil && desiredPortal.Kongctl.Namespace != nil {
+					parentNamespace = *desiredPortal.Kongctl.Namespace
+				}
+				if err := p.planner.planExternalPortalPageDeletes(
+					ctx,
+					parentNamespace,
+					portalID,
+					desiredPortal.Ref,
+					pages,
+					plan,
+				); err != nil {
+					return fmt.Errorf("failed to plan external portal page deletes: %w", err)
+				}
+			}
 			continue
 		}
 

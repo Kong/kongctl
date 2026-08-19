@@ -547,3 +547,63 @@ func TestPlanner_ExternalPortal_SyncDoesNotDeleteExistingPages(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanner_ExternalPortal_DeleteRemovesOnlyDeclaredPages(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	mockPortalAPI := new(MockPortalAPI)
+	mockPortalAPI.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+		ListPortalsResponse: &kkComps.ListPortalsResponse{
+			Data: []kkComps.ListPortalsResponsePortal{
+				newListPortal("portal-123", "ext-portal", nil),
+			},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+		StatusCode: 200,
+	}, nil)
+
+	client := state.NewClient(state.ClientConfig{
+		PortalAPI: mockPortalAPI,
+		PortalPageAPI: &mockPortalPageAPI{
+			listData: []kkComps.PortalPageInfo{
+				{ID: "declared-page-id", Slug: "declared"},
+				{ID: "out-of-band-page-id", Slug: "out-of-band"},
+			},
+		},
+	})
+
+	rs := &resources.ResourceSet{
+		Portals: []resources.PortalResource{
+			{
+				CreatePortal: kkComps.CreatePortal{Name: "ext-portal"},
+				BaseResource: resources.BaseResource{Ref: "ext-portal-ref"},
+				External: &resources.ExternalBlock{
+					Selector: &resources.ExternalSelector{MatchFields: map[string]string{FieldName: "ext-portal"}},
+				},
+			},
+		},
+		PortalPages: []resources.PortalPageResource{
+			{
+				Ref:    "declared-page",
+				Portal: "ext-portal-ref",
+				CreatePortalPageRequest: kkComps.CreatePortalPageRequest{
+					Slug:    "declared",
+					Content: "declared content",
+				},
+			},
+		},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(ctx, rs, Options{Mode: PlanModeDelete})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	assert.Equal(t, ResourceTypePortalPage, change.ResourceType)
+	assert.Equal(t, ActionDelete, change.Action)
+	assert.Equal(t, "declared-page", change.ResourceRef)
+	assert.Equal(t, "declared-page-id", change.ResourceID)
+	require.NotNil(t, change.Parent)
+	assert.Equal(t, "portal-123", change.Parent.ID)
+	assert.Equal(t, "portal-123", change.References[FieldPortalID].ID)
+}

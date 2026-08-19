@@ -3332,63 +3332,8 @@ func (p *Planner) planPortalPagesChanges(
 		}
 	}
 
-	// Build maps for matching
-	// Build map from full slug path to page
-	existingByPath := make(map[string]state.PortalPage)
-	existingByID := make(map[string]state.PortalPage)
-
-	// First, index all pages by ID for easy lookup
-	for _, page := range existingPages {
-		existingByID[page.ID] = page
-	}
-
-	// Helper to build full path for a page
-	var getPagePath func(pageID string) string
-	pageIDToPath := make(map[string]string) // cache to avoid recalculation
-
-	getPagePath = func(pageID string) string {
-		// Check cache first
-		if path, cached := pageIDToPath[pageID]; cached {
-			return path
-		}
-
-		page, exists := existingByID[pageID]
-		if !exists {
-			return ""
-		}
-
-		// Special handling for root page with slug "/"
-		normalizedSlug := page.Slug
-		if page.Slug != "/" {
-			normalizedSlug = strings.TrimPrefix(page.Slug, "/")
-		}
-
-		// Root page - path is just the slug
-		if page.ParentPageID == "" {
-			pageIDToPath[pageID] = normalizedSlug
-			return normalizedSlug
-		}
-
-		// Child page - build full path recursively
-		parentPath := getPagePath(page.ParentPageID)
-		if parentPath == "" {
-			// Parent not found, use slug only
-			pageIDToPath[pageID] = normalizedSlug
-			return normalizedSlug
-		}
-
-		fullPath := parentPath + "/" + normalizedSlug
-		pageIDToPath[pageID] = fullPath
-		return fullPath
-	}
-
-	// Build the path map for all existing pages
-	for _, page := range existingPages {
-		path := getPagePath(page.ID)
-		if path != "" {
-			existingByPath[path] = page
-		}
-	}
+	// Build a map from full slug path to page for matching.
+	existingByPath := indexPortalPagesByPath(existingPages)
 
 	// Note: We don't have refs for existing pages, so we match by full slug paths
 
@@ -3397,27 +3342,7 @@ func (p *Planner) planPortalPagesChanges(
 		if plan.HasChange(ResourceTypePortalPage, desiredPage.GetRef()) {
 			continue
 		}
-		// Build the full path for this desired page to check if it exists
-		var fullPath string
-		// Special handling for root page with slug "/"
-		normalizedDesiredSlug := desiredPage.Slug
-		if desiredPage.Slug != "/" {
-			normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
-		}
-
-		if desiredPage.ParentPageRef == "" {
-			// Root page
-			fullPath = normalizedDesiredSlug
-		} else {
-			// Child page - build parent path first
-			parentPath := p.buildParentPath(desiredPage.ParentPageRef, desired)
-			if parentPath != "" {
-				fullPath = parentPath + "/" + normalizedDesiredSlug
-			} else {
-				// Parent path couldn't be built, use slug only
-				fullPath = normalizedDesiredSlug
-			}
-		}
+		fullPath := p.desiredPortalPagePath(desiredPage, desired)
 
 		// Check if page exists by full path
 		existingPage, exists := existingByPath[fullPath]
@@ -3440,6 +3365,7 @@ func (p *Planner) planPortalPagesChanges(
 						existingPage,
 						desiredPage,
 						portalRef,
+						portalID,
 						updateFields,
 						changedFields,
 						plan,
@@ -3455,39 +3381,119 @@ func (p *Planner) planPortalPagesChanges(
 		// Build set of desired page paths
 		desiredPaths := make(map[string]bool)
 		for _, desiredPage := range desired {
-			// Build the full path for this desired page
-			var fullPath string
-			// Special handling for root page with slug "/"
-			normalizedDesiredSlug := desiredPage.Slug
-			if desiredPage.Slug != "/" {
-				normalizedDesiredSlug = strings.TrimPrefix(desiredPage.Slug, "/")
-			}
-
-			if desiredPage.ParentPageRef == "" {
-				// Root page
-				fullPath = normalizedDesiredSlug
-			} else {
-				// Child page - build parent path first
-				parentPath := p.buildParentPath(desiredPage.ParentPageRef, desired)
-				if parentPath != "" {
-					fullPath = parentPath + "/" + normalizedDesiredSlug
-				} else {
-					// Parent path couldn't be built, use slug only
-					fullPath = normalizedDesiredSlug
-				}
-			}
-
+			fullPath := p.desiredPortalPagePath(desiredPage, desired)
 			desiredPaths[fullPath] = true
 		}
 
 		// Find pages to delete
 		for path, existingPage := range existingByPath {
 			if !desiredPaths[path] {
-				p.planPortalPageDelete(parentNamespace, portalRef, portalID, existingPage.ID, existingPage.Slug, plan)
+				p.planPortalPageDelete(
+					parentNamespace,
+					portalRef,
+					portalID,
+					resources.UnknownReferenceID,
+					existingPage.ID,
+					existingPage.Slug,
+					plan,
+				)
 			}
 		}
 	}
 
+	return nil
+}
+
+func indexPortalPagesByPath(pages []state.PortalPage) map[string]state.PortalPage {
+	byID := make(map[string]state.PortalPage, len(pages))
+	for _, page := range pages {
+		byID[page.ID] = page
+	}
+
+	pathsByID := make(map[string]string, len(pages))
+	var getPath func(string) string
+	getPath = func(pageID string) string {
+		if path, ok := pathsByID[pageID]; ok {
+			return path
+		}
+
+		page, ok := byID[pageID]
+		if !ok {
+			return ""
+		}
+
+		slug := page.Slug
+		if slug != "/" {
+			slug = strings.TrimPrefix(slug, "/")
+		}
+		if page.ParentPageID == "" {
+			pathsByID[pageID] = slug
+			return slug
+		}
+
+		parentPath := getPath(page.ParentPageID)
+		if parentPath == "" {
+			pathsByID[pageID] = slug
+			return slug
+		}
+
+		path := parentPath + "/" + slug
+		pathsByID[pageID] = path
+		return path
+	}
+
+	byPath := make(map[string]state.PortalPage, len(pages))
+	for _, page := range pages {
+		if path := getPath(page.ID); path != "" {
+			byPath[path] = page
+		}
+	}
+	return byPath
+}
+
+func (p *Planner) desiredPortalPagePath(
+	page resources.PortalPageResource,
+	allPages []resources.PortalPageResource,
+) string {
+	slug := page.Slug
+	if slug != "/" {
+		slug = strings.TrimPrefix(slug, "/")
+	}
+	if page.ParentPageRef == "" {
+		return slug
+	}
+	if parentPath := p.buildParentPath(page.ParentPageRef, allPages); parentPath != "" {
+		return parentPath + "/" + slug
+	}
+	return slug
+}
+
+func (p *Planner) planExternalPortalPageDeletes(
+	ctx context.Context,
+	parentNamespace string,
+	portalID string,
+	portalRef string,
+	desired []resources.PortalPageResource,
+	plan *Plan,
+) error {
+	existingPages, err := p.client.ListManagedPortalPages(ctx, portalID)
+	if err != nil {
+		return fmt.Errorf("failed to list portal pages: %w", err)
+	}
+	existingByPath := indexPortalPagesByPath(existingPages)
+	for _, desiredPage := range desired {
+		if existingPage, ok := existingByPath[p.desiredPortalPagePath(desiredPage, desired)]; ok {
+			p.planPortalPageDelete(
+				parentNamespace,
+				portalRef,
+				portalID,
+				desiredPage.GetRef(),
+				existingPage.ID,
+				existingPage.Slug,
+				plan,
+			)
+		}
+	}
 	return nil
 }
 
@@ -3682,6 +3688,7 @@ func (p *Planner) planPortalPageUpdate(
 	current state.PortalPage,
 	desired resources.PortalPageResource,
 	portalRef string,
+	portalID string,
 	updateFields map[string]any,
 	changedFields map[string]FieldChange,
 	plan *Plan,
@@ -3732,12 +3739,13 @@ func (p *Planner) planPortalPageUpdate(
 		// Set Parent field for proper display and serialization
 		change.Parent = &ParentInfo{
 			Ref: portalRef,
-			ID:  "", // Already known via ResourceID but not needed for display
+			ID:  portalID,
 		}
 
 		change.References = map[string]ReferenceInfo{
 			FieldPortalID: {
 				Ref: portalRef,
+				ID:  portalID,
 				LookupFields: map[string]string{
 					FieldName: portalName,
 				},
@@ -3750,12 +3758,18 @@ func (p *Planner) planPortalPageUpdate(
 
 // planPortalPageDelete creates a DELETE change for a portal page
 func (p *Planner) planPortalPageDelete(
-	parentNamespace string, portalRef string, portalID string, pageID string, slug string, plan *Plan,
+	parentNamespace string,
+	portalRef string,
+	portalID string,
+	pageRef string,
+	pageID string,
+	slug string,
+	plan *Plan,
 ) {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypePortalPage, pageID),
 		ResourceType: ResourceTypePortalPage,
-		ResourceRef:  resources.UnknownReferenceID,
+		ResourceRef:  pageRef,
 		ResourceID:   pageID,
 		ResourceMonikers: map[string]string{
 			FieldSlug:       slug,
@@ -3782,6 +3796,7 @@ func (p *Planner) planPortalPageDelete(
 		change.References = map[string]ReferenceInfo{
 			FieldPortalID: {
 				Ref: portalRef,
+				ID:  portalID,
 				LookupFields: map[string]string{
 					FieldName: portalName,
 				},

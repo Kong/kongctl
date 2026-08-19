@@ -167,7 +167,15 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 			name:         "portal page",
 			resourceType: ResourceTypePortalPage,
 			planDelete: func(p *Planner, plan *Plan) {
-				p.planPortalPageDelete(namespace, "portal", "portal-id", "page-id", "overview", plan)
+				p.planPortalPageDelete(
+					namespace,
+					"portal",
+					"portal-id",
+					resources.UnknownReferenceID,
+					"page-id",
+					"overview",
+					plan,
+				)
 			},
 		},
 		{
