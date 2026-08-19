@@ -13,4 +13,4 @@ application_auth_strategies:
           - X-API-Key
           - Api-Key
     kongctl:
-      protected: true
+      protected: false

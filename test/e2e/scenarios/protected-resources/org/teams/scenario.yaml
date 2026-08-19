@@ -153,6 +153,7 @@ steps:
             expect:
               fields:
                 labels."KONGCTL-namespace": "default"
+                labels."KONGCTL-protected": null
 
   # Step 4: Delete now-unprotected teams (should succeed)
   - name: 004-delete-unprotected

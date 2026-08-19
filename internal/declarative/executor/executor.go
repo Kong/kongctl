@@ -228,37 +228,43 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	}
 
 	// Initialize resource executors
-	e.portalExecutor = NewBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
+	e.portalExecutor = NewManagedLabelBaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal](
 		NewPortalAdapter(client),
 		client,
 		dryRun,
 	)
-	e.controlPlaneExecutor = NewBaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest](
+	e.controlPlaneExecutor = NewManagedLabelBaseExecutor[
+		kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest,
+	](
 		NewControlPlaneAdapter(client),
 		client,
 		dryRun,
 	)
-	e.apiExecutor = NewBaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest](
+	e.apiExecutor = NewManagedLabelBaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest](
 		NewAPIAdapter(client),
 		client,
 		dryRun,
 	)
-	e.authStrategyExecutor = NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
+	e.authStrategyExecutor = NewManagedLabelBaseExecutor[
+		kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest,
+	](
 		NewAuthStrategyAdapter(client),
 		client,
 		dryRun,
 	)
-	e.dcrProviderExecutor = NewBaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest](
+	e.dcrProviderExecutor = NewManagedLabelBaseExecutor[
+		kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest,
+	](
 		NewDCRProviderAdapter(client),
 		client,
 		dryRun,
 	)
-	e.catalogServiceExecutor = NewBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
+	e.catalogServiceExecutor = NewManagedLabelBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
 		NewCatalogServiceAdapter(client),
 		client,
 		dryRun,
 	)
-	e.aiGatewayExecutor = NewBaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest](
+	e.aiGatewayExecutor = NewManagedLabelBaseExecutor[kkComps.CreateAIGatewayRequest, kkComps.UpdateAIGatewayRequest](
 		NewAIGatewayAdapter(client),
 		client,
 		dryRun,
@@ -337,17 +343,19 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		NewAIGatewayDataPlaneCertificateAdapter(client),
 		dryRun,
 	)
-	e.dashboardExecutor = NewBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
+	e.dashboardExecutor = NewManagedLabelBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
 		NewDashboardAdapter(client),
 		client,
 		dryRun,
 	)
-	e.eventGatewayControlPlaneExecutor = NewBaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest](
+	e.eventGatewayControlPlaneExecutor = NewManagedLabelBaseExecutor[
+		kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest,
+	](
 		NewEventGatewayControlPlaneControlPlaneAdapter(client),
 		client,
 		dryRun,
 	)
-	e.organizationTeamExecutor = NewBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
+	e.organizationTeamExecutor = NewManagedLabelBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
 		NewOrganizationTeamAdapter(client),
 		client,
 		dryRun,

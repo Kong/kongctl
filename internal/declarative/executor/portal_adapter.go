@@ -73,13 +73,9 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 }
 
 // MapUpdateFields maps fields to UpdatePortal request
-func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdatePortal, currentLabels map[string]string,
+func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
+	update *kkComps.UpdatePortal, _ map[string]string,
 ) error {
-	// Extract namespace and protection from execution context
-	namespace := execCtx.Namespace
-	protection := execCtx.Protection
-
 	// Only include fields that are in the fields map
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
@@ -133,23 +129,16 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionCon
 		}
 	}
 
-	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		// Get current labels if passed from planner
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-
-		// Build update labels with removal support
-		update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
-	} else if currentLabels != nil {
-		// If no labels in change, preserve existing labels with updated protection
-		update.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
-	}
-
 	return nil
+}
+
+func (p *PortalAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdatePortal,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 }
 
 // Create creates a new portal

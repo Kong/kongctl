@@ -73,6 +73,7 @@ func TestControlPlaneAdapter_MapUpdateFields(t *testing.T) {
 	currentLabels := map[string]string{"env": "prod"}
 	var update kkComps.UpdateControlPlaneRequest
 	require.NoError(t, adapter.MapUpdateFields(context.Background(), execCtx, fields, &update, currentLabels))
+	adapter.MapUpdateLabels(execCtx, &update, map[string]string{"env": "staging"}, currentLabels)
 	require.NotNil(t, update.Description)
 	assert.Equal(t, "updated", *update.Description)
 	require.NotNil(t, update.AuthType)

@@ -12,4 +12,4 @@ ai_gateways:
       lifecycle: "dev"
     kongctl:
       namespace: "ai-gateway-root-e2e"
-      protected: true
+      protected: false

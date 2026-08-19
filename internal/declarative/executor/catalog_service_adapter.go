@@ -51,14 +51,11 @@ func (a *CatalogServiceAdapter) MapCreateFields(
 // MapUpdateFields maps planner fields to UpdateCatalogService.
 func (a *CatalogServiceAdapter) MapUpdateFields(
 	_ context.Context,
-	execCtx *ExecutionContext,
+	_ *ExecutionContext,
 	fields map[string]any,
 	update *kkComps.UpdateCatalogService,
-	currentLabels map[string]string,
+	_ map[string]string,
 ) error {
-	namespace := execCtx.Namespace
-	protection := execCtx.Protection
-
 	for field, value := range fields {
 		switch field {
 		case planner.FieldName:
@@ -78,18 +75,16 @@ func (a *CatalogServiceAdapter) MapUpdateFields(
 		}
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-		update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
-	} else if currentLabels != nil {
-		update.Labels = labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
-	}
-
 	return nil
+}
+
+func (a *CatalogServiceAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdateCatalogService,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 }
 
 // Create creates a catalog service.

@@ -61,6 +61,7 @@ func TestAIGatewayAdapterMapUpdateFieldsPreservesCurrentName(t *testing.T) {
 	require.NoError(t, adapter.MapUpdateFields(context.Background(), execCtx, fields, &req, map[string]string{
 		labels.NamespaceKey: "ai-gateway-example",
 	}))
+	adapter.MapUpdateLabels(execCtx, &req, nil, nil)
 
 	assert.Equal(t, "support-gateway", req.Name)
 	assert.Equal(t, "Customer Support AI Gateway Renamed", req.DisplayName)

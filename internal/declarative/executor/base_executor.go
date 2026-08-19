@@ -36,6 +36,23 @@ type ResourceOperations[TCreate any, TUpdate any] interface {
 	SupportsUpdate() bool
 }
 
+// ManagedLabelOperations maps declarative user and kongctl-managed labels onto an update request.
+// BaseExecutor invokes it for every update so protection-only changes cannot be dropped when no
+// ordinary label fields changed.
+type ManagedLabelOperations[TUpdate any] interface {
+	MapUpdateLabels(
+		execCtx *ExecutionContext,
+		update *TUpdate,
+		desiredLabels map[string]string,
+		currentLabels map[string]string,
+	)
+}
+
+type ManagedLabelResourceOperations[TCreate any, TUpdate any] interface {
+	ResourceOperations[TCreate, TUpdate]
+	ManagedLabelOperations[TUpdate]
+}
+
 // ResourceInfo provides common resource information
 type ResourceInfo interface {
 	GetID() string
@@ -62,6 +79,14 @@ func NewBaseExecutor[TCreate any, TUpdate any](
 		client: client,
 		dryRun: dryRun,
 	}
+}
+
+func NewManagedLabelBaseExecutor[TCreate any, TUpdate any](
+	ops ManagedLabelResourceOperations[TCreate, TUpdate],
+	client *state.Client,
+	dryRun bool,
+) *BaseExecutor[TCreate, TUpdate] {
+	return NewBaseExecutor[TCreate, TUpdate](ops, client, dryRun)
 }
 
 // Create handles CREATE operations for any resource type
@@ -147,6 +172,16 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	var update TUpdate
 	if err := b.ops.MapUpdateFields(ctx, execCtx, change.Fields, &update, currentLabels); err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
+	}
+	if labelOps, ok := b.ops.(ManagedLabelOperations[TUpdate]); ok {
+		desiredLabels := currentLabels
+		if rawDesiredLabels, labelsChanged := change.Fields[planner.FieldLabels]; labelsChanged {
+			desiredLabels = labels.ExtractLabelsFromField(rawDesiredLabels)
+			if desiredLabels == nil {
+				desiredLabels = make(map[string]string)
+			}
+		}
+		labelOps.MapUpdateLabels(execCtx, &update, desiredLabels, currentLabels)
 	}
 
 	// Handle dry-run

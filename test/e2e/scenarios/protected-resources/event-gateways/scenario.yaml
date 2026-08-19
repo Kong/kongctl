@@ -192,6 +192,7 @@ steps:
             expect:
               fields:
                 labels."KONGCTL-namespace": "egw-protection"
+                labels."KONGCTL-protected": null
 
   # Step 5: Update child after parent is unprotected (should succeed)
   - name: 005-update-child-unprotected

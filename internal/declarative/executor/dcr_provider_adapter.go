@@ -51,8 +51,8 @@ func (a *DCRProviderAdapter) MapCreateFields(
 }
 
 func (a *DCRProviderAdapter) MapUpdateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdateDcrProviderRequest, currentLabels map[string]string,
+	_ context.Context, _ *ExecutionContext, fields map[string]any,
+	update *kkComps.UpdateDcrProviderRequest, _ map[string]string,
 ) error {
 	payload := map[string]any{}
 	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
@@ -62,37 +62,12 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 		payload[planner.FieldDCRProviderIssuer] = issuer
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-		payload[planner.FieldLabels] = labels.BuildUpdateLabels(
-			desiredLabels,
-			currentLabels,
-			execCtx.Namespace,
-			execCtx.Protection,
-		)
-	} else if currentLabels != nil {
-		payload[planner.FieldLabels] = labels.BuildUpdateLabels(
-			currentLabels,
-			currentLabels,
-			execCtx.Namespace,
-			execCtx.Protection,
-		)
-	}
-
 	if displayName, ok := payload[planner.FieldDisplayName].(string); ok {
 		update.DisplayName = &displayName
 	}
 	if issuer, ok := payload[planner.FieldDCRProviderIssuer].(string); ok {
 		update.Issuer = &issuer
 	}
-	if updateLabels, ok := payload[planner.FieldLabels].(map[string]*string); ok {
-		update.Labels = updateLabels
-	}
-
 	if dcrConfig, ok := fields[planner.FieldDCRProviderConfig]; ok {
 		providerType, _ := fields[planner.FieldDCRProviderUpdateType].(string)
 		if providerType == "" {
@@ -107,6 +82,15 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 	}
 
 	return nil
+}
+
+func (a *DCRProviderAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdateDcrProviderRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 }
 
 func (a *DCRProviderAdapter) Create(ctx context.Context, req kkComps.CreateDcrProviderRequest,

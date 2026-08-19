@@ -244,6 +244,7 @@ steps:
             expect:
               fields:
                 labels."KONGCTL-namespace": "default"
+                labels."KONGCTL-protected": null
 
   # Step 4: Update child after parent is unprotected (should succeed)
   - name: 004-update-child-unprotected
