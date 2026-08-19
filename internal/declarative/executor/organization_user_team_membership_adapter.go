@@ -19,12 +19,20 @@ func NewOrganizationUserTeamMembershipAdapter(client *state.Client) *Organizatio
 
 func (o *OrganizationUserTeamMembershipAdapter) MapCreateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fields map[string]any,
 	create *state.OrganizationUserTeamMembership,
 ) error {
 	userID, _ := fields[planner.FieldUserID].(string)
 	teamID, _ := fields[planner.FieldTeamID].(string)
+	if execCtx != nil && execCtx.PlannedChange != nil {
+		if ref, ok := execCtx.PlannedChange.References[planner.FieldUserID]; ok && ref.ID != "" {
+			userID = ref.ID
+		}
+		if ref, ok := execCtx.PlannedChange.References[planner.FieldTeamID]; ok && ref.ID != "" {
+			teamID = ref.ID
+		}
+	}
 	create.UserID = userID
 	create.TeamID = teamID
 	return nil
@@ -98,7 +106,7 @@ func (o *OrganizationUserTeamMembershipAdapter) ResourceType() string {
 }
 
 func (o *OrganizationUserTeamMembershipAdapter) RequiredFields() []string {
-	return []string{planner.FieldUserID}
+	return nil
 }
 
 func (o *OrganizationUserTeamMembershipAdapter) SupportsUpdate() bool {

@@ -32,6 +32,9 @@ type Executor struct {
 	client   *state.Client
 	reporter ProgressReporter
 	dryRun   bool
+	// payloadContracts is the exhaustive executor inventory of action-specific
+	// planner-to-SDK request mappings.
+	payloadContracts map[string]payloadContract
 	// Track created resources during execution
 	createdResources map[string]string // changeID -> resourceID
 	cacheMu          sync.RWMutex
@@ -204,6 +207,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client:             client,
 		reporter:           reporter,
 		dryRun:             dryRun,
+		payloadContracts:   make(map[string]payloadContract),
 		createdResources:   make(map[string]string),
 		refToID:            make(map[string]map[string]string),
 		stateCache:         state.NewCache(),
@@ -572,6 +576,68 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		dryRun,
 	)
 
+	e.registerPayloadContracts(
+		e.portalExecutor,
+		e.controlPlaneExecutor,
+		e.apiExecutor,
+		e.authStrategyExecutor,
+		e.dcrProviderExecutor,
+		e.catalogServiceExecutor,
+		e.aiGatewayExecutor,
+		e.aiGatewayProviderExecutor,
+		e.aiGatewayIdentityProviderExecutor,
+		e.aiGatewayPolicyExecutor,
+		e.aiGatewayAgentExecutor,
+		e.aiGatewayConsumerExecutor,
+		e.aiGatewayConsumerCredentialExecutor,
+		e.aiGatewayConsumerGroupExecutor,
+		e.aiGatewayModelExecutor,
+		e.aiGatewayMCPServerExecutor,
+		e.aiGatewayConfigStoreExecutor,
+		e.aiGatewayVaultExecutor,
+		e.aiGatewayDataPlaneCertificateExecutor,
+		e.dashboardExecutor,
+		e.eventGatewayControlPlaneExecutor,
+		e.organizationTeamExecutor,
+		e.organizationTeamRoleExecutor,
+		e.organizationUserTeamMembershipExecutor,
+		e.organizationUserRoleExecutor,
+		e.organizationSystemAccountTeamMembershipExecutor,
+		e.organizationSystemAccountRoleExecutor,
+		e.controlPlaneDataPlaneCertificateExecutor,
+		e.eventGatewayBackendClusterExecutor,
+		e.eventGatewayVirtualClusterExecutor,
+		e.eventGatewayListenerExecutor,
+		e.eventGatewayListenerPolicyExecutor,
+		e.eventGatewayClusterPolicyExecutor,
+		e.eventGatewayProducePolicyExecutor,
+		e.eventGatewayConsumePolicyExecutor,
+		e.eventGatewayDataPlaneCertificateExecutor,
+		e.eventGatewaySchemaRegistryExecutor,
+		e.eventGatewayStaticKeyExecutor,
+		e.eventGatewayTLSTrustBundleExecutor,
+		e.portalCustomizationExecutor,
+		e.portalAuthSettingsExecutor,
+		e.portalIntegrationExecutor,
+		e.portalIdentityProviderExecutor,
+		e.portalAssetLogoExecutor,
+		e.portalAssetFaviconExecutor,
+		e.portalDomainExecutor,
+		e.portalIPAllowListExecutor,
+		e.portalPageExecutor,
+		e.portalSnippetExecutor,
+		e.portalTeamExecutor,
+		e.portalTeamGroupMappingExecutor,
+		e.portalTeamRoleExecutor,
+		e.portalEmailConfigExecutor,
+		e.portalAuditLogWebhookExecutor,
+		e.portalEmailTemplateExecutor,
+		e.apiVersionExecutor,
+		upsertPayloadContract[kkComps.APIPublication]{base: e.apiPublicationExecutor},
+		e.apiDocumentExecutor,
+		e.apiImplementationExecutor,
+	)
+
 	return e
 }
 
@@ -618,6 +684,11 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
+	}
+	if err := e.validatePlanPayloads(ctx, plan); err != nil {
+		result.Errors = append(result.Errors, ExecutionError{Error: err.Error()})
+		result.FailureCount = 1
+		return result
 	}
 
 	// Notify reporter of execution start
@@ -1328,6 +1399,7 @@ func (e *Executor) syncResolvedRef(
 	fieldName string,
 	resolver func(context.Context, planner.ReferenceInfo) (string, error),
 	errMsg string,
+	writePayload bool,
 ) error {
 	if change == nil {
 		return nil
@@ -1347,7 +1419,7 @@ func (e *Executor) syncResolvedRef(
 		change.References[fieldName] = ref
 	}
 
-	if change.Fields != nil && !setResolvedFieldValue(change.Fields, fieldName, ref.ID) {
+	if writePayload && change.Fields != nil && !setResolvedFieldValue(change.Fields, fieldName, ref.ID) {
 		change.Fields[fieldName] = ref.ID
 	}
 
@@ -1487,6 +1559,7 @@ func (e *Executor) syncResolvedDCRProviderID(
 		planner.FieldDCRProviderID,
 		e.resolveDCRProviderRef,
 		"failed to resolve DCR provider reference",
+		true,
 	)
 }
 
@@ -1500,6 +1573,7 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 		planner.FieldDefaultApplicationStrategyID,
 		e.resolveAuthStrategyRef,
 		"failed to resolve auth strategy reference",
+		true,
 	)
 }
 
@@ -1513,6 +1587,7 @@ func (e *Executor) syncResolvedAIGatewayID(
 		planner.FieldAIGatewayID,
 		e.resolveAIGatewayRef,
 		"failed to resolve AI Gateway reference",
+		false,
 	)
 }
 

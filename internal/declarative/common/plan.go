@@ -38,12 +38,8 @@ func LoadPlan(source string, stdin io.Reader) (*planner.Plan, error) {
 
 	normalizePlanProtection(plan)
 
-	// Basic validation
-	if plan.Metadata.Version == "" {
-		return nil, fmt.Errorf("invalid plan: missing version")
-	}
-	if plan.Metadata.Mode == "" {
-		return nil, fmt.Errorf("invalid plan: missing mode")
+	if err := planner.ValidatePlanCompatibility(plan); err != nil {
+		return nil, err
 	}
 
 	return plan, nil

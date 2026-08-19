@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -378,23 +377,6 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 	maps.Copy(fields, updateFields)
 	fields[FieldName] = current.Name
 	fields[FieldDisplayName] = current.DisplayName
-	fields[FieldID] = current.ID
-
-	if ns, ok := current.NormalizedLabels[labels.NamespaceKey]; ok {
-		fields[FieldNamespace] = ns
-	}
-
-	if current.NormalizedLabels != nil {
-		preserved := make(map[string]string)
-		for key, val := range current.NormalizedLabels {
-			if strings.HasPrefix(key, "KONGCTL-") && key != labels.ProtectedKey {
-				preserved[key] = val
-			}
-		}
-		if len(preserved) > 0 {
-			fields[FieldPreservedLabels] = preserved
-		}
-	}
 
 	change.Fields = fields
 	if len(changedFields) > 0 {

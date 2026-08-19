@@ -91,6 +91,33 @@ resource, plan, or view contracts.
 
 ## IMPLEMENTATION CHECKLIST
 
+### PLANNER-TO-EXECUTOR PAYLOAD CONTRACT
+
+Declarative resources and API request bodies are different representations.
+Resource serialization may contain `ref`, `kongctl`, nested resources, and
+root-level parent selectors. Do not use that serialization as an API payload.
+
+- `PlannedChange.Fields` contains fields intended for the action-specific API
+  request body plus explicitly registered executor-only fields.
+- `PlannedChange.Parent`, `References`, and resource identity contain API path
+  and relationship routing data.
+- Relationships marked `kongctl_parent_selector` never belong in `Fields`.
+  Relationships marked `api_foreign_key` remain eligible when the
+  action-specific request schema contains that field.
+- Create and update mappings are separate contracts, even when they currently
+  use similar SDK structures. The executor validates every planned payload
+  against the selected SDK request before executing any change.
+- Managed-label updates use the same `ManagedLabelOperations` hook during
+  preflight and execution. `current_labels` is internal plan context rather
+  than an API body field.
+- Mappers must report unsupported fields. Silently dropping a planner field is
+  a contract violation. Intentional executor-only transformations must be
+  recorded in the central payload contract rather than hidden in an adapter.
+
+Saved plans are not migrated between payload contracts. Kongctl accepts only
+the current plan version and rejects structurally incompatible plans before
+execution with guidance to regenerate the plan.
+
 ### LOGGING & DIAGNOSTICS
 - Always add verbose `slog` debug statements when introducing a new planner or executor path. Helpful patterns:
   - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.

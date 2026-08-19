@@ -94,7 +94,6 @@ func (a *APIPublicationAdapter) Delete(ctx context.Context, id string, execCtx *
 
 	portalID, err := a.getPortalIDFromExecutionContext(execCtx)
 	if err != nil {
-		// Older plans may only provide the composite api_id:portal_id resource ID.
 		if _, parsedPortalID, ok := strings.Cut(id, ":"); ok && parsedPortalID != "" {
 			portalID = parsedPortalID
 		} else if id != "" {
@@ -128,7 +127,7 @@ func (a *APIPublicationAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (a *APIPublicationAdapter) RequiredFields() []string {
-	return []string{planner.FieldPortalID}
+	return nil
 }
 
 // MapUpdateFields maps fields for update operations (not supported for API publications)
@@ -161,7 +160,6 @@ func (a *APIPublicationAdapter) getPortalIDFromExecutionContext(execCtx *Executi
 	if portalRef, ok := change.References[planner.FieldPortalID]; ok && portalRef.ID != "" {
 		return portalRef.ID, nil
 	}
-	// Check fields as fallback
 	if portalID, ok := change.Fields[planner.FieldPortalID].(string); ok {
 		return portalID, nil
 	}
@@ -186,8 +184,6 @@ func (a *APIPublicationAdapter) getAPIIDFromExecutionContext(execCtx *ExecutionC
 	if change.Parent != nil && change.Parent.ID != "" {
 		return change.Parent.ID, nil
 	}
-
-	// Priority 3: Check Fields (special case for api_publication delete)
 	if apiID, ok := change.Fields[planner.FieldAPIID].(string); ok && apiID != "" {
 		return apiID, nil
 	}
