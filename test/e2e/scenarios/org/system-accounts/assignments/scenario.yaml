@@ -198,7 +198,9 @@ steps:
                 name: "{{ .vars.teamName }}"
 
       - name: 007-dump-team-with-system-accounts
+        outputFormat: none
         parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
         run:
           - dump
           - declarative
@@ -231,6 +233,20 @@ steps:
             expect:
               fields:
                 "organization.\"system-accounts\"[?ref=='{{ .vars.systemAccountName }}'][0].teams[0].team == organization.teams[?name=='{{ .vars.teamName }}'][0].ref": true
+
+      - name: 008-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-cleanup
     inputOverlayDirs:
