@@ -47,7 +47,7 @@ func (p *Planner) planEventGatewayListenerPolicyChanges(
 
 	// Listener doesn't exist yet: plan creates only with dependency on listener creation
 	p.planListenerPolicyCreatesForNewListener(
-		namespace, gatewayRef, listenerRef, listenerName, listenerChangeID, desired, plan,
+		namespace, gatewayID, gatewayRef, listenerRef, listenerName, listenerChangeID, desired, plan,
 	)
 	return nil
 }
@@ -159,6 +159,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 // when the parent listener doesn't exist yet.
 func (p *Planner) planListenerPolicyCreatesForNewListener(
 	namespace string,
+	gatewayID string,
 	gatewayRef string,
 	listenerRef string,
 	listenerName string,
@@ -180,9 +181,8 @@ func (p *Planner) planListenerPolicyCreatesForNewListener(
 	}
 
 	for _, policy := range policies {
-		// Gateway ID is empty because gateway may also be new
 		p.planListenerPolicyCreate(
-			namespace, "", gatewayRef, "", listenerRef, listenerName,
+			namespace, gatewayID, gatewayRef, "", listenerRef, listenerName,
 			policy, dependsOn, plan,
 		)
 	}

@@ -18,6 +18,12 @@ vars:
   consume_policy_ref: external-sync-consume-policy
   consume_policy_name: external-sync-consume-policy
   consume_policy_description: External sync consume policy
+  listener_ref: external-sync-listener
+  listener_name: external-sync-listener
+  listener_description: External sync listener
+  listener_policy_ref: external-sync-listener-forward-policy
+  listener_policy_name: external-sync-listener-forward-policy
+  listener_policy_description: External sync listener forward policy
 
 defaults:
   mask:
@@ -420,7 +426,182 @@ steps:
                 name: "{{ .vars.consume_policy_name }}"
                 description: "{{ .vars.consume_policy_description }}"
 
-  - name: 011-idempotency-all-declarative-policies
+  - name: 011-sync-with-declarative-listener
+    inputOverlayDirs:
+      - overlays/007-add-listener
+    commands:
+      - name: 000-sync-add-listener
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_listener' &&
+              resource_ref=='{{ .vars.listener_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listener_ref }}"
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_listener_policy' &&
+              resource_ref=='{{ .vars.listener_policy_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.listener_policy_ref }}"
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 001-get-listeners
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.listener_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.listener_name }}"
+                description: "{{ .vars.listener_description }}"
+                ports:
+                  - "19092"
+                addresses:
+                  - localhost
+
+      - name: 002-get-listener-policies
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --listener-name
+          - "{{ .vars.listener_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.listener_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.listener_policy_name }}"
+                description: "{{ .vars.listener_policy_description }}"
+                type: forward_to_virtual_cluster
+                enabled: true
+                config.type: sni
+                config.sni_suffix: ".external-sync.example.com"
+
+  - name: 012-sync-idempotency-declarative-listener
+    inputOverlayDirs:
+      - overlays/007-add-listener
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 013-sync-omit-declarative-listener
+    commands:
+      - name: 000-sync-no-deletions
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_listener' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_listener_policy' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-listeners-after-omission
+        run:
+          - get
+          - event-gateway
+          - listeners
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.listener_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.listener_name }}"
+                description: "{{ .vars.listener_description }}"
+
+      - name: 002-get-listener-policies-after-omission
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - --listener-name
+          - "{{ .vars.listener_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.listener_policy_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.listener_policy_name }}"
+                type: forward_to_virtual_cluster
+                enabled: true
+
+  - name: 014-idempotency-all-declarative-policies
     inputOverlayDirs:
       - overlays/002-add-cluster-policy
       - overlays/003-add-produce-policy
@@ -442,7 +623,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 012-cleanup-declarative-policies
+  - name: 015-cleanup-declarative-policies
     commands:
       - name: 000-sync-no-deletions
         run:
