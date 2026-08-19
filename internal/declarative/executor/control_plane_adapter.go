@@ -57,8 +57,8 @@ func (a *ControlPlaneAdapter) MapCreateFields(_ context.Context, execCtx *Execut
 }
 
 // MapUpdateFields maps planner fields to UpdateControlPlaneRequest
-func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, execCtx *ExecutionContext,
-	fields map[string]any, update *kkComps.UpdateControlPlaneRequest, currentLabels map[string]string,
+func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext,
+	fields map[string]any, update *kkComps.UpdateControlPlaneRequest, _ map[string]string,
 ) error {
 	for field, value := range fields {
 		switch field {
@@ -84,23 +84,21 @@ func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, execCtx *Execut
 		}
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if plannerLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels]); plannerLabels != nil {
-		currentLabels = plannerLabels
-	}
-
-	if desiredLabels != nil {
-		update.Labels = labels.BuildUpdateStringLabels(
-			desiredLabels,
-			currentLabels,
-			execCtx.Namespace,
-			execCtx.Protection,
-		)
-	} else if currentLabels != nil {
-		update.Labels = labels.BuildUpdateStringLabels(currentLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
-	}
-
 	return nil
+}
+
+func (a *ControlPlaneAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdateControlPlaneRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateStringLabels(
+		desiredLabels,
+		currentLabels,
+		execCtx.Namespace,
+		execCtx.Protection,
+	)
 }
 
 // Create issues a create call via the state client

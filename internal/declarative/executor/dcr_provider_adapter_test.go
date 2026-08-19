@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,28 +56,4 @@ func TestDCRProviderAdapterMapUpdateFieldsKeepsHTTPPatchPayloadSparse(t *testing
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(body, &payload))
 	assert.NotContains(t, payload, "allow_multiple_credentials")
-}
-
-func TestDCRProviderAdapterMapUpdateFieldsAppliesProtectionOnlyChange(t *testing.T) {
-	adapter := NewDCRProviderAdapter(nil)
-	execCtx := &ExecutionContext{
-		Namespace:  "test",
-		Protection: planner.ProtectionChange{Old: true, New: false},
-	}
-	currentLabels := map[string]string{
-		labels.NamespaceKey: "test",
-		labels.ProtectedKey: "true",
-		"team":              "platform",
-	}
-
-	var update kkComps.UpdateDcrProviderRequest
-	err := adapter.MapUpdateFields(t.Context(), execCtx, map[string]any{planner.FieldName: "http-dcr"}, &update,
-		currentLabels)
-	require.NoError(t, err)
-	require.NotNil(t, update.Labels)
-	assert.Nil(t, update.Labels[labels.ProtectedKey])
-	require.NotNil(t, update.Labels[labels.NamespaceKey])
-	assert.Equal(t, "test", *update.Labels[labels.NamespaceKey])
-	require.NotNil(t, update.Labels["team"])
-	assert.Equal(t, "platform", *update.Labels["team"])
 }

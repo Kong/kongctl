@@ -137,6 +137,122 @@ func TestAuthStrategyAdapterUpdateFallsBackToIDLookup(t *testing.T) {
 	}
 }
 
+func TestAuthStrategyAdapterAppliesProtectionOnlyUpdate(t *testing.T) {
+	const strategyID = "1da45676-c973-4693-ab9f-c2986757ed07"
+	managedLabels := map[string]string{
+		labels.NamespaceKey: "default",
+		labels.ProtectedKey: labels.TrueValue,
+		"team":              "identity",
+	}
+
+	api := &stubAppAuthStrategiesAPI{
+		t: t,
+		listData: []kkComps.AppAuthStrategy{
+			oidcAuthStrategy(strategyID, "oidc-e2e", managedLabels),
+		},
+		getByID: map[string]*kkComps.CreateAppAuthStrategyResponse{},
+	}
+
+	client := state.NewClient(state.ClientConfig{AppAuthAPI: api})
+	adapter := NewAuthStrategyAdapter(client)
+	base := NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
+		adapter,
+		client,
+		false,
+	)
+
+	change := planner.PlannedChange{
+		ID:           "1:u:application_auth_strategy:oidc-e2e",
+		ResourceType: planner.ResourceTypeApplicationAuthStrategy,
+		ResourceRef:  "oidc-e2e",
+		ResourceID:   strategyID,
+		Action:       planner.ActionUpdate,
+		Fields: map[string]any{
+			planner.FieldName: "oidc-e2e",
+		},
+		Namespace: "default",
+		Protection: planner.ProtectionChange{
+			Old: true,
+			New: false,
+		},
+	}
+
+	if _, err := base.Update(testContextWithLogger(), change); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	if api.lastUpdate.Labels == nil {
+		t.Fatal("expected protection-only update request labels to be populated")
+	}
+	if protected, ok := api.lastUpdate.Labels[labels.ProtectedKey]; !ok || protected != nil {
+		t.Fatalf("expected protected label removal, got %v", protected)
+	}
+	if namespace := api.lastUpdate.Labels[labels.NamespaceKey]; namespace == nil || *namespace != "default" {
+		t.Fatalf("expected namespace label to be preserved, got %v", namespace)
+	}
+	if team := api.lastUpdate.Labels["team"]; team == nil || *team != "identity" {
+		t.Fatalf("expected user label to be preserved, got %v", team)
+	}
+}
+
+func TestAuthStrategyAdapterUsesPlanTimeLabelsForUpdate(t *testing.T) {
+	const strategyID = "1da45676-c973-4693-ab9f-c2986757ed07"
+	liveLabels := map[string]string{
+		labels.NamespaceKey: "default",
+		"live-only":         "preserve",
+		"remove":            "live-value",
+		"team":              "live-value",
+	}
+
+	api := &stubAppAuthStrategiesAPI{
+		t: t,
+		listData: []kkComps.AppAuthStrategy{
+			oidcAuthStrategy(strategyID, "oidc-e2e", liveLabels),
+		},
+		getByID: map[string]*kkComps.CreateAppAuthStrategyResponse{},
+	}
+
+	client := state.NewClient(state.ClientConfig{AppAuthAPI: api})
+	base := NewBaseExecutor[kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest](
+		NewAuthStrategyAdapter(client),
+		client,
+		false,
+	)
+	change := planner.PlannedChange{
+		ID:           "1:u:application_auth_strategy:oidc-e2e",
+		ResourceType: planner.ResourceTypeApplicationAuthStrategy,
+		ResourceRef:  "oidc-e2e",
+		ResourceID:   strategyID,
+		Action:       planner.ActionUpdate,
+		Fields: map[string]any{
+			planner.FieldName: "oidc-e2e",
+			planner.FieldLabels: map[string]any{
+				"team": "desired-value",
+			},
+			planner.FieldCurrentLabels: map[string]any{
+				labels.NamespaceKey: "default",
+				"remove":            "planned-value",
+				"team":              "planned-value",
+			},
+		},
+		Namespace: "default",
+	}
+
+	if _, err := base.Update(testContextWithLogger(), change); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	if team := api.lastUpdate.Labels["team"]; team == nil || *team != "desired-value" {
+		t.Fatalf("expected desired team label, got %v", team)
+	}
+	if removed, ok := api.lastUpdate.Labels["remove"]; !ok || removed != nil {
+		t.Fatalf("expected planned label removal, got %v", removed)
+	}
+	if _, ok := api.lastUpdate.Labels["live-only"]; ok {
+		t.Fatalf("expected out-of-band label to be omitted from the approved update, got %v", api.lastUpdate.Labels)
+	}
+}
+
 func oidcAuthStrategy(id, name string, lbls map[string]string) kkComps.AppAuthStrategy {
 	return kkComps.CreateAppAuthStrategyOpenidConnect(
 		kkComps.AppAuthStrategyOpenIDConnectResponseAppAuthStrategyOpenIDConnectResponse{

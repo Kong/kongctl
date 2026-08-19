@@ -48,13 +48,10 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapCreateFields(_ context.
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateFields(
-	_ context.Context, execCtx *ExecutionContext,
+	_ context.Context, _ *ExecutionContext,
 	fields map[string]any, update *components.UpdateGatewayRequest,
-	currentLabels map[string]string,
+	_ map[string]string,
 ) error {
-	namespace := execCtx.Namespace
-	protection := execCtx.Protection
-
 	// Only include changed fields
 	for field, value := range fields {
 		switch field {
@@ -73,26 +70,21 @@ func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateFields(
 		}
 	}
 
-	// Handle labels
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-
-		labelsMap := labels.BuildUpdateLabels(desiredLabels, currentLabels, namespace, protection)
-
-		// Convert to SDK format
-		update.Labels = labels.ConvertPointerMapsToStringMap(labelsMap)
-		// OR: update.Labels = labelsMap
-	} else if currentLabels != nil {
-		// No label changes, preserve with updated protection
-		labelsMap := labels.BuildUpdateLabels(currentLabels, currentLabels, namespace, protection)
-		update.Labels = labels.ConvertPointerMapsToStringMap(labelsMap)
-	}
-
 	return nil
+}
+
+func (a *EventGatewayControlPlaneControlPlaneAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *components.UpdateGatewayRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateStringLabels(
+		desiredLabels,
+		currentLabels,
+		execCtx.Namespace,
+		execCtx.Protection,
+	)
 }
 
 func (a *EventGatewayControlPlaneControlPlaneAdapter) Create(

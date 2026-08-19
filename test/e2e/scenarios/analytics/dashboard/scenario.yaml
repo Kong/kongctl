@@ -110,6 +110,20 @@ steps:
                 failed: 0
                 status: success
 
+      - name: 001-verify-unprotected
+        run:
+          - get
+          - analytics
+          - dashboard
+          - "{{ .vars.dashboardName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                labels."KONGCTL-protected": null
+
   - name: 004-update-dashboard
     inputOverlayDirs:
       - overlays/004-update-dashboard

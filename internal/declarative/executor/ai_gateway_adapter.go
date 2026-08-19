@@ -43,10 +43,10 @@ func (a *AIGatewayAdapter) MapCreateFields(
 // MapUpdateFields maps planner fields to UpdateAIGatewayRequest.
 func (a *AIGatewayAdapter) MapUpdateFields(
 	_ context.Context,
-	execCtx *ExecutionContext,
+	_ *ExecutionContext,
 	fields map[string]any,
 	update *kkComps.UpdateAIGatewayRequest,
-	currentLabels map[string]string,
+	_ map[string]string,
 ) error {
 	if err := mapAIGatewaySDKRequest("AI Gateway update", fields, update); err != nil {
 		return err
@@ -55,18 +55,21 @@ func (a *AIGatewayAdapter) MapUpdateFields(
 		return fmt.Errorf("AI Gateway name is required")
 	}
 
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-		update.Labels = labels.BuildUpdateStringLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
-	} else if currentLabels != nil {
-		update.Labels = labels.BuildUpdateStringLabels(currentLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
-	}
-
 	return nil
+}
+
+func (a *AIGatewayAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdateAIGatewayRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateStringLabels(
+		desiredLabels,
+		currentLabels,
+		execCtx.Namespace,
+		execCtx.Protection,
+	)
 }
 
 // Create creates an AI Gateway.

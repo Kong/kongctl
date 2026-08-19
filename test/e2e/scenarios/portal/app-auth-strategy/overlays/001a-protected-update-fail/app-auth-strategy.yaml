@@ -5,7 +5,7 @@ _defaults:
 application_auth_strategies:
   - ref: key-auth-strategy-e2e
     name: key-auth-strategy-e2e
-    display_name: E2E Key Auth Strategy
+    display_name: Protected Update Should Fail
     strategy_type: key_auth
     configs:
       key_auth:

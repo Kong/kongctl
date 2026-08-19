@@ -42,10 +42,10 @@ func (a *DashboardAdapter) MapCreateFields(
 
 func (a *DashboardAdapter) MapUpdateFields(
 	_ context.Context,
-	execCtx *ExecutionContext,
+	_ *ExecutionContext,
 	fields map[string]any,
 	update *kkComps.DashboardUpdateRequest,
-	currentLabels map[string]string,
+	_ map[string]string,
 ) error {
 	update.Name, _ = fields[planner.FieldName].(string)
 	definition, err := dashboardDefinitionFromField(fields[planner.FieldDefinition])
@@ -54,26 +54,21 @@ func (a *DashboardAdapter) MapUpdateFields(
 	}
 	update.Definition = definition
 
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-		update.Labels = labels.BuildUpdateStringLabels(
-			desiredLabels,
-			currentLabels,
-			execCtx.Namespace,
-			execCtx.Protection,
-		)
-	} else if currentLabels != nil {
-		update.Labels = labels.BuildUpdateStringLabels(currentLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
-	}
-	if update.Labels == nil {
-		update.Labels = make(map[string]string)
-	}
-
 	return nil
+}
+
+func (a *DashboardAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.DashboardUpdateRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	update.Labels = labels.BuildUpdateStringLabels(
+		desiredLabels,
+		currentLabels,
+		execCtx.Namespace,
+		execCtx.Protection,
+	)
 }
 
 func (a *DashboardAdapter) Create(

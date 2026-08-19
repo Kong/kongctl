@@ -68,25 +68,12 @@ func (a *AuthStrategyAdapter) MapCreateFields(
 
 // MapUpdateFields maps fields to UpdateAppAuthStrategyRequest
 func (a *AuthStrategyAdapter) MapUpdateFields(
-	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
-	update *kkComps.UpdateAppAuthStrategyRequest, currentLabels map[string]string,
+	_ context.Context, _ *ExecutionContext, fields map[string]any,
+	update *kkComps.UpdateAppAuthStrategyRequest, _ map[string]string,
 ) error {
 	// Update display name if present
 	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
 		update.DisplayName = &displayName
-	}
-
-	// Handle labels using centralized helper
-	desiredLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-	if desiredLabels != nil {
-		// Get current labels if passed from planner
-		plannerCurrentLabels := labels.ExtractLabelsFromField(fields[planner.FieldCurrentLabels])
-		if plannerCurrentLabels != nil {
-			currentLabels = plannerCurrentLabels
-		}
-
-		// Build update labels with removal support
-		update.Labels = labels.BuildUpdateLabels(desiredLabels, currentLabels, execCtx.Namespace, execCtx.Protection)
 	}
 
 	// Handle config updates if present
@@ -110,6 +97,15 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 	}
 
 	return nil
+}
+
+func (a *AuthStrategyAdapter) MapUpdateLabels(
+	execCtx *ExecutionContext,
+	update *kkComps.UpdateAppAuthStrategyRequest,
+	desiredLabels map[string]string,
+	currentLabels map[string]string,
+) {
+	mapPointerUpdateLabels(&update.Labels, execCtx, desiredLabels, currentLabels)
 }
 
 // Create creates a new auth strategy

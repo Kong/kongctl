@@ -34,6 +34,7 @@ steps:
               fields:
                 total_changes: 1
                 by_action.CREATE: 1
+                protection_changes.protecting: 1
 
           - select: >-
               changes[?resource_type=='application_auth_strategy' &&
@@ -84,6 +85,93 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 002a-protected-update-fail
+    inputOverlayDirs:
+      - overlays/001a-protected-update-fail
+    commands:
+      - name: 000-sync-protected-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+
+      - name: 001-verify-protected-unchanged
+        run:
+          - get
+          - auth-strategies
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='key-auth-strategy-e2e'] | [0]"
+            expect:
+              fields:
+                display_name: "E2E Key Auth Strategy"
+                labels."KONGCTL-protected": "true"
+
+  - name: 002b-unprotect
+    inputOverlayDirs:
+      - overlays/001b-unprotect
+    commands:
+      - name: 000-plan-unprotect
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-unprotect.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/app-auth-strategy.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+
+          - select: >-
+              changes[?resource_type=='application_auth_strategy' &&
+                resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+
+          - select: summary.protection_changes
+            expect:
+              fields:
+                unprotecting: 1
+
+      - name: 001-apply-unprotect
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-unprotect.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 002-verify-unprotected
+        run:
+          - get
+          - auth-strategy
+          - key-auth-strategy-e2e
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                display_name: "E2E Key Auth Strategy"
+                labels."KONGCTL-protected": null
 
   - name: 003-update-key-names
     inputOverlayDirs:
