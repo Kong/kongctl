@@ -25,7 +25,7 @@ dcr_providers:
       team: platform
       provider: http
     kongctl:
-      protected: true
+      protected: false
 
 application_auth_strategies:
   - ref: e2e-oidc-dcr-auth

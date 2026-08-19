@@ -74,6 +74,13 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 			execCtx.Namespace,
 			execCtx.Protection,
 		)
+	} else if currentLabels != nil {
+		payload[planner.FieldLabels] = labels.BuildUpdateLabels(
+			currentLabels,
+			currentLabels,
+			execCtx.Namespace,
+			execCtx.Protection,
+		)
 	}
 
 	if displayName, ok := payload[planner.FieldDisplayName].(string); ok {

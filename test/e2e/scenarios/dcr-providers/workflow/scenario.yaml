@@ -75,6 +75,89 @@ steps:
                 applied: 3
                 failed: 0
 
+  - name: 001a-protected-update-fail
+    inputOverlayDirs:
+      - overlays/001a-protected-update-fail
+    commands:
+      - name: 000-sync-protected-should-fail
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/initial.yaml"
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: "protected"
+      - name: 001-verify-protected-provider-unchanged
+        run:
+          - get
+          - dcr-provider
+          - "{{ .vars.httpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                issuer: https://e2e-http-issuer.example.com
+                dcr_config.dcr_base_url: https://e2e-http.example.com/v1/dcr
+                labels."KONGCTL-protected": "true"
+
+  - name: 001b-unprotect
+    inputOverlayDirs:
+      - overlays/001b-unprotect
+    commands:
+      - name: 000-plan-unprotect
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-unprotect.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/initial.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='dcr_provider' && resource_ref=='{{ .vars.httpName }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.labels."KONGCTL-protected": null
+          - select: summary.protection_changes
+            expect:
+              fields:
+                unprotecting: 1
+      - name: 001-apply-unprotect
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-unprotect.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 002-verify-unprotected
+        run:
+          - get
+          - dcr-provider
+          - "{{ .vars.httpName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                labels."KONGCTL-protected": null
+
   - name: 002-get-and-list
     skipInputs: true
     commands:
