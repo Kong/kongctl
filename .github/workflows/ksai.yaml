@@ -12,6 +12,9 @@ on:
         description: "GitHub username to authorize against CODEOWNERS"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   gate:
     if: >-
