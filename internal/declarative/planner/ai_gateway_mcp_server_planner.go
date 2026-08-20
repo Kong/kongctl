@@ -52,7 +52,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 	currentByID, currentByName := indexAIGatewayMCPServers(currentServers)
 	desiredKeys := make(map[string]bool)
 
-	for _, desiredServer := range desired {
+	for _, desiredServer := range orderAIGatewayMCPServersForPlanning(desired) {
 		current, exists := matchCurrentAIGatewayMCPServer(desiredServer, currentByID, currentByName)
 		desiredKeys[desiredServer.Name()] = true
 		if id := aiGatewayMCPServerDesiredID(desiredServer); id != "" {
@@ -60,7 +60,11 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		}
 
 		if !exists {
-			dependsOn := aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName)
+			dependsOn := aiGatewayMCPServerCreateDependencies(
+				desiredServer,
+				policyCreateDepsByName,
+				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
+			)
 			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
 			continue
 		}
@@ -71,7 +75,11 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			return fmt.Errorf("failed to get AI Gateway MCP Server %s: %w", serverID, err)
 		}
 		if fullServer == nil {
-			dependsOn := aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName)
+			dependsOn := aiGatewayMCPServerCreateDependencies(
+				desiredServer,
+				policyCreateDepsByName,
+				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
+			)
 			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
 			continue
 		}
@@ -89,14 +97,18 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 				desiredServer,
 				updateFields,
 				changedFields,
-				aiGatewayMCPServerPolicyCreateDependencies(desiredServer, policyCreateDepsByName),
+				aiGatewayMCPServerCreateDependencies(
+					desiredServer,
+					policyCreateDepsByName,
+					aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
+				),
 				plan,
 			)
 		}
 	}
 
 	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
-		for _, current := range currentServers {
+		for _, current := range orderCurrentAIGatewayMCPServersForDeletion(currentServers) {
 			serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
 			serverName := resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
 			if desiredKeys[serverID] || desiredKeys[serverName] {
@@ -126,9 +138,13 @@ func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(
 	if gatewayChangeID != "" {
 		dependsOn = []string{gatewayChangeID}
 	}
-	for _, server := range servers {
+	for _, server := range orderAIGatewayMCPServersForPlanning(servers) {
 		serverDependsOn := slices.Clone(dependsOn)
-		for _, dep := range aiGatewayMCPServerPolicyCreateDependencies(server, policyCreateDepsByName) {
+		for _, dep := range aiGatewayMCPServerCreateDependencies(
+			server,
+			policyCreateDepsByName,
+			aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
+		) {
 			serverDependsOn = appendDependsOn(serverDependsOn, dep)
 		}
 		p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, "", server, serverDependsOn, plan)
@@ -347,13 +363,94 @@ func aiGatewayMCPServerDesiredID(desired resources.AIGatewayMCPServerResource) s
 	return ""
 }
 
-func aiGatewayMCPServerPolicyCreateDependencies(
+func aiGatewayMCPServerCreateDependencies(
 	server resources.AIGatewayMCPServerResource,
 	policyCreateDepsByName map[string]string,
+	serverCreateDepsByName map[string]string,
 ) []string {
 	payload, err := server.MutablePayloadMap()
 	if err != nil {
 		return nil
 	}
-	return aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByName)
+
+	deps := aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByName)
+	for _, source := range aiGatewayMCPServerSources(payload) {
+		if dep := serverCreateDepsByName[source]; dep != "" {
+			deps = appendDependsOn(deps, dep)
+		}
+	}
+	return deps
+}
+
+func aiGatewayMCPServerCreateDependenciesByName(
+	plan *Plan,
+	namespace string,
+	gatewayRef string,
+) map[string]string {
+	depsByName := make(map[string]string)
+	for _, change := range plan.Changes {
+		if change.Action != ActionCreate ||
+			change.ResourceType != ResourceTypeAIGatewayMCPServer ||
+			change.Namespace != namespace ||
+			!aiGatewayChildChangeMatchesParent(change, gatewayRef) {
+			continue
+		}
+
+		name, ok := change.Fields[FieldName].(string)
+		if ok && name != "" {
+			depsByName[name] = change.ID
+		}
+	}
+	return depsByName
+}
+
+func orderAIGatewayMCPServersForPlanning(
+	servers []resources.AIGatewayMCPServerResource,
+) []resources.AIGatewayMCPServerResource {
+	ordered := make([]resources.AIGatewayMCPServerResource, 0, len(servers))
+	for _, server := range servers {
+		payload, err := server.MutablePayloadMap()
+		if err == nil && len(aiGatewayMCPServerSources(payload)) == 0 {
+			ordered = append(ordered, server)
+		}
+	}
+	for _, server := range servers {
+		payload, err := server.MutablePayloadMap()
+		if err != nil || len(aiGatewayMCPServerSources(payload)) > 0 {
+			ordered = append(ordered, server)
+		}
+	}
+	return ordered
+}
+
+func aiGatewayMCPServerSources(payload map[string]any) []string {
+	values, ok := payload[FieldSources].([]any)
+	if !ok {
+		return nil
+	}
+
+	sources := make([]string, 0, len(values))
+	for _, value := range values {
+		if source, ok := value.(string); ok && source != "" {
+			sources = append(sources, source)
+		}
+	}
+	return sources
+}
+
+func orderCurrentAIGatewayMCPServersForDeletion(servers []state.AIGatewayMCPServer) []state.AIGatewayMCPServer {
+	ordered := make([]state.AIGatewayMCPServer, 0, len(servers))
+	for _, server := range servers {
+		payload, err := resources.AIGatewayMCPServerMutablePayloadMap(server.AIGatewayMCPServer)
+		if err == nil && len(aiGatewayMCPServerSources(payload)) > 0 {
+			ordered = append(ordered, server)
+		}
+	}
+	for _, server := range servers {
+		payload, err := resources.AIGatewayMCPServerMutablePayloadMap(server.AIGatewayMCPServer)
+		if err != nil || len(aiGatewayMCPServerSources(payload)) == 0 {
+			ordered = append(ordered, server)
+		}
+	}
+	return ordered
 }

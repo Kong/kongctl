@@ -251,7 +251,8 @@ steps:
                 fields.labels.team: support
                 fields.labels.phase: create
                 fields.config.route.paths[0]: /support-listener
-                fields.config.server.label: team:support
+                fields.sources[0]: support-tools
+                fields.sources[1]: support-upstream
                 fields.access.acl_attribute_type: oauth_access_token
                 fields.access.access_token_claim_field: sub
                 fields.access.default_tool_acls.allow[0]: support-subject
@@ -414,7 +415,8 @@ steps:
                 labels.team: support
                 labels.phase: create
                 config.route.paths[0]: /support-listener
-                config.server.label: team:support
+                sources[0]: support-tools
+                sources[1]: support-upstream
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -511,7 +513,8 @@ steps:
                 labels.team: support
                 labels.phase: create
                 config.route.paths[0]: /support-listener
-                config.server.label: team:support
+                sources[0]: support-tools
+                sources[1]: support-upstream
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -587,7 +590,7 @@ steps:
                 action: UPDATE
                 fields.labels.phase: update
                 "contains(keys(fields.labels), 'team')": false
-                fields.config.server.label: phase:update
+                fields.sources[0]: support-upstream
       - name: 001-apply-update
         outputFormat: json
         run:
@@ -639,7 +642,7 @@ steps:
               fields:
                 labels.phase: update
                 "contains(keys(labels), 'team')": false
-                config.server.label: phase:update
+                sources[0]: support-upstream
       - name: 004-diff-no-changes
         outputFormat: text
         parseAs: raw
@@ -707,7 +710,7 @@ steps:
                 type: listener
                 labels.phase: update
                 "contains(keys(labels), 'team')": false
-                config.server.label: phase:update
+                sources[0]: support-upstream
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
@@ -782,12 +785,12 @@ steps:
               type: listener
               name: {{ .vars.lookup_listener_name }}
               display_name: "Lookup Listener"
+              sources:
+                - {{ .vars.server_name }}
               config:
                 route:
                   paths:
                     - /lookup-listener
-                server:
-                  label: team:support
         assertions:
           - select: plan.summary
             expect:
@@ -800,7 +803,7 @@ steps:
               fields:
                 action: CREATE
                 fields.type: listener
-                fields.config.server.label: team:support
+                fields.sources[0]: "{{ .vars.server_name }}"
           - select: summary
             expect:
               fields:
@@ -822,7 +825,7 @@ steps:
             expect:
               fields:
                 type: listener
-                config.server.label: team:support
+                sources[0]: "{{ .vars.server_name }}"
 
   - name: 007-sync-delete-mcp-server
     inputOverlayDirs:

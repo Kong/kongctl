@@ -53,17 +53,17 @@ func TestAIGatewayProviderAdapterMapCreateFieldsBuildsSDKUnion(t *testing.T) {
 	}`, string(data))
 }
 
-func TestAIGatewayProviderAdapterMapsVertexServiceAccountAuth(t *testing.T) {
+func TestAIGatewayProviderAdapterMapsGeminiServiceAccountAuth(t *testing.T) {
 	t.Parallel()
 
 	serviceAccountJSON := `{"type":"service_account"}`
 	fields := map[string]any{
-		planner.FieldName:        "vertex-prod",
-		planner.FieldType:        "vertex",
-		planner.FieldDisplayName: "Google Vertex Prod",
+		planner.FieldName:        "gemini-prod",
+		planner.FieldType:        "gemini",
+		planner.FieldDisplayName: "Google Gemini Prod",
 		planner.FieldConfig: map[string]any{
 			"auth": map[string]any{
-				"type":                 "vertex",
+				"type":                 "gcp",
 				"service_account_json": serviceAccountJSON,
 			},
 		},
@@ -71,10 +71,10 @@ func TestAIGatewayProviderAdapterMapsVertexServiceAccountAuth(t *testing.T) {
 
 	var request kkComps.CreateAIGatewayModelProviderRequest
 	require.NoError(t, NewAIGatewayProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
-	require.NotNil(t, request.AIGatewayModelProviderVertex)
-	vertexAuth := request.AIGatewayModelProviderVertex.Config.Auth.AIGatewayModelProviderConfigAuthVertex
-	require.NotNil(t, vertexAuth)
-	require.Equal(t, serviceAccountJSON, *vertexAuth.ServiceAccountJSON)
+	require.NotNil(t, request.AIGatewayModelProviderGemini)
+	gcpAuth := request.AIGatewayModelProviderGemini.Config.Auth.AIGatewayModelProviderConfigAuthGCP
+	require.NotNil(t, gcpAuth)
+	require.Equal(t, serviceAccountJSON, *gcpAuth.ServiceAccountJSON)
 }
 
 func TestAIGatewayProviderAdapterRejectsFieldsDiscardedBySDK(t *testing.T) {

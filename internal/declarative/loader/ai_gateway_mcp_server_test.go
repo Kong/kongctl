@@ -115,6 +115,7 @@ ai_gateways:
         display_name: POC MCP Listener
         enabled: true
         tools: []
+        sources: [poc-mcp-conversion, poc-mcp-upstream]
         access:
           acl_attribute_type: consumer
         config:
@@ -160,7 +161,33 @@ ai_gateways:
 		conversionListenerAccess["identity_providers"],
 	)
 	require.Equal(t, "listener", byRef["poc-mcp-listener"].MCPServerType())
+	listenerPayload, err := byRef["poc-mcp-listener"].PayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, []any{"poc-mcp-conversion", "poc-mcp-upstream"}, listenerPayload["sources"])
 	require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].MCPServerType())
+}
+
+func TestLoaderRejectsAIGatewayMCPListenerWithoutSources(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    mcp_servers:
+      - ref: support-listener
+        type: listener
+        name: support-listener
+        display_name: Support Listener
+        config:
+          route:
+            paths: [/support]
+`
+
+	_, err := New().LoadFromSources(
+		[]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}},
+		false,
+	)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "sources")
 }
 
 func TestLoaderValidatesAIGatewayMCPServerParentAndDuplicates(t *testing.T) {

@@ -114,6 +114,7 @@ ai_gateways:
         display_name: POC MCP Listener
         enabled: true
         tools: []
+        sources: [poc-mcp-conversion, poc-mcp-upstream]
         access:
           acl_attribute_type: consumer
         config:
@@ -178,6 +179,16 @@ ai_gateways:
 		require.Equal(t, "conversion-listener", byRef["poc-mcp-conversion-listener"].Fields[FieldType])
 		require.Contains(t, byRef, "poc-mcp-listener")
 		require.Equal(t, "listener", byRef["poc-mcp-listener"].Fields[FieldType])
+		require.Equal(
+			t,
+			[]any{"poc-mcp-conversion", "poc-mcp-upstream"},
+			byRef["poc-mcp-listener"].Fields["sources"],
+		)
+		require.ElementsMatch(
+			t,
+			[]string{byRef["poc-mcp-conversion"].ID, byRef["poc-mcp-upstream"].ID},
+			byRef["poc-mcp-listener"].DependsOn,
+		)
 		require.Contains(t, byRef, "poc-mcp-upstream")
 		require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].Fields[FieldType])
 	}
@@ -218,6 +229,57 @@ func TestAIGatewayMCPServerPlannerSyncDeletesScopedServers(t *testing.T) {
 	require.Equal(t, "server-id", change.ResourceID)
 	require.NotNil(t, change.Parent)
 	require.Equal(t, "gateway-id", change.Parent.ID)
+}
+
+func TestAIGatewayMCPServerPlannerSyncDeletesListenerBeforeSources(t *testing.T) {
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypeAIGateway)
+	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayMCPServer)
+
+	source := testAIGatewayMCPServer(t, "source-id", "support-tools")
+	var listener kkComps.AIGatewayMCPServer
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "listener-id",
+		"type": "listener",
+		"name": "support-listener",
+		"display_name": "Support Listener",
+		"enabled": true,
+		"sources": ["support-tools"],
+		"config": {"route": {"paths": ["/support"]}},
+		"tools": [],
+		"policies": [],
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &listener))
+
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{testAIGateway()},
+		},
+		AIGatewayMCPServersAPI: &testAIGatewayMCPServerAPI{
+			servers: []kkComps.AIGatewayMCPServer{source, listener},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{
+				Ref:     "support-gateway",
+				Kongctl: &resources.KongctlMeta{Namespace: new("default")},
+			},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "support-gateway",
+				DisplayName: "Support Gateway",
+			},
+		}},
+		SyncScope: scope,
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 2)
+	require.Equal(t, "support-listener", plan.Changes[0].ResourceRef)
+	require.Equal(t, "support-tools", plan.Changes[1].ResourceRef)
+	require.Equal(t, []string{plan.Changes[0].ID}, plan.Changes[1].DependsOn)
 }
 
 func TestAIGatewayMCPServerPlannerIgnoresAPIDefaults(t *testing.T) {

@@ -191,7 +191,6 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderOpenai](t, node, "openai", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderSagemaker](t, node, "sagemaker", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderVercel](t, node, "vercel", allowOverlay)
-	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderVertex](t, node, "vertex", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderVllm](t, node, "vllm", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderXai](t, node, "xai", allowOverlay)
 }

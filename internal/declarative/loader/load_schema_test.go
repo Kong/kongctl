@@ -112,18 +112,18 @@ application_auth_strategies:
 	assert.ErrorContains(t, err, "application_auth_strategies[0].configs.openid_connect")
 }
 
-func TestDeclarativeLoadSchemaAcceptsVertexServiceAccountAuth(t *testing.T) {
+func TestDeclarativeLoadSchemaAcceptsGeminiServiceAccountAuth(t *testing.T) {
 	t.Setenv("GCP_SERVICE_ACCOUNT_JSON", `{"type":"service_account"}`)
 	input := `
 ai_gateway_model_providers:
-  - ref: vertex-prod
-    name: vertex-prod
-    display_name: Google Vertex Prod
+  - ref: gemini-prod
+    name: gemini-prod
+    display_name: Google Gemini Prod
     ai_gateway: ai-quickstart
-    type: vertex
+    type: gemini
     config:
       auth:
-        type: vertex
+        type: gcp
         service_account_json: !env GCP_SERVICE_ACCOUNT_JSON
 `
 

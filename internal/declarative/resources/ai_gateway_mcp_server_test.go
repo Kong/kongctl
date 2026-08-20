@@ -32,6 +32,7 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 		"type": "listener",
 		"name": "support-listener",
 		"display_name": "Support Listener",
+		"sources": ["support-tools"],
 		"access": {
 			"acl_attribute_type": "oauth_access_token",
 			"access_token_claim_field": "sub",

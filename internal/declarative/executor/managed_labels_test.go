@@ -187,8 +187,7 @@ func assertAllProtectableResourcesCovered(t *testing.T, covered map[resources.Re
 
 func populateStructSlices(target any) {
 	value := reflect.ValueOf(target).Elem()
-	for i := range value.NumField() {
-		field := value.Field(i)
+	for _, field := range value.Fields() {
 		if field.CanSet() && field.Kind() == reflect.Slice && field.Type().Elem().Kind() == reflect.Struct {
 			field.Set(reflect.MakeSlice(field.Type(), 1, 1))
 		}

@@ -743,9 +743,6 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 		{"vercel", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetVercelConfig]("type", "vercel")
 		}},
-		{"vertex", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetVertexConfig]("type", "vertex")
-		}},
 		{"vllm", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetVllmConfig]("type", "vllm")
 		}},
