@@ -134,6 +134,7 @@ steps:
               fields:
                 total_changes: 3
                 by_action.CREATE: 3
+                secret_writes: 1
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='support-gemini-provider'] | [0]
             expect:
@@ -142,8 +143,10 @@ steps:
                 fields.name: support-gemini-provider
                 fields.type: gemini
                 fields.config.auth.type: gcp
-                fields.config.auth.service_account_json: fake-service-account-json
                 fields.config.auth.use_gcp_service_account: false
+                secret_writes[0].field: /config/auth/service_account_json
+                secret_writes[0].expression.parts[0].source.kind: env
+                secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_GCP_SERVICE_ACCOUNT
           - select: >-
               changes[?resource_type=='ai_gateway_model' && resource_ref=='support-gemini'] | [0]
             expect:
