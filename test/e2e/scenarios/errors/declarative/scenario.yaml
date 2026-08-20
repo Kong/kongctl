@@ -185,6 +185,24 @@ steps:
           exitCode: 1
           contains: "--require-namespace cannot be used together with --plan"
 
+  - name: 011a-require-namespace-mutual-exclusion
+    skipInputs: true
+    commands:
+      - name: 000-plan-both-namespace-flags
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .scenario_dir }}/testdata/config.yaml"
+          - --mode
+          - apply
+          - --require-namespace
+          - my-ns
+          - --require-any-namespace
+        expectFailure:
+          exitCode: 1
+          contains: "mutually exclusive"
+
   - name: 012-dump-output-flag-rejected
     skipInputs: true
     commands:
