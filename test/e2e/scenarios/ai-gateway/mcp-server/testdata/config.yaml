@@ -114,6 +114,9 @@ ai_gateways:
           team: support
           phase: create
         tools: []
+        sources:
+          - support-tools
+          - support-upstream
         access:
           acl_attribute_type: oauth_access_token
           access_token_claim_field: sub
@@ -127,8 +130,6 @@ ai_gateways:
             methods:
               - GET
               - POST
-          server:
-            label: team:support
         policies: []
       - ref: support-upstream
         type: upstream-server

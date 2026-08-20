@@ -301,7 +301,7 @@ func aiGatewayModelProviderSDKUnionTypes() []string {
 
 func aiGatewayModelProviderAuthTypes(providerType string) []string {
 	switch providerType {
-	case "azure", "vertex":
+	case "azure":
 		return []string{"basic", providerType}
 	case "bedrock":
 		return []string{"basic", "aws"}
@@ -356,14 +356,6 @@ func aiGatewayProviderSDKExplainBranch(
 }
 
 func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
-	if providerType, ok := auth.property(aiGatewayProviderFieldType); ok && providerType.Node.Const == "vertex" {
-		explainReplaceField(auth, explainField(
-			"use_gcp_service_account",
-			&ExplainNode{Kind: explainKindBoolean, Const: true, Literal: "true"},
-			false,
-			true,
-		))
-	}
 	if headers, ok := auth.property("headers"); ok {
 		headers.Recommended = true
 		if value, exists := headers.Node.Items.property("value"); exists {

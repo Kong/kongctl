@@ -24,6 +24,11 @@ ai_gateways:
             - x-support-api-key
             - apikey
           hide_credentials: true
+          identity_realms: []
+          principals:
+            enabled: true
+            directory: default
+            error_on_miss: false
       - ref: support-oidc
         name: support-oidc
         type: openid-connect
@@ -33,3 +38,18 @@ ai_gateways:
             - bearer
           cache_tokens_salt: support-oidc-cache-salt-000001
           issuer: https://issuer.example.com
+          consumer_groups_claim:
+            - groups
+          consumer_groups_optional: false
+          upstream_headers_claims:
+            - sub
+          upstream_headers_names:
+            - x-consumer-subject
+          principals:
+            enabled: true
+            directory: default
+            principal_claim:
+              - sub
+            match_consumer: true
+            match_consumer_groups: true
+            error_on_miss: false

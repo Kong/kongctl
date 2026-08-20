@@ -22,6 +22,11 @@ ai_gateways:
           key_names:
             - x-support-api-key
           hide_credentials: true
+          identity_realms: []
+          principals:
+            enabled: true
+            directory: default
+            error_on_miss: false
       - ref: support-oidc
         name: support-oidc
         type: openid-connect
@@ -38,3 +43,11 @@ ai_gateways:
             - sub
           upstream_headers_names:
             - x-consumer-subject
+          principals:
+            enabled: true
+            directory: default
+            principal_claim:
+              - sub
+            match_consumer: true
+            match_consumer_groups: true
+            error_on_miss: false

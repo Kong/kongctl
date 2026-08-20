@@ -28,6 +28,35 @@ func TestAIGatewayIdentityProviderAdapterMapsOpenIDConnectCacheTokensSalt(t *tes
 	require.Equal(t, "support-cache-salt", request.AIGatewayIdentityProviderOpenIDConnect.Config.CacheTokensSalt)
 }
 
+func TestAIGatewayIdentityProviderAdapterMapsKongIdentityPrincipals(t *testing.T) {
+	t.Parallel()
+
+	fields := map[string]any{
+		planner.FieldName:        "support-key-auth",
+		planner.FieldType:        "key-auth",
+		planner.FieldDisplayName: "Support Key Auth",
+		planner.FieldConfig: map[string]any{
+			"key_names": []string{"apikey"},
+			"principals": map[string]any{
+				"enabled":       true,
+				"directory":     "support",
+				"error_on_miss": false,
+			},
+		},
+	}
+
+	var request kkComps.CreateAIGatewayIdentityProviderRequest
+	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	require.NoError(t, err)
+	require.NotNil(t, request.AIGatewayIdentityProviderKeyAuth)
+	require.NotNil(t, request.AIGatewayIdentityProviderKeyAuth.Config)
+	principals := request.AIGatewayIdentityProviderKeyAuth.Config.Principals
+	require.NotNil(t, principals)
+	require.True(t, *principals.Enabled)
+	require.Equal(t, "support", *principals.Directory)
+	require.False(t, *principals.ErrorOnMiss)
+}
+
 func TestAIGatewayIdentityProviderAdapterRejectsMissingOpenIDConnectCacheTokensSalt(t *testing.T) {
 	fields := map[string]any{
 		planner.FieldName:        "support-oidc",

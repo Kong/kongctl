@@ -1,4 +1,4 @@
-sdk_version: v0.59.1-0.20260812204726-da96199c57ee
+sdk_version: v0.61.1-0.20260820213900-908b387ae42c
 schema_version: 1
 resources:
   - resource_type: ai_gateway

@@ -135,7 +135,7 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 	expected := []string{
 		"anthropic", "azure", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
 		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "sagemaker", "vercel",
-		"vertex", "vllm", "xai",
+		"vllm", "xai",
 	}
 	require.ElementsMatch(t, expected, providerTypes)
 
@@ -148,7 +148,7 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 	require.Len(t, providerTypes, sdkUnionMembers)
 }
 
-func TestAIGatewayProviderExplainNodeUsesProviderSpecificGoogleAuth(t *testing.T) {
+func TestAIGatewayProviderExplainNodeUsesGoogleAuth(t *testing.T) {
 	t.Parallel()
 
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
@@ -157,12 +157,8 @@ func TestAIGatewayProviderExplainNodeUsesProviderSpecificGoogleAuth(t *testing.T
 	geminiAuth := aiGatewayProviderAuthExplainBranch(t, node, "gemini", "gcp")
 	require.True(t, geminiAuth.propertyExists("metadata_url"))
 	require.True(t, geminiAuth.propertyExists("oauth_token_url"))
-
-	vertexAuth := aiGatewayProviderAuthExplainBranch(t, node, "vertex", "vertex")
-	require.True(t, vertexAuth.propertyExists("service_account_json"))
-	require.True(t, vertexAuth.propertyExists("use_gcp_service_account"))
-	require.False(t, vertexAuth.propertyExists("metadata_url"))
-	require.False(t, vertexAuth.propertyExists("oauth_token_url"))
+	require.True(t, geminiAuth.propertyExists("service_account_json"))
+	require.True(t, geminiAuth.propertyExists("use_gcp_service_account"))
 }
 
 func aiGatewayProviderAuthExplainBranch(

@@ -113,6 +113,8 @@ ai_gateways:
         labels:
           phase: update
         tools: []
+        sources:
+          - support-upstream
         access:
           acl_attribute_type: oauth_access_token
           access_token_claim_field: sub
@@ -126,8 +128,6 @@ ai_gateways:
             methods:
               - GET
               - POST
-          server:
-            label: phase:update
         policies: []
       - ref: support-upstream
         type: upstream-server

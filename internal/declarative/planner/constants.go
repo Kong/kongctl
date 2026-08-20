@@ -96,6 +96,7 @@ const (
 	FieldAIGatewayID                  = "ai_gateway_id"
 	FieldAIGatewayConsumerID          = "ai_gateway_consumer_id"
 	FieldAccess                       = "access"
+	FieldSources                      = "sources"
 	FieldIdentityProviders            = "identity_providers"
 	FieldACLAttributeType             = "acl_attribute_type"
 	FieldDCRProvider                  = "dcr_provider"
