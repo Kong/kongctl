@@ -64,18 +64,18 @@ jobs:
       release_version: ${{ steps.compute_config.outputs.release_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c  # v2.21.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
       - name: Checkout repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Compute release configuration
         id: compute_config
-        uses: actions/github-script@v9.0.0
+        uses: actions/github-script@v8
         with:
           script: |
             const releaseType = context.payload.inputs.release_type || "patch";
@@ -206,11 +206,11 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c  # v2.21.0
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
       - name: Checkout repository
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -267,22 +267,22 @@ jobs:
 
       - name: Setup Go (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: false
 
       - name: Set up QEMU (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8  # v4.2.0
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e  # v4.3.0
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Login to GHCR (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -290,14 +290,14 @@ jobs:
 
       - name: Login to Docker Hub (full mode)
         if: env.RELEASE_BUILD_MODE == 'full' && env.DOCKER_USERNAME != ''
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f  # v4.6.0
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94  # v7.2.3
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
           version: v2.13.3
@@ -355,7 +355,7 @@ jobs:
 
       - name: Setup Go (smoke mode)
         if: env.RELEASE_BUILD_MODE == 'smoke'
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: false
