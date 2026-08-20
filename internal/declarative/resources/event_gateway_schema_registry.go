@@ -122,6 +122,7 @@ func (e EventGatewaySchemaRegistryResource) MarshalJSON() ([]byte, error) {
 	if e.EventGateway != "" {
 		result["event_gateway"] = e.EventGateway
 	}
+	removeEmptySchemaRegistryPassword(result)
 
 	return json.Marshal(result)
 }
@@ -157,13 +158,50 @@ func (e *EventGatewaySchemaRegistryResource) UnmarshalJSON(data []byte) error {
 	if err := validateSchemaRegistryType(raw); err != nil {
 		return err
 	}
+	allowOmittedSchemaRegistryPassword(raw)
+	registryData, err := json.Marshal(raw)
+	if err != nil {
+		return fmt.Errorf("failed to marshal schema registry body: %w", err)
+	}
 
 	// Delegate the registry-specific fields to the SDK union type's UnmarshalJSON.
-	if err := json.Unmarshal(data, &e.SchemaRegistryCreate); err != nil {
+	if err := json.Unmarshal(registryData, &e.SchemaRegistryCreate); err != nil {
 		return fmt.Errorf("failed to unmarshal schema registry: %w", err)
 	}
 
 	return nil
+}
+
+func allowOmittedSchemaRegistryPassword(registry map[string]any) {
+	config, ok := registry["config"].(map[string]any)
+	if !ok {
+		return
+	}
+	authentication, ok := config["authentication"].(map[string]any)
+	if !ok || authentication["type"] != "basic" {
+		return
+	}
+	// Konnect omits plaintext-origin passwords from reads. Supply an internal empty
+	// value so the SDK request union can represent the otherwise valid read model.
+	if _, ok := authentication["password"]; !ok {
+		authentication["password"] = ""
+	}
+}
+
+func removeEmptySchemaRegistryPassword(registry map[string]any) {
+	config, ok := registry["config"].(map[string]any)
+	if !ok {
+		return
+	}
+	authentication, ok := config["authentication"].(map[string]any)
+	if !ok {
+		return
+	}
+	// Do not turn an API-omitted password into an apparent empty secret in dumps.
+	// Public vault references remain non-empty and continue to round-trip.
+	if password, ok := authentication["password"].(string); ok && password == "" {
+		delete(authentication, "password")
+	}
 }
 
 // validateSchemaRegistryType ensures the required type discriminator is present.

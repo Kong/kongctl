@@ -228,6 +228,51 @@ func TestPayloadValidationInjectsSecretPlaceholderWithoutResolvingSource(t *test
 	assert.Empty(t, plan.Changes[0].Fields[planner.FieldConfig].(map[string]any))
 }
 
+func TestPayloadValidationNormalizesSchemaRegistrySDKConfigBeforeSecretInjection(t *testing.T) {
+	authentication := kkComps.CreateSchemaRegistryAuthenticationSchemeBasic(
+		kkComps.SchemaRegistryAuthenticationBasic{
+			Username: "testuser",
+			Password: "***",
+		},
+	)
+	fields := map[string]any{
+		planner.FieldName: "schema-registry",
+		planner.FieldType: "confluent",
+		planner.FieldConfig: kkComps.SchemaRegistryConfluentConfig{
+			SchemaType:     kkComps.SchemaTypeJSON,
+			Endpoint:       "https://schema-registry.example.com",
+			Authentication: &authentication,
+		},
+	}
+	contract := NewBaseExecutor[kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate](
+		NewEventGatewaySchemaRegistryAdapter(nil),
+		nil,
+		false,
+	)
+
+	for _, action := range []planner.ActionType{planner.ActionCreate, planner.ActionUpdate} {
+		t.Run(string(action), func(t *testing.T) {
+			plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+			plan.AddChange(planner.PlannedChange{
+				ID:           "change-1",
+				ResourceType: planner.ResourceTypeEventGatewaySchemaRegistry,
+				ResourceRef:  "schema-registry",
+				Action:       action,
+				Fields:       fields,
+				SecretWrites: []planner.SecretWriteIntent{
+					secretExecutionIntent("/config/authentication/password", "INTENTIONALLY_UNSET_SECRET"),
+				},
+			})
+			executor := &Executor{payloadContracts: map[string]payloadContract{
+				planner.ResourceTypeEventGatewaySchemaRegistry: contract,
+			}}
+
+			require.NoError(t, executor.validatePlanPayloads(t.Context(), plan))
+			assert.IsType(t, kkComps.SchemaRegistryConfluentConfig{}, plan.Changes[0].Fields[planner.FieldConfig])
+		})
+	}
+}
+
 func TestSecretWritePreflightRejectsEmptySourceAndComposesPrivately(t *testing.T) {
 	t.Setenv("EMPTY_SECRET", "")
 	plan := secretExecutionPlan(secretExecutionIntent("/config/value", "EMPTY_SECRET"))

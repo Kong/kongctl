@@ -159,7 +159,7 @@ portals:
         config:
           issuer_url: !env KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
           client_id: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
-          client_secret: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+          client_secret: !secret {source: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET}
           scopes:
             - openid
             - profile
