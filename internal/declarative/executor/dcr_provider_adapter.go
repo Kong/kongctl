@@ -54,18 +54,10 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 	_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdateDcrProviderRequest, _ map[string]string,
 ) error {
-	payload := map[string]any{}
 	if displayName, ok := fields[planner.FieldDisplayName].(string); ok {
-		payload[planner.FieldDisplayName] = displayName
-	}
-	if issuer, ok := fields[planner.FieldDCRProviderIssuer].(string); ok {
-		payload[planner.FieldDCRProviderIssuer] = issuer
-	}
-
-	if displayName, ok := payload[planner.FieldDisplayName].(string); ok {
 		update.DisplayName = &displayName
 	}
-	if issuer, ok := payload[planner.FieldDCRProviderIssuer].(string); ok {
+	if issuer, ok := fields[planner.FieldDCRProviderIssuer].(string); ok {
 		update.Issuer = &issuer
 	}
 	if dcrConfig, ok := fields[planner.FieldDCRProviderConfig]; ok {

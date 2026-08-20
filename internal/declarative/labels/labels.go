@@ -127,28 +127,7 @@ func IsKongctlLabel(key string) bool {
 // CompareUserLabels compares only user-defined labels between current and desired states
 // Returns true if user labels differ, ignoring KONGCTL system labels
 func CompareUserLabels(current, desired map[string]string) bool {
-	// Get user labels from both maps
-	currentUser := GetUserLabels(current)
-	desiredUser := GetUserLabels(desired)
-
-	// If both are empty or nil, they're equal
-	if len(currentUser) == 0 && len(desiredUser) == 0 {
-		return false
-	}
-
-	// If lengths differ, they're not equal
-	if len(currentUser) != len(desiredUser) {
-		return true
-	}
-
-	// Compare each user label
-	for k, v := range desiredUser {
-		if currentVal, exists := currentUser[k]; !exists || currentVal != v {
-			return true
-		}
-	}
-
-	return false
+	return !maps.Equal(GetUserLabels(current), GetUserLabels(desired))
 }
 
 // ValidateLabel ensures label key follows Konnect rules
