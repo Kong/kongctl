@@ -3422,10 +3422,7 @@ func indexPortalPagesByPath(pages []state.PortalPage) map[string]state.PortalPag
 			return ""
 		}
 
-		slug := page.Slug
-		if slug != "/" {
-			slug = strings.TrimPrefix(slug, "/")
-		}
+		slug := normalizePageSlug(page.Slug)
 		if page.ParentPageID == "" {
 			pathsByID[pageID] = slug
 			return slug
@@ -3455,15 +3452,19 @@ func (p *Planner) desiredPortalPagePath(
 	page resources.PortalPageResource,
 	allPages []resources.PortalPageResource,
 ) string {
-	slug := page.Slug
-	if slug != "/" {
-		slug = strings.TrimPrefix(slug, "/")
-	}
+	slug := normalizePageSlug(page.Slug)
 	if page.ParentPageRef == "" {
 		return slug
 	}
 	if parentPath := p.buildParentPath(page.ParentPageRef, allPages); parentPath != "" {
 		return parentPath + "/" + slug
+	}
+	return slug
+}
+
+func normalizePageSlug(slug string) string {
+	if slug != "/" {
+		return strings.TrimPrefix(slug, "/")
 	}
 	return slug
 }
