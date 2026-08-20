@@ -4468,9 +4468,6 @@ func (p *Planner) planPortalTeamGroupMappingUpdate(
 	fields := map[string]any{
 		FieldGroups: cloneStringSlicePreserveEmpty(mapping.Groups),
 	}
-	if teamID != "" {
-		fields[FieldTeamID] = teamID
-	}
 
 	dependencies := findPortalTeamGroupMappingDependencies(plan, portalRef, mapping.Team)
 	references := make(map[string]ReferenceInfo)

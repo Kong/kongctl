@@ -47,9 +47,6 @@ const (
 	// FieldManagedBy contains tool ownership metadata for resources that expose managed_by
 	FieldManagedBy = "managed_by"
 
-	// FieldPreservedLabels contains labels preserved during resource recreation
-	FieldPreservedLabels = "preserved_labels"
-
 	// FieldError contains validation errors that should be reported
 	// Used when the planner detects an invalid operation
 	FieldError = "_error"

@@ -14,6 +14,27 @@ type PortalTeamGroupMappingExecutor struct {
 	dryRun bool
 }
 
+// ResourceType identifies the singleton mapping contract.
+func (p *PortalTeamGroupMappingExecutor) ResourceType() string {
+	return planner.ResourceTypePortalTeamGroupMapping
+}
+
+// ValidatePayload enforces the action-specific body for group mapping updates.
+func (p *PortalTeamGroupMappingExecutor) ValidatePayload(
+	_ context.Context,
+	change planner.PlannedChange,
+) error {
+	if change.Action != planner.ActionUpdate {
+		return fmt.Errorf("action %q is not supported", change.Action)
+	}
+	for field := range change.Fields {
+		if field != planner.FieldGroups {
+			return fmt.Errorf("field %q is not supported by the update request", field)
+		}
+	}
+	return nil
+}
+
 // NewPortalTeamGroupMappingExecutor creates a portal team group mapping executor.
 func NewPortalTeamGroupMappingExecutor(client *state.Client, dryRun bool) *PortalTeamGroupMappingExecutor {
 	return &PortalTeamGroupMappingExecutor{client: client, dryRun: dryRun}

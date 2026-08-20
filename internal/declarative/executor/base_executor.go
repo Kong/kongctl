@@ -77,6 +77,70 @@ type BaseExecutor[TCreate any, TUpdate any] struct {
 	dryRun bool
 }
 
+// ResourceType identifies the resource covered by this action-aware payload contract.
+func (b *BaseExecutor[TCreate, TUpdate]) ResourceType() string {
+	return b.ops.ResourceType()
+}
+
+// ValidatePayload maps planner fields into the action-specific SDK request and
+// verifies that the mapper did not silently discard planner payload fields.
+func (b *BaseExecutor[TCreate, TUpdate]) ValidatePayload(
+	ctx context.Context,
+	change planner.PlannedChange,
+) error {
+	execCtx := NewExecutionContext(&change)
+	switch change.Action {
+	case planner.ActionCreate:
+		var create TCreate
+		if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
+			return err
+		}
+		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create)
+	case planner.ActionUpdate:
+		if !b.ops.SupportsUpdate() {
+			return fmt.Errorf("action %q is not supported", change.Action)
+		}
+		var update TUpdate
+		if err := b.ops.MapUpdateFields(ctx, execCtx, change.Fields, &update, nil); err != nil {
+			return err
+		}
+		b.mapUpdateLabels(execCtx, change.Fields, &update, nil)
+		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, update)
+	case planner.ActionDelete:
+		return nil
+	case planner.ActionExternalTool:
+		return fmt.Errorf("action %q is not supported", change.Action)
+	default:
+		return fmt.Errorf("action %q is not supported", change.Action)
+	}
+}
+
+func (b *BaseExecutor[TCreate, TUpdate]) mapUpdateLabels(
+	execCtx *ExecutionContext,
+	fields map[string]any,
+	update *TUpdate,
+	currentLabels map[string]string,
+) {
+	labelOps, ok := b.ops.(ManagedLabelOperations[TUpdate])
+	if !ok {
+		return
+	}
+	if rawCurrentLabels, present := fields[planner.FieldCurrentLabels]; present {
+		currentLabels = labels.ExtractLabelsFromField(rawCurrentLabels)
+		if currentLabels == nil {
+			currentLabels = make(map[string]string)
+		}
+	}
+	desiredLabels := currentLabels
+	if rawDesiredLabels, labelsChanged := fields[planner.FieldLabels]; labelsChanged {
+		desiredLabels = labels.ExtractLabelsFromField(rawDesiredLabels)
+		if desiredLabels == nil {
+			desiredLabels = make(map[string]string)
+		}
+	}
+	labelOps.MapUpdateLabels(execCtx, update, desiredLabels, currentLabels)
+}
+
 // NewBaseExecutor creates a new base executor instance
 func NewBaseExecutor[TCreate any, TUpdate any](
 	ops ResourceOperations[TCreate, TUpdate],
@@ -182,22 +246,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	if err := b.ops.MapUpdateFields(ctx, execCtx, change.Fields, &update, currentLabels); err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
 	}
-	if labelOps, ok := b.ops.(ManagedLabelOperations[TUpdate]); ok {
-		if rawCurrentLabels, present := change.Fields[planner.FieldCurrentLabels]; present {
-			currentLabels = labels.ExtractLabelsFromField(rawCurrentLabels)
-			if currentLabels == nil {
-				currentLabels = make(map[string]string)
-			}
-		}
-		desiredLabels := currentLabels
-		if rawDesiredLabels, labelsChanged := change.Fields[planner.FieldLabels]; labelsChanged {
-			desiredLabels = labels.ExtractLabelsFromField(rawDesiredLabels)
-			if desiredLabels == nil {
-				desiredLabels = make(map[string]string)
-			}
-		}
-		labelOps.MapUpdateLabels(execCtx, &update, desiredLabels, currentLabels)
-	}
+	b.mapUpdateLabels(execCtx, change.Fields, &update, currentLabels)
 
 	// Handle dry-run
 	if b.dryRun {
@@ -310,21 +359,18 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 		}
 	}
 
-	// Strategy 3: For protection changes, try lookup with preserved labels context
-	if isProtectionChange(change) && change.Fields != nil {
-		if namespace, ok := change.Fields[planner.FieldNamespace].(string); ok {
-			// Try namespace-specific lookup
-			if nsLookup, ok := b.ops.(interface {
-				GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error)
-			}); ok {
-				resource, err := nsLookup.GetByNameInNamespace(ctx, resourceName, namespace)
-				if err == nil && resource != nil {
-					logger.Debug("Resource found via namespace lookup during protection change",
-						"resource_type", b.ops.ResourceType(),
-						"name", resourceName,
-						"namespace", namespace)
-					return resource, nil
-				}
+	// Strategy 3: For protection changes, try a namespace-specific lookup.
+	if isProtectionChange(change) && change.Namespace != "" {
+		if nsLookup, ok := b.ops.(interface {
+			GetByNameInNamespace(context.Context, string, string) (ResourceInfo, error)
+		}); ok {
+			resource, err := nsLookup.GetByNameInNamespace(ctx, resourceName, change.Namespace)
+			if err == nil && resource != nil {
+				logger.Debug("Resource found via namespace lookup during protection change",
+					"resource_type", b.ops.ResourceType(),
+					"name", resourceName,
+					"namespace", change.Namespace)
+				return resource, nil
 			}
 		}
 	}

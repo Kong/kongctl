@@ -147,7 +147,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	// Create base plan
-	basePlan := NewPlan("1.0", generator, opts.Mode)
+	basePlan := NewPlan(CurrentPlanVersion, generator, opts.Mode)
 	p.resources = rs
 
 	if opts.Mode == PlanModeSync {
@@ -266,7 +266,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		namespacePlanner.desiredPortalAuditLogWebhooks = rs.PortalAuditLogWebhooks
 
 		// Create a plan for this namespace
-		namespacePlan := NewPlan("1.0", generator, opts.Mode)
+		namespacePlan := NewPlan(CurrentPlanVersion, generator, opts.Mode)
 
 		// Generate changes using interface-based planners
 		// Pass the specific namespace to planners instead of wildcard

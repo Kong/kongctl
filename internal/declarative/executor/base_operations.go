@@ -50,6 +50,34 @@ type BaseCreateDeleteExecutor[TCreate any] struct {
 	dryRun bool
 }
 
+// ResourceType identifies the resource covered by this action-aware payload contract.
+func (b *BaseCreateDeleteExecutor[TCreate]) ResourceType() string {
+	return b.ops.ResourceType()
+}
+
+// ValidatePayload validates create bodies while allowing delete operations,
+// which have no API request body.
+func (b *BaseCreateDeleteExecutor[TCreate]) ValidatePayload(
+	ctx context.Context,
+	change planner.PlannedChange,
+) error {
+	switch change.Action {
+	case planner.ActionCreate:
+		execCtx := NewExecutionContext(&change)
+		var create TCreate
+		if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
+			return err
+		}
+		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create)
+	case planner.ActionDelete:
+		return nil
+	case planner.ActionUpdate, planner.ActionExternalTool:
+		return fmt.Errorf("action %q is not supported", change.Action)
+	default:
+		return fmt.Errorf("action %q is not supported", change.Action)
+	}
+}
+
 // NewBaseCreateDeleteExecutor creates a new executor for create/delete only resources
 func NewBaseCreateDeleteExecutor[TCreate any](
 	ops CreateDeleteOperations[TCreate],
@@ -109,6 +137,26 @@ func (b *BaseCreateDeleteExecutor[TCreate]) Delete(ctx context.Context, change p
 type BaseSingletonExecutor[TUpdate any] struct {
 	ops    SingletonOperations[TUpdate]
 	dryRun bool
+}
+
+// ResourceType identifies the resource covered by this action-aware payload contract.
+func (b *BaseSingletonExecutor[TUpdate]) ResourceType() string {
+	return b.ops.ResourceType()
+}
+
+// ValidatePayload validates the singleton's full update request shape.
+func (b *BaseSingletonExecutor[TUpdate]) ValidatePayload(
+	ctx context.Context,
+	change planner.PlannedChange,
+) error {
+	if change.Action != planner.ActionUpdate {
+		return fmt.Errorf("action %q is not supported", change.Action)
+	}
+	var update TUpdate
+	if err := b.ops.MapUpdateFields(ctx, change.Fields, &update); err != nil {
+		return err
+	}
+	return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, update)
 }
 
 // NewBaseSingletonExecutor creates a new executor for singleton resources

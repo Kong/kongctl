@@ -543,30 +543,8 @@ func (p *Planner) planAPIProtectionChangeWithFields(
 	// Include any field updates if present
 	maps.Copy(fields, updateFields)
 
-	// ALWAYS include essential identification fields for protection changes
+	// Include the API name used by executor lookup and request mapping.
 	fields[FieldName] = current.Name
-	fields[FieldID] = current.ID
-
-	// Preserve namespace context for execution phase
-	if current.Labels != nil {
-		if namespace, exists := current.Labels[labels.NamespaceKey]; exists {
-			fields[FieldNamespace] = namespace
-		}
-	}
-
-	// Preserve other critical labels that identify managed resources
-	if current.Labels != nil {
-		preservedLabels := make(map[string]string)
-		for key, value := range current.Labels {
-			// Preserve all KONGCTL- prefixed labels except protected (which will be updated)
-			if strings.HasPrefix(key, "KONGCTL-") && key != labels.ProtectedKey {
-				preservedLabels[key] = value
-			}
-		}
-		if len(preservedLabels) > 0 {
-			fields[FieldPreservedLabels] = preservedLabels
-		}
-	}
 
 	change.Fields = fields
 	if len(changedFields) > 0 {
@@ -1169,7 +1147,6 @@ func (p *Planner) planAPIPublicationCreate(
 	dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	fields[FieldPortalID] = publication.PortalID
 	if publication.AuthStrategyIds != nil {
 		fields[FieldAuthStrategyIDs] = publication.AuthStrategyIds
 	}
@@ -1301,12 +1278,13 @@ func (p *Planner) planAPIPublicationDelete(
 		ResourceID:   fmt.Sprintf("%s:%s", apiID, portalID), // Composite ID for API publication
 		Parent:       &ParentInfo{Ref: apiRef, ID: apiID},
 		Action:       ActionDelete,
-		Fields: map[string]any{
-			FieldAPIID:    apiID,
-			FieldPortalID: portalID,
+		Fields:       map[string]any{},
+		DependsOn:    []string{},
+		Namespace:    parentNamespace,
+		References: map[string]ReferenceInfo{
+			FieldAPIID:    {Ref: apiRef, ID: apiID},
+			FieldPortalID: {Ref: portalRef, ID: portalID},
 		},
-		DependsOn: []string{},
-		Namespace: parentNamespace,
 	}
 
 	if len(current.AuthStrategyIDs) > 0 {
@@ -1323,9 +1301,6 @@ func (p *Planner) planAPIPublicationUpdate(
 	current state.APIPublication, desired resources.APIPublicationResource,
 	updateFields map[string]any, changedFields map[string]FieldChange, plan *Plan,
 ) {
-	// Update fields with resolved portal ID
-	updateFields[FieldPortalID] = current.PortalID
-
 	change := PlannedChange{
 		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAPIPublication, desired.GetRef()),
 		ResourceType:  ResourceTypeAPIPublication,

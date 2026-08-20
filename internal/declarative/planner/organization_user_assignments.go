@@ -219,10 +219,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipCreate(
 		ResourceType: ResourceTypeOrganizationUserTeamMembership,
 		ResourceRef:  membershipRef,
 		Action:       ActionCreate,
-		Fields: map[string]any{
-			FieldUserID: userID,
-			FieldTeamID: teamID,
-		},
+		Fields:       map[string]any{},
 		References: map[string]ReferenceInfo{
 			FieldUserID: {Ref: userRef, ID: userID},
 			FieldTeamID: {
@@ -256,10 +253,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipDelete(
 		ResourceRef:  userRef + "|" + membership.TeamID,
 		ResourceID:   membership.TeamID,
 		Action:       ActionDelete,
-		Fields: map[string]any{
-			FieldUserID: userID,
-			FieldTeamID: membership.TeamID,
-		},
+		Fields:       map[string]any{},
 		References: map[string]ReferenceInfo{
 			FieldUserID: {Ref: userRef, ID: userID},
 			FieldTeamID: {ID: membership.TeamID},
