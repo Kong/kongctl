@@ -8,7 +8,7 @@ dcr_providers:
     provider_type: okta
     issuer: https://e2e-okta.example.com/oauth2/default
     dcr_config:
-      dcr_token: e2e_okta_token
+      dcr_token: !secret {source: !env KONGCTL_E2E_DCR_OKTA_TOKEN}
     labels:
       team: platform
       provider: okta
@@ -19,7 +19,7 @@ dcr_providers:
     issuer: https://e2e-protected-update.example.com
     dcr_config:
       dcr_base_url: https://e2e-protected-update.example.com/v1/dcr
-      api_key: e2e_http_api_key
+      api_key: !secret {source: !env KONGCTL_E2E_DCR_HTTP_API_KEY}
       allow_multiple_credentials: true
     labels:
       team: platform

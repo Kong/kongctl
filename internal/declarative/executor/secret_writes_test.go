@@ -171,11 +171,20 @@ func TestResolvedSecretDoesNotReachPlanReporterOrExecutionResult(t *testing.T) {
 	reporter.On("StartChange", mock.Anything).Return()
 	reporter.On("SkipChange", mock.Anything, "dry-run mode").Return()
 	reporter.On("FinishExecution", mock.Anything).Return()
-	plan := secretExecutionPlan(secretExecutionIntent("/config/secret", "SECRET"))
-	plan.Changes[0].ResourceType = planner.ResourceTypePortal
-	plan.Changes[0].ResourceRef = "portal"
-	plan.Changes[0].Action = planner.ActionCreate
-	plan.ExecutionOrder = []string{plan.Changes[0].ID}
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "change-1",
+		ResourceType: planner.ResourceTypeAIGatewayConsumerCredential,
+		ResourceRef:  "consumer-key",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			planner.FieldName:        "consumer-key",
+			planner.FieldDisplayName: "Consumer key",
+			planner.FieldType:        "api-key",
+		},
+		SecretWrites: []planner.SecretWriteIntent{secretExecutionIntent("/api_key", "SECRET")},
+	})
+	plan.SetExecutionOrder([]string{"change-1"})
 
 	result := New(nil, reporter, true).Execute(context.Background(), plan)
 
@@ -191,6 +200,32 @@ func TestResolvedSecretDoesNotReachPlanReporterOrExecutionResult(t *testing.T) {
 	data, err := json.Marshal(observable)
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), sentinel)
+}
+
+func TestPayloadValidationInjectsSecretPlaceholderWithoutResolvingSource(t *testing.T) {
+	const resourceType = "secret-payload-test"
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "change-1",
+		ResourceType: resourceType,
+		ResourceRef:  "resource",
+		Action:       planner.ActionCreate,
+		Fields:       map[string]any{planner.FieldConfig: map[string]any{}},
+		SecretWrites: []planner.SecretWriteIntent{
+			secretExecutionIntent("/config/secret", "INTENTIONALLY_UNSET_SECRET"),
+		},
+	})
+
+	contract := &secretPayloadValidationContract{resourceType: resourceType}
+	executor := &Executor{
+		payloadContracts: map[string]payloadContract{resourceType: contract},
+	}
+
+	require.NoError(t, executor.validatePlanPayloads(t.Context(), plan))
+	require.Len(t, contract.changes, 1)
+	config := contract.changes[0].Fields[planner.FieldConfig].(map[string]any)
+	assert.Equal(t, "payload-validation-secret", config["secret"])
+	assert.Empty(t, plan.Changes[0].Fields[planner.FieldConfig].(map[string]any))
 }
 
 func TestSecretWritePreflightRejectsEmptySourceAndComposesPrivately(t *testing.T) {
@@ -225,4 +260,21 @@ func secretExecutionIntent(field, reference string) planner.SecretWriteIntent {
 			Kind: "env", Reference: reference,
 		}}}},
 	}
+}
+
+type secretPayloadValidationContract struct {
+	resourceType string
+	changes      []planner.PlannedChange
+}
+
+func (c *secretPayloadValidationContract) ResourceType() string {
+	return c.resourceType
+}
+
+func (c *secretPayloadValidationContract) ValidatePayload(
+	_ context.Context,
+	change planner.PlannedChange,
+) error {
+	c.changes = append(c.changes, change)
+	return nil
 }

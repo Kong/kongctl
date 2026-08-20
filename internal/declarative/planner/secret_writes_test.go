@@ -30,6 +30,7 @@ func TestApplySecretWriteIntentsCreatesSecretOnlyUpdate(t *testing.T) {
 	assert.Equal(t, "/dcr_config/api_key", change.SecretWrites[0].Field)
 	config := change.Fields[FieldDCRProviderConfig].(map[string]any)
 	assert.NotContains(t, config, FieldAPIKey)
+	assert.Equal(t, "http", change.Fields[FieldDCRProviderUpdateType])
 	assert.Equal(t, 1, plan.Summary.SecretWrites)
 }
 
@@ -65,6 +66,7 @@ func TestApplySecretWriteIntentsAutomaticallyIncludesCreateSecrets(t *testing.T)
 	require.Len(t, plan.Changes, 1)
 	require.Len(t, plan.Changes[0].SecretWrites, 1)
 	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
+	assert.NotContains(t, plan.Changes[0].Fields, FieldDCRProviderUpdateType)
 }
 
 func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t *testing.T) {
@@ -107,6 +109,38 @@ func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t
 	assert.NotContains(t, change.Fields, FieldAPIKey)
 	require.Len(t, change.SecretWrites, 1)
 	assert.Equal(t, "/api_key", change.SecretWrites[0].Field)
+}
+
+func TestSecretResourceFieldsUsesMutablePayloadContract(t *testing.T) {
+	provider := resources.AIGatewayProviderResource{
+		BaseResource: resources.BaseResource{Ref: "provider"},
+		AIGateway:    "gateway",
+		Name:         "provider",
+		Type:         "openai",
+		DisplayName:  "Provider",
+		Config:       map[string]any{"auth": map[string]any{"header": "placeholder"}},
+	}
+
+	fields, err := secretResourceFields(&provider, ActionCreate)
+	require.NoError(t, err)
+	assert.Equal(t, "provider", fields[FieldName])
+	assert.Contains(t, fields, FieldConfig)
+	assert.NotContains(t, fields, resources.SchemaFieldRef)
+	assert.NotContains(t, fields, resources.SchemaFieldAIGateway)
+}
+
+func TestSecretResourceFieldsUsesPortalIdentityProviderUpdateContract(t *testing.T) {
+	providerType := kkComps.IdentityProviderTypeOidc
+	provider := resources.PortalIdentityProviderResource{
+		CreateIdentityProvider: kkComps.CreateIdentityProvider{Type: &providerType},
+		Ref:                    "identity-provider",
+		Portal:                 "portal",
+	}
+
+	fields, err := secretResourceFields(&provider, ActionUpdate)
+	require.NoError(t, err)
+	assert.NotContains(t, fields, FieldType)
+	assert.NotContains(t, fields, resources.SchemaFieldPortal)
 }
 
 func TestApplySecretWriteIntentsWarnsForExistingCreateOnlyCredentialWithWriteSecrets(t *testing.T) {

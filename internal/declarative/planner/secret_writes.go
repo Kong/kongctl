@@ -98,7 +98,7 @@ func (p *Planner) applySecretWriteIntents(
 				return fmt.Errorf("resource %s %q could not be resolved for a secret-only update",
 					resource.GetType(), resourceRef)
 			}
-			fields, err := secretResourceFields(resource)
+			fields, err := secretResourceFields(resource, ActionUpdate)
 			if err != nil {
 				return err
 			}
@@ -115,7 +115,7 @@ func (p *Planner) applySecretWriteIntents(
 			plan.AddChange(*change)
 			change = &plan.Changes[len(plan.Changes)-1]
 		} else {
-			fields, err := secretResourceFields(resource)
+			fields, err := secretResourceFields(resource, change.Action)
 			if err != nil {
 				return err
 			}
@@ -350,34 +350,60 @@ func changeID(change *PlannedChange) string {
 	return change.ID
 }
 
-func secretResourceFields(resource resources.Resource) (map[string]any, error) {
-	if credential, ok := resource.(*resources.AIGatewayConsumerCredentialResource); ok {
-		fields, err := credential.MutablePayloadMap()
+func secretResourceFields(resource resources.Resource, action ActionType) (map[string]any, error) {
+	var fields map[string]any
+	if payloadResource, ok := resource.(interface {
+		MutablePayloadMap() (map[string]any, error)
+	}); ok {
+		var err error
+		fields, err = payloadResource.MutablePayloadMap()
 		if err != nil {
 			return nil, fmt.Errorf("failed to build secret write context for %s %q: %w",
 				resource.GetType(), resource.GetRef(), err)
 		}
-		return fields, nil
+	} else {
+		data, err := json.Marshal(resource)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build secret write context for %s %q: %w",
+				resource.GetType(), resource.GetRef(), err)
+		}
+		if err := json.Unmarshal(data, &fields); err != nil {
+			return nil, fmt.Errorf("failed to decode secret write context for %s %q: %w",
+				resource.GetType(), resource.GetRef(), err)
+		}
 	}
 
-	data, err := json.Marshal(resource)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build secret write context for %s %q: %w",
-			resource.GetType(), resource.GetRef(), err)
+	delete(fields, resources.SchemaFieldRef)
+	delete(fields, resources.SchemaFieldKongctl)
+	for _, descriptor := range resources.RelationshipDescriptorsForType(resource.GetType()) {
+		if descriptor.Kind == resources.RelationshipKindKongctlParentSelector {
+			removeSecretContextPath(fields, strings.Split(descriptor.FieldPath, "."))
+		}
 	}
-	var fields map[string]any
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return nil, fmt.Errorf("failed to decode secret write context for %s %q: %w",
-			resource.GetType(), resource.GetRef(), err)
-	}
-	delete(fields, "ref")
-	delete(fields, "kongctl")
-	if resource.GetType() == resources.ResourceTypeDCRProvider {
+	if resource.GetType() == resources.ResourceTypeDCRProvider && action == ActionUpdate {
 		if providerType, ok := fields[FieldDCRProviderProviderType]; ok {
 			fields[FieldDCRProviderUpdateType] = providerType
 		}
 	}
+	if resource.GetType() == resources.ResourceTypePortalIdentityProvider && action == ActionUpdate {
+		delete(fields, FieldType)
+	}
 	return fields, nil
+}
+
+func removeSecretContextPath(fields map[string]any, path []string) {
+	if len(path) == 0 {
+		return
+	}
+	if len(path) == 1 {
+		delete(fields, path[0])
+		return
+	}
+	child, ok := fields[path[0]].(map[string]any)
+	if !ok {
+		return
+	}
+	removeSecretContextPath(child, path[1:])
 }
 
 func mergeSecretContextFields(contextFields, plannedFields map[string]any) map[string]any {
