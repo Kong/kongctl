@@ -135,6 +135,17 @@ steps:
           exitCode: 1
           contains: "no configuration sources specified"
 
+  - name: 009a-bare-delete-no-file
+    skipInputs: true
+    commands:
+      - name: 000-bare-delete
+        outputFormat: disable
+        run:
+          - delete
+        expectFailure:
+          exitCode: 1
+          contains: "no configuration sources specified"
+
   - name: 010-mode-plan-conflict
     skipInputs: true
     commands:

@@ -51,17 +51,7 @@ func NewDeleteCmd() (*cobra.Command, error) {
 		Long:    deleteLong,
 		Example: declDeleteCmd.Example,
 		Aliases: []string{"d", "D", "del", "rm", "DEL", "RM"},
-		// When -f is provided, run declarative delete; otherwise show help
-		RunE: func(c *cobra.Command, args []string) error {
-			filenames, _ := c.Flags().GetStringSlice("filename")
-			planFile, _ := c.Flags().GetString("plan")
-			if len(filenames) > 0 || planFile != "" {
-				return declDeleteCmd.RunE(c, args)
-			}
-			return &cmdpkg.UsageError{
-				Err: fmt.Errorf("command %q requires -f/--filename or --plan", c.CommandPath()),
-			}
-		},
+		RunE:    declDeleteCmd.RunE,
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
 			if ctx == nil {
