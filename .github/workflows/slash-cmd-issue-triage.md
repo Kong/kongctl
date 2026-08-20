@@ -45,6 +45,7 @@ safe-outputs:
   add-comment:
 
 tools:
+  bash: []
   web-fetch:
   github:
     toolsets: [default]
