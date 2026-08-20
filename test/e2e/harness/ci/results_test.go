@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func TestAIGatewayScenariosAreBeta(t *testing.T) {
+func TestAIGatewayScenariosAreStable(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(resultsScriptPath(t)), "..", "..", "..", ".."))
 	paths, err := filepath.Glob(filepath.Join(repoRoot, "test", "e2e", "scenarios", "ai-gateway", "*", "scenario.yaml"))
 	if err != nil {
@@ -36,8 +36,8 @@ func TestAIGatewayScenariosAreBeta(t *testing.T) {
 		if err := yaml.Unmarshal(data, &metadata); err != nil {
 			t.Fatalf("parse %s: %v", path, err)
 		}
-		if metadata.Test.Maturity != "beta" {
-			t.Errorf("%s maturity = %q, want beta", path, metadata.Test.Maturity)
+		if metadata.Test.Maturity != "" {
+			t.Errorf("%s maturity = %q, want default stable maturity", path, metadata.Test.Maturity)
 		}
 	}
 }
@@ -47,19 +47,19 @@ func TestResultAccountingSeparatesBetaFailures(t *testing.T) {
 	runLog := filepath.Join(dir, "run.log")
 	if err := os.WriteFile(runLog, []byte(strings.Join([]string{
 		"--- PASS: Test_Scenarios/test/e2e/scenarios/portal/pages/scenario.yaml (1.00s)",
-		"--- PASS: Test_Scenarios/scenarios/ai-gateway/model/scenario.yaml (2.00s)",
+		"--- PASS: Test_Scenarios/scenarios/preview/model/scenario.yaml (2.00s)",
 		"--- FAIL: Test_Scenarios/test/e2e/scenarios/portal/assets/scenario.yaml (3.00s)",
 		"--- SKIP: Test_Scenarios/test/e2e/scenarios/portal/email/scenario.yaml (0.00s)",
 	}, "\n")), 0o600); err != nil {
 		t.Fatalf("write run log: %v", err)
 	}
 
-	failureDir := filepath.Join(dir, "beta-failures", "ai-gateway", "model")
+	failureDir := filepath.Join(dir, "beta-failures", "preview", "model")
 	if err := os.MkdirAll(failureDir, 0o755); err != nil {
 		t.Fatalf("create beta failure dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(failureDir, "failure.json"), []byte(`{
-  "scenario": "ai-gateway/model/scenario.yaml",
+  "scenario": "preview/model/scenario.yaml",
   "maturity": "beta",
   "mode": "warn",
   "error": "model failed",
@@ -86,7 +86,7 @@ e2e_emit_beta_annotations "$2"
 	assertFileContents(t, filepath.Join(dir, "passed"), "portal/pages/scenario.yaml\n")
 	assertFileContents(t, filepath.Join(dir, "failed"), "portal/assets/scenario.yaml\n")
 	assertFileContents(t, filepath.Join(dir, "skipped"), "portal/email/scenario.yaml\n")
-	assertFileContents(t, filepath.Join(dir, "beta"), "ai-gateway/model/scenario.yaml\n")
+	assertFileContents(t, filepath.Join(dir, "beta"), "preview/model/scenario.yaml\n")
 	annotations := string(output)
 	if !strings.Contains(annotations, "title=Beta E2E failure::model failed") {
 		t.Fatalf("annotations missing beta failure: %s", annotations)

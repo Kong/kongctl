@@ -42,7 +42,6 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayPolicyExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 

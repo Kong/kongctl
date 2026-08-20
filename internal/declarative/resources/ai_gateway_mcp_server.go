@@ -47,7 +47,6 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayMCPServerExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 
