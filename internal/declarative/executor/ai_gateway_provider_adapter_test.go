@@ -53,6 +53,34 @@ func TestAIGatewayProviderAdapterMapCreateFieldsBuildsSDKUnion(t *testing.T) {
 	}`, string(data))
 }
 
+func TestAIGatewayProviderAdapterPreservesPublicVaultReference(t *testing.T) {
+	t.Parallel()
+
+	const reference = "{vault://support-secrets/openai-auth-header}"
+	fields := map[string]any{
+		planner.FieldName:        "openai-provider",
+		planner.FieldType:        "openai",
+		planner.FieldDisplayName: "OpenAI Provider",
+		planner.FieldConfig: map[string]any{
+			"auth": map[string]any{
+				"type": "basic",
+				"headers": []any{
+					map[string]any{"name": "Authorization", "value": reference},
+				},
+			},
+		},
+	}
+	adapter := NewAIGatewayProviderAdapter(nil)
+
+	var create kkComps.CreateAIGatewayModelProviderRequest
+	require.NoError(t, adapter.MapCreateFields(t.Context(), nil, fields, &create))
+	require.Equal(t, reference, *create.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Value)
+
+	var update kkComps.UpdateAIGatewayModelProviderRequest
+	require.NoError(t, adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil))
+	require.Equal(t, reference, *update.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Value)
+}
+
 func TestAIGatewayProviderAdapterMapsGeminiServiceAccountAuth(t *testing.T) {
 	t.Parallel()
 
@@ -126,6 +154,10 @@ func TestAIGatewayProviderScaffoldMapsToSDKRequest(t *testing.T) {
 	require.True(t, ok)
 	delete(fields, resources.SchemaFieldRef)
 	delete(fields, resources.SchemaFieldAIGateway)
+	config := fields[planner.FieldConfig].(map[string]any)
+	auth := config["auth"].(map[string]any)
+	headers := auth["headers"].([]any)
+	headers[0].(map[string]any)["value"] = "Bearer test-api-key"
 
 	var request kkComps.CreateAIGatewayModelProviderRequest
 	require.NoError(t, NewAIGatewayProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
@@ -133,7 +165,7 @@ func TestAIGatewayProviderScaffoldMapsToSDKRequest(t *testing.T) {
 	require.Equal(t, "Authorization", request.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Name)
 	require.Equal(
 		t,
-		"Bearer ${MODEL_PROVIDER_API_KEY}",
+		"Bearer test-api-key",
 		*request.AIGatewayModelProviderOpenai.Config.Auth.Headers[0].Value,
 	)
 }

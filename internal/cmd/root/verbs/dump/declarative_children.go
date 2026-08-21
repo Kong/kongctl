@@ -926,18 +926,14 @@ func buildEventGatewaySchemaRegistries(
 			continue
 		}
 
-		var createReq kkComps.SchemaRegistryCreate
-		if unmarshalErr := json.Unmarshal(data, &createReq); unmarshalErr != nil {
-			logWarn(logger, "failed to unmarshal schema registry create", sr.ID, gatewayName, unmarshalErr)
+		var resource declresources.EventGatewaySchemaRegistryResource
+		if unmarshalErr := json.Unmarshal(data, &resource); unmarshalErr != nil {
+			logWarn(logger, "failed to unmarshal schema registry", sr.ID, gatewayName, unmarshalErr)
 			continue
 		}
+		resource.Ref = sr.ID
 
-		res := declresources.EventGatewaySchemaRegistryResource{
-			SchemaRegistryCreate: createReq,
-			Ref:                  sr.ID,
-		}
-
-		results = append(results, res)
+		results = append(results, resource)
 	}
 
 	return results, nil

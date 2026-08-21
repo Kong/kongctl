@@ -3,9 +3,9 @@
 This example shows how to configure a Developer Portal OIDC identity provider
 and IdP group-to-team mapping in declarative mode.
 
-The OIDC issuer URL, client ID, and client secret are loaded from environment
-variables with `!env` so they do not need to be stored in plaintext in the
-declarative configuration.
+The OIDC issuer URL and client ID use `!env`. The write-only client secret uses
+`!secret {source: !env ...}` so its sensitivity and deferred execution behavior
+are explicit.
 
 Konnect validates the issuer URL against the IdP metadata endpoint. You must
 provide a real issuer URL for an OIDC provider you control or have access to.
@@ -44,7 +44,7 @@ you to move that configuration to `identity_providers`.
 - `portal-idp.yaml` - creates a portal, enables IdP team mapping, configures a
   nested OIDC identity provider, creates a portal team, and maps an IdP group
   to that team. The `config.issuer_url`, `config.client_id`, and
-  `config.client_secret` fields use `!env`.
+  `config.client_secret` field uses `!secret` with an `!env` source.
 
 ## Usage
 
@@ -72,8 +72,8 @@ Check the portal identity provider after apply:
 kongctl get portal identity-providers --portal-name portal-idp-example -o yaml
 ```
 
-Human-readable diff output redacts `!env` values by design. Use `get` after
-apply to confirm the resolved values.
+Human-readable diff output redacts `!env` values and reports the client secret
+as a write request without showing its value.
 
 Delete the example when you are done:
 

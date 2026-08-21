@@ -11,6 +11,9 @@ Gateway resources.
   with the data plane certificate PEM inlined, so it can be loaded directly
   from a remote URL with `-f https://...` and does not require any sibling
   files.
+- [openai-llm](openai-llm) creates an AI Gateway, an OpenAI provider, a model,
+  and a data plane certificate, then runs a local Docker data plane and sends
+  an OpenAI-compatible chat request through it.
 - [config-store-vault.yaml](config-store-vault.yaml) connects a nested Config
   Store to a Konnect Vault with `!ref`, then uses a Vault reference for an
   OpenAI provider authorization header.
@@ -24,11 +27,15 @@ Gateway resources.
   Servers, vaults, and data plane certificates that reference the shared
   gateway.
 
-Set `OPENAI_AUTH_HEADER` to the full upstream authorization header value
-before applying `ai-gateway.yaml` or the federated example, for example
-`Bearer ...`.
+Set `OPENAI_AUTH_HEADER` to the full upstream authorization header value before
+applying `ai-gateway.yaml` or the federated example. Set `OPENAI_API_KEY` to
+only the token when using `ai-gateway-remote.yaml`; its `!secret` composition
+adds the `Bearer ` prefix.
 
 Before applying `config-store-vault.yaml`, add a secret named
 `openai-auth-header` to `support-config-store`. Its value should be the full
 OpenAI authorization header, for example `Bearer ...`. Config Store resources
-manage the store itself, but do not manage the secrets it contains.
+manage the store itself, but do not manage the secrets it contains. The model
+provider uses the literal `{vault://support-secrets/openai-auth-header}` vault
+reference. The reference is public configuration, remains visible in plans,
+and is resolved by Konnect when the provider uses it.

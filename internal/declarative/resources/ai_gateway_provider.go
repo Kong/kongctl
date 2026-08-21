@@ -106,6 +106,9 @@ func validateAIGatewayProviderAuthConfig(config map[string]any) error {
 				"use config.auth.headers[].name and config.auth.headers[].value",
 		)
 	}
+	if headers, ok := auth["headers"].([]any); ok && len(headers) > 1 {
+		return fmt.Errorf("config.auth.headers supports at most one item")
+	}
 
 	return nil
 }
@@ -302,15 +305,15 @@ func aiGatewayModelProviderSDKUnionTypes() []string {
 func aiGatewayModelProviderAuthTypes(providerType string) []string {
 	switch providerType {
 	case "azure":
-		return []string{"basic", providerType}
+		return []string{authenticationTypeBasic, providerType}
 	case "bedrock":
-		return []string{"basic", "aws"}
+		return []string{authenticationTypeBasic, "aws"}
 	case "gemini":
-		return []string{"basic", "gcp"}
+		return []string{authenticationTypeBasic, "gcp"}
 	case "sagemaker":
-		return []string{"basic", "sagemaker"}
+		return []string{authenticationTypeBasic, "sagemaker"}
 	default:
-		return []string{"basic"}
+		return []string{authenticationTypeBasic}
 	}
 }
 
@@ -362,7 +365,14 @@ func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
 			value.Recommended = true
 		}
 		setExplainLiteral(auth, []string{"headers", SchemaFieldName}, "Authorization")
-		setExplainLiteral(auth, []string{"headers", "value"}, "Bearer ${MODEL_PROVIDER_API_KEY}")
+		explainReplacePath(
+			auth,
+			[]string{"headers", "value"},
+			explainSecretEnvCompositionNode("Bearer ", "MODEL_PROVIDER_API_KEY"),
+		)
 	}
-	setExplainLiteral(auth, []string{"service_account_json"}, "${GCP_SERVICE_ACCOUNT_JSON}")
+	explainReplacePath(auth, []string{"client_secret"}, explainSecretEnvNode("AZURE_CLIENT_SECRET"))
+	explainReplacePath(auth, []string{"secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
+	explainReplacePath(auth, []string{"aws", "secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
+	explainReplacePath(auth, []string{"service_account_json"}, explainSecretEnvNode("GCP_SERVICE_ACCOUNT_JSON"))
 }

@@ -255,9 +255,16 @@ func (e *Executor) validatePlanPayloads(ctx context.Context, plan *planner.Plan)
 		return e.withPlanCompatibilityGuidance(err)
 	}
 	for i := range plan.Changes {
-		change := plan.Changes[i]
-		change.Fields = cloneValidationFields(change.Fields)
-		change.References = cloneValidationReferences(change.References)
+		executionChange, err := cloneChangeForExecution(&plan.Changes[i])
+		if err != nil {
+			return fmt.Errorf(
+				"incompatible plan change %d (%q): failed to normalize payload: %w",
+				i,
+				plan.Changes[i].ID,
+				err,
+			)
+		}
+		change := *executionChange
 		if err := e.resolveDeferredEnvPlaceholders(&change); err != nil {
 			return fmt.Errorf(
 				"incompatible plan change %d (%q): failed to resolve deferred environment values: %w",
@@ -267,6 +274,14 @@ func (e *Executor) validatePlanPayloads(ctx context.Context, plan *planner.Plan)
 			)
 		}
 		change = validationChange(change)
+		if err := injectSecretWriteValidationPlaceholders(&change); err != nil {
+			return fmt.Errorf(
+				"incompatible plan change %d (%q): %w",
+				i,
+				change.ID,
+				err,
+			)
+		}
 		if change.ResourceType == planner.ResourceTypeDeck {
 			continue
 		}

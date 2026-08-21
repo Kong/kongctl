@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
@@ -29,6 +30,9 @@ func (l *Loader) collectDeferredEnvSources(actual, placeholder *resources.Resour
 			case "/kongctl/namespace":
 				return fmt.Errorf("!env tags are not supported on kongctl.namespace")
 			}
+			if _, ok := secrets.Match(resource.GetType(), path); ok {
+				return nil
+			}
 
 			actual.AddEnvSource(resourceRef, path, placeholder)
 			return nil
@@ -41,49 +45,12 @@ func visitResourceSetResources(rs *resources.ResourceSet, fn func(resources.Reso
 		return nil
 	}
 
-	value := reflect.ValueOf(rs).Elem()
-	resourceType := reflect.TypeFor[resources.Resource]()
-
-	for i := range value.NumField() {
-		fieldValue := value.Field(i)
-		fieldType := value.Type().Field(i)
-		if fieldType.PkgPath != "" || fieldType.Tag.Get("yaml") == "-" {
-			continue
-		}
-
-		//exhaustive:ignore
-		switch fieldValue.Kind() {
-		case reflect.Slice:
-			for j := range fieldValue.Len() {
-				item := fieldValue.Index(j)
-				if !item.IsValid() {
-					continue
-				}
-
-				if item.CanAddr() && item.Addr().Type().Implements(resourceType) {
-					if err := fn(item.Addr().Interface().(resources.Resource)); err != nil {
-						return err
-					}
-					continue
-				}
-
-				if item.Type().Implements(resourceType) {
-					if err := fn(item.Interface().(resources.Resource)); err != nil {
-						return err
-					}
-				}
-			}
-		case reflect.Pointer:
-			if fieldValue.IsNil() || !fieldValue.Type().Implements(resourceType) {
-				continue
-			}
-			if err := fn(fieldValue.Interface().(resources.Resource)); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	var visitErr error
+	rs.ForEachResource(func(resource resources.Resource) bool {
+		visitErr = fn(resource)
+		return visitErr == nil
+	})
+	return visitErr
 }
 
 func walkDeferredEnvPlaceholders(value reflect.Value, path []string, visit func(string, string) error) error {

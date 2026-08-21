@@ -2,12 +2,15 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_SCHEMA_REGISTRY_PASSWORD: testpassword
 
 
 vars:
   egwName: egw-cp-for-schema-registry-test-name
   schemaRegistryRef: default-schema-registry-ref
   schemaRegistryName: default-schema-registry-name
+  vaultReference: "${vault['env']['PATH']}"
+  rotatedVaultReference: "${vault['env']['HOME']}"
 
 defaults:
   mask:
@@ -54,6 +57,8 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.schemaRegistryRef }}"
+                fields.config.authentication.password: "{{ .vars.vaultReference }}"
+                "contains(keys(@), 'secret_writes')": false
       - name: 002-apply-create
         outputFormat: json
         run:
@@ -109,6 +114,10 @@ steps:
             expect:
               fields:
                 "@": "Default Schema Registry description"
+          - select: config.authentication.password
+            expect:
+              fields:
+                "@": "{{ .vars.vaultReference }}"
       - name: 005-get-schema-registry-by-id
         run:
           - get
@@ -128,6 +137,10 @@ steps:
             expect:
               fields:
                 "@": "Default Schema Registry description"
+          - select: config.authentication.password
+            expect:
+              fields:
+                "@": "{{ .vars.vaultReference }}"
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -157,6 +170,8 @@ steps:
               fields:
                 action: UPDATE
                 resource_ref: "{{ .vars.schemaRegistryRef }}"
+                fields.config.authentication.password: "{{ .vars.vaultReference }}"
+                "contains(keys(@), 'secret_writes')": false
       - name: 002-apply-update
         outputFormat: json
         run:
@@ -195,7 +210,74 @@ steps:
                 config.timeout_seconds: 60
                 config.authentication.type: basic
                 config.authentication.username: updateduser
-  - name: 003-sync-delete
+                config.authentication.password: "{{ .vars.vaultReference }}"
+  - name: 003-plan-apply-vault-reference-update
+    inputOverlayDirs:
+      - overlays/002-vault-reference-update
+    commands:
+      - name: 001-plan-vault-reference-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-vault-reference-update.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='{{ .vars.schemaRegistryRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.config.authentication.password: "{{ .vars.rotatedVaultReference }}"
+                "contains(keys(@), 'secret_writes')": false
+      - name: 002-apply-vault-reference-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-vault-reference-update.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-vault-reference-update
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - "{{ .vars.schemaRegistryName }}"
+          - -o
+          - json
+        assertions:
+          - select: config.authentication.password
+            expect:
+              fields:
+                "@": "{{ .vars.rotatedVaultReference }}"
+      - name: 004-diff-no-changes
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'No changes detected. Konnect is up to date.')": true
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -251,7 +333,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 004-root-level-declaration
+  - name: 005-root-level-declaration
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -312,7 +394,7 @@ steps:
               fields:
                 name: default-schema-registry-name
                 description: "Default root level Schema Registry description"
-  - name: 005-sync-delete-root-level
+  - name: 006-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:

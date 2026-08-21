@@ -69,7 +69,9 @@ steps:
             expect:
               fields:
                 "fields.dcr_config.dcr_base_url": __ENV__:KONGCTL_E2E_ENV_DCR_BASE_URL
-                "fields.dcr_config.api_key": __ENV__:KONGCTL_E2E_ENV_DCR_API_KEY
+                "secret_writes[0].field": /dcr_config/api_key
+                "secret_writes[0].expression.parts[0].source.kind": env
+                "secret_writes[0].expression.parts[0].source.reference": KONGCTL_E2E_ENV_DCR_API_KEY
           - select: >-
               changes[?resource_type=='portal' && resource_ref=='{{ .vars.portalRef }}'] | [0]
             expect:

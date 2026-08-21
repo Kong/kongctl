@@ -34,8 +34,6 @@ type Loader struct {
 	tagRootDir string
 	// urlFetchOptions controls remote URL source fetching
 	urlFetchOptions URLFetchOptions
-	// tagRegistry is the registry of tag resolvers (created on demand)
-	tagRegistry *tags.ResolverRegistry
 }
 
 // New creates a new configuration loader
@@ -68,14 +66,6 @@ func (l *Loader) WithURLFetchOptions(options URLFetchOptions) *Loader {
 	}
 	l.urlFetchOptions = options
 	return l
-}
-
-// getTagRegistry returns the tag registry, creating it if needed
-func (l *Loader) getTagRegistry() *tags.ResolverRegistry {
-	if l.tagRegistry == nil {
-		l.tagRegistry = tags.NewResolverRegistry()
-	}
-	return l.tagRegistry
 }
 
 func (l *Loader) resolveSourceRoot(source Source) string {
@@ -239,11 +229,10 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	var temp temporaryParseResult
 	var placeholderTemp temporaryParseResult
 
-	content, err := io.ReadAll(r)
+	rawContent, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
 	}
-	rawContent := content
 	hasEnvTags := strings.Contains(string(rawContent), "!env")
 	if hasEnvTags {
 		if err := validateEnvTagStringFields(rawContent); err != nil {
@@ -279,6 +268,7 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
+	placeholderRegistry.Register(tags.NewSecretTagResolver())
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
 	if err != nil {
@@ -288,23 +278,10 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		return nil, err
 	}
 
-	// Resolve environment-backed values only after the placeholder document has
-	// passed schema validation.
-	registry := l.getTagRegistry()
-	registry.Register(fileResolver)
-	registry.Register(refResolver)
-	registry.Register(tags.NewExternalTagResolver(tags.TagExternal))
-	registry.Register(tags.NewExternalTagResolver(tags.TagLookup))
-	registry.Register(tags.NewEnvTagResolver(tags.EnvTagModeResolve))
-	if registry.HasResolvers() {
-		processedContent, err := registry.Process(rawContent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process tags in %s: %w", sourcePath, err)
-		}
-		content = processedContent
-	}
-
-	parseErr := yaml.UnmarshalStrict(content, &temp)
+	// Decode the placeholder representation twice. The execution representation
+	// resolves ordinary !env values below, after resource paths are known, while
+	// preserving bare !env on reviewed secret fields for compatibility.
+	parseErr := yaml.UnmarshalStrict(placeholderContent, &temp)
 	placeholderErr := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp)
 
 	if parseErr != nil {
@@ -332,8 +309,11 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// Extract the clean ResourceSet
 	rs := temp.ResourceSet
 	placeholderRS := placeholderTemp.ResourceSet
-	if err := captureSyncScope(content, &rs); err != nil {
+	if err := captureSyncScope(placeholderContent, &rs); err != nil {
 		return nil, fmt.Errorf("failed to inspect sync scope in %s: %w", sourcePath, err)
+	}
+	if err := resolveDefaultEnvPlaceholders(temp.Defaults); err != nil {
+		return nil, fmt.Errorf("failed to resolve !env tags in defaults in %s: %w", sourcePath, err)
 	}
 
 	// Apply file-level namespace and protected defaults
@@ -347,6 +327,9 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
 	l.extractNestedResources(&placeholderRS)
+	if err := resolveOrdinaryEnvPlaceholders(&rs); err != nil {
+		return nil, fmt.Errorf("failed to resolve !env tags in %s: %w", sourcePath, err)
+	}
 	// Resolve deck config paths relative to the source file.
 	if err := l.resolveDeckConfigPaths(&rs, baseDir, tagRootDir); err != nil {
 		return nil, fmt.Errorf("failed to resolve deck config paths in %s: %w", sourcePath, err)
@@ -354,6 +337,9 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 
 	if err := l.collectDeferredEnvSources(&rs, &placeholderRS); err != nil {
 		return nil, fmt.Errorf("failed to process deferred !env tags in %s: %w", sourcePath, err)
+	}
+	if err := l.collectSecretSources(&rs, &placeholderRS); err != nil {
+		return nil, fmt.Errorf("failed to process !secret tags in %s: %w", sourcePath, err)
 	}
 
 	// Note: We don't validate here when called from loadDirectory
@@ -585,6 +571,7 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	}
 
 	accumulated.MergeEnvSources(source)
+	accumulated.MergeSecretSources(source)
 
 	return nil
 }

@@ -104,6 +104,7 @@ func ConfirmExecution(plan *planner.Plan, _, stderr io.Writer, stdin io.Reader) 
 func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	if plan.Summary.ByAction == nil || len(plan.Changes) == 0 {
 		fmt.Fprintln(out, "No changes detected. Configuration matches current state.")
+		displayPlanWarnings(plan, out)
 		return
 	}
 
@@ -264,6 +265,10 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 
 				// Display the resource change with enhanced formatting
 				fmt.Fprintf(out, "    %s %s%s\n", actionPrefix, resourceName, protectedIndicator)
+				for _, secretWrite := range change.SecretWrites {
+					fmt.Fprintf(out, "      %s: write requested (current value unavailable; deferred source)\n",
+						secretWrite.Field)
+				}
 
 				// Show field-level changes for updates
 				if change.Action == planner.ActionUpdate {
@@ -305,37 +310,43 @@ func DisplayPlanSummary(plan *planner.Plan, out io.Writer) {
 	}
 
 	// Show warnings if any with enhanced formatting
-	if len(plan.Warnings) > 0 {
-		fmt.Fprintln(out, "\nWARNINGS")
-		fmt.Fprintln(out, strings.Repeat("-", 70))
-		for _, warning := range plan.Warnings {
-			// Find the change to get more context
-			var change *planner.PlannedChange
-			for i := range plan.Changes {
-				if plan.Changes[i].ID == warning.ChangeID {
-					change = &plan.Changes[i]
-					break
-				}
-			}
-
-			if change != nil {
-				// Extract position from change ID (format: "N:action:type:ref")
-				parts := strings.SplitN(change.ID, ":", 4)
-				if len(parts) >= 4 {
-					fmt.Fprintf(out, "  [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
-					fmt.Fprintf(out, "      %s\n", warning.Message)
-				} else {
-					fmt.Fprintf(out, "  %s\n", warning.Message)
-				}
-			} else {
-				fmt.Fprintf(out, "  %s\n", warning.Message)
-			}
-		}
-		fmt.Fprintln(out, strings.Repeat("-", 70))
-	}
+	displayPlanWarnings(plan, out)
 
 	// Display summary statistics at the end (THIRD)
 	displaySummary(plan, out)
+}
+
+func displayPlanWarnings(plan *planner.Plan, out io.Writer) {
+	if len(plan.Warnings) == 0 {
+		return
+	}
+
+	fmt.Fprintln(out, "\nWARNINGS")
+	fmt.Fprintln(out, strings.Repeat("-", 70))
+	for _, warning := range plan.Warnings {
+		// Find the change to get more context
+		var change *planner.PlannedChange
+		for i := range plan.Changes {
+			if plan.Changes[i].ID == warning.ChangeID {
+				change = &plan.Changes[i]
+				break
+			}
+		}
+
+		if change != nil {
+			// Extract position from change ID (format: "N:action:type:ref")
+			parts := strings.SplitN(change.ID, ":", 4)
+			if len(parts) >= 4 {
+				fmt.Fprintf(out, "  [%s] %s: %s\n", parts[0], change.ResourceType, change.ResourceRef)
+				fmt.Fprintf(out, "      %s\n", warning.Message)
+			} else {
+				fmt.Fprintf(out, "  %s\n", warning.Message)
+			}
+		} else {
+			fmt.Fprintf(out, "  %s\n", warning.Message)
+		}
+	}
+	fmt.Fprintln(out, strings.Repeat("-", 70))
 }
 
 // getParentResourceType returns the parent resource type for a given child type
@@ -540,6 +551,9 @@ func displaySummary(plan *planner.Plan, out io.Writer) {
 	if externalToolCount > 0 {
 		fmt.Fprintf(out, "  External tool steps to run: %d\n", externalToolCount)
 	}
+	if plan.Summary.SecretWrites > 0 {
+		fmt.Fprintf(out, "  Write-only secrets to write: %d\n", plan.Summary.SecretWrites)
+	}
 
 	// Resource type breakdown
 	if len(plan.Summary.ByResource) > 0 {
@@ -611,7 +625,7 @@ func willBeProtected(change planner.PlannedChange) bool {
 
 // displayFieldChanges shows detailed field-level changes for update operations
 func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent string) {
-	hasFieldChanges := false
+	hasFieldChanges := len(change.SecretWrites) > 0
 
 	// Collect and sort field names for consistent output
 	fieldNames := make([]string, 0, len(change.Fields))

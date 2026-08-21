@@ -36,8 +36,9 @@ type Executor struct {
 	// planner-to-SDK request mappings.
 	payloadContracts map[string]payloadContract
 	// Track created resources during execution
-	createdResources map[string]string // changeID -> resourceID
-	cacheMu          sync.RWMutex
+	createdResources      map[string]string         // changeID -> resourceID
+	createdResourceFields map[string]map[string]any // changeID -> resolved non-secret fields
+	cacheMu               sync.RWMutex
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
@@ -166,6 +167,8 @@ type Executor struct {
 	konnectBaseURL     string
 	executionMode      planner.PlanMode
 	planBaseDir        string
+	secretMu           sync.Mutex
+	resolvedSecrets    map[string]map[string]string
 }
 
 // DefaultMaxConcurrency is the default --max-concurrency value.
@@ -204,19 +207,21 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		deckRunner = deck.NewRunner()
 	}
 	e := &Executor{
-		client:             client,
-		reporter:           reporter,
-		dryRun:             dryRun,
-		payloadContracts:   make(map[string]payloadContract),
-		createdResources:   make(map[string]string),
-		refToID:            make(map[string]map[string]string),
-		stateCache:         state.NewCache(),
-		deckRunner:         deckRunner,
-		konnectToken:       opts.KonnectToken,
-		konnectTokenSource: opts.KonnectTokenSource,
-		konnectBaseURL:     opts.KonnectBaseURL,
-		executionMode:      opts.Mode,
-		planBaseDir:        strings.TrimSpace(opts.PlanBaseDir),
+		client:                client,
+		reporter:              reporter,
+		dryRun:                dryRun,
+		payloadContracts:      make(map[string]payloadContract),
+		createdResources:      make(map[string]string),
+		createdResourceFields: make(map[string]map[string]any),
+		refToID:               make(map[string]map[string]string),
+		stateCache:            state.NewCache(),
+		deckRunner:            deckRunner,
+		konnectToken:          opts.KonnectToken,
+		konnectTokenSource:    opts.KonnectTokenSource,
+		konnectBaseURL:        opts.KonnectBaseURL,
+		executionMode:         opts.Mode,
+		planBaseDir:           strings.TrimSpace(opts.PlanBaseDir),
+		resolvedSecrets:       make(map[string]map[string]string),
 	}
 
 	e.concurrency = DefaultMaxConcurrency
@@ -696,6 +701,15 @@ func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionRe
 		}
 		return result
 	}
+	if err := e.preflightSecretWrites(plan); err != nil {
+		result.Errors = append(result.Errors, ExecutionError{Error: err.Error()})
+		result.FailureCount = 1
+		if e.reporter != nil {
+			e.reporter.FinishExecution(result)
+		}
+		return result
+	}
+	defer e.clearResolvedSecrets()
 
 	// Choose execution strategy.
 	// Planner is the source of truth for dependency ordering and concurrency groups.
@@ -877,9 +891,16 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
 	plan *planner.Plan,
 ) error {
+	reportChange := change
+	executionChange, err := cloneChangeForExecution(change)
+	if err != nil {
+		return err
+	}
+	change = executionChange
+
 	// Notify reporter of change start
 	if e.reporter != nil {
-		e.reporter.StartChange(*change)
+		e.reporter.StartChange(*reportChange)
 	}
 
 	resourceName := change.ResourceRef
@@ -902,20 +923,41 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.mu.Unlock()
 
 		if e.reporter != nil {
-			e.reporter.CompleteChange(*change, err)
+			e.reporter.CompleteChange(*reportChange, err)
 		}
 
+		return err
+	}
+	// Hydrate unresolved refs and parent IDs before capturing the resolved
+	// non-secret fields that later dependency references may need.
+	e.hydrateKnownReferenceIDs(change, plan)
+
+	resolvedReferenceChange, err := cloneChangeForExecution(change)
+	if err == nil {
+		err = e.injectResolvedSecretWrites(change)
+	}
+	if err != nil {
+		execError := ExecutionError{
+			ChangeID:     change.ID,
+			ResourceType: change.ResourceType,
+			ResourceName: resourceName,
+			ResourceRef:  change.ResourceRef,
+			Action:       string(change.Action),
+			Error:        err.Error(),
+		}
+		e.mu.Lock()
+		result.Errors = append(result.Errors, execError)
+		result.FailureCount++
+		e.mu.Unlock()
+		if e.reporter != nil {
+			e.reporter.CompleteChange(*reportChange, err)
+		}
 		return err
 	}
 
 	if resolvedName := getResourceName(change.Fields); resolvedName != "" {
 		resourceName = resolvedName
 	}
-
-	// Hydrate unresolved refs/parent IDs from already-completed dependency creates.
-	// This restores deterministic downstream ID propagation without mutating
-	// future groups concurrently.
-	e.hydrateKnownReferenceIDs(change, plan)
 
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {
@@ -948,7 +990,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 		// Notify reporter
 		if e.reporter != nil {
-			e.reporter.CompleteChange(*change, err)
+			e.reporter.CompleteChange(*reportChange, err)
 		}
 
 		return err
@@ -970,48 +1012,48 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.mu.Unlock()
 
 		if e.reporter != nil {
-			e.reporter.SkipChange(*change, "dry-run mode")
+			e.reporter.SkipChange(*reportChange, "dry-run mode")
 		}
 
 		return nil
 	}
 
 	// Execute the actual change
-	var err error
+	var executionErr error
 	var resourceID string
 
 	switch change.Action {
 	case planner.ActionCreate:
 		if change.ResourceType == planner.ResourceTypeDeck {
-			err = e.executeDeckStep(ctx, change, plan)
+			executionErr = e.executeDeckStep(ctx, change, plan)
 		} else {
-			resourceID, err = e.createResource(ctx, change)
+			resourceID, executionErr = e.createResource(ctx, change)
 		}
 	case planner.ActionExternalTool:
 		if change.ResourceType != planner.ResourceTypeDeck {
-			err = fmt.Errorf("external tool action is only supported for %s resources", planner.ResourceTypeDeck)
+			executionErr = fmt.Errorf("external tool action is only supported for %s resources", planner.ResourceTypeDeck)
 		} else {
-			err = e.executeDeckStep(ctx, change, plan)
+			executionErr = e.executeDeckStep(ctx, change, plan)
 		}
 	case planner.ActionUpdate:
-		resourceID, err = e.updateResource(ctx, change)
+		resourceID, executionErr = e.updateResource(ctx, change)
 	case planner.ActionDelete:
-		err = e.deleteResource(ctx, change)
+		executionErr = e.deleteResource(ctx, change)
 		resourceID = change.ResourceID
 	default:
-		err = fmt.Errorf("unknown action: %s", change.Action)
+		executionErr = fmt.Errorf("unknown action: %s", change.Action)
 	}
 
 	// Record result
 	e.mu.Lock()
-	if err != nil {
+	if executionErr != nil {
 		execError := ExecutionError{
 			ChangeID:     change.ID,
 			ResourceType: change.ResourceType,
 			ResourceName: resourceName,
 			ResourceRef:  change.ResourceRef,
 			Action:       string(change.Action),
-			Error:        err.Error(),
+			Error:        executionErr.Error(),
 		}
 		result.Errors = append(result.Errors, execError)
 		result.FailureCount++
@@ -1029,6 +1071,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
+			if e.createdResourceFields == nil {
+				e.createdResourceFields = make(map[string]map[string]any)
+			}
+			e.createdResourceFields[change.ID] = resolvedReferenceChange.Fields
 
 			// Track by resource type and ref so resolve*Ref helpers can find IDs
 			// created during this execution without making additional API calls.
@@ -1042,10 +1088,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 
 	// Notify reporter
 	if e.reporter != nil {
-		e.reporter.CompleteChange(*change, err)
+		e.reporter.CompleteChange(*reportChange, executionErr)
 	}
 
-	return err
+	return executionErr
 }
 
 // hydrateKnownReferenceIDs fills unresolved parent/reference IDs in-place using
@@ -1067,7 +1113,7 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 
 	depRefs := make(map[string]createdDependencyReference, len(change.DependsOn))
 	for _, depID := range change.DependsOn {
-		createdID, ok := e.getCreatedResourceID(depID)
+		createdID, resolvedFields, ok := e.getCreatedResource(depID)
 		if !ok || createdID == "" {
 			continue
 		}
@@ -1077,10 +1123,13 @@ func (e *Executor) hydrateKnownReferenceIDs(change *planner.PlannedChange, plan 
 			continue
 		}
 
+		if resolvedFields == nil {
+			resolvedFields = depChange.Fields
+		}
 		depRefs[depChange.ResourceRef] = createdDependencyReference{
 			id:          createdID,
 			resourceRef: depChange.ResourceRef,
-			fields:      depChange.Fields,
+			fields:      resolvedFields,
 		}
 	}
 
@@ -1204,11 +1253,11 @@ func fieldPathValue(current any, segments []string) (any, bool) {
 	return fieldPathValue(next, segments[1:])
 }
 
-func (e *Executor) getCreatedResourceID(changeID string) (string, bool) {
+func (e *Executor) getCreatedResource(changeID string) (string, map[string]any, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	id, ok := e.createdResources[changeID]
-	return id, ok
+	return id, e.createdResourceFields[changeID], ok
 }
 
 func findPlannedChangeByID(plan *planner.Plan, changeID string) *planner.PlannedChange {

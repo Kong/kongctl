@@ -12,8 +12,20 @@ func init() {
 	registerResourceType(
 		ResourceTypeDCRProvider,
 		func(rs *ResourceSet) *[]DCRProviderResource { return &rs.DCRProviders },
-		AutoExplain[DCRProviderResource](),
+		AutoExplain[DCRProviderResource](
+			WithExplainFieldHint("dcr_config.initial_client_secret", secretExplainFieldHint("DCR_INITIAL_CLIENT_SECRET")),
+			WithExplainFieldHint("dcr_config.dcr_token", secretExplainFieldHint("DCR_TOKEN")),
+			WithExplainFieldHint("dcr_config.api_key", secretExplainFieldHint("DCR_API_KEY")),
+		),
 	)
+}
+
+func secretExplainFieldHint(reference string) ExplainFieldHint {
+	return ExplainFieldHint{
+		Literal:      "!secret {source: !env " + reference + "}",
+		PreferredTag: "!secret",
+		Notes:        []string{"write-only secret; literal and eager !file values are rejected"},
+	}
 }
 
 // DCRProviderResource represents a DCR provider in declarative configuration.

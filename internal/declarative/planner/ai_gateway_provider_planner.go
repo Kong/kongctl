@@ -331,6 +331,9 @@ func scrubAIGatewayProviderSecretFields(value any) any {
 		result := make(map[string]any, len(typed))
 		for key, val := range typed {
 			if isAIGatewayProviderSecretField(key) {
+				if references, ok := projectPublicVaultReferences(val); ok {
+					result[key] = references
+				}
 				continue
 			}
 			result[key] = scrubAIGatewayProviderSecretFields(val)
@@ -349,7 +352,7 @@ func scrubAIGatewayProviderSecretFields(value any) any {
 
 func isAIGatewayProviderSecretField(key string) bool {
 	switch strings.ToLower(key) {
-	case "value", "client_secret", "secret_access_key", "session_token", "service_account_json":
+	case FieldValue, FieldClientSecret, "secret_access_key", "session_token", "service_account_json":
 		return true
 	default:
 		return false

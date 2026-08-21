@@ -2,6 +2,9 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_DCR_OKTA_TOKEN: e2e_okta_token
+  KONGCTL_E2E_DCR_HTTP_API_KEY: e2e_http_api_key
+  KONGCTL_E2E_DCR_SYNC_HTTP_API_KEY: e2e_sync_http_api_key
 
 vars:
   namespace: dcr-workflow
@@ -227,6 +230,53 @@ steps:
               fields:
                 name: "{{ .vars.httpName }}"
                 provider_type: http
+
+  - name: 002a-write-selected-secret
+    inputOverlayDirs:
+      - overlays/001b-unprotect
+    commands:
+      - name: 000-plan-selected-secret-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-selected-secret.json"
+        env:
+          KONGCTL_E2E_DCR_HTTP_API_KEY: ""
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/initial.yaml"
+          - --mode
+          - apply
+          - --write-secret
+          - "{{ .vars.httpName }}#dcr_config.api_key"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                secret_writes: 1
+          - select: >-
+              changes[?resource_type=='dcr_provider' && resource_ref=='{{ .vars.httpName }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields._provider_type: http
+                "contains(keys(fields), 'provider_type')": false
+                "contains(keys(fields.dcr_config), 'api_key')": false
+                secret_writes[0].field: /dcr_config/api_key
+      - name: 001-apply-selected-secret-update
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-selected-secret.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
 
   - name: 003-create-and-adopt
     skipInputs: true

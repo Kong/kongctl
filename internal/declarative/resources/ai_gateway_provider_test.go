@@ -86,6 +86,29 @@ func TestAIGatewayProviderResourceValidateAcceptsBasicAuthHeaders(t *testing.T) 
 	require.NoError(t, provider.Validate())
 }
 
+func TestAIGatewayProviderResourceValidateRejectsMultipleBasicAuthHeaders(t *testing.T) {
+	t.Parallel()
+
+	provider := AIGatewayProviderResource{
+		BaseResource: BaseResource{Ref: "openai-provider"},
+		Name:         "openai-provider",
+		Type:         "openai",
+		DisplayName:  "OpenAI Provider",
+		Config: map[string]any{
+			"auth": map[string]any{
+				"type": "basic",
+				"headers": []any{
+					map[string]any{"name": "Authorization", "value": "Bearer token"},
+					map[string]any{"name": "X-Environment", "value": "production"},
+				},
+			},
+		},
+	}
+
+	err := provider.Validate()
+	require.ErrorContains(t, err, "config.auth.headers supports at most one item")
+}
+
 func TestAIGatewayProviderExplainNodeUsesBasicAuthHeaders(t *testing.T) {
 	t.Parallel()
 

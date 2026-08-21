@@ -242,6 +242,9 @@ func scrubAIGatewayVaultWriteOnlyFields(value any) any {
 		result := make(map[string]any, len(typed))
 		for key, val := range typed {
 			if isAIGatewayVaultWriteOnlyField(key) {
+				if references, ok := projectPublicVaultReferences(val); ok {
+					result[key] = references
+				}
 				continue
 			}
 			result[key] = scrubAIGatewayVaultWriteOnlyFields(val)
@@ -260,7 +263,7 @@ func scrubAIGatewayVaultWriteOnlyFields(value any) any {
 
 func isAIGatewayVaultWriteOnlyField(key string) bool {
 	switch strings.ToLower(key) {
-	case "api_key", "client_secret", "key", "secret_access_key", "secret_id", "token":
+	case FieldAPIKey, FieldClientSecret, "key", "secret_access_key", "secret_id", "token":
 		return true
 	default:
 		return false

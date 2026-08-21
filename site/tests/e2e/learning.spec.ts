@@ -14,7 +14,7 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(
     curriculum.getByRole("heading", { name: "Curriculum" }),
   ).toBeVisible();
-  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(6);
+  await expect(curriculum.locator(".curriculum-chapters > li")).toHaveCount(7);
   await expect(curriculum.getByRole("link", { name: /Setup/ })).toHaveAttribute(
     "href",
     "/kongctl/installation/",
@@ -43,6 +43,9 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
     curriculum.getByRole("link", { name: /Declarative Configuration/ }),
   ).toHaveAttribute("href", "/kongctl/declarative-configuration/");
   await expect(
+    curriculum.getByRole("link", { name: /Quickstarts/ }),
+  ).toHaveAttribute("href", "/kongctl/quickstarts/route-openai-requests/");
+  await expect(
     curriculum.getByRole("link", {
       name: /Federated Management/,
     }),
@@ -50,6 +53,26 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   await expect(
     curriculum.getByRole("link", { name: /Extensions/ }),
   ).toHaveAttribute("href", "/kongctl/extensions/");
+});
+
+test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
+  await page.goto("quickstarts/route-openai-requests/");
+  const lesson = page.locator(".lesson-body");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "AI Gateway: Route OpenAI",
+    }),
+  ).toBeVisible();
+  await expect(lesson).toContainText("!env OPENAI_API_KEY");
+  await expect(lesson).toContainText("openssl req -new -x509");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText(
+    "http://localhost:8000/v1/chat/completions",
+  );
+  await expect(lesson).toContainText('"model": "gpt-4.1-nano"');
+  await expect(lesson).toContainText("docker stop openai-llm-data-plane");
+  await expect(lesson).toContainText("kongctl delete -f ai-gateway.yaml");
 });
 
 test("presents the federated management journey", async ({ page }) => {
@@ -639,10 +662,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 32", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 33", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 32", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 33", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {

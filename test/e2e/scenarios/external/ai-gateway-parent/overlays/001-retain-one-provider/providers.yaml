@@ -9,4 +9,5 @@ ai_gateway_model_providers:
         type: basic
         headers:
           - name: Authorization
-            value: Bearer fake-openai-api-key
+            value: !secret
+              parts: ["Bearer ", !env KONGCTL_E2E_EXTERNAL_AI_PROVIDER_KEY]

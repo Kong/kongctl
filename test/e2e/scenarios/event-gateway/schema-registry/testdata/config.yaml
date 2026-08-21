@@ -18,4 +18,4 @@ event_gateways:
           authentication:
             type: basic
             username: testuser
-            password: testpassword
+            password: "${vault['env']['PATH']}"

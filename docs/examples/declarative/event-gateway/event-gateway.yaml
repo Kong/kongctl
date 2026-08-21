@@ -140,7 +140,7 @@ event_gateways:
           authentication:
             type: basic
             username: testuser
-            password: "${env[\"KAFKA_PASSWORD\"]}"
+            password: !secret {source: !env KAFKA_PASSWORD}
     static_keys:
       - ref: default-static-key
         name: default-static-key

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -157,6 +158,14 @@ func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 		"credentials": []any{
 			map[string]any{"api_key": "api-key-value"},
 		},
+		"provider": map[string]any{
+			"config": map[string]any{
+				"auth": map[string]any{
+					"headers": []any{map[string]any{"name": "X-Custom", "value": "opaque-value"}},
+					"key":     "vault-key-value",
+				},
+			},
+		},
 	}
 
 	redacted := RedactSensitiveFields(input).(map[string]any)
@@ -165,11 +174,43 @@ func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 	require.Equal(t, "Bearer", config["token_type"])
 	credentials := redacted["credentials"].([]any)
 	require.Equal(t, redactedValue, credentials[0].(map[string]any)["api_key"])
+	provider := redacted["provider"].(map[string]any)
+	auth := provider["config"].(map[string]any)["auth"].(map[string]any)
+	require.Equal(t, redactedValue, auth["headers"].([]any)[0].(map[string]any)["value"])
+	require.Equal(t, redactedValue, auth["key"])
 
 	originalConfig := input["config"].(map[string]any)
 	require.Equal(t, "secret-value", originalConfig["client_secret"])
 	originalCredentials := input["credentials"].([]any)
 	require.Equal(t, "api-key-value", originalCredentials[0].(map[string]any)["api_key"])
+}
+
+func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) {
+	const sentinel = "catalog-secret-sentinel"
+
+	for _, capability := range secrets.Capabilities() {
+		t.Run(string(capability.ResourceType)+capability.PathPattern, func(t *testing.T) {
+			payload := secretCatalogPatternValue(strings.Split(strings.Trim(capability.PathPattern, "/"), "/"), sentinel)
+			redacted := RedactSensitiveFields(payload)
+			data, err := json.Marshal(redacted)
+			require.NoError(t, err)
+			assert.NotContains(t, string(data), sentinel)
+
+			original, err := json.Marshal(payload)
+			require.NoError(t, err)
+			assert.Contains(t, string(original), sentinel)
+		})
+	}
+}
+
+func secretCatalogPatternValue(segments []string, value string) any {
+	if len(segments) == 0 {
+		return value
+	}
+	if segments[0] == "*" {
+		return []any{secretCatalogPatternValue(segments[1:], value)}
+	}
+	return map[string]any{segments[0]: secretCatalogPatternValue(segments[1:], value)}
 }
 
 func TestLoggingHTTPClient_NoRequestResponseLogsBelowDebug(t *testing.T) {

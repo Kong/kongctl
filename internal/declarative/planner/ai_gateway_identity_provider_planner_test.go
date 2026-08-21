@@ -48,6 +48,28 @@ func TestAIGatewayIdentityProviderConfigChangedIgnoresClientSecret(t *testing.T)
 	require.False(t, aiGatewayIdentityProviderConfigChanged(current, desired))
 }
 
+func TestAIGatewayIdentityProviderConfigChangedComparesPublicVaultReferences(t *testing.T) {
+	t.Parallel()
+
+	config := func(values ...any) map[string]any {
+		return map[string]any{
+			"auth_methods":  []any{"bearer"},
+			"client_id":     []any{"primary-client", "fallback-client"},
+			"client_secret": values,
+			"issuer":        "https://issuer.example.com",
+		}
+	}
+
+	require.False(t, aiGatewayIdentityProviderConfigChanged(
+		config("{vault://support-secrets/primary}", "hidden-current"),
+		config("{vault://support-secrets/primary}", "hidden-desired"),
+	))
+	require.True(t, aiGatewayIdentityProviderConfigChanged(
+		config("{vault://support-secrets/old-primary}", "hidden-current"),
+		config("{vault://support-secrets/new-primary}", "hidden-desired"),
+	))
+}
+
 func TestAIGatewayIdentityProviderMatchPrefersIDOverName(t *testing.T) {
 	t.Parallel()
 

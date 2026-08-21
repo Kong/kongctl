@@ -15,6 +15,8 @@ const (
 	TagLookup = "!lookup"
 	// TagRef identifies declarative resource references.
 	TagRef = "!ref"
+	// TagSecret identifies a sensitive value assembled from deferred sources.
+	TagSecret = "!secret"
 )
 
 // TagResolver processes custom YAML tags

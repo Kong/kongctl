@@ -103,6 +103,7 @@ const (
 	SchemaFieldID                = "id"
 	SchemaFieldCreatedAt         = "created_at"
 	SchemaFieldUpdatedAt         = "updated_at"
+	authenticationTypeBasic      = "basic"
 	jsonNullLiteral              = "null"
 )
 
@@ -204,8 +205,16 @@ type ResourceSet struct {
 	DefaultNamespaces []string `yaml:"-"                                                        json:"-"`
 	// EnvSources tracks deferred !env placeholders by resource ref and field path.
 	EnvSources map[string]map[string]string `yaml:"-"                                                        json:"-"`
+	// SecretSources tracks deferred write-only values by resource ref and field path.
+	SecretSources map[string]map[string]SecretSourceDeclaration `yaml:"-" json:"-"`
 	// SyncScope tracks resource collection keys explicitly present in the input.
 	SyncScope *SyncScope `yaml:"-"                                                        json:"-"`
+}
+
+// SecretSourceDeclaration records a deferred secret expression discovered while loading.
+type SecretSourceDeclaration struct {
+	Expression        tags.SecretExpression
+	DeprecatedBareEnv bool
 }
 
 // NamespaceOrigin describes how a namespace value was supplied for a resource
@@ -299,6 +308,53 @@ func (rs *ResourceSet) MergeEnvSources(other *ResourceSet) {
 // HasEnvSources returns true when any deferred !env placeholders were recorded.
 func (rs *ResourceSet) HasEnvSources() bool {
 	return rs != nil && len(rs.EnvSources) > 0
+}
+
+// AddSecretSource records a deferred secret expression for a resource field.
+func (rs *ResourceSet) AddSecretSource(
+	resourceRef string,
+	fieldPath string,
+	expression tags.SecretExpression,
+	deprecatedBareEnv bool,
+) {
+	if rs == nil || resourceRef == "" || fieldPath == "" || len(expression.Parts) == 0 {
+		return
+	}
+	if rs.SecretSources == nil {
+		rs.SecretSources = make(map[string]map[string]SecretSourceDeclaration)
+	}
+	if rs.SecretSources[resourceRef] == nil {
+		rs.SecretSources[resourceRef] = make(map[string]SecretSourceDeclaration)
+	}
+	rs.SecretSources[resourceRef][fieldPath] = SecretSourceDeclaration{
+		Expression:        expression,
+		DeprecatedBareEnv: deprecatedBareEnv,
+	}
+}
+
+// GetSecretSources returns deferred secrets for one resource ref.
+func (rs *ResourceSet) GetSecretSources(resourceRef string) map[string]SecretSourceDeclaration {
+	if rs == nil || rs.SecretSources == nil {
+		return nil
+	}
+	return rs.SecretSources[resourceRef]
+}
+
+// MergeSecretSources copies deferred secret declarations from another ResourceSet.
+func (rs *ResourceSet) MergeSecretSources(other *ResourceSet) {
+	if rs == nil || other == nil {
+		return
+	}
+	for resourceRef, paths := range other.SecretSources {
+		for path, declaration := range paths {
+			rs.AddSecretSource(resourceRef, path, declaration.Expression, declaration.DeprecatedBareEnv)
+		}
+	}
+}
+
+// HasSecretSources reports whether the input contains deferred write-only values.
+func (rs *ResourceSet) HasSecretSources() bool {
+	return rs != nil && len(rs.SecretSources) > 0
 }
 
 // GetResourceTypeByRef returns the resource type for a given ref
