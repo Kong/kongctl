@@ -106,6 +106,9 @@ func validateAIGatewayProviderAuthConfig(config map[string]any) error {
 				"use config.auth.headers[].name and config.auth.headers[].value",
 		)
 	}
+	if headers, ok := auth["headers"].([]any); ok && len(headers) > 1 {
+		return fmt.Errorf("config.auth.headers supports at most one item")
+	}
 
 	return nil
 }
@@ -302,15 +305,15 @@ func aiGatewayModelProviderSDKUnionTypes() []string {
 func aiGatewayModelProviderAuthTypes(providerType string) []string {
 	switch providerType {
 	case "azure":
-		return []string{"basic", providerType}
+		return []string{authenticationTypeBasic, providerType}
 	case "bedrock":
-		return []string{"basic", "aws"}
+		return []string{authenticationTypeBasic, "aws"}
 	case "gemini":
-		return []string{"basic", "gcp"}
+		return []string{authenticationTypeBasic, "gcp"}
 	case "sagemaker":
-		return []string{"basic", "sagemaker"}
+		return []string{authenticationTypeBasic, "sagemaker"}
 	default:
-		return []string{"basic"}
+		return []string{authenticationTypeBasic}
 	}
 }
 

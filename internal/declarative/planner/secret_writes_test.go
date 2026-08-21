@@ -31,6 +31,7 @@ func TestApplySecretWriteIntentsCreatesSecretOnlyUpdate(t *testing.T) {
 	config := change.Fields[FieldDCRProviderConfig].(map[string]any)
 	assert.NotContains(t, config, FieldAPIKey)
 	assert.Equal(t, "http", change.Fields[FieldDCRProviderUpdateType])
+	assert.NotContains(t, change.Fields, FieldDCRProviderProviderType)
 	assert.Equal(t, 1, plan.Summary.SecretWrites)
 }
 
@@ -67,6 +68,7 @@ func TestApplySecretWriteIntentsAutomaticallyIncludesCreateSecrets(t *testing.T)
 	require.Len(t, plan.Changes[0].SecretWrites, 1)
 	assert.Equal(t, ActionCreate, plan.Changes[0].Action)
 	assert.NotContains(t, plan.Changes[0].Fields, FieldDCRProviderUpdateType)
+	assert.Equal(t, "http", plan.Changes[0].Fields[FieldDCRProviderProviderType])
 }
 
 func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t *testing.T) {
@@ -141,6 +143,22 @@ func TestSecretResourceFieldsUsesPortalIdentityProviderUpdateContract(t *testing
 	require.NoError(t, err)
 	assert.NotContains(t, fields, FieldType)
 	assert.NotContains(t, fields, resources.SchemaFieldPortal)
+}
+
+func TestSecretResourceFieldsUsesDCRProviderUpdateContract(t *testing.T) {
+	provider := resources.DCRProviderResource{
+		BaseResource: resources.BaseResource{Ref: "http-dcr"},
+		Name:         "http-dcr",
+		ProviderType: "http",
+		Issuer:       "https://issuer.example.test",
+		DCRConfig:    map[string]any{"dcr_base_url": "https://dcr.example.test"},
+	}
+
+	fields, err := secretResourceFields(&provider, ActionUpdate)
+	require.NoError(t, err)
+	assert.Equal(t, "http", fields[FieldDCRProviderUpdateType])
+	assert.NotContains(t, fields, FieldDCRProviderProviderType)
+	assert.Contains(t, fields, FieldDCRProviderConfig)
 }
 
 func TestApplySecretWriteIntentsWarnsForExistingCreateOnlyCredentialWithWriteSecrets(t *testing.T) {

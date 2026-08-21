@@ -178,7 +178,7 @@ func allowOmittedSchemaRegistryPassword(registry map[string]any) {
 		return
 	}
 	authentication, ok := config["authentication"].(map[string]any)
-	if !ok || authentication["type"] != "basic" {
+	if !ok || authentication["type"] != authenticationTypeBasic {
 		return
 	}
 	// Konnect omits plaintext-origin passwords from reads. Supply an internal empty

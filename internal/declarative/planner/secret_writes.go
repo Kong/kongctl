@@ -384,6 +384,7 @@ func secretResourceFields(resource resources.Resource, action ActionType) (map[s
 		if providerType, ok := fields[FieldDCRProviderProviderType]; ok {
 			fields[FieldDCRProviderUpdateType] = providerType
 		}
+		delete(fields, FieldDCRProviderProviderType)
 	}
 	if resource.GetType() == resources.ResourceTypePortalIdentityProvider && action == ActionUpdate {
 		delete(fields, FieldType)

@@ -103,6 +103,7 @@ const (
 	SchemaFieldID                = "id"
 	SchemaFieldCreatedAt         = "created_at"
 	SchemaFieldUpdatedAt         = "updated_at"
+	authenticationTypeBasic      = "basic"
 	jsonNullLiteral              = "null"
 )
 

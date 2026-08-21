@@ -116,6 +116,10 @@ kongctl plan --mode apply -f config.yaml \
   --output-file rotate-provider-token.json
 ```
 
+Konnect currently permits at most one model-provider authentication header.
+The selector uses `headers[]` because it follows the array-shaped API field and
+does not depend on the configured header remaining at index `0`.
+
 ## Write every eligible secret
 
 Use the aggregate flag to select eligible secrets throughout the configuration:

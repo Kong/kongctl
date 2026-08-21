@@ -926,6 +926,11 @@ saved plan metadata for later review. If the flag finds no writable secrets,
 the command succeeds with a warning. An exact `--write-secret` selector remains
 strict and fails if its requested field cannot be written.
 
+The current Konnect API permits at most one AI Gateway Model Provider
+authentication header. The selector still uses
+`config.auth.headers[].value` because it follows the array-shaped OpenAPI field
+without coupling configuration to index `0`.
+
 Selectors use `[resource-type:]resource-ref[#field]`. `plan`, `diff`, and
 direct configuration-based `apply` and `sync` accept them. A saved plan already
 contains its secret-write intents, so write-selection flags cannot be combined

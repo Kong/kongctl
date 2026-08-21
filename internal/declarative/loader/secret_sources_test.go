@@ -72,6 +72,31 @@ func TestLoaderRejectsLiteralAndEagerFileOnReviewedSecretFieldsWithoutEchoingVal
 	})
 }
 
+func TestLoaderRejectsLiteralAIGatewayProviderHeaderValue(t *testing.T) {
+	config := `
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+    model_providers:
+      - ref: provider
+        name: provider
+        type: openai
+        display_name: Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: public-looking-value
+`
+
+	_, err := New().LoadFile(writeLoaderTestFile(t, config))
+	require.ErrorContains(t, err, "field /config/auth/headers/0/value")
+	require.ErrorContains(t, err, "requires !secret with a deferred source")
+	assert.NotContains(t, err.Error(), "public-looking-value")
+}
+
 func TestLoaderRejectsSecretOnUnreviewedField(t *testing.T) {
 	config := `
 portals:

@@ -273,6 +273,38 @@ func TestPayloadValidationNormalizesSchemaRegistrySDKConfigBeforeSecretInjection
 	}
 }
 
+func TestPayloadValidationAcceptsDCRProviderSecretOnlyUpdate(t *testing.T) {
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID:           "change-1",
+		ResourceType: planner.ResourceTypeDCRProvider,
+		ResourceRef:  "http-dcr",
+		Action:       planner.ActionUpdate,
+		Fields: map[string]any{
+			planner.FieldName:                  "http-dcr",
+			planner.FieldDCRProviderUpdateType: "http",
+			planner.FieldDCRProviderConfig: map[string]any{
+				"dcr_base_url": "https://dcr.example.test",
+			},
+		},
+		SecretWrites: []planner.SecretWriteIntent{
+			secretExecutionIntent("/dcr_config/api_key", "INTENTIONALLY_UNSET_SECRET"),
+		},
+	})
+	contract := NewBaseExecutor[kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest](
+		NewDCRProviderAdapter(nil),
+		nil,
+		false,
+	)
+	executor := &Executor{payloadContracts: map[string]payloadContract{
+		planner.ResourceTypeDCRProvider: contract,
+	}}
+
+	require.NoError(t, executor.validatePlanPayloads(t.Context(), plan))
+	config := plan.Changes[0].Fields[planner.FieldDCRProviderConfig].(map[string]any)
+	assert.NotContains(t, config, planner.FieldAPIKey)
+}
+
 func TestSecretWritePreflightRejectsEmptySourceAndComposesPrivately(t *testing.T) {
 	t.Setenv("EMPTY_SECRET", "")
 	plan := secretExecutionPlan(secretExecutionIntent("/config/value", "EMPTY_SECRET"))
