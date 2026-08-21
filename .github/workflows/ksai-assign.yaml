@@ -1,0 +1,32 @@
+name: ksai (assign)
+
+on:
+  pull_request:
+    types: [review_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.requested_team.slug == (vars.KSAI_REVIEW_TEAM || 'ksai') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [kong-inc-dedicated, size-md, amd64]
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch the review onto the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.event.repository.default_branch }}
+          PR: ${{ github.event.pull_request.number }}
+          ACTOR: ${{ github.event.sender.login }}
+        run: |
+          gh workflow run ksai.yaml \
+            --repo "${REPO}" \
+            --ref "${REF}" \
+            --field pr="${PR}" \
+            --field actor="${ACTOR}"

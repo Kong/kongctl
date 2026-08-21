@@ -1,0 +1,715 @@
+# The per-repo caller for every `/ksai` flow - copy it to a Kong repo at
+# .github/workflows/ksai.yaml and fill in your team's four fdrl_/uuid/svac_/wrkspc_ values
+# (see Kong/ksai docs/federated-claude.md). The filename is not free: `continuation_workflow`
+# below names it, and examples/consumer-ksai-assign.yaml dispatches it by that name.
+#
+# Kong does not distribute the shared KSAI App credentials to public repositories. kongctl uses
+# its API Ops GitHub App, which is installed on both Kong/kongctl and the private Kong/ksai repo.
+name: ksai
+
+env:
+  KSAI_ALLOWED_COMMANDS: ""
+
+permissions: {}
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      # The sidebar path. The assign workflow turns a review request into this dispatch because a
+      # `pull_request` run reports `ref_protected: false` and cannot mint the federated token; a
+      # dispatch runs on the default branch, which is protected.
+      pr:
+        description: "PR number to review"
+        required: false
+      actor:
+        description: "username to authorize against CODEOWNERS, as a commenter would be"
+        required: false
+      issue_number:
+        description: "the issue to continue working on"
+        required: false
+        type: string
+      attempt:
+        description: "runs this chain has already spent"
+        required: false
+        type: string
+      stall:
+        description: "consecutive runs that completed no step"
+        required: false
+        type: string
+      prev_remaining:
+        description: "unchecked boxes the predecessor saw; empty is not zero"
+        required: false
+        type: string
+
+jobs:
+  # Authorization runs in its own job, before the review job's concurrency group, so an
+  # unauthorized commenter cannot trigger a run that cancels an in-progress review and is only
+  # rejected later. CODEOWNERS/team checks need org Members:read, which GITHUB_TOKEN lacks, so
+  # this uses the API Ops app, minted read-only.
+  gate:
+    # A dispatch carries its own actor and has no comment to match, so it skips the trigger-phrase
+    # check and goes straight to the same CODEOWNERS check the commenter gets.
+    #
+    # `contains` decides whether this job is worth starting and nothing more. Both questions that
+    # actually matter - is the phrase a word of its own rather than part of a sentence, and does the
+    # verb after it belong to the reviewer - are answered by the trigger step below, because an
+    # Actions expression has no regex and cannot call the selector. So this gate deliberately starts
+    # for a comment meant for another /ksai action and turns it down one step later. That is
+    # affordable because this job carries no concurrency group: it spends a runner for a few seconds
+    # and cancels nothing, whereas the review job it guards cancels in progress.
+    #
+    # The Bot term keeps this off both flows' own output. `contains` is a substring test, and a report
+    # from either action legitimately names paths like `.github/actions/ksai-implement/action.yml`, so the body
+    # test matches a comment neither flow was asked to answer. Cheap here, but it is a runner per
+    # published report, forever. A dispatch is unaffected: it carries no comment at all.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.pr != '') ||
+      (github.event_name == 'issue_comment' &&
+      github.event.comment.user.type != 'Bot' &&
+      contains(github.event.comment.body, '/ksai'))
+    runs-on: [kong-inc-dedicated, size-md, amd64]
+    permissions:
+      contents: read
+    outputs:
+      authorized: ${{ steps.authz.outputs.authorized }}
+      review: ${{ steps.trigger.outputs.review }}
+      implement: ${{ steps.trigger.outputs.implement }}
+    steps:
+      # Two mints, not one, because `owner:` picks a single installation: the kreview plugin always
+      # lives in the Kong org, and the repository being reviewed may not. Inside Kong both resolve to
+      # the same installation, so this is one shape that is right everywhere rather than a shape that
+      # is right here and has to be rewritten anywhere else.
+      #
+      # The API Ops app carries write scopes for other flows (release, eval extraction). Nothing here
+      # needs them, and an installation token cannot exceed the permissions it was minted with, so
+      # both stay genuinely read-only credentials.
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # Reads the kreview plugin out of Kong/ksai, which is where it lives for every consumer.
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Mint this repository's read token
+        id: authz-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # Reads this repo's CODEOWNERS and, for an @org/team entry, its own org's membership.
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+          permission-members: read
+
+      # The authz action must come from trusted Kong/ksai code, never PR-controlled content. So must
+      # `.github/scripts`, which the trigger step below loads the arm selector out of to resolve the
+      # comment's verb. This job checks nothing out of the pull request, so the whole workspace here is
+      # ksai code at the ref below.
+      #
+      # That ref is the *reviewer's* release, not the authz action's, and the two are not
+      # interchangeable: the selector this job resolves the verb with has to be the same version the
+      # action's own copy is, or an alias added to the table is honoured by one and not the other, and
+      # the gate lets an aliased word cancel a review in flight. The authz action rides along, always at
+      # a released version - a change to it cuts its own release on the same push, so ksai's default
+      # branch and its newest tag agree except for the minutes in between.
+      - name: Check out trusted ksai code for the gate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ steps.ksai-token.outputs.token }}
+          path: _ksai-authz
+          repository: Kong/ksai
+          ref: 7a653240672e97f9a61309a09d3617270ce34677 # ai-reviewer-federated/v1.15.0 (ksai-pin: ai-reviewer-federated)
+          sparse-checkout: |
+            .github/actions/codeowners-authz
+            .github/scripts
+          persist-credentials: false
+
+      # Whether this comment invokes *the reviewer*, which is two questions: is the phrase a word of
+      # its own, and is the verb after it one the reviewer owns. A job `if` can answer neither, since
+      # `contains()` has no regex and cannot call the selector - which is why this runs out here rather
+      # than inside the action, ahead of the review job's concurrency group below.
+      #
+      # Both questions cost a review if they go unasked, in the same way. A code owner writing the
+      # phrase in prose - "I already pinged /ksai." - starts a run that reviews nothing and still
+      # succeeds, and `/ksai implement` is another action's work that this one declines internally.
+      # Either way the run has already joined the group by the time the action says so, and joining it
+      # kills a review that was halfway through and already paid for.
+      #
+      # The verb is resolved through the selector rather than matched as a string, which is the point:
+      # `!contains(github.event.comment.body, '/ksai implement')` looks equivalent and is not, since
+      # `/ksai  implement` with two spaces is not that literal and cancels a review anyway. Keep this
+      # step when adopting, and note that no verb is named anywhere in this file - the list lives in
+      # the module, so a verb added there is honoured here without touching this workflow.
+      - name: Work out which flow this comment invokes
+        id: trigger
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TRIGGER: "/ksai"
+          ALLOWED_COMMANDS: ${{ env.KSAI_ALLOWED_COMMANDS }}
+          SCRIPTS: ${{ github.workspace }}/_ksai-authz/.github/scripts
+        with:
+          script: |
+            // The same parse the action itself runs, so the two cannot disagree about what a comment
+            // asked for. `parseOptions` rather than `selectArm`: the verb answer is identical, and
+            // selectArm would first validate the model and effort inputs, which this job was never
+            // handed and would then reject the run over.
+            const { parseOptions, ownsVerb, ownerOf, commandEnabled, parseAllowedCommands, VERBS, verbFitsSurface, DEFAULT_VERB } =
+              require(`${process.env.SCRIPTS}/lib/select-arm.cjs`);
+
+            /*
+             * A dispatch carries no `issue` in its payload, so reading the surface off the payload alone made
+             * every dispatch look like an issue - and the surface terms below would then refuse the reviewer
+             * the one request only it can serve. The sidebar always dispatches a pull request number.
+             */
+            const onIssue = context.eventName !== 'workflow_dispatch' && !context.payload.issue?.pull_request;
+
+            const fallbackEnabled = () =>
+              commandEnabled(DEFAULT_VERB, {
+                flow: ownerOf(DEFAULT_VERB),
+                allowedCommands: process.env.ALLOWED_COMMANDS,
+              });
+
+            const both = () => {
+              core.setOutput('review', !onIssue && fallbackEnabled() ? 'true' : 'false');
+              core.setOutput('implement', 'true');
+            };
+            const neither = () => {
+              core.setOutput('review', 'false');
+              core.setOutput('implement', 'false');
+            };
+
+            /*
+             * A token that names no command, checked before anything routes on the list.
+             *
+             * `commandEnabled` treats a non-empty list as exhaustive, so one unlistable token answers false for
+             * every command there is - and routing on that refuses the whole repository in silence, on a green
+             * run. It is the repository's own misconfiguration and only an action can say so out loud, so both
+             * start and the selector rejects it loudly. Not `both()`: that reads the same broken list to decide
+             * whether the reviewer runs, and on a pull request the reviewer is the one that answers a malformed
+             * request - the implement action stays quiet there unless the verb was its own. The surface term is
+             * the reviewer's own: it answers nothing on an issue, so starting it there spends a runner to review
+             * nothing and hands `clear-request` a success against an issue number.
+             */
+            if (parseAllowedCommands(process.env.ALLOWED_COMMANDS).some((command) => !VERBS.includes(command))) {
+              core.setOutput('review', onIssue ? 'false' : 'true');
+              return core.setOutput('implement', 'true');
+            }
+
+            if (context.eventName === 'workflow_dispatch') {
+              core.setOutput('review', fallbackEnabled() ? 'true' : 'false');
+              return core.setOutput('implement', 'false');
+            }
+            const body = context.payload.comment?.body ?? '';
+            const escapedTrigger = process.env.TRIGGER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const match = body.match(new RegExp(`(^|\\s)${escapedTrigger}(?=\\s|$)`));
+            if (!match) return neither();
+
+            // The repo's alias table, or none when the file is missing or unreadable. Read here for the
+            // same reason the verb is: an aliased word resolves to the default verb without it, so
+            // `<phrase> ship` would pass this gate, join the cancelling group below and kill a review
+            // that was halfway through - the exact failure resolving the verb here was meant to close.
+            //
+            // A config error is deliberately let through rather than stopping the run, matching how a
+            // malformed option is handled two lines down: the action rejects it loudly with a comment,
+            // and refusing here would answer a broken config file with silence.
+            const loadConfig = require(`${process.env.SCRIPTS}/ksai/config.cjs`);
+            const config = await loadConfig({ github, core, owner: context.repo.owner, repo: context.repo.repo });
+            const verbAliases = config.error ? undefined : config.aliases;
+
+            const parsed = parseOptions(body.slice(match.index + match[0].length).trimStart(), { verbAliases });
+
+            if (parsed.error) return both();
+            if (config.error && parsed.verb === null) return both();
+
+            /*
+             * A comment naming no command, with words of its own, starts both too - and this is the row
+             * that is silence if it is got wrong. Nothing has classified it yet: a cheap model inside
+             * EACH action reads prose like "the CI is broken, sort it out" and decides. Route on this
+             * gate's answer and a comment the classifier reads as `do` reaches a job that never started.
+             *
+             * `parsed.verb` is `null` for "named no command" and absent entirely on the error path above,
+             * which is why that check comes first and why this one tests `null` rather than falsiness.
+             */
+            if (parsed.verb === null && String(parsed.prompt ?? '').trim() !== '') return both();
+
+            const verb = parsed.verb ?? DEFAULT_VERB;
+
+            // `ownsVerb`, not `=== DEFAULT_VERB`. That comparison was correct only because the reviewer's
+            // verb happens to also be the default, which is a coincidence rather than a rule.
+            const enabled = commandEnabled(verb, { flow: ownerOf(verb), allowedCommands: process.env.ALLOWED_COMMANDS });
+
+            core.setOutput(
+              'review',
+              ownsVerb('reviewer', verb) && verbFitsSurface(verb, { onIssue }) && enabled ? 'true' : 'false',
+            );
+
+            /*
+             * The implement half, and it is deliberately NOT symmetric with the line above.
+             *
+             * No `verbFitsSurface`: a command written on the wrong surface is answered out loud by the
+             * implement action and by nobody else, whoever owns it. Filter it here and `/API Ops approve`
+             * left under the plan gets silence, which reads exactly like an approval thrown away.
+             *
+             * `ownerOf(verb) === null` is the row nobody expects: a command the table knows and no flow
+             * implements - `test` today - is answered only by that action's not-implemented notice. Drop
+             * the term and `/ksai test` is answered by nobody at all.
+             *
+             * `!verbFitsSurface` is that same rule stated positively, and it is the term that stops
+             * `<phrase> review` on an issue reaching nobody: the reviewer's job cannot run there, so
+             * without it both jobs skip and the misplaced-command notice is never published.
+             *
+             * The last term is a bare trigger on an issue, where the default command is the reviewer's
+             * and the reviewer never runs: the implement action publishes the command list there.
+             */
+            core.setOutput(
+              'implement',
+              ownsVerb('implement', verb) ||
+                ownerOf(verb) === null ||
+                !verbFitsSurface(verb, { onIssue }) ||
+                !enabled ||
+                (onIssue && parsed.verb === null)
+                ? 'true'
+                : 'false',
+            );
+
+      - name: Authorize commenter against CODEOWNERS
+        id: authz
+        uses: ./_ksai-authz/.github/actions/codeowners-authz
+        with:
+          github-token: ${{ steps.authz-token.outputs.token }}
+          # inputs.actor is empty on an issue_comment, so the commenter is the fallback.
+          username: ${{ inputs.actor || github.event.comment.user.login }}
+
+  review:
+    needs: gate
+    # Both halves of the gate's answer are required, and this is the line that makes the trigger step
+    # load-bearing: `authorized` is who asked, and `review` is whether the comment invokes this flow
+    # at all - a run that would no-op inside the action must not reach the cancelling group below.
+    if: ${{ needs.gate.outputs.authorized == 'true' && needs.gate.outputs.review == 'true' }}
+    runs-on: [kong-inc-dedicated, size-md, amd64]
+    # 35m clears the longest review observed across 229 runs (23.7m) by about eleven minutes, and
+    # the job shares this budget with checkouts and posting. Do not remove the key: GitHub then
+    # applies 360m, and this ceiling is what stops a hung run costing ~$89 instead of ~$9.
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      pull-requests: write # the action posts the review comment
+      issues: write # the action reacts 👀 to the triggering comment
+      id-token: write # mint the GitHub OIDC token for federation
+    # Only authorized runs reach this job, so only they contend for the group. Keyed on the PR
+    # number (issue.number is the PR number on an issue_comment), so a newer /ksai supersedes
+    # only a same-PR review, never one on another PR. The run_id fallback keeps the group unique
+    # if issue.number is ever empty, so it can never collapse to a shared constant.
+    #
+    # inputs.pr carries the same number on a dispatch, so a sidebar request and a /ksai comment on
+    # one PR share a group and supersede each other rather than reviewing it twice.
+    concurrency:
+      group: ksai-${{ inputs.pr || github.event.issue.number || github.run_id }}
+      cancel-in-progress: true
+    steps:
+      # The same two mints as the gate job, for the same reason. Downscoped more pointedly here: both
+      # are handed to the reviewer action, which runs a Claude agent over untrusted PR content.
+      # PR-head checkout, the 👀 reaction and posting stay on GITHUB_TOKEN.
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Mint this repository's read token
+        id: authz-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+          permission-members: read
+
+      # Pinning the action to a commit also pins the kreview plugin: the action defaults its plugin
+      # checkout to this same ref. It is the commit the gate's checkout above uses, and a release keeps
+      # both lines on it - they were two different commits for a while, which is the skew described there.
+      # kongctl is public while Kong/ksai is private, so check the action out explicitly.
+      # Initializing the workspace first keeps the PR checkout inside the composite action
+      # from deleting this nested action checkout.
+      - name: Check out trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Check out ksai reviewer action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.ksai-token.outputs.token }}
+          ref: 7a653240672e97f9a61309a09d3617270ce34677 # ai-reviewer-federated/v1.15.0
+          path: ./.github/actions/ksai-reviewer
+          sparse-checkout: .github/actions/ai-reviewer-federated
+          persist-credentials: false
+
+      - uses: ./.github/actions/ksai-reviewer/.github/actions/ai-reviewer-federated
+        with:
+          # Changing the phrase means changing it in four places: here, the gate's `if` above, the
+          # trigger step's `TRIGGER` env, and the synthesised body below. The synthesised one has to
+          # match or the action decides it was never invoked, skips every step, and the job still
+          # succeeds - a review that never happened, followed by a withdrawn request saying it did.
+          # Miss the trigger step and it is the mirror image: every comment resolves to "not the
+          # reviewer" and no review ever runs.
+          trigger_phrase: "/ksai"
+          allowed_commands: ${{ env.KSAI_ALLOWED_COMMANDS }}
+          ksai_ref: 7a653240672e97f9a61309a09d3617270ce34677
+          # All three are empty on an issue_comment, where the action reads them off the event. A
+          # dispatch has no comment, so it supplies the PR, the actor, and a synthesised body - which
+          # the action documents as the way to call it without one.
+          pr_number: ${{ inputs.pr }}
+          actor: ${{ inputs.actor }}
+          comment_body: ${{ github.event_name == 'workflow_dispatch' && '/ksai review this pull request' || '' }}
+          # GITHUB_TOKEN checks out the PR head, reacts, and posts the review comment.
+          source_org_github_token: ${{ github.token }}
+          # This repo's own org, for the CODEOWNERS/team check.
+          authorization_github_token: ${{ steps.authz-token.outputs.token }}
+          # The Kong org, for the kreview plugin checkout.
+          kong_org_github_token: ${{ steps.ksai-token.outputs.token }}
+          # Non-secret identifiers; they only route this run to your team's Anthropic workspace,
+          # which is the billing boundary. Fill in your team's values.
+          federation_rule_id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+          organization_id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+          service_account_id: svac_017oc62PsXm82aqHWzHYgjfM
+          workspace_id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+          # Optional: bound what a `/ksai` comment may request with `--model` / `--effort` (see
+          # Kong/ksai docs/federated-claude.md #choosing-the-model-and-effort-per-review). All three
+          # bound the comment only, never the model/effort inputs above. The defaults let a commenter
+          # pick any of the three models, and any effort between medium and this repo's own.
+          #
+          # The model is the cost lever, not the effort: measured, haiku at high effort cost $0.32
+          # against opus at high effort's $6.58, while dropping haiku to medium effort *raised* the
+          # bill to $1.79. `low` is refused outright because a review does not reliably complete
+          # there - it posts a status line, records parse_ok false, and still reports success.
+          # allowed_models: claude-opus-5,claude-sonnet-5,claude-haiku-4-5
+          # max_effort: high
+          # min_effort: medium
+          # The arm that reads a comment naming no verb and says which verb it meant, so
+          # `/ksai the CI is broken, sort it out` reaches the implement flow and this action stands
+          # down with one line instead of reviewing the words. Defaults to `haiku`; it holds no tools,
+          # gets one turn, and its answer is checked against the verb table. Not bounded by the three
+          # inputs above: those bound what a commenter may ask for, and this is your configuration.
+          #
+          # Re-pin this action and ksai-implement together. Pin only one and a comment that reads as
+          # the other flow's work gets both a review and the work done - the double-run the stand-down
+          # exists to prevent. Set this to something unusable to switch classification off here.
+          # classifier_model: haiku
+          # On by default: the changed-file list is read before the review, which may drop a small
+          # diff to a cheaper model, name the kreview skills to run, and skip a diff of only binary
+          # assets and generated lockfiles (see docs/federated-claude.md
+          # #triaging-a-pull-request-before-the-review). It only ever makes a review cheaper: the
+          # model/effort inputs above are the ceiling, and a `--model` in the comment beats it
+          # outright. Uncomment to review without it.
+          # triage: off
+          # Optional: export cost/token metrics via the org-wide Datadog key (see
+          # docs/federated-claude.md #monitoring). No per-repo secret needed — org-level
+          # secrets are directly available to secrets.<NAME> in any repo they're shared
+          # with, same org secret claude-federated.yml reads by name. Omit both to skip
+          # telemetry entirely.
+          # team: team-mesh
+          # otel_headers: dd-api-key=${{ secrets.KSAI_DATADOG_KEY }}
+          # Optional: withhold findings this repo has listed in Kong/ksai-internal (see
+          # Kong/ksai docs/kreview-suppression.md). The app must also be installed on that
+          # store. Omit both and every finding posts, which is the default.
+          # suppressions_app_id: ${{ vars.GH_APP__KONG_READONLY__APP_ID }}
+          # suppressions_private_key: ${{ secrets.GH_APP__KONG_READONLY__PRIVATE_KEY }}
+
+  implement:
+    needs: gate
+    if: >-
+      !cancelled() &&
+      ((github.event_name == 'workflow_dispatch' && inputs.issue_number != '') ||
+       (needs.gate.result == 'success' &&
+        needs.gate.outputs.authorized == 'true' &&
+        needs.gate.outputs.implement == 'true' &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)))
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      checks: read
+      statuses: read
+      actions: write
+    # Whatever pool you use has to permit unprivileged user namespaces, or the sandbox cannot start and
+    # every run of this flow fails at the bwrap probe. Inside Kong all three labels below are required
+    # together - a job asking for two of them waits for a runner nothing offers rather than failing.
+    #
+    # This sandbox has no network and installs nothing, so the gates a step can run are the ones already
+    # on the box. A caller can put its own there, and both halves of how were measured.
+    #
+    # `GITHUB_PATH` alone is not enough: `jdx/mise-action` installed node 24 and the linters and exported
+    # them, and the run still had only the image's node 18 and could not find `mise`, because the tools
+    # land under `$HOME/.local/share/mise` and the sandbox does not bind `$HOME`. Linking the resolved
+    # binaries into `/usr/local/bin` does work - the next run had `mise`, the pinned `oxlint 1.79.0` and
+    # `actionlint 1.7.12`, and ran the panel suite on the pinned node 24.19.0.
+    #
+    # What a link cannot win is the default `node`, and the reason is not in this repository at all:
+    # `anthropics/claude-code-action/base-action`, which the action runs the model through, calls
+    # `actions/setup-node` with `node-version: 18.x`. That happens after any step of yours, so
+    # `/opt/hostedtoolcache/node/18.x` sits ahead of `/usr/local/bin` and bare `node` is 18 whatever you
+    # installed. A wrapper task like `mise run test` therefore executes on it, which is how a suite can
+    # "fail" for a syntax reason having nothing to do with the change - measured: `node --test
+    # 'panel/*.test.mjs'` answered `Could not find 'panel/*.test.mjs'`, node 18 not expanding a quoted
+    # glob, while the same command on the pinned node passed 48/48. Expect the run to invoke the pinned
+    # interpreter by path for anything version-sensitive.
+    #
+    # The half that does not depend on any of this: the run names the gates it could not run, which the
+    # prompt requires of it. Read that section before treating a step as verified.
+    runs-on: [kong-inc-dedicated, size-md, amd64]
+    # Matches the job_timeout_minutes passed below, or the watchdog fires against the wrong clock.
+    # Do not remove the key: GitHub applies 360m without one, and this ceiling is what bounds the cost
+    # of a hung run.
+    timeout-minutes: 35
+    # Keyed on the issue, and NOT cancelling. Cancelling a review is cheap; cancelling an
+    # implementation kills a step mid-flight, and GitHub gives no warning a handler could catch. A
+    # queued duplicate is harmless because resuming is idempotent: the next run reads the plan and
+    # picks up the first unchecked box, or finds none and exits.
+    #
+    # The group name must not collide with the reviewer's. Group names are plain strings, and an issue
+    # number and the number of the draft PR built from it come from the same sequence, so a bare
+    # `ksai-<n>` would put a review of that PR in the same group as the work building it.
+    #
+    # `vars.KSAI_IMPLEMENT_LANE` is the capacity valve. Actions has no organization-wide concurrency, so a
+    # cap has to be a group name: unset, chains for different issues run side by side; set to any constant,
+    # every chain in the repo queues into one lane instead. Worth reaching for on a shared pool - one
+    # thirty-step plan is thirty sequential jobs, so three issues at once can hold three runners for hours
+    # and queue every review behind them. Serialising costs latency and not correctness, because resuming is
+    # idempotent.
+    concurrency:
+      # All three, in order. A dispatched run has no `issue.number`, and without the last fallback it would
+      # land in the group named `ksai-implement-` alongside every other issue's chain.
+      #
+      # The `pr-`/`issue-` segment is what keeps a `fix` request on pull request 42 out of the group holding
+      # the step chain for issue 42. Group names are plain strings and the two numbers come from one
+      # sequence, so without it a fix run would queue behind an implementation it has nothing to do with -
+      # or, worse, a maintainer would set KSAI_IMPLEMENT_LANE and never notice the collision.
+      #
+      # A dispatched run has no `issue.pull_request`, so it reads as `issue-`, which is correct: only the
+      # plan phases dispatch a successor.
+      group: >-
+        ksai-implement-${{ vars.KSAI_IMPLEMENT_LANE ||
+        format('{0}-{1}', github.event.issue.pull_request && 'pr' || 'issue',
+        github.event.issue.number || inputs.issue_number) }}
+      cancel-in-progress: false
+    steps:
+      # Two mints, not one, because `owner:` picks a single installation: the plugin and trusted
+      # scripts always live in the Kong org, and the repository being worked on may not. Inside Kong
+      # both resolve to the same installation, so this is one shape that is right everywhere.
+      #
+      # The app carries write scopes for other flows. Nothing read here needs them, and an
+      # installation token cannot exceed the permissions it was minted with, so this stays a genuinely
+      # read-only credential even though the action writes with a different one.
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Mint this repository's read token
+        id: authz-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # Reads this repo's CODEOWNERS and, for an @org/team entry, its own org's membership.
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+          permission-members: read
+          # Both, for the approval gate, which reads the two conversations an approval is looked for in: the
+          # issue and the pull request holding the plan. Easy to miss and the gate cannot work without them.
+          # Measured over two live runs: contents+members alone answers 403 on the issue, and issues:read
+          # alone still answers 403 on the pull request - the issues endpoint serves a pull request's comments
+          # but wants the pull requests permission to do it. Harmless when `require_plan_approval` is off.
+          permission-issues: read
+          permission-pull-requests: read
+
+      - name: Mint kongctl write token
+        id: source-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Check out ksai implement action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.ksai-token.outputs.token }}
+          ref: 7a653240672e97f9a61309a09d3617270ce34677 # ksai-implement/v1.3.0
+          path: ./.github/actions/ksai-implement
+          sparse-checkout: .github/actions/ksai-implement
+          persist-credentials: false
+
+      - uses: ./.github/actions/ksai-implement/.github/actions/ksai-implement
+        with:
+          # Non-secret identifiers. They route this run to your team's Anthropic workspace, which is
+          # the billing boundary. Fill in your team's values.
+          allowed_commands: ${{ env.KSAI_ALLOWED_COMMANDS }}
+          ksai_ref: 7a653240672e97f9a61309a09d3617270ce34677
+          federation_rule_id: fdrl_01Y3KFTKUynh4mumc1tNKArZ
+          organization_id: 4ce7a6d3-9549-4842-bd51-1def5eba611b
+          service_account_id: svac_017oc62PsXm82aqHWzHYgjfM
+          workspace_id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
+          # GITHUB_TOKEN cannot trigger this repo's own PR checks on the branches this action pushes,
+          # so a draft PR would sit with no CI at all. Use a GitHub App token or a PAT here if merges
+          # gate on checks - which for a bot-authored PR they should.
+          source_org_github_token: ${{ steps.source-token.outputs.token }}
+          # Uncomment together with an App token above: an App installation that does not hold
+          # checks/statuses/actions read answers 422 to a token naming them, which switches the `do`
+          # phase's CI evidence off silently. Read-only; the push stays on the token above.
+          ci_evidence_github_token: ${{ github.token }}
+          # Read-only, and separate, because the authorization check needs org Members:read to resolve
+          # an @org/team CODEOWNERS entry and GITHUB_TOKEN has none.
+          authorization_github_token: ${{ steps.authz-token.outputs.token }}
+          kong_org_github_token: ${{ steps.ksai-token.outputs.token }}
+          # Must track this job's own timeout-minutes above.
+          job_timeout_minutes: "35"
+          # Keep a human in the loop: publish the draft pull request, then wait for an authorized
+          # approval comment on the issue before implementing the plan.
+          require_plan_approval: "true"
+          # The arm that reads a comment naming no verb and says which verb it meant, so
+          # `/ksai the CI is broken, sort it out` reaches the `do` flow instead of being reviewed.
+          # Defaults to `haiku`; it holds no tools, gets one turn, and its answer is checked against the
+          # verb table, so a wrong answer costs a notice. Set it to something unusable to switch
+          # classification off - a comment naming no verb then gets the notice listing the verbs, exactly
+          # as it did before. Not bounded by `allowed_models` or the effort bounds: those bound what a
+          # commenter may ask for, and this is your configuration.
+          # classifier_model: haiku
+          # Your own workflow's filename. Setting it turns the continuation chain on, so one comment
+          # carries a whole plan; leave it empty and each step needs a fresh comment.
+          continuation_workflow: ksai.yaml
+          issue_number: ${{ inputs.issue_number }}
+          continuation_attempt: ${{ inputs.attempt }}
+          continuation_stall: ${{ inputs.stall }}
+          continuation_prev_remaining: ${{ inputs.prev_remaining }}
+          # Narrows the identity gate on this flow's own comments from any Bot-type actor to one
+          # login. An App installation token cannot resolve /user, so it cannot be derived.
+          #
+          # This must name the identity behind source_org_github_token. A mismatch prevents the flow
+          # from recognizing its own comments and can re-bill progress or repeat thread replies.
+          bot_login: ${{ steps.source-token.outputs.app-slug }}[bot]
+
+  # Only needed alongside consumer-ksai-assign.yaml. Where the sidebar entry ends up: nothing
+  # withdraws it on its own, because the reviewer that answered is the app, not the team that was
+  # asked, and a request left pending reads as a review that never happened. Drop this job if you are
+  # not using the sidebar path - on a /ksai comment it withdraws a team with nothing pending, which
+  # is a no-op that still costs a job.
+  #
+  # It withdraws whichever team is configured rather than one this run was told about, so a run can
+  # settle a request it did not itself receive. That is not incidental: a /ksai comment landing on
+  # an in-flight sidebar review shares its concurrency group and cancels it, and the comment run
+  # carries no memory of the request. Keyed on the run's own input, neither run would withdraw and the
+  # review would post against a request pending forever.
+  #
+  # This is also why the gate's trigger step is not optional. `review` has to be skipped, not merely
+  # a no-op, for a comment that never invoked the reviewer: it is a *successful* `review` that this
+  # job reads as "a review happened". Left to the gate's `contains` alone, a code owner writing
+  # `/ksai` inside ordinary prose would start a run that reviews nothing, succeed, and have this job
+  # withdraw a pending request on the strength of it.
+  #
+  # A separate job rather than a trailing step. The refusal branch has to fire when `review` was
+  # skipped, which a step inside `review` cannot express - and in a repo that runs the action from a
+  # local path rather than a pinned ref, a trailing step would also be running the PR's own copy of
+  # it, since the reviewer checks the pull request head out over the workspace root.
+  clear-request:
+    needs: [gate, review]
+    # Two terminal states leave the team waiting and both must clear it: a review that posted, and a
+    # sidebar request CODEOWNERS turned down - that one skips `review` entirely, so an implicit
+    # success() would skip this too and strand the request with nothing on the PR to explain it.
+    #
+    # The refusal branch is dispatch-only, and that is load-bearing. On a comment it would hand anyone
+    # who can type `/ksai` - on a public repo, anyone at all - a way to strip a pending sidebar
+    # request off a PR and post a notice declining a review that person never asked about, while the
+    # real review carries on and lands underneath it. An unauthorized comment has nothing to settle
+    # anyway: `review` is skipped, so it never joins the concurrency group and cancels nothing.
+    #
+    # A review that genuinely failed deliberately keeps the request: the red run is then the signal
+    # that something needs looking at rather than that nobody looked. A cancelled one keeps it too,
+    # because the run that superseded it withdraws on its own way out.
+    #
+    # A skipped gate leaves `authorized` empty, so it is checked before the `!= 'true'` branch rather
+    # than inside it.
+    # A sidebar request this repository cannot serve settles here too. With `review` left out of
+    # `allowed_commands` the review job never starts, so without this term the requester waits on a
+    # reviewer that was never going to answer, forever and with nothing on the pull request to say so.
+    if: >-
+      always() && needs.gate.result == 'success' &&
+      (needs.review.result == 'success' ||
+       (github.event_name == 'workflow_dispatch' &&
+        (needs.gate.outputs.authorized != 'true' || needs.gate.outputs.review != 'true')))
+    runs-on: [kong-inc-dedicated, size-md, amd64]
+    timeout-minutes: 5
+    # Nothing here uses GITHUB_TOKEN. The action mints its own, because a repo-scoped token cannot
+    # resolve an org team: the endpoint then drops the team it cannot see, answers 200 with the
+    # request still attached, and the job goes green over a sidebar that still says ksai is
+    # reviewing.
+    permissions: {}
+    steps:
+      # Do not match the pins in this file up by hand - each target is released independently, so they are
+      # on the same commit only when nothing has been released in between, and a release overwrites all of
+      # them anyway.
+      - name: Mint ksai read token
+        id: ksai-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          owner: Kong
+          repositories: ksai
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          permission-contents: read
+
+      - name: Check out request cleanup action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Kong/ksai
+          token: ${{ steps.ksai-token.outputs.token }}
+          ref: 7a653240672e97f9a61309a09d3617270ce34677 # clear-review-request/v1.2.0
+          path: ./.github/actions/ksai-clear
+          sparse-checkout: .github/actions/clear-review-request
+          persist-credentials: false
+
+      - uses: ./.github/actions/ksai-clear/.github/actions/clear-review-request
+        with:
+          pr_number: ${{ inputs.pr || github.event.issue.number }}
+          # The team that stands in for the app in the sidebar. Set the variable only if you named
+          # yours something else; it must be a team in this repository's own org, since GitHub will
+          # not let a review request name a team from another one.
+          team_slug: ${{ vars.KSAI_REVIEW_TEAM || 'ksai' }}
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          # Set only when CODEOWNERS refused, so the withdrawal says why instead of happening in
+          # silence. Empty on the path where a review actually posted. No commenter fallback: the
+          # `if` above only admits a refusal on a dispatch, where `actor` is required.
+          refused-actor: ${{ needs.gate.outputs.authorized != 'true' && inputs.actor || '' }}
+          # A different refusal from the one above, and it needs its own wording: nobody was declined
+          # here, the repository turned the command off. Withdrawing in silence would take the sidebar
+          # entry away with nothing on the pull request to say why.
+          refused-command-off: ${{ github.event_name == 'workflow_dispatch' && needs.gate.outputs.authorized == 'true' && needs.gate.outputs.review != 'true' }}
