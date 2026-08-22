@@ -26,6 +26,16 @@ steps:
             expect:
               fields:
                 resource_ref: e2e-deck-env-cp
+      - name: 001-record-control-plane-id
+        run:
+          - get
+          - gw
+          - cps
+          - -o
+          - json
+        recordVar:
+          name: controlPlaneID
+          responsePath: "[?name=='e2e-deck-env-cp'] | [0].id"
 
   - name: 002-apply-deck-env-vars
     env:
@@ -48,4 +58,50 @@ steps:
             expect:
               fields:
                 "length(@)": 1
+      - name: 001-get-gateway-services
+        run:
+          - get
+          - gw
+          - cp
+          - services
+          - --control-plane-name
+          - e2e-deck-env-cp
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='e2e-deck-env-svc'] | [0]"
+            expect:
+              fields:
+                name: e2e-deck-env-svc
+      - name: 002-get-gateway-plugins
+        run:
+          - api
+          - get
+          - "/v2/control-planes/{{ .vars.controlPlaneID }}/core-entities/plugins"
+          - -o
+          - json
+        assertions:
+          - select: "data[?name=='rate-limiting'] | [0]"
+            expect:
+              fields:
+                name: rate-limiting
+                config.minute: 11
 
+  - name: 003-delete-cleanup
+    commands:
+      - name: 000-delete
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/control-plane-with-deck-env.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
