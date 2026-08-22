@@ -1070,6 +1070,48 @@ func TestResolveReferences_UUIDSkipped(t *testing.T) {
 	mockAPI.AssertNotCalled(t, "ListPortals")
 }
 
+func TestResolveReferences_UUIDRefCreatedInPlanOverridesStaleID(t *testing.T) {
+	ctx := context.Background()
+	resolver := NewReferenceResolver(state.NewClient(state.ClientConfig{}), nil)
+	portalRef := "12345678-1234-5678-1234-567812345678"
+
+	changes := []PlannedChange{
+		{
+			ID:           "1-c-portal",
+			ResourceType: ResourceTypePortal,
+			ResourceRef:  portalRef,
+			Action:       ActionCreate,
+			Fields: map[string]any{
+				FieldName: "Recreated Portal",
+			},
+		},
+		{
+			ID:           "2-c-publication",
+			ResourceType: ResourceTypeAPIPublication,
+			ResourceRef:  "publication",
+			Action:       ActionCreate,
+			Fields:       map[string]any{},
+			References: map[string]ReferenceInfo{
+				FieldPortalID: {
+					Ref: portalRef,
+					ID:  portalRef,
+				},
+			},
+		},
+	}
+
+	result, err := resolver.ResolveReferences(ctx, changes)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors)
+
+	publicationRefs, ok := result.ChangeReferences["2-c-publication"]
+	require.True(t, ok, "expected publication references")
+	portalReference, ok := publicationRefs[FieldPortalID]
+	require.True(t, ok, "expected portal_id reference")
+	assert.Equal(t, portalRef, portalReference.Ref)
+	assert.Equal(t, declresources.UnknownReferenceID, portalReference.ID)
+}
+
 func TestResolveReferences_FieldChange(t *testing.T) {
 	ctx := context.Background()
 	mockAPI := new(MockPortalAPI)

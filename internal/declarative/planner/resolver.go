@@ -67,6 +67,21 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 	for _, change := range changes {
 		changeRefs := make(map[string]ResolvedReference)
 
+		// Planner-specific resource code may pre-populate reference metadata for
+		// fields that are not part of the request payload. A UUID-shaped ref can
+		// still be a declarative ref when dump output uses the resource's Konnect
+		// ID as its ref. If that resource is being recreated in this plan, discard
+		// the stale ID so execution hydrates it from the CREATE result.
+		for field, reference := range change.References {
+			resourceType := r.getResourceTypeForChangeField(change, field)
+			if referenceCreatedInPlan(createdResources, resourceType, referenceTargetRef(reference.Ref)) {
+				changeRefs[field] = ResolvedReference{
+					Ref: reference.Ref,
+					ID:  resources.UnknownReferenceID,
+				}
+			}
+		}
+
 		// Check fields that might contain references
 		for _, fieldRef := range r.extractReferencesFromFields(change.Fields) {
 			// Determine resource type from field name and role entity metadata.
