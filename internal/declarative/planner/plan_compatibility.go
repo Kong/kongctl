@@ -102,12 +102,11 @@ func validateRoutingBoundary(change *PlannedChange) error {
 
 	descriptors := resources.RelationshipDescriptorsForType(resources.ResourceType(change.ResourceType))
 	for _, descriptor := range descriptors {
-		if descriptor.Kind == resources.RelationshipKindKongctlParentSelector &&
-			hasPayloadPath(change.Fields, descriptor.FieldPath) {
-			return fmt.Errorf("routing-only field %q must not appear in fields", descriptor.FieldPath)
-		}
 		if descriptor.Kind != resources.RelationshipKindKongctlParentSelector {
 			continue
+		}
+		if hasPayloadPath(change.Fields, descriptor.FieldPath) {
+			return fmt.Errorf("routing-only field %q must not appear in fields", descriptor.FieldPath)
 		}
 		for _, routingField := range routingIDFields(descriptor) {
 			if hasPayloadPath(change.Fields, routingField) {
