@@ -179,23 +179,13 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 		{common.BaseURLFlagName, common.BaseURLConfigPath},
 		{common.RegionFlagName, common.RegionConfigPath},
 		{common.PATFlagName, common.PATConfigPath},
-	}
-	for _, b := range bindings {
-		if f := c.Flags().Lookup(b.flag); f != nil {
-			if err := cfg.BindFlag(b.config, f); err != nil {
-				return err
-			}
-		}
-	}
-
-	retryBindings := []struct{ flag, config string }{
 		{cmdcommon.HTTPRetryMaxAttemptsFlagName, common.HTTPRetryMaxAttemptsConfigPath},
 		{cmdcommon.HTTPRetryInitialIntervalFlagName, common.HTTPRetryInitialIntervalConfigPath},
 		{cmdcommon.HTTPRetryMaxIntervalFlagName, common.HTTPRetryMaxIntervalConfigPath},
 		{cmdcommon.HTTPRetryBackoffFactorFlagName, common.HTTPRetryBackoffFactorConfigPath},
 		{cmdcommon.HTTPRetryOnConnectionErrorsFlagName, common.HTTPRetryOnConnectionErrorsConfigPath},
 	}
-	for _, b := range retryBindings {
+	for _, b := range bindings {
 		if f := c.Flags().Lookup(b.flag); f != nil {
 			if err := cfg.BindFlag(b.config, f); err != nil {
 				return err
