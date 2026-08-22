@@ -26,12 +26,6 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	create *kkComps.CreateAPIDocumentRequest,
 ) error {
 	// Required fields
-	title, ok := fields[planner.FieldTitle].(string)
-	if !ok {
-		return fmt.Errorf("title is required")
-	}
-	create.Title = &title
-
 	content, ok := fields[planner.FieldContent].(string)
 	if !ok {
 		return fmt.Errorf("content is required")
@@ -39,6 +33,13 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	create.Content = content
 
 	// Optional fields
+	// The API (and the explain schema and scaffold) treat title as
+	// optional: CreateAPIDocumentRequest.Title is a pointer. Requiring it
+	// here rejected plans built straight from the scaffold output (#1947).
+	if title, ok := fields[planner.FieldTitle].(string); ok {
+		create.Title = &title
+	}
+
 	if slug, ok := fields[planner.FieldSlug].(string); ok {
 		create.Slug = &slug
 	}
@@ -183,7 +184,7 @@ func (a *APIDocumentAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (a *APIDocumentAdapter) RequiredFields() []string {
-	return []string{planner.FieldTitle, planner.FieldContent}
+	return []string{planner.FieldContent}
 }
 
 // SupportsUpdate returns true as documents support updates
