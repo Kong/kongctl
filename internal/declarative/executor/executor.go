@@ -1071,9 +1071,6 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
-			if e.createdResourceFields == nil {
-				e.createdResourceFields = make(map[string]map[string]any)
-			}
 			e.createdResourceFields[change.ID] = resolvedReferenceChange.Fields
 
 			// Track by resource type and ref so resolve*Ref helpers can find IDs

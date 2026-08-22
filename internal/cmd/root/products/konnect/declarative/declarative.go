@@ -116,6 +116,13 @@ func rejectPlanSecretWriteFlags(command *cobra.Command, planFile string) error {
 	return nil
 }
 
+func resolveSecretWriteFlags(command *cobra.Command, planFile string) ([]string, bool, error) {
+	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
+		return nil, false, err
+	}
+	return secretWriteOptions(command)
+}
+
 func parseDeclarativeSources(filenames []string) ([]loader.Source, error) {
 	sources, err := loader.ParseSources(filenames)
 	if err != nil {
@@ -1089,7 +1096,7 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
 	}
-	displayPlanWarnings(command.ErrOrStderr(), plan)
+	displayPlanWarnings(plan, command.ErrOrStderr())
 
 	if err := normalizeDeckBaseDirs(plan, outputFile); err != nil {
 		return err
@@ -1260,10 +1267,7 @@ func runDiff(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
-	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
-		return err
-	}
-	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	writeSecretSelectors, writeSecrets, err := resolveSecretWriteFlags(command, planFile)
 	if err != nil {
 		return err
 	}
@@ -1360,7 +1364,7 @@ func runDiff(command *cobra.Command, args []string) error {
 	outputFormat, _ := command.Flags().GetString("output")
 	fullContent, _ := command.Flags().GetBool("full-content")
 	if outputFormat != textOutputFormat {
-		displayPlanWarnings(command.ErrOrStderr(), plan)
+		displayPlanWarnings(plan, command.ErrOrStderr())
 	}
 
 	switch outputFormat {
@@ -1390,7 +1394,7 @@ func runDiff(command *cobra.Command, args []string) error {
 
 func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
 	out := command.OutOrStdout()
-	displayPlanWarnings(command.ErrOrStderr(), plan)
+	displayPlanWarnings(plan, command.ErrOrStderr())
 
 	// Handle empty plan
 	if plan.IsEmpty() {
@@ -1584,7 +1588,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	return nil
 }
 
-func displayPlanWarnings(out io.Writer, plan *planner.Plan) {
+func displayPlanWarnings(plan *planner.Plan, out io.Writer) {
 	if plan == nil || len(plan.Warnings) == 0 {
 		return
 	}
@@ -1931,10 +1935,7 @@ func runApply(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
-	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
-		return err
-	}
-	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	writeSecretSelectors, writeSecrets, err := resolveSecretWriteFlags(command, planFile)
 	if err != nil {
 		return err
 	}
@@ -2080,7 +2081,7 @@ func runApply(command *cobra.Command, args []string) error {
 		return err
 	}
 	if outputFormat != textOutputFormat {
-		displayPlanWarnings(command.ErrOrStderr(), plan)
+		displayPlanWarnings(plan, command.ErrOrStderr())
 	}
 
 	// Check if plan is empty (no changes needed)
@@ -2786,10 +2787,7 @@ func runSync(command *cobra.Command, args []string) error {
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
-	if err := rejectPlanSecretWriteFlags(command, planFile); err != nil {
-		return err
-	}
-	writeSecretSelectors, writeSecrets, err := secretWriteOptions(command)
+	writeSecretSelectors, writeSecrets, err := resolveSecretWriteFlags(command, planFile)
 	if err != nil {
 		return err
 	}
@@ -2952,7 +2950,7 @@ func runSync(command *cobra.Command, args []string) error {
 		return err
 	}
 	if outputFormat != textOutputFormat {
-		displayPlanWarnings(command.ErrOrStderr(), plan)
+		displayPlanWarnings(plan, command.ErrOrStderr())
 	}
 
 	// Check if plan is empty (no changes needed)
