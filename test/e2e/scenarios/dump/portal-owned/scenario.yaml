@@ -151,6 +151,75 @@ steps:
               fields:
                 total_changes: 0
 
+      - name: 004-reset-before-round-trip
+        resetOrg: true
+
+      - name: 005-sync-dumped-config
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 006-dump-after-round-trip
+        run:
+          - dump
+          - declarative
+          - "--resources=portals,apis,application_auth_strategies"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/round-trip-dump.yaml"
+        assertions:
+          - select: "portals[?name=='My First Portal'] | [0]"
+            expect:
+              fields:
+                display_name: "A Getting Started Portal"
+          - select: "portals[?name=='My First Portal'] | [0].pages[?title=='Kong API'] | [0]"
+            expect:
+              fields:
+                slug: "/"
+          - select: >-
+              portals[?name=='My First Portal'] | [0].pages[?title=='Guides'] |
+              [0].children[?title=='Document APIs'] | [0]
+            expect:
+              fields:
+                slug: document-apis
+          - select: "apis[?name=='SMS API'] | [0]"
+            expect:
+              fields:
+                "versions[?version=='1.0.11'] | length(@)": 1
+                "length(documents)": 4
+          - select: "application_auth_strategies[?name=='key-auth'] | [0]"
+            expect:
+              fields:
+                strategy_type: key_auth
+
+      - name: 007-plan-after-round-trip
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/round-trip-dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-delete-cleanup
     commands:
       - name: 000-delete
