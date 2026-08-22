@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: lint test-installer test test-integration
+test-all: lint test-installer test-smoke test test-integration
 
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -24,6 +24,18 @@ test-installer:
 		echo "shellcheck not found; skipping installer shell lint" >&2; \
 	fi
 	bash test/installer/install_test.sh
+
+.PHONY: test-smoke
+test-smoke:
+	@if command -v shellcheck >/dev/null 2>&1; then \
+		shellcheck scripts/smoke-test.sh test/smoke/smoke_test.sh; \
+	elif [ "$$CI" = "true" ]; then \
+		echo "shellcheck is required to lint smoke-test scripts in CI" >&2; \
+		exit 1; \
+	else \
+		echo "shellcheck not found; skipping smoke-test shell lint" >&2; \
+	fi
+	bash test/smoke/smoke_test.sh
 
 .PHONY: format fmt
 format:
