@@ -14,7 +14,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
-	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/daveshanley/vacuum v0.30.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
