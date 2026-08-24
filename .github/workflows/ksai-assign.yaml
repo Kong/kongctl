@@ -12,7 +12,7 @@ jobs:
     if: >-
       github.event.requested_team.slug == (vars.KSAI_REVIEW_TEAM || 'ksai') &&
       github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [kong-inc-dedicated, size-md, amd64]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       actions: write
