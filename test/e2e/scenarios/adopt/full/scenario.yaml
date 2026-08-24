@@ -89,7 +89,28 @@ steps:
                 id: "{{ .vars.api_id }}"
                 resource_type: api
 
-  - name: 003-overwrite-namespace
+  - name: 003-reject-overwrite-without-flag
+    skipInputs: true
+    commands:
+      - name: reject-portal-namespace-overwrite
+        run:
+          - adopt
+          - portal
+          - "{{ .vars.portal_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+      - name: verify-portal-namespace-unchanged
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+
+  - name: 004-overwrite-namespace
     skipInputs: true
     commands:
       - name: overwrite-cp-namespace
@@ -135,7 +156,7 @@ steps:
                 id: "{{ .vars.api_id }}"
                 resource_type: api
 
-  - name: 004-dump-and-plan
+  - name: 005-dump-and-plan
     skipInputs: true
     commands:
       - name: dump
@@ -179,7 +200,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 006-delete-cleanup
     skipInputs: true
     commands:
       - name: 000-delete
