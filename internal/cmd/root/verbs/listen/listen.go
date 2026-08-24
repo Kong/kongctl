@@ -6,6 +6,9 @@ import (
 	"strings"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	konnectAuditLogs "github.com/kong/kongctl/internal/cmd/root/products/konnect/auditlogs"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -38,19 +41,6 @@ var (
 	`, meta.CLIName)))
 
 	tailUse = "tail"
-
-	tailShort = i18n.T("root.verbs.tail.short", "Listen and stream events")
-	tailLong  = normalizers.LongDesc(i18n.T("root.verbs.tail.long",
-		`Use tail to create and run local receivers and stream incoming events to stdout.`))
-	tailExamples = normalizers.Examples(i18n.T("root.verbs.tail.examples",
-		fmt.Sprintf(`
-	# Konnect-first shorthand
-	%[1]s tail --public-url https://example.ngrok.app --authorization "Bearer <token>"
-	# Resource form
-	%[1]s tail audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
-	# Explicit product form
-	%[1]s tail konnect audit-logs --public-url https://example.ngrok.app --authorization "Bearer <token>"
-	`, meta.CLIName)))
 )
 
 type listenCommandSpec struct {
@@ -74,16 +64,70 @@ func NewListenCmd() (*cobra.Command, error) {
 	})
 }
 
-// NewTailCmd builds the tail alias command.
+// NewTailCmd builds the audit-log pull follow command.
 func NewTailCmd() (*cobra.Command, error) {
-	return newListenCommand(listenCommandSpec{
-		use:              tailUse,
-		short:            tailShort,
-		long:             tailLong,
-		example:          tailExamples,
-		aliases:          nil,
-		forceTailDefault: true,
-	})
+	command := &cobra.Command{
+		Use:     tailUse,
+		Short:   "Follow Konnect organization audit logs",
+		Long:    "Follow Konnect organization audit logs through the audit-log pull API.",
+		Example: "  kongctl tail audit-logs\n  kongctl tail audit-logs --output jsonl",
+		PersistentPreRunE: func(c *cobra.Command, args []string) error {
+			ctx := context.WithValue(c.Context(), verbs.Verb, Verb)
+			ctx = context.WithValue(ctx, products.Product, konnect.Product)
+			c.SetContext(ctx)
+			return bindKonnectFlags(c, args)
+		},
+	}
+	addKonnectTailPersistentFlags(command)
+	konnectAuditLogs.ConfigureTailPullCommand(command, false)
+	addTailPageSizeFlag(command)
+
+	directAuditLogs := &cobra.Command{
+		Use:     konnectAuditLogs.CommandName,
+		Aliases: []string{"audit-log"},
+	}
+	konnectAuditLogs.ConfigureTailPullCommand(directAuditLogs, true)
+	addTailPageSizeFlag(directAuditLogs)
+	command.AddCommand(directAuditLogs)
+
+	konnectCommand := &cobra.Command{
+		Use:     konnect.Product.String(),
+		Short:   "Follow Konnect resources",
+		Aliases: []string{"k", "K"},
+		RunE: func(c *cobra.Command, args []string) error {
+			return cmdpkg.RequireSubcommand(c, args)
+		},
+	}
+	cmdpkg.MarkRequiresSubcommand(konnectCommand)
+	explicitAuditLogs := &cobra.Command{
+		Use:     konnectAuditLogs.CommandName,
+		Aliases: []string{"audit-log"},
+	}
+	konnectAuditLogs.ConfigureTailPullCommand(explicitAuditLogs, true)
+	addTailPageSizeFlag(explicitAuditLogs)
+	konnectCommand.AddCommand(explicitAuditLogs)
+	command.AddCommand(konnectCommand)
+
+	return command, nil
+}
+
+func addKonnectTailPersistentFlags(command *cobra.Command) {
+	command.PersistentFlags().String(common.BaseURLFlagName, "",
+		fmt.Sprintf(`Base URL for Konnect API requests.
+- Config path: [ %s ]
+- Default   : [ %s ]`, common.BaseURLConfigPath, common.BaseURLDefault))
+	command.PersistentFlags().String(common.RegionFlagName, "",
+		fmt.Sprintf(`Konnect region identifier (for example "eu").
+- Config path: [ %s ]`, common.RegionConfigPath))
+	command.PersistentFlags().String(common.PATFlagName, "",
+		fmt.Sprintf(`Konnect Personal Access Token (PAT) used to authenticate the CLI.
+- Config path: [ %s ]`, common.PATConfigPath))
+}
+
+func addTailPageSizeFlag(command *cobra.Command) {
+	command.Flags().Int(common.RequestPageSizeFlagName, konnectAuditLogs.DefaultPullPageSize,
+		fmt.Sprintf(`Maximum audit-log records requested per API page (1..1000).
+- Config path: [ %s ]`, common.RequestPageSizeConfigPath))
 }
 
 func newListenCommand(spec listenCommandSpec) (*cobra.Command, error) {
@@ -197,6 +241,21 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 
 	if f := c.Flags().Lookup(common.PATFlagName); f != nil {
 		if err := cfg.BindFlag(common.PATConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	if f := c.Flags().Lookup(common.RequestPageSizeFlagName); f != nil {
+		if err := cfg.BindFlag(common.RequestPageSizeConfigPath, f); err != nil {
+			return err
+		}
+	}
+
+	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
+		return err
+	}
+	if f := c.Flags().Lookup(cmdcommon.OutputFlagName); f != nil {
+		if err := cfg.BindFlag(cmdcommon.OutputConfigPath, f); err != nil {
 			return err
 		}
 	}

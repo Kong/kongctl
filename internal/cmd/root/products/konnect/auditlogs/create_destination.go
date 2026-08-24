@@ -39,14 +39,14 @@ const (
 
 var allowedLogFormats = []string{
 	"cef",
-	"json",
+	defaultLogFormatValue,
 	"cps",
 }
 
 var allowedLogFormatsSet = map[string]struct{}{
-	"cef":  {},
-	"json": {},
-	"cps":  {},
+	"cef":                 {},
+	defaultLogFormatValue: {},
+	"cps":                 {},
 }
 
 type createDestinationRequest struct {

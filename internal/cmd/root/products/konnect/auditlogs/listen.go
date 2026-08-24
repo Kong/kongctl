@@ -133,6 +133,22 @@ then start a local listener to accept incoming audit-log events.`
 	return c.Command
 }
 
+func newTailListenerAuditLogsCmd() *cobra.Command {
+	options := DefaultListenAuditLogsOptions()
+	options.Tail = true
+	command := &cobra.Command{
+		Use:   "listener",
+		Short: "Create a webhook destination and stream received events",
+		Long: `Run the original webhook-based tail flow: create a destination,
+configure the regional webhook, and stream records received by a local listener.`,
+		RunE: func(cmdObj *cobra.Command, args []string) error {
+			return ExecuteListenAuditLogs(cmdObj, args, options)
+		},
+	}
+	AddListenAuditLogsFlags(command, &options)
+	return command
+}
+
 func (c *listenAuditLogsCmd) runE(cmdObj *cobra.Command, args []string) error {
 	return ExecuteListenAuditLogs(cmdObj, args, c.options)
 }

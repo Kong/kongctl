@@ -58,8 +58,8 @@ func AddFlags(flags *pflag.FlagSet) {
 	flags.StringArray(
 		FlagName,
 		nil,
-		"Select text columns as HEADER=.field (repeatable or comma-separated). "+
-			"Supports nested fields, quoted keys, array indexes, and string slices.",
+		`Select text columns as HEADER=.field (repeatable or comma-separated).
+Supports nested fields, quoted keys, array indexes, and string slices.`,
 	)
 }
 
