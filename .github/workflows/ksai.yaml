@@ -69,7 +69,7 @@ jobs:
       (github.event_name == 'issue_comment' &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/ksai'))
-    runs-on: [kong-inc-dedicated, size-md, amd64]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     outputs:
@@ -293,7 +293,7 @@ jobs:
     # load-bearing: `authorized` is who asked, and `review` is whether the comment invokes this flow
     # at all - a run that would no-op inside the action must not reach the cancelling group below.
     if: ${{ needs.gate.outputs.authorized == 'true' && needs.gate.outputs.review == 'true' }}
-    runs-on: [kong-inc-dedicated, size-md, amd64]
+    runs-on: ubuntu-latest
     # 35m clears the longest review observed across 229 runs (23.7m) by about eleven minutes, and
     # the job shares this budget with checkouts and posting. Do not remove the key: GitHub then
     # applies 360m, and this ceiling is what stops a hung run costing ~$89 instead of ~$9.
@@ -473,7 +473,7 @@ jobs:
     #
     # The half that does not depend on any of this: the run names the gates it could not run, which the
     # prompt requires of it. Read that section before treating a step as verified.
-    runs-on: [kong-inc-dedicated, size-md, amd64]
+    runs-on: ubuntu-latest
     # Matches the job_timeout_minutes passed below, or the watchdog fires against the wrong clock.
     # Do not remove the key: GitHub applies 360m without one, and this ceiling is what bounds the cost
     # of a hung run.
@@ -665,7 +665,7 @@ jobs:
       (needs.review.result == 'success' ||
        (github.event_name == 'workflow_dispatch' &&
         (needs.gate.outputs.authorized != 'true' || needs.gate.outputs.review != 'true')))
-    runs-on: [kong-inc-dedicated, size-md, amd64]
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     # Nothing here uses GITHUB_TOKEN. The action mints its own, because a repo-scoped token cannot
     # resolve an org team: the endpoint then drops the team it cannot see, answers 200 with the
