@@ -1927,11 +1927,15 @@ Konnect is the default target for this command, so "kongctl export" and
 }
 
 func runApply(command *cobra.Command, args []string) error {
+	return runExecution(command, args, verbs.Apply, planner.PlanModeApply)
+}
+
+func runExecution(command *cobra.Command, args []string, verb verbs.VerbValue, planMode planner.PlanMode) error {
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
 
 	ctx := command.Context()
-	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Apply, planner.PlanModeApply)
+	ctx = withDeclarativeHTTPLogContext(ctx, command, verb, planMode)
 	command.SetContext(ctx)
 
 	planFile, _ := command.Flags().GetString("plan")
@@ -2043,7 +2047,26 @@ func runApply(command *cobra.Command, args []string) error {
 		totalResources := resourceSet.ResourceCount()
 
 		if totalResources == 0 {
-			return fmt.Errorf("no resources found in configuration files")
+			if planMode == planner.PlanModeApply {
+				return fmt.Errorf("no resources found in configuration files")
+			}
+
+			// In sync mode, empty config is valid - it means delete all managed resources
+			if outputFormat == textOutputFormat {
+				namespaces := resourceSet.DefaultNamespaces
+				if len(namespaces) == 0 && resourceSet.DefaultNamespace != "" {
+					namespaces = []string{resourceSet.DefaultNamespace}
+				}
+				if len(namespaces) > 0 {
+					fmt.Fprintf(command.OutOrStderr(),
+						"No resources defined in configuration. Using namespace(s) '%s' from _defaults.\n"+
+							"Checking for managed resources to remove...\n",
+						strings.Join(namespaces, ", "))
+				} else {
+					fmt.Fprintln(command.OutOrStderr(),
+						"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
+				}
+			}
 		}
 
 		// Create planner
@@ -2054,9 +2077,8 @@ func runApply(command *cobra.Command, args []string) error {
 			return err
 		}
 
-		// Generate plan in apply mode
 		opts := planner.Options{
-			Mode:                 planner.PlanModeApply,
+			Mode:                 planMode,
 			Generator:            generator,
 			Deck:                 deckOpts,
 			WriteSecretSelectors: writeSecretSelectors,
@@ -2076,8 +2098,14 @@ func runApply(command *cobra.Command, args []string) error {
 	}
 	command.SetContext(ctx)
 
-	// Validate plan for apply
-	if err := validateApplyPlan(plan, planFile); err != nil {
+	// Validate plan mode and actions before handling an empty plan or executing changes.
+	if err := validateExecutionPlan(
+		plan,
+		planFile,
+		string(planMode),
+		planMode,
+		allowedActionsForPlanMode(planMode),
+	); err != nil {
 		return err
 	}
 	if outputFormat != textOutputFormat {
@@ -2120,7 +2148,7 @@ func runApply(command *cobra.Command, args []string) error {
 			}
 
 			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
-				return fmt.Errorf("apply cancelled")
+				return fmt.Errorf("%s cancelled", planMode)
 			}
 		}
 
@@ -2153,7 +2181,7 @@ func runApply(command *cobra.Command, args []string) error {
 		KonnectToken:       token,
 		KonnectTokenSource: tokenSource,
 		KonnectBaseURL:     baseURL,
-		Mode:               planner.PlanModeApply,
+		Mode:               planMode,
 		PlanBaseDir:        resolvePlanBaseDir(planFile),
 		MaxConcurrency:     maxConcurrency,
 	})
@@ -2779,267 +2807,7 @@ func runDelete(command *cobra.Command, args []string) error {
 }
 
 func runSync(command *cobra.Command, args []string) error {
-	// Silence usage for all runtime errors (command syntax is already valid at this point)
-	command.SilenceUsage = true
-
-	ctx := command.Context()
-	ctx = withDeclarativeHTTPLogContext(ctx, command, verbs.Sync, planner.PlanModeSync)
-	command.SetContext(ctx)
-
-	planFile, _ := command.Flags().GetString("plan")
-	writeSecretSelectors, writeSecrets, err := resolveSecretWriteFlags(command, planFile)
-	if err != nil {
-		return err
-	}
-	dryRun, _ := command.Flags().GetBool("dry-run")
-	autoApprove, _ := command.Flags().GetBool("auto-approve")
-	outputFormat, _ := command.Flags().GetString("output")
-	filenames, _ := command.Flags().GetStringSlice("filename")
-
-	// Early check for non-text output without auto-approve
-	if !dryRun && !autoApprove && outputFormat != textOutputFormat {
-		return fmt.Errorf("cannot use %s output format without --auto-approve or --dry-run flag "+
-			"(interactive confirmation not available with structured output)", outputFormat)
-	}
-
-	var usingStdinForInput bool
-	if !dryRun && !autoApprove {
-		if err := checkStdinApprovalConflict(planFile, filenames); err != nil {
-			return err
-		}
-		usingStdinForInput = planFile == "-" || (planFile == "" && slices.Contains(filenames, "-"))
-	}
-
-	if err := validateSourcesForCommand(command, planFile, filenames); err != nil {
-		return err
-	}
-
-	// Build helper
-	helper := cmd.BuildHelper(command, args)
-	generator := planGenerator(helper)
-
-	// Get configuration
-	cfg, err := helper.GetConfig()
-	if err != nil {
-		return err
-	}
-	maxConcurrency, err := maxConcurrencyFromCmd(command, cfg)
-	if err != nil {
-		return err
-	}
-
-	// Get logger
-	logger, err := helper.GetLogger()
-	if err != nil {
-		return err
-	}
-
-	sources, fetchOptions, err := sourcesForCommand(command, planFile, filenames, cfg, logger)
-	if err != nil {
-		return err
-	}
-
-	// Get Konnect SDK
-	kkClient, err := helper.GetKonnectSDK(cfg, logger)
-	if err != nil {
-		return fmt.Errorf("failed to initialize Konnect client: %w", err)
-	}
-
-	nsValidator, requirement, err := resolveNamespaceRequirement(command, cfg)
-	if err != nil {
-		return err
-	}
-
-	// Load or generate plan
-	var plan *planner.Plan
-	if requirement.Mode != validator.NamespaceRequirementNone && planFile != "" {
-		return fmt.Errorf(
-			"--%s cannot be used together with --plan; generate the plan with namespace enforcement enabled instead",
-			requireNamespaceFlagName,
-		)
-	}
-	if planFile != "" {
-		// Show plan source information early
-		if outputFormat == textOutputFormat {
-			if planFile == "-" {
-				fmt.Fprintf(command.OutOrStderr(), "Using plan from: stdin\n")
-			} else {
-				fmt.Fprintf(command.OutOrStderr(), "Using plan from: %s\n", planFile)
-			}
-		}
-
-		// Load existing plan
-		plan, err = common.LoadPlan(planFile, command.InOrStdin())
-		if err != nil {
-			return err
-		}
-	} else {
-
-		// Generate plan from configuration files
-		recursive, _ := command.Flags().GetBool("recursive")
-
-		// Load configuration
-		ldr, err := newDeclarativeLoader(command, cfg, fetchOptions)
-		if err != nil {
-			return err
-		}
-		resourceSet, err := ldr.LoadFromSourcesWithContext(command.Context(), sources, recursive)
-		if err != nil {
-			return fmt.Errorf("failed to load configuration: %w", err)
-		}
-
-		if err := nsValidator.ValidateNamespaceRequirement(resourceSet, requirement); err != nil {
-			return err
-		}
-
-		// Check if configuration is empty
-		totalResources := resourceSet.ResourceCount()
-
-		// In sync mode, allow empty configuration to detect resources to delete
-		if totalResources == 0 {
-			// In sync mode, empty config is valid - it means delete all managed resources
-			if outputFormat == textOutputFormat {
-				namespaces := resourceSet.DefaultNamespaces
-				if len(namespaces) == 0 && resourceSet.DefaultNamespace != "" {
-					namespaces = []string{resourceSet.DefaultNamespace}
-				}
-				if len(namespaces) > 0 {
-					fmt.Fprintf(command.OutOrStderr(),
-						"No resources defined in configuration. Using namespace(s) '%s' from _defaults.\n"+
-							"Checking for managed resources to remove...\n",
-						strings.Join(namespaces, ", "))
-				} else {
-					fmt.Fprintln(command.OutOrStderr(),
-						"No resources defined in configuration. Checking 'default' namespace for managed resources to remove...")
-				}
-			}
-		}
-
-		// Create planner
-		stateClient := createStateClient(kkClient)
-		p := planner.NewPlanner(stateClient, logger)
-		deckOpts, err := deckPlanOptions(resourceSet, cfg, logger)
-		if err != nil {
-			return err
-		}
-
-		// Generate plan in sync mode
-		opts := planner.Options{
-			Mode:                 planner.PlanModeSync,
-			Generator:            generator,
-			Deck:                 deckOpts,
-			WriteSecretSelectors: writeSecretSelectors,
-			WriteSecrets:         writeSecrets,
-		}
-		plan, err = p.GeneratePlan(ctx, resourceSet, opts)
-		if err != nil {
-			return fmt.Errorf("failed to generate plan: %w", err)
-		}
-	}
-
-	// Store plan in context for output formatting
-	ctx = context.WithValue(ctx, currentPlanKey, plan)
-	// Store plan file path if provided
-	if planFile != "" {
-		ctx = context.WithValue(ctx, planFileKey, planFile)
-	}
-	command.SetContext(ctx)
-
-	// Validate plan mode and actions before handling an empty plan or executing changes.
-	if err := validateSyncPlan(plan, planFile); err != nil {
-		return err
-	}
-	if outputFormat != textOutputFormat {
-		displayPlanWarnings(plan, command.ErrOrStderr())
-	}
-
-	// Check if plan is empty (no changes needed)
-	if plan.IsEmpty() {
-		if outputFormat == textOutputFormat {
-			common.DisplayPlanSummary(plan, command.ErrOrStderr())
-			return nil
-		}
-		// Use consistent output format with empty result
-		emptyResult := &executor.ExecutionResult{
-			SuccessCount:   0,
-			FailureCount:   0,
-			SkippedCount:   0,
-			DryRun:         dryRun,
-			ChangesApplied: []executor.AppliedChange{},
-		}
-		return outputExecutionResult(command, emptyResult, outputFormat)
-	}
-
-	// Show plan summary for text format (both regular and dry-run)
-	if outputFormat == textOutputFormat {
-		common.DisplayPlanSummary(plan, command.ErrOrStderr())
-
-		// Show confirmation prompt for non-dry-run, non-auto-approve
-		if !dryRun && !autoApprove {
-			// If we're using stdin for input, use /dev/tty for confirmation
-			inputReader := command.InOrStdin()
-			if usingStdinForInput {
-				tty, err := os.Open("/dev/tty")
-				if err != nil {
-					// This shouldn't happen as we checked earlier
-					return fmt.Errorf("cannot open terminal for confirmation: %w", err)
-				}
-				defer tty.Close()
-				inputReader = tty
-			}
-
-			if !common.ConfirmExecution(plan, command.OutOrStdout(), command.OutOrStderr(), inputReader) {
-				return fmt.Errorf("sync cancelled")
-			}
-		}
-
-		// Add spacing before execution output
-		fmt.Fprintln(command.OutOrStderr())
-	}
-
-	// Create executor
-	stateClient := createStateClient(kkClient)
-
-	var reporter executor.ProgressReporter
-	if outputFormat == textOutputFormat {
-		reporter = executor.NewConsoleReporterWithOptions(command.OutOrStderr(), dryRun)
-	}
-
-	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
-	if err != nil {
-		return err
-	}
-	token, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource)
-	if err != nil {
-		return err
-	}
-	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
-	if err != nil {
-		return err
-	}
-
-	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
-		KonnectToken:       token,
-		KonnectTokenSource: tokenSource,
-		KonnectBaseURL:     baseURL,
-		Mode:               planner.PlanModeSync,
-		PlanBaseDir:        resolvePlanBaseDir(planFile),
-		MaxConcurrency:     maxConcurrency,
-	})
-
-	// Execute plan
-	result := exec.Execute(ctx, plan)
-
-	// Output results based on format
-	outputErr := outputExecutionResult(command, result, outputFormat)
-	if outputErr != nil {
-		return outputErr
-	}
-	if result.HasErrors() {
-		return fmt.Errorf("execution completed with %d errors", result.FailureCount)
-	}
-
-	return nil
+	return runExecution(command, args, verbs.Sync, planner.PlanModeSync)
 }
 
 // maxConcurrencyFromCmd reads and validates --max-concurrency, falling back to config.
