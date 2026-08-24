@@ -220,7 +220,7 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
-  - name: 003-plan-apply-update
+  - name: 003-plan-apply-update-preserves-undeclared-security-config
     inputOverlayDirs:
       - overlays/001-update
     commands:

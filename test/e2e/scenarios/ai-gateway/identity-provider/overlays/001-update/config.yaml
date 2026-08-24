@@ -38,13 +38,8 @@ ai_gateways:
             - bearer
           cache_tokens_salt: support-oidc-cache-salt-000001
           issuer: https://issuer.example.com
-          consumer_groups_claim:
-            - groups
-          consumer_groups_optional: false
-          upstream_headers_claims:
-            - sub
-          upstream_headers_names:
-            - x-consumer-subject
+          # Access-control and upstream-header fields are intentionally omitted.
+          # The update must preserve their live values from the initial fixture.
           principals:
             enabled: true
             directory: default
