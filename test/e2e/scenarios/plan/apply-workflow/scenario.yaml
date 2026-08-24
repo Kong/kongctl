@@ -98,7 +98,57 @@ steps:
                 description: "Orders API for plan apply workflow"
                 labels.domain: commerce
 
-  - name: 002-plan-apply-update
+  - name: 002-apply-dry-run
+    inputOverlayDirs:
+      - overlays/002-plan-update
+    commands:
+      - name: 000-apply-dry-run
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --dry-run
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: apply
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+          - select: summary
+            expect:
+              fields:
+                skipped: 3
+                applied: 0
+                failed: 0
+                status: success
+      - name: 001-get-portals
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                description: "Orders API for plan apply workflow"
+                labels.domain: commerce
+          - select: "@"
+            expect:
+              fields:
+                "[?name=='{{ .vars.analyticsAPIRef }}'] | length(@)": 0
+
+  - name: 003-plan-apply-update
     inputOverlayDirs:
       - overlays/002-plan-update
     commands:
@@ -204,7 +254,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-delete-cleanup
+  - name: 004-delete-cleanup
     inputOverlayDirs:
       - overlays/002-plan-update
     commands:
