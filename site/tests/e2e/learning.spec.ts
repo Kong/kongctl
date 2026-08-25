@@ -44,7 +44,7 @@ test("presents the home curriculum as a chapter list", async ({ page }) => {
   ).toHaveAttribute("href", "/kongctl/declarative-configuration/");
   await expect(
     curriculum.getByRole("link", { name: /Quickstarts/ }),
-  ).toHaveAttribute("href", "/kongctl/quickstarts/route-openai-requests/");
+  ).toHaveAttribute("href", "/kongctl/quickstarts/");
   await expect(
     curriculum.getByRole("link", {
       name: /Federated Management/,
@@ -73,6 +73,45 @@ test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
   await expect(lesson).toContainText('"model": "gpt-4.1-nano"');
   await expect(lesson).toContainText("docker stop openai-llm-data-plane");
   await expect(lesson).toContainText("kongctl delete -f ai-gateway.yaml");
+});
+
+test("protects an AI Gateway model with Consumer credentials", async ({
+  page,
+}) => {
+  await page.goto("quickstarts/");
+  const quickstarts = page.locator(".chapter-lessons");
+  await expect(quickstarts.locator(":scope > li")).toHaveCount(2);
+  await expect(
+    quickstarts.getByRole("link", { name: /AI Gateway: Route OpenAI/ }),
+  ).toBeVisible();
+  await expect(
+    quickstarts.getByRole("link", {
+      name: /AI Gateway: Consumer Credentials/,
+    }),
+  ).toBeVisible();
+
+  await page.goto("quickstarts/consumer-credentials/");
+  const lesson = page.locator(".lesson-body");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "AI Gateway: Consumer Credentials",
+    }),
+  ).toBeVisible();
+  await expect(lesson).toContainText("!env OPENAI_API_KEY");
+  await expect(lesson).toContainText("!env CONSUMER_API_KEY");
+  await expect(lesson).toContainText("auth_strategies");
+  await expect(lesson).toContainText("deployment_type: hybrid");
+  await expect(lesson).toContainText("consumer-key-auth");
+  await expect(lesson).toContainText("kongctl apply -f ai-gateway.yaml");
+  await expect(lesson).toContainText("apikey: incorrect-consumer-key");
+  await expect(lesson).toContainText("apikey: ${CONSUMER_API_KEY}");
+  await expect(lesson).toContainText("HTTP/1.1 401 Unauthorized");
+  await expect(lesson).toContainText("HTTP/1.1 200 OK");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText(
+    "docker stop consumer-credential-data-plane",
+  );
 });
 
 test("presents the federated management journey", async ({ page }) => {
