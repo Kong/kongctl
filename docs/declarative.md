@@ -526,6 +526,9 @@ Important notes for deck integration:
   resources owned by other deck files. kongctl does not inject select tags for you.
 - Relative deck file paths are resolved relative to the declarative config file and must remain within the
   `--base-dir` boundary (default: the config file directory).
+- When `_deck.files` is inherited from a template, its paths remain relative to
+  the file containing the consuming control plane. Unlike a `!file` tag, a deck
+  file path is not resolved in the template definition's context.
 - Plan files store deck base directories relative to the plan file location. When emitting a plan to stdout,
   the base directory is made relative to the current working directory (use `--output-file` for portable plans).
   Applying a plan resolves them from the plan file directory (or the current working directory when using `--plan -`).

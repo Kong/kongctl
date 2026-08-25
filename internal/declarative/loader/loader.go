@@ -103,7 +103,7 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	}
 	preparedDocuments := make([]*preparedYAML, 0, len(documents))
 	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
-	for _, document := range documents {
+	for i, document := range documents {
 		prepared, err := l.prepareYAML(document.content, document.sourcePath, document.rootDir)
 		if err != nil {
 			return nil, err
@@ -112,13 +112,17 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		templateDocuments = append(templateDocuments, &configTemplateDocument{
 			content: prepared.content, sourcePath: prepared.sourcePath,
 		})
+		prepared.content = nil
+		documents[i].content = nil
 	}
+	documents = nil
 	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
 		return nil, fmt.Errorf("failed to expand templates: %w", err)
 	}
 	for i, prepared := range preparedDocuments {
 		prepared.content = templateDocuments[i].content
 		prepared.templateDefinitions = templateDocuments[i].usedTemplates
+		templateDocuments[i] = nil
 		prepared.hasEnvTags = prepared.hasEnvTags ||
 			strings.Contains(string(prepared.content), tags.EnvPlaceholderPrefix)
 		rs, err := l.parsePreparedYAML(prepared)
@@ -128,6 +132,7 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		if err := l.appendResourcesWithDuplicateCheck(&allResources, rs, prepared.sourcePath, refIndex); err != nil {
 			return nil, err
 		}
+		preparedDocuments[i] = nil
 	}
 
 	if err := l.normalizeContentMetadata(&allResources); err != nil {

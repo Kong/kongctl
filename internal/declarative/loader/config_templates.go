@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 is required to preserve source locations while expanding templates
 )
 
@@ -54,13 +55,21 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 		if err := registry.collect(&document.document, document.sourcePath); err != nil {
 			return err
 		}
+		document.document = yaml.Node{}
 	}
 	if err := registry.resolveDefinitions(); err != nil {
 		return err
 	}
 
 	for _, document := range documents {
+		if err := yaml.Unmarshal(document.content, &document.document); err != nil {
+			return fmt.Errorf("failed to parse YAML for template expansion in %s: %w", document.sourcePath, err)
+		}
+		if err := stripTemplateDefinitions(&document.document, document.sourcePath); err != nil {
+			return err
+		}
 		if isEmptyYAMLDocument(&document.document) {
+			document.document = yaml.Node{}
 			continue
 		}
 		document.usedTemplates = make(map[string]configTemplate)
@@ -77,6 +86,7 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 			return fmt.Errorf("failed to encode expanded YAML in %s: %w", document.sourcePath, err)
 		}
 		document.content = result.Bytes()
+		document.document = yaml.Node{}
 	}
 	return nil
 }
@@ -154,10 +164,21 @@ func (r *configTemplateRegistry) collect(document *yaml.Node, sourcePath string)
 					previous.node.Column,
 				)
 			}
-			r.definitions[name] = configTemplate{sourcePath: sourcePath, node: valueNode}
+			r.definitions[name] = configTemplate{sourcePath: sourcePath, node: cloneYAMLNode(valueNode)}
 		}
 
 		root.Content = append(root.Content[:i], root.Content[i+2:]...)
+	}
+	return nil
+}
+
+func stripTemplateDefinitions(document *yaml.Node, sourcePath string) error {
+	root, err := documentMapping(document, sourcePath)
+	if err != nil || root == nil {
+		return err
+	}
+	if index, _, ok := mappingValue(root, templatesKey); ok {
+		root.Content = append(root.Content[:index], root.Content[index+2:]...)
 	}
 	return nil
 }
@@ -176,6 +197,15 @@ func (r *configTemplateRegistry) expandDocument(document *yaml.Node, sourcePath 
 	for i := 0; i+1 < len(root.Content); i += 2 {
 		key := root.Content[i].Value
 		if key == "_defaults" {
+			if extends, path, ok := findNestedMappingValue(root.Content[i+1], extendsKey, []string{key}); ok {
+				return nodeError(
+					extends,
+					sourcePath,
+					"%s is not supported inside _defaults at %s",
+					extendsKey,
+					declarativeTemplatePath(path),
+				)
+			}
 			continue
 		}
 		if err := r.expandNode(root.Content[i+1], sourcePath, []string{key}); err != nil {
@@ -214,7 +244,8 @@ func (r *configTemplateRegistry) expandNode(node *yaml.Node, sourcePath string, 
 			)
 		}
 		if keyIndex, extends, ok := mappingValue(node, extendsKey); ok {
-			if extends.Kind != yaml.ScalarNode || extends.Tag != "!!str" || strings.TrimSpace(extends.Value) == "" {
+			if extends.Kind != yaml.ScalarNode || extends.Tag != "!!str" ||
+				strings.TrimSpace(extends.Value) == "" || tags.IsEnvPlaceholder(extends.Value) {
 				return nodeError(
 					extends,
 					sourcePath,
@@ -246,6 +277,44 @@ func (r *configTemplateRegistry) expandNode(node *yaml.Node, sourcePath string, 
 		return nil
 	}
 	return nil
+}
+
+func findNestedMappingValue(node *yaml.Node, key string, path []string) (*yaml.Node, []string, bool) {
+	if node == nil {
+		return nil, nil, false
+	}
+	switch node.Kind {
+	case yaml.DocumentNode:
+		for _, child := range node.Content {
+			if value, valuePath, ok := findNestedMappingValue(child, key, path); ok {
+				return value, valuePath, true
+			}
+		}
+	case yaml.SequenceNode:
+		for i, child := range node.Content {
+			if value, valuePath, ok := findNestedMappingValue(
+				child,
+				key,
+				append(path, fmt.Sprintf("[%d]", i)),
+			); ok {
+				return value, valuePath, true
+			}
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			childKey := node.Content[i].Value
+			childPath := append(path, childKey)
+			if childKey == key {
+				return node.Content[i+1], childPath, true
+			}
+			if value, valuePath, ok := findNestedMappingValue(node.Content[i+1], key, childPath); ok {
+				return value, valuePath, true
+			}
+		}
+	case yaml.ScalarNode, yaml.AliasNode:
+		return nil, nil, false
+	}
+	return nil, nil, false
 }
 
 func (r *configTemplateRegistry) resolve(

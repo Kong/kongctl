@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -80,6 +81,37 @@ portals:
 	require.Len(t, rs.Portals, 1)
 	require.NotNil(t, rs.Portals[0].AuthenticationEnabled)
 	assert.True(t, *rs.Portals[0].AuthenticationEnabled)
+}
+
+func TestExpandConfigTemplateDocumentsReleasesParsedTrees(t *testing.T) {
+	t.Parallel()
+
+	documents := []*configTemplateDocument{
+		{
+			content: []byte(`
+_templates:
+  standard:
+    authentication_enabled: true
+`),
+			sourcePath: "templates.yaml",
+		},
+		{
+			content: []byte(`
+portals:
+  - _extends: standard
+    ref: docs
+    name: Docs
+`),
+			sourcePath: "portals.yaml",
+		},
+	}
+
+	require.NoError(t, expandConfigTemplateDocuments(documents))
+	for _, document := range documents {
+		assert.Zero(t, document.document.Kind)
+		assert.NotContains(t, string(document.content), templatesKey)
+		assert.NotContains(t, string(document.content), extendsKey)
+	}
 }
 
 func TestLoaderDiscoversTemplatesRecursivelyInDirectorySource(t *testing.T) {
@@ -253,6 +285,27 @@ portals:
 			wantErr: `_extends at portals[0] must name one template`,
 		},
 		{
+			name: "extends in defaults",
+			input: `
+_templates:
+  standard: {namespace: shared}
+_defaults:
+  _extends: standard
+`,
+			wantErr: `_extends is not supported inside _defaults at _defaults._extends`,
+		},
+		{
+			name: "extends in nested defaults",
+			input: `
+_templates:
+  standard: {namespace: shared}
+_defaults:
+  kongctl:
+    _extends: standard
+`,
+			wantErr: `_extends is not supported inside _defaults at _defaults.kongctl._extends`,
+		},
+		{
 			name: "nested template registry",
 			input: `
 ai_gateways:
@@ -324,6 +377,21 @@ _templates:
 			require.ErrorContains(t, err, path)
 		})
 	}
+}
+
+func TestLoaderRejectsEnvironmentTemplateReferenceWithoutLeakingPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	path := writeLoaderTestFile(t, `
+portals:
+  - _extends: !env TEMPLATE_NAME
+    ref: docs
+    name: Docs
+`)
+
+	_, err := New().LoadFromSources([]Source{{Path: path, Type: SourceTypeFile}}, false)
+	require.ErrorContains(t, err, `_extends at portals[0] must name one template`)
+	assert.NotContains(t, err.Error(), tags.EnvPlaceholderPrefix)
 }
 
 func TestLoaderRejectsDuplicateTemplatesAcrossSourceFiles(t *testing.T) {
