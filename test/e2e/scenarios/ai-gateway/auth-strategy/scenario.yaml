@@ -7,15 +7,15 @@ env:
   KONGCTL_LOG_LEVEL: info
 
 vars:
-  namespace: "ai-gateway-identity-provider-e2e"
-  gateway_ref: "ai-gateway-identity-provider-e2e"
-  gateway_name: "AI Gateway Identity Provider E2E"
-  identity_provider_ref: "support-key-auth"
-  identity_provider_name: "support-key-auth"
-  identity_provider_updated_display_name: "Updated Support Key Auth"
-  oidc_identity_provider_ref: "support-oidc"
-  oidc_identity_provider_name: "support-oidc"
-  oidc_identity_provider_updated_display_name: "Updated Support OIDC"
+  namespace: "ai-gateway-auth-strategy-e2e"
+  gateway_ref: "ai-gateway-auth-strategy-e2e"
+  gateway_name: "AI Gateway Auth Strategy E2E"
+  auth_strategy_ref: "support-key-auth"
+  auth_strategy_name: "support-key-auth"
+  auth_strategy_updated_display_name: "Updated Support Key Auth"
+  oidc_auth_strategy_ref: "support-oidc"
+  oidc_auth_strategy_name: "support-oidc"
+  oidc_auth_strategy_updated_display_name: "Updated Support OIDC"
 
 defaults:
   mask:
@@ -38,10 +38,10 @@ steps:
   - name: 001-explain-and-scaffold
     skipInputs: true
     commands:
-      - name: 000-explain-ai-gateway-identity-provider-json
+      - name: 000-explain-ai-gateway-auth-strategy-json
         run:
           - explain
-          - ai_gateway_identity_provider
+          - ai_gateway_auth_strategy
           - -o
           - json
         assertions:
@@ -49,8 +49,8 @@ steps:
             expect:
               fields:
                 type: object
-                title: "kongctl declarative schema: ai_gateway_identity_provider"
-                '"x-kongctl-root-key"': ai_gateway_identity_providers
+                title: "kongctl declarative schema: ai_gateway_auth_strategy"
+                '"x-kongctl-root-key"': ai_gateway_auth_strategies
           - select: "oneOf[?properties.type.const=='key-auth'] | [0].properties.config.properties"
             expect:
               fields:
@@ -66,16 +66,16 @@ steps:
                 "contains(keys(@), 'upstream_headers_claims')": true
                 "contains(keys(@), 'upstream_headers_names')": true
                 "contains(keys(@), 'principals')": true
-      - name: 001-scaffold-ai-gateway-identity-provider
+      - name: 001-scaffold-ai-gateway-auth-strategy
         run:
           - scaffold
-          - ai_gateway_identity_provider
+          - ai_gateway_auth_strategy
         outputFormat: disable
         parseAs: raw
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'ai_gateway_identity_providers:')": true
+                "contains(stdout, 'ai_gateway_auth_strategies:')": true
                 "contains(stdout, 'type: key-auth')": true
                 "contains(stdout, 'key_names:')": true
 
@@ -97,11 +97,11 @@ steps:
                 total_changes: 3
                 by_action.CREATE: 3
           - select: >-
-              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.auth_strategy_ref }}'] | [0]
             expect:
               fields:
                 action: CREATE
-                fields.name: "{{ .vars.identity_provider_name }}"
+                fields.name: "{{ .vars.auth_strategy_name }}"
                 fields.type: key-auth
                 fields.config.key_names[0]: x-support-api-key
                 fields.config.hide_credentials: true
@@ -109,7 +109,7 @@ steps:
                 fields.config.principals.directory: default
                 fields.config.principals.error_on_miss: false
           - select: >-
-              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.oidc_auth_strategy_ref }}'] | [0]
             expect:
               fields:
                 action: CREATE
@@ -135,17 +135,17 @@ steps:
                 applied: 3
                 failed: 0
                 status: success
-      - name: 002-get-identity-providers
+      - name: 002-get-auth-strategies
         run:
           - get
           - ai-gateway
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o
           - json
         assertions:
-          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0]"
+          - select: "[?name=='{{ .vars.auth_strategy_name }}'] | [0]"
             expect:
               fields:
                 type: key-auth
@@ -154,17 +154,17 @@ steps:
                 config.principals.enabled: true
                 config.principals.directory: default
                 config.principals.error_on_miss: false
-      - name: 003-list-identity-providers
+      - name: 003-list-auth-strategies
         run:
           - list
           - aigw
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o
           - json
         assertions:
-          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0].type"
+          - select: "[?name=='{{ .vars.auth_strategy_name }}'] | [0].type"
             expect:
               fields:
                 "@": key-auth
@@ -172,10 +172,10 @@ steps:
         run:
           - get
           - ai-gateway
-          - identity-provider
+          - auth-strategy
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.oidc_identity_provider_name }}"
+          - "{{ .vars.oidc_auth_strategy_name }}"
           - -o
           - json
         assertions:
@@ -190,21 +190,21 @@ steps:
                 config.principals.enabled: true
                 config.principals.principal_claim[0]: sub
                 config.principals.error_on_miss: false
-      - name: 004-get-identity-provider-by-name
+      - name: 004-get-auth-strategy-by-name
         run:
           - get
           - ai-gateways
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.identity_provider_name }}"
+          - "{{ .vars.auth_strategy_name }}"
           - -o
           - json
         assertions:
           - select: "@"
             expect:
               fields:
-                name: "{{ .vars.identity_provider_name }}"
+                name: "{{ .vars.auth_strategy_name }}"
                 type: key-auth
                 config.hide_credentials: true
       - name: 005-diff-no-changes
@@ -240,20 +240,20 @@ steps:
                 total_changes: 2
                 by_action.UPDATE: 2
           - select: >-
-              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.auth_strategy_ref }}'] | [0]
             expect:
               fields:
                 action: UPDATE
-                fields.display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                fields.display_name: "{{ .vars.auth_strategy_updated_display_name }}"
                 fields.config.key_names[1]: apikey
                 fields.config.principals.enabled: true
                 fields.config.principals.directory: default
           - select: >-
-              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.oidc_auth_strategy_ref }}'] | [0]
             expect:
               fields:
                 action: UPDATE
-                fields.display_name: "{{ .vars.oidc_identity_provider_updated_display_name }}"
+                fields.display_name: "{{ .vars.oidc_auth_strategy_updated_display_name }}"
                 fields.config.consumer_groups_claim[0]: groups
                 fields.config.consumer_groups_optional: false
                 fields.config.upstream_headers_claims[0]: sub
@@ -278,17 +278,17 @@ steps:
         run:
           - get
           - ai-gateway
-          - identity-provider
+          - auth-strategy
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.identity_provider_name }}"
+          - "{{ .vars.auth_strategy_name }}"
           - -o
           - json
         assertions:
           - select: "@"
             expect:
               fields:
-                display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                display_name: "{{ .vars.auth_strategy_updated_display_name }}"
                 labels.owner: platform
                 config.key_names[1]: apikey
                 config.principals.enabled: true
@@ -297,17 +297,17 @@ steps:
         run:
           - get
           - ai-gateway
-          - identity-provider
+          - auth-strategy
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.oidc_identity_provider_name }}"
+          - "{{ .vars.oidc_auth_strategy_name }}"
           - -o
           - json
         assertions:
           - select: "@"
             expect:
               fields:
-                display_name: "{{ .vars.oidc_identity_provider_updated_display_name }}"
+                display_name: "{{ .vars.oidc_auth_strategy_updated_display_name }}"
                 config.consumer_groups_claim[0]: groups
                 config.consumer_groups_optional: false
                 config.upstream_headers_claims[0]: sub
@@ -342,16 +342,16 @@ steps:
         stdoutFile: "{{ .workdir }}/dump-ai-gateway.yaml"
         assertions:
           - select: >-
-              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.identity_provider_name }}'] | [0]
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].auth_strategies[?name=='{{ .vars.auth_strategy_name }}'] | [0]
             expect:
               fields:
                 type: key-auth
-                display_name: "{{ .vars.identity_provider_updated_display_name }}"
+                display_name: "{{ .vars.auth_strategy_updated_display_name }}"
                 config.key_names[1]: apikey
                 config.principals.enabled: true
                 config.principals.directory: default
           - select: >-
-              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.oidc_identity_provider_name }}'] | [0]
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].auth_strategies[?name=='{{ .vars.oidc_auth_strategy_name }}'] | [0]
             expect:
               fields:
                 type: openid-connect
@@ -373,11 +373,11 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-sync-delete-identity-provider
+  - name: 005-sync-delete-auth-strategy
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
-      - name: 000-sync-delete-identity-provider
+      - name: 000-sync-delete-auth-strategy
         outputFormat: json
         run:
           - sync
@@ -391,15 +391,15 @@ steps:
                 total_changes: 2
                 by_action.DELETE: 2
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.auth_strategy_ref }}' && action=='DELETE'] | [0]
             expect:
               fields:
-                resource_ref: "{{ .vars.identity_provider_name }}"
+                resource_ref: "{{ .vars.auth_strategy_name }}"
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.oidc_identity_provider_ref }}' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.oidc_auth_strategy_ref }}' && action=='DELETE'] | [0]
             expect:
               fields:
-                resource_ref: "{{ .vars.oidc_identity_provider_name }}"
+                resource_ref: "{{ .vars.oidc_auth_strategy_name }}"
           - select: summary
             expect:
               fields:

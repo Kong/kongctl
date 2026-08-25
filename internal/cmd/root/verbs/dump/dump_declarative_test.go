@@ -551,7 +551,6 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 			decllabels.ProtectedKey: decllabels.TrueValue,
 			"owner":                 "platform",
 		},
-		AdditionalProperties: map[string]any{"future_gateway_field": "gateway-value"},
 	}
 
 	resource := mapAIGatewayToDeclarativeResource(gateway)
@@ -580,8 +579,53 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 	if resource.Kongctl.Protected == nil || !*resource.Kongctl.Protected {
 		t.Fatalf("expected protected metadata to be preserved, got %#v", resource.Kongctl)
 	}
-	if resource.AdditionalProperties["future_gateway_field"] != "gateway-value" {
-		t.Fatalf("expected additional properties to be preserved, got %#v", resource.AdditionalProperties)
+}
+
+func TestAIGatewayDeploymentTypeDumpBehavior(t *testing.T) {
+	tests := []struct {
+		name             string
+		deploymentType   kkComps.DeploymentType
+		wantAfterOmitAPI bool
+	}{
+		{name: "hybrid default", deploymentType: kkComps.DeploymentTypeHybrid},
+		{name: "managed", deploymentType: kkComps.DeploymentTypeManaged, wantAfterOmitAPI: true},
+		{name: "serverless", deploymentType: kkComps.DeploymentTypeServerless, wantAfterOmitAPI: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resource := mapAIGatewayToDeclarativeResource(kkComps.AIGateway{
+				ID:             "ai-gateway-id",
+				Name:           "ai-gateway",
+				DisplayName:    "AI Gateway",
+				DeploymentType: test.deploymentType.ToPointer(),
+			})
+			output := declarativeDumpOutput{
+				ResourceSet: declresources.ResourceSet{AIGateways: []declresources.AIGatewayResource{resource}},
+			}
+
+			normal, err := yaml.Marshal(output)
+			if err != nil {
+				t.Fatalf("marshal normal dump: %v", err)
+			}
+			deploymentLine := "deployment_type: " + string(test.deploymentType)
+			if !strings.Contains(string(normal), deploymentLine) {
+				t.Fatalf("normal dump does not contain %q:\n%s", deploymentLine, normal)
+			}
+
+			withoutAPIDefaults, err := declresources.OmitAPIDefaults(normal)
+			if err != nil {
+				t.Fatalf("omit API defaults: %v", err)
+			}
+			if got := strings.Contains(string(withoutAPIDefaults), deploymentLine); got != test.wantAfterOmitAPI {
+				t.Fatalf(
+					"deployment type presence after omitting API defaults = %t, want %t:\n%s",
+					got,
+					test.wantAfterOmitAPI,
+					withoutAPIDefaults,
+				)
+			}
+		})
 	}
 }
 
@@ -821,10 +865,10 @@ func TestNormalizeResourceListRejectsAIGatewayChildren(t *testing.T) {
 		"ai-gateway-model-providers",
 		"ai_gateway_model_provider",
 		"ai_gateway_model_providers",
-		"ai-gateway-identity-provider",
-		"ai-gateway-identity-providers",
-		"ai_gateway_identity_provider",
-		"ai_gateway_identity_providers",
+		"ai-gateway-auth-strategy",
+		"ai-gateway-auth-strategies",
+		"ai_gateway_auth_strategy",
+		"ai_gateway_auth_strategies",
 		"ai-gateway-policy",
 		"ai-gateway-policies",
 		"ai_gateway_policy",

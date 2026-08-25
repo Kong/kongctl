@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayAgentDetailViewIncludesIdentityProviders(t *testing.T) {
+func TestAIGatewayAgentDetailViewIncludesAuthStrategies(t *testing.T) {
 	t.Parallel()
 
 	agent := kkComps.AIGatewayAgent{
@@ -16,11 +16,11 @@ func TestAIGatewayAgentDetailViewIncludesIdentityProviders(t *testing.T) {
 		DisplayName: "Booking Agent",
 		Type:        kkComps.TypeA2a,
 		Access: &kkComps.AIGatewayAgentAccess{
-			IdentityProviders: []string{"support-key-auth"},
+			AuthStrategies: []string{"support-key-auth"},
 		},
 	}
 
 	detail := aiGatewayAgentDetailView(agent)
-	require.Contains(t, detail, `access: {"identity_providers":["support-key-auth"]}`)
+	require.Contains(t, detail, `access: {"auth_strategies":["support-key-auth"]}`)
 	require.NotContains(t, detail, "acls: n/a")
 }

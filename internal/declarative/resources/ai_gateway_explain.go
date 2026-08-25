@@ -24,14 +24,14 @@ func aiGatewayACLsExplainNode() *ExplainNode {
 	)
 }
 
-func aiGatewayAccessExplainNode(includeIdentityProviders bool) *ExplainNode {
+func aiGatewayAccessExplainNode(includeAuthStrategies bool) *ExplainNode {
 	fields := []*ExplainField{
 		explainField("acls", aiGatewayACLsExplainNode(), false, false),
 	}
-	if includeIdentityProviders {
+	if includeAuthStrategies {
 		fields = append(fields, explainField(
-			"identity_providers",
-			explainArrayOf(explainStringNode("identity-provider-name")),
+			"auth_strategies",
+			explainArrayOf(explainStringNode("auth-strategy-name")),
 			false,
 			false,
 		))

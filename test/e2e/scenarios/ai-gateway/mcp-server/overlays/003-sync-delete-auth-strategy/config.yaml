@@ -14,5 +14,5 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    identity_providers: []
+    auth_strategies: []
     mcp_servers: []

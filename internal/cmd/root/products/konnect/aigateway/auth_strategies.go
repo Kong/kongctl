@@ -25,32 +25,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const aiGatewayIdentityProvidersUse = "identity-providers [identity-provider-id|identity-provider-name]"
+const aiGatewayAuthStrategiesUse = "auth-strategies [auth-strategy-id|auth-strategy-name]"
 
 var (
-	aiGatewayIdentityProvidersShort = i18n.T(
-		"root.products.konnect.ai-gateway.identityProvidersShort",
-		"List or get identity providers for a Konnect AI Gateway",
+	aiGatewayAuthStrategiesShort = i18n.T(
+		"root.products.konnect.ai-gateway.authStrategiesShort",
+		"List or get auth strategies for a Konnect AI Gateway",
 	)
-	aiGatewayIdentityProvidersLong = i18n.T(
-		"root.products.konnect.ai-gateway.identityProvidersLong",
-		`Use the identity-providers command to list or retrieve AI Gateway Identity Providers for a specific AI Gateway.`,
+	aiGatewayAuthStrategiesLong = i18n.T(
+		"root.products.konnect.ai-gateway.authStrategiesLong",
+		`Use the auth-strategies command to list or retrieve AI Gateway Auth Strategies for a specific AI Gateway.`,
 	)
-	aiGatewayIdentityProvidersExample = normalizers.Examples(
-		i18n.T("root.products.konnect.ai-gateway.identityProvidersExamples",
-			fmt.Sprintf(`# List identity providers for an AI Gateway by ID
-%[1]s get ai-gateways identity-providers --gateway-id <gateway-id>
-# List identity providers for an AI Gateway by display name
-%[1]s get ai-gateways identity-providers --gateway-name "Customer Support Gateway"
-# Get an identity provider by ID or name
-%[1]s get ai-gateways identity-providers --gateway-name "Customer Support Gateway" support-key-auth
-# Get an identity provider by flag
-%[1]s get ai-gateways identity-providers --gateway-id <gateway-id> --identity-provider-name support-key-auth
+	aiGatewayAuthStrategiesExample = normalizers.Examples(
+		i18n.T("root.products.konnect.ai-gateway.authStrategiesExamples",
+			fmt.Sprintf(`# List auth strategies for an AI Gateway by ID
+%[1]s get ai-gateways auth-strategies --gateway-id <gateway-id>
+# List auth strategies for an AI Gateway by display name
+%[1]s get ai-gateways auth-strategies --gateway-name "Customer Support Gateway"
+# Get an auth strategy by ID or name
+%[1]s get ai-gateways auth-strategies --gateway-name "Customer Support Gateway" support-key-auth
+# Get an auth strategy by flag
+%[1]s get ai-gateways auth-strategies --gateway-id <gateway-id> --auth-strategy-name support-key-auth
 `, meta.CLIName)),
 	)
 )
 
-type aiGatewayIdentityProviderRecord struct {
+type aiGatewayAuthStrategyRecord struct {
 	ID               string
 	Name             string
 	Type             string
@@ -59,17 +59,17 @@ type aiGatewayIdentityProviderRecord struct {
 	LocalUpdatedTime string
 }
 
-func newGetAIGatewayIdentityProvidersCmd(
+func newGetAIGatewayAuthStrategiesCmd(
 	verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) *cobra.Command {
 	c := &cobra.Command{
-		Use:     aiGatewayIdentityProvidersUse,
-		Short:   aiGatewayIdentityProvidersShort,
-		Long:    aiGatewayIdentityProvidersLong,
-		Example: aiGatewayIdentityProvidersExample,
-		Aliases: []string{"identity-provider", "identity"},
+		Use:     aiGatewayAuthStrategiesUse,
+		Short:   aiGatewayAuthStrategiesShort,
+		Long:    aiGatewayAuthStrategiesLong,
+		Example: aiGatewayAuthStrategiesExample,
+		Aliases: []string{"auth-strategy"},
 		PreRunE: func(c *cobra.Command, args []string) error {
 			if parentPreRun != nil {
 				if err := parentPreRun(c, args); err != nil {
@@ -79,31 +79,31 @@ func newGetAIGatewayIdentityProvidersCmd(
 			if err := bindAIGatewayChildFlags(c, args); err != nil {
 				return err
 			}
-			return bindAIGatewayIdentityProviderFlags(c, args)
+			return bindAIGatewayAuthStrategyFlags(c, args)
 		},
 		RunE: func(c *cobra.Command, args []string) error {
-			handler := aiGatewayIdentityProvidersHandler{cmd: c}
+			handler := aiGatewayAuthStrategiesHandler{cmd: c}
 			return handler.run(args)
 		},
 	}
 
 	addAIGatewayChildFlags(c)
-	addAIGatewayIdentityProviderFlags(c)
+	addAIGatewayAuthStrategyFlags(c)
 	if addParentFlags != nil {
 		addParentFlags(verb, c)
 	}
 	return c
 }
 
-type aiGatewayIdentityProvidersHandler struct {
+type aiGatewayAuthStrategiesHandler struct {
 	cmd *cobra.Command
 }
 
-func (h aiGatewayIdentityProvidersHandler) run(args []string) error {
+func (h aiGatewayAuthStrategiesHandler) run(args []string) error {
 	helper := cmd.BuildHelper(h.cmd, args)
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{
-			Err: fmt.Errorf("too many arguments. Listing AI Gateway Identity Providers requires 0 or 1 arguments (ID or name)"),
+			Err: fmt.Errorf("too many arguments. Listing AI Gateway Auth Strategies requires 0 or 1 arguments (ID or name)"),
 		}
 	}
 
@@ -113,13 +113,13 @@ func (h aiGatewayIdentityProvidersHandler) run(args []string) error {
 	}
 
 	if len(args) == 1 {
-		providerID, providerName := getAIGatewayIdentityProviderIdentifiers(cfg)
+		providerID, providerName := getAIGatewayAuthStrategyIdentifiers(cfg)
 		if providerID != "" || providerName != "" {
 			return &cmd.ConfigurationError{
 				Err: fmt.Errorf(
 					"cannot specify both positional argument and --%s or --%s flags",
-					aiGatewayIdentityProviderIDFlagName,
-					aiGatewayIdentityProviderNameFlagName,
+					aiGatewayAuthStrategyIDFlagName,
+					aiGatewayAuthStrategyNameFlagName,
 				),
 			}
 		}
@@ -166,21 +166,21 @@ func (h aiGatewayIdentityProvidersHandler) run(args []string) error {
 		}
 	}
 
-	providerAPI := sdk.GetAIGatewayIdentityProvidersAPI()
+	providerAPI := sdk.GetAIGatewayAuthStrategiesAPI()
 	if providerAPI == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Identity Providers client is not available",
-			Err: fmt.Errorf("AI Gateway Identity Providers client not configured"),
+			Msg: "AI Gateway Auth Strategies client is not available",
+			Err: fmt.Errorf("AI Gateway Auth Strategies client not configured"),
 		}
 	}
 
-	providerID, providerName := getAIGatewayIdentityProviderIdentifiers(cfg)
+	providerID, providerName := getAIGatewayAuthStrategyIdentifiers(cfg)
 	if providerID != "" && providerName != "" {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
 				"only one of --%s or --%s can be provided",
-				aiGatewayIdentityProviderIDFlagName,
-				aiGatewayIdentityProviderNameFlagName,
+				aiGatewayAuthStrategyIDFlagName,
+				aiGatewayAuthStrategyNameFlagName,
 			),
 		}
 	}
@@ -200,24 +200,24 @@ func (h aiGatewayIdentityProvidersHandler) run(args []string) error {
 	return h.listProviders(helper, providerAPI, gatewayID, outType, printer, cfg)
 }
 
-func (h aiGatewayIdentityProvidersHandler) listProviders(
+func (h aiGatewayAuthStrategiesHandler) listProviders(
 	helper cmd.Helper,
-	providerAPI helpers.AIGatewayIdentityProvidersAPI,
+	providerAPI helpers.AIGatewayAuthStrategiesAPI,
 	gatewayID string,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
 	cfg config.Hook,
 ) error {
-	providers, err := fetchAIGatewayIdentityProviders(helper, providerAPI, gatewayID, cfg)
+	providers, err := fetchAIGatewayAuthStrategies(helper, providerAPI, gatewayID, cfg)
 	if err != nil {
 		return err
 	}
 
-	records := make([]aiGatewayIdentityProviderRecord, 0, len(providers))
+	records := make([]aiGatewayAuthStrategyRecord, 0, len(providers))
 	rawProviders := make([]map[string]any, 0, len(providers))
 	for _, provider := range providers {
-		records = append(records, aiGatewayIdentityProviderToDisplayRecord(provider))
-		rawProviders = append(rawProviders, aiGatewayIdentityProviderRedactedRawMap(provider))
+		records = append(records, aiGatewayAuthStrategyToDisplayRecord(provider))
+		rawProviders = append(rawProviders, aiGatewayAuthStrategyRedactedRawMap(provider))
 	}
 
 	tableRows := make([]table.Row, 0, len(records))
@@ -240,7 +240,7 @@ func (h aiGatewayIdentityProvidersHandler) listProviders(
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext(common.ViewParentAIGatewayIdentityProvider, func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAIGatewayAuthStrategy, func(index int) any {
 			if index < 0 || index >= len(providers) {
 				return nil
 			}
@@ -249,9 +249,9 @@ func (h aiGatewayIdentityProvidersHandler) listProviders(
 	)
 }
 
-func (h aiGatewayIdentityProvidersHandler) getSingleProvider(
+func (h aiGatewayAuthStrategiesHandler) getSingleProvider(
 	helper cmd.Helper,
-	providerAPI helpers.AIGatewayIdentityProvidersAPI,
+	providerAPI helpers.AIGatewayAuthStrategiesAPI,
 	gatewayID string,
 	identifier string,
 	outType cmdCommon.OutputFormat,
@@ -260,37 +260,37 @@ func (h aiGatewayIdentityProvidersHandler) getSingleProvider(
 ) error {
 	providerIdentifier := identifier
 	if !util.IsValidUUID(identifier) {
-		providers, err := fetchAIGatewayIdentityProviders(helper, providerAPI, gatewayID, cfg)
+		providers, err := fetchAIGatewayAuthStrategies(helper, providerAPI, gatewayID, cfg)
 		if err != nil {
 			return err
 		}
-		match := findAIGatewayIdentityProviderByNameOrID(providers, identifier)
+		match := findAIGatewayAuthStrategyByNameOrID(providers, identifier)
 		if match == nil {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("AI Gateway Identity Provider %q not found", identifier),
+				Err: fmt.Errorf("AI Gateway Auth Strategy %q not found", identifier),
 			}
 		}
-		providerIdentifier = aiGatewayIdentityProviderStringField(*match, aiGatewayFieldID)
+		providerIdentifier = aiGatewayAuthStrategyStringField(*match, aiGatewayFieldID)
 		if providerIdentifier == "" {
-			providerIdentifier = aiGatewayIdentityProviderStringField(*match, aiGatewayFieldName)
+			providerIdentifier = aiGatewayAuthStrategyStringField(*match, aiGatewayFieldName)
 		}
 		if providerIdentifier == "" {
 			return &cmd.ConfigurationError{
-				Err: fmt.Errorf("AI Gateway Identity Provider %q does not have an ID or name", identifier),
+				Err: fmt.Errorf("AI Gateway Auth Strategy %q does not have an ID or name", identifier),
 			}
 		}
 	}
 
-	res, err := providerAPI.GetAiGatewayIdentityProvider(helper.GetContext(), gatewayID, providerIdentifier)
+	res, err := providerAPI.GetAiGatewayAuthStrategy(helper.GetContext(), gatewayID, providerIdentifier)
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
-		return cmd.PrepareExecutionError("Failed to get AI Gateway Identity Provider", err, helper.GetCmd(), attrs...)
+		return cmd.PrepareExecutionError("Failed to get AI Gateway Auth Strategy", err, helper.GetCmd(), attrs...)
 	}
-	provider := res.GetAIGatewayIdentityProvider()
+	provider := res.GetAIGatewayAuthStrategy()
 	if provider == nil {
 		return &cmd.ExecutionError{
-			Msg: "AI Gateway Identity Provider response was empty",
-			Err: fmt.Errorf("no identity provider returned for id or name %s", providerIdentifier),
+			Msg: "AI Gateway Auth Strategy response was empty",
+			Err: fmt.Errorf("no auth strategy returned for id or name %s", providerIdentifier),
 		}
 	}
 
@@ -300,12 +300,12 @@ func (h aiGatewayIdentityProvidersHandler) getSingleProvider(
 		outType,
 		printer,
 		helper.GetStreams(),
-		aiGatewayIdentityProviderToDisplayRecord(*provider),
-		aiGatewayIdentityProviderRedactedRawMap(*provider),
+		aiGatewayAuthStrategyToDisplayRecord(*provider),
+		aiGatewayAuthStrategyRedactedRawMap(*provider),
 		"",
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
-		tableview.WithDetailContext(common.ViewParentAIGatewayIdentityProvider, func(index int) any {
+		tableview.WithDetailContext(common.ViewParentAIGatewayAuthStrategy, func(index int) any {
 			if index != 0 {
 				return nil
 			}
@@ -314,18 +314,18 @@ func (h aiGatewayIdentityProvidersHandler) getSingleProvider(
 	)
 }
 
-func fetchAIGatewayIdentityProviders(
+func fetchAIGatewayAuthStrategies(
 	helper cmd.Helper,
-	providerAPI helpers.AIGatewayIdentityProvidersAPI,
+	providerAPI helpers.AIGatewayAuthStrategiesAPI,
 	gatewayID string,
 	cfg config.Hook,
-) ([]kkComps.AIGatewayIdentityProvider, error) {
+) ([]kkComps.AIGatewayAuthStrategy, error) {
 	requestPageSize := common.ResolveRequestPageSize(cfg)
 	var pageAfter *string
-	var allData []kkComps.AIGatewayIdentityProvider
+	var allData []kkComps.AIGatewayAuthStrategy
 
 	for {
-		req := kkOps.ListAiGatewayIdentityProvidersRequest{
+		req := kkOps.ListAiGatewayAuthStrategiesRequest{
 			GatewayID: gatewayID,
 			PageSize:  &requestPageSize,
 		}
@@ -333,19 +333,19 @@ func fetchAIGatewayIdentityProviders(
 			req.PageAfter = pageAfter
 		}
 
-		res, err := providerAPI.ListAiGatewayIdentityProviders(helper.GetContext(), req)
+		res, err := providerAPI.ListAiGatewayAuthStrategies(helper.GetContext(), req)
 		if err != nil {
 			attrs := cmd.TryConvertErrorToAttrs(err)
-			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway Identity Providers", err, helper.GetCmd(), attrs...)
+			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway Auth Strategies", err, helper.GetCmd(), attrs...)
 		}
-		if res.GetListAIGatewayIdentityProvidersResponse() == nil {
+		if res.GetListAIGatewayAuthStrategiesResponse() == nil {
 			break
 		}
 
-		data := res.GetListAIGatewayIdentityProvidersResponse().Data
+		data := res.GetListAIGatewayAuthStrategiesResponse().Data
 		allData = append(allData, data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(res.GetListAIGatewayIdentityProvidersResponse().Meta.Page.Next)
+		nextCursor := pagination.ExtractPageAfterCursor(res.GetListAIGatewayAuthStrategiesResponse().Meta.Page.Next)
 		if nextCursor == "" {
 			break
 		}
@@ -355,10 +355,10 @@ func fetchAIGatewayIdentityProviders(
 	return allData, nil
 }
 
-func buildAIGatewayIdentityProviderChildView(providers []kkComps.AIGatewayIdentityProvider) tableview.ChildView {
+func buildAIGatewayAuthStrategyChildView(providers []kkComps.AIGatewayAuthStrategy) tableview.ChildView {
 	tableRows := make([]table.Row, 0, len(providers))
 	for i := range providers {
-		record := aiGatewayIdentityProviderToDisplayRecord(providers[i])
+		record := aiGatewayAuthStrategyToDisplayRecord(providers[i])
 		tableRows = append(tableRows, table.Row{record.ID, record.Name, record.Type, record.DisplayName})
 	}
 
@@ -369,10 +369,10 @@ func buildAIGatewayIdentityProviderChildView(providers []kkComps.AIGatewayIdenti
 			if index < 0 || index >= len(providers) {
 				return ""
 			}
-			return aiGatewayIdentityProviderDetailView(&providers[index])
+			return aiGatewayAuthStrategyDetailView(&providers[index])
 		},
-		Title:      "AI Gateway Identity Providers",
-		ParentType: common.ViewParentAIGatewayIdentityProvider,
+		Title:      "AI Gateway Auth Strategies",
+		ParentType: common.ViewParentAIGatewayAuthStrategy,
 		DetailContext: func(index int) any {
 			if index < 0 || index >= len(providers) {
 				return nil
@@ -382,47 +382,47 @@ func buildAIGatewayIdentityProviderChildView(providers []kkComps.AIGatewayIdenti
 	}
 }
 
-func aiGatewayIdentityProviderToDisplayRecord(
-	provider kkComps.AIGatewayIdentityProvider,
-) aiGatewayIdentityProviderRecord {
-	raw := aiGatewayIdentityProviderRawMap(provider)
+func aiGatewayAuthStrategyToDisplayRecord(
+	provider kkComps.AIGatewayAuthStrategy,
+) aiGatewayAuthStrategyRecord {
+	raw := aiGatewayAuthStrategyRawMap(provider)
 
-	id := aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldID)
+	id := aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldID)
 	if id != "" {
 		id = strings.TrimSpace(id)
 	} else {
 		id = aiGatewayMissingValue
 	}
 
-	name := aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldName)
+	name := aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldName)
 	if name == "" {
 		name = aiGatewayMissingValue
 	}
-	providerType := aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldType)
+	providerType := aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldType)
 	if providerType == "" {
 		providerType = aiGatewayMissingValue
 	}
-	displayName := aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldDisplayName)
+	displayName := aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldDisplayName)
 	if displayName == "" {
 		displayName = aiGatewayMissingValue
 	}
 
-	return aiGatewayIdentityProviderRecord{
+	return aiGatewayAuthStrategyRecord{
 		ID:               id,
 		Name:             name,
 		Type:             providerType,
 		DisplayName:      displayName,
-		LocalCreatedTime: aiGatewayIdentityProviderTimeField(raw, aiGatewayFieldCreatedAt),
-		LocalUpdatedTime: aiGatewayIdentityProviderTimeField(raw, aiGatewayFieldUpdatedAt),
+		LocalCreatedTime: aiGatewayAuthStrategyTimeField(raw, aiGatewayFieldCreatedAt),
+		LocalUpdatedTime: aiGatewayAuthStrategyTimeField(raw, aiGatewayFieldUpdatedAt),
 	}
 }
 
-func aiGatewayIdentityProviderDetailView(provider *kkComps.AIGatewayIdentityProvider) string {
+func aiGatewayAuthStrategyDetailView(provider *kkComps.AIGatewayAuthStrategy) string {
 	if provider == nil {
 		return ""
 	}
-	raw := aiGatewayIdentityProviderRawMap(*provider)
-	raw = redactAIGatewayIdentityProviderSecrets(raw)
+	raw := aiGatewayAuthStrategyRawMap(*provider)
+	raw = redactAIGatewayAuthStrategySecrets(raw)
 
 	var b strings.Builder
 	writeProviderField := func(key string) {
@@ -433,11 +433,11 @@ func aiGatewayIdentityProviderDetailView(provider *kkComps.AIGatewayIdentityProv
 		}
 		switch key {
 		case aiGatewayFieldLabels, aiGatewayFieldManagedBy, aiGatewayFieldConfig:
-			fmt.Fprintf(&b, "%s: %s\n", key, formatAIGatewayIdentityProviderJSONValue(value))
+			fmt.Fprintf(&b, "%s: %s\n", key, formatAIGatewayAuthStrategyJSONValue(value))
 		case aiGatewayFieldCreatedAt, aiGatewayFieldUpdatedAt:
-			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayIdentityProviderTimeField(raw, key))
+			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayAuthStrategyTimeField(raw, key))
 		default:
-			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayIdentityProviderStringFieldFromRaw(raw, key))
+			fmt.Fprintf(&b, "%s: %s\n", key, aiGatewayAuthStrategyStringFieldFromRaw(raw, key))
 		}
 	}
 
@@ -456,15 +456,15 @@ func aiGatewayIdentityProviderDetailView(provider *kkComps.AIGatewayIdentityProv
 	return strings.TrimRight(b.String(), "\n")
 }
 
-func findAIGatewayIdentityProviderByNameOrID(
-	providers []kkComps.AIGatewayIdentityProvider,
+func findAIGatewayAuthStrategyByNameOrID(
+	providers []kkComps.AIGatewayAuthStrategy,
 	identifier string,
-) *kkComps.AIGatewayIdentityProvider {
+) *kkComps.AIGatewayAuthStrategy {
 	lowered := strings.ToLower(strings.TrimSpace(identifier))
 	for i := range providers {
-		raw := aiGatewayIdentityProviderRawMap(providers[i])
-		id := strings.ToLower(aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldID))
-		name := strings.ToLower(aiGatewayIdentityProviderStringFieldFromRaw(raw, aiGatewayFieldName))
+		raw := aiGatewayAuthStrategyRawMap(providers[i])
+		id := strings.ToLower(aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldID))
+		name := strings.ToLower(aiGatewayAuthStrategyStringFieldFromRaw(raw, aiGatewayFieldName))
 		if id == lowered || name == lowered {
 			return &providers[i]
 		}
@@ -472,11 +472,11 @@ func findAIGatewayIdentityProviderByNameOrID(
 	return nil
 }
 
-func aiGatewayIdentityProviderStringField(provider kkComps.AIGatewayIdentityProvider, key string) string {
-	return aiGatewayIdentityProviderStringFieldFromRaw(aiGatewayIdentityProviderRawMap(provider), key)
+func aiGatewayAuthStrategyStringField(provider kkComps.AIGatewayAuthStrategy, key string) string {
+	return aiGatewayAuthStrategyStringFieldFromRaw(aiGatewayAuthStrategyRawMap(provider), key)
 }
 
-func aiGatewayIdentityProviderRawMap(provider kkComps.AIGatewayIdentityProvider) map[string]any {
+func aiGatewayAuthStrategyRawMap(provider kkComps.AIGatewayAuthStrategy) map[string]any {
 	data, err := json.Marshal(provider)
 	if err != nil {
 		return map[string]any{}
@@ -488,11 +488,11 @@ func aiGatewayIdentityProviderRawMap(provider kkComps.AIGatewayIdentityProvider)
 	return raw
 }
 
-func aiGatewayIdentityProviderRedactedRawMap(provider kkComps.AIGatewayIdentityProvider) map[string]any {
-	return redactAIGatewayIdentityProviderSecrets(aiGatewayIdentityProviderRawMap(provider))
+func aiGatewayAuthStrategyRedactedRawMap(provider kkComps.AIGatewayAuthStrategy) map[string]any {
+	return redactAIGatewayAuthStrategySecrets(aiGatewayAuthStrategyRawMap(provider))
 }
 
-func redactAIGatewayIdentityProviderSecrets(value any) map[string]any {
+func redactAIGatewayAuthStrategySecrets(value any) map[string]any {
 	raw, ok := value.(map[string]any)
 	if !ok {
 		return map[string]any{}
@@ -504,12 +504,12 @@ func redactAIGatewayIdentityProviderSecrets(value any) map[string]any {
 			result[key] = "[redacted]"
 			continue
 		}
-		result[key] = redactAIGatewayIdentityProviderValue(val)
+		result[key] = redactAIGatewayAuthStrategyValue(val)
 	}
 	return result
 }
 
-func redactAIGatewayIdentityProviderValue(value any) any {
+func redactAIGatewayAuthStrategyValue(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		result := make(map[string]any, len(typed))
@@ -518,13 +518,13 @@ func redactAIGatewayIdentityProviderValue(value any) any {
 				result[key] = "[redacted]"
 				continue
 			}
-			result[key] = redactAIGatewayIdentityProviderValue(val)
+			result[key] = redactAIGatewayAuthStrategyValue(val)
 		}
 		return result
 	case []any:
 		result := make([]any, len(typed))
 		for i := range typed {
-			result[i] = redactAIGatewayIdentityProviderValue(typed[i])
+			result[i] = redactAIGatewayAuthStrategyValue(typed[i])
 		}
 		return result
 	default:
@@ -532,7 +532,7 @@ func redactAIGatewayIdentityProviderValue(value any) any {
 	}
 }
 
-func aiGatewayIdentityProviderStringFieldFromRaw(raw map[string]any, key string) string {
+func aiGatewayAuthStrategyStringFieldFromRaw(raw map[string]any, key string) string {
 	value, ok := raw[key]
 	if !ok || value == nil {
 		return ""
@@ -543,8 +543,8 @@ func aiGatewayIdentityProviderStringFieldFromRaw(raw map[string]any, key string)
 	return strings.TrimSpace(fmt.Sprint(value))
 }
 
-func aiGatewayIdentityProviderTimeField(raw map[string]any, key string) string {
-	value := aiGatewayIdentityProviderStringFieldFromRaw(raw, key)
+func aiGatewayAuthStrategyTimeField(raw map[string]any, key string) string {
+	value := aiGatewayAuthStrategyStringFieldFromRaw(raw, key)
 	if value == "" {
 		return aiGatewayMissingValue
 	}
@@ -555,7 +555,7 @@ func aiGatewayIdentityProviderTimeField(raw map[string]any, key string) string {
 	return parsed.In(time.Local).Format("2006-01-02 15:04:05")
 }
 
-func formatAIGatewayIdentityProviderJSONValue(value any) string {
+func formatAIGatewayAuthStrategyJSONValue(value any) string {
 	if value == nil {
 		return aiGatewayMissingValue
 	}

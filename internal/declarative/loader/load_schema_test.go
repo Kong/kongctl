@@ -179,7 +179,7 @@ ai_gateways:
 	})
 }
 
-func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(t *testing.T) {
+func TestDeclarativeLoadSchemaAcceptsAdditionalAuthStrategyConfigProperties(t *testing.T) {
 	tests := []struct {
 		name         string
 		providerType string
@@ -211,26 +211,26 @@ func TestDeclarativeLoadSchemaAcceptsAdditionalIdentityProviderConfigProperties(
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := fmt.Sprintf(`
-ai_gateway_identity_providers:
+ai_gateway_auth_strategies:
   - ref: support-idp
     ai_gateway: ai-quickstart
     name: support-idp
-    display_name: Support Identity Provider
+    display_name: Support Auth Strategy
     type: %s
     config:%s
 `, tt.providerType, tt.configYAML)
 
 			resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
 			require.NoError(t, err)
-			require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
-			require.Contains(t, resourceSet.AIGatewayIdentityProviders[0].Config, tt.field)
+			require.Len(t, resourceSet.AIGatewayAuthStrategies, 1)
+			require.Contains(t, resourceSet.AIGatewayAuthStrategies[0].Config, tt.field)
 		})
 	}
 }
 
-func TestDeclarativeLoadSchemaAcceptsIdentityProviderAccessControlFields(t *testing.T) {
+func TestDeclarativeLoadSchemaAcceptsAuthStrategyAccessControlFields(t *testing.T) {
 	input := `
-ai_gateway_identity_providers:
+ai_gateway_auth_strategies:
   - ref: support-oidc
     ai_gateway: ai-quickstart
     name: support-oidc
@@ -248,8 +248,8 @@ ai_gateway_identity_providers:
 
 	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
 	require.NoError(t, err)
-	require.Len(t, resourceSet.AIGatewayIdentityProviders, 1)
-	config := resourceSet.AIGatewayIdentityProviders[0].Config
+	require.Len(t, resourceSet.AIGatewayAuthStrategies, 1)
+	config := resourceSet.AIGatewayAuthStrategies[0].Config
 	require.Equal(t, []any{"groups"}, config["consumer_groups_claim"])
 	require.Equal(t, false, config["consumer_groups_optional"])
 	require.Equal(t, []any{"sub"}, config["upstream_headers_claims"])
@@ -283,7 +283,7 @@ ai_gateways:
   - ref: ai-quickstart
     name: ai-quickstart
     display_name: AI Quickstart
-ai_gateway_identity_providers:
+ai_gateway_auth_strategies:
   - ref: support-oidc
     ai_gateway: ai-quickstart
     name: support-oidc
@@ -298,61 +298,35 @@ ai_gateway_identity_providers:
 	}
 }
 
-func TestDeclarativeLoadSchemaAcceptsAllSDKOpenAIGatewayProperties(t *testing.T) {
-	input := `
-ai_gateways:
-  - ref: support-gateway
-    display_name: Support Gateway
-    future_gateway_field: gateway-value
-    agents:
-      - ref: booking-agent
-        name: booking-agent
-        type: a2a
-        display_name: Booking Agent
-        config:
-          url: https://booking-agent.example.com
-        future_agent_field: agent-value
-    consumers:
-      - ref: support-user
-        name: support-user
-        type: api-key
-        display_name: Support User
-        future_consumer_field: consumer-value
-    consumer_groups:
-      - ref: premium-users
-        name: premium-users
-        display_name: Premium Users
-        future_consumer_group_field: consumer-group-value
-    mcp_servers:
-      - ref: support-tools
-        type: conversion-only
-        name: support-tools
-        display_name: Support Tools
-        config:
-          url: https://support-tools.example.com
-        future_mcp_server_field: mcp-server-value
-`
+func TestDeclarativeLoadSchemaRejectsUnknownAIGatewayProperties(t *testing.T) {
+	tests := []struct {
+		name  string
+		yaml  string
+		field string
+		path  string
+	}{
+		{"gateway", "future_gateway_field: value", "future_gateway_field", "ai_gateways[0].future_gateway_field"},
+		{"agent", "agents:\n      - ref: agent\n        name: agent\n        type: a2a\n        display_name: Agent\n        config:\n          url: https://agent.example.com\n        future_agent_field: value", "future_agent_field", "ai_gateways[0].agents[0].future_agent_field"},                                                                                                                    //nolint:lll
+		{"consumer", "consumers:\n      - ref: consumer\n        name: consumer\n        type: api-key\n        display_name: Consumer\n        future_consumer_field: value", "future_consumer_field", "ai_gateways[0].consumers[0].future_consumer_field"},                                                                                                                                                //nolint:lll
+		{"consumer group", "consumer_groups:\n      - ref: group\n        name: group\n        display_name: Group\n        future_group_field: value", "future_group_field", "ai_gateways[0].consumer_groups[0].future_group_field"},                                                                                                                                                                       //nolint:lll
+		{"MCP server", "mcp_servers:\n      - ref: tools\n        type: conversion-only\n        name: tools\n        display_name: Tools\n        config:\n          url: https://tools.example.com\n        tools:\n          - name: search\n            method: GET\n            path: /search\n        future_mcp_field: value", "future_mcp_field", "ai_gateways[0].mcp_servers[0].future_mcp_field"}, //nolint:lll
+		{"listener tools", "mcp_servers:\n      - ref: listener\n        type: listener\n        name: listener\n        display_name: Listener\n        config: {}\n        sources: [tools]\n        tools: []", "tools", "ai_gateways[0].mcp_servers[0].tools"},                                                                                                                                          //nolint:lll
+	}
 
-	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
-	require.NoError(t, err)
-	require.Equal(t, "gateway-value", resourceSet.AIGateways[0].AdditionalProperties["future_gateway_field"])
-	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "ref")
-	require.NotContains(t, resourceSet.AIGateways[0].AdditionalProperties, "agents")
-	require.Equal(t, "agent-value", resourceSet.AIGatewayAgents[0].AdditionalProperties["future_agent_field"])
-	require.Equal(t, "consumer-value", resourceSet.AIGatewayConsumers[0].AdditionalProperties["future_consumer_field"])
-	require.Equal(
-		t,
-		"consumer-group-value",
-		resourceSet.AIGatewayConsumerGroups[0].AdditionalProperties["future_consumer_group_field"],
-	)
-	mcpServer := resourceSet.AIGatewayMCPServers[0].AIGatewayMCPServerConversionOnly
-	require.NotNil(t, mcpServer)
-	require.Equal(t, "mcp-server-value", mcpServer.AdditionalProperties["future_mcp_server_field"])
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := "ai_gateways:\n  - ref: support-gateway\n    display_name: Support Gateway\n    " + tt.yaml + "\n"
+			_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+			require.Error(t, err)
+			assert.ErrorContains(t, err, "unknown field '"+tt.field+"'")
+			assert.ErrorContains(t, err, tt.path)
+		})
+	}
 }
 
-func TestDeclarativeLoadSchemaKeepsIdentityProviderResourceClosed(t *testing.T) {
+func TestDeclarativeLoadSchemaKeepsAuthStrategyResourceClosed(t *testing.T) {
 	input := `
-ai_gateway_identity_providers:
+ai_gateway_auth_strategies:
   - ref: support-key-auth
     ai_gateway: ai-quickstart
     name: support-key-auth
@@ -366,7 +340,7 @@ ai_gateway_identity_providers:
 	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "unknown field 'unexpected'")
-	assert.ErrorContains(t, err, "ai_gateway_identity_providers[0].unexpected")
+	assert.ErrorContains(t, err, "ai_gateway_auth_strategies[0].unexpected")
 }
 
 func TestDeclarativeLoadSchemaReportsKnownRejectedUnionField(t *testing.T) {

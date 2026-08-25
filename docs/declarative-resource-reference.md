@@ -368,13 +368,13 @@ control_plane_data_plane_certificates:
 
 This section covers the root AI Gateway resource backed by the Konnect
 `/v1/ai-gateways` API, AI Gateway Model Providers, AI Gateway Models, AI
-Gateway Identity Providers, AI Gateway MCP Servers, AI Gateway Agents, AI
+Gateway Auth Strategies, AI Gateway MCP Servers, AI Gateway Agents, AI
 Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
 AI Gateway Config Stores, AI Gateway Vaults, and AI Gateway Data Plane
 Certificates. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_model_provider --output yaml`,
-`kongctl explain ai_gateway_identity_provider --output yaml`,
+`kongctl explain ai_gateway_auth_strategy --output yaml`,
 `kongctl explain ai_gateway.agents --output yaml`,
 `kongctl explain ai_gateway.consumers --output yaml`,
 `kongctl explain ai_gateway.consumers.credentials --output yaml`,
@@ -390,7 +390,7 @@ The `ref` value is a local declarative identifier used by kongctl for
 references and planning. Use `name` as the stable Konnect API name for the AI
 Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
 `display_name` for the human-readable name shown in Konnect. AI Gateway Model
-Providers, Identity Providers, Policies, Agents, Consumers, Consumer
+Providers, Auth Strategies, Policies, Agents, Consumers, Consumer
 Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
 use their own required `name` field as the stable Konnect child name. Config
 Store names are immutable after creation. AI Gateway Data Plane Certificates
@@ -414,27 +414,27 @@ references should use `!ref <policy-ref>` so the relationship is explicit and
 same-plan policy creates are ordered and resolved.
 
 For AI Gateway Agents, Models, and MCP Servers, authentication is configured
-through AI Gateway Identity Providers. Reference providers from
-`access.identity_providers` with `!ref <identity-provider-ref>` so same-plan
+through AI Gateway Auth Strategies. Reference providers from
+`access.auth_strategies` with `!ref <auth-strategy-ref>` so same-plan
 provider creates are ordered and resolved. MCP Server `access` also supports
 OAuth access-token claim selection and protected-resource metadata. The
 `conversion-only` MCP Server type does not support `access`.
 
-For AI Gateway Identity Providers, Policies, Agents, Consumers, Consumer
+For AI Gateway Auth Strategies, Policies, Agents, Consumers, Consumer
 Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
 root-level
 declarations must include `ai_gateway`, while nested declarations inherit the
 parent gateway. AI Gateway
 Consumer Credentials are children of AI Gateway Consumers; root-level
 declarations must include `ai_gateway_consumer`, while nested declarations
-inherit the parent consumer. Omit `identity_providers`, `policies`, `agents`,
+inherit the parent consumer. Omit `auth_strategies`, `policies`, `agents`,
 `consumers`, `credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
 `data_plane_certificates` to leave existing child resources unmanaged during
-sync. Use `identity_providers: []`, `policies: []`, `agents: []`,
+sync. Use `auth_strategies: []`, `policies: []`, `agents: []`,
 `consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
 `config_stores: []`, `vaults: []`, or
 `data_plane_certificates: []` under a specific parent to sync-delete that child
-type. Root-level `ai_gateway_identity_providers: []`,
+type. Root-level `ai_gateway_auth_strategies: []`,
 `ai_gateway_policies: []`, `ai_gateway_agents: []`,
 `ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
 `ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
@@ -467,7 +467,7 @@ ai_gateways:
          key: value
        managed_by: object [string]string
          key: value
-   identity_providers:
+   auth_strategies:
      - ref: string
        name: string required
        type: key-auth # or openid-connect
@@ -565,8 +565,8 @@ ai_gateways:
         access_token_claim_field: string # required for oauth_access_token
         acls: object
         default_tool_acls: object
-        identity_providers:
-         - !ref identity-provider-ref
+        auth_strategies:
+         - !ref auth-strategy-ref
         metadata: object
       managed_by: object
    mcp_servers:
@@ -628,8 +628,8 @@ ai_gateway_model_providers:
      key: value
 ```
 
-AI Gateway Identity Providers can also be declared as root resources.
-Root-level identity provider declarations must identify the parent AI Gateway
+AI Gateway Auth Strategies can also be declared as root resources.
+Root-level auth strategy declarations must identify the parent AI Gateway
 with `ai_gateway`. OpenID Connect `config.client_secret` values are write-only
 in Konnect and are skipped during diff calculation because the API does not
 return the stored secret. The `config` object documents the supported shorthand
@@ -638,12 +638,12 @@ advanced use cases. Additional fields are passed through to Konnect, which
 validates their names and values. Access-control fields include
 `consumer_groups_claim` and `consumer_groups_optional`; upstream claim mapping
 can use `upstream_headers_claims` and `upstream_headers_names`. Because the API
-updates identity providers with PUT, kongctl merges fields returned by Konnect
+updates auth strategies with PUT, kongctl merges fields returned by Konnect
 that are omitted from the declarative config into the update body. This keeps
 an unrelated update from removing existing access-control configuration.
 
 ```yaml
-ai_gateway_identity_providers:
+ai_gateway_auth_strategies:
  - ref: string
    ai_gateway: string required # AI Gateway ref
    name: string required
@@ -695,8 +695,8 @@ ai_gateway_agents:
     - !ref policy-ref
    access:
      acls: object
-     identity_providers:
-      - !ref identity-provider-ref
+     auth_strategies:
+      - !ref auth-strategy-ref
    labels: object [string]string
      key: value
    managed_by: object [string]string
@@ -799,8 +799,8 @@ ai_gateway_models:
      key: value
    access:
      acls: object
-     identity_providers:
-       - !ref identity-provider-ref
+     auth_strategies:
+       - !ref auth-strategy-ref
    managed_by: object
 ```
 
@@ -832,8 +832,8 @@ ai_gateway_mcp_servers:
      access_token_claim_field: string # required for oauth_access_token
      acls: object
      default_tool_acls: object
-     identity_providers:
-      - !ref identity-provider-ref
+     auth_strategies:
+      - !ref auth-strategy-ref
      metadata:
        discovery_endpoint: string
        endpoint: string

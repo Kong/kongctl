@@ -12,6 +12,7 @@ import (
 )
 
 func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
+	deploymentType := kkComps.CreateAIGatewayRequestDeploymentTypeManaged
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{},
 	})
@@ -19,11 +20,9 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 		AIGateways: []resources.AIGatewayResource{{
 			BaseResource: resources.BaseResource{Ref: "local-support-gateway"},
 			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-				Name:        "support-gateway",
-				DisplayName: "Support Gateway",
-				AdditionalProperties: map[string]any{
-					"future_gateway_field": "gateway-value",
-				},
+				DeploymentType: &deploymentType,
+				Name:           "support-gateway",
+				DisplayName:    "Support Gateway",
 			},
 		}},
 	}
@@ -38,81 +37,7 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 	require.Equal(t, "local-support-gateway", change.ResourceRef)
 	require.Equal(t, "support-gateway", change.Fields[FieldName])
 	require.Equal(t, "Support Gateway", change.Fields[FieldDisplayName])
-	require.Equal(t, "gateway-value", change.Fields["future_gateway_field"])
-}
-
-func TestAIGatewayPlannerUpdatesAdditionalProperties(t *testing.T) {
-	client := state.NewClient(state.ClientConfig{
-		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{{
-				ID:          "gateway-id",
-				Name:        "support-gateway",
-				DisplayName: "Support Gateway",
-				Labels:      map[string]string{labels.NamespaceKey: "default"},
-				AdditionalProperties: map[string]any{
-					"future_gateway_field": "old-value",
-				},
-			}},
-		},
-	})
-	resourceSet := &resources.ResourceSet{
-		AIGateways: []resources.AIGatewayResource{{
-			BaseResource: resources.BaseResource{Ref: "support-gateway"},
-			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-				Name:        "support-gateway",
-				DisplayName: "Support Gateway",
-				AdditionalProperties: map[string]any{
-					"future_gateway_field": "new-value",
-				},
-			},
-		}},
-	}
-
-	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), resourceSet, Options{Mode: PlanModeApply})
-	require.NoError(t, err)
-	require.Len(t, plan.Changes, 1)
-	require.Equal(t, ActionUpdate, plan.Changes[0].Action)
-	require.Equal(t, "new-value", plan.Changes[0].Fields["future_gateway_field"])
-	require.Equal(
-		t,
-		FieldChange{Old: "old-value", New: "new-value"},
-		plan.Changes[0].ChangedFields["future_gateway_field"],
-	)
-}
-
-func TestAIGatewayPlannerPreservesUndeclaredAdditionalPropertiesOnUpdate(t *testing.T) {
-	client := state.NewClient(state.ClientConfig{
-		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{{
-				ID:          "gateway-id",
-				Name:        "support-gateway",
-				DisplayName: "Support Gateway",
-				Labels:      map[string]string{labels.NamespaceKey: "default"},
-				AdditionalProperties: map[string]any{
-					"security_extension": map[string]any{"enforced": true},
-				},
-			}},
-		},
-	})
-	resourceSet := &resources.ResourceSet{
-		AIGateways: []resources.AIGatewayResource{{
-			BaseResource: resources.BaseResource{Ref: "support-gateway"},
-			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-				Name:        "support-gateway",
-				DisplayName: "Updated Support Gateway",
-			},
-		}},
-	}
-
-	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), resourceSet, Options{Mode: PlanModeApply})
-	require.NoError(t, err)
-	require.Len(t, plan.Changes, 1)
-	require.Equal(
-		t,
-		map[string]any{"enforced": true},
-		plan.Changes[0].Fields["security_extension"],
-	)
-	require.NotContains(t, plan.Changes[0].ChangedFields, "security_extension")
+	require.Equal(t, kkComps.CreateAIGatewayRequestDeploymentTypeManaged, change.Fields[FieldDeploymentType])
 }
 
 func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {
@@ -150,7 +75,7 @@ func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
-func TestAIGatewayPlannerCanMigrateLegacyRefNameToExplicitName(t *testing.T) {
+func TestAIGatewayPlannerIgnoresImmutableNameDrift(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{{
@@ -173,14 +98,36 @@ func TestAIGatewayPlannerCanMigrateLegacyRefNameToExplicitName(t *testing.T) {
 
 	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
-	require.Len(t, plan.Changes, 1)
+	require.Empty(t, plan.Changes)
+}
 
-	change := plan.Changes[0]
-	require.Equal(t, ActionUpdate, change.Action)
-	require.Equal(t, ResourceTypeAIGateway, change.ResourceType)
-	require.Equal(t, "gateway-id", change.ResourceID)
-	require.Equal(t, "support-gateway", change.Fields[FieldName])
-	require.Equal(t, FieldChange{Old: "local-support-gateway", New: "support-gateway"}, change.ChangedFields[FieldName])
+func TestAIGatewayPlannerPreservesCurrentNameInPutWhenDesiredNameDrifts(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{
+			gateways: []kkComps.AIGateway{{
+				ID:          "gateway-id",
+				Name:        "current-gateway-name",
+				DisplayName: "Support Gateway",
+				Labels:      map[string]string{labels.NamespaceKey: "default"},
+			}},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "current-gateway-name"},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "desired-but-immutable-name",
+				DisplayName: "Updated Support Gateway",
+			},
+		}},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, "current-gateway-name", plan.Changes[0].Fields[FieldName])
+	require.Equal(t, "Updated Support Gateway", plan.Changes[0].Fields[FieldDisplayName])
+	require.NotContains(t, plan.Changes[0].ChangedFields, FieldName)
 }
 
 func TestAIGatewayPlannerDeleteUsesNameBeforeDisplayName(t *testing.T) {

@@ -14,7 +14,7 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-func (p *Planner) planAIGatewayIdentityProviderChanges(
+func (p *Planner) planAIGatewayAuthStrategyChanges(
 	ctx context.Context,
 	_ *Config,
 	namespace string,
@@ -22,11 +22,11 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 	gatewayID string,
 	gatewayRef string,
 	gatewayChangeID string,
-	desired []resources.AIGatewayIdentityProviderResource,
+	desired []resources.AIGatewayAuthStrategyResource,
 	plan *Plan,
 ) error {
 	p.logger.Debug(
-		"Planning AI Gateway Identity Provider changes",
+		"Planning AI Gateway Auth Strategy changes",
 		slog.String("gateway_name", gatewayName),
 		slog.String("gateway_id", gatewayID),
 		slog.String("gateway_ref", gatewayRef),
@@ -36,7 +36,7 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 	)
 
 	if gatewayID == "" {
-		p.planAIGatewayIdentityProviderCreatesForNewGateway(
+		p.planAIGatewayAuthStrategyCreatesForNewGateway(
 			namespace,
 			gatewayRef,
 			gatewayName,
@@ -47,40 +47,40 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 		return nil
 	}
 
-	currentProviders, err := p.client.ListAIGatewayIdentityProviders(ctx, gatewayID)
+	currentProviders, err := p.client.ListAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
-		return fmt.Errorf("failed to list AI Gateway Identity Providers for gateway %s: %w", gatewayID, err)
+		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayIdentityProviders(currentProviders)
+	currentByID, currentByName := indexAIGatewayAuthStrategies(currentProviders)
 
 	desiredKeys := make(map[string]bool)
 	for _, desiredProvider := range desired {
 		desiredKeys[desiredProvider.Name] = true
-		if id := aiGatewayIdentityProviderDesiredID(desiredProvider); id != "" {
+		if id := aiGatewayAuthStrategyDesiredID(desiredProvider); id != "" {
 			desiredKeys[id] = true
 		}
 
-		current, exists := matchCurrentAIGatewayIdentityProvider(desiredProvider, currentByID, currentByName)
+		current, exists := matchCurrentAIGatewayAuthStrategy(desiredProvider, currentByID, currentByName)
 		if !exists {
-			p.planAIGatewayIdentityProviderCreate(
+			p.planAIGatewayAuthStrategyCreate(
 				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
 			)
 			continue
 		}
 
-		fullProvider, err := p.client.GetAIGatewayIdentityProvider(ctx, gatewayID, current.ID)
+		fullProvider, err := p.client.GetAIGatewayAuthStrategy(ctx, gatewayID, current.ID)
 		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Identity Provider %s: %w", current.ID, err)
+			return fmt.Errorf("failed to get AI Gateway Auth Strategy %s: %w", current.ID, err)
 		}
 		if fullProvider == nil {
-			p.planAIGatewayIdentityProviderCreate(
+			p.planAIGatewayAuthStrategyCreate(
 				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
 			)
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayIdentityProvider(*fullProvider, desiredProvider)
+		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayAuthStrategy(*fullProvider, desiredProvider)
 		if err != nil {
 			return err
 		}
@@ -88,7 +88,7 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 			continue
 		}
 
-		p.planAIGatewayIdentityProviderUpdate(
+		p.planAIGatewayAuthStrategyUpdate(
 			namespace, gatewayRef, gatewayID, current.ID, desiredProvider, updateFields, changedFields, plan,
 		)
 	}
@@ -101,25 +101,25 @@ func (p *Planner) planAIGatewayIdentityProviderChanges(
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 			if err := p.validateProtection(
-				ResourceTypeAIGatewayIdentityProvider,
+				ResourceTypeAIGatewayAuthStrategy,
 				current.Name,
 				isProtected,
 				ActionDelete,
 			); err != nil {
 				return err
 			}
-			p.planAIGatewayIdentityProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
+			p.planAIGatewayAuthStrategyDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
 		}
 	}
 
 	return nil
 }
 
-func indexAIGatewayIdentityProviders(
-	providers []state.AIGatewayIdentityProvider,
-) (map[string]state.AIGatewayIdentityProvider, map[string]state.AIGatewayIdentityProvider) {
-	byID := make(map[string]state.AIGatewayIdentityProvider)
-	byName := make(map[string]state.AIGatewayIdentityProvider)
+func indexAIGatewayAuthStrategies(
+	providers []state.AIGatewayAuthStrategy,
+) (map[string]state.AIGatewayAuthStrategy, map[string]state.AIGatewayAuthStrategy) {
+	byID := make(map[string]state.AIGatewayAuthStrategy)
+	byName := make(map[string]state.AIGatewayAuthStrategy)
 	for _, provider := range providers {
 		if provider.ID != "" {
 			byID[provider.ID] = provider
@@ -131,12 +131,12 @@ func indexAIGatewayIdentityProviders(
 	return byID, byName
 }
 
-func matchCurrentAIGatewayIdentityProvider(
-	desired resources.AIGatewayIdentityProviderResource,
-	currentByID map[string]state.AIGatewayIdentityProvider,
-	currentByName map[string]state.AIGatewayIdentityProvider,
-) (state.AIGatewayIdentityProvider, bool) {
-	if id := aiGatewayIdentityProviderDesiredID(desired); id != "" {
+func matchCurrentAIGatewayAuthStrategy(
+	desired resources.AIGatewayAuthStrategyResource,
+	currentByID map[string]state.AIGatewayAuthStrategy,
+	currentByName map[string]state.AIGatewayAuthStrategy,
+) (state.AIGatewayAuthStrategy, bool) {
+	if id := aiGatewayAuthStrategyDesiredID(desired); id != "" {
 		current, exists := currentByID[id]
 		return current, exists
 	}
@@ -144,7 +144,7 @@ func matchCurrentAIGatewayIdentityProvider(
 	return current, exists
 }
 
-func aiGatewayIdentityProviderDesiredID(desired resources.AIGatewayIdentityProviderResource) string {
+func aiGatewayAuthStrategyDesiredID(desired resources.AIGatewayAuthStrategyResource) string {
 	if id := desired.GetKonnectID(); id != "" {
 		return id
 	}
@@ -154,12 +154,12 @@ func aiGatewayIdentityProviderDesiredID(desired resources.AIGatewayIdentityProvi
 	return ""
 }
 
-func (p *Planner) planAIGatewayIdentityProviderCreatesForNewGateway(
+func (p *Planner) planAIGatewayAuthStrategyCreatesForNewGateway(
 	namespace string,
 	gatewayRef string,
 	gatewayName string,
 	gatewayChangeID string,
-	providers []resources.AIGatewayIdentityProviderResource,
+	providers []resources.AIGatewayAuthStrategyResource,
 	plan *Plan,
 ) {
 	var dependsOn []string
@@ -168,25 +168,25 @@ func (p *Planner) planAIGatewayIdentityProviderCreatesForNewGateway(
 	}
 
 	for _, provider := range providers {
-		p.planAIGatewayIdentityProviderCreate(namespace, gatewayRef, gatewayName, "", provider, dependsOn, plan)
+		p.planAIGatewayAuthStrategyCreate(namespace, gatewayRef, gatewayName, "", provider, dependsOn, plan)
 	}
 }
 
-func (p *Planner) planAIGatewayIdentityProviderCreate(
+func (p *Planner) planAIGatewayAuthStrategyCreate(
 	namespace string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
-	provider resources.AIGatewayIdentityProviderResource,
+	provider resources.AIGatewayAuthStrategyResource,
 	dependsOn []string,
 	plan *Plan,
 ) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayIdentityProvider, provider.Ref),
-		ResourceType: ResourceTypeAIGatewayIdentityProvider,
+		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayAuthStrategy, provider.Ref),
+		ResourceType: ResourceTypeAIGatewayAuthStrategy,
 		ResourceRef:  provider.Ref,
 		Action:       ActionCreate,
-		Fields:       extractAIGatewayIdentityProviderFields(provider),
+		Fields:       extractAIGatewayAuthStrategyFields(provider),
 		Namespace:    namespace,
 		DependsOn:    dependsOn,
 	}
@@ -210,12 +210,12 @@ func (p *Planner) planAIGatewayIdentityProviderCreate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAIGatewayIdentityProviderUpdate(
+func (p *Planner) planAIGatewayAuthStrategyUpdate(
 	namespace string,
 	gatewayRef string,
 	gatewayID string,
 	providerID string,
-	provider resources.AIGatewayIdentityProviderResource,
+	provider resources.AIGatewayAuthStrategyResource,
 	updateFields map[string]any,
 	changedFields map[string]FieldChange,
 	plan *Plan,
@@ -225,8 +225,8 @@ func (p *Planner) planAIGatewayIdentityProviderUpdate(
 	}
 
 	change := PlannedChange{
-		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGatewayIdentityProvider, provider.Ref),
-		ResourceType:  ResourceTypeAIGatewayIdentityProvider,
+		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGatewayAuthStrategy, provider.Ref),
+		ResourceType:  ResourceTypeAIGatewayAuthStrategy,
 		ResourceRef:   provider.Ref,
 		ResourceID:    providerID,
 		Action:        ActionUpdate,
@@ -241,7 +241,7 @@ func (p *Planner) planAIGatewayIdentityProviderUpdate(
 	plan.AddChange(change)
 }
 
-func (p *Planner) planAIGatewayIdentityProviderDelete(
+func (p *Planner) planAIGatewayAuthStrategyDelete(
 	namespace string,
 	gatewayRef string,
 	gatewayID string,
@@ -250,8 +250,8 @@ func (p *Planner) planAIGatewayIdentityProviderDelete(
 	plan *Plan,
 ) {
 	change := PlannedChange{
-		ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGatewayIdentityProvider, providerName),
-		ResourceType: ResourceTypeAIGatewayIdentityProvider,
+		ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGatewayAuthStrategy, providerName),
+		ResourceType: ResourceTypeAIGatewayAuthStrategy,
 		ResourceRef:  providerName,
 		ResourceID:   providerID,
 		Action:       ActionDelete,
@@ -267,16 +267,16 @@ func (p *Planner) planAIGatewayIdentityProviderDelete(
 	plan.AddChange(change)
 }
 
-func shouldUpdateAIGatewayIdentityProvider(
-	current state.AIGatewayIdentityProvider,
-	desired resources.AIGatewayIdentityProviderResource,
+func shouldUpdateAIGatewayAuthStrategy(
+	current state.AIGatewayAuthStrategy,
+	desired resources.AIGatewayAuthStrategyResource,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
 	if current.Type != desired.Type {
 		return false, nil, nil, fmt.Errorf(
-			"changing AI Gateway Identity Provider type from %s to %s is not supported. Please delete and recreate the provider",
+			"changing AI Gateway Auth Strategy type from %s to %s is not supported. Please delete and recreate the provider",
 			current.Type, desired.Type,
 		)
 	}
@@ -296,10 +296,10 @@ func shouldUpdateAIGatewayIdentityProvider(
 		changedFields[FieldManagedBy] = FieldChange{Old: current.ManagedBy, New: desired.ManagedBy}
 	}
 
-	if desired.Config != nil && aiGatewayIdentityProviderConfigChanged(current.Config, desired.Config) {
+	if desired.Config != nil && aiGatewayAuthStrategyConfigChanged(current.Config, desired.Config) {
 		changedFields[FieldConfig] = FieldChange{
-			Old: scrubAIGatewayIdentityProviderSecretFields(normalizeIdentityProviderConfigForCompare(current.Config)),
-			New: scrubAIGatewayIdentityProviderSecretFields(normalizeIdentityProviderConfigForCompare(desired.Config)),
+			Old: scrubAIGatewayAuthStrategySecretFields(normalizeAuthStrategyConfigForCompare(current.Config)),
+			New: scrubAIGatewayAuthStrategySecretFields(normalizeAuthStrategyConfigForCompare(desired.Config)),
 		}
 	}
 
@@ -307,16 +307,16 @@ func shouldUpdateAIGatewayIdentityProvider(
 		return false, updateFields, changedFields, nil
 	}
 
-	updateFields = extractAIGatewayIdentityProviderUpdateFields(current, desired)
+	updateFields = extractAIGatewayAuthStrategyUpdateFields(current, desired)
 	return true, updateFields, changedFields, nil
 }
 
-func extractAIGatewayIdentityProviderUpdateFields(
-	current state.AIGatewayIdentityProvider,
-	desired resources.AIGatewayIdentityProviderResource,
+func extractAIGatewayAuthStrategyUpdateFields(
+	current state.AIGatewayAuthStrategy,
+	desired resources.AIGatewayAuthStrategyResource,
 ) map[string]any {
-	fields := extractAIGatewayIdentityProviderFields(desired)
-	fields[FieldConfig] = mergeAIGatewayIdentityProviderConfig(current.Config, desired.Config)
+	fields := extractAIGatewayAuthStrategyFields(desired)
+	fields[FieldConfig] = mergeAIGatewayAuthStrategyConfig(current.Config, desired.Config)
 	if desired.Labels == nil && current.Labels != nil {
 		fields[FieldLabels] = current.Labels
 	}
@@ -326,7 +326,7 @@ func extractAIGatewayIdentityProviderUpdateFields(
 	return fields
 }
 
-func extractAIGatewayIdentityProviderFields(provider resources.AIGatewayIdentityProviderResource) map[string]any {
+func extractAIGatewayAuthStrategyFields(provider resources.AIGatewayAuthStrategyResource) map[string]any {
 	fields := map[string]any{
 		FieldName:        provider.Name,
 		FieldType:        provider.Type,
@@ -342,16 +342,16 @@ func extractAIGatewayIdentityProviderFields(provider resources.AIGatewayIdentity
 	return fields
 }
 
-func aiGatewayIdentityProviderConfigChanged(current, desired map[string]any) bool {
-	currentComparable := normalizeIdentityProviderConfigForCompare(current)
-	desiredComparable := normalizeIdentityProviderConfigForCompare(desired)
-	projectAIGatewayIdentityProviderConfigForComparison(currentComparable, desiredComparable)
-	currentComparable = scrubAIGatewayIdentityProviderSecretFields(currentComparable).(map[string]any)
-	desiredComparable = scrubAIGatewayIdentityProviderSecretFields(desiredComparable).(map[string]any)
+func aiGatewayAuthStrategyConfigChanged(current, desired map[string]any) bool {
+	currentComparable := normalizeAuthStrategyConfigForCompare(current)
+	desiredComparable := normalizeAuthStrategyConfigForCompare(desired)
+	projectAIGatewayAuthStrategyConfigForComparison(currentComparable, desiredComparable)
+	currentComparable = scrubAIGatewayAuthStrategySecretFields(currentComparable).(map[string]any)
+	desiredComparable = scrubAIGatewayAuthStrategySecretFields(desiredComparable).(map[string]any)
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
 }
 
-func projectAIGatewayIdentityProviderConfigForComparison(currentCompare map[string]any, desiredCompare map[string]any) {
+func projectAIGatewayAuthStrategyConfigForComparison(currentCompare map[string]any, desiredCompare map[string]any) {
 	if currentCompare == nil || desiredCompare == nil {
 		return
 	}
@@ -364,33 +364,33 @@ func projectAIGatewayIdentityProviderConfigForComparison(currentCompare map[stri
 		currentMap, currentIsMap := currentCompare[key].(map[string]any)
 		desiredMap, desiredIsMap := desiredValue.(map[string]any)
 		if currentIsMap && desiredIsMap {
-			projectAIGatewayIdentityProviderConfigForComparison(currentMap, desiredMap)
+			projectAIGatewayAuthStrategyConfigForComparison(currentMap, desiredMap)
 		}
 	}
 }
 
-func mergeAIGatewayIdentityProviderConfig(current, desired map[string]any) map[string]any {
-	merged := normalizeIdentityProviderConfigForCompare(current)
+func mergeAIGatewayAuthStrategyConfig(current, desired map[string]any) map[string]any {
+	merged := normalizeAuthStrategyConfigForCompare(current)
 	if merged == nil {
 		merged = make(map[string]any)
 	}
-	mergeAIGatewayIdentityProviderConfigValues(merged, normalizeIdentityProviderConfigForCompare(desired))
+	mergeAIGatewayAuthStrategyConfigValues(merged, normalizeAuthStrategyConfigForCompare(desired))
 	return merged
 }
 
-func mergeAIGatewayIdentityProviderConfigValues(current, desired map[string]any) {
+func mergeAIGatewayAuthStrategyConfigValues(current, desired map[string]any) {
 	for key, desiredValue := range desired {
 		currentMap, currentIsMap := current[key].(map[string]any)
 		desiredMap, desiredIsMap := desiredValue.(map[string]any)
 		if currentIsMap && desiredIsMap {
-			mergeAIGatewayIdentityProviderConfigValues(currentMap, desiredMap)
+			mergeAIGatewayAuthStrategyConfigValues(currentMap, desiredMap)
 			continue
 		}
 		current[key] = desiredValue
 	}
 }
 
-func normalizeIdentityProviderConfigForCompare(config map[string]any) map[string]any {
+func normalizeAuthStrategyConfigForCompare(config map[string]any) map[string]any {
 	if config == nil {
 		return nil
 	}
@@ -405,24 +405,24 @@ func normalizeIdentityProviderConfigForCompare(config map[string]any) map[string
 	return normalized
 }
 
-func scrubAIGatewayIdentityProviderSecretFields(value any) any {
+func scrubAIGatewayAuthStrategySecretFields(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		result := make(map[string]any, len(typed))
 		for key, val := range typed {
-			if isAIGatewayIdentityProviderSecretField(key) {
+			if isAIGatewayAuthStrategySecretField(key) {
 				if references, ok := projectPublicVaultReferences(val); ok {
 					result[key] = references
 				}
 				continue
 			}
-			result[key] = scrubAIGatewayIdentityProviderSecretFields(val)
+			result[key] = scrubAIGatewayAuthStrategySecretFields(val)
 		}
 		return result
 	case []any:
 		result := make([]any, len(typed))
 		for i := range typed {
-			result[i] = scrubAIGatewayIdentityProviderSecretFields(typed[i])
+			result[i] = scrubAIGatewayAuthStrategySecretFields(typed[i])
 		}
 		return result
 	default:
@@ -430,7 +430,7 @@ func scrubAIGatewayIdentityProviderSecretFields(value any) any {
 	}
 }
 
-func isAIGatewayIdentityProviderSecretField(key string) bool {
+func isAIGatewayAuthStrategySecretField(key string) bool {
 	switch strings.ToLower(key) {
 	case FieldClientSecret:
 		return true

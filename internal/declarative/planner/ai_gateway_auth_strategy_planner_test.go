@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestShouldUpdateAIGatewayIdentityProviderRejectsTypeChange(t *testing.T) {
+func TestShouldUpdateAIGatewayAuthStrategyRejectsTypeChange(t *testing.T) {
 	t.Parallel()
 
-	needsUpdate, fields, _, err := shouldUpdateAIGatewayIdentityProvider(
-		state.AIGatewayIdentityProvider{
+	needsUpdate, fields, _, err := shouldUpdateAIGatewayAuthStrategy(
+		state.AIGatewayAuthStrategy{
 			Type:        "key-auth",
 			DisplayName: "Support Key Auth",
 			Config:      map[string]any{"key_names": []any{"apikey"}},
 		},
-		resources.AIGatewayIdentityProviderResource{
+		resources.AIGatewayAuthStrategyResource{
 			Type:        "openid-connect",
 			DisplayName: "Support OIDC",
 			Config:      map[string]any{"issuer": "https://issuer.example.com"},
@@ -27,10 +27,10 @@ func TestShouldUpdateAIGatewayIdentityProviderRejectsTypeChange(t *testing.T) {
 	require.Error(t, err)
 	require.False(t, needsUpdate)
 	require.Nil(t, fields)
-	require.Contains(t, err.Error(), "changing AI Gateway Identity Provider type")
+	require.Contains(t, err.Error(), "changing AI Gateway Auth Strategy type")
 }
 
-func TestAIGatewayIdentityProviderConfigChangedIgnoresClientSecret(t *testing.T) {
+func TestAIGatewayAuthStrategyConfigChangedIgnoresClientSecret(t *testing.T) {
 	t.Parallel()
 
 	current := map[string]any{
@@ -45,10 +45,10 @@ func TestAIGatewayIdentityProviderConfigChangedIgnoresClientSecret(t *testing.T)
 		"issuer":        "https://issuer.example.com",
 	}
 
-	require.False(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+	require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
 }
 
-func TestAIGatewayIdentityProviderConfigChangedComparesPublicVaultReferences(t *testing.T) {
+func TestAIGatewayAuthStrategyConfigChangedComparesPublicVaultReferences(t *testing.T) {
 	t.Parallel()
 
 	config := func(values ...any) map[string]any {
@@ -60,27 +60,27 @@ func TestAIGatewayIdentityProviderConfigChangedComparesPublicVaultReferences(t *
 		}
 	}
 
-	require.False(t, aiGatewayIdentityProviderConfigChanged(
+	require.False(t, aiGatewayAuthStrategyConfigChanged(
 		config("{vault://support-secrets/primary}", "hidden-current"),
 		config("{vault://support-secrets/primary}", "hidden-desired"),
 	))
-	require.True(t, aiGatewayIdentityProviderConfigChanged(
+	require.True(t, aiGatewayAuthStrategyConfigChanged(
 		config("{vault://support-secrets/old-primary}", "hidden-current"),
 		config("{vault://support-secrets/new-primary}", "hidden-desired"),
 	))
 }
 
-func TestAIGatewayIdentityProviderMatchPrefersIDOverName(t *testing.T) {
+func TestAIGatewayAuthStrategyMatchPrefersIDOverName(t *testing.T) {
 	t.Parallel()
 
 	id := "11111111-1111-4111-8111-111111111111"
-	currentByID, currentByName := indexAIGatewayIdentityProviders([]state.AIGatewayIdentityProvider{
+	currentByID, currentByName := indexAIGatewayAuthStrategies([]state.AIGatewayAuthStrategy{
 		{ID: id, Name: "old-provider"},
 		{ID: "22222222-2222-4222-8222-222222222222", Name: "new-provider"},
 	})
 
-	current, ok := matchCurrentAIGatewayIdentityProvider(
-		resources.AIGatewayIdentityProviderResource{BaseResource: resources.BaseResource{Ref: id}, Name: "new-provider"},
+	current, ok := matchCurrentAIGatewayAuthStrategy(
+		resources.AIGatewayAuthStrategyResource{BaseResource: resources.BaseResource{Ref: id}, Name: "new-provider"},
 		currentByID,
 		currentByName,
 	)
@@ -89,7 +89,7 @@ func TestAIGatewayIdentityProviderMatchPrefersIDOverName(t *testing.T) {
 	require.Equal(t, id, current.ID)
 }
 
-func TestAIGatewayIdentityProviderConfigChangedDetectsObservableChanges(t *testing.T) {
+func TestAIGatewayAuthStrategyConfigChangedDetectsObservableChanges(t *testing.T) {
 	t.Parallel()
 
 	current := map[string]any{
@@ -104,10 +104,10 @@ func TestAIGatewayIdentityProviderConfigChangedDetectsObservableChanges(t *testi
 		"issuer":        "https://issuer-updated.example.com",
 	}
 
-	require.True(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+	require.True(t, aiGatewayAuthStrategyConfigChanged(current, desired))
 }
 
-func TestAIGatewayIdentityProviderConfigChangedIgnoresUndeclaredDefaults(t *testing.T) {
+func TestAIGatewayAuthStrategyConfigChangedIgnoresUndeclaredDefaults(t *testing.T) {
 	t.Parallel()
 
 	current := map[string]any{
@@ -122,10 +122,10 @@ func TestAIGatewayIdentityProviderConfigChangedIgnoresUndeclaredDefaults(t *test
 		"key_names":        []any{"x-support-api-key"},
 	}
 
-	require.False(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+	require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
 }
 
-func TestAIGatewayIdentityProviderConfigChangedComparesDeclaredDefaults(t *testing.T) {
+func TestAIGatewayAuthStrategyConfigChangedComparesDeclaredDefaults(t *testing.T) {
 	t.Parallel()
 
 	current := map[string]any{
@@ -141,14 +141,14 @@ func TestAIGatewayIdentityProviderConfigChangedComparesDeclaredDefaults(t *testi
 		"key_names":        []any{"x-support-api-key"},
 	}
 
-	require.True(t, aiGatewayIdentityProviderConfigChanged(current, desired))
+	require.True(t, aiGatewayAuthStrategyConfigChanged(current, desired))
 }
 
-func TestAIGatewayIdentityProviderChangedFieldsScrubClientSecret(t *testing.T) {
+func TestAIGatewayAuthStrategyChangedFieldsScrubClientSecret(t *testing.T) {
 	t.Parallel()
 
-	needsUpdate, _, changedFields, err := shouldUpdateAIGatewayIdentityProvider(
-		state.AIGatewayIdentityProvider{
+	needsUpdate, _, changedFields, err := shouldUpdateAIGatewayAuthStrategy(
+		state.AIGatewayAuthStrategy{
 			Type:        "openid-connect",
 			DisplayName: "Support OIDC",
 			Config: map[string]any{
@@ -157,7 +157,7 @@ func TestAIGatewayIdentityProviderChangedFieldsScrubClientSecret(t *testing.T) {
 				"issuer":       "https://issuer.example.com",
 			},
 		},
-		resources.AIGatewayIdentityProviderResource{
+		resources.AIGatewayAuthStrategyResource{
 			Type:        "openid-connect",
 			DisplayName: "Support OIDC",
 			Config: map[string]any{
@@ -174,10 +174,10 @@ func TestAIGatewayIdentityProviderChangedFieldsScrubClientSecret(t *testing.T) {
 	require.NotContains(t, changedFields[FieldConfig].New, "client_secret")
 }
 
-func TestAIGatewayIdentityProviderUpdatePreservesUndeclaredSecurityConfig(t *testing.T) {
+func TestAIGatewayAuthStrategyUpdatePreservesUndeclaredSecurityConfig(t *testing.T) {
 	t.Parallel()
 
-	current := state.AIGatewayIdentityProvider{
+	current := state.AIGatewayAuthStrategy{
 		Name:        "support-oidc",
 		Type:        "openid-connect",
 		DisplayName: "Support OIDC",
@@ -192,7 +192,7 @@ func TestAIGatewayIdentityProviderUpdatePreservesUndeclaredSecurityConfig(t *tes
 			"upstream_headers_names":   []any{"x-consumer-subject"},
 		},
 	}
-	desired := resources.AIGatewayIdentityProviderResource{
+	desired := resources.AIGatewayAuthStrategyResource{
 		Name:        "support-oidc",
 		Type:        "openid-connect",
 		DisplayName: "Updated Support OIDC",
@@ -202,7 +202,7 @@ func TestAIGatewayIdentityProviderUpdatePreservesUndeclaredSecurityConfig(t *tes
 		},
 	}
 
-	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayIdentityProvider(current, desired)
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
 	require.Contains(t, changedFields, FieldDisplayName)
@@ -212,10 +212,10 @@ func TestAIGatewayIdentityProviderUpdatePreservesUndeclaredSecurityConfig(t *tes
 	require.Equal(t, current.ManagedBy, fields[FieldManagedBy])
 }
 
-func TestAIGatewayIdentityProviderUpdateOverlaysDeclaredSecurityConfig(t *testing.T) {
+func TestAIGatewayAuthStrategyUpdateOverlaysDeclaredSecurityConfig(t *testing.T) {
 	t.Parallel()
 
-	current := state.AIGatewayIdentityProvider{
+	current := state.AIGatewayAuthStrategy{
 		Name:        "support-oidc",
 		Type:        "openid-connect",
 		DisplayName: "Support OIDC",
@@ -229,7 +229,7 @@ func TestAIGatewayIdentityProviderUpdateOverlaysDeclaredSecurityConfig(t *testin
 			},
 		},
 	}
-	desired := resources.AIGatewayIdentityProviderResource{
+	desired := resources.AIGatewayAuthStrategyResource{
 		Name:        "support-oidc",
 		Type:        "openid-connect",
 		DisplayName: "Support OIDC",
@@ -242,7 +242,7 @@ func TestAIGatewayIdentityProviderUpdateOverlaysDeclaredSecurityConfig(t *testin
 		},
 	}
 
-	needsUpdate, fields, _, err := shouldUpdateAIGatewayIdentityProvider(current, desired)
+	needsUpdate, fields, _, err := shouldUpdateAIGatewayAuthStrategy(current, desired)
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
 	config := fields[FieldConfig].(map[string]any)

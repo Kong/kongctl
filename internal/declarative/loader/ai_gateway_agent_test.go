@@ -20,7 +20,7 @@ ai_gateways:
         config:
           anonymize:
             - email
-    identity_providers:
+    auth_strategies:
       - ref: support-key-auth
         name: support-key-auth
         type: key-auth
@@ -38,7 +38,7 @@ ai_gateways:
         policies:
           - !ref mask-sensitive-data
         access:
-          identity_providers:
+          auth_strategies:
             - !ref support-key-auth
 `
 
@@ -62,7 +62,7 @@ func TestLoaderExtractsNestedAIGatewayAgents(t *testing.T) {
 	require.Equal(
 		t,
 		[]string{tags.RefPlaceholderPrefix + "support-key-auth#id"},
-		rs.AIGatewayAgents[0].Access.IdentityProviders,
+		rs.AIGatewayAgents[0].Access.AuthStrategies,
 	)
 	require.True(t, rs.SyncScope.ChildInScope(
 		resources.ResourceTypeAIGateway,

@@ -238,16 +238,16 @@ func (p *Planner) planAIGatewayChanges(
 		}
 		providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
 
-		identityProviders := p.resources.GetAIGatewayIdentityProvidersForGateway(desiredGateway.Ref)
+		authStrategies := p.resources.GetAIGatewayAuthStrategiesForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
 			resources.ResourceTypeAIGateway,
 			desiredGateway.Ref,
-			resources.ResourceTypeAIGatewayIdentityProvider,
-		) && (len(identityProviders) > 0 || plan.Metadata.Mode == PlanModeSync) {
-			if err := p.planAIGatewayIdentityProviderChanges(
+			resources.ResourceTypeAIGatewayAuthStrategy,
+		) && (len(authStrategies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+			if err := p.planAIGatewayAuthStrategyChanges(
 				ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref,
-				gatewayChangeID, identityProviders, plan,
+				gatewayChangeID, authStrategies, plan,
 			); err != nil {
 				return err
 			}
@@ -503,15 +503,15 @@ func (p *Planner) planExternalAIGatewayChildren(
 	}
 	providerCreateDepsByName := aiGatewayProviderCreateDependencies(plan, namespace, desiredGateway.Ref)
 
-	identityProviders := p.resources.GetAIGatewayIdentityProvidersForGateway(desiredGateway.Ref)
+	authStrategies := p.resources.GetAIGatewayAuthStrategiesForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(
 		plan,
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
-		resources.ResourceTypeAIGatewayIdentityProvider,
-	) && len(identityProviders) > 0 {
-		if err := p.planAIGatewayIdentityProviderChanges(
-			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", identityProviders, plan,
+		resources.ResourceTypeAIGatewayAuthStrategy,
+	) && len(authStrategies) > 0 {
+		if err := p.planAIGatewayAuthStrategyChanges(
+			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", authStrategies, plan,
 		); err != nil {
 			return err
 		}
@@ -667,18 +667,6 @@ func (p *Planner) shouldUpdateAIGateway(
 ) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
-	for key, desiredValue := range desired.AdditionalProperties {
-		currentValue, found := current.AdditionalProperties[key]
-		if !found || !reflect.DeepEqual(currentValue, desiredValue) {
-			updates[key] = desiredValue
-			changedFields[key] = FieldChange{Old: currentValue, New: desiredValue}
-		}
-	}
-
-	if current.Name != desired.Name {
-		updates[FieldName] = desired.Name
-		changedFields[FieldName] = FieldChange{Old: current.Name, New: desired.Name}
-	}
 
 	if current.DisplayName != desired.DisplayName {
 		updates[FieldDisplayName] = desired.DisplayName
@@ -813,14 +801,9 @@ func (p *Planner) planAIGatewayUpdate(
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
-	for key, value := range current.AdditionalProperties {
-		if _, declared := desired.AdditionalProperties[key]; !declared {
-			fields[key] = value
-		}
-	}
-	fields[FieldName] = desired.Name
+	fields[FieldName] = current.Name
 	if fields[FieldName] == "" {
-		fields[FieldName] = desired.GetRef()
+		fields[FieldName] = desired.Name
 	}
 	fields[FieldDisplayName] = desired.DisplayName
 	if _, hasLabels := fields[FieldLabels]; hasLabels {
@@ -871,12 +854,12 @@ func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
 }
 
 func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any {
-	fields := maps.Clone(resource.AdditionalProperties)
-	if fields == nil {
-		fields = make(map[string]any)
-	}
+	fields := make(map[string]any)
 	fields[FieldName] = resource.Name
 	fields[FieldDisplayName] = resource.DisplayName
+	if resource.DeploymentType != nil {
+		fields[FieldDeploymentType] = *resource.DeploymentType
+	}
 	if resource.Description != nil {
 		fields[FieldDescription] = *resource.Description
 	}

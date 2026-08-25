@@ -168,11 +168,11 @@ func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceS
 			resources.ResourceTypeAIGatewayProvider,
 		)
 	}
-	for _, child := range rs.AIGatewayIdentityProviders {
+	for _, child := range rs.AIGatewayAuthStrategies {
 		scope.AddChild(
 			resources.ResourceTypeAIGateway,
 			resources.NormalizeResourceRef(child.AIGateway),
-			resources.ResourceTypeAIGatewayIdentityProvider,
+			resources.ResourceTypeAIGatewayAuthStrategy,
 		)
 	}
 	for _, child := range rs.AIGatewayPolicies {

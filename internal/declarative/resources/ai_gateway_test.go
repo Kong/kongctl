@@ -9,23 +9,22 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
-func TestAIGatewayResourceMarshalIncludesName(t *testing.T) {
+func TestAIGatewayResourceMarshalPreservesCreateFields(t *testing.T) {
 	t.Parallel()
 
 	description := "AI Gateway description"
+	deploymentType := kkComps.CreateAIGatewayRequestDeploymentTypeManaged
 	resource := AIGatewayResource{
 		BaseResource: BaseResource{Ref: "ai-gateway"},
 		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-			DisplayName: "AI Gateway",
-			Name:        "ai-gateway-name",
-			Description: &description,
+			DeploymentType: &deploymentType,
+			DisplayName:    "AI Gateway",
+			Name:           "ai-gateway-name",
+			Description:    &description,
 			ProxyUrls: []kkComps.AIGatewayProxyURL{
 				{Host: "proxy.example.com", Port: 443, Protocol: "https"},
 			},
 			Labels: map[string]string{"owner": "platform"},
-			AdditionalProperties: map[string]any{
-				"future_gateway_field": "gateway-value",
-			},
 		},
 	}
 
@@ -44,6 +43,23 @@ func TestAIGatewayResourceMarshalIncludesName(t *testing.T) {
 	requireAIGatewaySerializedPayload(t, yamlPayload)
 }
 
+func TestNormalizeAIGatewayAuthStrategyAccessDropsDeprecatedMirror(t *testing.T) {
+	t.Parallel()
+
+	payload := map[string]any{
+		SchemaFieldAccess: map[string]any{
+			SchemaFieldAuthStrategies:    []any{"key-auth"},
+			SchemaFieldIdentityProviders: []any{"key-auth"},
+		},
+	}
+
+	normalizeAIGatewayAuthStrategyAccess(payload)
+
+	access := payload[SchemaFieldAccess].(map[string]any)
+	require.Equal(t, []any{"key-auth"}, access[SchemaFieldAuthStrategies])
+	require.NotContains(t, access, SchemaFieldIdentityProviders)
+}
+
 func requireAIGatewaySerializedPayload(t *testing.T, payload map[string]any) {
 	t.Helper()
 
@@ -51,8 +67,8 @@ func requireAIGatewaySerializedPayload(t *testing.T, payload map[string]any) {
 	require.Equal(t, "ai-gateway-name", payload["name"])
 	require.Equal(t, "AI Gateway", payload["display_name"])
 	require.Equal(t, "AI Gateway description", payload["description"])
+	require.Equal(t, "managed", payload["deployment_type"])
 	require.Equal(t, map[string]any{"owner": "platform"}, payload["labels"])
-	require.Equal(t, "gateway-value", payload["future_gateway_field"])
 	require.NotContains(t, payload, "additionalProperties")
 
 	proxyURLs, ok := payload["proxy_urls"].([]any)

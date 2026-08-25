@@ -90,7 +90,7 @@ func TestSecretWritePreflightPreservesAndPopulatesArrayShape(t *testing.T) {
 	assert.Equal(t, []any{nil, nil}, original["client_secret"])
 }
 
-func TestAIGatewayIdentityProviderAdapterMapsInjectedClientSecrets(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterMapsInjectedClientSecrets(t *testing.T) {
 	t.Setenv("FIRST_SECRET", "first")
 	t.Setenv("SECOND_SECRET", "second")
 	plan := secretExecutionPlan(
@@ -114,21 +114,21 @@ func TestAIGatewayIdentityProviderAdapterMapsInjectedClientSecrets(t *testing.T)
 	require.NoError(t, err)
 	require.NoError(t, executor.injectResolvedSecretWrites(change))
 
-	var request kkComps.UpdateAIGatewayIdentityProviderRequest
-	err = NewAIGatewayIdentityProviderAdapter(nil).MapUpdateFields(
+	var request kkComps.UpdateAIGatewayAuthStrategyRequest
+	err = NewAIGatewayAuthStrategyAdapter(nil).MapUpdateFields(
 		t.Context(), nil, change.Fields, &request, nil,
 	)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
 	assert.Equal(
 		t,
 		[]string{"first", "second"},
-		request.AIGatewayIdentityProviderOpenIDConnect.Config.ClientSecret,
+		request.AIGatewayAuthStrategyOpenIDConnect.Config.ClientSecret,
 	)
 }
 
-func TestAIGatewayIdentityProviderAdapterPreservesVaultReferenceBesideInjectedSecret(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterPreservesVaultReferenceBesideInjectedSecret(t *testing.T) {
 	const reference = "{vault://support-secrets/primary-client-secret}"
 	t.Setenv("FALLBACK_SECRET", "fallback")
 	plan := secretExecutionPlan(secretExecutionIntent("/config/client_secret/1", "FALLBACK_SECRET"))
@@ -149,17 +149,17 @@ func TestAIGatewayIdentityProviderAdapterPreservesVaultReferenceBesideInjectedSe
 	require.NoError(t, err)
 	require.NoError(t, executor.injectResolvedSecretWrites(change))
 
-	var request kkComps.UpdateAIGatewayIdentityProviderRequest
-	err = NewAIGatewayIdentityProviderAdapter(nil).MapUpdateFields(
+	var request kkComps.UpdateAIGatewayAuthStrategyRequest
+	err = NewAIGatewayAuthStrategyAdapter(nil).MapUpdateFields(
 		t.Context(), nil, change.Fields, &request, nil,
 	)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
 	assert.Equal(
 		t,
 		[]string{reference, "fallback"},
-		request.AIGatewayIdentityProviderOpenIDConnect.Config.ClientSecret,
+		request.AIGatewayAuthStrategyOpenIDConnect.Config.ClientSecret,
 	)
 }
 

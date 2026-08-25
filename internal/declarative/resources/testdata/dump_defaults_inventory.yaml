@@ -1,4 +1,4 @@
-sdk_version: v0.62.1-0.20260821142115-f83f0120e4c1
+sdk_version: v0.63.1-0.20260825142304-e5f4081fe48a
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -50,6 +50,10 @@ resources:
       - path: consumers.credentials.ttl
         type: integer
         value: 0
+        source: sdk
+      - path: deployment_type
+        type: string
+        value: hybrid
         source: sdk
       - path: mcp_servers.config.logging.audits
         type: boolean
@@ -553,6 +557,10 @@ resources:
         source: sdk
     overrides: []
     exclusions: []
+  - resource_type: ai_gateway_auth_strategy
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_gateway_config_store
     defaults: []
     overrides: []
@@ -578,10 +586,6 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_data_plane_certificate
-    defaults: []
-    overrides: []
-    exclusions: []
-  - resource_type: ai_gateway_identity_provider
     defaults: []
     overrides: []
     exclusions: []

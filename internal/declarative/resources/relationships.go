@@ -115,7 +115,7 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 
 var aiGatewayChildTypes = []ResourceType{
 	ResourceTypeAIGatewayProvider,
-	ResourceTypeAIGatewayIdentityProvider,
+	ResourceTypeAIGatewayAuthStrategy,
 	ResourceTypeAIGatewayPolicy,
 	ResourceTypeAIGatewayAgent,
 	ResourceTypeAIGatewayConsumer,
@@ -177,8 +177,8 @@ func init() {
 		relationshipDescriptors[resourceType] = append(
 			relationshipDescriptors[resourceType],
 			RelationshipDescriptor{
-				FieldPath:      SchemaFieldAccess + "." + SchemaFieldIdentityProviders,
-				TargetType:     ResourceTypeAIGatewayIdentityProvider,
+				FieldPath:      SchemaFieldAccess + "." + SchemaFieldAuthStrategies,
+				TargetType:     ResourceTypeAIGatewayAuthStrategy,
 				Kind:           RelationshipKindAPIForeignKey,
 				ScopeFieldPath: SchemaFieldAIGateway,
 			},

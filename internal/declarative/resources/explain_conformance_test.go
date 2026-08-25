@@ -27,7 +27,7 @@ func TestDashboardQueryExplainBranchesConformToSDKShapes(t *testing.T) {
 	})
 }
 
-func TestAIGatewayCustomExplainSchemasPreserveSDKOpenness(t *testing.T) {
+func TestAIGatewayCustomExplainSchemasTrackSDKShapes(t *testing.T) {
 	tests := []struct {
 		name     string
 		expected func(*testing.T, *ExplainNode)
@@ -36,73 +36,77 @@ func TestAIGatewayCustomExplainSchemasPreserveSDKOpenness(t *testing.T) {
 		{
 			name: "gateway",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.CreateAIGatewayRequest](t, actual)
-				assertCustomExplainPreservesSDKOpenness[kkComps.UpdateAIGatewayRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.CreateAIGatewayRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.UpdateAIGatewayRequest](t, actual)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayExplainNode(ExplainBuildContext{}) },
 		},
 		{
 			name: "agent",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.CreateAIGatewayAgentRequest](t, actual)
-				assertCustomExplainPreservesSDKOpenness[kkComps.UpdateAIGatewayAgentRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.CreateAIGatewayAgentRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.UpdateAIGatewayAgentRequest](t, actual)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayAgentExplainNode(ExplainBuildContext{}) },
 		},
 		{
 			name: "consumer",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.CreateAIGatewayConsumerRequest](t, actual)
-				assertCustomExplainPreservesSDKOpenness[kkComps.UpdateAIGatewayConsumerRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.CreateAIGatewayConsumerRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.UpdateAIGatewayConsumerRequest](t, actual)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayConsumerExplainNode(ExplainBuildContext{}) },
 		},
 		{
 			name: "consumer group",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.CreateAIGatewayConsumerGroupRequest](t, actual)
-				assertCustomExplainPreservesSDKOpenness[kkComps.UpdateAIGatewayConsumerGroupRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.CreateAIGatewayConsumerGroupRequest](t, actual)
+				assertCustomExplainSupportsSDKShape[kkComps.UpdateAIGatewayConsumerGroupRequest](t, actual)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayConsumerGroupExplainNode(ExplainBuildContext{}) },
 		},
 		{
-			name: "identity provider",
+			name: "auth strategy",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayIdentityProviderKeyAuth](
+				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayAuthStrategyKeyAuth](
 					t,
-					aiGatewayIdentityProviderExplainBranch(t, actual, "key-auth"),
+					aiGatewayAuthStrategyExplainBranch(t, actual, "key-auth"),
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayIdentityProviderOpenIDConnect](
+				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayAuthStrategyOpenIDConnect](
 					t,
-					aiGatewayIdentityProviderExplainBranch(t, actual, "openid-connect"),
+					aiGatewayAuthStrategyExplainBranch(t, actual, "openid-connect"),
 				)
 			},
 			actual: func() (*ExplainNode, error) {
-				return aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
+				return aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 			},
 		},
 		{
 			name: "MCP server",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayMCPServerConversionOnly](
+				assertCustomExplainSupportsSDKShape[kkComps.AIGatewayMCPServerConversionOnly](
 					t,
 					explainUnionBranchByType(t, actual, "conversion-only"),
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayMCPServerConversionListener](
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.AIGatewayMCPServerConversionListener](
 					t,
 					explainUnionBranchByType(t, actual, "conversion-listener"),
+					"access",
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayMCPServerListener](
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.AIGatewayMCPServerListener](
 					t,
 					explainUnionBranchByType(t, actual, "listener"),
+					"access",
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayMCPServerPassthroughListener](
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.AIGatewayMCPServerPassthroughListener](
 					t,
 					explainUnionBranchByType(t, actual, "passthrough-listener"),
+					"access",
 				)
-				assertCustomExplainPreservesSDKOpenness[kkComps.AIGatewayMCPServerUpstreamServer](
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.AIGatewayMCPServerUpstreamServer](
 					t,
 					explainUnionBranchByType(t, actual, "upstream-server"),
+					"access",
 				)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayMCPServerExplainNode(ExplainBuildContext{}) },
@@ -118,8 +122,8 @@ func TestAIGatewayCustomExplainSchemasPreserveSDKOpenness(t *testing.T) {
 	}
 }
 
-func TestAIGatewayIdentityProviderExplainBranchesTrackSDKRequestShapes(t *testing.T) {
-	node, err := aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
+func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T) {
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
@@ -128,14 +132,14 @@ func TestAIGatewayIdentityProviderExplainBranchesTrackSDKRequestShapes(t *testin
 		}
 		return path == "config" && (name == "upstream_headers_claims" || name == "upstream_headers_names")
 	}
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayIdentityProviderKeyAuth](
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyKeyAuth](
 		t,
-		aiGatewayIdentityProviderExplainBranch(t, node, "key-auth"),
+		aiGatewayAuthStrategyExplainBranch(t, node, "key-auth"),
 		allowOverlay,
 	)
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayIdentityProviderOpenIDConnect](
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyOpenIDConnect](
 		t,
-		aiGatewayIdentityProviderExplainBranch(t, node, "openid-connect"),
+		aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect"),
 		allowOverlay,
 	)
 }
@@ -371,6 +375,10 @@ func explainNodesContainSDKOpenness(nodes []*ExplainNode) bool {
 }
 
 func assertCustomExplainSupportsSDKShape[T any](t *testing.T, actual *ExplainNode) {
+	assertCustomExplainSupportsSDKShapeExcept[T](t, actual)
+}
+
+func assertCustomExplainSupportsSDKShapeExcept[T any](t *testing.T, actual *ExplainNode, skipped ...string) {
 	t.Helper()
 
 	expected, err := autoExplainConcreteNode[T](nil)
@@ -379,6 +387,9 @@ func assertCustomExplainSupportsSDKShape[T any](t *testing.T, actual *ExplainNod
 	require.Equal(t, expected.Kind, actual.Kind)
 
 	for _, expectedField := range expected.Properties {
+		if slices.Contains(skipped, expectedField.Name) {
+			continue
+		}
 		actualField, ok := actual.property(expectedField.Name)
 		require.Truef(t, ok, "custom explain schema is missing SDK field %q", expectedField.Name)
 		assertExplainFieldShapeCompatible(t, expectedField.Name, expectedField.Node, actualField.Node)

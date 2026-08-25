@@ -9,37 +9,37 @@ import (
 )
 
 const (
-	aiGatewayIdentityProviderFieldName         = "name"
-	aiGatewayIdentityProviderFieldType         = "type"
-	aiGatewayIdentityProviderFieldDisplayName  = "display_name"
-	aiGatewayIdentityProviderFieldLabels       = "labels"
-	aiGatewayIdentityProviderFieldManagedBy    = "managed_by"
-	aiGatewayIdentityProviderFieldConfig       = "config"
-	aiGatewayIdentityProviderTypeOpenIDConnect = "openid-connect"
+	aiGatewayAuthStrategyFieldName         = "name"
+	aiGatewayAuthStrategyFieldType         = "type"
+	aiGatewayAuthStrategyFieldDisplayName  = "display_name"
+	aiGatewayAuthStrategyFieldLabels       = "labels"
+	aiGatewayAuthStrategyFieldManagedBy    = "managed_by"
+	aiGatewayAuthStrategyFieldConfig       = "config"
+	aiGatewayAuthStrategyTypeOpenIDConnect = "openid-connect"
 )
 
 func init() {
 	registerResourceType(
-		ResourceTypeAIGatewayIdentityProvider,
-		func(rs *ResourceSet) *[]AIGatewayIdentityProviderResource { return &rs.AIGatewayIdentityProviders },
-		AutoExplain[AIGatewayIdentityProviderResource](
+		ResourceTypeAIGatewayAuthStrategy,
+		func(rs *ResourceSet) *[]AIGatewayAuthStrategyResource { return &rs.AIGatewayAuthStrategies },
+		AutoExplain[AIGatewayAuthStrategyResource](
 			WithExplainAliases(
-				"ai_gateway_identity_providers",
-				"ai-gateway-identity-provider",
-				"ai-gateway-identity-providers",
-				"aigw-identity-provider",
+				"ai_gateway_auth_strategies",
+				"ai-gateway-auth-strategy",
+				"ai-gateway-auth-strategies",
+				"aigw-auth-strategy",
 			),
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
-			WithExplainSchemaBuilder(aiGatewayIdentityProviderExplainNode),
+			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
 		WithMaturity(aiGatewayMaturity),
 	)
 }
 
-// AIGatewayIdentityProviderResource represents a Konnect AI Gateway Identity Provider in declarative configuration.
-type AIGatewayIdentityProviderResource struct {
+// AIGatewayAuthStrategyResource represents a Konnect AI Gateway Auth Strategy in declarative configuration.
+type AIGatewayAuthStrategyResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
-	// Parent AI Gateway reference for root-level identity provider declarations.
+	// Parent AI Gateway reference for root-level auth strategy declarations.
 	AIGateway   string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 	Name        string            `yaml:"name"                 json:"name"`
 	Type        string            `yaml:"type"                 json:"type"`
@@ -50,50 +50,50 @@ type AIGatewayIdentityProviderResource struct {
 }
 
 // GetType returns the resource type.
-func (a AIGatewayIdentityProviderResource) GetType() ResourceType {
-	return ResourceTypeAIGatewayIdentityProvider
+func (a AIGatewayAuthStrategyResource) GetType() ResourceType {
+	return ResourceTypeAIGatewayAuthStrategy
 }
 
 // GetMoniker returns the provider name used for matching within the parent gateway.
-func (a AIGatewayIdentityProviderResource) GetMoniker() string {
+func (a AIGatewayAuthStrategyResource) GetMoniker() string {
 	return a.Name
 }
 
 // GetDependencies returns references to other resources this provider depends on.
-func (a AIGatewayIdentityProviderResource) GetDependencies() []ResourceRef {
+func (a AIGatewayAuthStrategyResource) GetDependencies() []ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
 	return []ResourceRef{{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}}
 }
 
-// Validate ensures the AI Gateway Identity Provider resource is valid.
-func (a AIGatewayIdentityProviderResource) Validate() error {
+// Validate ensures the AI Gateway Auth Strategy resource is valid.
+func (a AIGatewayAuthStrategyResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
-		return fmt.Errorf("invalid AI Gateway Identity Provider ref: %w", err)
+		return fmt.Errorf("invalid AI Gateway Auth Strategy ref: %w", err)
 	}
 	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Identity Provider %s", a.Ref)
+		return fmt.Errorf("kongctl metadata not supported on AI Gateway Auth Strategy %s", a.Ref)
 	}
 	if a.Name == "" {
-		return fmt.Errorf("name is required for AI Gateway Identity Provider %s", a.Ref)
+		return fmt.Errorf("name is required for AI Gateway Auth Strategy %s", a.Ref)
 	}
 	if a.Type == "" {
-		return fmt.Errorf("type is required for AI Gateway Identity Provider %s", a.Ref)
+		return fmt.Errorf("type is required for AI Gateway Auth Strategy %s", a.Ref)
 	}
 	if a.DisplayName == "" {
-		return fmt.Errorf("display_name is required for AI Gateway Identity Provider %s", a.Ref)
+		return fmt.Errorf("display_name is required for AI Gateway Auth Strategy %s", a.Ref)
 	}
 	if a.Config == nil {
-		return fmt.Errorf("config is required for AI Gateway Identity Provider %s", a.Ref)
+		return fmt.Errorf("config is required for AI Gateway Auth Strategy %s", a.Ref)
 	}
-	if a.Type == aiGatewayIdentityProviderTypeOpenIDConnect {
+	if a.Type == aiGatewayAuthStrategyTypeOpenIDConnect {
 		if issuer, ok := a.Config["issuer"].(string); !ok || strings.TrimSpace(issuer) == "" {
-			return fmt.Errorf("config.issuer is required for OpenID Connect AI Gateway Identity Provider %s", a.Ref)
+			return fmt.Errorf("config.issuer is required for OpenID Connect AI Gateway Auth Strategy %s", a.Ref)
 		}
 		if salt, ok := a.Config["cache_tokens_salt"].(string); !ok || strings.TrimSpace(salt) == "" {
 			return fmt.Errorf(
-				"config.cache_tokens_salt is required for OpenID Connect AI Gateway Identity Provider %s",
+				"config.cache_tokens_salt is required for OpenID Connect AI Gateway Auth Strategy %s",
 				a.Ref,
 			)
 		}
@@ -101,8 +101,8 @@ func (a AIGatewayIdentityProviderResource) Validate() error {
 	return nil
 }
 
-// SetDefaults applies default values to AI Gateway Identity Provider resources.
-func (a *AIGatewayIdentityProviderResource) SetDefaults() {
+// SetDefaults applies default values to AI Gateway Auth Strategy resources.
+func (a *AIGatewayAuthStrategyResource) SetDefaults() {
 	if a == nil {
 		return
 	}
@@ -118,12 +118,12 @@ func (a *AIGatewayIdentityProviderResource) SetDefaults() {
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
-func (a AIGatewayIdentityProviderResource) GetKonnectMonikerFilter() string {
+func (a AIGatewayAuthStrategyResource) GetKonnectMonikerFilter() string {
 	return a.BaseResource.GetKonnectMonikerFilter(a.Name)
 }
 
 // TryMatchKonnectResource attempts to match this provider with a Konnect resource.
-func (a *AIGatewayIdentityProviderResource) TryMatchKonnectResource(konnectResource any) bool {
+func (a *AIGatewayAuthStrategyResource) TryMatchKonnectResource(konnectResource any) bool {
 	if id := tryMatchByField(konnectResource, "Name", a.Name); id != "" {
 		a.SetKonnectID(id)
 		return true
@@ -132,41 +132,41 @@ func (a *AIGatewayIdentityProviderResource) TryMatchKonnectResource(konnectResou
 }
 
 // GetParentRef returns the parent AI Gateway reference.
-func (a AIGatewayIdentityProviderResource) GetParentRef() *ResourceRef {
+func (a AIGatewayAuthStrategyResource) GetParentRef() *ResourceRef {
 	if a.AIGateway == "" {
 		return nil
 	}
 	return &ResourceRef{Kind: ResourceTypeAIGateway, Ref: NormalizeResourceRef(a.AIGateway)}
 }
 
-func (a AIGatewayIdentityProviderResource) GetReferenceFieldMappings() map[string]string {
+func (a AIGatewayAuthStrategyResource) GetReferenceFieldMappings() map[string]string {
 	if a.AIGateway == "" {
 		return nil
 	}
 	return map[string]string{SchemaFieldAIGateway: string(ResourceTypeAIGateway)}
 }
 
-func (a AIGatewayIdentityProviderResource) PayloadMap() (map[string]any, error) {
+func (a AIGatewayAuthStrategyResource) PayloadMap() (map[string]any, error) {
 	payload := map[string]any{
-		aiGatewayIdentityProviderFieldName:        a.Name,
-		aiGatewayIdentityProviderFieldType:        a.Type,
-		aiGatewayIdentityProviderFieldDisplayName: a.DisplayName,
-		aiGatewayIdentityProviderFieldConfig:      a.Config,
+		aiGatewayAuthStrategyFieldName:        a.Name,
+		aiGatewayAuthStrategyFieldType:        a.Type,
+		aiGatewayAuthStrategyFieldDisplayName: a.DisplayName,
+		aiGatewayAuthStrategyFieldConfig:      a.Config,
 	}
 	if a.Labels != nil {
-		payload[aiGatewayIdentityProviderFieldLabels] = a.Labels
+		payload[aiGatewayAuthStrategyFieldLabels] = a.Labels
 	}
 	if a.ManagedBy != nil {
-		payload[aiGatewayIdentityProviderFieldManagedBy] = a.ManagedBy
+		payload[aiGatewayAuthStrategyFieldManagedBy] = a.ManagedBy
 	}
 	return payload, nil
 }
 
-func (a AIGatewayIdentityProviderResource) MutablePayloadMap() (map[string]any, error) {
+func (a AIGatewayAuthStrategyResource) MutablePayloadMap() (map[string]any, error) {
 	return a.PayloadMap()
 }
 
-func (a AIGatewayIdentityProviderResource) MarshalJSON() ([]byte, error) {
+func (a AIGatewayAuthStrategyResource) MarshalJSON() ([]byte, error) {
 	payload, err := a.PayloadMap()
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (a AIGatewayIdentityProviderResource) MarshalJSON() ([]byte, error) {
 	return json.Marshal(payload)
 }
 
-func (a AIGatewayIdentityProviderResource) MarshalYAML() (any, error) {
+func (a AIGatewayAuthStrategyResource) MarshalYAML() (any, error) {
 	payload, err := a.PayloadMap()
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func (a AIGatewayIdentityProviderResource) MarshalYAML() (any, error) {
 }
 
 // UnmarshalJSON rejects kongctl metadata on child provider resources.
-func (a *AIGatewayIdentityProviderResource) UnmarshalJSON(data []byte) error {
+func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Ref         string            `json:"ref"`
 		AIGateway   string            `json:"ai_gateway,omitempty"`
@@ -221,55 +221,55 @@ func (a *AIGatewayIdentityProviderResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	keyAuthSDK, err := autoExplainConcreteNode[kkComps.AIGatewayIdentityProviderKeyAuth](nil)
+func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	keyAuthSDK, err := autoExplainConcreteNode[kkComps.AIGatewayAuthStrategyKeyAuth](nil)
 	if err != nil {
 		return nil, err
 	}
-	keyAuth := aiGatewayIdentityProviderSDKExplainBranch(
+	keyAuth := aiGatewayAuthStrategySDKExplainBranch(
 		keyAuthSDK,
 		"key-auth",
 		"support-key-auth",
 		"Support Key Auth",
 	)
-	openIDConnectSDK, err := autoExplainConcreteNode[kkComps.AIGatewayIdentityProviderOpenIDConnect](nil)
+	openIDConnectSDK, err := autoExplainConcreteNode[kkComps.AIGatewayAuthStrategyOpenIDConnect](nil)
 	if err != nil {
 		return nil, err
 	}
-	openIDConnect := aiGatewayIdentityProviderSDKExplainBranch(
+	openIDConnect := aiGatewayAuthStrategySDKExplainBranch(
 		openIDConnectSDK,
-		aiGatewayIdentityProviderTypeOpenIDConnect,
+		aiGatewayAuthStrategyTypeOpenIDConnect,
 		"support-oidc",
 		"Support OIDC",
 	)
 
-	setExplainLiteral(keyAuth, []string{aiGatewayIdentityProviderFieldConfig, "key_names"}, "apikey")
-	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "auth_methods"}, "bearer")
+	setExplainLiteral(keyAuth, []string{aiGatewayAuthStrategyFieldConfig, "key_names"}, "apikey")
+	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "auth_methods"}, "bearer")
 	setExplainLiteral(
 		openIDConnect,
-		[]string{aiGatewayIdentityProviderFieldConfig, "cache_tokens_salt"},
+		[]string{aiGatewayAuthStrategyFieldConfig, "cache_tokens_salt"},
 		"support-cache-salt",
 	)
-	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "client_id"}, "support-client")
+	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "client_id"}, "support-client")
 	explainReplacePath(
 		openIDConnect,
-		[]string{aiGatewayIdentityProviderFieldConfig, "client_secret"},
+		[]string{aiGatewayAuthStrategyFieldConfig, "client_secret"},
 		explainArrayOf(explainSecretEnvNode("OIDC_CLIENT_SECRET")),
 	)
-	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "consumer_claims"}, "sub")
+	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "consumer_claims"}, "sub")
 	setExplainLiteral(
 		openIDConnect,
-		[]string{aiGatewayIdentityProviderFieldConfig, "consumer_groups_claim"},
+		[]string{aiGatewayAuthStrategyFieldConfig, "consumer_groups_claim"},
 		"groups",
 	)
 	setExplainLiteral(
 		openIDConnect,
-		[]string{aiGatewayIdentityProviderFieldConfig, "issuer"},
+		[]string{aiGatewayAuthStrategyFieldConfig, "issuer"},
 		"https://issuer.example.com",
 	)
-	setExplainLiteral(openIDConnect, []string{aiGatewayIdentityProviderFieldConfig, "scopes"}, "openid")
+	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "scopes"}, "openid")
 
-	config, ok := openIDConnect.lookup([]string{aiGatewayIdentityProviderFieldConfig})
+	config, ok := openIDConnect.lookup([]string{aiGatewayAuthStrategyFieldConfig})
 	if ok {
 		// These are supported OpenID Connect plugin fields that the API accepts
 		// through the SDK config's additionalProperties contract.
@@ -290,7 +290,7 @@ func aiGatewayIdentityProviderExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 	return explainUnionNode(keyAuth, openIDConnect), nil
 }
 
-func aiGatewayIdentityProviderSDKExplainBranch(
+func aiGatewayAuthStrategySDKExplainBranch(
 	branch *ExplainNode,
 	providerType string,
 	name string,
@@ -301,13 +301,13 @@ func aiGatewayIdentityProviderSDKExplainBranch(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 	)
-	explainSetConstStringField(branch, aiGatewayIdentityProviderFieldType, providerType)
-	explainSetPathRequired(branch, []string{aiGatewayIdentityProviderFieldConfig})
-	if providerType == aiGatewayIdentityProviderTypeOpenIDConnect {
-		explainSetPathRequired(branch, []string{aiGatewayIdentityProviderFieldConfig, "issuer"})
+	explainSetConstStringField(branch, aiGatewayAuthStrategyFieldType, providerType)
+	explainSetPathRequired(branch, []string{aiGatewayAuthStrategyFieldConfig})
+	if providerType == aiGatewayAuthStrategyTypeOpenIDConnect {
+		explainSetPathRequired(branch, []string{aiGatewayAuthStrategyFieldConfig, "issuer"})
 	}
-	setExplainLiteral(branch, []string{aiGatewayIdentityProviderFieldName}, name)
-	setExplainLiteral(branch, []string{aiGatewayIdentityProviderFieldDisplayName}, displayName)
+	setExplainLiteral(branch, []string{aiGatewayAuthStrategyFieldName}, name)
+	setExplainLiteral(branch, []string{aiGatewayAuthStrategyFieldDisplayName}, displayName)
 	return branch
 }
 
@@ -322,8 +322,8 @@ func setExplainLiteral(node *ExplainNode, path []string, literal string) {
 	target.Literal = literal
 }
 
-func aiGatewayIdentityProviderInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
+func aiGatewayAuthStrategyInlineExplainNode() *ExplainNode {
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	if err != nil {
 		return explainObject(
 			explainResourceRefField(),

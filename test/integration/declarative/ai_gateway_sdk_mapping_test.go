@@ -46,6 +46,9 @@ func mapAIGatewayScenarioCreatePayloads(t *testing.T, resourceSet *resources.Res
 			planner.FieldProxyURLs:   resource.ProxyUrls,
 			planner.FieldLabels:      resource.Labels,
 		}
+		if resource.DeploymentType != nil {
+			fields[planner.FieldDeploymentType] = *resource.DeploymentType
+		}
 		if resource.Description != nil {
 			fields[planner.FieldDescription] = *resource.Description
 		}
@@ -63,14 +66,14 @@ func mapAIGatewayScenarioCreatePayloads(t *testing.T, resourceSet *resources.Res
 		var request kkComps.CreateAIGatewayModelProviderRequest
 		require.NoError(t, executor.NewAIGatewayProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request))
 	}
-	for _, resource := range resourceSet.AIGatewayIdentityProviders {
+	for _, resource := range resourceSet.AIGatewayAuthStrategies {
 		fields, err := resource.MutablePayloadMap()
 		require.NoError(t, err)
 		fields[planner.FieldAIGatewayID] = "gateway-id"
-		var request kkComps.CreateAIGatewayIdentityProviderRequest
+		var request kkComps.CreateAIGatewayAuthStrategyRequest
 		require.NoError(
 			t,
-			executor.NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request),
+			executor.NewAIGatewayAuthStrategyAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request),
 		)
 	}
 	for _, resource := range resourceSet.AIGatewayPolicies {

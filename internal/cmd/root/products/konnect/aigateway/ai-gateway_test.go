@@ -134,6 +134,20 @@ func TestAIGatewayCommandsAreBeta(t *testing.T) {
 	}
 }
 
+func TestAIGatewayAuthStrategiesCommandDoesNotExposeIdentityProviderAliases(t *testing.T) {
+	rootCmd, err := NewAIGatewayCmd(
+		verbs.Get,
+		func(verbs.VerbValue, *cobra.Command) {},
+		func(*cobra.Command, []string) error { return nil },
+	)
+	require.NoError(t, err)
+
+	child, _, err := rootCmd.Find([]string{"auth-strategies"})
+	require.NoError(t, err)
+	require.Equal(t, "auth-strategies", child.Name())
+	require.Equal(t, []string{"auth-strategy"}, child.Aliases)
+}
+
 func TestAIGatewayChildHelpDescribesGatewayNameLookup(t *testing.T) {
 	t.Parallel()
 
@@ -239,10 +253,10 @@ func TestRunListByNameOrDisplayNameReportsBothFields(t *testing.T) {
 	require.Contains(t, err.Error(), `AI Gateway with name or display_name "missing-gateway" not found`)
 }
 
-func TestRedactAIGatewayIdentityProviderSecrets(t *testing.T) {
+func TestRedactAIGatewayAuthStrategySecrets(t *testing.T) {
 	t.Parallel()
 
-	redacted := redactAIGatewayIdentityProviderSecrets(map[string]any{
+	redacted := redactAIGatewayAuthStrategySecrets(map[string]any{
 		"config": map[string]any{
 			"client_secret": []any{"secret"},
 			"nested": []any{

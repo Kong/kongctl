@@ -111,6 +111,16 @@ func (a AIGatewayMCPServerResource) Validate() error {
 	if !a.hasPayload() {
 		return fmt.Errorf("AI Gateway MCP Server %s must specify a valid MCP Server payload", a.Ref)
 	}
+	switch a.MCPServerType() {
+	case "conversion-only":
+		if len(a.AIGatewayMCPServerConversionOnly.Tools) == 0 {
+			return fmt.Errorf("tools must contain at least one entry for conversion-only AI Gateway MCP Server %s", a.Ref)
+		}
+	case "conversion-listener":
+		if len(a.AIGatewayMCPServerConversionListener.Tools) == 0 {
+			return fmt.Errorf("tools must contain at least one entry for conversion-listener AI Gateway MCP Server %s", a.Ref)
+		}
+	}
 	return nil
 }
 
@@ -224,6 +234,7 @@ func (a AIGatewayMCPServerResource) MutablePayloadMap() (map[string]any, error) 
 		return nil, err
 	}
 	stripAIGatewayMCPServerServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
 
@@ -397,24 +408,8 @@ func AIGatewayMCPServerMutablePayloadMap(server kkComps.AIGatewayMCPServer) (map
 		return nil, err
 	}
 	stripAIGatewayMCPServerServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
-}
-
-func AIGatewayMCPServerAdditionalProperties(server kkComps.AIGatewayMCPServer) map[string]any {
-	switch {
-	case server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly != nil:
-		return server.AIGatewayMCPServerAIGatewayMCPServerConversionOnly.AdditionalProperties
-	case server.AIGatewayMCPServerAIGatewayMCPServerConversionListener != nil:
-		return server.AIGatewayMCPServerAIGatewayMCPServerConversionListener.AdditionalProperties
-	case server.AIGatewayMCPServerAIGatewayMCPServerListener != nil:
-		return server.AIGatewayMCPServerAIGatewayMCPServerListener.AdditionalProperties
-	case server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener != nil:
-		return server.AIGatewayMCPServerAIGatewayMCPServerPassthroughListener.AdditionalProperties
-	case server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer != nil:
-		return server.AIGatewayMCPServerAIGatewayMCPServerUpstreamServer.AdditionalProperties
-	default:
-		return nil
-	}
 }
 
 func AIGatewayMCPServerResourceFromResponse(
@@ -534,26 +529,33 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
-	conversionOnly := explainOpenObject(append(
+	conversionOnly := explainObject(append(
 		slices.Clone(commonFields),
 		explainField("type", explainConstStringNode("conversion-only"), true, true),
 	)...)
 	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
+	listenerFields := slices.DeleteFunc(slices.Clone(accessFields), func(field *ExplainField) bool {
+		return field.Name == "tools"
+	})
+	listenerFields = append(
+		listenerFields,
+		explainField("sources", explainArrayOf(explainStringNode("source-server-name")), true, true),
+	)
 	return explainUnionNode(
 		conversionOnly,
-		explainOpenObject(append(
+		explainObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 		)...),
-		explainOpenObject(append(
-			slices.Clone(accessFields),
+		explainObject(append(
+			listenerFields,
 			explainField("type", explainConstStringNode("listener"), true, true),
 		)...),
-		explainOpenObject(append(
+		explainObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
-		explainOpenObject(append(
+		explainObject(append(
 			slices.Clone(accessFields),
 			explainField("type", explainConstStringNode("upstream-server"), true, true),
 		)...),
@@ -567,8 +569,8 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 		explainField("acls", aiGatewayMCPACLsExplainNode(), false, false),
 		explainField("default_tool_acls", aiGatewayMCPACLsExplainNode(), false, false),
 		explainField(
-			SchemaFieldIdentityProviders,
-			explainArrayOf(explainStringNode("identity-provider-name")),
+			SchemaFieldAuthStrategies,
+			explainArrayOf(explainStringNode("auth-strategy-name")),
 			false,
 			false,
 		),

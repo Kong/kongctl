@@ -292,9 +292,7 @@ func testAIGatewayConsumerGroupResourceWithConsumers(
 ) resources.AIGatewayConsumerGroupResource {
 	t.Helper()
 	group := testAIGatewayConsumerGroupResource(t, nil)
-	group.AdditionalProperties = map[string]any{
-		FieldConsumers: consumers,
-	}
+	group.Consumers = consumers
 	return group
 }
 

@@ -275,11 +275,11 @@ func populateAIGatewayChildren(
 			gateway.Providers = providers
 		}
 
-		identityProviders, err := buildAIGatewayIdentityProviders(ctx, logger, client, gatewayID, gateway.DisplayName)
+		authStrategies, err := buildAIGatewayAuthStrategies(ctx, logger, client, gatewayID, gateway.DisplayName)
 		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Identity Providers", gatewayID, gateway.DisplayName, err)
-		} else if len(identityProviders) > 0 {
-			gateway.IdentityProviders = identityProviders
+			logWarn(logger, "failed to load AI Gateway Auth Strategies", gatewayID, gateway.DisplayName, err)
+		} else if len(authStrategies) > 0 {
+			gateway.AuthStrategies = authStrategies
 		}
 
 		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
@@ -407,14 +407,14 @@ func buildAIGatewayProviders(
 	return results, nil
 }
 
-func buildAIGatewayIdentityProviders(
+func buildAIGatewayAuthStrategies(
 	ctx context.Context,
 	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayDisplayName string,
-) ([]declresources.AIGatewayIdentityProviderResource, error) {
-	providers, err := client.ListAIGatewayIdentityProviders(ctx, gatewayID)
+) ([]declresources.AIGatewayAuthStrategyResource, error) {
+	providers, err := client.ListAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
 		return nil, err
 	}
@@ -422,22 +422,22 @@ func buildAIGatewayIdentityProviders(
 		return nil, nil
 	}
 
-	results := make([]declresources.AIGatewayIdentityProviderResource, 0, len(providers))
+	results := make([]declresources.AIGatewayAuthStrategyResource, 0, len(providers))
 	for _, provider := range providers {
 		if strings.TrimSpace(provider.Name) == "" {
-			logWarn(logger, "AI Gateway Identity Provider missing name", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Auth Strategy missing name", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if strings.TrimSpace(provider.Type) == "" {
-			logWarn(logger, "AI Gateway Identity Provider missing type", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Auth Strategy missing type", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if strings.TrimSpace(provider.DisplayName) == "" {
-			logWarn(logger, "AI Gateway Identity Provider missing display_name", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Auth Strategy missing display_name", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 		if provider.Config == nil {
-			logWarn(logger, "AI Gateway Identity Provider missing config", gatewayID, gatewayDisplayName, nil)
+			logWarn(logger, "AI Gateway Auth Strategy missing config", gatewayID, gatewayDisplayName, nil)
 			continue
 		}
 
@@ -446,7 +446,7 @@ func buildAIGatewayIdentityProviders(
 			ref = provider.Name
 		}
 
-		results = append(results, declresources.AIGatewayIdentityProviderResource{
+		results = append(results, declresources.AIGatewayAuthStrategyResource{
 			BaseResource: declresources.BaseResource{Ref: ref},
 			Name:         provider.Name,
 			Type:         provider.Type,
@@ -457,7 +457,7 @@ func buildAIGatewayIdentityProviders(
 		})
 	}
 
-	slices.SortFunc(results, func(a, b declresources.AIGatewayIdentityProviderResource) int {
+	slices.SortFunc(results, func(a, b declresources.AIGatewayAuthStrategyResource) int {
 		if a.Name == b.Name {
 			return cmp.Compare(a.Ref, b.Ref)
 		}
@@ -661,10 +661,7 @@ func buildAIGatewayConsumerGroups(
 			}
 			slices.Sort(consumerNames)
 			if len(consumerNames) > 0 {
-				if resource.AdditionalProperties == nil {
-					resource.AdditionalProperties = map[string]any{}
-				}
-				resource.AdditionalProperties["consumers"] = consumerNames
+				resource.Consumers = consumerNames
 			}
 		}
 		result = append(result, resource)

@@ -13,7 +13,7 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    identity_providers:
+    auth_strategies:
       - ref: agent-key-auth
         name: agent-key-auth
         type: key-auth

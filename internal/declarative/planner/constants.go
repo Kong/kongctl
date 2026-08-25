@@ -54,35 +54,36 @@ const (
 
 // Common plan field identifiers.
 const (
-	FieldNamespace     = "namespace"
-	FieldContent       = "content"
-	FieldTitle         = "title"
-	FieldStatus        = "status"
-	FieldAttributes    = "attributes"
-	FieldType          = "type"
-	FieldConfig        = "config"
-	FieldConfigStoreID = "config_store_id"
-	FieldConfigs       = "configs"
-	FieldModel         = "model"
-	FieldRoute         = "route"
-	FieldConsumers     = "consumers"
-	FieldEnabled       = "enabled"
-	FieldVersion       = "version"
-	FieldSpec          = "spec"
-	FieldSlug          = "slug"
-	FieldValue         = "value"
-	FieldAPIKey        = "api_key"
-	FieldClientID      = "client_id"
-	FieldClientSecret  = "client_secret"
-	FieldMetadata      = "metadata"
-	FieldDataURL       = "data_url"
-	FieldDeckBaseDir   = "deck_base_dir"
-	FieldFlags         = "flags"
-	FieldFiles         = "files"
-	FieldDefinition    = "definition"
-	FieldDomain        = "domain"
-	FieldFoundry       = "foundry"
-	FieldResource      = "resource"
+	FieldNamespace      = "namespace"
+	FieldContent        = "content"
+	FieldTitle          = "title"
+	FieldStatus         = "status"
+	FieldAttributes     = "attributes"
+	FieldType           = "type"
+	FieldConfig         = "config"
+	FieldConfigStoreID  = "config_store_id"
+	FieldConfigs        = "configs"
+	FieldModel          = "model"
+	FieldRoute          = "route"
+	FieldConsumers      = "consumers"
+	FieldEnabled        = "enabled"
+	FieldVersion        = "version"
+	FieldSpec           = "spec"
+	FieldSlug           = "slug"
+	FieldValue          = "value"
+	FieldAPIKey         = "api_key"
+	FieldClientID       = "client_id"
+	FieldClientSecret   = "client_secret"
+	FieldMetadata       = "metadata"
+	FieldDataURL        = "data_url"
+	FieldDeckBaseDir    = "deck_base_dir"
+	FieldFlags          = "flags"
+	FieldFiles          = "files"
+	FieldDefinition     = "definition"
+	FieldDomain         = "domain"
+	FieldFoundry        = "foundry"
+	FieldResource       = "resource"
+	FieldDeploymentType = "deployment_type"
 )
 
 // Common relationship and reference field identifiers.
@@ -99,6 +100,7 @@ const (
 	FieldAIGatewayID                  = "ai_gateway_id"
 	FieldAIGatewayConsumerID          = "ai_gateway_consumer_id"
 	FieldAccess                       = "access"
+	FieldAuthStrategies               = "auth_strategies"
 	FieldSources                      = "sources"
 	FieldIdentityProviders            = "identity_providers"
 	FieldACLAttributeType             = "acl_attribute_type"
@@ -228,7 +230,7 @@ const (
 	ResourceTypeAPI                              = string(resources.ResourceTypeAPI)
 	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
-	ResourceTypeAIGatewayIdentityProvider        = string(resources.ResourceTypeAIGatewayIdentityProvider)
+	ResourceTypeAIGatewayAuthStrategy            = string(resources.ResourceTypeAIGatewayAuthStrategy)
 	ResourceTypeAIGatewayPolicy                  = string(resources.ResourceTypeAIGatewayPolicy)
 	ResourceTypeAIGatewayAgent                   = string(resources.ResourceTypeAIGatewayAgent)
 	ResourceTypeAIGatewayConsumer                = string(resources.ResourceTypeAIGatewayConsumer)

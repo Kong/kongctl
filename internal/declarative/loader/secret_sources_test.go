@@ -175,7 +175,7 @@ ai_gateways:
   - ref: gateway
     name: gateway
     display_name: Gateway
-    identity_providers:
+    auth_strategies:
       - ref: provider
         name: provider
         type: openid-connect
@@ -199,7 +199,7 @@ ai_gateways:
 	require.Len(t, declaration.Expression.Parts, 1)
 	assert.Equal(t, "FALLBACK_CLIENT_SECRET", declaration.Expression.Parts[0].Source.Reference)
 
-	clientSecrets := rs.AIGatewayIdentityProviders[0].Config["client_secret"].([]any)
+	clientSecrets := rs.AIGatewayAuthStrategies[0].Config["client_secret"].([]any)
 	require.Len(t, clientSecrets, 2)
 	assert.Equal(t, reference, clientSecrets[0])
 	secretPlaceholder, ok := clientSecrets[1].(string)

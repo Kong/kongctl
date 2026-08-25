@@ -6,11 +6,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayIdentityProviderExplainRequiresOpenIDConnectAPIFields(t *testing.T) {
-	node, err := aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
+func TestAIGatewayAuthStrategyExplainRequiresOpenIDConnectAPIFields(t *testing.T) {
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
-	openIDConnect := aiGatewayIdentityProviderExplainBranch(t, node, "openid-connect")
+	openIDConnect := aiGatewayAuthStrategyExplainBranch(t, node, "openid-connect")
 
 	configField := openIDConnect.propIndex["config"]
 	require.NotNil(t, configField)
@@ -22,13 +22,13 @@ func TestAIGatewayIdentityProviderExplainRequiresOpenIDConnectAPIFields(t *testi
 	require.True(t, issuer.Required)
 }
 
-func TestAIGatewayIdentityProviderExplainAllowsAdditionalConfigProperties(t *testing.T) {
-	node, err := aiGatewayIdentityProviderExplainNode(ExplainBuildContext{})
+func TestAIGatewayAuthStrategyExplainAllowsAdditionalConfigProperties(t *testing.T) {
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
 	for _, providerType := range []string{"key-auth", "openid-connect"} {
 		t.Run(providerType, func(t *testing.T) {
-			branch := aiGatewayIdentityProviderExplainBranch(t, node, providerType)
+			branch := aiGatewayAuthStrategyExplainBranch(t, node, providerType)
 			configField := branch.propIndex["config"]
 			require.NotNil(t, configField)
 			require.NotNil(t, configField.Node.Additional)
@@ -36,7 +36,7 @@ func TestAIGatewayIdentityProviderExplainAllowsAdditionalConfigProperties(t *tes
 	}
 }
 
-func aiGatewayIdentityProviderExplainBranch(t *testing.T, node *ExplainNode, providerType string) *ExplainNode {
+func aiGatewayAuthStrategyExplainBranch(t *testing.T, node *ExplainNode, providerType string) *ExplainNode {
 	t.Helper()
 
 	for _, branch := range node.OneOf {
@@ -46,6 +46,6 @@ func aiGatewayIdentityProviderExplainBranch(t *testing.T, node *ExplainNode, pro
 		}
 	}
 
-	require.Failf(t, "missing identity provider explain branch", "provider type %q was not found", providerType)
+	require.Failf(t, "missing auth strategy explain branch", "provider type %q was not found", providerType)
 	return nil
 }

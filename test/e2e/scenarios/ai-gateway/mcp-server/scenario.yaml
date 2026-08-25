@@ -11,9 +11,9 @@ vars:
   namespace: "ai-gateway-mcp-server-e2e"
   gateway_name: "AI Gateway MCP Server E2E"
   gateway_ref: "ai-gateway-mcp-e2e"
-  identity_provider_ref: "mcp-key-auth"
-  identity_provider_name: "mcp-key-auth"
-  identity_provider_display_name: "MCP Key Auth"
+  auth_strategy_ref: "mcp-key-auth"
+  auth_strategy_name: "mcp-key-auth"
+  auth_strategy_display_name: "MCP Key Auth"
   server_ref: "support-tools"
   server_name: "support-tools"
   server_display_name: "Support Tools"
@@ -54,10 +54,10 @@ steps:
   - name: 001-explain-and-scaffold
     skipInputs: true
     commands:
-      - name: 000-explain-ai-gateway-identity-provider-json
+      - name: 000-explain-ai-gateway-auth-strategy-json
         run:
           - explain
-          - ai_gateway_identity_provider
+          - ai_gateway_auth_strategy
           - -o
           - json
         assertions:
@@ -65,22 +65,22 @@ steps:
             expect:
               fields:
                 type: object
-                title: "kongctl declarative schema: ai_gateway_identity_provider"
-                '"x-kongctl-root-key"': ai_gateway_identity_providers
+                title: "kongctl declarative schema: ai_gateway_auth_strategy"
+                '"x-kongctl-root-key"': ai_gateway_auth_strategies
           - select: "contains(keys(oneOf[?properties.type.const=='key-auth'] | [0].properties), 'ai_gateway')"
             expect:
               fields:
                 "@": true
-      - name: 001-scaffold-ai-gateway-identity-provider
+      - name: 001-scaffold-ai-gateway-auth-strategy
         run:
           - scaffold
-          - ai_gateway_identity_provider
+          - ai_gateway_auth_strategy
         outputFormat: disable
         parseAs: raw
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'ai_gateway_identity_providers:')": true
+                "contains(stdout, 'ai_gateway_auth_strategies:')": true
                 "contains(stdout, 'type: key-auth')": true
                 "contains(stdout, 'ai_gateway: !ref')": true
       - name: 002-explain-ai-gateway-mcp-server-json
@@ -104,7 +104,7 @@ steps:
             expect:
               fields:
                 access.properties.acl_attribute_type.type: string
-                access.properties.identity_providers.type: array
+                access.properties.auth_strategies.type: array
                 access.properties.metadata.type: object
                 type.const: passthrough-listener
           - select: "contains(keys(oneOf[?properties.type.const=='conversion-only'] | [0].properties), 'access')"
@@ -180,13 +180,13 @@ steps:
                 total_changes: 7
                 by_action.CREATE: 7
           - select: >-
-              changes[?resource_type=='ai_gateway_identity_provider' && resource_ref=='{{ .vars.identity_provider_ref }}'] | [0]
+              changes[?resource_type=='ai_gateway_auth_strategy' && resource_ref=='{{ .vars.auth_strategy_ref }}'] | [0]
             expect:
               fields:
                 action: CREATE
-                fields.name: "{{ .vars.identity_provider_name }}"
+                fields.name: "{{ .vars.auth_strategy_name }}"
                 fields.type: key-auth
-                fields.display_name: "{{ .vars.identity_provider_display_name }}"
+                fields.display_name: "{{ .vars.auth_strategy_display_name }}"
                 fields.config.key_names[0]: apikey
                 fields.config.hide_credentials: true
           - select: >-
@@ -238,8 +238,8 @@ steps:
                 fields.config.logging.payloads: false
                 fields.config.route.paths[0]: /support-conversion-listener
                 fields.access.acl_attribute_type: consumer
-                fields.access.identity_providers[0]: "__REF__:{{ .vars.identity_provider_ref }}#id"
-                references."access.identity_providers.0".ref: "__REF__:{{ .vars.identity_provider_ref }}#id"
+                fields.access.auth_strategies[0]: "__REF__:{{ .vars.auth_strategy_ref }}#id"
+                references."access.auth_strategies.0".ref: "__REF__:{{ .vars.auth_strategy_ref }}#id"
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
             expect:
@@ -284,61 +284,61 @@ steps:
                 applied: 7
                 failed: 0
                 status: success
-      - name: 002-list-identity-providers
+      - name: 002-list-auth-strategies
         run:
           - get
           - ai-gateway
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o
           - json
         recordVar:
-          name: identity_provider_id
-          responsePath: "[?name=='{{ .vars.identity_provider_name }}'] | [0].id"
+          name: auth_strategy_id
+          responsePath: "[?name=='{{ .vars.auth_strategy_name }}'] | [0].id"
         assertions:
-          - select: "[?name=='{{ .vars.identity_provider_name }}'] | [0]"
+          - select: "[?name=='{{ .vars.auth_strategy_name }}'] | [0]"
             expect:
               fields:
-                name: "{{ .vars.identity_provider_name }}"
-                display_name: "{{ .vars.identity_provider_display_name }}"
+                name: "{{ .vars.auth_strategy_name }}"
+                display_name: "{{ .vars.auth_strategy_display_name }}"
                 type: key-auth
                 config.key_names[0]: apikey
                 config.hide_credentials: true
-      - name: 003-get-identity-provider-by-name
+      - name: 003-get-auth-strategy-by-name
         run:
           - get
           - ai-gateway
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.identity_provider_name }}"
+          - "{{ .vars.auth_strategy_name }}"
           - -o
           - json
         assertions:
           - select: name
             expect:
               fields:
-                "@": "{{ .vars.identity_provider_name }}"
+                "@": "{{ .vars.auth_strategy_name }}"
           - select: type
             expect:
               fields:
                 "@": key-auth
-      - name: 004-get-identity-provider-by-id
+      - name: 004-get-auth-strategy-by-id
         run:
           - get
           - ai-gateway
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
-          - "{{ .vars.identity_provider_id }}"
+          - "{{ .vars.auth_strategy_id }}"
           - -o
           - json
         assertions:
           - select: name
             expect:
               fields:
-                "@": "{{ .vars.identity_provider_name }}"
+                "@": "{{ .vars.auth_strategy_name }}"
           - select: type
             expect:
               fields:
@@ -404,7 +404,7 @@ steps:
                 config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
                 access.acl_attribute_type: consumer
-                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
+                access.auth_strategies[0]: "{{ .vars.auth_strategy_name }}"
           - select: "[?name=='{{ .vars.listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -493,7 +493,7 @@ steps:
                 config.logging.payloads: false
                 config.route.paths[0]: /support-conversion-listener
                 access.acl_attribute_type: consumer
-                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
+                access.auth_strategies[0]: "{{ .vars.auth_strategy_name }}"
       - name: 009-get-listener-mcp-server-by-name
         run:
           - get
@@ -700,7 +700,7 @@ steps:
                 config.logging.audits: false
                 config.logging.payloads: false
                 access.acl_attribute_type: consumer
-                access.identity_providers[0]: "{{ .vars.identity_provider_name }}"
+                access.auth_strategies[0]: "{{ .vars.auth_strategy_name }}"
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.listener_server_name }}'] | [0]
             expect:
@@ -727,11 +727,11 @@ steps:
                 access:
                   acl_attribute_type: consumer
           - select: >-
-              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].identity_providers[?name=='{{ .vars.identity_provider_name }}'] | [0]
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].auth_strategies[?name=='{{ .vars.auth_strategy_name }}'] | [0]
             expect:
               fields:
-                name: "{{ .vars.identity_provider_name }}"
-                display_name: "{{ .vars.identity_provider_display_name }}"
+                name: "{{ .vars.auth_strategy_name }}"
+                display_name: "{{ .vars.auth_strategy_display_name }}"
                 type: key-auth
                 config.key_names[0]: apikey
                 config.hide_credentials: true
@@ -895,11 +895,11 @@ steps:
               fields:
                 "@": 0
 
-  - name: 008-sync-delete-identity-provider
+  - name: 008-sync-delete-auth-strategy
     inputOverlayDirs:
-      - overlays/003-sync-delete-identity-provider
+      - overlays/003-sync-delete-auth-strategy
     commands:
-      - name: 000-sync-delete-identity-provider
+      - name: 000-sync-delete-auth-strategy
         outputFormat: json
         run:
           - sync
@@ -913,21 +913,21 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              plan.changes[?resource_type=='ai_gateway_identity_provider' && action=='DELETE'] | [0]
+              plan.changes[?resource_type=='ai_gateway_auth_strategy' && action=='DELETE'] | [0]
             expect:
               fields:
-                resource_ref: "{{ .vars.identity_provider_name }}"
+                resource_ref: "{{ .vars.auth_strategy_name }}"
           - select: summary
             expect:
               fields:
                 applied: 1
                 failed: 0
                 status: success
-      - name: 001-list-identity-providers-empty
+      - name: 001-list-auth-strategies-empty
         run:
           - get
           - ai-gateway
-          - identity-providers
+          - auth-strategies
           - --gateway-name
           - "{{ .vars.gateway_name }}"
           - -o

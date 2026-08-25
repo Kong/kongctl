@@ -49,7 +49,7 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayProviders(rs); err != nil {
 		return err
 	}
-	if err := l.validateAIGatewayIdentityProviders(rs); err != nil {
+	if err := l.validateAIGatewayAuthStrategies(rs); err != nil {
 		return err
 	}
 	if err := l.validateAIGatewayPolicies(rs); err != nil {
@@ -924,17 +924,17 @@ func (l *Loader) validateAIGatewayProviders(rs *resources.ResourceSet) error {
 	)
 }
 
-func (l *Loader) validateAIGatewayIdentityProviders(rs *resources.ResourceSet) error {
+func (l *Loader) validateAIGatewayAuthStrategies(rs *resources.ResourceSet) error {
 	return validateAIGatewayChildren[
-		resources.AIGatewayIdentityProviderResource,
-		*resources.AIGatewayIdentityProviderResource,
+		resources.AIGatewayAuthStrategyResource,
+		*resources.AIGatewayAuthStrategyResource,
 	](
 		rs,
-		rs.AIGatewayIdentityProviders,
-		resources.ResourceTypeAIGatewayIdentityProvider,
-		"ai_gateway_identity_provider",
+		rs.AIGatewayAuthStrategies,
+		resources.ResourceTypeAIGatewayAuthStrategy,
+		"ai_gateway_auth_strategy",
 		"name",
-		func(provider *resources.AIGatewayIdentityProviderResource) string { return provider.Name },
+		func(provider *resources.AIGatewayAuthStrategyResource) string { return provider.Name },
 	)
 }
 
