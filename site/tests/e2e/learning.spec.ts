@@ -80,13 +80,18 @@ test("protects an AI Gateway model with Consumer credentials", async ({
 }) => {
   await page.goto("quickstarts/");
   const quickstarts = page.locator(".chapter-lessons");
-  await expect(quickstarts.locator(":scope > li")).toHaveCount(2);
+  await expect(quickstarts.locator(":scope > li")).toHaveCount(3);
   await expect(
     quickstarts.getByRole("link", { name: /AI Gateway: Route OpenAI/ }),
   ).toBeVisible();
   await expect(
     quickstarts.getByRole("link", {
       name: /AI Gateway: Consumer Credentials/,
+    }),
+  ).toBeVisible();
+  await expect(
+    quickstarts.getByRole("link", {
+      name: /AI Gateway: Vault-backed OpenAI/,
     }),
   ).toBeVisible();
 
@@ -112,6 +117,35 @@ test("protects an AI Gateway model with Consumer credentials", async ({
   await expect(lesson).toContainText(
     "docker stop consumer-credential-data-plane",
   );
+});
+
+test("routes Consumer requests with a vaulted OpenAI credential", async ({
+  page,
+}) => {
+  await page.goto("quickstarts/vault-backed-openai/");
+  const lesson = page.locator(".lesson-body");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "AI Gateway: Vault-backed OpenAI",
+    }),
+  ).toBeVisible();
+  await expect(lesson).toContainText("config_stores:");
+  await expect(lesson).toContainText("openai-auth-header");
+  await expect(lesson).toContainText("!env OPENAI_API_KEY");
+  await expect(lesson).toContainText(
+    "config_store_id: !ref openai-config-store#id",
+  );
+  await expect(lesson).toContainText(
+    "{vault://openai-vault/openai-auth-header}",
+  );
+  await expect(lesson).toContainText("!env CONSUMER_API_KEY");
+  await expect(lesson).toContainText("auth_strategies:");
+  await expect(lesson).toContainText("apikey: ${CONSUMER_API_KEY}");
+  await expect(lesson).toContainText("HTTP/1.1 401 Unauthorized");
+  await expect(lesson).toContainText("HTTP/1.1 200 OK");
+  await expect(lesson).toContainText("kongctl apply -f ai-gateway.yaml");
+  await expect(lesson).toContainText("kongctl delete -f ai-gateway.yaml");
 });
 
 test("presents the federated management journey", async ({ page }) => {
