@@ -42,7 +42,7 @@ func NewAuditLogsCmd(
 		Short:   auditLogsShort,
 		Long:    auditLogsLong,
 		Example: auditLogsExample,
-		Aliases: []string{"audit-log", "al", "AL"},
+		Aliases: []string{"audit-log"},
 	}
 
 	if verb == verbs.Listen {

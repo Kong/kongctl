@@ -16,6 +16,16 @@ var BaseOutputFormats = []string{"json", "yaml", "text"}
 // list in the command's Annotations under ExtraOutputFormatsAnnotation and
 // are merged with any previously-declared extras.
 func AllowExtraOutputFormats(cmd *cobra.Command, formats ...string) {
+	allowOutputFormats(cmd, ExtraOutputFormatsAnnotation, formats...)
+}
+
+// AllowLocalExtraOutputFormats marks cobraCmd as accepting additional --output
+// values without making them available to descendant commands.
+func AllowLocalExtraOutputFormats(cmd *cobra.Command, formats ...string) {
+	allowOutputFormats(cmd, LocalExtraOutputFormatsAnnotation, formats...)
+}
+
+func allowOutputFormats(cmd *cobra.Command, annotation string, formats ...string) {
 	if cmd == nil || len(formats) == 0 {
 		return
 	}
@@ -24,7 +34,7 @@ func AllowExtraOutputFormats(cmd *cobra.Command, formats ...string) {
 	}
 	seen := map[string]struct{}{}
 	merged := []string{}
-	if existing := cmd.Annotations[ExtraOutputFormatsAnnotation]; existing != "" {
+	if existing := cmd.Annotations[annotation]; existing != "" {
 		for v := range strings.SplitSeq(existing, ",") {
 			v = strings.TrimSpace(v)
 			if v == "" {
@@ -46,7 +56,7 @@ func AllowExtraOutputFormats(cmd *cobra.Command, formats ...string) {
 			merged = append(merged, v)
 		}
 	}
-	cmd.Annotations[ExtraOutputFormatsAnnotation] = strings.Join(merged, ",")
+	cmd.Annotations[annotation] = strings.Join(merged, ",")
 }
 
 // SkipOutputFormatValidation marks cmd (and its descendants) as opting out
@@ -140,20 +150,22 @@ func AllowedOutputFormats(cmd *cobra.Command) []string {
 		seen[v] = struct{}{}
 	}
 	for c := cmd; c != nil; c = c.Parent() {
-		extras, ok := c.Annotations[ExtraOutputFormatsAnnotation]
-		if !ok || extras == "" {
-			continue
+		extraSets := []string{c.Annotations[ExtraOutputFormatsAnnotation]}
+		if c == cmd {
+			extraSets = append(extraSets, c.Annotations[LocalExtraOutputFormatsAnnotation])
 		}
-		for v := range strings.SplitSeq(extras, ",") {
-			v = strings.TrimSpace(v)
-			if v == "" {
-				continue
+		for _, extras := range extraSets {
+			for v := range strings.SplitSeq(extras, ",") {
+				v = strings.TrimSpace(v)
+				if v == "" {
+					continue
+				}
+				if _, dup := seen[v]; dup {
+					continue
+				}
+				seen[v] = struct{}{}
+				allowed = append(allowed, v)
 			}
-			if _, dup := seen[v]; dup {
-				continue
-			}
-			seen[v] = struct{}{}
-			allowed = append(allowed, v)
 		}
 	}
 	return allowed

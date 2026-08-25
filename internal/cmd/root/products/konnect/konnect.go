@@ -69,12 +69,18 @@ Setting this value overrides tokens obtained from the login command.
 	}
 
 	if verb == verbs.Get || verb == verbs.List {
+		pageSize := common.DefaultRequestPageSize
+		pageSizeDescription := "Max number of results to include per response page for get and list operations."
+		if cmd.Name() == auditlogs.CommandName {
+			pageSize = auditlogs.DefaultPullPageSize
+			pageSizeDescription = "Maximum audit-log records requested per API page (1..1000)."
+		}
 		cmd.Flags().Int(
 			common.RequestPageSizeFlagName,
-			common.DefaultRequestPageSize,
-			fmt.Sprintf(`Max number of results to include per response page for get and list operations.
+			pageSize,
+			fmt.Sprintf(`%s
 - Config path: [ %s ]`,
-				common.RequestPageSizeConfigPath),
+				pageSizeDescription, common.RequestPageSizeConfigPath),
 		)
 	}
 

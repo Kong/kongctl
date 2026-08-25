@@ -57,10 +57,19 @@ func newGetAuditLogsCmd(
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) *cobra.Command {
-	baseCmd.Short = "Get Konnect audit-log destinations and webhook state"
-	baseCmd.Long = `Use get audit-logs to inspect Konnect audit-log destinations and
-regional webhook configuration.`
-	baseCmd.Example = `  # List all audit-log destinations
+	options := pullAuditLogsOptions{PollInterval: defaultPollInterval}
+	baseCmd.Short = "Get Konnect organization audit logs"
+	baseCmd.Long = "Retrieve Konnect organization audit logs through the pull API."
+	baseCmd.Example = `  # Retrieve the 50 most recent events
+  kongctl get audit-logs
+
+  # Export every event from the last 24 hours as JSON Lines
+  kongctl get audit-logs --since 24h --output jsonl
+
+  # Follow new authorization events until interrupted
+  kongctl get audit-logs --since 1h --type authorization --follow
+
+  # List all audit-log destinations
   kongctl get audit-logs destinations
 
   # Get a single destination by id or name
@@ -77,13 +86,9 @@ regional webhook configuration.`
 	}
 
 	baseCmd.RunE = func(cmdObj *cobra.Command, args []string) error {
-		helper := cmd.BuildHelper(cmdObj, args)
-		if _, err := helper.GetOutputFormat(); err != nil {
-			return err
-		}
-		return cmd.RequireSubcommand(cmdObj, args)
+		return executePullAuditLogs(cmdObj, args, options)
 	}
-	cmd.MarkRequiresSubcommand(baseCmd)
+	addPullAuditLogsFlags(baseCmd, &options)
 
 	baseCmd.AddCommand(newGetAuditLogsDestinationsCmd(verb, addParentFlags, parentPreRun))
 	baseCmd.AddCommand(newGetAuditLogDestinationCmd(verb, addParentFlags, parentPreRun))

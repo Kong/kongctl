@@ -52,6 +52,20 @@ func TestValidateOutputFormat_AllowsExtraFromAncestor(t *testing.T) {
 	}
 }
 
+func TestValidateOutputFormat_LocalExtraDoesNotApplyToChildren(t *testing.T) {
+	parent := &cobra.Command{Use: "parent"}
+	child := &cobra.Command{Use: "child"}
+	parent.AddCommand(child)
+	AllowLocalExtraOutputFormats(parent, "jsonl")
+
+	if err := ValidateOutputFormat(parent, "jsonl"); err != nil {
+		t.Fatalf("expected jsonl to be allowed on annotated command: %v", err)
+	}
+	if err := ValidateOutputFormat(child, "jsonl"); err == nil {
+		t.Fatal("expected jsonl to be rejected on child command")
+	}
+}
+
 func TestValidateOutputFormat_RejectsBogusEvenWithExtras(t *testing.T) {
 	cmd := &cobra.Command{Use: "leaf"}
 	AllowExtraOutputFormats(cmd, "helm")

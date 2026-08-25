@@ -38,8 +38,8 @@ Setting this value overrides tokens obtained from the login command.
 		if verb == verbs.Get || verb == verbs.List {
 			cmdObj.Flags().Int(
 				common.RequestPageSizeFlagName,
-				common.DefaultRequestPageSize,
-				fmt.Sprintf(`Max number of results to include per response page for get and list operations.
+				konnectauditlogs.DefaultPullPageSize,
+				fmt.Sprintf(`Maximum audit-log records requested per API page (1..1000).
 - Config path: [ %s ]`,
 					common.RequestPageSizeConfigPath),
 			)
@@ -62,7 +62,13 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 
-	auditLogsCmd.Example = `  # List audit-log destinations
+	auditLogsCmd.Example = `  # Retrieve the 50 most recent events
+  kongctl get audit-logs
+
+  # Retrieve and automatically paginate every event from the last 24 hours
+  kongctl get audit-logs --since 24h --output jsonl
+
+  # List audit-log destinations
   kongctl get audit-logs destinations
 
   # Get one destination by id or name
