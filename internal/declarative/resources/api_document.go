@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util"
@@ -14,7 +15,15 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIDocument,
 		func(rs *ResourceSet) *[]APIDocumentResource { return &rs.APIDocuments },
-		AutoExplain[APIDocumentResource](),
+		AutoExplain[APIDocumentResource](
+			WithExplainFieldHint("title", ExplainFieldHint{
+				Description: "The document title. Required here unless content YAML frontmatter provides title.",
+				Recommended: new(true),
+				Notes: []string{
+					"A title must be provided either in this field or in the content YAML frontmatter.",
+				},
+			}),
+		),
 	)
 }
 
@@ -82,6 +91,9 @@ func (d APIDocumentResource) Validate() error {
 	if d.Content == "" {
 		return fmt.Errorf("API document content is required")
 	}
+	if d.Title == nil || strings.TrimSpace(*d.Title) == "" {
+		return fmt.Errorf("API document title is required either in title or content frontmatter")
+	}
 
 	// Validate slug format using Konnect's regex pattern
 	if d.Slug != nil && *d.Slug != "" {
@@ -116,19 +128,11 @@ func (d *APIDocumentResource) SetDefaults() {
 		d.Status = &status
 	}
 
-	// Konnect defaults slug to slugify(title). Fall back to the declarative ref
-	// when title is omitted so the document retains a stable reconciliation key.
-	if d.Slug == nil {
-		slug := ""
-		if d.Title != nil {
-			slug = util.GenerateSlug(*d.Title)
-		}
-		if slug == "" {
-			slug = util.GenerateSlug(d.Ref)
-		}
-		if slug != "" {
-			d.Slug = &slug
-		}
+	// If slug is not set but title is provided, generate slug from title
+	// This matches the Konnect API behavior: "defaults to slugify(title)"
+	if d.Slug == nil && d.Title != nil && *d.Title != "" {
+		slug := util.GenerateSlug(*d.Title)
+		d.Slug = &slug
 	}
 
 	for i := range d.Children {

@@ -1229,6 +1229,23 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 				}
 			}
 		}
+
+		// Validate documents retained under their parent API after flattening.
+		for j := range api.Documents {
+			document := &api.Documents[j]
+			if err := document.Validate(); err != nil {
+				return fmt.Errorf("invalid api_document %q in api %q: %w", document.GetRef(), api.GetRef(), err)
+			}
+			if existing, found := rs.GetResourceByRef(document.GetRef()); found {
+				if existing.GetType() != resources.ResourceTypeAPIDocument {
+					return fmt.Errorf(
+						"duplicate ref '%s' (already defined as %s)",
+						document.GetRef(),
+						existing.GetType(),
+					)
+				}
+			}
+		}
 	}
 
 	return nil

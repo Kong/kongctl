@@ -25,10 +25,12 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	_ context.Context, execCtx *ExecutionContext, fields map[string]any,
 	create *kkComps.CreateAPIDocumentRequest,
 ) error {
-	// Optional fields
-	if title, ok := fields[planner.FieldTitle].(string); ok {
-		create.Title = &title
+	// Required fields
+	title, ok := fields[planner.FieldTitle].(string)
+	if !ok {
+		return fmt.Errorf("title is required")
 	}
+	create.Title = &title
 
 	content, ok := fields[planner.FieldContent].(string)
 	if !ok {
@@ -36,6 +38,7 @@ func (a *APIDocumentAdapter) MapCreateFields(
 	}
 	create.Content = content
 
+	// Optional fields
 	if slug, ok := fields[planner.FieldSlug].(string); ok {
 		create.Slug = &slug
 	}
@@ -180,7 +183,7 @@ func (a *APIDocumentAdapter) ResourceType() string {
 
 // RequiredFields returns the required fields for creation
 func (a *APIDocumentAdapter) RequiredFields() []string {
-	return []string{planner.FieldContent}
+	return []string{planner.FieldTitle, planner.FieldContent}
 }
 
 // SupportsUpdate returns true as documents support updates
