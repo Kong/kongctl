@@ -115,7 +115,6 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 		prepared.content = nil
 		documents[i].content = nil
 	}
-	documents = nil
 	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
 		return nil, fmt.Errorf("failed to expand templates: %w", err)
 	}
