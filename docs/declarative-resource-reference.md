@@ -654,6 +654,8 @@ ai_gateway_identity_providers:
 
 AI Gateway Policies can also be declared as root resources. Root-level policy
 declarations must identify the parent AI Gateway with `ai_gateway`.
+The `display_name` field must be explicitly provided; kongctl does not infer it
+from `name` or `ref`.
 
 ```yaml
 ai_gateway_policies:

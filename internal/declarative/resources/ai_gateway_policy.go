@@ -119,9 +119,6 @@ func (a *AIGatewayPolicyResource) SetDefaults() {
 	if a.Name == "" {
 		a.Name = a.Ref
 	}
-	if a.DisplayName == "" {
-		a.DisplayName = a.Name
-	}
 	enabled := true
 	if a.Enabled == nil {
 		a.Enabled = &enabled

@@ -118,6 +118,17 @@ Saved plans are not migrated between payload contracts. Kongctl accepts only
 the current plan version and rejects structurally incompatible plans before
 execution with guidance to regenerate the plan.
 
+### DECLARATIVE DEFAULTS
+
+Required API fields must be explicitly stated in the manifest. `SetDefaults()`
+must not derive a required field from `ref`, `name`, or another user-supplied
+field. Hidden cross-field defaults make incomplete manifests appear valid and
+can cause kongctl to differ from an equivalent direct API request.
+
+Only documented, literal API defaults may be applied automatically. For
+example, a documented `enabled: true` default is eligible; copying `name` into
+`display_name` is not.
+
 ### LOGGING & DIAGNOSTICS
 - Always add verbose `slog` debug statements when introducing a new planner or executor path. Helpful patterns:
   - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.
