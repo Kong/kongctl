@@ -1098,11 +1098,20 @@ func (l *Loader) validateAIGatewayConfigStores(rs *resources.ResourceSet) error 
 // validateAIGatewayConfigStoreSecrets validates Config Store child secrets.
 func (l *Loader) validateAIGatewayConfigStoreSecrets(rs *resources.ResourceSet) error {
 	keysByStore := make(map[string]string)
+	refs := make(map[string]struct{})
 	for i := range rs.AIGatewayConfigStoreSecrets {
 		secret := &rs.AIGatewayConfigStoreSecrets[i]
 		if err := secret.Validate(); err != nil {
 			return fmt.Errorf("invalid ai_gateway_config_store_secret %q: %w", secret.GetRef(), err)
 		}
+		if _, exists := refs[secret.GetRef()]; exists {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as %s)",
+				secret.GetRef(),
+				resources.ResourceTypeAIGatewayConfigStoreSecret,
+			)
+		}
+		refs[secret.GetRef()] = struct{}{}
 		if existing, found := rs.GetResourceByRef(secret.GetRef()); found &&
 			existing.GetType() != resources.ResourceTypeAIGatewayConfigStoreSecret {
 			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", secret.GetRef(), existing.GetType())

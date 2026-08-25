@@ -254,7 +254,7 @@ docker run --detach --rm --name consumer-credential-data-plane \
   --volume "$PWD/certs:/etc/kong/certs:ro" \
   --publish 8000:8000 \
   --publish 8443:8443 \
-  kong/kong-ai-gateway:2.0.1
+  kong/kong-ai-gateway:2.0.2
 ```
 
 The container exposes the local HTTP proxy on port `8000` and the HTTPS proxy

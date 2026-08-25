@@ -256,6 +256,31 @@ func TestEnsurePlanningSyncScopeInfersPortalTeamRolesWithTeams(t *testing.T) {
 	))
 }
 
+func TestEnsurePlanningSyncScopeInfersAIGatewayConfigStoreSecrets(t *testing.T) {
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{Ref: "support-gateway"},
+		}},
+		AIGatewayConfigStores: []resources.AIGatewayConfigStoreResource{{
+			BaseResource: resources.BaseResource{Ref: "support-store"},
+			AIGateway:    "support-gateway",
+		}},
+		AIGatewayConfigStoreSecrets: []resources.AIGatewayConfigStoreSecretResource{{
+			BaseResource:         resources.BaseResource{Ref: "support-api-key"},
+			AIGatewayConfigStore: "support-store",
+			Key:                  "api-key",
+		}},
+	}
+
+	ensurePlanningSyncScope(rs)
+	require.NotNil(t, rs.SyncScope)
+	assert.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypeAIGatewayConfigStore,
+		"support-store",
+		resources.ResourceTypeAIGatewayConfigStoreSecret,
+	))
+}
+
 func TestEnsurePlanningSyncScopeInfersOrganizationAssignmentScope(t *testing.T) {
 	rs := &resources.ResourceSet{
 		Organization: &resources.OrganizationResource{

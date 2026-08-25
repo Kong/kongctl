@@ -853,6 +853,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		store.Secrets = nil
 	}
 
+	// Secret sources are collected before the ResourceSet-wide defaults pass, so
+	// establish default secret refs before indexing their source metadata.
+	for i := range rs.AIGatewayConfigStoreSecrets {
+		rs.AIGatewayConfigStoreSecrets[i].SetDefaults()
+	}
+
 	for i := range rs.APIs {
 		api := &rs.APIs[i]
 

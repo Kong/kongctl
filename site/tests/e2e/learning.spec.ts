@@ -66,7 +66,7 @@ test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
   ).toBeVisible();
   await expect(lesson).toContainText("!env OPENAI_API_KEY");
   await expect(lesson).toContainText("openssl req -new -x509");
-  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.2");
   await expect(lesson).toContainText(
     "http://localhost:8000/v1/chat/completions",
   );
@@ -113,7 +113,7 @@ test("protects an AI Gateway model with Consumer credentials", async ({
   await expect(lesson).toContainText("apikey: ${CONSUMER_API_KEY}");
   await expect(lesson).toContainText("HTTP/1.1 401 Unauthorized");
   await expect(lesson).toContainText("HTTP/1.1 200 OK");
-  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.2");
   await expect(lesson).toContainText(
     "docker stop consumer-credential-data-plane",
   );

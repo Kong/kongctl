@@ -171,6 +171,50 @@ ai_gateway_config_store_secrets:
 	require.Contains(t, rs.GetSecretSources("support-api-key"), "/value")
 }
 
+func TestLoaderRejectsDuplicateAIGatewayConfigStoreSecretRefsAcrossStores(t *testing.T) {
+	_, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: primary-store
+        name: primary-store
+        secrets:
+          - key: api-key
+            value: !secret {source: !env PRIMARY_API_KEY}
+      - ref: fallback-store
+        name: fallback-store
+        secrets:
+          - key: api-key
+            value: !secret {source: !env FALLBACK_API_KEY}
+`))
+	require.ErrorContains(t, err, "duplicate ref 'api-key'")
+}
+
+func TestValidatorRejectsDuplicateAIGatewayConfigStoreSecretRefsAcrossStores(t *testing.T) {
+	rs := &resources.ResourceSet{
+		AIGatewayConfigStores: []resources.AIGatewayConfigStoreResource{
+			{BaseResource: resources.BaseResource{Ref: "primary-store"}},
+			{BaseResource: resources.BaseResource{Ref: "fallback-store"}},
+		},
+		AIGatewayConfigStoreSecrets: []resources.AIGatewayConfigStoreSecretResource{
+			{
+				BaseResource:         resources.BaseResource{Ref: "api-key"},
+				AIGatewayConfigStore: "primary-store",
+				Key:                  "api-key",
+			},
+			{
+				BaseResource:         resources.BaseResource{Ref: "api-key"},
+				AIGatewayConfigStore: "fallback-store",
+				Key:                  "api-key",
+			},
+		},
+	}
+
+	err := New().validateAIGatewayConfigStoreSecrets(rs)
+	require.ErrorContains(t, err, "duplicate ref 'api-key' (already defined as ai_gateway_config_store_secret)")
+}
+
 func TestLoaderAIGatewayConfigStoreSecretSyncScope(t *testing.T) {
 	t.Run("omitted is unmanaged", func(t *testing.T) {
 		rs, err := New().LoadFile(writeLoaderTestFile(t, `

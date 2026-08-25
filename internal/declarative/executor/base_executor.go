@@ -166,7 +166,7 @@ func NewManagedLabelBaseExecutor[TCreate any, TUpdate any](
 func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change planner.PlannedChange) (string, error) {
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug(fmt.Sprintf("Creating %s", b.ops.ResourceType()),
-		slog.Any("fields", httpclient.RedactSensitiveFields(change.Fields)))
+		slog.Any("fields", redactResourceOperationFields(b.ops.ResourceType(), change.Fields)))
 
 	// Validate required fields
 	if err := common.ValidateRequiredFields(change.Fields, b.ops.RequiredFields()); err != nil {
@@ -206,7 +206,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 	logger.Debug(fmt.Sprintf("Updating %s", b.ops.ResourceType()),
-		slog.Any("change", httpclient.RedactSensitiveFields(change)))
+		slog.Any("change", redactResourceOperationFields(b.ops.ResourceType(), change)))
 
 	resourceName := common.ExtractResourceName(change.Fields)
 
@@ -260,6 +260,13 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	}
 
 	return id, nil
+}
+
+func redactResourceOperationFields(resourceType string, value any) any {
+	if resourceType == planner.ResourceTypeAIGatewayConfigStoreSecret {
+		return httpclient.RedactSensitiveFieldsWithExactKeys(value, planner.FieldValue)
+	}
+	return httpclient.RedactSensitiveFields(value)
 }
 
 // Delete handles DELETE operations for any resource type

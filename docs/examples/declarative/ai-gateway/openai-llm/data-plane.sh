@@ -7,7 +7,7 @@ cert_dir="${script_dir}/certs"
 cert_file="${cert_dir}/data-plane.crt"
 key_file="${cert_dir}/data-plane.key"
 container_name="openai-llm-data-plane"
-image="${KONG_AI_GATEWAY_IMAGE:-kong/kong-ai-gateway:2.0.1}"
+image="${KONG_AI_GATEWAY_IMAGE:-kong/kong-ai-gateway:2.0.2}"
 
 usage() {
   echo "Usage: $0 certs|run|stop"

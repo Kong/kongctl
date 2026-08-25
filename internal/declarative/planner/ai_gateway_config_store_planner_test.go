@@ -417,8 +417,10 @@ func testAIGatewayConfigStoreVaultRequest(t *testing.T) kkComps.CreateAIGatewayV
 }
 
 type testAIGatewayConfigStoreAPI struct {
-	stores  []kkComps.AIGatewayConfigStore
-	secrets []kkComps.AIGatewayConfigStoreSecret
+	stores            []kkComps.AIGatewayConfigStore
+	secrets           []kkComps.AIGatewayConfigStoreSecret
+	getSecret         *kkComps.AIGatewayConfigStoreSecret
+	getSecretRequests []kkOps.GetAiGatewayConfigStoreSecretRequest
 }
 
 func (t *testAIGatewayConfigStoreAPI) ListAiGatewayConfigStores(
@@ -484,11 +486,15 @@ func (t *testAIGatewayConfigStoreAPI) CreateAiGatewayConfigStoreSecret(
 }
 
 func (t *testAIGatewayConfigStoreAPI) GetAiGatewayConfigStoreSecret(
-	context.Context,
-	kkOps.GetAiGatewayConfigStoreSecretRequest,
-	...kkOps.Option,
+	_ context.Context,
+	request kkOps.GetAiGatewayConfigStoreSecretRequest,
+	_ ...kkOps.Option,
 ) (*kkOps.GetAiGatewayConfigStoreSecretResponse, error) {
-	return nil, nil
+	t.getSecretRequests = append(t.getSecretRequests, request)
+	if t.getSecret == nil {
+		return nil, nil
+	}
+	return &kkOps.GetAiGatewayConfigStoreSecretResponse{AIGatewayConfigStoreSecret: t.getSecret}, nil
 }
 
 func (t *testAIGatewayConfigStoreAPI) UpdateAiGatewayConfigStoreSecret(

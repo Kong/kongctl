@@ -776,6 +776,25 @@ func (p *Planner) resolveSecretResourceID(
 				return resources.AIGatewayVaultID(candidate.AIGatewayVault), nil
 			}
 		}
+	case *resources.AIGatewayConfigStoreSecretResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("AI Gateway Config Store secret %q has no resolved Config Store", typed.Ref)
+		}
+		gatewayReference := secretResourceReferences(rs, resource)[FieldAIGatewayID]
+		if gatewayReference.ID == "" {
+			return "", fmt.Errorf("AI Gateway Config Store secret %q has no resolved gateway", typed.Ref)
+		}
+		current, err := p.client.GetAIGatewayConfigStoreSecret(
+			ctx,
+			gatewayReference.ID,
+			parent.ID,
+			typed.Key,
+		)
+		if err != nil || current == nil {
+			return "", err
+		}
+		return current.Key, nil
 	case *resources.EventGatewaySchemaRegistryResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {
