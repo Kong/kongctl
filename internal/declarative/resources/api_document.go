@@ -116,11 +116,19 @@ func (d *APIDocumentResource) SetDefaults() {
 		d.Status = &status
 	}
 
-	// If slug is not set but title is provided, generate slug from title
-	// This matches the Konnect API behavior: "defaults to slugify(title)"
-	if d.Slug == nil && d.Title != nil && *d.Title != "" {
-		slug := util.GenerateSlug(*d.Title)
-		d.Slug = &slug
+	// Konnect defaults slug to slugify(title). Fall back to the declarative ref
+	// when title is omitted so the document retains a stable reconciliation key.
+	if d.Slug == nil {
+		slug := ""
+		if d.Title != nil {
+			slug = util.GenerateSlug(*d.Title)
+		}
+		if slug == "" {
+			slug = util.GenerateSlug(d.Ref)
+		}
+		if slug != "" {
+			d.Slug = &slug
+		}
 	}
 
 	for i := range d.Children {

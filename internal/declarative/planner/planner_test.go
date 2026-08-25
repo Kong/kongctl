@@ -202,7 +202,8 @@ func (s *stubAPIImplementationAPI) DeleteAPIImplementation(
 }
 
 type stubAPIDocumentAPI struct {
-	response *kkOps.ListAPIDocumentsResponse
+	response      *kkOps.ListAPIDocumentsResponse
+	fetchResponse *kkOps.FetchAPIDocumentResponse
 }
 
 func (s *stubAPIDocumentAPI) CreateAPIDocument(
@@ -255,7 +256,55 @@ func (s *stubAPIDocumentAPI) FetchAPIDocument(
 	_ string,
 	_ ...kkOps.Option,
 ) (*kkOps.FetchAPIDocumentResponse, error) {
+	if s.fetchResponse != nil {
+		return s.fetchResponse, nil
+	}
 	return nil, fmt.Errorf("FetchAPIDocument not implemented")
+}
+
+func TestPlanAPIDocumentChangesMatchesTitlelessDocumentByDefaultedSlug(t *testing.T) {
+	t.Parallel()
+
+	status := kkComps.APIDocumentStatusPublished
+	api := &stubAPIDocumentAPI{
+		response: &kkOps.ListAPIDocumentsResponse{
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{
+					{
+						ID:     "document-123",
+						Slug:   "getting-started",
+						Status: &status,
+					},
+				},
+			},
+		},
+		fetchResponse: &kkOps.FetchAPIDocumentResponse{
+			APIDocumentResponse: &kkComps.APIDocumentResponse{
+				ID:      "document-123",
+				Content: "Old content",
+				Slug:    "getting-started",
+				Status:  &status,
+			},
+		},
+	}
+	document := resources.APIDocumentResource{
+		Ref: "getting-started",
+		CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
+			Content: "Updated content",
+		},
+	}
+	document.SetDefaults()
+
+	client := state.NewClient(state.ClientConfig{APIDocumentAPI: api})
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	err := NewPlanner(client, slog.Default()).planAPIDocumentChanges(
+		t.Context(), NewConfig(DefaultNamespace), DefaultNamespace, "api-123", "", []resources.APIDocumentResource{document},
+		plan,
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	assert.Equal(t, ActionUpdate, plan.Changes[0].Action)
+	assert.Equal(t, "document-123", plan.Changes[0].ResourceID)
 }
 
 func TestGeneratePlan_CreatePortal(t *testing.T) {

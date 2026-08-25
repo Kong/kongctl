@@ -46,6 +46,17 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			expectSlugSet: false,
 		},
 		{
+			name: "generates slug from ref when title is nil",
+			doc: &APIDocumentResource{
+				Ref: "api.guide",
+				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
+					Content: "Content here",
+				},
+			},
+			expectedSlug:  "apiguide",
+			expectSlugSet: true,
+		},
+		{
 			name: "does not generate slug when title is empty",
 			doc: &APIDocumentResource{
 				CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
