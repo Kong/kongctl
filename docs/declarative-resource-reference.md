@@ -35,6 +35,30 @@ _defaults:
     protected: false
 ```
 
+## Configuration templates (`_templates` and `_extends`)
+
+Define reusable configuration blocks under the top-level `_templates` key and
+select one from a resource or nested configuration block with `_extends`:
+
+```yaml
+_templates:
+  private-portal:
+    authentication_enabled: true
+    default_api_visibility: private
+
+portals:
+  - _extends: private-portal
+    ref: developer-portal
+    name: Developer Portal
+```
+
+Templates are shared across all sources loaded by one command. Consumer
+configuration blocks recursively override inherited configuration blocks;
+scalars, sequences, explicit `null`, and values of a different type replace the
+inherited value. Sequences never append. See
+[Configuration Templates](declarative.md#configuration-templates) for
+inheritance, discovery, merge, tag, and sync-scope behavior.
+
 ## YAML Tags
 
 Use YAML tags in field values to load files or reference other resources.

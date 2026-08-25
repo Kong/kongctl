@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag inspection
 )
 
@@ -50,7 +51,7 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 				}
 
 				nextPath := append(path, keyNode.Value)
-				if valueNode.Tag == "!env" {
+				if isEnvValidationNode(valueNode) {
 					if !isEnvStringCompatibleType(fieldType) {
 						return fmt.Errorf(
 							"!env currently supports string-typed fields only (field: %s)",
@@ -70,7 +71,7 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 				keyNode := node.Content[i]
 				valueNode := node.Content[i+1]
 				nextPath := append(path, keyNode.Value)
-				if valueNode.Tag == "!env" {
+				if isEnvValidationNode(valueNode) {
 					if !isEnvStringCompatibleType(elemType) {
 						return fmt.Errorf(
 							"!env currently supports string-typed fields only (field: %s)",
@@ -93,7 +94,7 @@ func validateEnvNode(node *yaml.Node, targetType reflect.Type, path []string) er
 
 		elemType := derefType(targetType.Elem())
 		for _, child := range node.Content {
-			if child.Tag == "!env" {
+			if isEnvValidationNode(child) {
 				if !isEnvStringCompatibleType(elemType) {
 					return fmt.Errorf(
 						"!env currently supports string-typed fields only (field: %s)",
@@ -130,7 +131,7 @@ func validateDynamicEnvNode(node *yaml.Node, path []string) error {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			keyNode := node.Content[i]
 			valueNode := node.Content[i+1]
-			if valueNode.Tag == "!env" {
+			if isEnvValidationNode(valueNode) {
 				continue
 			}
 			if err := validateDynamicEnvNode(valueNode, append(path, keyNode.Value)); err != nil {
@@ -139,7 +140,7 @@ func validateDynamicEnvNode(node *yaml.Node, path []string) error {
 		}
 	case yaml.SequenceNode:
 		for _, child := range node.Content {
-			if child.Tag == "!env" {
+			if isEnvValidationNode(child) {
 				continue
 			}
 			if err := validateDynamicEnvNode(child, path); err != nil {
@@ -153,6 +154,11 @@ func validateDynamicEnvNode(node *yaml.Node, path []string) error {
 	}
 
 	return nil
+}
+
+func isEnvValidationNode(node *yaml.Node) bool {
+	return node != nil && (node.Tag == tags.TagEnv ||
+		(node.Kind == yaml.ScalarNode && tags.IsEnvPlaceholder(node.Value)))
 }
 
 func lookupStructFieldType(targetType reflect.Type, name string) (reflect.Type, bool) {

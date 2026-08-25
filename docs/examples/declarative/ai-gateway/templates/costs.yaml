@@ -1,0 +1,25 @@
+_templates:
+  gpt-4o-token-costs:
+    # Illustrative USD cost per one million tokens. Update these values when
+    # the model price changes; every target extending this template is updated.
+    input_cost: 2.50
+    output_cost: 10.00
+
+  hourly-model-cost-budget:
+    type: ai-rate-limiting-advanced
+    enabled: true
+    global: false
+    labels:
+      managed-by: kongctl
+      purpose: model-cost-budget
+    config:
+      strategy: local
+      window_type: sliding
+      policies:
+        - match:
+            - type: model
+              partition_by: true
+          limits:
+            - limit: 25
+              window_size: 3600
+              tokens_count_strategy: cost

@@ -14,6 +14,9 @@ Gateway resources.
 - [openai-llm](openai-llm) creates an AI Gateway, an OpenAI provider, a model,
   and a data plane certificate, then runs a local Docker data plane and sends
   an OpenAI-compatible chat request through it.
+- [templates](templates) centralizes model token costs used by AI Rate Limiting
+  Advanced, then applies the shared costs and policy across multiple AI model
+  resources.
 - [config-store-vault.yaml](config-store-vault.yaml) connects a nested Config
   Store to a Konnect Vault with `!ref`, then uses a Vault reference for an
   OpenAI provider authorization header.
