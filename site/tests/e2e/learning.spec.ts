@@ -754,10 +754,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 35", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 35", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {
