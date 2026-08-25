@@ -324,6 +324,17 @@ after making changes to catch regressions.
   JSON/YAML tags, and external schema field names as literals unless they are
   also used as an internal contract identifier.
 
+### Declarative Defaults
+
+- Required API fields must be explicitly stated in declarative manifests.
+- `SetDefaults()` must not derive a required field from `ref`, `name`, or
+  another user-supplied field.
+- Only documented, literal API defaults may be applied automatically. Hidden
+  cross-field defaults are prohibited.
+- Existing `name`-from-`ref` fallbacks are legacy behavior, not a pattern to
+  copy. Changes to those fallbacks require separately scoped compatibility
+  work.
+
 ## Testing Guidelines
 
 - Place tests in `*_test.go` with `TestXxx` functions.

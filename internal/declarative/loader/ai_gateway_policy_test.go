@@ -41,6 +41,34 @@ func TestLoaderExtractsNestedAIGatewayPolicies(t *testing.T) {
 	))
 }
 
+func TestLoaderRejectsAIGatewayPolicyWithoutDisplayName(t *testing.T) {
+	tests := map[string]string{
+		"omitted": "",
+		"empty":   "        display_name: ''\n",
+	}
+
+	for name, displayName := range tests {
+		t.Run(name, func(t *testing.T) {
+			input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    policies:
+      - ref: post-function
+        name: post-function
+        type: post-function
+` + displayName + `        config:
+          access:
+            - 'kong.log.info("hello world")'
+`
+
+			_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "display_name is required for AI Gateway policy post-function")
+		})
+	}
+}
+
 func TestLoaderValidatesAIGatewayPolicyParentAndDuplicates(t *testing.T) {
 	rootOnly := `
 ai_gateway_policies:

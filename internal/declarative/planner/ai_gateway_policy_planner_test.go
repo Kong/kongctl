@@ -47,6 +47,7 @@ func TestAIGatewayPolicyPlannerCreatesChildForExistingGateway(t *testing.T) {
 	require.Equal(t, "gateway-id", change.Parent.ID)
 	require.Equal(t, "support-gateway", change.Parent.Ref)
 	require.Equal(t, "ai-sanitizer", change.Fields[FieldType])
+	require.Equal(t, "Mask Sensitive Data", change.Fields[FieldDisplayName])
 }
 
 func TestAIGatewayPolicyPlannerUpdatesExistingPolicy(t *testing.T) {
