@@ -3,6 +3,7 @@ package get
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -253,7 +254,8 @@ func bindKonnectFlags(c *cobra.Command, args []string) error {
 	if err := jq.BindFlags(cfg, c.Flags()); err != nil {
 		return err
 	}
-	if outputFlag := c.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Value.String() == "jsonl" {
+	if outputFlag := c.Flag(cmdcommon.OutputFlagName); outputFlag != nil && outputFlag.Value.String() == "jsonl" &&
+		slices.Contains(cmdcommon.AllowedOutputFormats(c), "jsonl") {
 		return nil
 	}
 	return columns.ValidateColumnFlags(helper, cfg)

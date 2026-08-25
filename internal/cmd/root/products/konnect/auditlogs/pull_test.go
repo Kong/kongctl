@@ -147,6 +147,12 @@ func TestResolveAuditLogWindow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, now.Add(-defaultFollowLookback), *window.Start)
 	require.Equal(t, now, *window.End)
+
+	_, err = resolveAuditLogWindow(pullAuditLogsOptions{
+		Follow:    true,
+		StartTime: now.Add(time.Hour).Format(time.RFC3339),
+	}, now)
+	require.ErrorContains(t, err, "--start-time must not be later")
 }
 
 func TestResolveAuditLogLimit(t *testing.T) {

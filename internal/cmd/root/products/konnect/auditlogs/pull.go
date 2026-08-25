@@ -126,7 +126,7 @@ Set to 0 for unlimited.`)
 		"Interval between successful polling cycles in follow mode.")
 	jqoutput.AddFlags(command.Flags())
 	columns.AddFlags(command.Flags())
-	cmdcommon.AllowExtraOutputFormats(command, jsonLinesOutput)
+	cmdcommon.AllowLocalExtraOutputFormats(command, jsonLinesOutput)
 }
 
 // ConfigureTailPullCommand configures a command as a continuous audit-log pull.
@@ -310,15 +310,15 @@ func resolveAuditLogWindow(options pullAuditLogsOptions, now time.Time) (auditLo
 		end = end.UTC()
 		window.End = &end
 	}
-	if window.Start != nil && window.End != nil && window.Start.After(*window.End) {
-		return window, errors.New("--start-time must not be later than --end-time")
-	}
 	if options.Follow {
 		if window.Start == nil {
 			start := now.Add(-defaultFollowLookback)
 			window.Start = &start
 		}
 		window.End = &now
+	}
+	if window.Start != nil && window.End != nil && window.Start.After(*window.End) {
+		return window, errors.New("--start-time must not be later than --end-time")
 	}
 	return window, nil
 }

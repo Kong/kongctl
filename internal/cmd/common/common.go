@@ -23,6 +23,10 @@ const (
 // the base set (json/yaml/text).
 const ExtraOutputFormatsAnnotation = "kongctl.output.extra-formats"
 
+// LocalExtraOutputFormatsAnnotation is the cobra command-annotation key listing
+// extra --output values accepted only by the annotated command, not its children.
+const LocalExtraOutputFormatsAnnotation = "kongctl.output.local-extra-formats"
+
 // SkipOutputFormatValidationAnnotation marks a command (or its subtree) as
 // performing its own --output handling. When set, the root-level output-format
 // validator skips the command so the command's own (often more actionable)

@@ -3,6 +3,7 @@ package get
 import (
 	"testing"
 
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,5 +29,12 @@ func TestAuditLogPullCommandForms(t *testing.T) {
 			require.NotNilf(t, found.Flag(flag), "expected %v to expose --%s", path, flag)
 		}
 		require.Equal(t, "100", found.Flag("page-size").DefValue)
+		require.Contains(t, cmdcommon.AllowedOutputFormats(found), "jsonl")
+		for _, childName := range []string{"destinations", "destination", "webhook"} {
+			child, _, err := found.Find([]string{childName})
+			require.NoError(t, err)
+			require.NotContains(t, cmdcommon.AllowedOutputFormats(child), "jsonl")
+			require.Error(t, cmdcommon.ValidateOutputFormat(child, "jsonl"))
+		}
 	}
 }
