@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util"
@@ -14,7 +15,15 @@ func init() {
 	registerResourceType(
 		ResourceTypeAPIDocument,
 		func(rs *ResourceSet) *[]APIDocumentResource { return &rs.APIDocuments },
-		AutoExplain[APIDocumentResource](),
+		AutoExplain[APIDocumentResource](
+			WithExplainFieldHint("title", ExplainFieldHint{
+				Description: "The document title. Required here unless content YAML frontmatter provides title.",
+				Recommended: new(true),
+				Notes: []string{
+					"A title must be provided either in this field or in the content YAML frontmatter.",
+				},
+			}),
+		),
 	)
 }
 
@@ -81,6 +90,9 @@ func (d APIDocumentResource) Validate() error {
 	}
 	if d.Content == "" {
 		return fmt.Errorf("API document content is required")
+	}
+	if d.Title == nil || strings.TrimSpace(*d.Title) == "" {
+		return fmt.Errorf("API document title is required either in title or content frontmatter")
 	}
 
 	// Validate slug format using Konnect's regex pattern

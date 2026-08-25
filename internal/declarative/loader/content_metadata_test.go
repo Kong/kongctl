@@ -130,6 +130,23 @@ apis:
 	assert.Equal(t, "api-guide", *doc.Slug)
 }
 
+func TestLoaderRejectsAPIDocumentWithoutEffectiveTitle(t *testing.T) {
+	t.Parallel()
+
+	_, err := loadContentMetadataConfigErr(t, `
+apis:
+  - ref: api-1
+    name: API 1
+    documents:
+      - ref: doc-1
+        content: "# Missing title"
+        slug: missing-title
+`)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "API document title is required either in title or content frontmatter")
+}
+
 func TestLoaderDoesNotDerivePortalPageSlugFromFrontmatterTitle(t *testing.T) {
 	t.Parallel()
 

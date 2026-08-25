@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPIDocumentResource_SetDefaults(t *testing.T) {
@@ -91,4 +92,20 @@ func TestAPIDocumentResource_SetDefaults(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAPIDocumentResourceValidateRequiresEffectiveTitle(t *testing.T) {
+	t.Parallel()
+
+	document := APIDocumentResource{
+		Ref: "guide",
+		CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
+			Content: "# Guide",
+		},
+	}
+
+	require.ErrorContains(t, document.Validate(), "title is required either in title or content frontmatter")
+
+	document.Title = new("Guide")
+	require.NoError(t, document.Validate())
 }

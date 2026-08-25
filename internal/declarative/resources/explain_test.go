@@ -589,6 +589,27 @@ func TestRenderScaffoldYAML_APIVersionSpecUsesFileScalar(t *testing.T) {
 	}
 }
 
+func TestAPIDocumentExplainAndScaffoldGuideEffectiveTitle(t *testing.T) {
+	t.Parallel()
+
+	title, err := ResolveExplainSubject("api.documents.title")
+	require.NoError(t, err)
+	assert.False(t, title.FieldRequired)
+	assert.True(t, title.FieldRecommended)
+	assert.Contains(
+		t,
+		title.Node.Notes,
+		"A title must be provided either in this field or in the content YAML frontmatter.",
+	)
+
+	document, err := ResolveExplainSubject("api.documents")
+	require.NoError(t, err)
+	scaffold, err := RenderScaffoldYAML(document)
+	require.NoError(t, err)
+	assert.Contains(t, scaffold, "        title: value")
+	assert.NotContains(t, scaffold, "        # title: value")
+}
+
 func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
 	subject, err := ResolveExplainSubject("application_auth_strategies")
 	require.NoError(t, err)

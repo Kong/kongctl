@@ -258,6 +258,26 @@ func (s *stubAPIDocumentAPI) FetchAPIDocument(
 	return nil, fmt.Errorf("FetchAPIDocument not implemented")
 }
 
+func TestPlanAPIDocumentCreateIncludesEffectiveTitle(t *testing.T) {
+	t.Parallel()
+
+	title := "Frontmatter Title"
+	document := resources.APIDocumentResource{
+		Ref: "getting-started",
+		CreateAPIDocumentRequest: kkComps.CreateAPIDocumentRequest{
+			Content: "---\ntitle: Frontmatter Title\n---\n\n# Guide",
+			Title:   &title,
+		},
+	}
+
+	plan := NewPlan("1.0", "test", PlanModeApply)
+	new(Planner).planAPIDocumentCreate(
+		DefaultNamespace, "", "api-123", document, nil, apiDocumentLookup{}, plan,
+	)
+	require.Len(t, plan.Changes, 1)
+	assert.Equal(t, "Frontmatter Title", plan.Changes[0].Fields[FieldTitle])
+}
+
 func TestGeneratePlan_CreatePortal(t *testing.T) {
 	ctx := context.Background()
 	mockPortalAPI := new(MockPortalAPI)
