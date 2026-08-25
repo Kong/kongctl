@@ -374,6 +374,23 @@ steps:
                 auto_approve_registrations: true
                 "length(auth_strategy_ids)": 1
                 "auth_strategy_ids[0] != null": true
+      # The update plans no implementation change, so the implementation created
+      # in 002-apply-create must survive the update with the same id and service.
+      # implementation_url is not returned by the list response, so the service
+      # fields are the observable post-update state here.
+      - name: 005-get-implementations
+        run: ["get", "api", "implementations", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.implID }}"
+                service.control_plane_id: "{{ .vars.controlPlaneID }}"
+                service.id: "{{ .vars.gatewayServiceID }}"
 
   - name: 003b-dump-and-round-trip
     skipInputs: true
