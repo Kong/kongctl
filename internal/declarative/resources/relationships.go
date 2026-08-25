@@ -161,6 +161,10 @@ func init() {
 			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
 		}}
 	}
+	relationshipDescriptors[ResourceTypeAIGatewayConfigStoreSecret] = []RelationshipDescriptor{{
+		FieldPath: SchemaFieldAIGatewayConfigStore, TargetType: ResourceTypeAIGatewayConfigStore,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}}
 	relationshipDescriptors[ResourceTypeAIGatewayVault] = append(
 		relationshipDescriptors[ResourceTypeAIGatewayVault],
 		RelationshipDescriptor{

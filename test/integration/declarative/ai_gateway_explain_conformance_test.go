@@ -96,6 +96,13 @@ func validateAIGatewayScenarioExplainSchemas(t *testing.T, resourceSet *resource
 			&resourceSet.AIGatewayConfigStores[i],
 		)
 	}
+	for i := range resourceSet.AIGatewayConfigStoreSecrets {
+		validateResourceAgainstExplainSchema(
+			t,
+			string(resources.ResourceTypeAIGatewayConfigStoreSecret),
+			&resourceSet.AIGatewayConfigStoreSecrets[i],
+		)
+	}
 	for i := range resourceSet.AIGatewayDataPlaneCertificates {
 		validateResourceAgainstExplainSchema(
 			t,

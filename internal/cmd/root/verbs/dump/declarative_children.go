@@ -779,10 +779,22 @@ func buildAIGatewayConfigStores(
 	}
 	result := make([]declresources.AIGatewayConfigStoreResource, 0, len(stores))
 	for _, store := range stores {
-		result = append(
-			result,
-			declresources.AIGatewayConfigStoreResourceFromResponse(gatewayRef, store.AIGatewayConfigStore),
-		)
+		resource := declresources.AIGatewayConfigStoreResourceFromResponse(gatewayRef, store.AIGatewayConfigStore)
+		secrets, err := client.ListAIGatewayConfigStoreSecrets(ctx, gatewayID, store.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list secrets for AI Gateway Config Store %s: %w", store.Name, err)
+		}
+		resource.Secrets = make([]declresources.AIGatewayConfigStoreSecretResource, 0, len(secrets))
+		for _, secret := range secrets {
+			resource.Secrets = append(
+				resource.Secrets,
+				declresources.AIGatewayConfigStoreSecretResourceFromResponse(resource.Ref, secret.AIGatewayConfigStoreSecret),
+			)
+		}
+		slices.SortFunc(resource.Secrets, func(a, b declresources.AIGatewayConfigStoreSecretResource) int {
+			return cmp.Compare(a.Key, b.Key)
+		})
+		result = append(result, resource)
 	}
 	slices.SortFunc(result, func(a, b declresources.AIGatewayConfigStoreResource) int {
 		if a.Name == b.Name {

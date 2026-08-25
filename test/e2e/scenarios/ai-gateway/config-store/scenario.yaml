@@ -3,6 +3,9 @@ baseInputsPath: testdata
 test:
   maturity: beta
 
+env:
+  KONGCTL_E2E_CONFIG_STORE_SECRET: kongctl-config-store-secret-value
+
 vars:
   namespace: ai-gateway-config-store-e2e
   gateway_name: AI Gateway Config Store E2E
@@ -51,6 +54,23 @@ steps:
             expect:
               fields:
                 '"x-kongctl-root-key"': ai_gateway_config_stores
+      - name: 003-explain-secret
+        run: [explain, ai_gateway_config_store_secret, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                type: object
+                '"x-kongctl-root-key"': ai_gateway_config_store_secrets
+      - name: 004-scaffold-secret
+        run: [scaffold, ai_gateway_config_store_secret]
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ai_gateway_config_store_secrets:')": true
+                "contains(stdout, 'value: !secret')": true
 
   - name: 002-create-and-read
     commands:
@@ -62,8 +82,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 5
+                by_action.CREATE: 5
       - name: 001-apply
         outputFormat: json
         run: [apply, --plan, "{{ .workdir }}/plan-create.json", --auto-approve]
@@ -71,7 +91,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 5
                 failed: 0
       - name: 002-list
         run:
@@ -122,8 +142,100 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.store_name }}"
+      - name: 005-list-secrets
+        run:
+          - list
+          - ai-gateway
+          - config-stores
+          - "{{ .vars.store_name }}"
+          - secrets
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?key=='support-api-key'] | [0]"
+            expect:
+              fields:
+                key: support-api-key
+                "contains(keys(@), 'value')": false
+      - name: 006-get-secret
+        run:
+          - get
+          - ai-gateway
+          - config-stores
+          - "{{ .vars.store_name }}"
+          - secrets
+          - support-api-key
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                key: support-api-key
+                "contains(keys(@), 'value')": false
 
-  - name: 003-update-and-dump
+  - name: 003-rotate-secret
+    commands:
+      - name: 000-plan-rotation
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-rotation.json"
+        env:
+          KONGCTL_E2E_CONFIG_STORE_SECRET: rotated-config-store-secret-value
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secret
+          - support-api-key#value
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+                secret_writes: 1
+          - select: changes[0]
+            expect:
+              fields:
+                resource_type: ai_gateway_config_store_secret
+                resource_ref: support-api-key
+                secret_writes[0].field: /value
+      - name: 001-diff-rotation
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan-rotation.json"
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, '[redacted from !env]')": true
+                "contains(@, 'rotated-config-store-secret-value')": false
+      - name: 002-apply-rotation
+        outputFormat: json
+        env:
+          KONGCTL_E2E_CONFIG_STORE_SECRET: rotated-config-store-secret-value
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-rotation.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+  - name: 004-update-and-dump
     inputOverlayDirs: [overlays/001-update]
     commands:
       - name: 000-plan-update
@@ -170,8 +282,10 @@ steps:
               fields:
                 name: "{{ .vars.store_name }}"
                 display_name: Support-Store-Updated
+                "secrets[0].key": support-api-key
+                "contains(keys(secrets[0]), 'value')": false
 
-  - name: 004-sync-delete-vault
+  - name: 005-sync-delete-secret-and-vault
     inputOverlayDirs: [overlays/002-sync-delete-vault]
     commands:
       - name: 000-sync
@@ -181,10 +295,10 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
 
-  - name: 005-sync-delete-store
+  - name: 006-sync-delete-store
     inputOverlayDirs: [overlays/003-sync-delete-store]
     commands:
       - name: 000-sync
@@ -197,7 +311,7 @@ steps:
                 applied: 1
                 failed: 0
 
-  - name: 006-sync-delete-gateway
+  - name: 007-sync-delete-gateway
     inputOverlayDirs: [overlays/004-sync-delete-gateway]
     commands:
       - name: 000-sync

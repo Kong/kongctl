@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -162,6 +164,229 @@ func TestAIGatewayConfigStorePlannerResolvesExistingStoreForVault(t *testing.T) 
 	require.Empty(t, plan.Changes[0].DependsOn)
 }
 
+func TestAIGatewayConfigStoreSecretPlannerCreateNoOpAndRotation(t *testing.T) {
+	t.Run("create includes deferred write", func(t *testing.T) {
+		client := state.NewClient(state.ClientConfig{
+			AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+			AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{
+				stores: []kkComps.AIGatewayConfigStore{{ID: "store-id", Name: "support-store"}},
+			},
+		})
+		rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+			BaseResource: resources.BaseResource{Ref: "support-store"},
+			AIGateway:    "support-gateway",
+			Name:         "support-store",
+		})
+		rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{{
+			BaseResource:         resources.BaseResource{Ref: "support-openai-header"},
+			AIGatewayConfigStore: "support-store",
+			Key:                  "openai-auth-header",
+			Value:                testSecretPlaceholder(t),
+		}}
+		addTestConfigStoreSecretSource(rs)
+
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+			t.Context(), rs, Options{Mode: PlanModeApply},
+		)
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 1)
+		change := plan.Changes[0]
+		require.Equal(t, ResourceTypeAIGatewayConfigStoreSecret, change.ResourceType)
+		require.Equal(t, ActionCreate, change.Action)
+		require.Equal(t, "openai-auth-header", change.Fields[FieldKey])
+		require.Len(t, change.SecretWrites, 1)
+		require.NotContains(t, fmt.Sprint(change.Fields), "configured-secret-value")
+	})
+
+	t.Run("existing is no-op without selector", func(t *testing.T) {
+		client, rs := testExistingConfigStoreSecret(t)
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+			t.Context(), rs, Options{Mode: PlanModeApply},
+		)
+		require.NoError(t, err)
+		require.Empty(t, plan.Changes)
+	})
+
+	t.Run("existing declaration without value is no-op", func(t *testing.T) {
+		client, rs := testExistingConfigStoreSecret(t)
+		rs.AIGatewayConfigStoreSecrets[0].Value = ""
+		delete(rs.SecretSources, "support-openai-header")
+
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+			t.Context(), rs, Options{Mode: PlanModeApply},
+		)
+		require.NoError(t, err)
+		require.Empty(t, plan.Changes)
+	})
+
+	t.Run("selector plans secret-only update", func(t *testing.T) {
+		client, rs := testExistingConfigStoreSecret(t)
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+			t.Context(),
+			rs,
+			Options{Mode: PlanModeApply, WriteSecretSelectors: []string{"support-openai-header#value"}},
+		)
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 1)
+		change := plan.Changes[0]
+		require.Equal(t, ActionUpdate, change.Action)
+		require.Equal(t, "openai-auth-header", change.ResourceID)
+		require.NotContains(t, change.Fields, FieldKey)
+		require.Len(t, change.SecretWrites, 1)
+		require.Equal(t, "store-id", change.Parent.ID)
+		require.Equal(t, "gateway-id", change.References[FieldAIGatewayID].ID)
+	})
+
+	t.Run("write-secrets plans secret-only update", func(t *testing.T) {
+		client, rs := testExistingConfigStoreSecret(t)
+		plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+			t.Context(),
+			rs,
+			Options{Mode: PlanModeApply, WriteSecrets: true},
+		)
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 1)
+		require.Equal(t, ActionUpdate, plan.Changes[0].Action)
+		require.Len(t, plan.Changes[0].SecretWrites, 1)
+	})
+}
+
+func TestAIGatewayConfigStoreSecretPlannerRequiresValueForMissingSecret(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{
+			stores: []kkComps.AIGatewayConfigStore{{ID: "store-id", Name: "support-store"}},
+		},
+	})
+	rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	})
+	rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{{
+		BaseResource:         resources.BaseResource{Ref: "support-openai-header"},
+		AIGatewayConfigStore: "support-store",
+		Key:                  "openai-auth-header",
+	}}
+
+	_, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.ErrorContains(t, err, "requires value: !secret")
+}
+
+func TestAIGatewayConfigStoreSecretPlannerOrdersSamePlanParentCreates(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI:             &testAIGatewayAPI{},
+		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{},
+	})
+	rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	})
+	rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{{
+		BaseResource:         resources.BaseResource{Ref: "support-openai-header"},
+		AIGatewayConfigStore: "support-store",
+		Key:                  "openai-auth-header",
+		Value:                testSecretPlaceholder(t),
+	}}
+	addTestConfigStoreSecretSource(rs)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 3)
+
+	changes := make(map[string]*PlannedChange, len(plan.Changes))
+	for i := range plan.Changes {
+		changes[plan.Changes[i].ResourceType] = &plan.Changes[i]
+	}
+	gatewayChange := changes[ResourceTypeAIGateway]
+	storeChange := changes[ResourceTypeAIGatewayConfigStore]
+	secretChange := changes[ResourceTypeAIGatewayConfigStoreSecret]
+	require.NotNil(t, gatewayChange)
+	require.NotNil(t, storeChange)
+	require.NotNil(t, secretChange)
+	require.Contains(t, storeChange.DependsOn, gatewayChange.ID)
+	require.Contains(t, secretChange.DependsOn, storeChange.ID)
+	require.Nil(t, secretChange.Parent)
+	require.Equal(t, "support-store", secretChange.References[FieldConfigStoreID].Ref)
+	require.Equal(t, "support-gateway", secretChange.References[FieldAIGatewayID].Ref)
+	require.Empty(t, secretChange.References[FieldAIGatewayID].ID)
+}
+
+func TestAIGatewayConfigStoreSecretPlannerSyncDeletesExplicitEmptyScope(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{
+			stores:  []kkComps.AIGatewayConfigStore{{ID: "store-id", Name: "support-store"}},
+			secrets: []kkComps.AIGatewayConfigStoreSecret{{Key: "stale-key"}},
+		},
+	})
+	rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	})
+	rs.SyncScope = resources.NewSyncScope()
+	rs.SyncScope.AddRoot(resources.ResourceTypeAIGateway)
+	rs.SyncScope.AddChild(
+		resources.ResourceTypeAIGateway,
+		"support-gateway",
+		resources.ResourceTypeAIGatewayConfigStore,
+	)
+	rs.SyncScope.AddChild(
+		resources.ResourceTypeAIGatewayConfigStore,
+		"support-store",
+		resources.ResourceTypeAIGatewayConfigStoreSecret,
+	)
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAIGatewayConfigStoreSecret, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+}
+
+func testExistingConfigStoreSecret(
+	t *testing.T,
+) (*state.Client, *resources.ResourceSet) {
+	t.Helper()
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{
+			stores:  []kkComps.AIGatewayConfigStore{{ID: "store-id", Name: "support-store"}},
+			secrets: []kkComps.AIGatewayConfigStoreSecret{{Key: "openai-auth-header"}},
+		},
+	})
+	rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	})
+	rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{{
+		BaseResource:         resources.BaseResource{Ref: "support-openai-header"},
+		AIGatewayConfigStore: "support-store",
+		Key:                  "openai-auth-header",
+		Value:                testSecretPlaceholder(t),
+	}}
+	addTestConfigStoreSecretSource(rs)
+	return client, rs
+}
+
+func addTestConfigStoreSecretSource(rs *resources.ResourceSet) {
+	rs.AddSecretSource("support-openai-header", "/value", tags.SecretExpression{Parts: []tags.SecretPart{{
+		Source: &tags.SecretSource{Kind: "env", Reference: "OPENAI_AUTH_HEADER"},
+	}}}, false)
+}
+
+func testSecretPlaceholder(t *testing.T) string {
+	t.Helper()
+	value, err := tags.BuildSecretPlaceholder(tags.SecretExpression{Parts: []tags.SecretPart{{
+		Source: &tags.SecretSource{Kind: "env", Reference: "OPENAI_AUTH_HEADER"},
+	}}})
+	require.NoError(t, err)
+	return value
+}
+
 func testAIGatewayConfigStoreResourceSet(
 	stores ...resources.AIGatewayConfigStoreResource,
 ) *resources.ResourceSet {
@@ -192,7 +417,8 @@ func testAIGatewayConfigStoreVaultRequest(t *testing.T) kkComps.CreateAIGatewayV
 }
 
 type testAIGatewayConfigStoreAPI struct {
-	stores []kkComps.AIGatewayConfigStore
+	stores  []kkComps.AIGatewayConfigStore
+	secrets []kkComps.AIGatewayConfigStoreSecret
 }
 
 func (t *testAIGatewayConfigStoreAPI) ListAiGatewayConfigStores(
@@ -236,5 +462,47 @@ func (t *testAIGatewayConfigStoreAPI) DeleteAiGatewayConfigStore(
 	kkOps.DeleteAiGatewayConfigStoreRequest,
 	...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConfigStoreResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConfigStoreAPI) ListAiGatewayConfigStoreSecrets(
+	_ context.Context,
+	_ kkOps.ListAiGatewayConfigStoreSecretsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAiGatewayConfigStoreSecretsResponse, error) {
+	return &kkOps.ListAiGatewayConfigStoreSecretsResponse{
+		ListAIGatewayConfigStoreSecretsResponse: &kkComps.ListAIGatewayConfigStoreSecretsResponse{Data: t.secrets},
+	}, nil
+}
+
+func (t *testAIGatewayConfigStoreAPI) CreateAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.CreateAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.CreateAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConfigStoreAPI) GetAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.GetAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.GetAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConfigStoreAPI) UpdateAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.UpdateAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.UpdateAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (t *testAIGatewayConfigStoreAPI) DeleteAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.DeleteAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConfigStoreSecretResponse, error) {
 	return nil, nil
 }

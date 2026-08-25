@@ -819,6 +819,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		for j := range gateway.ConfigStores {
 			store := gateway.ConfigStores[j]
 			store.AIGateway = gateway.Ref
+			for k := range store.Secrets {
+				secret := store.Secrets[k]
+				secret.AIGatewayConfigStore = store.Ref
+				rs.AIGatewayConfigStoreSecrets = append(rs.AIGatewayConfigStoreSecrets, secret)
+			}
+			store.Secrets = nil
 			rs.AIGatewayConfigStores = append(rs.AIGatewayConfigStores, store)
 		}
 		gateway.ConfigStores = nil
@@ -835,6 +841,16 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
 		}
 		gateway.DataPlaneCertificates = nil
+	}
+
+	for i := range rs.AIGatewayConfigStores {
+		store := &rs.AIGatewayConfigStores[i]
+		for j := range store.Secrets {
+			secret := store.Secrets[j]
+			secret.AIGatewayConfigStore = store.Ref
+			rs.AIGatewayConfigStoreSecrets = append(rs.AIGatewayConfigStoreSecrets, secret)
+		}
+		store.Secrets = nil
 	}
 
 	for i := range rs.APIs {

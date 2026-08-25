@@ -111,6 +111,7 @@ func (p *Planner) applySecretWriteIntents(
 				Fields:       fields,
 				Namespace:    secretResourceNamespace(rs, resource),
 				Parent:       secretResourceParent(rs, resource),
+				References:   secretResourceReferences(rs, resource),
 			}
 			plan.AddChange(*change)
 			change = &plan.Changes[len(plan.Changes)-1]
@@ -388,6 +389,9 @@ func secretResourceFields(resource resources.Resource, action ActionType) (map[s
 	}
 	if resource.GetType() == resources.ResourceTypePortalIdentityProvider && action == ActionUpdate {
 		delete(fields, FieldType)
+	}
+	if resource.GetType() == resources.ResourceTypeAIGatewayConfigStoreSecret && action == ActionUpdate {
+		delete(fields, FieldKey)
 	}
 	return fields, nil
 }
@@ -687,6 +691,30 @@ func secretResourceParent(rs *resources.ResourceSet, resource resources.Resource
 		return &ParentInfo{Ref: parentRef.Ref}
 	}
 	return &ParentInfo{Ref: parentRef.Ref, ID: parent.GetKonnectID()}
+}
+
+func secretResourceReferences(rs *resources.ResourceSet, resource resources.Resource) map[string]ReferenceInfo {
+	secret, ok := resource.(*resources.AIGatewayConfigStoreSecretResource)
+	if !ok {
+		return nil
+	}
+	store := rs.GetAIGatewayConfigStoreByRef(resources.NormalizeResourceRef(secret.AIGatewayConfigStore))
+	if store == nil {
+		return nil
+	}
+	gateway := rs.GetAIGatewayByRef(resources.NormalizeResourceRef(store.AIGateway))
+	if gateway == nil {
+		return nil
+	}
+	return map[string]ReferenceInfo{
+		FieldAIGatewayID: {
+			Ref: gateway.GetRef(),
+			ID:  gateway.GetKonnectID(),
+			LookupFields: map[string]string{
+				FieldName: gateway.GetRef(),
+			},
+		},
+	}
 }
 
 func (p *Planner) resolveSecretResourceID(

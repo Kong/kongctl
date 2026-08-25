@@ -73,6 +73,7 @@ var sensitiveExactFieldKeys = map[string]struct{}{
 	"passphrase":           {},
 	"client_secret":        {},
 	"service_account_json": {},
+	"value":                {},
 	"set_cookie":           {},
 	"konnectaccesstoken":   {},
 	"konnectrefreshtoken":  {},

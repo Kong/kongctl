@@ -164,6 +164,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAIGatewayModel,
 		resources.ResourceTypeAIGatewayMCPServer,
 		resources.ResourceTypeAIGatewayConfigStore,
+		resources.ResourceTypeAIGatewayConfigStoreSecret,
 		resources.ResourceTypeAIGatewayVault,
 		resources.ResourceTypeAIGatewayDataPlaneCertificate:
 		return false, nil

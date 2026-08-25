@@ -361,6 +361,11 @@ type AIGatewayConfigStore struct {
 	kkComps.AIGatewayConfigStore
 }
 
+// AIGatewayConfigStoreSecret represents public metadata for a write-only Config Store secret.
+type AIGatewayConfigStoreSecret struct {
+	kkComps.AIGatewayConfigStoreSecret
+}
+
 // AIGatewayVault represents a Konnect AI Gateway Vault for internal use.
 type AIGatewayVault struct {
 	kkComps.AIGatewayVault

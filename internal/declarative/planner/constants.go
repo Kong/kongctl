@@ -70,6 +70,7 @@ const (
 	FieldVersion        = "version"
 	FieldSpec           = "spec"
 	FieldSlug           = "slug"
+	FieldKey            = "key"
 	FieldValue          = "value"
 	FieldAPIKey         = "api_key"
 	FieldClientID       = "client_id"
@@ -239,6 +240,7 @@ const (
 	ResourceTypeAIGatewayModel                   = string(resources.ResourceTypeAIGatewayModel)
 	ResourceTypeAIGatewayMCPServer               = string(resources.ResourceTypeAIGatewayMCPServer)
 	ResourceTypeAIGatewayConfigStore             = string(resources.ResourceTypeAIGatewayConfigStore)
+	ResourceTypeAIGatewayConfigStoreSecret       = string(resources.ResourceTypeAIGatewayConfigStoreSecret)
 	ResourceTypeAIGatewayVault                   = string(resources.ResourceTypeAIGatewayVault)
 	ResourceTypeAIGatewayDataPlaneCertificate    = string(resources.ResourceTypeAIGatewayDataPlaneCertificate)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)

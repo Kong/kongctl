@@ -394,8 +394,8 @@ This section covers the root AI Gateway resource backed by the Konnect
 `/v1/ai-gateways` API, AI Gateway Model Providers, AI Gateway Models, AI
 Gateway Auth Strategies, AI Gateway MCP Servers, AI Gateway Agents, AI
 Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
-AI Gateway Config Stores, AI Gateway Vaults, and AI Gateway Data Plane
-Certificates. Use
+AI Gateway Config Stores, AI Gateway Config Store Secrets, AI Gateway Vaults,
+and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_model_provider --output yaml`,
 `kongctl explain ai_gateway_auth_strategy --output yaml`,
@@ -406,6 +406,7 @@ Certificates. Use
 `kongctl explain ai_gateway.models --output yaml`,
 `kongctl explain ai_gateway.mcp_servers --output yaml`,
 `kongctl explain ai_gateway.config_stores --output yaml`,
+`kongctl explain ai_gateway.config_stores.secrets --output yaml`,
 `kongctl explain ai_gateway.vaults --output yaml`, and
 `kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
 authoritative schemas.
@@ -446,23 +447,26 @@ OAuth access-token claim selection and protected-resource metadata. The
 
 For AI Gateway Auth Strategies, Policies, Agents, Consumers, Consumer
 Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
-root-level
-declarations must include `ai_gateway`, while nested declarations inherit the
-parent gateway. AI Gateway
-Consumer Credentials are children of AI Gateway Consumers; root-level
+root-level declarations must include `ai_gateway`, while nested declarations
+inherit the parent gateway. AI Gateway Consumer Credentials are children of AI
+Gateway Consumers; root-level
 declarations must include `ai_gateway_consumer`, while nested declarations
 inherit the parent consumer. Omit `auth_strategies`, `policies`, `agents`,
 `consumers`, `credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
 `data_plane_certificates` to leave existing child resources unmanaged during
-sync. Use `auth_strategies: []`, `policies: []`, `agents: []`,
+sync. Config Store Secrets are children of Config Stores; root-level
+declarations must include `ai_gateway_config_store`, while nested declarations
+inherit the parent store. Omit `secrets` to leave existing secrets unmanaged.
+Use `auth_strategies: []`, `policies: []`, `agents: []`,
 `consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
-`config_stores: []`, `vaults: []`, or
+`config_stores: []`, `secrets: []`, `vaults: []`, or
 `data_plane_certificates: []` under a specific parent to sync-delete that child
 type. Root-level `ai_gateway_auth_strategies: []`,
 `ai_gateway_policies: []`, `ai_gateway_agents: []`,
 `ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
 `ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
-`ai_gateway_config_stores: []`, `ai_gateway_vaults: []`, and
+`ai_gateway_config_stores: []`, `ai_gateway_config_store_secrets: []`,
+`ai_gateway_vaults: []`, and
 `ai_gateway_data_plane_certificates: []` are rejected because they do not
 identify a parent resource.
 
@@ -876,12 +880,33 @@ ai_gateway_config_stores:
    ai_gateway: support-gateway
    name: support-store
    display_name: Support-Store
+   secrets:
+    - ref: support-openai-header
+      key: openai-auth-header
+      value: !secret {source: !env OPENAI_AUTH_HEADER}
+```
+
+Secrets can also be declared at the root. The `value` field is write-only and
+must use `!secret` with a deferred source. A declaration or dump may omit
+`value` to represent an existing secret without requesting a write. Creating a
+missing secret without `value` is rejected. Use `--write-secret
+support-openai-header#value` or `--write-secrets` to rotate an existing value.
+
+```yaml
+ai_gateway_config_store_secrets:
+ - ref: support-openai-header
+   ai_gateway_config_store: support-store
+   key: openai-auth-header
+   value: !secret {source: !env OPENAI_AUTH_HEADER}
 ```
 
 Use `kongctl get ai-gateway config-stores --gateway-id <id>` (or
 `--gateway-name <name>`) to list Config Stores. Add a Config Store ID or name
 as the final argument to retrieve one store. Text, JSON, and YAML output are
-supported.
+supported. Use `kongctl get ai-gateway config-stores <store> secrets
+--gateway-id <id>` to list safe secret metadata, and append a secret key to
+retrieve one secret. The `list` verb supports the same secret-list form.
+Secret values are never returned or displayed.
 
 Konnect Vaults can reference a Config Store declared in the same configuration.
 The reference is resolved to the Config Store API ID and orders its creation

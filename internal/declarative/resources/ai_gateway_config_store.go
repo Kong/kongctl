@@ -32,9 +32,10 @@ func init() {
 // AIGatewayConfigStoreResource represents a Config Store nested under a Konnect AI Gateway.
 type AIGatewayConfigStoreResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
-	AIGateway    string  `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name         string  `yaml:"name"                 json:"name"`
-	DisplayName  *string `yaml:"display_name,omitempty" json:"display_name,omitempty"`
+	AIGateway    string                               `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	Name         string                               `yaml:"name"                 json:"name"`
+	DisplayName  *string                              `yaml:"display_name,omitempty" json:"display_name,omitempty"`
+	Secrets      []AIGatewayConfigStoreSecretResource `yaml:"secrets,omitempty" json:"secrets,omitempty"`
 }
 
 func (a AIGatewayConfigStoreResource) GetType() ResourceType {
@@ -186,6 +187,12 @@ func aiGatewayConfigStoreExplainNode(_ ExplainBuildContext) (*ExplainNode, error
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField(SchemaFieldName, explainStringNode("my-config-store"), true, true),
 		explainField(SchemaFieldDisplayName, explainStringNode("My-Config-Store"), false, true),
+		explainField(
+			"secrets",
+			&ExplainNode{Kind: explainKindArray, Items: aiGatewayConfigStoreSecretInlineExplainNode()},
+			false,
+			false,
+		),
 	), nil
 }
 

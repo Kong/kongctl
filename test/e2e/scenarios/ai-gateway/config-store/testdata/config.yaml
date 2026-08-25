@@ -9,9 +9,23 @@ ai_gateways:
       - ref: support-store
         name: support-store
         display_name: Support-Store
+        secrets:
+          - ref: support-api-key
+            key: support-api-key
+            value: !secret {source: !env KONGCTL_E2E_CONFIG_STORE_SECRET}
     vaults:
       - ref: support-vault
         type: konnect
         name: support-vault
         config:
           config_store_id: !ref support-store#id
+    model_providers:
+      - ref: support-openai
+        name: support-openai
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: "{vault://support-vault/support-api-key}"

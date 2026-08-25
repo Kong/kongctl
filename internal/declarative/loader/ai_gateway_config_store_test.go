@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,4 +119,132 @@ ai_gateways:
 	require.NoError(t, err)
 	config := payload[resources.SchemaFieldConfig].(map[string]any)
 	require.Equal(t, "__REF__:support-store#id", config[resources.SchemaFieldConfigStoreID])
+}
+
+func TestLoaderExtractsNestedAIGatewayConfigStoreSecrets(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-store
+        name: support-store
+        secrets:
+          - ref: support-openai-header
+            key: openai-auth-header
+            value: !secret {source: !env OPENAI_AUTH_HEADER}
+`
+	rs, err := New().LoadFile(writeLoaderTestFile(t, input))
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayConfigStoreSecrets, 1)
+	require.Equal(t, "support-store", rs.AIGatewayConfigStoreSecrets[0].AIGatewayConfigStore)
+	require.Equal(t, "openai-auth-header", rs.AIGatewayConfigStoreSecrets[0].Key)
+	require.True(t, tags.IsSecretPlaceholder(rs.AIGatewayConfigStoreSecrets[0].Value))
+	require.Contains(t, rs.GetSecretSources("support-openai-header"), "/value")
+	require.True(t, rs.SyncScope.ChildInScope(
+		resources.ResourceTypeAIGatewayConfigStore,
+		"support-store",
+		resources.ResourceTypeAIGatewayConfigStoreSecret,
+	))
+}
+
+func TestLoaderAcceptsRootAIGatewayConfigStoreSecret(t *testing.T) {
+	rs, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+ai_gateway_config_stores:
+  - ref: support-store
+    ai_gateway: !ref support-gateway
+    name: support-store
+ai_gateway_config_store_secrets:
+  - ref: support-api-key
+    ai_gateway_config_store: !ref support-store
+    key: support-api-key
+    value: !secret {source: !env SUPPORT_API_KEY}
+`))
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayConfigStoreSecrets, 1)
+	require.Equal(t, "support-store", resources.NormalizeResourceRef(
+		rs.AIGatewayConfigStoreSecrets[0].AIGatewayConfigStore,
+	))
+	require.Contains(t, rs.GetSecretSources("support-api-key"), "/value")
+}
+
+func TestLoaderAIGatewayConfigStoreSecretSyncScope(t *testing.T) {
+	t.Run("omitted is unmanaged", func(t *testing.T) {
+		rs, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-store
+        name: support-store
+`))
+		require.NoError(t, err)
+		require.False(t, rs.SyncScope.ChildInScope(
+			resources.ResourceTypeAIGatewayConfigStore,
+			"support-store",
+			resources.ResourceTypeAIGatewayConfigStoreSecret,
+		))
+	})
+
+	t.Run("explicit empty is managed", func(t *testing.T) {
+		rs, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-store
+        name: support-store
+        secrets: []
+`))
+		require.NoError(t, err)
+		require.True(t, rs.SyncScope.ChildInScope(
+			resources.ResourceTypeAIGatewayConfigStore,
+			"support-store",
+			resources.ResourceTypeAIGatewayConfigStoreSecret,
+		))
+	})
+
+	t.Run("root empty is rejected", func(t *testing.T) {
+		_, err := New().LoadFile(writeLoaderTestFile(t, "ai_gateway_config_store_secrets: []"))
+		require.ErrorContains(t, err, "ai_gateway_config_store_secrets cannot be empty")
+	})
+}
+
+func TestLoaderRejectsLiteralAIGatewayConfigStoreSecretWithoutEchoingValue(t *testing.T) {
+	secretValue := "must-not-appear"
+	_, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-store
+        name: support-store
+        secrets:
+          - ref: support-openai-header
+            key: openai-auth-header
+            value: `+secretValue+`
+`))
+	require.ErrorContains(t, err, "field /value")
+	require.NotContains(t, err.Error(), secretValue)
+}
+
+func TestLoaderAcceptsDumpedAIGatewayConfigStoreSecretWithoutValue(t *testing.T) {
+	rs, err := New().LoadFile(writeLoaderTestFile(t, `
+ai_gateways:
+  - ref: support-gateway-id
+    display_name: Support Gateway
+    config_stores:
+      - ref: support-store-id
+        name: support-store
+        secrets:
+          - ref: support-api-key
+            key: support-api-key
+`))
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayConfigStoreSecrets, 1)
+	require.Equal(t, "support-api-key", rs.AIGatewayConfigStoreSecrets[0].Key)
+	require.Empty(t, rs.AIGatewayConfigStoreSecrets[0].Value)
 }

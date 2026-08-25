@@ -21,6 +21,7 @@ func TestAIGatewayResourcesAreBeta(t *testing.T) {
 		ResourceTypeAIGatewayModel,
 		ResourceTypeAIGatewayMCPServer,
 		ResourceTypeAIGatewayConfigStore,
+		ResourceTypeAIGatewayConfigStoreSecret,
 		ResourceTypeAIGatewayVault,
 		ResourceTypeAIGatewayDataPlaneCertificate,
 	}
