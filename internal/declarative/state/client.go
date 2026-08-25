@@ -37,7 +37,7 @@ type ClientConfig struct {
 	CatalogServiceAPI                 helpers.CatalogServicesAPI
 	AIGatewayAPI                      helpers.AIGatewayAPI
 	AIGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
-	AIGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
+	AIGatewayAuthStrategiesAPI        helpers.AIGatewayAuthStrategiesAPI
 	AIGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	AIGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	AIGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -111,7 +111,7 @@ type Client struct {
 	catalogServiceAPI                 helpers.CatalogServicesAPI
 	aiGatewayAPI                      helpers.AIGatewayAPI
 	aiGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
-	aiGatewayIdentityProvidersAPI     helpers.AIGatewayIdentityProvidersAPI
+	aiGatewayAuthStrategiesAPI        helpers.AIGatewayAuthStrategiesAPI
 	aiGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	aiGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	aiGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -186,7 +186,7 @@ func NewClient(config ClientConfig) *Client {
 		catalogServiceAPI:                 config.CatalogServiceAPI,
 		aiGatewayAPI:                      config.AIGatewayAPI,
 		aiGatewayProvidersAPI:             config.AIGatewayProvidersAPI,
-		aiGatewayIdentityProvidersAPI:     config.AIGatewayIdentityProvidersAPI,
+		aiGatewayAuthStrategiesAPI:        config.AIGatewayAuthStrategiesAPI,
 		aiGatewayPoliciesAPI:              config.AIGatewayPoliciesAPI,
 		aiGatewayAgentsAPI:                config.AIGatewayAgentsAPI,
 		aiGatewayConsumersAPI:             config.AIGatewayConsumersAPI,
@@ -299,8 +299,8 @@ type AIGatewayProvider struct {
 	NormalizedLabels map[string]string
 }
 
-// AIGatewayIdentityProvider represents a Konnect AI Gateway Identity Provider for internal use.
-type AIGatewayIdentityProvider struct {
+// AIGatewayAuthStrategy represents a Konnect AI Gateway Auth Strategy for internal use.
+type AIGatewayAuthStrategy struct {
 	ID               string
 	Name             string
 	Type             string
@@ -1919,10 +1919,6 @@ func (c *Client) UpdateAIGateway(
 	if c.aiGatewayAPI == nil {
 		return nil, fmt.Errorf("AI Gateway API not configured")
 	}
-	if strings.TrimSpace(req.Name) == "" {
-		return nil, fmt.Errorf("AI Gateway name is required")
-	}
-
 	resp, err := c.aiGatewayAPI.UpdateAiGateway(ctx, id, req)
 	if err != nil {
 		return nil, WrapAPIError(err, "update AI Gateway", &ErrorWrapperOptions{

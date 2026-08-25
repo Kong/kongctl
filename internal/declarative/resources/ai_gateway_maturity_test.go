@@ -12,7 +12,7 @@ func TestAIGatewayResourcesAreBeta(t *testing.T) {
 	resourceTypes := []ResourceType{
 		ResourceTypeAIGateway,
 		ResourceTypeAIGatewayProvider,
-		ResourceTypeAIGatewayIdentityProvider,
+		ResourceTypeAIGatewayAuthStrategy,
 		ResourceTypeAIGatewayPolicy,
 		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,

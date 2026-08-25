@@ -27,15 +27,15 @@ ai-gateway/federated/
 
 ## Ownership
 
-- `central-team/ai-gateway.yaml` defines the shared AI Gateway, a shared key
-  authentication identity provider, and two nested model providers: OpenAI
+- `central-team/ai-gateway.yaml` defines the shared AI Gateway, a shared
+  key-auth strategy, and two nested model providers: OpenAI
   and Anthropic.
 - `peer-team/support-policy.yaml` defines standalone `ai_gateway_policies`
   entries that reference the central gateway with
   `!ref shared-ai-gateway#id`.
 - `peer-team/support-agent.yaml` defines a standalone `ai_gateway_agents` entry
   that references the central gateway with `!ref shared-ai-gateway#id` and
-  attaches the central identity provider with an explicit
+  attaches the central auth strategy with an explicit
   `!ref shared-key-auth`.
 - `peer-team/support-consumer.yaml` defines a standalone
   `ai_gateway_consumers` entry that references the central gateway with
@@ -50,7 +50,7 @@ ai-gateway/federated/
   and attaches the policy with an explicit `!ref peer-mask-sensitive-data`.
 - `peer-team/support-mcp-server.yaml` defines a standalone
   `ai_gateway_mcp_servers` entry that references the central gateway with
-  `!ref shared-ai-gateway#id` and attaches the central identity provider with
+  `!ref shared-ai-gateway#id` and attaches the central auth strategy with
   an explicit `!ref shared-key-auth`.
 - `peer-team/support-vault.yaml` defines a standalone `ai_gateway_vaults` entry
   that references the central gateway with `!ref shared-ai-gateway#id`.

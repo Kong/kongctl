@@ -6,6 +6,7 @@ ai_gateways:
   - ref: shared-ai-gateway
     name: shared-ai-gateway
     display_name: "Shared Federated AI Gateway"
+    deployment_type: hybrid
     description: "Central AI Gateway owned by the AI platform team"
     proxy_urls:
       - host: shared-ai.example.com
@@ -39,7 +40,7 @@ ai_gateways:
             headers:
               - name: x-api-key
                 value: !secret {source: !env ANTHROPIC_API_KEY}
-    identity_providers:
+    auth_strategies:
       - ref: shared-key-auth
         name: shared-key-auth
         type: key-auth

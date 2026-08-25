@@ -212,6 +212,7 @@ func (a AIGatewayModelResource) MutablePayloadMap() (map[string]any, error) {
 		return nil, err
 	}
 	stripAIGatewayModelServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
 
@@ -530,6 +531,7 @@ func AIGatewayModelMutablePayloadMap(model kkComps.AIGatewayModel) (map[string]a
 		return nil, err
 	}
 	stripAIGatewayModelServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
 

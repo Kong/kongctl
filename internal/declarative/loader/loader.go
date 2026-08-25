@@ -820,12 +820,12 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		}
 		gateway.Policies = nil
 
-		for j := range gateway.IdentityProviders {
-			provider := gateway.IdentityProviders[j]
+		for j := range gateway.AuthStrategies {
+			provider := gateway.AuthStrategies[j]
 			provider.AIGateway = gateway.Ref
-			rs.AIGatewayIdentityProviders = append(rs.AIGatewayIdentityProviders, provider)
+			rs.AIGatewayAuthStrategies = append(rs.AIGatewayAuthStrategies, provider)
 		}
-		gateway.IdentityProviders = nil
+		gateway.AuthStrategies = nil
 
 		for j := range gateway.Agents {
 			agent := gateway.Agents[j]
@@ -960,7 +960,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.PortalIntegrations = append(rs.PortalIntegrations, integration)
 		}
 
-		// Extract identity providers
+		// Extract auth strategies
 		for j := range portal.IdentityProviders {
 			provider := portal.IdentityProviders[j]
 			provider.Portal = portal.Ref

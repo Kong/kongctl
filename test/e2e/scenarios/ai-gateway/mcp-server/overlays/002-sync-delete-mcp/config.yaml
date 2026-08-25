@@ -14,7 +14,7 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    identity_providers:
+    auth_strategies:
       - ref: mcp-key-auth
         name: mcp-key-auth
         type: key-auth

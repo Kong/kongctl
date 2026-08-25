@@ -9,48 +9,48 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-// AIGatewayIdentityProviderAdapter implements ResourceOperations for AI Gateway Identity Providers.
-type AIGatewayIdentityProviderAdapter struct {
+// AIGatewayAuthStrategyAdapter implements ResourceOperations for AI Gateway Auth Strategies.
+type AIGatewayAuthStrategyAdapter struct {
 	client *state.Client
 }
 
-// NewAIGatewayIdentityProviderAdapter creates a new AI Gateway Identity Provider adapter.
-func NewAIGatewayIdentityProviderAdapter(client *state.Client) *AIGatewayIdentityProviderAdapter {
-	return &AIGatewayIdentityProviderAdapter{client: client}
+// NewAIGatewayAuthStrategyAdapter creates a new AI Gateway Auth Strategy adapter.
+func NewAIGatewayAuthStrategyAdapter(client *state.Client) *AIGatewayAuthStrategyAdapter {
+	return &AIGatewayAuthStrategyAdapter{client: client}
 }
 
-func (a *AIGatewayIdentityProviderAdapter) MapCreateFields(
+func (a *AIGatewayAuthStrategyAdapter) MapCreateFields(
 	_ context.Context,
 	_ *ExecutionContext,
 	fields map[string]any,
-	create *kkComps.CreateAIGatewayIdentityProviderRequest,
+	create *kkComps.CreateAIGatewayAuthStrategyRequest,
 ) error {
-	payload, err := aiGatewayIdentityProviderPayloadFromFields(fields)
+	payload, err := aiGatewayAuthStrategyPayloadFromFields(fields)
 	if err != nil {
 		return err
 	}
 
-	return mapAIGatewaySDKRequest("AI Gateway Identity Provider create", payload, create)
+	return mapAIGatewaySDKRequest("AI Gateway Auth Strategy create", payload, create)
 }
 
-func (a *AIGatewayIdentityProviderAdapter) MapUpdateFields(
+func (a *AIGatewayAuthStrategyAdapter) MapUpdateFields(
 	_ context.Context,
 	_ *ExecutionContext,
 	fields map[string]any,
-	update *kkComps.UpdateAIGatewayIdentityProviderRequest,
+	update *kkComps.UpdateAIGatewayAuthStrategyRequest,
 	_ map[string]string,
 ) error {
-	payload, err := aiGatewayIdentityProviderPayloadFromFields(fields)
+	payload, err := aiGatewayAuthStrategyPayloadFromFields(fields)
 	if err != nil {
 		return err
 	}
 
-	return mapAIGatewaySDKRequest("AI Gateway Identity Provider update", payload, update)
+	return mapAIGatewaySDKRequest("AI Gateway Auth Strategy update", payload, update)
 }
 
-func (a *AIGatewayIdentityProviderAdapter) Create(
+func (a *AIGatewayAuthStrategyAdapter) Create(
 	ctx context.Context,
-	req kkComps.CreateAIGatewayIdentityProviderRequest,
+	req kkComps.CreateAIGatewayAuthStrategyRequest,
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
@@ -58,13 +58,13 @@ func (a *AIGatewayIdentityProviderAdapter) Create(
 	if err != nil {
 		return "", err
 	}
-	return a.client.CreateAIGatewayIdentityProvider(ctx, gatewayID, req, namespace)
+	return a.client.CreateAIGatewayAuthStrategy(ctx, gatewayID, req, namespace)
 }
 
-func (a *AIGatewayIdentityProviderAdapter) Update(
+func (a *AIGatewayAuthStrategyAdapter) Update(
 	ctx context.Context,
 	id string,
-	req kkComps.UpdateAIGatewayIdentityProviderRequest,
+	req kkComps.UpdateAIGatewayAuthStrategyRequest,
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
@@ -72,22 +72,22 @@ func (a *AIGatewayIdentityProviderAdapter) Update(
 	if err != nil {
 		return "", err
 	}
-	return a.client.UpdateAIGatewayIdentityProvider(ctx, gatewayID, id, req, namespace)
+	return a.client.UpdateAIGatewayAuthStrategy(ctx, gatewayID, id, req, namespace)
 }
 
-func (a *AIGatewayIdentityProviderAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+func (a *AIGatewayAuthStrategyAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
 	}
-	return a.client.DeleteAIGatewayIdentityProvider(ctx, gatewayID, id)
+	return a.client.DeleteAIGatewayAuthStrategy(ctx, gatewayID, id)
 }
 
-func (a *AIGatewayIdentityProviderAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
-	return nil, fmt.Errorf("GetByName not supported for AI Gateway Identity Providers")
+func (a *AIGatewayAuthStrategyAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
+	return nil, fmt.Errorf("GetByName not supported for AI Gateway Auth Strategies")
 }
 
-func (a *AIGatewayIdentityProviderAdapter) GetByID(
+func (a *AIGatewayAuthStrategyAdapter) GetByID(
 	ctx context.Context,
 	id string,
 	execCtx *ExecutionContext,
@@ -97,29 +97,29 @@ func (a *AIGatewayIdentityProviderAdapter) GetByID(
 		return nil, err
 	}
 
-	provider, err := a.client.GetAIGatewayIdentityProvider(ctx, gatewayID, id)
+	provider, err := a.client.GetAIGatewayAuthStrategy(ctx, gatewayID, id)
 	if err != nil {
 		return nil, err
 	}
 	if provider == nil {
 		return nil, nil
 	}
-	return &aiGatewayIdentityProviderResourceInfo{provider: provider}, nil
+	return &aiGatewayAuthStrategyResourceInfo{provider: provider}, nil
 }
 
-func (a *AIGatewayIdentityProviderAdapter) ResourceType() string {
-	return planner.ResourceTypeAIGatewayIdentityProvider
+func (a *AIGatewayAuthStrategyAdapter) ResourceType() string {
+	return planner.ResourceTypeAIGatewayAuthStrategy
 }
 
-func (a *AIGatewayIdentityProviderAdapter) RequiredFields() []string {
+func (a *AIGatewayAuthStrategyAdapter) RequiredFields() []string {
 	return []string{planner.FieldName, planner.FieldType, planner.FieldDisplayName, planner.FieldConfig}
 }
 
-func (a *AIGatewayIdentityProviderAdapter) SupportsUpdate() bool {
+func (a *AIGatewayAuthStrategyAdapter) SupportsUpdate() bool {
 	return true
 }
 
-func (a *AIGatewayIdentityProviderAdapter) getAIGatewayIDFromExecutionContext(
+func (a *AIGatewayAuthStrategyAdapter) getAIGatewayIDFromExecutionContext(
 	execCtx *ExecutionContext,
 ) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
@@ -133,10 +133,10 @@ func (a *AIGatewayIdentityProviderAdapter) getAIGatewayIDFromExecutionContext(
 	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
 		return change.Parent.ID, nil
 	}
-	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Identity Provider operations")
+	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Auth Strategy operations")
 }
 
-func aiGatewayIdentityProviderPayloadFromFields(fields map[string]any) (map[string]any, error) {
+func aiGatewayAuthStrategyPayloadFromFields(fields map[string]any) (map[string]any, error) {
 	name, ok := fields[planner.FieldName].(string)
 	if !ok || name == "" {
 		return nil, fmt.Errorf("name is required")
@@ -169,22 +169,22 @@ func aiGatewayIdentityProviderPayloadFromFields(fields map[string]any) (map[stri
 	return payload, nil
 }
 
-type aiGatewayIdentityProviderResourceInfo struct {
-	provider *state.AIGatewayIdentityProvider
+type aiGatewayAuthStrategyResourceInfo struct {
+	provider *state.AIGatewayAuthStrategy
 }
 
-func (a *aiGatewayIdentityProviderResourceInfo) GetID() string {
+func (a *aiGatewayAuthStrategyResourceInfo) GetID() string {
 	return a.provider.ID
 }
 
-func (a *aiGatewayIdentityProviderResourceInfo) GetName() string {
+func (a *aiGatewayAuthStrategyResourceInfo) GetName() string {
 	return a.provider.Name
 }
 
-func (a *aiGatewayIdentityProviderResourceInfo) GetLabels() map[string]string {
+func (a *aiGatewayAuthStrategyResourceInfo) GetLabels() map[string]string {
 	return a.provider.Labels
 }
 
-func (a *aiGatewayIdentityProviderResourceInfo) GetNormalizedLabels() map[string]string {
+func (a *aiGatewayAuthStrategyResourceInfo) GetNormalizedLabels() map[string]string {
 	return a.provider.NormalizedLabels
 }

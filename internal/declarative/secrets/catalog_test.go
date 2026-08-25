@@ -24,7 +24,7 @@ func TestReviewedSecretCatalog(t *testing.T) {
 		{resources.ResourceTypeAIGatewayProvider, "/config/auth/secret_access_key", true},
 		{resources.ResourceTypeAIGatewayProvider, "/config/auth/aws/secret_access_key", true},
 		{resources.ResourceTypeAIGatewayProvider, "/config/auth/service_account_json", true},
-		{resources.ResourceTypeAIGatewayIdentityProvider, "/config/client_secret/0", true},
+		{resources.ResourceTypeAIGatewayAuthStrategy, "/config/client_secret/0", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/api_key", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/token", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/client_secret", true},

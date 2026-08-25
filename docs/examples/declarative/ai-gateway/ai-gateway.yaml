@@ -6,6 +6,7 @@ ai_gateways:
   - ref: customer-support-ai-gateway
     name: customer-support-ai-gateway
     display_name: "Customer Support AI Gateway"
+    deployment_type: hybrid
     description: "AI Gateway for customer support traffic"
     proxy_urls:
       - host: support-ai.example.com
@@ -25,7 +26,7 @@ ai_gateways:
             headers:
               - name: Authorization
                 value: !secret {source: !env OPENAI_AUTH_HEADER}
-    identity_providers:
+    auth_strategies:
       - ref: support-key-auth
         name: support-key-auth
         type: key-auth
@@ -99,7 +100,7 @@ ai_gateways:
           logging:
             max_payload_size: 524288
         access:
-          identity_providers:
+          auth_strategies:
             - !ref support-key-auth
     consumer_groups:
       - ref: premium-support-users
@@ -154,5 +155,5 @@ ai_gateways:
             path: /customers/{customer_id}
         access:
           acl_attribute_type: consumer
-          identity_providers:
+          auth_strategies:
             - !ref support-key-auth

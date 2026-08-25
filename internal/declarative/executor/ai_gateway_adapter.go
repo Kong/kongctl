@@ -54,7 +54,6 @@ func (a *AIGatewayAdapter) MapUpdateFields(
 	if update.Name == "" {
 		return fmt.Errorf("AI Gateway name is required")
 	}
-
 	return nil
 }
 

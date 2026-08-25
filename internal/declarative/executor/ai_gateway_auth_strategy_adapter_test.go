@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAIGatewayIdentityProviderAdapterMapsOpenIDConnectCacheTokensSalt(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterMapsOpenIDConnectCacheTokensSalt(t *testing.T) {
 	fields := map[string]any{
 		planner.FieldName:        "support-oidc",
 		planner.FieldType:        "openid-connect",
@@ -20,15 +20,15 @@ func TestAIGatewayIdentityProviderAdapterMapsOpenIDConnectCacheTokensSalt(t *tes
 		},
 	}
 
-	var request kkComps.CreateAIGatewayIdentityProviderRequest
-	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	var request kkComps.CreateAIGatewayAuthStrategyRequest
+	err := NewAIGatewayAuthStrategyAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
-	require.Equal(t, "support-cache-salt", request.AIGatewayIdentityProviderOpenIDConnect.Config.CacheTokensSalt)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
+	require.Equal(t, "support-cache-salt", request.AIGatewayAuthStrategyOpenIDConnect.Config.CacheTokensSalt)
 }
 
-func TestAIGatewayIdentityProviderAdapterMapsKongIdentityPrincipals(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterMapsKongIdentityPrincipals(t *testing.T) {
 	t.Parallel()
 
 	fields := map[string]any{
@@ -45,19 +45,19 @@ func TestAIGatewayIdentityProviderAdapterMapsKongIdentityPrincipals(t *testing.T
 		},
 	}
 
-	var request kkComps.CreateAIGatewayIdentityProviderRequest
-	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	var request kkComps.CreateAIGatewayAuthStrategyRequest
+	err := NewAIGatewayAuthStrategyAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderKeyAuth)
-	require.NotNil(t, request.AIGatewayIdentityProviderKeyAuth.Config)
-	principals := request.AIGatewayIdentityProviderKeyAuth.Config.Principals
+	require.NotNil(t, request.AIGatewayAuthStrategyKeyAuth)
+	require.NotNil(t, request.AIGatewayAuthStrategyKeyAuth.Config)
+	principals := request.AIGatewayAuthStrategyKeyAuth.Config.Principals
 	require.NotNil(t, principals)
 	require.True(t, *principals.Enabled)
 	require.Equal(t, "support", *principals.Directory)
 	require.False(t, *principals.ErrorOnMiss)
 }
 
-func TestAIGatewayIdentityProviderAdapterRejectsMissingOpenIDConnectCacheTokensSalt(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterRejectsMissingOpenIDConnectCacheTokensSalt(t *testing.T) {
 	fields := map[string]any{
 		planner.FieldName:        "support-oidc",
 		planner.FieldType:        "openid-connect",
@@ -67,12 +67,12 @@ func TestAIGatewayIdentityProviderAdapterRejectsMissingOpenIDConnectCacheTokensS
 		},
 	}
 
-	var request kkComps.CreateAIGatewayIdentityProviderRequest
-	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	var request kkComps.CreateAIGatewayAuthStrategyRequest
+	err := NewAIGatewayAuthStrategyAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
 	require.Error(t, err)
 }
 
-func TestAIGatewayIdentityProviderAdapterPreservesAdditionalOpenIDConnectConfigProperties(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterPreservesAdditionalOpenIDConnectConfigProperties(t *testing.T) {
 	fields := map[string]any{
 		planner.FieldName:        "support-oidc",
 		planner.FieldType:        "openid-connect",
@@ -84,12 +84,12 @@ func TestAIGatewayIdentityProviderAdapterPreservesAdditionalOpenIDConnectConfigP
 		},
 	}
 
-	var request kkComps.CreateAIGatewayIdentityProviderRequest
-	err := NewAIGatewayIdentityProviderAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
+	var request kkComps.CreateAIGatewayAuthStrategyRequest
+	err := NewAIGatewayAuthStrategyAdapter(nil).MapCreateFields(t.Context(), nil, fields, &request)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect.Config)
-	require.Equal(t, []string{"sub"}, request.AIGatewayIdentityProviderOpenIDConnect.Config.CredentialClaim)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect.Config)
+	require.Equal(t, []string{"sub"}, request.AIGatewayAuthStrategyOpenIDConnect.Config.CredentialClaim)
 
 	data, err := json.Marshal(request)
 	require.NoError(t, err)
@@ -100,7 +100,7 @@ func TestAIGatewayIdentityProviderAdapterPreservesAdditionalOpenIDConnectConfigP
 	require.Equal(t, []any{"sub"}, config["credential_claim"])
 }
 
-func TestAIGatewayIdentityProviderAdapterPreservesAccessControlConfig(t *testing.T) {
+func TestAIGatewayAuthStrategyAdapterPreservesAccessControlConfig(t *testing.T) {
 	t.Parallel()
 
 	fields := map[string]any{
@@ -116,11 +116,11 @@ func TestAIGatewayIdentityProviderAdapterPreservesAccessControlConfig(t *testing
 		},
 	}
 
-	var request kkComps.UpdateAIGatewayIdentityProviderRequest
-	err := NewAIGatewayIdentityProviderAdapter(nil).MapUpdateFields(t.Context(), nil, fields, &request, nil)
+	var request kkComps.UpdateAIGatewayAuthStrategyRequest
+	err := NewAIGatewayAuthStrategyAdapter(nil).MapUpdateFields(t.Context(), nil, fields, &request, nil)
 	require.NoError(t, err)
-	require.NotNil(t, request.AIGatewayIdentityProviderOpenIDConnect)
-	config := request.AIGatewayIdentityProviderOpenIDConnect.Config
+	require.NotNil(t, request.AIGatewayAuthStrategyOpenIDConnect)
+	config := request.AIGatewayAuthStrategyOpenIDConnect.Config
 	require.NotNil(t, config)
 	require.Equal(t, []string{"groups"}, config.ConsumerGroupsClaim)
 	require.False(t, *config.ConsumerGroupsOptional)

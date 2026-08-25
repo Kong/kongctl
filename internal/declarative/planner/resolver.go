@@ -88,8 +88,8 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 			if aiGatewayPolicyReferenceField(change.ResourceType, fieldRef.Field) {
 				fieldRef.Ref = aiGatewayPolicyNameReference(fieldRef.Ref)
 			}
-			if aiGatewayIdentityProviderReferenceField(change.ResourceType, fieldRef.Field) {
-				fieldRef.Ref = aiGatewayIdentityProviderNameReference(fieldRef.Ref)
+			if aiGatewayAuthStrategyReferenceField(change.ResourceType, fieldRef.Field) {
+				fieldRef.Ref = aiGatewayAuthStrategyNameReference(fieldRef.Ref)
 			}
 			resourceType := r.getResourceTypeForChangeField(change, fieldRef.Field)
 			targetRef := referenceTargetRef(fieldRef.Ref)
@@ -294,15 +294,15 @@ func aiGatewayPolicyNameReference(ref string) string {
 	return fmt.Sprintf("%s%s#%s", tags.RefPlaceholderPrefix, targetRef, FieldName)
 }
 
-func aiGatewayIdentityProviderReferenceField(resourceType, fieldName string) bool {
+func aiGatewayAuthStrategyReferenceField(resourceType, fieldName string) bool {
 	if resourceType != ResourceTypeAIGatewayAgent && resourceType != ResourceTypeAIGatewayModel {
 		return false
 	}
-	prefix := FieldAccess + "." + FieldIdentityProviders
+	prefix := FieldAccess + "." + FieldAuthStrategies
 	return fieldName == prefix || strings.HasPrefix(fieldName, prefix+".")
 }
 
-func aiGatewayIdentityProviderNameReference(ref string) string {
+func aiGatewayAuthStrategyNameReference(ref string) string {
 	targetRef := ref
 	if parsedRef, _, ok := tags.ParseRefPlaceholder(ref); ok {
 		targetRef = parsedRef

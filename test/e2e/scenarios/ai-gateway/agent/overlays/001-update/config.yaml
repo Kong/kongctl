@@ -13,7 +13,7 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    identity_providers:
+    auth_strategies:
       - ref: agent-key-auth
         name: agent-key-auth
         type: key-auth
@@ -52,5 +52,5 @@ ai_gateways:
           logging:
             max_payload_size: 524288
         access:
-          identity_providers:
+          auth_strategies:
             - !ref agent-key-auth

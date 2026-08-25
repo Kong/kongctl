@@ -14,7 +14,7 @@ ai_gateways:
     labels:
       owner: platform
       lifecycle: dev
-    identity_providers:
+    auth_strategies:
       - ref: mcp-key-auth
         name: mcp-key-auth
         type: key-auth
@@ -88,10 +88,14 @@ ai_gateways:
         labels:
           team: support
           phase: create
-        tools: []
+        tools:
+          - name: lookup-conversion-status
+            description: "Look up conversion status"
+            method: GET
+            path: /status
         access:
           acl_attribute_type: consumer
-          identity_providers:
+          auth_strategies:
             - !ref mcp-key-auth
         config:
           url: https://support-conversion-listener.example.com
@@ -112,7 +116,6 @@ ai_gateways:
         enabled: true
         labels:
           phase: update
-        tools: []
         sources:
           - support-upstream
         access:

@@ -38,8 +38,8 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
-		key:          "ai_gateway_identity_providers",
-		resourceType: resources.ResourceTypeAIGatewayIdentityProvider,
+		key:          "ai_gateway_auth_strategies",
+		resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 		parentKey:    resources.SchemaFieldAIGateway,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
@@ -411,8 +411,8 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
-		key:          "identity_providers",
-		resourceType: resources.ResourceTypeAIGatewayIdentityProvider,
+		key:          resources.SchemaFieldAuthStrategies,
+		resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
@@ -573,9 +573,9 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 		if entry.resourceType == resources.ResourceTypeAIGatewayProvider {
 			return fmt.Errorf("%s cannot be empty because each Model Provider must declare an ai_gateway parent", entry.key)
 		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayIdentityProvider {
+		if entry.resourceType == resources.ResourceTypeAIGatewayAuthStrategy {
 			return fmt.Errorf(
-				"%s cannot be empty because each Identity Provider must declare an ai_gateway parent",
+				"%s cannot be empty because each Auth Strategy must declare an ai_gateway parent",
 				entry.key,
 			)
 		}

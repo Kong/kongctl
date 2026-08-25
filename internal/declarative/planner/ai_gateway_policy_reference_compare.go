@@ -29,7 +29,7 @@ func normalizeAIGatewayPolicyReferencesForComparison(
 	return currentCompare, desiredCompare
 }
 
-func normalizeAIGatewayIdentityProviderReferencesForComparison(
+func normalizeAIGatewayAuthStrategyReferencesForComparison(
 	currentPayload map[string]any,
 	desiredPayload map[string]any,
 	rs *resources.ResourceSet,
@@ -42,20 +42,30 @@ func normalizeAIGatewayIdentityProviderReferencesForComparison(
 	if !currentOK || !desiredOK {
 		return currentCompare, desiredCompare
 	}
-	_, currentHasProviders := currentAccess[FieldIdentityProviders]
-	_, desiredHasProviders := desiredAccess[FieldIdentityProviders]
+	currentAccess = clonePayloadMap(currentAccess)
+	desiredAccess = clonePayloadMap(desiredAccess)
+	// Konnect currently mirrors auth strategy references into the deprecated
+	// identity_providers response field. Treat the canonical field as authoritative.
+	if _, ok := currentAccess[FieldAuthStrategies]; ok {
+		delete(currentAccess, FieldIdentityProviders)
+	}
+	if _, ok := desiredAccess[FieldAuthStrategies]; ok {
+		delete(desiredAccess, FieldIdentityProviders)
+	}
+	currentCompare[FieldAccess] = currentAccess
+	desiredCompare[FieldAccess] = desiredAccess
+	_, currentHasProviders := currentAccess[FieldAuthStrategies]
+	_, desiredHasProviders := desiredAccess[FieldAuthStrategies]
 	if !currentHasProviders || !desiredHasProviders {
 		return currentCompare, desiredCompare
 	}
 
-	aliases := aiGatewayIdentityProviderReferenceAliases(rs)
-	currentAccess = clonePayloadMap(currentAccess)
-	desiredAccess = clonePayloadMap(desiredAccess)
-	currentAccess[FieldIdentityProviders] = normalizeAIGatewayReferenceList(
-		currentAccess[FieldIdentityProviders], aliases,
+	aliases := aiGatewayAuthStrategyReferenceAliases(rs)
+	currentAccess[FieldAuthStrategies] = normalizeAIGatewayReferenceList(
+		currentAccess[FieldAuthStrategies], aliases,
 	)
-	desiredAccess[FieldIdentityProviders] = normalizeAIGatewayReferenceList(
-		desiredAccess[FieldIdentityProviders], aliases,
+	desiredAccess[FieldAuthStrategies] = normalizeAIGatewayReferenceList(
+		desiredAccess[FieldAuthStrategies], aliases,
 	)
 	currentCompare[FieldAccess] = currentAccess
 	desiredCompare[FieldAccess] = desiredAccess
@@ -91,13 +101,13 @@ func aiGatewayPolicyReferenceAliases(rs *resources.ResourceSet) map[string]strin
 	return aliases
 }
 
-func aiGatewayIdentityProviderReferenceAliases(rs *resources.ResourceSet) map[string]string {
+func aiGatewayAuthStrategyReferenceAliases(rs *resources.ResourceSet) map[string]string {
 	aliases := make(map[string]string)
 	if rs == nil {
 		return aliases
 	}
 
-	for _, provider := range rs.AIGatewayIdentityProviders {
+	for _, provider := range rs.AIGatewayAuthStrategies {
 		canonical := firstNonEmpty(provider.Ref, provider.Name, provider.GetKonnectID())
 		if canonical == "" {
 			continue

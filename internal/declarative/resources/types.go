@@ -19,7 +19,7 @@ const (
 	ResourceTypeAPI                                     ResourceType = "api"
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_model_provider"
-	ResourceTypeAIGatewayIdentityProvider               ResourceType = "ai_gateway_identity_provider"
+	ResourceTypeAIGatewayAuthStrategy                   ResourceType = "ai_gateway_auth_strategy"
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
 	ResourceTypeAIGatewayAgent                          ResourceType = "ai_gateway_agent"
 	ResourceTypeAIGatewayConsumer                       ResourceType = "ai_gateway_consumer"
@@ -96,6 +96,7 @@ const (
 	SchemaFieldAIGatewayConsumer = "ai_gateway_consumer"
 	SchemaFieldDisplayName       = "display_name"
 	SchemaFieldAccess            = "access"
+	SchemaFieldAuthStrategies    = "auth_strategies"
 	SchemaFieldIdentityProviders = "identity_providers"
 	SchemaFieldConfig            = "config"
 	SchemaFieldConfigStoreID     = "config_store_id"
@@ -136,7 +137,7 @@ type ResourceSet struct {
 	CatalogServices                   []CatalogServiceResource                   `yaml:"catalog_services,omitempty"                               json:"catalog_services,omitempty"`                      //nolint:lll
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_model_providers,omitempty"                    json:"ai_gateway_model_providers,omitempty"`             //nolint:lll
-	AIGatewayIdentityProviders        []AIGatewayIdentityProviderResource        `yaml:"ai_gateway_identity_providers,omitempty"                 json:"ai_gateway_identity_providers,omitempty"`          //nolint:lll
+	AIGatewayAuthStrategies           []AIGatewayAuthStrategyResource            `yaml:"ai_gateway_auth_strategies,omitempty"                 json:"ai_gateway_auth_strategies,omitempty"`                //nolint:lll
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll
 	AIGatewayConsumers                []AIGatewayConsumerResource                `yaml:"ai_gateway_consumers,omitempty"                          json:"ai_gateway_consumers,omitempty"`                   //nolint:lll
@@ -439,11 +440,11 @@ func (rs *ResourceSet) GetAIGatewayProviderByRef(ref string) *AIGatewayProviderR
 	return nil
 }
 
-// GetAIGatewayIdentityProviderByRef returns an AI Gateway Identity Provider resource by its ref from any namespace.
-func (rs *ResourceSet) GetAIGatewayIdentityProviderByRef(ref string) *AIGatewayIdentityProviderResource {
-	for i := range rs.AIGatewayIdentityProviders {
-		if rs.AIGatewayIdentityProviders[i].GetRef() == ref {
-			return &rs.AIGatewayIdentityProviders[i]
+// GetAIGatewayAuthStrategyByRef returns an AI Gateway Auth Strategy resource by its ref from any namespace.
+func (rs *ResourceSet) GetAIGatewayAuthStrategyByRef(ref string) *AIGatewayAuthStrategyResource {
+	for i := range rs.AIGatewayAuthStrategies {
+		if rs.AIGatewayAuthStrategies[i].GetRef() == ref {
+			return &rs.AIGatewayAuthStrategies[i]
 		}
 	}
 	return nil
@@ -653,17 +654,17 @@ func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGa
 	return filtered
 }
 
-// GetAIGatewayIdentityProvidersByNamespace returns AI Gateway Identity Provider resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayIdentityProvidersByNamespace(
+// GetAIGatewayAuthStrategiesByNamespace returns AI Gateway Auth Strategy resources from the specified namespace.
+func (rs *ResourceSet) GetAIGatewayAuthStrategiesByNamespace(
 	namespace string,
-) []AIGatewayIdentityProviderResource {
+) []AIGatewayAuthStrategyResource {
 	gatewayByRef := make(map[string]AIGatewayResource)
 	for _, gateway := range rs.GetAIGatewaysByNamespace(namespace) {
 		gatewayByRef[gateway.Ref] = gateway
 	}
 
-	var filtered []AIGatewayIdentityProviderResource
-	for _, provider := range rs.AIGatewayIdentityProviders {
+	var filtered []AIGatewayAuthStrategyResource
+	for _, provider := range rs.AIGatewayAuthStrategies {
 		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
 			filtered = append(filtered, provider)
 		}
@@ -1473,12 +1474,12 @@ func (rs *ResourceSet) GetAIGatewayProvidersForGateway(gatewayRef string) []AIGa
 	return providers
 }
 
-// GetAIGatewayIdentityProvidersForGateway returns all identity providers for a given AI Gateway ref.
-func (rs *ResourceSet) GetAIGatewayIdentityProvidersForGateway(
+// GetAIGatewayAuthStrategiesForGateway returns all auth strategies for a given AI Gateway ref.
+func (rs *ResourceSet) GetAIGatewayAuthStrategiesForGateway(
 	gatewayRef string,
-) []AIGatewayIdentityProviderResource {
-	var providers []AIGatewayIdentityProviderResource
-	for _, provider := range rs.AIGatewayIdentityProviders {
+) []AIGatewayAuthStrategyResource {
+	var providers []AIGatewayAuthStrategyResource
+	for _, provider := range rs.AIGatewayAuthStrategies {
 		if NormalizeResourceRef(provider.AIGateway) == gatewayRef {
 			providers = append(providers, provider)
 		}

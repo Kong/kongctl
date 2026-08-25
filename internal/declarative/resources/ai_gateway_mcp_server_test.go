@@ -36,7 +36,7 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 		"access": {
 			"acl_attribute_type": "oauth_access_token",
 			"access_token_claim_field": "sub",
-			"identity_providers": ["support-oidc"],
+			"auth_strategies": ["support-oidc"],
 			"metadata": {
 				"authorization_servers": ["https://idp.example.com"],
 				"resource": "https://mcp.example.com"
@@ -53,7 +53,7 @@ func TestAIGatewayMCPServerAllowsAccessFields(t *testing.T) {
 	payload, err := resource.PayloadMap()
 	require.NoError(t, err)
 	access := payload[SchemaFieldAccess].(map[string]any)
-	require.Equal(t, []any{"support-oidc"}, access[SchemaFieldIdentityProviders])
+	require.Equal(t, []any{"support-oidc"}, access[SchemaFieldAuthStrategies])
 	require.Equal(t, "https://mcp.example.com", access["metadata"].(map[string]any)["resource"])
 }
 

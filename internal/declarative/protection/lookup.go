@@ -155,7 +155,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeEventGatewayStaticKey,
 		resources.ResourceTypeEventGatewayTLSTrustBundle,
 		resources.ResourceTypeAIGatewayProvider,
-		resources.ResourceTypeAIGatewayIdentityProvider,
+		resources.ResourceTypeAIGatewayAuthStrategy,
 		resources.ResourceTypeAIGatewayPolicy,
 		resources.ResourceTypeAIGatewayAgent,
 		resources.ResourceTypeAIGatewayConsumer,

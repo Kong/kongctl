@@ -20,5 +20,5 @@ ai_gateway_agents:
       logging:
         max_payload_size: 524288
     access:
-      identity_providers:
+      auth_strategies:
         - !ref shared-key-auth

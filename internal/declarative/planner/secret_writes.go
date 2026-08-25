@@ -720,12 +720,12 @@ func (p *Planner) resolveSecretResourceID(
 		}
 	case *resources.AIGatewayProviderResource:
 		return p.resolveAIGatewayProviderSecretID(ctx, rs, resource, typed.Name)
-	case *resources.AIGatewayIdentityProviderResource:
+	case *resources.AIGatewayAuthStrategyResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {
-			return "", fmt.Errorf("AI Gateway identity provider %q has no resolved gateway", typed.Ref)
+			return "", fmt.Errorf("AI Gateway auth strategy %q has no resolved gateway", typed.Ref)
 		}
-		current, err := p.client.ListAIGatewayIdentityProviders(ctx, parent.ID)
+		current, err := p.client.ListAIGatewayAuthStrategies(ctx, parent.ID)
 		if err != nil {
 			return "", err
 		}

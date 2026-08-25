@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -217,7 +216,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			CatalogServiceAPI:                   sdk.GetCatalogServicesAPI(),
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
-			AIGatewayIdentityProvidersAPI:       sdk.GetAIGatewayIdentityProvidersAPI(),
+			AIGatewayAuthStrategiesAPI:          sdk.GetAIGatewayAuthStrategiesAPI(),
 			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
 			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
 			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),
@@ -966,14 +965,20 @@ func mapEventGatewayToDeclarativeResource(egw kkComps.EventGatewayInfo) declreso
 }
 
 func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.AIGatewayResource {
+	var deploymentType *kkComps.CreateAIGatewayRequestDeploymentType
+	if gateway.DeploymentType != nil {
+		value := kkComps.CreateAIGatewayRequestDeploymentType(*gateway.DeploymentType)
+		deploymentType = &value
+	}
+
 	result := declresources.AIGatewayResource{
 		BaseResource: declresources.BaseResource{Ref: gateway.ID},
 		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-			Name:                 gateway.Name,
-			DisplayName:          gateway.DisplayName,
-			Description:          gateway.Description,
-			ProxyUrls:            gateway.ProxyUrls,
-			AdditionalProperties: maps.Clone(gateway.AdditionalProperties),
+			Name:           gateway.Name,
+			DisplayName:    gateway.DisplayName,
+			DeploymentType: deploymentType,
+			Description:    gateway.Description,
+			ProxyUrls:      gateway.ProxyUrls,
 		},
 	}
 

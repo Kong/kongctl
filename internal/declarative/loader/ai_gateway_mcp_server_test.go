@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -50,7 +51,7 @@ func TestLoaderExtractsIssue1499NestedAIGatewayMCPServers(t *testing.T) {
 ai_gateways:
   - ref: poc-default-ai-gateway
     display_name: POC Default AI Gateway
-    identity_providers:
+    auth_strategies:
       - ref: poc-key-auth
         name: poc-key-auth
         type: key-auth
@@ -99,10 +100,14 @@ ai_gateways:
         name: poc-mcp-conversion-listener
         display_name: POC MCP Conversion Listener
         enabled: true
-        tools: []
+        tools:
+          - name: get-conversion-status
+            description: Get conversion status
+            method: GET
+            path: /status
         access:
           acl_attribute_type: consumer
-          identity_providers:
+          auth_strategies:
             - !ref poc-key-auth
         config:
           url: https://httpbin.konghq.com/anything
@@ -114,7 +119,6 @@ ai_gateways:
         name: poc-mcp-listener
         display_name: POC MCP Listener
         enabled: true
-        tools: []
         sources: [poc-mcp-conversion, poc-mcp-upstream]
         access:
           acl_attribute_type: consumer
@@ -158,13 +162,34 @@ ai_gateways:
 	require.Equal(
 		t,
 		[]any{tags.RefPlaceholderPrefix + "poc-key-auth#id"},
-		conversionListenerAccess["identity_providers"],
+		conversionListenerAccess["auth_strategies"],
 	)
 	require.Equal(t, "listener", byRef["poc-mcp-listener"].MCPServerType())
 	listenerPayload, err := byRef["poc-mcp-listener"].PayloadMap()
 	require.NoError(t, err)
 	require.Equal(t, []any{"poc-mcp-conversion", "poc-mcp-upstream"}, listenerPayload["sources"])
 	require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].MCPServerType())
+}
+
+func TestLoaderRejectsEmptyConversionMCPServerTools(t *testing.T) {
+	for _, serverType := range []string{"conversion-only", "conversion-listener"} {
+		t.Run(serverType, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateway_mcp_servers:
+  - ref: tools
+    ai_gateway: gateway
+    type: %s
+    name: tools
+    display_name: Tools
+    config:
+      url: https://tools.example.com
+    tools: []
+`, serverType)
+
+			_, err := New().LoadFile(writeLoaderTestFile(t, input))
+			require.ErrorContains(t, err, "tools must contain at least one entry")
+		})
+	}
 }
 
 func TestLoaderRejectsAIGatewayMCPListenerWithoutSources(t *testing.T) {

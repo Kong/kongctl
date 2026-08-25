@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-auth-strategy-e2e
+
+ai_gateways:
+  - ref: ai-gateway-auth-strategy-e2e
+    name: ai-gateway-auth-strategy-e2e
+    display_name: "AI Gateway Auth Strategy E2E"
+    description: "AI Gateway Auth Strategy e2e"
+    proxy_urls:
+      - host: ai-gateway-auth-strategy-e2e.example.com
+        port: 443
+        protocol: https
+    auth_strategies: []

@@ -183,6 +183,7 @@ func (a AIGatewayAgentResource) MutablePayloadMap() (map[string]any, error) {
 		return nil, err
 	}
 	stripAIGatewayAgentServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
 
@@ -314,6 +315,7 @@ func AIGatewayAgentMutablePayloadMap(agent kkComps.AIGatewayAgent) (map[string]a
 		return nil, err
 	}
 	stripAIGatewayAgentServerFields(payload)
+	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
 
@@ -351,6 +353,16 @@ func stripAIGatewayAgentServerFields(payload map[string]any) {
 	delete(payload, aiGatewayAgentFieldUpdatedAt)
 }
 
+func normalizeAIGatewayAuthStrategyAccess(payload map[string]any) {
+	access, ok := payload[SchemaFieldAccess].(map[string]any)
+	if !ok {
+		return
+	}
+	if _, ok := access[SchemaFieldAuthStrategies]; ok {
+		delete(access, SchemaFieldIdentityProviders)
+	}
+}
+
 func aiGatewayAgentStringField(value any, key string) string {
 	payload, err := marshalObjectToMap(value, "AI Gateway Agent")
 	if err != nil {
@@ -363,7 +375,7 @@ func aiGatewayAgentStringField(value any, key string) string {
 }
 
 func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainOpenObject(
+	return explainObject(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("booking-agent"), true, true),

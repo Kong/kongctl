@@ -38,11 +38,11 @@ func validateAIGatewayScenarioExplainSchemas(t *testing.T, resourceSet *resource
 			&resourceSet.AIGatewayProviders[i],
 		)
 	}
-	for i := range resourceSet.AIGatewayIdentityProviders {
+	for i := range resourceSet.AIGatewayAuthStrategies {
 		validateResourceAgainstExplainSchema(
 			t,
-			string(resources.ResourceTypeAIGatewayIdentityProvider),
-			&resourceSet.AIGatewayIdentityProviders[i],
+			string(resources.ResourceTypeAIGatewayAuthStrategy),
+			&resourceSet.AIGatewayAuthStrategies[i],
 		)
 	}
 	for i := range resourceSet.AIGatewayPolicies {

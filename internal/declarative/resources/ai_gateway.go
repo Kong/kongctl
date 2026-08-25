@@ -37,8 +37,8 @@ type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
 	External              *ExternalBlock                          `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"`       //nolint:lll
-	IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty" json:"identity_providers,omitempty"` //nolint:lll
+	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"` //nolint:lll
+	AuthStrategies        []AIGatewayAuthStrategyResource         `yaml:"auth_strategies,omitempty" json:"auth_strategies,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty" json:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty" json:"consumers,omitempty"`
@@ -64,16 +64,19 @@ func (a AIGatewayResource) MarshalYAML() (any, error) {
 }
 
 type aiGatewayAlias struct {
-	Ref                   string                                  `json:"ref"                   yaml:"ref"`
-	Kongctl               *KongctlMeta                            `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
-	External              *ExternalBlock                          `json:"_external,omitempty"   yaml:"_external,omitempty"`
-	Name                  string                                  `json:"name,omitempty"        yaml:"name,omitempty"`
-	DisplayName           string                                  `json:"display_name"          yaml:"display_name"`
-	Description           *string                                 `json:"description,omitempty" yaml:"description,omitempty"` //nolint:lll
-	ProxyURLs             []kkComps.AIGatewayProxyURL             `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`  //nolint:lll
-	Labels                map[string]string                       `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty" yaml:"model_providers,omitempty"`       //nolint:lll
-	IdentityProviders     []AIGatewayIdentityProviderResource     `json:"identity_providers,omitempty" yaml:"identity_providers,omitempty"` //nolint:lll
+	Ref         string                      `json:"ref"                   yaml:"ref"`
+	Kongctl     *KongctlMeta                `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
+	External    *ExternalBlock              `json:"_external,omitempty"   yaml:"_external,omitempty"`
+	Name        string                      `json:"name,omitempty"        yaml:"name,omitempty"`
+	DisplayName string                      `json:"display_name"          yaml:"display_name"`
+	Description *string                     `json:"description,omitempty" yaml:"description,omitempty"`
+	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
+	Labels      map[string]string           `json:"labels,omitempty"      yaml:"labels,omitempty"`
+
+	DeploymentType *kkComps.CreateAIGatewayRequestDeploymentType `json:"deployment_type,omitempty" yaml:"deployment_type,omitempty"` //nolint:lll
+
+	Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty" yaml:"model_providers,omitempty"` //nolint:lll
+	AuthStrategies        []AIGatewayAuthStrategyResource         `json:"auth_strategies,omitempty" yaml:"auth_strategies,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"    yaml:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `json:"agents,omitempty"      yaml:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
@@ -92,11 +95,12 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		External:              a.External,
 		Name:                  a.Name,
 		DisplayName:           a.DisplayName,
+		DeploymentType:        a.DeploymentType,
 		Description:           a.Description,
 		ProxyURLs:             a.ProxyUrls,
 		Labels:                a.Labels,
 		Providers:             a.Providers,
-		IdentityProviders:     a.IdentityProviders,
+		AuthStrategies:        a.AuthStrategies,
 		Policies:              a.Policies,
 		Agents:                a.Agents,
 		Consumers:             a.Consumers,
@@ -110,16 +114,11 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 }
 
 func (a AIGatewayResource) aiGatewayDeclarativePayload() (map[string]any, error) {
-	payload := maps.Clone(a.AdditionalProperties)
-	if payload == nil {
-		payload = make(map[string]any)
-	}
 	fields, err := marshalObjectToMap(a.aiGatewayAlias(), "AI Gateway declarative payload")
 	if err != nil {
 		return nil, err
 	}
-	maps.Copy(payload, fields)
-	return payload, nil
+	return fields, nil
 }
 
 // UnmarshalYAML decodes AI Gateway fields explicitly because the SDK request
@@ -151,7 +150,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `yaml:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `yaml:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty"`
-		IdentityProviders     []AIGatewayIdentityProviderResource     `yaml:"identity_providers,omitempty"`
+		AuthStrategies        []AIGatewayAuthStrategyResource         `yaml:"auth_strategies,omitempty"`
 		Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty"`
@@ -173,7 +172,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.External = raw.External
 	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
-	a.IdentityProviders = raw.IdentityProviders
+	a.AuthStrategies = raw.AuthStrategies
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -216,7 +215,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ProxyURLs             []kkComps.AIGatewayProxyURL             `json:"proxy_urls,omitempty"`
 		Labels                map[string]string                       `json:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty"`
-		IdentityProviders     []AIGatewayIdentityProviderResource     `json:"identity_providers,omitempty"`
+		AuthStrategies        []AIGatewayAuthStrategyResource         `json:"auth_strategies,omitempty"`
 		Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `json:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"`
@@ -238,7 +237,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.External = raw.External
 	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
-	a.IdentityProviders = raw.IdentityProviders
+	a.AuthStrategies = raw.AuthStrategies
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -259,7 +258,7 @@ func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.Creat
 		SchemaFieldKongctl,
 		"_external",
 		aiGatewayModelProvidersField,
-		SchemaFieldIdentityProviders,
+		SchemaFieldAuthStrategies,
 		"policies",
 		"agents",
 		"consumers",
@@ -398,13 +397,14 @@ func (a *AIGatewayResource) TryMatchKonnectResource(konnectResource any) bool {
 }
 
 func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainOpenObject(
+	return explainObject(
 		explainResourceRefField(),
 		explainKongctlField(),
 		explainExternalField(),
 		explainField("name", explainStringNode("my-ai-gateway"), false, true),
 		explainField("display_name", explainStringNode("My AI Gateway"), true, true),
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
+		explainField("deployment_type", explainStringNode("hybrid"), false, false),
 		explainField("proxy_urls", explainArrayOf(explainObject(
 			explainField("host", explainStringNode("proxy.example.com"), true, true),
 			explainField("port", &ExplainNode{Kind: explainKindInteger, Literal: "443"}, true, true),
@@ -416,8 +416,8 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		}, false, false),
 		explainField("model_providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
 		explainField(
-			SchemaFieldIdentityProviders,
-			explainArrayOf(aiGatewayIdentityProviderInlineExplainNode()),
+			SchemaFieldAuthStrategies,
+			explainArrayOf(aiGatewayAuthStrategyInlineExplainNode()),
 			false,
 			false,
 		),

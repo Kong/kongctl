@@ -20,12 +20,19 @@ ai_gateways:
         config:
           anonymize:
             - email
+    consumers:
+      - ref: support-agent
+        name: support-agent
+        type: api-key
+        display_name: Support Agent
     consumer_groups:
       - ref: premium-support-users
         name: premium-support-users
         display_name: Premium Support Users
         policies:
           - !ref mask-sensitive-data
+        consumers:
+          - !ref support-agent#name
 `
 
 func TestLoaderExtractsNestedAIGatewayConsumerGroups(t *testing.T) {
@@ -42,6 +49,11 @@ func TestLoaderExtractsNestedAIGatewayConsumerGroups(t *testing.T) {
 		t,
 		[]string{tags.RefPlaceholderPrefix + "mask-sensitive-data#id"},
 		rs.AIGatewayConsumerGroups[0].Policies,
+	)
+	require.Equal(
+		t,
+		[]string{tags.RefPlaceholderPrefix + "support-agent#name"},
+		rs.AIGatewayConsumerGroups[0].Consumers,
 	)
 	require.True(t, rs.SyncScope.ChildInScope(
 		resources.ResourceTypeAIGateway,

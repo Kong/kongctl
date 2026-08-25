@@ -199,14 +199,14 @@ ai_gateway_providers:
 	require.Contains(t, err.Error(), "unknown field 'ai_gateway_providers'")
 }
 
-func TestLoaderFlattensAIGatewayIdentityProviders(t *testing.T) {
+func TestLoaderFlattensAIGatewayAuthStrategies(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`
 ai_gateways:
   - ref: customer-support-gateway
     display_name: Customer Support Gateway
-    identity_providers:
+    auth_strategies:
       - ref: support-key-auth
         name: support-key-auth
         type: key-auth
@@ -221,18 +221,18 @@ ai_gateways:
 	rs, err := New().LoadFile(path)
 	require.NoError(t, err)
 	require.Len(t, rs.AIGateways, 1)
-	require.Empty(t, rs.AIGateways[0].IdentityProviders)
-	require.Len(t, rs.AIGatewayIdentityProviders, 1)
-	require.Equal(t, "customer-support-gateway", rs.AIGatewayIdentityProviders[0].AIGateway)
-	require.Equal(t, "support-key-auth", rs.AIGatewayIdentityProviders[0].Name)
+	require.Empty(t, rs.AIGateways[0].AuthStrategies)
+	require.Len(t, rs.AIGatewayAuthStrategies, 1)
+	require.Equal(t, "customer-support-gateway", rs.AIGatewayAuthStrategies[0].AIGateway)
+	require.Equal(t, "support-key-auth", rs.AIGatewayAuthStrategies[0].Name)
 }
 
-func TestLoaderRejectsRootLevelEmptyAIGatewayIdentityProviders(t *testing.T) {
-	input := `ai_gateway_identity_providers: []`
+func TestLoaderRejectsRootLevelEmptyAIGatewayAuthStrategies(t *testing.T) {
+	input := `ai_gateway_auth_strategies: []`
 
 	_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "ai_gateway_identity_providers cannot be empty")
+	require.Contains(t, err.Error(), "ai_gateway_auth_strategies cannot be empty")
 }
 
 func TestLoaderPortalTeamGroupMappingsPortalLevelNestedRejected(t *testing.T) {

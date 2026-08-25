@@ -49,7 +49,8 @@ func init() {
 type AIGatewayConsumerGroupResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
-	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	AIGateway string   `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	Consumers []string `yaml:"consumers,omitempty" json:"consumers,omitempty"`
 
 	kkComps.CreateAIGatewayConsumerGroupRequest `yaml:",inline" json:",inline"`
 }
@@ -160,7 +161,14 @@ func (a AIGatewayConsumerGroupResource) UpdateRequest() kkComps.UpdateAIGatewayC
 }
 
 func (a AIGatewayConsumerGroupResource) PayloadMap() (map[string]any, error) {
-	return marshalObjectToMap(a.CreateRequest(), "AI Gateway Consumer Group payload")
+	payload, err := marshalObjectToMap(a.CreateRequest(), "AI Gateway Consumer Group payload")
+	if err != nil {
+		return nil, err
+	}
+	if a.Consumers != nil {
+		payload[aiGatewayConsumerGroupFieldConsumers] = a.Consumers
+	}
+	return payload, nil
 }
 
 func (a AIGatewayConsumerGroupResource) MutablePayloadMap() (map[string]any, error) {
@@ -213,6 +221,7 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 	var meta struct {
 		Ref       string          `json:"ref"`
 		AIGateway string          `json:"ai_gateway,omitempty"`
+		Consumers []string        `json:"consumers,omitempty"`
 		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
@@ -224,6 +233,7 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 
 	delete(raw, SchemaFieldRef)
 	delete(raw, SchemaFieldAIGateway)
+	delete(raw, aiGatewayConsumerGroupFieldConsumers)
 	delete(raw, SchemaFieldKongctl)
 
 	payload, err := json.Marshal(raw)
@@ -237,6 +247,7 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 
 	a.BaseResource = BaseResource{Ref: meta.Ref}
 	a.AIGateway = meta.AIGateway
+	a.Consumers = meta.Consumers
 	a.CreateAIGatewayConsumerGroupRequest = req
 	return nil
 }
@@ -378,7 +389,7 @@ func aiGatewayConsumerGroupStringField(value any, key string) string {
 }
 
 func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainOpenObject(
+	return explainObject(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("premium-users"), true, true),

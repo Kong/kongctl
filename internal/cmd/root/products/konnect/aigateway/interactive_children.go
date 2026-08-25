@@ -15,8 +15,8 @@ func init() {
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldModelProviders, loadAIGatewayProviders)
 	tableview.RegisterChildLoader(
 		common.ViewParentAIGateway,
-		common.ViewFieldIdentityProviders,
-		loadAIGatewayIdentityProviders,
+		common.ViewFieldAuthStrategies,
+		loadAIGatewayAuthStrategies,
 	)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
@@ -70,7 +70,7 @@ func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (t
 	return buildAIGatewayProviderChildView(providers), nil
 }
 
-func loadAIGatewayIdentityProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+func loadAIGatewayAuthStrategies(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
 	gatewayID, err := aiGatewayIDFromParent(parent)
 	if err != nil {
 		return tableview.ChildView{}, err
@@ -89,16 +89,16 @@ func loadAIGatewayIdentityProviders(_ context.Context, helper cmd.Helper, parent
 		return tableview.ChildView{}, err
 	}
 
-	providerAPI := sdk.GetAIGatewayIdentityProvidersAPI()
+	providerAPI := sdk.GetAIGatewayAuthStrategiesAPI()
 	if providerAPI == nil {
-		return tableview.ChildView{}, fmt.Errorf("AI Gateway Identity Providers client is not available")
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Auth Strategies client is not available")
 	}
 
-	providers, err := fetchAIGatewayIdentityProviders(helper, providerAPI, gatewayID, cfg)
+	providers, err := fetchAIGatewayAuthStrategies(helper, providerAPI, gatewayID, cfg)
 	if err != nil {
 		return tableview.ChildView{}, err
 	}
-	return buildAIGatewayIdentityProviderChildView(providers), nil
+	return buildAIGatewayAuthStrategyChildView(providers), nil
 }
 
 func loadAIGatewayPolicies(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

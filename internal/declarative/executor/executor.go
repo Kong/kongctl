@@ -64,9 +64,9 @@ type Executor struct {
 	aiGatewayProviderExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayModelProviderRequest,
 		kkComps.UpdateAIGatewayModelProviderRequest]
-	aiGatewayIdentityProviderExecutor *BaseExecutor[
-		kkComps.CreateAIGatewayIdentityProviderRequest,
-		kkComps.UpdateAIGatewayIdentityProviderRequest]
+	aiGatewayAuthStrategyExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayAuthStrategyRequest,
+		kkComps.UpdateAIGatewayAuthStrategyRequest]
 	aiGatewayPolicyExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayPolicyRequest,
 		kkComps.UpdateAIGatewayPolicyRequest]
@@ -285,10 +285,10 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client,
 		dryRun,
 	)
-	e.aiGatewayIdentityProviderExecutor = NewBaseExecutor[
-		kkComps.CreateAIGatewayIdentityProviderRequest,
-		kkComps.UpdateAIGatewayIdentityProviderRequest](
-		NewAIGatewayIdentityProviderAdapter(client),
+	e.aiGatewayAuthStrategyExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayAuthStrategyRequest,
+		kkComps.UpdateAIGatewayAuthStrategyRequest](
+		NewAIGatewayAuthStrategyAdapter(client),
 		client,
 		dryRun,
 	)
@@ -590,7 +590,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		e.catalogServiceExecutor,
 		e.aiGatewayExecutor,
 		e.aiGatewayProviderExecutor,
-		e.aiGatewayIdentityProviderExecutor,
+		e.aiGatewayAuthStrategyExecutor,
 		e.aiGatewayPolicyExecutor,
 		e.aiGatewayAgentExecutor,
 		e.aiGatewayConsumerExecutor,
@@ -2710,11 +2710,11 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayProviderExecutor.Create(ctx, *change)
-	case planner.ResourceTypeAIGatewayIdentityProvider:
+	case planner.ResourceTypeAIGatewayAuthStrategy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
 		}
-		return e.aiGatewayIdentityProviderExecutor.Create(ctx, *change)
+		return e.aiGatewayAuthStrategyExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAIGatewayPolicy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3359,11 +3359,11 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayProviderExecutor.Update(ctx, *change)
-	case planner.ResourceTypeAIGatewayIdentityProvider:
+	case planner.ResourceTypeAIGatewayAuthStrategy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
 		}
-		return e.aiGatewayIdentityProviderExecutor.Update(ctx, *change)
+		return e.aiGatewayAuthStrategyExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAIGatewayPolicy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return "", err
@@ -3880,11 +3880,11 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			return err
 		}
 		return e.aiGatewayProviderExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeAIGatewayIdentityProvider:
+	case planner.ResourceTypeAIGatewayAuthStrategy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return err
 		}
-		return e.aiGatewayIdentityProviderExecutor.Delete(ctx, *change)
+		return e.aiGatewayAuthStrategyExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAIGatewayPolicy:
 		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
 			return err

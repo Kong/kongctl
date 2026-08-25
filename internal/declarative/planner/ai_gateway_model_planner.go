@@ -259,7 +259,7 @@ func (p *Planner) shouldUpdateAIGatewayModel(
 		desiredCompare,
 		p.resources,
 	)
-	currentCompare, desiredCompare = normalizeAIGatewayIdentityProviderReferencesForComparison(
+	currentCompare, desiredCompare = normalizeAIGatewayAuthStrategyReferencesForComparison(
 		currentCompare,
 		desiredCompare,
 		p.resources,

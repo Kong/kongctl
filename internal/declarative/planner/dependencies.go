@@ -234,7 +234,7 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 func aiGatewayChildSerializationParentKey(change PlannedChange) string {
 	switch change.ResourceType {
 	case ResourceTypeAIGatewayProvider,
-		ResourceTypeAIGatewayIdentityProvider,
+		ResourceTypeAIGatewayAuthStrategy,
 		ResourceTypeAIGatewayPolicy,
 		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,
@@ -369,7 +369,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 	case ResourceTypePortalPage:
 		return ResourceTypePortal
 	case ResourceTypeAIGatewayProvider,
-		ResourceTypeAIGatewayIdentityProvider,
+		ResourceTypeAIGatewayAuthStrategy,
 		ResourceTypeAIGatewayPolicy,
 		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,

@@ -531,7 +531,7 @@ func TestLoaderValidateAIGatewayProvidersRejectsDuplicateNamesPerGateway(t *test
 	require.Contains(t, err.Error(), "duplicate ai_gateway_model_provider name")
 }
 
-func TestLoaderValidateAIGatewayIdentityProvidersRequiresParent(t *testing.T) {
+func TestLoaderValidateAIGatewayAuthStrategiesRequiresParent(t *testing.T) {
 	loader := New()
 	rs := &resources.ResourceSet{
 		AIGateways: []resources.AIGatewayResource{{
@@ -541,7 +541,7 @@ func TestLoaderValidateAIGatewayIdentityProvidersRequiresParent(t *testing.T) {
 				DisplayName: "AI Gateway",
 			},
 		}},
-		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{{
+		AIGatewayAuthStrategies: []resources.AIGatewayAuthStrategyResource{{
 			BaseResource: resources.BaseResource{Ref: "support-key-auth"},
 			Name:         "support-key-auth",
 			Type:         "key-auth",
@@ -555,7 +555,7 @@ func TestLoaderValidateAIGatewayIdentityProvidersRequiresParent(t *testing.T) {
 	require.Contains(t, err.Error(), "must specify ai_gateway")
 }
 
-func TestLoaderValidateAIGatewayIdentityProvidersRejectsDuplicateNamesPerGateway(t *testing.T) {
+func TestLoaderValidateAIGatewayAuthStrategiesRejectsDuplicateNamesPerGateway(t *testing.T) {
 	loader := New()
 	rs := &resources.ResourceSet{
 		AIGateways: []resources.AIGatewayResource{{
@@ -565,7 +565,7 @@ func TestLoaderValidateAIGatewayIdentityProvidersRejectsDuplicateNamesPerGateway
 				DisplayName: "AI Gateway",
 			},
 		}},
-		AIGatewayIdentityProviders: []resources.AIGatewayIdentityProviderResource{
+		AIGatewayAuthStrategies: []resources.AIGatewayAuthStrategyResource{
 			{
 				BaseResource: resources.BaseResource{Ref: "support-key-auth-1"},
 				AIGateway:    "ai-gateway",
@@ -587,7 +587,7 @@ func TestLoaderValidateAIGatewayIdentityProvidersRejectsDuplicateNamesPerGateway
 
 	err := loader.validateResourceSet(rs)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "duplicate ai_gateway_identity_provider name")
+	require.Contains(t, err.Error(), "duplicate ai_gateway_auth_strategy name")
 }
 
 func TestLoader_validateCrossReferences(t *testing.T) {

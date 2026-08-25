@@ -21,11 +21,11 @@ const (
 	aiGatewayProviderIDConfigPath   = "konnect.ai-gateway.model-provider.id"
 	aiGatewayProviderNameConfigPath = "konnect.ai-gateway.model-provider.name"
 
-	aiGatewayIdentityProviderIDFlagName   = "identity-provider-id"
-	aiGatewayIdentityProviderNameFlagName = "identity-provider-name"
+	aiGatewayAuthStrategyIDFlagName   = "auth-strategy-id"
+	aiGatewayAuthStrategyNameFlagName = "auth-strategy-name"
 
-	aiGatewayIdentityProviderIDConfigPath   = "konnect.ai-gateway.identity-provider.id"
-	aiGatewayIdentityProviderNameConfigPath = "konnect.ai-gateway.identity-provider.name"
+	aiGatewayAuthStrategyIDConfigPath   = "konnect.ai-gateway.auth-strategy.id"
+	aiGatewayAuthStrategyNameConfigPath = "konnect.ai-gateway.auth-strategy.name"
 
 	aiGatewayPolicyIDFlagName   = "policy-id"
 	aiGatewayPolicyNameFlagName = "policy-name"
@@ -190,13 +190,13 @@ var (
 		nameHelp: "The name of the AI Gateway Model Provider to retrieve.",
 	}
 
-	aiGatewayIdentityProviderFlags = pairedAIGatewayFlags{
-		idFlag:   aiGatewayIdentityProviderIDFlagName,
-		idPath:   aiGatewayIdentityProviderIDConfigPath,
-		idHelp:   "The ID of the AI Gateway Identity Provider to retrieve.",
-		nameFlag: aiGatewayIdentityProviderNameFlagName,
-		namePath: aiGatewayIdentityProviderNameConfigPath,
-		nameHelp: "The name of the AI Gateway Identity Provider to retrieve.",
+	aiGatewayAuthStrategyFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayAuthStrategyIDFlagName,
+		idPath:   aiGatewayAuthStrategyIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Auth Strategy to retrieve.",
+		nameFlag: aiGatewayAuthStrategyNameFlagName,
+		namePath: aiGatewayAuthStrategyNameConfigPath,
+		nameHelp: "The name of the AI Gateway Auth Strategy to retrieve.",
 	}
 
 	aiGatewayPolicyFlags = pairedAIGatewayFlags{
@@ -314,19 +314,19 @@ func getAIGatewayProviderIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(cfg, aiGatewayProviderIDConfigPath, aiGatewayProviderNameConfigPath)
 }
 
-func addAIGatewayIdentityProviderFlags(c *cobra.Command) {
-	addPairedAIGatewayFlags(c, aiGatewayIdentityProviderFlags)
+func addAIGatewayAuthStrategyFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayAuthStrategyFlags)
 }
 
-func bindAIGatewayIdentityProviderFlags(c *cobra.Command, args []string) error {
-	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayIdentityProviderFlags)...)
+func bindAIGatewayAuthStrategyFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayAuthStrategyFlags)...)
 }
 
-func getAIGatewayIdentityProviderIdentifiers(cfg config.Hook) (id string, name string) {
+func getAIGatewayAuthStrategyIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(
 		cfg,
-		aiGatewayIdentityProviderIDConfigPath,
-		aiGatewayIdentityProviderNameConfigPath,
+		aiGatewayAuthStrategyIDConfigPath,
+		aiGatewayAuthStrategyNameConfigPath,
 	)
 }
 
