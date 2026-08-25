@@ -1,7 +1,6 @@
 package loader
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	decerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"sigs.k8s.io/yaml"
@@ -97,33 +95,43 @@ func (l *Loader) LoadFromSourcesWithContext(ctx context.Context, sources []Sourc
 	recursive bool,
 ) (*resources.ResourceSet, error) {
 	var allResources resources.ResourceSet
-	// Running index of refs for O(1) duplicate checking across files
 	refIndex := make(map[string]resources.ResourceType)
 
-	for _, source := range sources {
-		var err error
-		rootDir := l.resolveSourceRoot(source)
-
-		switch source.Type {
-		case SourceTypeFile:
-			err = l.loadSingleFileWithContext(ctx, source.Path, rootDir, &allResources, refIndex)
-		case SourceTypeDirectory:
-			err = l.loadDirectorySourceWithContext(ctx, source.Path, rootDir, recursive, &allResources, refIndex)
-		case SourceTypeSTDIN:
-			err = l.loadSTDINWithContext(ctx, rootDir, &allResources, refIndex)
-		case SourceTypeURL:
-			err = l.loadURLWithContext(ctx, source.Path, rootDir, &allResources, refIndex)
-		default:
-			return nil, decerrors.FormatConfigurationError(
-				source.Path,
-				0,
-				fmt.Sprintf("unknown source type: %v", source.Type),
-			)
-		}
-
+	documents, err := l.readSourceDocuments(ctx, sources, recursive)
+	if err != nil {
+		return nil, err
+	}
+	preparedDocuments := make([]*preparedYAML, 0, len(documents))
+	templateDocuments := make([]*configTemplateDocument, 0, len(documents))
+	for i, document := range documents {
+		prepared, err := l.prepareYAML(document.content, document.sourcePath, document.rootDir)
 		if err != nil {
 			return nil, err
 		}
+		preparedDocuments = append(preparedDocuments, prepared)
+		templateDocuments = append(templateDocuments, &configTemplateDocument{
+			content: prepared.content, sourcePath: prepared.sourcePath,
+		})
+		prepared.content = nil
+		documents[i].content = nil
+	}
+	if err := expandConfigTemplateDocuments(templateDocuments); err != nil {
+		return nil, fmt.Errorf("failed to expand templates: %w", err)
+	}
+	for i, prepared := range preparedDocuments {
+		prepared.content = templateDocuments[i].content
+		prepared.templateDefinitions = templateDocuments[i].usedTemplates
+		templateDocuments[i] = nil
+		prepared.hasEnvTags = prepared.hasEnvTags ||
+			strings.Contains(string(prepared.content), tags.EnvPlaceholderPrefix)
+		rs, err := l.parsePreparedYAML(prepared)
+		if err != nil {
+			return nil, err
+		}
+		if err := l.appendResourcesWithDuplicateCheck(&allResources, rs, prepared.sourcePath, refIndex); err != nil {
+			return nil, err
+		}
+		preparedDocuments[i] = nil
 	}
 
 	if err := l.normalizeContentMetadata(&allResources); err != nil {
@@ -204,35 +212,36 @@ func (l *Loader) loadSingleFile(
 	return l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex)
 }
 
-func (l *Loader) loadURLWithContext(
-	ctx context.Context,
-	rawURL string,
-	rootDir string,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	content, err := FetchURLWithOptions(ctx, rawURL, l.urlFetchOptions)
-	if err != nil {
-		return err
-	}
-
-	rs, err := l.parseYAML(bytes.NewReader(content), rawURL, rootDir)
-	if err != nil {
-		return err
-	}
-
-	return l.appendResourcesWithDuplicateCheck(accumulated, rs, rawURL, refIndex)
+type preparedYAML struct {
+	content             []byte
+	sourcePath          string
+	baseDir             string
+	tagRootDir          string
+	hasEnvTags          bool
+	templateDefinitions map[string]configTemplate
 }
 
-// parseYAML parses YAML content into ResourceSet
+// parseYAML parses YAML content into ResourceSet.
 func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*resources.ResourceSet, error) {
-	var temp temporaryParseResult
-	var placeholderTemp temporaryParseResult
-
 	rawContent, err := io.ReadAll(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read content from %s: %w", sourcePath, err)
 	}
+	prepared, err := l.prepareYAML(rawContent, sourcePath, rootDir)
+	if err != nil {
+		return nil, err
+	}
+	templateDocument := &configTemplateDocument{content: prepared.content, sourcePath: sourcePath}
+	if err := expandConfigTemplateDocuments([]*configTemplateDocument{templateDocument}); err != nil {
+		return nil, fmt.Errorf("failed to expand templates in %s: %w", sourcePath, err)
+	}
+	prepared.content = templateDocument.content
+	prepared.templateDefinitions = templateDocument.usedTemplates
+	prepared.hasEnvTags = prepared.hasEnvTags || strings.Contains(string(prepared.content), tags.EnvPlaceholderPrefix)
+	return l.parsePreparedYAML(prepared)
+}
+
+func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir string) (*preparedYAML, error) {
 	hasEnvTags := strings.Contains(string(rawContent), "!env")
 	if hasEnvTags {
 		if err := validateEnvTagStringFields(rawContent); err != nil {
@@ -274,8 +283,31 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	if err != nil {
 		return nil, fmt.Errorf("failed to process placeholder tags in %s: %w", sourcePath, err)
 	}
+	return &preparedYAML{
+		content:    placeholderContent,
+		sourcePath: sourcePath,
+		baseDir:    baseDir,
+		tagRootDir: tagRootDir,
+		hasEnvTags: hasEnvTags,
+	}, nil
+}
+
+func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceSet, error) {
+	var temp temporaryParseResult
+	var placeholderTemp temporaryParseResult
+
+	placeholderContent := prepared.content
+	sourcePath := prepared.sourcePath
+	if prepared.hasEnvTags {
+		if err := validateEnvTagStringFields(placeholderContent); err != nil {
+			return nil, withTemplateDefinitionContext(
+				fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, err),
+				prepared.templateDefinitions,
+			)
+		}
+	}
 	if err := validateDeclarativeDocumentShape(placeholderContent, sourcePath); err != nil {
-		return nil, err
+		return nil, withTemplateDefinitionContext(err, prepared.templateDefinitions)
 	}
 
 	// Decode the placeholder representation twice. The execution representation
@@ -285,22 +317,33 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	placeholderErr := yaml.UnmarshalStrict(placeholderContent, &placeholderTemp)
 
 	if parseErr != nil {
-		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
-			return nil, fmt.Errorf(
-				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
-				sourcePath,
-				placeholderErr,
+		if prepared.hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
+			return nil, withTemplateDefinitionContext(
+				fmt.Errorf(
+					"failed to parse deferred !env tags in %s: "+
+						"!env currently supports string-typed fields only: %w",
+					sourcePath,
+					placeholderErr,
+				),
+				prepared.templateDefinitions,
 			)
 		}
-		return nil, formatYAMLParseError(l, sourcePath, parseErr)
+		return nil, withTemplateDefinitionContext(
+			formatYAMLParseError(l, sourcePath, parseErr),
+			prepared.templateDefinitions,
+		)
 	}
 
 	if placeholderErr != nil {
-		if hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
-			return nil, fmt.Errorf(
-				"failed to parse deferred !env tags in %s: !env currently supports string-typed fields only: %w",
-				sourcePath,
-				placeholderErr,
+		if prepared.hasEnvTags && isDeferredEnvStringOnlyError(placeholderErr) {
+			return nil, withTemplateDefinitionContext(
+				fmt.Errorf(
+					"failed to parse deferred !env tags in %s: "+
+						"!env currently supports string-typed fields only: %w",
+					sourcePath,
+					placeholderErr,
+				),
+				prepared.templateDefinitions,
 			)
 		}
 		return nil, fmt.Errorf("failed to parse deferred !env tags in %s: %w", sourcePath, placeholderErr)
@@ -331,7 +374,7 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 		return nil, fmt.Errorf("failed to resolve !env tags in %s: %w", sourcePath, err)
 	}
 	// Resolve deck config paths relative to the source file.
-	if err := l.resolveDeckConfigPaths(&rs, baseDir, tagRootDir); err != nil {
+	if err := l.resolveDeckConfigPaths(&rs, prepared.baseDir, prepared.tagRootDir); err != nil {
 		return nil, fmt.Errorf("failed to resolve deck config paths in %s: %w", sourcePath, err)
 	}
 
@@ -347,6 +390,14 @@ func (l *Loader) parseYAML(r io.Reader, sourcePath string, rootDir string) (*res
 	// loadDirectory will validate the merged result.
 
 	return &rs, nil
+}
+
+func withTemplateDefinitionContext(err error, definitions map[string]configTemplate) error {
+	context := templateDefinitionContext(definitions)
+	if err == nil || context == "" {
+		return err
+	}
+	return fmt.Errorf("%w (%s)", err, context)
 }
 
 func isDeferredEnvStringOnlyError(err error) bool {
@@ -409,103 +460,6 @@ func dashboardUnionParseError(sourcePath string, errMsg string) string {
 	default:
 		return ""
 	}
-}
-
-// loadSTDIN loads configuration from stdin
-func (l *Loader) loadSTDIN(
-	rootDir string,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	// Check if stdin has data
-	stat, err := os.Stdin.Stat()
-	if err != nil {
-		return fmt.Errorf("failed to stat stdin: %w", err)
-	}
-
-	if (stat.Mode() & os.ModeCharDevice) != 0 {
-		return fmt.Errorf("no data provided on stdin")
-	}
-
-	rs, err := l.parseYAML(os.Stdin, "stdin", rootDir)
-	if err != nil {
-		return err
-	}
-
-	// Append resources with duplicate checking
-	return l.appendResourcesWithDuplicateCheck(accumulated, rs, "stdin", refIndex)
-}
-
-// loadDirectorySource loads YAML files from a directory
-func (l *Loader) loadDirectorySource(
-	dirPath string,
-	rootDir string,
-	recursive bool,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	yamlCount := 0
-	subdirCount := 0
-
-	// First, check direct YAML files in the directory
-	entries, err := os.ReadDir(dirPath)
-	if err != nil {
-		return fmt.Errorf("failed to read directory %s: %w", dirPath, err)
-	}
-
-	for _, entry := range entries {
-		path := filepath.Join(dirPath, entry.Name())
-
-		if entry.IsDir() {
-			subdirCount++
-			if recursive {
-				// Recursively load subdirectory
-				if err := l.loadDirectorySource(path, rootDir, recursive, accumulated, refIndex); err != nil {
-					return err
-				}
-			}
-			continue
-		}
-
-		// Skip non-YAML files
-		if !ValidateYAMLFile(path) {
-			continue
-		}
-
-		yamlCount++
-
-		// Load file without validation (will validate merged result later)
-		file, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("failed to open %s: %w", path, err)
-		}
-
-		rs, err := l.parseYAML(file, path, rootDir)
-		file.Close()
-		if err != nil {
-			return fmt.Errorf("failed to parse %s: %w", path, err)
-		}
-
-		// Append resources with duplicate checking
-		if err := l.appendResourcesWithDuplicateCheck(accumulated, rs, path, refIndex); err != nil {
-			return err
-		}
-
-	}
-
-	// Provide helpful error if no YAML files found
-	if yamlCount == 0 && subdirCount > 0 && !recursive {
-		return fmt.Errorf("no YAML files found in directory '%s'. Found %d subdirectories. "+
-			"Use -R to search subdirectories", dirPath, subdirCount)
-	} else if yamlCount == 0 {
-		// Check if accumulated has any resources using the registry
-		if accumulated.IsEmpty() {
-			// Only error if no files were found at all (not just empty files)
-			return fmt.Errorf("no YAML files found in directory '%s'", dirPath)
-		}
-	}
-
-	return nil
 }
 
 // appendResourcesWithDuplicateCheck appends resources from source to accumulated with global duplicate checking.
@@ -1221,41 +1175,4 @@ func abs(n int) int {
 		return -n
 	}
 	return n
-}
-
-// Context-aware wrapper methods for internal use
-func (l *Loader) loadSingleFileWithContext(
-	_ context.Context,
-	path string,
-	rootDir string,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	// For now, we just call the non-context version
-	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSingleFile(path, rootDir, accumulated, refIndex)
-}
-
-func (l *Loader) loadDirectorySourceWithContext(
-	_ context.Context,
-	dirPath string,
-	rootDir string,
-	recursive bool,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	// For now, we just call the non-context version
-	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadDirectorySource(dirPath, rootDir, recursive, accumulated, refIndex)
-}
-
-func (l *Loader) loadSTDINWithContext(
-	_ context.Context,
-	rootDir string,
-	accumulated *resources.ResourceSet,
-	refIndex map[string]resources.ResourceType,
-) error {
-	// For now, we just call the non-context version
-	// The context will be used by ResolveReferences in LoadFromSourcesWithContext
-	return l.loadSTDIN(rootDir, accumulated, refIndex)
 }

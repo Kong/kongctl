@@ -377,7 +377,7 @@ test("presents the declarative configuration journey", async ({ page }) => {
   await page.goto("declarative-configuration/");
   const lessons = page.locator(".chapter-lessons");
 
-  await expect(lessons.locator(":scope > li")).toHaveCount(8);
+  await expect(lessons.locator(":scope > li")).toHaveCount(9);
   await expect(
     lessons.getByRole("link", { name: /Plan-Based Configuration/ }),
   ).toBeVisible();
@@ -395,11 +395,30 @@ test("presents the declarative configuration journey", async ({ page }) => {
   ).toBeVisible();
   await expect(lessons.getByRole("link", { name: /Sync Scope/ })).toBeVisible();
   await expect(
+    lessons.getByRole("link", { name: /Configuration Templates/ }),
+  ).toBeVisible();
+  await expect(lessons.locator(":scope > li").nth(6)).toContainText(
+    "Configuration Templates",
+  );
+  await expect(
     lessons.getByRole("link", { name: /Adopt Existing Resources/ }),
   ).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Discovering Declarative Schemas/ }),
   ).toBeVisible();
+});
+
+test("teaches reusable configuration templates", async ({ page }) => {
+  await page.goto("declarative-configuration/configuration-templates/");
+  const lesson = page.locator(".lesson-body");
+
+  await expect(
+    lesson.getByRole("heading", { name: "Why centralize model costs?" }),
+  ).toBeVisible();
+  await expect(
+    lesson.getByText("_extends: gpt-4o-token-costs", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(lesson).toContainText("-f costs-updated.yaml");
 });
 
 test("explains plan modes and mode-matched execution", async ({ page }) => {
@@ -662,10 +681,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 33", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 34", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 33", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 34", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {

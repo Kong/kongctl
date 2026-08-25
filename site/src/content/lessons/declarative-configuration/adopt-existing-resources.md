@@ -1,7 +1,7 @@
 ---
 title: Adopt Existing Resources
 summary: Bring existing Konnect resources under declarative management.
-order: 7
+order: 8
 related:
   - label: Declarative configuration documentation
     url: https://developer.konghq.com/kongctl/declarative/

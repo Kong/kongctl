@@ -1,0 +1,83 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-templates-example
+
+ai_gateways:
+  - ref: shared-cost-gateway
+    name: shared-cost-gateway
+    display_name: Shared Cost Gateway
+    description: Centralizes model token costs for cost-based rate limiting
+    proxy_urls:
+      - host: shared-cost-gateway.example.com
+        port: 443
+        protocol: https
+    labels:
+      example: templates
+
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        display_name: OpenAI
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret
+                  parts:
+                    - "Bearer "
+                    - !env OPENAI_API_KEY
+
+    models:
+      - ref: customer-support
+        name: customer-support
+        display_name: Customer Support
+        type: model
+        formats:
+          - type: openai
+        config:
+          route:
+            model:
+              body_param: model
+              values:
+                - customer-support
+        targets:
+          - name: gpt-4o
+            provider: openai-provider
+            config:
+              _extends: gpt-4o-token-costs
+              type: openai
+        policies:
+          - !ref hourly-model-cost-budget#name
+        capabilities:
+          - generate
+
+      - ref: document-review
+        name: document-review
+        display_name: Document Review
+        type: model
+        formats:
+          - type: openai
+        config:
+          route:
+            model:
+              body_param: model
+              values:
+                - document-review
+        targets:
+          - name: gpt-4o
+            provider: openai-provider
+            config:
+              type: openai
+              _extends: gpt-4o-token-costs
+        policies:
+          - !ref hourly-model-cost-budget#name
+        capabilities:
+          - generate
+
+    policies:
+      - _extends: hourly-model-cost-budget
+        ref: hourly-model-cost-budget
+        name: hourly-model-cost-budget
+        display_name: Hourly Model Cost Budget

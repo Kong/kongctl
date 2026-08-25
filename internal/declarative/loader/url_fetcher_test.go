@@ -347,6 +347,36 @@ apis:
 	assert.Equal(t, "loaded from base dir", *rs.APIs[0].Description)
 }
 
+func TestLoader_LoadFromSources_UsesTemplatesFromURLSources(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte(`
+_templates:
+  remote-portal:
+    authentication_enabled: true
+`))
+		require.NoError(t, err)
+	}))
+	defer server.Close()
+
+	dir := t.TempDir()
+	consumerPath := filepath.Join(dir, "portal.yaml")
+	require.NoError(t, os.WriteFile(consumerPath, []byte(`
+portals:
+  - _extends: remote-portal
+    ref: docs
+    name: Docs
+`), 0o600))
+
+	rs, err := NewWithBaseDir(dir).LoadFromSourcesWithContext(t.Context(), []Source{
+		{Path: server.URL + "/templates.yaml", Type: SourceTypeURL},
+		{Path: consumerPath, Type: SourceTypeFile},
+	}, false)
+	require.NoError(t, err)
+	require.Len(t, rs.Portals, 1)
+	require.NotNil(t, rs.Portals[0].AuthenticationEnabled)
+	assert.True(t, *rs.Portals[0].AuthenticationEnabled)
+}
+
 func TestFetchURLRejectsInvalidURL(t *testing.T) {
 	tests := []string{
 		"file:///tmp/config.yaml",

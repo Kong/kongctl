@@ -1,7 +1,7 @@
 ---
 title: Discovering Declarative Schemas
 summary: Explore supported resources and generate starter YAML.
-order: 8
+order: 9
 related:
   - label: Declarative resource reference
     url: https://developer.konghq.com/kongctl/supported-resources/
