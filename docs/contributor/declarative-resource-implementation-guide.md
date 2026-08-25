@@ -129,6 +129,11 @@ Only documented, literal API defaults may be applied automatically. For
 example, a documented `enabled: true` default is eligible; copying `name` into
 `display_name` is not.
 
+Some existing resources default `name` from `ref` for compatibility. Treat
+that as legacy behavior, not an implementation pattern. Removing those
+fallbacks requires separately scoped compatibility work; do not copy them into
+new or expanded declarative resources.
+
 ### LOGGING & DIAGNOSTICS
 - Always add verbose `slog` debug statements when introducing a new planner or executor path. Helpful patterns:
   - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.

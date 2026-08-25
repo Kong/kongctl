@@ -331,6 +331,9 @@ after making changes to catch regressions.
   another user-supplied field.
 - Only documented, literal API defaults may be applied automatically. Hidden
   cross-field defaults are prohibited.
+- Existing `name`-from-`ref` fallbacks are legacy behavior, not a pattern to
+  copy. Changes to those fallbacks require separately scoped compatibility
+  work.
 
 ## Testing Guidelines
 

@@ -399,6 +399,10 @@ inherit
 management scope from their parent resource and do not accept `kongctl`
 metadata.
 
+For AI Gateway Policies, `display_name` must be explicitly provided in both
+nested and root-level declarations; kongctl does not infer it from `name` or
+`ref`.
+
 For AI Gateway Models, `targets[].provider` must match an AI Gateway
 Model Provider `name` under the parent gateway. The model provider can already
 exist or be declared in the same gateway configuration.
@@ -654,8 +658,6 @@ ai_gateway_identity_providers:
 
 AI Gateway Policies can also be declared as root resources. Root-level policy
 declarations must identify the parent AI Gateway with `ai_gateway`.
-The `display_name` field must be explicitly provided; kongctl does not infer it
-from `name` or `ref`.
 
 ```yaml
 ai_gateway_policies:
