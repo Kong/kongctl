@@ -245,6 +245,8 @@ steps:
                   - "egw-backend-1.example.com:9094"
                   - "egw-backend-2.example.com:9095"
                 authentication.type: "sasl_plain"
+                authentication.username: '${env["updated-username"]}'
+                authentication.password: '${env["updated-password"]}'
                 tls.enabled: true
                 tls.tls_versions:
                   - "tls12"
@@ -303,6 +305,8 @@ steps:
                 name: "{{ .vars.bcRef }}"
                 authentication.type: sasl_scram
                 authentication.algorithm: sha512
+                authentication.username: '${env["scram-username"]}'
+                authentication.password: '${env["scram-password"]}'
       - name: 004-idempotency-check
         outputFormat: disable
         run:
