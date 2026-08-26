@@ -446,10 +446,11 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	}
 
 	implCount := len(rs.APIImplementations)
-	implMissingService := 0
+	implMissingPayload := 0
 	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].ServiceReference.GetService() == nil {
-			implMissingService++
+		if rs.APIImplementations[i].ServiceReference.GetService() == nil &&
+			rs.APIImplementations[i].ControlPlaneReference.GetControlPlane() == nil {
+			implMissingPayload++
 		}
 	}
 
@@ -457,7 +458,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		ctx, slog.LevelDebug, "Reference resolution completed",
 		slog.Int("resources_processed", processCount),
 		slog.Int("api_implementations", implCount),
-		slog.Int("api_implementations_missing_service", implMissingService),
+		slog.Int("api_implementations_missing_payload", implMissingPayload),
 	)
 
 	return nil

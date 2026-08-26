@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -92,6 +93,29 @@ func TestAPIImplementationResource_Interfaces(t *testing.T) {
 	assert.Equal(t, "my-api", parentRef.Ref)
 }
 
+func TestAPIImplementationResource_ControlPlaneReferencesAndMatching(t *testing.T) {
+	implementation := &APIImplementationResource{
+		Ref: "implementation",
+		APIImplementation: kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+			ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: "control-plane-ref"},
+		}),
+	}
+
+	assert.Equal(t, map[string]string{
+		"control_plane.control_plane_id": string(ResourceTypeControlPlane),
+	}, implementation.GetReferenceFieldMappings())
+	assert.True(t, implementation.TryMatchKonnectResource(struct {
+		ID           string
+		ControlPlane *struct{ ID string }
+	}{
+		ID: "implementation-id",
+		ControlPlane: &struct{ ID string }{
+			ID: "control-plane-ref",
+		},
+	}))
+	assert.Equal(t, "implementation-id", implementation.GetKonnectID())
+}
+
 func TestAPIChildResources_Validation(t *testing.T) {
 	// Test version validation
 	version := APIVersionResource{}
@@ -126,5 +150,10 @@ func TestAPIChildResources_Validation(t *testing.T) {
 
 	impl.Ref = "impl1"
 	err = impl.Validate()
-	assert.NoError(t, err)
+	assert.ErrorContains(t, err, "exactly one of service or control_plane")
+
+	impl.APIImplementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+		ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: "control-plane"},
+	})
+	assert.NoError(t, impl.Validate())
 }

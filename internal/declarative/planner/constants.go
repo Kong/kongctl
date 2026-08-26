@@ -120,6 +120,7 @@ const (
 	FieldParentPolicyID               = "parent_policy_id"
 	FieldPortalID                     = "portal_id"
 	FieldRoleName                     = "role_name"
+	FieldControlPlane                 = "control_plane"
 	FieldService                      = "service"
 	FieldSlugPath                     = "slug_path"
 	FieldTeamID                       = "team_id"

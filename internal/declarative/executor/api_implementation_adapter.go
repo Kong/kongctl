@@ -28,34 +28,42 @@ func (a *APIImplementationAdapter) MapCreateFields(
 		return fmt.Errorf("create request must not be nil")
 	}
 
-	serviceValue, ok := fields[planner.FieldService]
+	serviceValue, hasService := fields[planner.FieldService]
+	controlPlaneValue, hasControlPlane := fields[planner.FieldControlPlane]
+	if hasService == hasControlPlane {
+		return fmt.Errorf("exactly one of service or control_plane is required for API implementations")
+	}
+
+	if hasService {
+		serviceMap, ok := serviceValue.(map[string]any)
+		if !ok {
+			return fmt.Errorf("service must be an object")
+		}
+		serviceID, err := getStringField(serviceMap, planner.FieldID)
+		if err != nil {
+			return fmt.Errorf("service.id is required: %w", err)
+		}
+		controlPlaneID, err := getStringField(serviceMap, planner.FieldControlPlaneID)
+		if err != nil {
+			return fmt.Errorf("service.control_plane_id is required: %w", err)
+		}
+		*create = kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
+			Service: &kkComps.APIImplementationService{ID: serviceID, ControlPlaneID: controlPlaneID},
+		})
+		return nil
+	}
+
+	controlPlaneMap, ok := controlPlaneValue.(map[string]any)
 	if !ok {
-		return fmt.Errorf("service is required for API implementations")
+		return fmt.Errorf("control_plane must be an object")
 	}
-
-	serviceMap, ok := serviceValue.(map[string]any)
-	if !ok {
-		return fmt.Errorf("service must be an object")
-	}
-
-	serviceID, err := getStringField(serviceMap, "id")
+	controlPlaneID, err := getStringField(controlPlaneMap, planner.FieldControlPlaneID)
 	if err != nil {
-		return fmt.Errorf("service.id is required: %w", err)
+		return fmt.Errorf("control_plane.control_plane_id is required: %w", err)
 	}
-
-	controlPlaneID, err := getStringField(serviceMap, "control_plane_id")
-	if err != nil {
-		return fmt.Errorf("service.control_plane_id is required: %w", err)
-	}
-
-	create.ServiceReference = &kkComps.ServiceReference{
-		Service: &kkComps.APIImplementationService{
-			ID:             serviceID,
-			ControlPlaneID: controlPlaneID,
-		},
-	}
-	create.Type = kkComps.APIImplementationTypeServiceReference
-
+	*create = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+		ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: controlPlaneID},
+	})
 	return nil
 }
 
@@ -79,6 +87,9 @@ func (a *APIImplementationAdapter) Create(ctx context.Context, req kkComps.APIIm
 
 	if sr := resp.APIImplementationResponseServiceReference; sr != nil {
 		return sr.GetID(), nil
+	}
+	if cp := resp.APIImplementationResponseControlPlaneReference; cp != nil {
+		return cp.GetID(), nil
 	}
 
 	return "", fmt.Errorf("unexpected API implementation response format")
@@ -111,7 +122,7 @@ func (a *APIImplementationAdapter) ResourceType() string {
 
 // RequiredFields lists the required fields for creation.
 func (a *APIImplementationAdapter) RequiredFields() []string {
-	return []string{planner.FieldService}
+	return nil
 }
 
 // MapUpdateFields reports that updates are not supported.

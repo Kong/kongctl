@@ -11,6 +11,11 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
+const (
+	apiImplementationTypeService      = "service"
+	apiImplementationTypeControlPlane = "control_plane"
+)
+
 func init() {
 	registerResourceType(
 		ResourceTypeAPIImplementation,
@@ -55,6 +60,13 @@ func (i APIImplementationResource) getService() *kkComps.APIImplementationServic
 	return i.ServiceReference.GetService()
 }
 
+func (i APIImplementationResource) getControlPlane() *kkComps.APIImplementationControlPlaneInput {
+	if i.ControlPlaneReference == nil {
+		return nil
+	}
+	return i.ControlPlaneReference.GetControlPlane()
+}
+
 // GetDependencies returns references to other resources this API implementation depends on
 func (i APIImplementationResource) GetDependencies() []ResourceRef {
 	deps := []ResourceRef{}
@@ -75,13 +87,19 @@ func (i APIImplementationResource) GetReferenceFieldMappings() map[string]string
 		// Check if control_plane_id is a UUID - if so, it's an external reference
 		if !util.IsValidUUID(service.ControlPlaneID) {
 			// Not a UUID, so it's a reference to a declarative control plane
-			mappings["service.control_plane_id"] = "control_plane"
+			mappings["service.control_plane_id"] = string(ResourceTypeControlPlane)
 		}
 	}
 
 	if service := i.getService(); service != nil && service.ID != "" {
 		if !util.IsValidUUID(service.ID) && !tags.IsRefPlaceholder(service.ID) {
 			mappings["service.id"] = string(ResourceTypeGatewayService)
+		}
+	}
+
+	if controlPlane := i.getControlPlane(); controlPlane != nil && controlPlane.ID != "" {
+		if !util.IsValidUUID(controlPlane.ID) {
+			mappings["control_plane.control_plane_id"] = string(ResourceTypeControlPlane)
 		}
 	}
 
@@ -94,8 +112,16 @@ func (i APIImplementationResource) Validate() error {
 		return fmt.Errorf("invalid API implementation ref: %w", err)
 	}
 
-	// Validate service information if present.
-	if service := i.getService(); service != nil {
+	service := i.getService()
+	controlPlane := i.getControlPlane()
+	if service != nil && controlPlane != nil {
+		return fmt.Errorf("API implementation must define exactly one of service or control_plane")
+	}
+	if service == nil && controlPlane == nil {
+		return fmt.Errorf("API implementation must define exactly one of service or control_plane")
+	}
+
+	if service != nil {
 		if service.ID == "" {
 			return fmt.Errorf("API implementation service.id is required")
 		}
@@ -104,8 +130,18 @@ func (i APIImplementationResource) Validate() error {
 			return fmt.Errorf("API implementation service.control_plane_id is required")
 		}
 
-		// control_plane_id can be either a UUID (external) or a reference (declarative)
-		// Both are valid - no additional validation needed here
+		if i.Type != "" && i.Type != kkComps.APIImplementationTypeServiceReference {
+			return fmt.Errorf("API implementation type does not match service payload")
+		}
+	}
+
+	if controlPlane != nil {
+		if controlPlane.ID == "" {
+			return fmt.Errorf("API implementation control_plane.control_plane_id is required")
+		}
+		if i.Type != "" && i.Type != kkComps.APIImplementationTypeControlPlaneReference {
+			return fmt.Errorf("API implementation type does not match control_plane payload")
+		}
 	}
 
 	return nil
@@ -129,71 +165,75 @@ func (i APIImplementationResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (i *APIImplementationResource) TryMatchKonnectResource(konnectResource any) bool {
-	// For API implementations, we match by service ID + control plane ID
-	// Use reflection to access fields from state.APIImplementation
-	v := reflect.ValueOf(konnectResource)
-
-	// Handle pointer types
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-
-	// Ensure we have a struct
-	if v.Kind() != reflect.Struct {
+	v, ok := implementationStructValue(reflect.ValueOf(konnectResource))
+	if !ok {
 		return false
 	}
+	id := implementationStringField(v, "ID")
 
-	// Look for Service and ID fields
-	serviceField := v.FieldByName("Service")
-	idField := v.FieldByName("ID")
-
-	if serviceField.IsValid() && serviceField.Kind() == reflect.Pointer && !serviceField.IsNil() && idField.IsValid() {
-		// Service is a pointer to struct
-		svc := serviceField.Elem()
-		if svc.Kind() == reflect.Struct {
-			svcIDField := svc.FieldByName("ID")
-			cpIDField := svc.FieldByName("ControlPlaneID")
-
-			if svcIDField.IsValid() && cpIDField.IsValid() {
-				if service := i.getService(); service != nil &&
-					svcIDField.String() == service.ID &&
-					cpIDField.String() == service.ControlPlaneID {
-					i.konnectID = idField.String()
-					return true
-				}
+	if service := i.getService(); service != nil {
+		for _, path := range [][]string{{"Service"}, {"ServiceReference", "Service"}} {
+			remote, found := implementationNestedStruct(v, path...)
+			if !found {
+				continue
+			}
+			serviceID := implementationStringField(remote, "ID")
+			controlPlaneID := implementationStringField(remote, "ControlPlaneID")
+			if serviceID == service.ID && controlPlaneID == service.ControlPlaneID {
+				i.konnectID = id
+				return true
 			}
 		}
 	}
 
-	// Handle nested ServiceReference for newer SDK models.
-	serviceRefField := v.FieldByName("ServiceReference")
-	if serviceRefField.IsValid() &&
-		serviceRefField.Kind() == reflect.Pointer &&
-		!serviceRefField.IsNil() &&
-		idField.IsValid() {
-		ref := serviceRefField.Elem()
-		if ref.Kind() == reflect.Struct {
-			serviceField = ref.FieldByName("Service")
-			if serviceField.IsValid() && serviceField.Kind() == reflect.Pointer && !serviceField.IsNil() {
-				svc := serviceField.Elem()
-				if svc.Kind() == reflect.Struct {
-					svcIDField := svc.FieldByName("ID")
-					cpIDField := svc.FieldByName("ControlPlaneID")
-
-					if svcIDField.IsValid() && cpIDField.IsValid() {
-						if service := i.getService(); service != nil &&
-							svcIDField.String() == service.ID &&
-							cpIDField.String() == service.ControlPlaneID {
-							i.konnectID = idField.String()
-							return true
-						}
-					}
-				}
+	if controlPlane := i.getControlPlane(); controlPlane != nil {
+		for _, path := range [][]string{{"ControlPlane"}, {"ControlPlaneReference", "ControlPlane"}} {
+			remote, found := implementationNestedStruct(v, path...)
+			if !found {
+				continue
+			}
+			controlPlaneID := implementationStringField(remote, "ID")
+			if controlPlaneID == controlPlane.ID {
+				i.konnectID = id
+				return true
 			}
 		}
 	}
 
 	return false
+}
+
+func implementationNestedStruct(value reflect.Value, path ...string) (reflect.Value, bool) {
+	current, ok := implementationStructValue(value)
+	if !ok {
+		return reflect.Value{}, false
+	}
+	for _, fieldName := range path {
+		current = current.FieldByName(fieldName)
+		current, ok = implementationStructValue(current)
+		if !ok {
+			return reflect.Value{}, false
+		}
+	}
+	return current, true
+}
+
+func implementationStructValue(value reflect.Value) (reflect.Value, bool) {
+	for value.IsValid() && value.Kind() == reflect.Pointer {
+		if value.IsNil() {
+			return reflect.Value{}, false
+		}
+		value = value.Elem()
+	}
+	return value, value.IsValid() && value.Kind() == reflect.Struct
+}
+
+func implementationStringField(value reflect.Value, name string) string {
+	field := value.FieldByName(name)
+	if !field.IsValid() || field.Kind() != reflect.String {
+		return ""
+	}
+	return field.String()
 }
 
 // GetParentRef returns the parent API reference for ResourceWithParent interface
@@ -207,6 +247,10 @@ func (i APIImplementationResource) GetParentRef() *ResourceRef {
 // MarshalJSON ensures implementation metadata (ref, api) are included.
 // Without this, the embedded APIImplementation's MarshalJSON is promoted and drops metadata fields.
 func (i APIImplementationResource) MarshalJSON() ([]byte, error) {
+	if i.ServiceReference != nil && i.ControlPlaneReference != nil {
+		return nil, fmt.Errorf("API implementation must define exactly one of service or control_plane")
+	}
+
 	payload := make(map[string]any)
 
 	implBytes, err := json.Marshal(i.APIImplementation)
@@ -220,6 +264,12 @@ func (i APIImplementationResource) MarshalJSON() ([]byte, error) {
 	payload["ref"] = i.Ref
 	if i.API != "" {
 		payload["api"] = i.API
+	}
+	if i.ServiceReference != nil {
+		payload["type"] = apiImplementationTypeService
+	}
+	if i.ControlPlaneReference != nil {
+		payload["type"] = apiImplementationTypeControlPlane
 	}
 
 	return json.Marshal(payload)
@@ -237,6 +287,9 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 			ID             string `json:"id"`
 			ControlPlaneID string `json:"control_plane_id"`
 		} `json:"service,omitempty"`
+		ControlPlane *struct {
+			ControlPlaneID string `json:"control_plane_id"`
+		} `json:"control_plane,omitempty"`
 		Kongctl any `json:"kongctl,omitempty"`
 	}
 
@@ -252,8 +305,9 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 	i.Ref = temp.Ref
 	i.API = temp.API
 
-	if temp.Type != "" && temp.Type != "service" {
-		return fmt.Errorf("API implementation type must be service (got %q)", temp.Type)
+	if temp.Type != "" && temp.Type != apiImplementationTypeService &&
+		temp.Type != apiImplementationTypeControlPlane {
+		return fmt.Errorf("API implementation type must be service or control_plane (got %q)", temp.Type)
 	}
 
 	// Check if kongctl field was provided and reject it
@@ -261,29 +315,31 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("kongctl metadata is not supported on child resources (API implementations)")
 	}
 
-	// Map to SDK fields embedded in APIImplementation
-	sdkData := map[string]any{}
-
-	if temp.ImplementationURL != "" {
-		sdkData["implementation_url"] = temp.ImplementationURL
+	if temp.Service != nil && temp.ControlPlane != nil {
+		return fmt.Errorf("API implementation must define exactly one of service or control_plane")
 	}
-
 	if temp.Service != nil {
-		sdkData["service"] = map[string]any{
-			"id":               temp.Service.ID,
-			"control_plane_id": temp.Service.ControlPlaneID,
+		if temp.Type == apiImplementationTypeControlPlane {
+			return fmt.Errorf("API implementation type control_plane does not match service payload")
 		}
+		i.APIImplementation = kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
+			Service: &kkComps.APIImplementationService{
+				ID:             temp.Service.ID,
+				ControlPlaneID: temp.Service.ControlPlaneID,
+			},
+		})
+		return nil
+	}
+	if temp.ControlPlane != nil {
+		if temp.Type == apiImplementationTypeService {
+			return fmt.Errorf("API implementation type service does not match control_plane payload")
+		}
+		i.APIImplementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+			ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: temp.ControlPlane.ControlPlaneID},
+		})
+		return nil
 	}
 
-	sdkBytes, err := json.Marshal(sdkData)
-	if err != nil {
-		return err
-	}
-
-	// Unmarshal into the embedded SDK type
-	if err := json.Unmarshal(sdkBytes, &i.APIImplementation); err != nil {
-		return err
-	}
-
+	i.APIImplementation = kkComps.APIImplementation{}
 	return nil
 }

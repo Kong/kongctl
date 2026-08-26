@@ -211,7 +211,8 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 		if fieldName == rf ||
 			fieldName == "gateway_service."+rf ||
 			fieldName == "gateway_service.service_id" ||
-			fieldName == "service."+rf {
+			fieldName == "service."+rf ||
+			fieldName == "control_plane."+rf {
 			return true
 		}
 	}
@@ -227,7 +228,8 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 		return ResourceTypeAuditLogWebhookDestination
 	case FieldDCRProviderID:
 		return ResourceTypeDCRProvider
-	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id":
+	case "control_plane_id", "gateway_service.control_plane_id", "service.control_plane_id",
+		"control_plane.control_plane_id":
 		return ResourceTypeControlPlane
 	case FieldPortalID:
 		return ResourceTypePortal

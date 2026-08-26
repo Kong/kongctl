@@ -1219,7 +1219,7 @@ apis:
 	assert.Contains(t, err.Error(), "Did you mean 'service'?")
 }
 
-func TestLoader_LoadFile_APIImplementationRejectsUnsupportedType(t *testing.T) {
+func TestLoader_LoadFile_APIImplementationRejectsMismatchedType(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`
@@ -1237,7 +1237,29 @@ apis:
 
 	_, err = New().LoadFile(path)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "API implementation type must be service")
+	assert.Contains(t, err.Error(), "missing required union selector control_plane")
+}
+
+func TestLoader_LoadFile_APIImplementationControlPlane(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+apis:
+  - ref: users-api
+    name: Users API
+    implementations:
+      - ref: users-api-impl
+        control_plane:
+          control_plane_id: users-control-plane
+`), 0o600)
+	require.NoError(t, err)
+
+	rs, err := New().LoadFile(path)
+	require.NoError(t, err)
+	require.Len(t, rs.APIImplementations, 1)
+	controlPlane := rs.APIImplementations[0].ControlPlaneReference.GetControlPlane()
+	require.NotNil(t, controlPlane)
+	assert.Equal(t, "users-control-plane", controlPlane.ID)
 }
 
 func TestLoader_LoadFile_RejectsAPISpecContent(t *testing.T) {

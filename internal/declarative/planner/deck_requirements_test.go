@@ -206,6 +206,43 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 	require.Contains(t, apiChange.DependsOn, deckChange.ID)
 }
 
+func TestPlanDeckDependenciesAddedToControlPlaneImplementation(t *testing.T) {
+	const controlPlaneID = "11111111-1111-1111-1111-111111111111"
+	cp := resources.ControlPlaneResource{
+		CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "cp"},
+		BaseResource:              resources.BaseResource{Ref: "cp"},
+		Deck:                      &resources.DeckConfig{Files: []string{"ace.yaml"}},
+	}
+	cp.SetKonnectID(controlPlaneID)
+	cp.SetDeckBaseDir(t.TempDir())
+	rs := &resources.ResourceSet{ControlPlanes: []resources.ControlPlaneResource{cp}}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	plan.AddChange(PlannedChange{
+		ID:           "implementation-create",
+		ResourceType: ResourceTypeAPIImplementation,
+		ResourceRef:  "implementation",
+		Action:       ActionCreate,
+		Fields: map[string]any{
+			FieldControlPlane: map[string]any{FieldControlPlaneID: controlPlaneID},
+		},
+	})
+	runner := &stubDeckRunner{result: &deck.RunResult{
+		Stdout: `{"summary":{"creating":1,"updating":0,"deleting":0,"total":1},"errors":[]}`,
+	}}
+	planner := NewPlanner(nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	err := planner.planDeckDependencies(context.Background(), rs, plan, Options{
+		Mode: PlanModeApply,
+		Deck: DeckOptions{
+			Runner: runner, KonnectToken: "token", KonnectAddress: "https://api.konghq.com",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 2)
+	require.Equal(t, ResourceTypeDeck, plan.Changes[1].ResourceType)
+	require.Contains(t, plan.Changes[0].DependsOn, plan.Changes[1].ID)
+}
+
 func TestDeckDiffHasChangesNormalizesBareMaskedDeckEnvValues(t *testing.T) {
 	runner := &stubDeckRunner{
 		result: &deck.RunResult{

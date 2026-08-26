@@ -74,8 +74,11 @@ func TestRenderLoadSchemaRetainsOnlyUnionDiscriminatorScalars(t *testing.T) {
 
 	implementation := schema.Defs[string(ResourceTypeAPIImplementation)]
 	require.NotNil(t, implementation)
-	assert.Nil(t, implementation.Properties["type"].Const)
-	assert.Nil(t, implementation.Properties["type"].Type)
+	require.Len(t, implementation.OneOf, 2)
+	for _, branch := range implementation.OneOf {
+		assert.NotNil(t, branch.Properties["type"].Const)
+		assert.NotContains(t, branch.Required, "type")
+	}
 }
 
 func TestRenderShapeSchemaRetainsScalarTypesOnlyForUnionBranches(t *testing.T) {

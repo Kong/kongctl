@@ -502,6 +502,37 @@ func TestListAPIImplementations_ExactPageBoundaryRequestsSecondPage(t *testing.T
 	assert.Equal(t, "service-2-100", implementations[199].Service.ID)
 }
 
+func TestListAPIImplementations_NormalizesControlPlaneVariant(t *testing.T) {
+	client := NewClient(ClientConfig{
+		APIImplementationAPI: &mockAPIImplementationAPI{
+			listAPIImplementationsFunc: func(
+				_ context.Context, _ kkOps.ListAPIImplementationsRequest,
+			) (*kkOps.ListAPIImplementationsResponse, error) {
+				return &kkOps.ListAPIImplementationsResponse{
+					ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+						Data: []kkComps.APIImplementationListItem{{
+							APIImplementationListItemControlPlaneEntity: &kkComps.APIImplementationListItemControlPlaneEntity{
+								ID: "implementation-id",
+								ControlPlane: kkComps.APIImplementationControlPlane{
+									ID: "control-plane-id",
+								},
+							},
+						}},
+						Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+					},
+				}, nil
+			},
+		},
+	})
+
+	implementations, err := client.ListAPIImplementations(testContextWithLogger(), "api-id")
+	require.NoError(t, err)
+	require.Len(t, implementations, 1)
+	assert.Equal(t, kkComps.APIImplementationTypeControlPlaneReference, implementations[0].Type)
+	require.NotNil(t, implementations[0].ControlPlane)
+	assert.Equal(t, "control-plane-id", implementations[0].ControlPlane.ID)
+}
+
 func TestListPortalSnippets_ExactPageBoundaryRequestsSecondPage(t *testing.T) {
 	ctx := testContextWithLogger()
 	var requestedPages []int64

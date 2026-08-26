@@ -1021,6 +1021,10 @@ apis:
         service:
           id: "12345678-1234-1234-1234-123456789012"
           control_plane_id: "87654321-4321-4321-4321-210987654321"
+      - ref: kong-control-plane-impl
+        type: control_plane
+        control_plane:
+          control_plane_id: "87654321-4321-4321-4321-210987654321"
 `
 
 	err := os.WriteFile(configFile, []byte(configContent), 0o600)
@@ -1087,7 +1091,14 @@ apis:
 			},
 		}, nil).Maybe()
 
-	mockAPIAPI.On("CreateAPIImplementation", mock.Anything, "api-impl-123", mock.Anything).
+	mockAPIAPI.On(
+		"CreateAPIImplementation",
+		mock.Anything,
+		"api-impl-123",
+		mock.MatchedBy(func(implementation kkComps.APIImplementation) bool {
+			return implementation.Type == kkComps.APIImplementationTypeServiceReference
+		}),
+	).
 		Return(&kkOps.CreateAPIImplementationResponse{
 			StatusCode: 201,
 			APIImplementationResponse: func() *kkComps.APIImplementationResponse {
@@ -1105,6 +1116,30 @@ apis:
 				return &response
 			}(),
 		}, nil).Once()
+
+	mockAPIAPI.On(
+		"CreateAPIImplementation",
+		mock.Anything,
+		"api-impl-123",
+		mock.MatchedBy(func(implementation kkComps.APIImplementation) bool {
+			return implementation.Type == kkComps.APIImplementationTypeControlPlaneReference
+		}),
+	).Return(&kkOps.CreateAPIImplementationResponse{
+		StatusCode: 201,
+		APIImplementationResponse: func() *kkComps.APIImplementationResponse {
+			response := kkComps.CreateAPIImplementationResponseAPIImplementationResponseControlPlaneReference(
+				kkComps.APIImplementationResponseControlPlaneReference{
+					ID:        "control-plane-impl-123",
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+					ControlPlane: &kkComps.APIImplementationControlPlane{
+						ID: "87654321-4321-4321-4321-210987654321",
+					},
+				},
+			)
+			return &response
+		}(),
+	}, nil).Once()
 
 	// Create state client and planner
 	mockPortalAPI := GetMockPortalAPI(ctx, t)
@@ -1127,7 +1162,7 @@ apis:
 	require.NotNil(t, plan)
 
 	// Verify both API and implementation are planned
-	require.Len(t, plan.Changes, 2)
+	require.Len(t, plan.Changes, 3)
 	for i, change := range plan.Changes {
 		t.Logf(
 			"plan change %d: %s %s ref=%s deps=%v",
@@ -1140,6 +1175,7 @@ apis:
 	}
 	assert.Equal(t, "api", plan.Changes[0].ResourceType)
 	assert.Equal(t, "api_implementation", plan.Changes[1].ResourceType)
+	assert.Equal(t, "api_implementation", plan.Changes[2].ResourceType)
 
 	// Execute plan
 	exec := executor.New(stateClient, nil, false)
@@ -1166,7 +1202,7 @@ apis:
 	require.NoError(t, err)
 	assert.Equal(t, 0, report.FailureCount)
 	assert.Equal(t, 0, report.SkippedCount)
-	assert.Equal(t, 2, report.SuccessCount+report.FailureCount+report.SkippedCount)
+	assert.Equal(t, 3, report.SuccessCount+report.FailureCount+report.SkippedCount)
 	// assert.Equal(t, 2, report.SuccessCount)
 
 	mockAPIAPI.AssertExpectations(t)

@@ -1495,24 +1495,30 @@ func (p *Planner) planAPIImplementationChanges(
 		slog.Int("current_count", len(currentImplementations)),
 	)
 
-	// Index current implementations by service ID + control plane ID
+	// Index current implementations by their variant-specific identity.
 	currentByService := make(map[string]state.APIImplementation)
+	currentByControlPlane := make(map[string]state.APIImplementation)
 	currentWithService := 0
-	currentMissingService := 0
+	currentWithControlPlane := 0
+	currentMissingPayload := 0
 	for _, i := range currentImplementations {
 		if i.Service != nil {
 			currentWithService++
 			key := fmt.Sprintf("%s:%s", i.Service.ID, i.Service.ControlPlaneID)
 			currentByService[key] = i
+		} else if i.ControlPlane != nil {
+			currentWithControlPlane++
+			currentByControlPlane[i.ControlPlane.ID] = i
 		} else {
-			currentMissingService++
+			currentMissingPayload++
 		}
 	}
 	p.logger.Debug(
 		"Indexed current api_implementations by service",
 		slog.String("api_ref", apiRef),
 		slog.Int("current_with_service", currentWithService),
-		slog.Int("current_missing_service", currentMissingService),
+		slog.Int("current_with_control_plane", currentWithControlPlane),
+		slog.Int("current_missing_payload", currentMissingPayload),
 	)
 
 	// Compare desired implementations
@@ -1532,9 +1538,19 @@ func (p *Planner) planAPIImplementationChanges(
 				p.planAPIImplementationCreate(parentNamespace, apiRef, apiID, desiredImpl, []string{}, plan)
 			}
 			// Note: Implementation IDs are managed by the SDK
+		} else if controlPlane := desiredImpl.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+			if _, exists := currentByControlPlane[controlPlane.ID]; !exists {
+				p.logger.Debug(
+					"Planning api_implementation CREATE (control plane not found)",
+					slog.String("api_ref", apiRef),
+					slog.String("api_implementation_ref", desiredImpl.GetRef()),
+					slog.String("control_plane_id", controlPlane.ID),
+				)
+				p.planAPIImplementationCreate(parentNamespace, apiRef, apiID, desiredImpl, []string{}, plan)
+			}
 		} else {
 			p.logger.Debug(
-				"Desired api_implementation missing service reference; skipping match",
+				"Desired api_implementation missing implementation payload; skipping match",
 				slog.String("api_ref", apiRef),
 				slog.String("api_implementation_ref", desiredImpl.GetRef()),
 			)
@@ -1557,16 +1573,20 @@ func (p *Planner) planAPIImplementationChanges(
 			p.logger.Debug(
 				"Skipping implementation deletion - extracted implementations exist",
 				slog.String("api", apiRef),
-				slog.Int("current_count", len(currentByService)),
+				slog.Int("current_count", len(currentByService)+len(currentByControlPlane)),
 			)
 			return nil
 		}
 
 		desiredServices := make(map[string]bool)
+		desiredControlPlanes := make(map[string]bool)
 		for _, impl := range desired {
 			if service := impl.ServiceReference.GetService(); service != nil {
 				key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
 				desiredServices[key] = true
+			}
+			if controlPlane := impl.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+				desiredControlPlanes[controlPlane.ID] = true
 			}
 		}
 
@@ -1575,6 +1595,8 @@ func (p *Planner) planAPIImplementationChanges(
 			slog.String("api_ref", apiRef),
 			slog.Int("desired_services", len(desiredServices)),
 			slog.Int("current_services", len(currentByService)),
+			slog.Int("desired_control_planes", len(desiredControlPlanes)),
+			slog.Int("current_control_planes", len(currentByControlPlane)),
 		)
 
 		for serviceKey, current := range currentByService {
@@ -1583,6 +1605,17 @@ func (p *Planner) planAPIImplementationChanges(
 					"Planning api_implementation DELETE (service not desired)",
 					slog.String("api_ref", apiRef),
 					slog.String("service_key", serviceKey),
+					slog.String("implementation_id", current.ID),
+				)
+				p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
+			}
+		}
+		for controlPlaneID, current := range currentByControlPlane {
+			if !desiredControlPlanes[controlPlaneID] {
+				p.logger.Debug(
+					"Planning api_implementation DELETE (control plane not desired)",
+					slog.String("api_ref", apiRef),
+					slog.String("control_plane_id", controlPlaneID),
 					slog.String("implementation_id", current.ID),
 				)
 				p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
@@ -1598,11 +1631,15 @@ func (p *Planner) planAPIImplementationCreate(
 	implementation resources.APIImplementationResource, dependsOn []string, plan *Plan,
 ) {
 	fields := make(map[string]any)
-	// APIImplementation only has Service field in the SDK
 	if service := implementation.ServiceReference.GetService(); service != nil {
 		fields[FieldService] = map[string]any{
 			FieldID:             service.ID,
 			FieldControlPlaneID: service.ControlPlaneID,
+		}
+	}
+	if controlPlane := implementation.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+		fields[FieldControlPlane] = map[string]any{
+			FieldControlPlaneID: controlPlane.ID,
 		}
 	}
 
@@ -1651,6 +1688,9 @@ func (p *Planner) planAPIImplementationDelete(
 	if ref == "" && implementation.Service != nil {
 		ref = fmt.Sprintf("%s:%s", implementation.Service.ID, implementation.Service.ControlPlaneID)
 	}
+	if ref == "" && implementation.ControlPlane != nil {
+		ref = implementation.ControlPlane.ID
+	}
 
 	fields := map[string]any{
 		FieldAPIID: apiID,
@@ -1659,6 +1699,11 @@ func (p *Planner) planAPIImplementationDelete(
 		fields[FieldService] = map[string]any{
 			FieldID:             implementation.Service.ID,
 			FieldControlPlaneID: implementation.Service.ControlPlaneID,
+		}
+	}
+	if implementation.ControlPlane != nil {
+		fields[FieldControlPlane] = map[string]any{
+			FieldControlPlaneID: implementation.ControlPlane.ID,
 		}
 	}
 

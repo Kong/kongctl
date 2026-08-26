@@ -1,0 +1,99 @@
+baseInputsPath: testdata
+
+defaults:
+  mask:
+    dropKeys:
+      - resource_id
+      - change_id
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-control-plane-implementation
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/resources.yaml"
+          - --auto-approve
+        assertions:
+          - select: >-
+              plan.changes[?resource_type=='api_implementation' &&
+                           resource_ref=='control-plane-implementation'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "length(fields.control_plane.control_plane_id) > `0`": true
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-get-control-plane
+        run:
+          - get
+          - gateway
+          - control-planes
+          - -o
+          - json
+        recordVar:
+          name: apiImplementationCPID
+          responsePath: "[?name=='e2e-api-implementation-cp'] | [0].id"
+
+  - name: 002-repeat-is-noop
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/resources.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=apis"
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              apis[?name=='E2E Control Plane Implementation API'] | [0].implementations[0]
+            expect:
+              fields:
+                type: control_plane
+                control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
+      - name: 001-plan-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true

@@ -403,9 +403,13 @@ type APIPublication struct {
 type APIImplementation struct {
 	ID                string
 	ImplementationURL string
+	Type              kkComps.APIImplementationType
 	Service           *struct {
 		ID             string
 		ControlPlaneID string
+	}
+	ControlPlane *struct {
+		ID string
 	}
 }
 
@@ -2656,26 +2660,33 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 
 		for _, item := range resp.ListAPIImplementationsResponse.Data {
 			entity := item.APIImplementationListItemGatewayServiceEntity
-			if entity == nil {
+			if entity != nil {
+				impl := APIImplementation{ID: entity.GetID(), Type: kkComps.APIImplementationTypeServiceReference}
+				if svc := entity.GetService(); svc != nil {
+					impl.Service = &struct {
+						ID             string
+						ControlPlaneID string
+					}{
+						ID:             svc.GetID(),
+						ControlPlaneID: svc.GetControlPlaneID(),
+					}
+				}
+				allImplementations = append(allImplementations, impl)
 				continue
 			}
 
-			impl := APIImplementation{
-				ID: entity.GetID(),
-			}
-
-			// ImplementationURL not available in list response
-			if svc := entity.GetService(); svc != nil {
-				impl.Service = &struct {
-					ID             string
-					ControlPlaneID string
-				}{
-					ID:             svc.GetID(),
-					ControlPlaneID: svc.GetControlPlaneID(),
+			controlPlaneEntity := item.APIImplementationListItemControlPlaneEntity
+			if controlPlaneEntity != nil {
+				controlPlane := controlPlaneEntity.GetControlPlane()
+				impl := APIImplementation{
+					ID:   controlPlaneEntity.GetID(),
+					Type: kkComps.APIImplementationTypeControlPlaneReference,
+					ControlPlane: &struct {
+						ID string
+					}{ID: controlPlane.GetID()},
 				}
+				allImplementations = append(allImplementations, impl)
 			}
-
-			allImplementations = append(allImplementations, impl)
 		}
 
 		// Check if we've fetched all pages
