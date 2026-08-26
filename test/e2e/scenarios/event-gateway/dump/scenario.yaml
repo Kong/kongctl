@@ -21,6 +21,7 @@ vars:
   schemaRegistryName: default-schema-registry-name-for-dump-test
   staticKeyRef: default-static-key
   staticKeyName: default-static-key-name-for-dump-test
+  literalStaticKeyName: literal-static-key-name-for-dump-test
   trustBundleRef: default-tls-trust-bundle-ref-dump
   trustBundleName: default-tls-trust-bundle-name-dump
   listenerRef: default-listener-for-dump-test-ref
@@ -58,7 +59,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 13
+                applied: 14
                 failed: 0
 
   # Dump event_gateways with child resources and validate the output structure.
@@ -133,6 +134,14 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.staticKeyName }}"
+                value: '${env["STATIC_KEY_VALUE"]}'
+          - name: literal-static-key-omits-plaintext
+            select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].static_keys[?name=='{{ .vars.literalStaticKeyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.literalStaticKeyName }}"
+                value: ""
           - name: trust-bundle-present
             select: >-
               event_gateways[?name=='{{ .vars.egwName }}'] | [0].tls_trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]

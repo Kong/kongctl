@@ -89,8 +89,26 @@ steps:
               fields:
                 name: "{{ .vars.staticKeyName }}"
                 description: "Default Static Key description"
+                "contains(keys(@), 'value')": false
+      - name: 004-verify-create-by-name
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - "{{ .vars.staticKeyName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Default Static Key description"
+                "contains(keys(@), 'value')": false
   - name: 002-plan-sync-replace
-    # Static keys do not support update – changing description triggers DELETE+CREATE.
+    # Static keys do not support update – changing value triggers DELETE+CREATE.
     inputOverlayDirs:
       - overlays/001-update-fields
     commands:
@@ -126,7 +144,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.staticKeyRef }}"
-                "fields.value": "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+                "fields.value": '${env["STATIC_KEY_VALUE"]}'
       - name: 002-apply-replace
         outputFormat: json
         run:
@@ -159,8 +177,122 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.staticKeyName }}"
-                description: "Updated Static Key description"
-  - name: 003-sync-delete
+                description: "Default Static Key description"
+                value: '${env["STATIC_KEY_VALUE"]}'
+
+      - name: 004-verify-replacement-by-name
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - "{{ .vars.staticKeyName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Default Static Key description"
+                value: '${env["STATIC_KEY_VALUE"]}'
+
+      - name: 005-plan-unchanged-template-expression
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-unchanged-template-expression.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 003-plan-sync-replace-template-expression
+    inputOverlayDirs:
+      - overlays/002-update-template-expression
+    commands:
+      - name: 001-plan-replace-template-expression
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-replace-template-expression.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: "event_gateway_static_key"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && action=='CREATE'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+                "fields.value": '${env["STATIC_KEY_VALUE_V2"]}'
+
+      - name: 002-apply-replace-template-expression
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-replace-template-expression.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+
+      - name: 003-verify-replaced-template-expression
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - "{{ .vars.staticKeyName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                value: '${env["STATIC_KEY_VALUE_V2"]}'
+
+      - name: 004-plan-unchanged-template-expression
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-unchanged-template-expression.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -217,7 +349,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 004-root-level-declaration
+  - name: 005-root-level-declaration
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -280,7 +412,7 @@ steps:
               fields:
                 name: default-static-key-name
                 description: "Default root level Static Key description"
-  - name: 005-sync-delete-root-level
+  - name: 006-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:

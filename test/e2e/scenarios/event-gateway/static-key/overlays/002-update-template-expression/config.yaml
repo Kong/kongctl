@@ -10,4 +10,4 @@ event_gateways:
       - ref: default-static-key-ref
         name: default-static-key-name
         description: "Default Static Key description"
-        value: '${env["STATIC_KEY_VALUE"]}'
+        value: '${env["STATIC_KEY_VALUE_V2"]}'
