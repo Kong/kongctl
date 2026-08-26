@@ -21,3 +21,11 @@ ai_gateways:
         config:
           deny_patterns:
             - ".*(W|w)ar.*"
+    config_stores:
+      - ref: dump-ai-gateway-config-store
+        name: dump-ai-gateway-config-store
+        display_name: E2E-Dump-AI-Gateway-Config-Store
+        secrets:
+          - ref: dump-ai-gateway-secret
+            key: dump-ai-gateway-secret
+            value: !secret {source: !env KONGCTL_E2E_DUMP_AI_GATEWAY_SECRET}
