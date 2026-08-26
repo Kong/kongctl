@@ -22,3 +22,12 @@ apis:
     kongctl:
       namespace: team-e2e-overwrite
       protected: false
+
+ai_gateways:
+  - ref: adopt-e2e-ai-gateway
+    name: adopt-e2e-ai-gateway
+    display_name: "Adopt E2E AI Gateway"
+    description: "Adopt Scenario AI Gateway"
+    kongctl:
+      namespace: team-e2e-overwrite
+      protected: false

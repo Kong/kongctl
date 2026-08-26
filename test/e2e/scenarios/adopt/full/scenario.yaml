@@ -2,6 +2,8 @@ vars:
   portal_name: adopt-e2e-portal
   api_name: adopt-e2e-api
   cp_name: adopt-e2e-cp
+  ai_gateway_name: adopt-e2e-ai-gateway
+  ai_gateway_display_name: Adopt E2E AI Gateway
   namespace: team-e2e
   overwrite_namespace: team-e2e-overwrite
 
@@ -44,6 +46,17 @@ steps:
               description: "Adopt Scenario API"
           recordVar:
             name: api_id
+            responsePath: id
+      - name: create-ai-gateway
+        create:
+          resource: ai_gateway
+          payload:
+            inline:
+              name: "{{ .vars.ai_gateway_name }}"
+              display_name: "{{ .vars.ai_gateway_display_name }}"
+              description: "Adopt Scenario AI Gateway"
+          recordVar:
+            name: ai_gateway_id
             responsePath: id
 
   - name: 002-adopt
@@ -88,6 +101,19 @@ steps:
                 namespace: "{{ .vars.namespace }}"
                 id: "{{ .vars.api_id }}"
                 resource_type: api
+      - name: adopt-ai-gateway
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.ai_gateway_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.ai_gateway_id }}"
+                resource_type: ai_gateway
 
   - name: 003-reject-overwrite-without-flag
     skipInputs: true
@@ -106,6 +132,23 @@ steps:
         run: ["get", "portals", "-o", "json"]
         assertions:
           - select: "[?id=='{{ .vars.portal_id }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+      - name: reject-ai-gateway-namespace-overwrite
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.ai_gateway_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+      - name: verify-ai-gateway-namespace-unchanged
+        run: ["get", "ai-gateways", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.ai_gateway_id }}'] | [0]"
             expect:
               fields:
                 labels."KONGCTL-namespace": "{{ .vars.namespace }}"
@@ -155,6 +198,20 @@ steps:
                 namespace: "{{ .vars.overwrite_namespace }}"
                 id: "{{ .vars.api_id }}"
                 resource_type: api
+      - name: overwrite-ai-gateway-namespace
+        run:
+          - adopt
+          - ai-gateway
+          - "{{ .vars.ai_gateway_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.ai_gateway_id }}"
+                resource_type: ai_gateway
 
   - name: 005-dump-and-plan
     skipInputs: true
@@ -163,7 +220,7 @@ steps:
         run:
           - dump
           - declarative
-          - "--resources=portals,control_planes,apis"
+          - "--resources=portals,control_planes,apis,ai_gateways"
           - --default-namespace
           - "{{ .vars.overwrite_namespace }}"
         outputFormat: none
@@ -182,6 +239,11 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.api_name }}"
+          - select: "ai_gateways[?ref=='{{ .vars.ai_gateway_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.ai_gateway_name }}"
+                display_name: "{{ .vars.ai_gateway_display_name }}"
           - select: "_defaults.kongctl"
             expect:
               fields:
@@ -217,8 +279,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 3
-                by_action.DELETE: 3
+                total_changes: 4
+                by_action.DELETE: 4
           - select: summary
             expect:
               fields:
