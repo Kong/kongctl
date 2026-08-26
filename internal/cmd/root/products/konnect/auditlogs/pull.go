@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -572,16 +571,21 @@ func renderAuditLogJSONLines(helper cmd.Helper, records []json.RawMessage) error
 }
 
 func renderAuditLogText(helper cmd.Helper, records []json.RawMessage) error {
-	selected, err := columns.Resolve(helper.GetCmd(), cmdcommon.TEXT)
+	headers, rows, err := resolveAuditLogHeadersAndRows(helper, records)
 	if err != nil {
 		return &cmd.ConfigurationError{Err: err}
 	}
+	return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
+}
+
+func resolveAuditLogHeadersAndRows(helper cmd.Helper, records []json.RawMessage) ([]string, [][]string, error) {
+	selected, err := columns.Resolve(helper.GetCmd(), cmdcommon.TEXT)
+	if err != nil {
+		return nil, nil, err
+	}
 	if len(selected) > 0 {
 		headers, rows, err := columns.Project(records, selected)
-		if err != nil {
-			return err
-		}
-		return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
+		return headers, rows, err
 	}
 
 	headers := []string{"TIMESTAMP", "TYPE", "PRINCIPAL", "ACTION", "RESULT", "TRACE ID"}
@@ -589,7 +593,7 @@ func renderAuditLogText(helper cmd.Helper, records []json.RawMessage) error {
 	for _, record := range records {
 		rows = append(rows, defaultAuditLogRow(record))
 	}
-	return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
+	return headers, rows, nil
 }
 
 func defaultAuditLogRow(raw json.RawMessage) []string {
@@ -832,8 +836,8 @@ func auditLogRecordTime(record json.RawMessage, fallback time.Time) time.Time {
 }
 
 func sortAuditLogRecords(records []json.RawMessage) {
-	sort.SliceStable(records, func(i, j int) bool {
-		return auditLogRecordTime(records[i], time.Time{}).Before(auditLogRecordTime(records[j], time.Time{}))
+	slices.SortStableFunc(records, func(a, b json.RawMessage) int {
+		return auditLogRecordTime(a, time.Time{}).Compare(auditLogRecordTime(b, time.Time{}))
 	})
 }
 
@@ -846,23 +850,9 @@ func expireAuditLogDedup(seen map[string]time.Time, before time.Time) {
 }
 
 func renderFollowText(helper cmd.Helper, records []json.RawMessage, headerWritten *bool) error {
-	selected, err := columns.Resolve(helper.GetCmd(), cmdcommon.TEXT)
+	headers, rows, err := resolveAuditLogHeadersAndRows(helper, records)
 	if err != nil {
 		return err
-	}
-	var headers []string
-	var rows [][]string
-	if len(selected) > 0 {
-		headers, rows, err = columns.Project(records, selected)
-		if err != nil {
-			return err
-		}
-	} else {
-		headers = []string{"TIMESTAMP", "TYPE", "PRINCIPAL", "ACTION", "RESULT", "TRACE ID"}
-		rows = make([][]string, 0, len(records))
-		for _, record := range records {
-			rows = append(rows, defaultAuditLogRow(record))
-		}
 	}
 	if *headerWritten {
 		return renderRowsWithoutHeader(helper.GetStreams().Out, rows)

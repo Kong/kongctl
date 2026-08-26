@@ -2099,13 +2099,7 @@ func runExecution(command *cobra.Command, args []string, verb verbs.VerbValue, p
 	command.SetContext(ctx)
 
 	// Validate plan mode and actions before handling an empty plan or executing changes.
-	if err := validateExecutionPlan(
-		plan,
-		planFile,
-		string(planMode),
-		planMode,
-		allowedActionsForPlanMode(planMode),
-	); err != nil {
+	if err := validateExecutionPlan(plan, planFile, planMode); err != nil {
 		return err
 	}
 	if outputFormat != textOutputFormat {
@@ -2203,42 +2197,24 @@ func runExecution(command *cobra.Command, args []string, verb verbs.VerbValue, p
 }
 
 func validateApplyPlan(plan *planner.Plan, planFile string) error {
-	return validateExecutionPlan(
-		plan,
-		planFile,
-		"apply",
-		planner.PlanModeApply,
-		allowedActionsForPlanMode(planner.PlanModeApply),
-	)
+	return validateExecutionPlan(plan, planFile, planner.PlanModeApply)
 }
 
 func validateSyncPlan(plan *planner.Plan, planFile string) error {
-	return validateExecutionPlan(
-		plan,
-		planFile,
-		"sync",
-		planner.PlanModeSync,
-		allowedActionsForPlanMode(planner.PlanModeSync),
-	)
+	return validateExecutionPlan(plan, planFile, planner.PlanModeSync)
 }
 
 func validateDeletePlan(plan *planner.Plan, planFile string) error {
-	return validateExecutionPlan(
-		plan,
-		planFile,
-		"delete",
-		planner.PlanModeDelete,
-		allowedActionsForPlanMode(planner.PlanModeDelete),
-	)
+	return validateExecutionPlan(plan, planFile, planner.PlanModeDelete)
 }
 
 func validateExecutionPlan(
 	plan *planner.Plan,
 	planFile string,
-	commandName string,
 	requiredMode planner.PlanMode,
-	allowedActions []planner.ActionType,
 ) error {
+	commandName := string(requiredMode)
+	allowedActions := allowedActionsForPlanMode(requiredMode)
 	planDescription := describePlanSource(planFile)
 	if plan == nil {
 		return fmt.Errorf("%s could not be loaded for the %s command", planDescription, commandName)
