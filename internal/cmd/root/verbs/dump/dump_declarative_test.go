@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -844,6 +845,10 @@ func TestNormalizeResourceListMapsSupportedAliases(t *testing.T) {
 		{input: "ai-gateways", want: []string{"ai_gateways"}},
 		{input: "aigw", want: []string{"ai_gateways"}},
 		{input: "ai_gateways,analytics.dashboards", want: []string{"ai_gateways", "analytics.dashboards"}},
+		{input: "catalog-service", want: []string{resourceCatalogServices}},
+		{input: "catalog-services", want: []string{resourceCatalogServices}},
+		{input: "catalog_service", want: []string{resourceCatalogServices}},
+		{input: resourceCatalogServices, want: []string{resourceCatalogServices}},
 	}
 
 	for _, tt := range tests {
@@ -856,6 +861,44 @@ func TestNormalizeResourceListMapsSupportedAliases(t *testing.T) {
 				t.Fatalf("expected %v, got %v", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestMapCatalogServiceToDeclarativeResource(t *testing.T) {
+	description := "Catalog service description"
+	service := kkComps.CatalogService{
+		ID:          "service-id",
+		Name:        "payments",
+		DisplayName: "Payments Service",
+		Description: &description,
+		Labels: map[string]string{
+			decllabels.NamespaceKey: "catalog-team",
+			"tier":                  "critical",
+		},
+		CustomFields: map[string]any{
+			"owner": "platform-team",
+			"dashboard": map[string]any{
+				"name": "Payments Dashboard",
+				"link": "https://example.com/dashboard",
+			},
+		},
+	}
+
+	got := mapCatalogServiceToDeclarativeResource(service)
+	if got.Ref != service.ID || got.Name != service.Name || got.DisplayName != service.DisplayName {
+		t.Fatalf("unexpected catalog service identity: %#v", got)
+	}
+	if got.Description == nil || *got.Description != description {
+		t.Fatalf("unexpected catalog service description: %#v", got.Description)
+	}
+	if got.Labels["tier"] != "critical" {
+		t.Fatalf("expected user labels in dump, got %#v", got.Labels)
+	}
+	if got.Kongctl == nil || got.Kongctl.Namespace == nil || *got.Kongctl.Namespace != "catalog-team" {
+		t.Fatalf("expected namespace metadata in dump, got %#v", got.Kongctl)
+	}
+	if !reflect.DeepEqual(got.CustomFields, service.CustomFields) {
+		t.Fatalf("expected custom fields to be preserved, got %#v", got.CustomFields)
 	}
 }
 

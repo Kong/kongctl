@@ -1376,6 +1376,14 @@ discovery and YAML filtering are not run. The option affects only
 `dump declarative`; it does not change `plan`, `apply`, `diff`, or
 `dump tf-import` behavior.
 
+Catalog services, including nested custom fields, can be dumped and planned
+again to verify round-trip fidelity:
+
+```shell
+kongctl dump declarative --resources=catalog_services > catalog-services.yaml
+kongctl plan -f catalog-services.yaml --mode apply
+```
+
 For custom dashboards created in the Konnect UI, adopt the dashboard first,
 then dump it with the same namespace:
 

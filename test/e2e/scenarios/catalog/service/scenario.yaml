@@ -330,6 +330,51 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 004b-dump-and-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-catalog-services
+        run:
+          - dump
+          - declarative
+          - "--resources=catalog_services"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "catalog_services[?name=='{{ .vars.serviceName }}'] | [0]"
+            expect:
+              fields:
+                display_name: "Payments Service"
+                description: "Updated description for payments service"
+                labels.tier: important
+                labels.domain: payments
+                kongctl.namespace: "{{ .vars.namespace }}"
+                custom_fields.owner: platform-team
+                custom_fields.cost_center: "Platform"
+                custom_fields.product_manager: "Jordan Kim"
+                custom_fields.jira_project.name: "Payments Platform"
+                custom_fields.jira_project.link: "https://jira.example.com/projects/PLATPAY"
+                custom_fields.dashboard.name: "Payments Platform Dashboard"
+                custom_fields.dashboard.link: "https://dashboards.example.com/payments-platform"
+                custom_fields.git_repo.name: "payments-service"
+                custom_fields.git_repo.link: "https://github.com/example/payments"
+                custom_fields.slack_channel.name: "#payments-platform"
+                custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 005-sync-delete-catalog-service
     inputOverlayDirs:
       - overlays/005-sync-delete

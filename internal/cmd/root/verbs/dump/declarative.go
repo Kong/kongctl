@@ -49,6 +49,7 @@ var declarativeAllowedResources = map[string]struct{}{
 	"portals":                     {},
 	resourceAPIs:                  {},
 	"application_auth_strategies": {},
+	resourceCatalogServices:       {},
 	"dcr_providers":               {},
 	"control_planes":              {},
 	resourceAnalyticsDashboards:   {},
@@ -86,7 +87,7 @@ func newDeclarativeCmd() *cobra.Command {
 	cmd.Flags().String("resources", "",
 		"Comma separated list of resource types to dump "+
 			"(ai_gateways, "+resourceAnalyticsDashboards+", apis, application_auth_strategies, "+
-			"control_planes, dcr_providers, event_gateways, organization.teams, portals).")
+			resourceCatalogServices+", control_planes, dcr_providers, event_gateways, organization.teams, portals).")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -313,6 +314,14 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 				return err
 			}
 			resourceSet.ApplicationAuthStrategies = append(resourceSet.ApplicationAuthStrategies, authStrategies...)
+		case resourceCatalogServices:
+			catalogServices, err := collectDeclarativeCatalogServices(
+				ctx, sdk.GetCatalogServicesAPI(), requestPageSize, opts.filter,
+			)
+			if err != nil {
+				return err
+			}
+			resourceSet.CatalogServices = append(resourceSet.CatalogServices, catalogServices...)
 		case "dcr_providers":
 			dcrProviders, err := collectDeclarativeDCRProviders(
 				ctx, sdk.GetDCRProvidersAPI(), requestPageSize, opts.filter,
@@ -564,6 +573,65 @@ func collectDeclarativeAPIs(
 	}
 
 	slices.SortFunc(results, func(a, b declresources.APIResource) int {
+		if n := cmp.Compare(a.Name, b.Name); n != 0 {
+			return n
+		}
+		return cmp.Compare(a.Ref, b.Ref)
+	})
+
+	return results, nil
+}
+
+func collectDeclarativeCatalogServices(
+	ctx context.Context,
+	api helpers.CatalogServicesAPI,
+	requestPageSize int64,
+	filter filterOptions,
+) ([]declresources.CatalogServiceResource, error) {
+	if api == nil {
+		return nil, fmt.Errorf("catalog services API client is not configured")
+	}
+
+	var results []declresources.CatalogServiceResource
+
+	err := processPaginatedRequests(func(pageNumber int64) (bool, error) {
+		req := kkOps.ListCatalogServicesRequest{
+			PageSize:   &requestPageSize,
+			PageNumber: &pageNumber,
+		}
+
+		if filter.name != "" {
+			req.Filter = &kkComps.CatalogServiceFilterParameters{Name: buildStringFieldFilter(filter.name)}
+		} else if filter.id != "" {
+			req.Filter = &kkComps.CatalogServiceFilterParameters{ID: &kkComps.UUIDFieldFilter{Eq: &filter.id}}
+		}
+
+		resp, err := api.ListCatalogServices(ctx, req)
+		if err != nil {
+			return false, fmt.Errorf("failed to list catalog services: %w", err)
+		}
+
+		if resp == nil || resp.ListCatalogServicesResponse == nil ||
+			len(resp.ListCatalogServicesResponse.Data) == 0 {
+			return false, nil
+		}
+
+		for _, service := range resp.ListCatalogServicesResponse.Data {
+			results = append(results, mapCatalogServiceToDeclarativeResource(service))
+		}
+
+		params := paginationParams{
+			pageSize:   requestPageSize,
+			pageNumber: pageNumber,
+			totalItems: resp.ListCatalogServicesResponse.Meta.Page.Total,
+		}
+		return params.hasMorePages(), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	slices.SortFunc(results, func(a, b declresources.CatalogServiceResource) int {
 		if n := cmp.Compare(a.Name, b.Name); n != 0 {
 			return n
 		}
@@ -918,6 +986,25 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	result.Kongctl = kongctlMetaFromLabels(api.Labels)
 
 	normalizeAPIResource(&result)
+
+	return result
+}
+
+func mapCatalogServiceToDeclarativeResource(service kkComps.CatalogService) declresources.CatalogServiceResource {
+	result := declresources.CatalogServiceResource{
+		BaseResource: declresources.BaseResource{Ref: service.ID},
+		CreateCatalogService: kkComps.CreateCatalogService{
+			Name:         service.Name,
+			DisplayName:  service.DisplayName,
+			Description:  service.Description,
+			CustomFields: service.CustomFields,
+		},
+	}
+
+	if labels := decllabels.GetUserLabels(service.Labels); len(labels) > 0 {
+		result.Labels = labels
+	}
+	result.Kongctl = kongctlMetaFromLabels(service.Labels)
 
 	return result
 }

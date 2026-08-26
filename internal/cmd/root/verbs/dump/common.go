@@ -31,6 +31,7 @@ const (
 	filterOpContains                  = "contains"
 	resourceAPIs                      = "apis"
 	resourceAnalyticsDashboards       = "analytics.dashboards"
+	resourceCatalogServices           = "catalog_services"
 )
 
 type paginationParams struct {
@@ -160,6 +161,8 @@ func mapResourceName(name string) string {
 		return resourceAnalyticsDashboards
 	case "ai-gateway", "ai-gateways", "ai_gateway", "ai_gateways", "aigw":
 		return "ai_gateways"
+	case "catalog-service", "catalog-services", "catalog_service", resourceCatalogServices:
+		return resourceCatalogServices
 	case "org.team", "org.teams", "organization.team", "organization.teams":
 		return "organization.teams"
 	default:
