@@ -5,6 +5,7 @@ test:
 
 env:
   KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_DUMP_AI_GATEWAY_SECRET: dump-ai-gateway-secret-value
 
 vars:
   namespace: dump-ai-gateways-e2e
@@ -14,6 +15,9 @@ vars:
   gatewayDescription: E2E Dump AI Gateway description
   policyName: dump-ai-gateway-policy
   policyDisplayName: E2E Dump AI Gateway Policy
+  configStoreName: dump-ai-gateway-config-store
+  configStoreDisplayName: E2E-Dump-AI-Gateway-Config-Store
+  secretKey: dump-ai-gateway-secret
 
 defaults:
   mask:
@@ -50,8 +54,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 2
-                by_action.CREATE: 2
+                total_changes: 4
+                by_action.CREATE: 4
           - name: ai-gateway-created
             select: >-
               plan.changes[?resource_type=='ai_gateway' &&
@@ -65,7 +69,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 4
                 failed: 0
                 status: success
 
@@ -103,6 +107,16 @@ steps:
                 display_name: "{{ .vars.policyDisplayName }}"
                 type: ai-prompt-guard
                 enabled: true
+          - name: ai-gateway-config-store-present
+            select: >-
+              ai_gateways[?display_name=='{{ .vars.gatewayDisplayName }}'] | [0].config_stores |
+              [?name=='{{ .vars.configStoreName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.configStoreName }}"
+                display_name: "{{ .vars.configStoreDisplayName }}"
+                "secrets[0].key": "{{ .vars.secretKey }}"
+                "contains(keys(secrets[0]), 'value')": false
           - name: default-namespace-present
             select: _defaults.kongctl
             expect:
@@ -123,31 +137,9 @@ steps:
               fields:
                 total_changes: 0
 
-      - name: 002-delete-before-round-trip
-        outputFormat: json
-        run:
-          - delete
-          - -f
-          - "{{ .workdir }}/config.yaml"
-          - --auto-approve
-        assertions:
-          - select: plan.metadata
-            expect:
-              fields:
-                mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 1
-                by_action.DELETE: 1
-          - select: summary
-            expect:
-              fields:
-                applied: 1
-                failed: 0
-                status: success
-
-      - name: 003-sync-dumped-config
+      # Secret values are intentionally omitted from dumps, so dumped config can
+      # reconcile existing secrets but cannot recreate one after deletion.
+      - name: 002-sync-dumped-config
         outputFormat: json
         run:
           - sync
@@ -162,7 +154,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 0
                 failed: 0
                 status: success
 
