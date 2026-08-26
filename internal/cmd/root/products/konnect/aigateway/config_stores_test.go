@@ -25,3 +25,20 @@ func TestAIGatewayConfigStorePresentation(t *testing.T) {
 	require.Equal(t, displayName, record.DisplayName)
 	require.Contains(t, aiGatewayConfigStoreDetailView(store), "display_name: Support-Store")
 }
+
+func TestAIGatewayConfigStoreSecretPresentationContainsOnlyMetadata(t *testing.T) {
+	updatedAt := time.Date(2026, time.August, 25, 12, 30, 0, 0, time.UTC)
+	secret := kkComps.AIGatewayConfigStoreSecret{
+		Key:       "openai-auth-header",
+		CreatedAt: updatedAt.Add(-time.Hour),
+		UpdatedAt: updatedAt,
+	}
+
+	record := aiGatewayConfigStoreSecretToRecord(secret)
+	require.Equal(t, secret.Key, record.Key)
+	detail := aiGatewayConfigStoreSecretDetailView(secret)
+	require.Contains(t, detail, "key: openai-auth-header")
+	require.Contains(t, detail, "created_at:")
+	require.Contains(t, detail, "updated_at:")
+	require.NotContains(t, detail, "value")
+}

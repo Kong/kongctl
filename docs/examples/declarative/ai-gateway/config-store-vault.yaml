@@ -15,6 +15,10 @@ ai_gateways:
       - ref: support-config-store
         name: support-config-store
         display_name: Support-Config-Store
+        secrets:
+          - ref: support-openai-header
+            key: openai-auth-header
+            value: !secret {source: !env OPENAI_AUTH_HEADER}
     vaults:
       - ref: support-secrets
         name: support-secrets

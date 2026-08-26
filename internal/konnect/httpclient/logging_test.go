@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/stretchr/testify/assert"
@@ -150,7 +151,8 @@ func TestLoggingHTTPClient_TraceLogsBodiesAndRedactsSensitiveFields(t *testing.T
 
 func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 	input := map[string]any{
-		"name": "demo",
+		"name":  "demo",
+		"value": "diagnostic-value",
 		"config": map[string]any{
 			"client_secret": "secret-value",
 			"token_type":    "Bearer",
@@ -169,6 +171,7 @@ func TestRedactSensitiveFieldsClonesAndRedactsNestedFields(t *testing.T) {
 	}
 
 	redacted := RedactSensitiveFields(input).(map[string]any)
+	require.Equal(t, "diagnostic-value", redacted["value"])
 	config := redacted["config"].(map[string]any)
 	require.Equal(t, redactedValue, config["client_secret"])
 	require.Equal(t, "Bearer", config["token_type"])
@@ -192,6 +195,9 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 		t.Run(string(capability.ResourceType)+capability.PathPattern, func(t *testing.T) {
 			payload := secretCatalogPatternValue(strings.Split(strings.Trim(capability.PathPattern, "/"), "/"), sentinel)
 			redacted := RedactSensitiveFields(payload)
+			if capability.ResourceType == resources.ResourceTypeAIGatewayConfigStoreSecret {
+				redacted = RedactSensitiveFieldsWithExactKeys(payload, "value")
+			}
 			data, err := json.Marshal(redacted)
 			require.NoError(t, err)
 			assert.NotContains(t, string(data), sentinel)
@@ -201,6 +207,25 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 			assert.Contains(t, string(original), sentinel)
 		})
 	}
+}
+
+func TestRedactBodyForURLScopesConfigStoreSecretValue(t *testing.T) {
+	body := []byte(`{"key":"api-key","value":"secret-value"}`)
+
+	configStoreSecretURL, err := url.Parse(
+		"https://global.api.konghq.com/v1/ai-gateways/gateway/config-stores/store/secrets",
+	)
+	require.NoError(t, err)
+
+	redacted := redactBodyForURL(body, "application/json", configStoreSecretURL)
+	assert.Contains(t, redacted, `"value":"`+redactedValue+`"`)
+	assert.NotContains(t, redacted, "secret-value")
+
+	unrelatedURL, err := url.Parse("https://global.api.konghq.com/v1/ai-gateways/gateway/providers")
+	require.NoError(t, err)
+
+	unredacted := redactBodyForURL(body, "application/json", unrelatedURL)
+	assert.Contains(t, unredacted, `"value":"secret-value"`)
 }
 
 func secretCatalogPatternValue(segments []string, value string) any {

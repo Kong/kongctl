@@ -591,6 +591,10 @@ ai_gateways:
       - ref: support-config-store
         name: support-config-store
         display_name: Support-Config-Store
+        secrets:
+          - ref: support-openai-header
+            key: openai-auth-header
+            value: !secret {source: !env OPENAI_AUTH_HEADER}
     vaults:
       - ref: support-secrets
         name: support-secrets
@@ -599,9 +603,13 @@ ai_gateways:
           config_store_id: !ref support-config-store#id
 ```
 
-Config Store resources manage the store, but not the secrets it contains. See
-the [Config Store and Vault example][config-store-vault-example] for a model
-provider that consumes a populated secret with a Vault reference.
+Secret values are write-only. New secrets require `value: !secret` with a
+deferred source and are written once during creation. Existing secrets are not
+rotated unless `--write-secret <ref>#value` or `--write-secrets` is supplied
+while planning. Omit `secrets` to leave a store's secrets unmanaged during
+sync, or use `secrets: []` to remove all secrets in that store's sync scope.
+See the [Config Store and Vault example][config-store-vault-example] for a
+complete provider Vault reference.
 
 [config-store-vault-example]:
   examples/declarative/ai-gateway/config-store-vault.yaml

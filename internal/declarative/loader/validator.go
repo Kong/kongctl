@@ -76,6 +76,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayConfigStores(rs); err != nil {
 		return err
 	}
+	if err := l.validateAIGatewayConfigStoreSecrets(rs); err != nil {
+		return err
+	}
 	if err := l.validateAIGatewayVaults(rs); err != nil {
 		return err
 	}
@@ -1090,6 +1093,60 @@ func (l *Loader) validateAIGatewayConfigStores(rs *resources.ResourceSet) error 
 		resources.SchemaFieldName,
 		func(store *resources.AIGatewayConfigStoreResource) string { return store.Name },
 	)
+}
+
+// validateAIGatewayConfigStoreSecrets validates Config Store child secrets.
+func (l *Loader) validateAIGatewayConfigStoreSecrets(rs *resources.ResourceSet) error {
+	keysByStore := make(map[string]string)
+	refs := make(map[string]struct{})
+	for i := range rs.AIGatewayConfigStoreSecrets {
+		secret := &rs.AIGatewayConfigStoreSecrets[i]
+		if err := secret.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_config_store_secret %q: %w", secret.GetRef(), err)
+		}
+		if _, exists := refs[secret.GetRef()]; exists {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as %s)",
+				secret.GetRef(),
+				resources.ResourceTypeAIGatewayConfigStoreSecret,
+			)
+		}
+		refs[secret.GetRef()] = struct{}{}
+		if existing, found := rs.GetResourceByRef(secret.GetRef()); found &&
+			existing.GetType() != resources.ResourceTypeAIGatewayConfigStoreSecret {
+			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", secret.GetRef(), existing.GetType())
+		}
+		storeRef := resources.NormalizeResourceRef(secret.AIGatewayConfigStore)
+		store, found := rs.GetResourceByRef(storeRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_config_store_secret %q references unknown ai_gateway_config_store %q",
+				secret.GetRef(),
+				secret.AIGatewayConfigStore,
+			)
+		}
+		if store.GetType() != resources.ResourceTypeAIGatewayConfigStore {
+			return fmt.Errorf(
+				"ai_gateway_config_store_secret %q references %q which is %s, not ai_gateway_config_store",
+				secret.GetRef(),
+				secret.AIGatewayConfigStore,
+				store.GetType(),
+			)
+		}
+		key := storeRef + "\x00" + secret.Key
+		if existingRef, exists := keysByStore[key]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_config_store_secret key %q for ai_gateway_config_store %q "+
+					"(ref: %s conflicts with ref: %s)",
+				secret.Key,
+				storeRef,
+				secret.GetRef(),
+				existingRef,
+			)
+		}
+		keysByStore[key] = secret.GetRef()
+	}
+	return nil
 }
 
 // validateAIGatewayDataPlaneCertificates validates AI Gateway child data plane certificate resources.

@@ -28,6 +28,7 @@ const (
 	ResourceTypeAIGatewayModel                          ResourceType = "ai_gateway_model"
 	ResourceTypeAIGatewayMCPServer                      ResourceType = "ai_gateway_mcp_server"
 	ResourceTypeAIGatewayConfigStore                    ResourceType = "ai_gateway_config_store"
+	ResourceTypeAIGatewayConfigStoreSecret              ResourceType = "ai_gateway_config_store_secret"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
 	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
@@ -84,28 +85,29 @@ const (
 )
 
 const (
-	SchemaFieldRef               = "ref"
-	SchemaFieldName              = "name"
-	SchemaFieldPortal            = "portal"
-	SchemaFieldOrganization      = "organization"
-	SchemaFieldTeams             = "teams"
-	SchemaFieldRoles             = "roles"
-	SchemaFieldUser              = "user"
-	SchemaFieldSystemAccount     = "system_account"
-	SchemaFieldAIGateway         = "ai_gateway"
-	SchemaFieldAIGatewayConsumer = "ai_gateway_consumer"
-	SchemaFieldDisplayName       = "display_name"
-	SchemaFieldAccess            = "access"
-	SchemaFieldAuthStrategies    = "auth_strategies"
-	SchemaFieldIdentityProviders = "identity_providers"
-	SchemaFieldConfig            = "config"
-	SchemaFieldConfigStoreID     = "config_store_id"
-	SchemaFieldKongctl           = "kongctl"
-	SchemaFieldID                = "id"
-	SchemaFieldCreatedAt         = "created_at"
-	SchemaFieldUpdatedAt         = "updated_at"
-	authenticationTypeBasic      = "basic"
-	jsonNullLiteral              = "null"
+	SchemaFieldRef                  = "ref"
+	SchemaFieldName                 = "name"
+	SchemaFieldPortal               = "portal"
+	SchemaFieldOrganization         = "organization"
+	SchemaFieldTeams                = "teams"
+	SchemaFieldRoles                = "roles"
+	SchemaFieldUser                 = "user"
+	SchemaFieldSystemAccount        = "system_account"
+	SchemaFieldAIGateway            = "ai_gateway"
+	SchemaFieldAIGatewayConsumer    = "ai_gateway_consumer"
+	SchemaFieldAIGatewayConfigStore = "ai_gateway_config_store"
+	SchemaFieldDisplayName          = "display_name"
+	SchemaFieldAccess               = "access"
+	SchemaFieldAuthStrategies       = "auth_strategies"
+	SchemaFieldIdentityProviders    = "identity_providers"
+	SchemaFieldConfig               = "config"
+	SchemaFieldConfigStoreID        = "config_store_id"
+	SchemaFieldKongctl              = "kongctl"
+	SchemaFieldID                   = "id"
+	SchemaFieldCreatedAt            = "created_at"
+	SchemaFieldUpdatedAt            = "updated_at"
+	authenticationTypeBasic         = "basic"
+	jsonNullLiteral                 = "null"
 )
 
 // ResourceRef represents a reference to another resource
@@ -146,6 +148,7 @@ type ResourceSet struct {
 	AIGatewayModels                   []AIGatewayModelResource                   `yaml:"ai_gateway_models,omitempty"                              json:"ai_gateway_models,omitempty"`                     //nolint:lll
 	AIGatewayMCPServers               []AIGatewayMCPServerResource               `yaml:"ai_gateway_mcp_servers,omitempty"                         json:"ai_gateway_mcp_servers,omitempty"`                //nolint:lll
 	AIGatewayConfigStores             []AIGatewayConfigStoreResource             `yaml:"ai_gateway_config_stores,omitempty"                       json:"ai_gateway_config_stores,omitempty"`              //nolint:lll
+	AIGatewayConfigStoreSecrets       []AIGatewayConfigStoreSecretResource       `yaml:"ai_gateway_config_store_secrets,omitempty"                json:"ai_gateway_config_store_secrets,omitempty"`       //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
 	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
@@ -536,6 +539,16 @@ func (rs *ResourceSet) GetAIGatewayConfigStoreByRef(ref string) *AIGatewayConfig
 	for i := range rs.AIGatewayConfigStores {
 		if rs.AIGatewayConfigStores[i].GetRef() == ref {
 			return &rs.AIGatewayConfigStores[i]
+		}
+	}
+	return nil
+}
+
+// GetAIGatewayConfigStoreSecretByRef returns an AI Gateway Config Store Secret resource by its ref.
+func (rs *ResourceSet) GetAIGatewayConfigStoreSecretByRef(ref string) *AIGatewayConfigStoreSecretResource {
+	for i := range rs.AIGatewayConfigStoreSecrets {
+		if rs.AIGatewayConfigStoreSecrets[i].GetRef() == ref {
+			return &rs.AIGatewayConfigStoreSecrets[i]
 		}
 	}
 	return nil
@@ -1948,6 +1961,20 @@ func (rs *ResourceSet) GetAIGatewayConfigStoresForGateway(gatewayRef string) []A
 		}
 	}
 	return stores
+}
+
+// GetAIGatewayConfigStoreSecretsForStore returns all secrets for a Config Store ref.
+func (rs *ResourceSet) GetAIGatewayConfigStoreSecretsForStore(
+	storeRef string,
+) []AIGatewayConfigStoreSecretResource {
+	var secrets []AIGatewayConfigStoreSecretResource
+	storeRef = NormalizeResourceRef(storeRef)
+	for _, secret := range rs.AIGatewayConfigStoreSecrets {
+		if NormalizeResourceRef(secret.AIGatewayConfigStore) == storeRef {
+			secrets = append(secrets, secret)
+		}
+	}
+	return secrets
 }
 
 // GetAIGatewayDataPlaneCertificatesForGateway returns all AI Gateway data plane

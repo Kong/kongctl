@@ -31,7 +31,7 @@ type aiGatewayConfigStoreRecord struct {
 }
 
 var (
-	aiGatewayConfigStoresUse   = "config-stores [config-store-id|config-store-name]"
+	aiGatewayConfigStoresUse   = "config-stores [config-store-id|config-store-name] [secrets [key]]"
 	aiGatewayConfigStoresShort = i18n.T(
 		"root.products.konnect.ai-gateway.configStoresShort",
 		"List or get Config Stores for a Konnect AI Gateway",
@@ -44,6 +44,11 @@ var (
 %[1]s get ai-gateway config-stores --gateway-name "Customer Support Gateway"
 # Get a Config Store by name
 %[1]s get ai-gateway config-stores --gateway-id <gateway-id> support-store
+# List safe secret metadata for a Config Store
+%[1]s get ai-gateway config-stores support-store secrets --gateway-id <gateway-id>
+%[1]s list ai-gateway config-stores support-store secrets --gateway-id <gateway-id>
+# Get one Config Store secret by key (the value is never returned)
+%[1]s get ai-gateway config-stores support-store secrets openai-auth-header --gateway-id <gateway-id>
 `, meta.CLIName))
 )
 
@@ -86,6 +91,9 @@ type aiGatewayConfigStoresHandler struct {
 }
 
 func (h aiGatewayConfigStoresHandler) run(args []string) error {
+	if len(args) >= 2 && (args[1] == "secrets" || args[1] == "secret") {
+		return h.runSecrets(args[0], args[2:])
+	}
 	helper := cmd.BuildHelper(h.cmd, args)
 	if len(args) > 1 {
 		return &cmd.ConfigurationError{Err: fmt.Errorf(

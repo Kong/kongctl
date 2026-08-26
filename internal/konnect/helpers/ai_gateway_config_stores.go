@@ -37,6 +37,31 @@ type AIGatewayConfigStoresAPI interface {
 		kkOps.DeleteAiGatewayConfigStoreRequest,
 		...kkOps.Option,
 	) (*kkOps.DeleteAiGatewayConfigStoreResponse, error)
+	ListAiGatewayConfigStoreSecrets(
+		context.Context,
+		kkOps.ListAiGatewayConfigStoreSecretsRequest,
+		...kkOps.Option,
+	) (*kkOps.ListAiGatewayConfigStoreSecretsResponse, error)
+	CreateAiGatewayConfigStoreSecret(
+		context.Context,
+		kkOps.CreateAiGatewayConfigStoreSecretRequest,
+		...kkOps.Option,
+	) (*kkOps.CreateAiGatewayConfigStoreSecretResponse, error)
+	GetAiGatewayConfigStoreSecret(
+		context.Context,
+		kkOps.GetAiGatewayConfigStoreSecretRequest,
+		...kkOps.Option,
+	) (*kkOps.GetAiGatewayConfigStoreSecretResponse, error)
+	UpdateAiGatewayConfigStoreSecret(
+		context.Context,
+		kkOps.UpdateAiGatewayConfigStoreSecretRequest,
+		...kkOps.Option,
+	) (*kkOps.UpdateAiGatewayConfigStoreSecretResponse, error)
+	DeleteAiGatewayConfigStoreSecret(
+		context.Context,
+		kkOps.DeleteAiGatewayConfigStoreSecretRequest,
+		...kkOps.Option,
+	) (*kkOps.DeleteAiGatewayConfigStoreSecretResponse, error)
 }
 
 // AIGatewayConfigStoresAPIImpl provides the SDK implementation.
@@ -84,4 +109,44 @@ func (a *AIGatewayConfigStoresAPIImpl) DeleteAiGatewayConfigStore(
 	opts ...kkOps.Option,
 ) (*kkOps.DeleteAiGatewayConfigStoreResponse, error) {
 	return a.SDK.AIGatewayConfigStores.DeleteAiGatewayConfigStore(ctx, request, opts...)
+}
+
+func (a *AIGatewayConfigStoresAPIImpl) ListAiGatewayConfigStoreSecrets(
+	ctx context.Context,
+	request kkOps.ListAiGatewayConfigStoreSecretsRequest,
+	opts ...kkOps.Option,
+) (*kkOps.ListAiGatewayConfigStoreSecretsResponse, error) {
+	return a.SDK.AIGatewayConfigStores.ListAiGatewayConfigStoreSecrets(ctx, request, opts...)
+}
+
+func (a *AIGatewayConfigStoresAPIImpl) CreateAiGatewayConfigStoreSecret(
+	ctx context.Context,
+	request kkOps.CreateAiGatewayConfigStoreSecretRequest,
+	opts ...kkOps.Option,
+) (*kkOps.CreateAiGatewayConfigStoreSecretResponse, error) {
+	return a.SDK.AIGatewayConfigStores.CreateAiGatewayConfigStoreSecret(ctx, request, opts...)
+}
+
+func (a *AIGatewayConfigStoresAPIImpl) GetAiGatewayConfigStoreSecret(
+	ctx context.Context,
+	request kkOps.GetAiGatewayConfigStoreSecretRequest,
+	opts ...kkOps.Option,
+) (*kkOps.GetAiGatewayConfigStoreSecretResponse, error) {
+	return a.SDK.AIGatewayConfigStores.GetAiGatewayConfigStoreSecret(ctx, request, opts...)
+}
+
+func (a *AIGatewayConfigStoresAPIImpl) UpdateAiGatewayConfigStoreSecret(
+	ctx context.Context,
+	request kkOps.UpdateAiGatewayConfigStoreSecretRequest,
+	opts ...kkOps.Option,
+) (*kkOps.UpdateAiGatewayConfigStoreSecretResponse, error) {
+	return a.SDK.AIGatewayConfigStores.UpdateAiGatewayConfigStoreSecret(ctx, request, opts...)
+}
+
+func (a *AIGatewayConfigStoresAPIImpl) DeleteAiGatewayConfigStoreSecret(
+	ctx context.Context,
+	request kkOps.DeleteAiGatewayConfigStoreSecretRequest,
+	opts ...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConfigStoreSecretResponse, error) {
+	return a.SDK.AIGatewayConfigStores.DeleteAiGatewayConfigStoreSecret(ctx, request, opts...)
 }

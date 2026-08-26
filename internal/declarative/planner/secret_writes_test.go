@@ -131,6 +131,42 @@ func TestSecretResourceFieldsUsesMutablePayloadContract(t *testing.T) {
 	assert.NotContains(t, fields, resources.SchemaFieldAIGateway)
 }
 
+func TestResolveSecretResourceIDLooksUpAIGatewayConfigStoreSecretByKey(t *testing.T) {
+	api := &testAIGatewayConfigStoreAPI{
+		getSecret: &kkComps.AIGatewayConfigStoreSecret{Key: "openai-auth-header"},
+	}
+	client := state.NewClient(state.ClientConfig{AIGatewayConfigStoresAPI: api})
+	gateway := resources.AIGatewayResource{BaseResource: resources.BaseResource{Ref: "support-gateway"}}
+	gateway.SetKonnectID("gateway-id")
+	store := resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	}
+	store.SetKonnectID("store-id")
+	rs := &resources.ResourceSet{
+		AIGateways:            []resources.AIGatewayResource{gateway},
+		AIGatewayConfigStores: []resources.AIGatewayConfigStoreResource{store},
+		AIGatewayConfigStoreSecrets: []resources.AIGatewayConfigStoreSecretResource{{
+			BaseResource:         resources.BaseResource{Ref: "support-openai-header"},
+			AIGatewayConfigStore: "support-store",
+			Key:                  "openai-auth-header",
+		}},
+	}
+
+	id, err := (&Planner{client: client}).resolveSecretResourceID(
+		t.Context(),
+		rs,
+		&rs.AIGatewayConfigStoreSecrets[0],
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "openai-auth-header", id)
+	require.Len(t, api.getSecretRequests, 1)
+	assert.Equal(t, "gateway-id", api.getSecretRequests[0].GatewayID)
+	assert.Equal(t, "store-id", api.getSecretRequests[0].ConfigStoreIDOrName)
+	assert.Equal(t, "openai-auth-header", api.getSecretRequests[0].Key)
+}
+
 func TestSecretResourceFieldsUsesPortalIdentityProviderUpdateContract(t *testing.T) {
 	providerType := kkComps.IdentityProviderTypeOidc
 	provider := resources.PortalIdentityProviderResource{

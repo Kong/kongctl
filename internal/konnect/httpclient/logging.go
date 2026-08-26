@@ -85,7 +85,12 @@ var nonSensitiveTokenFieldKeys = map[string]struct{}{
 
 // RedactSensitiveFields returns a copy of value with known sensitive fields redacted.
 func RedactSensitiveFields(value any) any {
-	return redactSensitiveValue(cloneLogValue(value))
+	return RedactSensitiveFieldsWithExactKeys(value)
+}
+
+// RedactSensitiveFieldsWithExactKeys redacts known sensitive fields plus caller-scoped exact field keys.
+func RedactSensitiveFieldsWithExactKeys(value any, exactKeys ...string) any {
+	return redactSensitiveValue(cloneLogValue(value), normalizedKeySet(exactKeys))
 }
 
 // LoggingHTTPClient wraps an HTTP client to add centralized request/response logging.
@@ -201,7 +206,7 @@ func (c *LoggingHTTPClient) logRequest(
 		if bodyErr != nil {
 			attrs = append(attrs, slog.String("request_body_error", bodyErr.Error()))
 		} else if len(body) > 0 {
-			attrs = append(attrs, slog.String("request_body", redactBody(body, contentType)))
+			attrs = append(attrs, slog.String("request_body", redactBodyForURL(body, contentType, req.URL)))
 		}
 	}
 
@@ -286,7 +291,11 @@ func (c *LoggingHTTPClient) logResponse(
 		if bodyErr != nil {
 			attrs = append(attrs, slog.String("response_body_error", bodyErr.Error()))
 		} else if len(body) > 0 {
-			attrs = append(attrs, slog.String("response_body", redactBody(body, contentType)))
+			var responseURL *url.URL
+			if resp.Request != nil {
+				responseURL = resp.Request.URL
+			}
+			attrs = append(attrs, slog.String("response_body", redactBodyForURL(body, contentType, responseURL)))
 		}
 	}
 
@@ -439,6 +448,19 @@ func normalizeKey(key string) string {
 	return strings.Trim(string(out), "_")
 }
 
+func normalizedKeySet(keys []string) map[string]struct{} {
+	if len(keys) == 0 {
+		return nil
+	}
+	result := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		if normalized := normalizeKey(key); normalized != "" {
+			result[normalized] = struct{}{}
+		}
+	}
+	return result
+}
+
 func (c *LoggingHTTPClient) peekRequestBody(req *http.Request) ([]byte, error) {
 	if req == nil || req.Body == nil || req.Body == http.NoBody {
 		return nil, nil
@@ -473,6 +495,18 @@ func (c *LoggingHTTPClient) peekResponseBody(resp *http.Response) ([]byte, error
 }
 
 func redactBody(body []byte, contentType string) string {
+	return redactBodyWithExactKeys(body, contentType, nil)
+}
+
+func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) string {
+	var exactKeys map[string]struct{}
+	if isConfigStoreSecretRoute(routeFromURL(parsedURL)) {
+		exactKeys = normalizedKeySet([]string{"value"})
+	}
+	return redactBodyWithExactKeys(body, contentType, exactKeys)
+}
+
+func redactBodyWithExactKeys(body []byte, contentType string, exactKeys map[string]struct{}) string {
 	if len(body) == 0 {
 		return ""
 	}
@@ -483,18 +517,23 @@ func redactBody(body []byte, contentType string) string {
 
 	contentType = normalizeContentType(contentType)
 	if strings.Contains(contentType, "json") {
-		if redacted, ok := redactJSONBody(body); ok {
+		if redacted, ok := redactJSONBody(body, exactKeys); ok {
 			return truncateBody(redacted)
 		}
 	}
 	if strings.Contains(contentType, "x-www-form-urlencoded") {
-		if redacted, ok := redactFormBody(body); ok {
+		if redacted, ok := redactFormBody(body, exactKeys); ok {
 			return truncateBody(redacted)
 		}
 	}
 
 	redacted := redactPlainTextBody(string(body))
 	return truncateBody(redacted)
+}
+
+func isConfigStoreSecretRoute(route string) bool {
+	return strings.Contains(route, "/config-stores/") &&
+		(strings.HasSuffix(route, "/secrets") || strings.Contains(route, "/secrets/"))
 }
 
 func isTextualBody(body []byte, contentType string) bool {
@@ -533,7 +572,7 @@ func normalizeContentType(contentType string) string {
 	return strings.ToLower(strings.TrimSpace(contentType))
 }
 
-func redactJSONBody(body []byte) (string, bool) {
+func redactJSONBody(body []byte, exactKeys map[string]struct{}) (string, bool) {
 	var payload any
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	decoder.UseNumber()
@@ -541,7 +580,7 @@ func redactJSONBody(body []byte) (string, bool) {
 		return "", false
 	}
 
-	payload = redactJSONValue(payload)
+	payload = redactJSONValue(payload, exactKeys)
 	redactedBody, err := json.Marshal(payload)
 	if err != nil {
 		return "", false
@@ -550,29 +589,35 @@ func redactJSONBody(body []byte) (string, bool) {
 	return string(redactedBody), true
 }
 
-func redactJSONValue(value any) any {
-	return redactSensitiveValue(value)
+func redactJSONValue(value any, exactKeys map[string]struct{}) any {
+	return redactSensitiveValue(value, exactKeys)
 }
 
-func redactSensitiveValue(value any) any {
-	return redactSensitiveValueAt(value, "", false)
+func redactSensitiveValue(value any, exactKeys map[string]struct{}) any {
+	return redactSensitiveValueAt(value, "", false, exactKeys)
 }
 
-func redactSensitiveValueAt(value any, parentKey string, insideConfig bool) any {
+func redactSensitiveValueAt(
+	value any,
+	parentKey string,
+	insideConfig bool,
+	exactKeys map[string]struct{},
+) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, nested := range typed {
 			normalizedKey := normalizeKey(key)
-			if isSensitiveFieldKey(key) || (insideConfig && normalizedKey == "key") ||
+			_, exactMatch := exactKeys[normalizedKey]
+			if isSensitiveFieldKey(key) || exactMatch || (insideConfig && normalizedKey == "key") ||
 				(normalizeKey(parentKey) == "headers" && normalizedKey == "value") {
 				typed[key] = redactedValue
 				continue
 			}
-			typed[key] = redactSensitiveValueAt(nested, key, insideConfig || normalizedKey == "config")
+			typed[key] = redactSensitiveValueAt(nested, key, insideConfig || normalizedKey == "config", exactKeys)
 		}
 	case []any:
 		for idx, nested := range typed {
-			typed[idx] = redactSensitiveValueAt(nested, parentKey, insideConfig)
+			typed[idx] = redactSensitiveValueAt(nested, parentKey, insideConfig, exactKeys)
 		}
 	}
 	return value
@@ -593,13 +638,14 @@ func cloneLogValue(value any) any {
 	return cloned
 }
 
-func redactFormBody(body []byte) (string, bool) {
+func redactFormBody(body []byte, exactKeys map[string]struct{}) (string, bool) {
 	values, err := url.ParseQuery(string(body))
 	if err != nil {
 		return "", false
 	}
 	for key := range values {
-		if isSensitiveFieldKey(key) {
+		_, exactMatch := exactKeys[normalizeKey(key)]
+		if isSensitiveFieldKey(key) || exactMatch {
 			values[key] = []string{redactedValue}
 		}
 	}

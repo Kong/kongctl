@@ -9,4 +9,5 @@ ai_gateways:
       - ref: support-store
         name: support-store
         display_name: Support-Store-Updated
+        secrets: []
     vaults: []

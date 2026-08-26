@@ -1,12 +1,14 @@
 ---
-title: "AI Gateway: Consumer Credentials"
+title: "AI Gateway: Vault-backed OpenAI"
 summary: >-
-  Protect an OpenAI model with an environment-backed API key for an AI Gateway
-  Consumer.
-order: 2
+  Route Consumer-authenticated LLM requests while keeping the OpenAI credential
+  in a Config Store-backed Konnect Vault.
+order: 3
 related:
   - label: Declarative configuration documentation
     url: https://developer.konghq.com/kongctl/declarative/
+  - label: Kong Gateway secrets management
+    url: https://developer.konghq.com/gateway/entities/vault/
   - label: Kong Gateway authentication
     url: https://developer.konghq.com/gateway/authentication/
 ---
@@ -14,19 +16,21 @@ related:
 ## Goal
 
 You will use `kongctl` to create an AI Gateway that routes requests to OpenAI
-and requires clients to authenticate as an AI Gateway Consumer. You will launch
-a local data plane, verify that requests without a valid Consumer credential
-are rejected, and confirm that the exact API key read from an environment
-variable is accepted.
+and requires clients to authenticate as an AI Gateway Consumer. The same
+declarative configuration will create a Config Store secret, connect the
+Config Store to a Konnect Vault, and configure the OpenAI provider to read its
+upstream credential from that Vault.
 
 This lesson uses two separate credentials:
 
-- `OPENAI_API_KEY` authenticates the AI Gateway to OpenAI.
+- `OPENAI_API_KEY` authenticates the AI Gateway to OpenAI. `kongctl` writes it
+  to the Config Store, and the provider retains only a Vault reference.
 - `CONSUMER_API_KEY` authenticates your client to the AI Gateway.
 
 The data plane consumes the client credential before routing the request. It
-does not forward that credential to OpenAI. The model provider independently
-adds the OpenAI credential to the upstream request.
+does not forward that credential to OpenAI. The model provider resolves the
+OpenAI authorization header from the Vault and adds it to the upstream
+request.
 
 ## Prerequisites
 
@@ -56,7 +60,7 @@ Set a harmless, known value for the Consumer credential. This value only
 authenticates requests to your local data plane:
 
 ```shell label="Set the Consumer API key"
-export CONSUMER_API_KEY="consumer-credential-quickstart"
+export CONSUMER_API_KEY="vault-quickstart-consumer"
 ```
 
 Keep both values in the environment. Do not write them directly into the
@@ -67,8 +71,8 @@ declarative configuration.
 Create an isolated directory for the configuration and certificate files:
 
 ```shell label="Create the working directory"
-mkdir -p consumer-credentials/certs
-cd consumer-credentials
+mkdir -p vault-backed-openai/certs
+cd vault-backed-openai
 ```
 
 ## Generate a data plane certificate
@@ -78,7 +82,7 @@ Konnect. Generate a self-signed pair:
 
 ```shell label="Generate the certificate and key"
 openssl req -new -x509 -nodes -newkey rsa:2048 -days 365 \
-  -subj "/CN=consumer-credentials-data-plane/C=US" \
+  -subj "/CN=vault-backed-openai-data-plane/C=US" \
   -keyout certs/data-plane.key \
   -out certs/data-plane.crt
 ```
@@ -96,32 +100,49 @@ Only the public certificate is registered with Konnect. Keep
 
 ## Create the declarative configuration
 
-Write the AI Gateway, certificate, OpenAI provider, model, auth strategy,
-Consumer, and Consumer credential to `ai-gateway.yaml`:
+Write the complete gateway configuration to `ai-gateway.yaml`:
 
 ```shell label="Create ai-gateway.yaml"
 cat > ai-gateway.yaml <<'YAML'
 _defaults:
   kongctl:
-    namespace: consumer-credential-quickstart
+    namespace: vault-backed-openai-quickstart
 
 ai_gateways:
-  - ref: consumer-credential-gateway
-    name: consumer-credential-gateway
-    display_name: Consumer Credential Gateway
-    description: Protects an OpenAI model with a Consumer API key
+  - ref: vault-backed-openai-gateway
+    name: vault-backed-openai-gateway
+    display_name: Vault-backed OpenAI Gateway
+    description: Routes authenticated LLM requests with a vaulted OpenAI key
     deployment_type: hybrid
     proxy_urls:
       - host: localhost
         port: 8000
         protocol: http
     labels:
-      example: consumer-credentials
+      example: vault-backed-openai
     data_plane_certificates:
-      - ref: consumer-credential-data-plane
-        title: consumer-credential-data-plane
+      - ref: vault-backed-openai-data-plane
+        title: vault-backed-openai-data-plane
         description: Local Docker data plane
         cert: !file ./certs/data-plane.crt
+    config_stores:
+      - ref: openai-config-store
+        name: openai-config-store
+        display_name: OpenAI-Config-Store
+        secrets:
+          - ref: openai-auth-header
+            key: openai-auth-header
+            value: !secret
+              parts:
+                - "Bearer "
+                - !env OPENAI_API_KEY
+    vaults:
+      - ref: openai-vault
+        name: openai-vault
+        type: konnect
+        description: Resolves credentials from the OpenAI Config Store
+        config:
+          config_store_id: !ref openai-config-store#id
     model_providers:
       - ref: openai
         name: openai
@@ -132,10 +153,7 @@ ai_gateways:
             type: basic
             headers:
               - name: Authorization
-                value: !secret
-                  parts:
-                    - "Bearer "
-                    - !env OPENAI_API_KEY
+                value: "{vault://openai-vault/openai-auth-header}"
     auth_strategies:
       - ref: consumer-key-auth
         name: consumer-key-auth
@@ -146,22 +164,22 @@ ai_gateways:
             - apikey
           hide_credentials: true
     consumers:
-      - ref: quickstart-consumer
-        name: quickstart-consumer
-        display_name: Quickstart Consumer
-        custom_id: quickstart-consumer
+      - ref: vault-quickstart-consumer
+        name: vault-quickstart-consumer
+        display_name: Vault Quickstart Consumer
+        custom_id: vault-quickstart-consumer
         type: api-key
         credentials:
-          - ref: quickstart-consumer-key
-            name: quickstart-consumer-key
-            display_name: Quickstart Consumer Key
+          - ref: vault-quickstart-consumer-key
+            name: vault-quickstart-consumer-key
+            display_name: Vault Quickstart Consumer Key
             type: api-key
             ttl: 0
             api_key: !secret {source: !env CONSUMER_API_KEY}
     models:
-      - ref: cheap-openai-model
-        name: cheap-openai-model
-        display_name: Cheap OpenAI Model
+      - ref: vaulted-openai-model
+        name: vaulted-openai-model
+        display_name: Vaulted OpenAI Model
         type: model
         enabled: true
         access:
@@ -176,7 +194,7 @@ ai_gateways:
             model:
               body_param: model
               values:
-                - cheap-openai-model
+                - vaulted-openai-model
         targets:
           - name: gpt-5.4-nano
             provider: openai
@@ -188,10 +206,16 @@ ai_gateways:
 YAML
 ```
 
-The key-auth strategy protects the model and reads the Consumer key
-from the `apikey` request header. The Consumer credential uses `!secret` to
-mark its `api_key` as write-only and `!env` to resolve its value from
-`CONSUMER_API_KEY` during execution.
+This one input file describes every remote resource used by the request path.
+During execution, `kongctl` builds the `Bearer` authorization value from
+`OPENAI_API_KEY` and writes it to the `openai-config-store` Config Store. The
+`openai-vault` Vault uses the Config Store ID resolved by `!ref`, and the
+provider stores only the public
+`{vault://openai-vault/openai-auth-header}` reference.
+
+The Consumer credential is separate. Its `api_key` is also write-only, and
+`!env CONSUMER_API_KEY` resolves its value only during execution. Neither
+credential value is stored in the configuration or generated plan.
 
 ## Create the AI Gateway
 
@@ -201,10 +225,10 @@ Apply the configuration:
 kongctl apply -f ai-gateway.yaml
 ```
 
-Review the proposed changes displayed by kongctl. Confirm the apply when the
+Review the proposed changes displayed by `kongctl`. Confirm the apply when the
 resources and actions match the configuration you created. The apply creates
-the AI Gateway and its certificate, model provider, auth strategy, Consumer,
-Consumer credential, and model.
+the AI Gateway, certificate, Config Store and secret, Vault, provider, auth
+strategy, Consumer and credential, and model.
 
 ## Run a local data plane
 
@@ -213,14 +237,14 @@ hostnames to connect to Konnect. Read them into environment variables:
 
 ```shell label="Set the configuration endpoint"
 export AIGW_CONTROL_PLANE="$(kongctl get ai-gateway \
-  "Consumer Credential Gateway" --output json --jq \
+  "Vault-backed OpenAI Gateway" --output json --jq \
   '.endpoints.configuration | sub("^https://"; "") | sub(":443$"; "")' \
   --jq-raw-output)"
 ```
 
 ```shell label="Set the telemetry endpoint"
 export AIGW_TELEMETRY="$(kongctl get ai-gateway \
-  "Consumer Credential Gateway" --output json --jq \
+  "Vault-backed OpenAI Gateway" --output json --jq \
   '.endpoints.telemetry | sub("^https://"; "") | sub(":443$"; "")' \
   --jq-raw-output)"
 ```
@@ -237,7 +261,7 @@ echo "Telemetry:     ${AIGW_TELEMETRY}"
 Start Kong AI Gateway in Docker and mount the certificate pair read-only:
 
 ```shell label="Start the data plane"
-docker run --detach --rm --name consumer-credential-data-plane \
+docker run --detach --rm --name vault-backed-openai-data-plane \
   --group-add "$(id -g)" \
   --env "KONG_ROLE=data_plane" \
   --env "KONG_DATABASE=off" \
@@ -266,7 +290,7 @@ Allow the container a few seconds to connect, then list the gateway nodes:
 
 ```shell label="Verify the data plane"
 kongctl get ai-gateway nodes \
-  --gateway-name "Consumer Credential Gateway"
+  --gateway-name "Vault-backed OpenAI Gateway"
 ```
 
 The output should include the new data plane node. If it appears, continue to
@@ -277,10 +301,10 @@ the credential checks.
 Only inspect the container logs if the data plane node does not appear:
 
 ```shell label="Inspect the data plane logs"
-docker logs consumer-credential-data-plane
+docker logs vault-backed-openai-data-plane
 ```
 
-## Verify Consumer authentication
+## Route an authenticated LLM request
 
 First, send a request without a Consumer key:
 
@@ -289,33 +313,18 @@ curl -i --no-progress-meter \
   --request POST http://localhost:8000/v1/chat/completions \
   --header 'Content-Type: application/json' \
   --json '{
-    "model": "cheap-openai-model",
+    "model": "vaulted-openai-model",
     "messages": [
       {"role": "user", "content": "Reply with only OK."}
     ]
   }'
 ```
 
-The request should return `HTTP/1.1 401 Unauthorized`.
+The request should return `HTTP/1.1 401 Unauthorized`. The data plane rejects
+it before calling OpenAI because it has no Consumer credential.
 
-Next, send a request with an incorrect key:
-
-```shell label="Send an incorrect Consumer key"
-curl -i --no-progress-meter \
-  --request POST http://localhost:8000/v1/chat/completions \
-  --header 'apikey: incorrect-consumer-key' \
-  --header 'Content-Type: application/json' \
-  --json '{
-    "model": "cheap-openai-model",
-    "messages": [
-      {"role": "user", "content": "Reply with only OK."}
-    ]
-  }'
-```
-
-This request should also return `HTTP/1.1 401 Unauthorized`.
-
-Finally, send the exact value that kongctl read from `CONSUMER_API_KEY`:
+Now send the exact Consumer key that `kongctl` read from
+`CONSUMER_API_KEY`:
 
 ```shell label="Send the configured Consumer key"
 curl -i --no-progress-meter --fail-with-body \
@@ -323,7 +332,7 @@ curl -i --no-progress-meter --fail-with-body \
   --header "apikey: ${CONSUMER_API_KEY}" \
   --header 'Content-Type: application/json' \
   --json '{
-    "model": "cheap-openai-model",
+    "model": "vaulted-openai-model",
     "messages": [
       {"role": "user", "content": "Reply with only OK."}
     ]
@@ -331,8 +340,9 @@ curl -i --no-progress-meter --fail-with-body \
 ```
 
 The request should return `HTTP/1.1 200 OK` and an assistant message from
-OpenAI. Together, the three results prove that the environment value was sent
-to Konnect and enforced by the data plane.
+OpenAI. This confirms both credential paths: the client authenticated with the
+Consumer key, and the provider resolved its OpenAI authorization header from
+the Config Store-backed Vault.
 
 ## Clean up
 
@@ -343,7 +353,7 @@ Stop the Docker container. Because it was started with `--rm`, Docker removes
 the container after it stops:
 
 ```shell label="Stop the data plane"
-docker stop consumer-credential-data-plane
+docker stop vault-backed-openai-data-plane
 ```
 
 Delete the AI Gateway and its child resources from Konnect:
@@ -353,5 +363,5 @@ kongctl delete -f ai-gateway.yaml
 ```
 
 Review the delete plan before confirming it. The configuration, public
-certificate, and private key remain in the local `consumer-credentials`
+certificate, and private key remain in the local `vault-backed-openai`
 directory.

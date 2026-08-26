@@ -565,6 +565,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: ai_gateway_config_store_secret
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_gateway_consumer
     defaults:
       - path: credentials.ttl

@@ -111,6 +111,7 @@ func (p *Planner) applySecretWriteIntents(
 				Fields:       fields,
 				Namespace:    secretResourceNamespace(rs, resource),
 				Parent:       secretResourceParent(rs, resource),
+				References:   secretResourceReferences(rs, resource),
 			}
 			plan.AddChange(*change)
 			change = &plan.Changes[len(plan.Changes)-1]
@@ -388,6 +389,9 @@ func secretResourceFields(resource resources.Resource, action ActionType) (map[s
 	}
 	if resource.GetType() == resources.ResourceTypePortalIdentityProvider && action == ActionUpdate {
 		delete(fields, FieldType)
+	}
+	if resource.GetType() == resources.ResourceTypeAIGatewayConfigStoreSecret && action == ActionUpdate {
+		delete(fields, FieldKey)
 	}
 	return fields, nil
 }
@@ -689,6 +693,30 @@ func secretResourceParent(rs *resources.ResourceSet, resource resources.Resource
 	return &ParentInfo{Ref: parentRef.Ref, ID: parent.GetKonnectID()}
 }
 
+func secretResourceReferences(rs *resources.ResourceSet, resource resources.Resource) map[string]ReferenceInfo {
+	secret, ok := resource.(*resources.AIGatewayConfigStoreSecretResource)
+	if !ok {
+		return nil
+	}
+	store := rs.GetAIGatewayConfigStoreByRef(resources.NormalizeResourceRef(secret.AIGatewayConfigStore))
+	if store == nil {
+		return nil
+	}
+	gateway := rs.GetAIGatewayByRef(resources.NormalizeResourceRef(store.AIGateway))
+	if gateway == nil {
+		return nil
+	}
+	return map[string]ReferenceInfo{
+		FieldAIGatewayID: {
+			Ref: gateway.GetRef(),
+			ID:  gateway.GetKonnectID(),
+			LookupFields: map[string]string{
+				FieldName: gateway.GetRef(),
+			},
+		},
+	}
+}
+
 func (p *Planner) resolveSecretResourceID(
 	ctx context.Context,
 	rs *resources.ResourceSet,
@@ -748,6 +776,25 @@ func (p *Planner) resolveSecretResourceID(
 				return resources.AIGatewayVaultID(candidate.AIGatewayVault), nil
 			}
 		}
+	case *resources.AIGatewayConfigStoreSecretResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("AI Gateway Config Store secret %q has no resolved Config Store", typed.Ref)
+		}
+		gatewayReference := secretResourceReferences(rs, resource)[FieldAIGatewayID]
+		if gatewayReference.ID == "" {
+			return "", fmt.Errorf("AI Gateway Config Store secret %q has no resolved gateway", typed.Ref)
+		}
+		current, err := p.client.GetAIGatewayConfigStoreSecret(
+			ctx,
+			gatewayReference.ID,
+			parent.ID,
+			typed.Key,
+		)
+		if err != nil || current == nil {
+			return "", err
+		}
+		return current.Key, nil
 	case *resources.EventGatewaySchemaRegistryResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {

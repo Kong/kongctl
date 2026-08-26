@@ -66,7 +66,7 @@ test("routes OpenAI requests through a local AI Gateway", async ({ page }) => {
   ).toBeVisible();
   await expect(lesson).toContainText("!env OPENAI_API_KEY");
   await expect(lesson).toContainText("openssl req -new -x509");
-  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.2");
   await expect(lesson).toContainText(
     "http://localhost:8000/v1/chat/completions",
   );
@@ -80,13 +80,18 @@ test("protects an AI Gateway model with Consumer credentials", async ({
 }) => {
   await page.goto("quickstarts/");
   const quickstarts = page.locator(".chapter-lessons");
-  await expect(quickstarts.locator(":scope > li")).toHaveCount(2);
+  await expect(quickstarts.locator(":scope > li")).toHaveCount(3);
   await expect(
     quickstarts.getByRole("link", { name: /AI Gateway: Route OpenAI/ }),
   ).toBeVisible();
   await expect(
     quickstarts.getByRole("link", {
       name: /AI Gateway: Consumer Credentials/,
+    }),
+  ).toBeVisible();
+  await expect(
+    quickstarts.getByRole("link", {
+      name: /AI Gateway: Vault-backed OpenAI/,
     }),
   ).toBeVisible();
 
@@ -108,10 +113,39 @@ test("protects an AI Gateway model with Consumer credentials", async ({
   await expect(lesson).toContainText("apikey: ${CONSUMER_API_KEY}");
   await expect(lesson).toContainText("HTTP/1.1 401 Unauthorized");
   await expect(lesson).toContainText("HTTP/1.1 200 OK");
-  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.1");
+  await expect(lesson).toContainText("kong/kong-ai-gateway:2.0.2");
   await expect(lesson).toContainText(
     "docker stop consumer-credential-data-plane",
   );
+});
+
+test("routes Consumer requests with a vaulted OpenAI credential", async ({
+  page,
+}) => {
+  await page.goto("quickstarts/vault-backed-openai/");
+  const lesson = page.locator(".lesson-body");
+
+  await expect(
+    page.getByRole("heading", {
+      name: "AI Gateway: Vault-backed OpenAI",
+    }),
+  ).toBeVisible();
+  await expect(lesson).toContainText("config_stores:");
+  await expect(lesson).toContainText("openai-auth-header");
+  await expect(lesson).toContainText("!env OPENAI_API_KEY");
+  await expect(lesson).toContainText(
+    "config_store_id: !ref openai-config-store#id",
+  );
+  await expect(lesson).toContainText(
+    "{vault://openai-vault/openai-auth-header}",
+  );
+  await expect(lesson).toContainText("!env CONSUMER_API_KEY");
+  await expect(lesson).toContainText("auth_strategies:");
+  await expect(lesson).toContainText("apikey: ${CONSUMER_API_KEY}");
+  await expect(lesson).toContainText("HTTP/1.1 401 Unauthorized");
+  await expect(lesson).toContainText("HTTP/1.1 200 OK");
+  await expect(lesson).toContainText("kongctl apply -f ai-gateway.yaml");
+  await expect(lesson).toContainText("kongctl delete -f ai-gateway.yaml");
 });
 
 test("presents the federated management journey", async ({ page }) => {
@@ -720,10 +754,10 @@ test("persists explicit completion and continues to the next lesson", async ({
   await page.getByRole("link", { name: "Mark complete and continue" }).click();
 
   await expect(page).toHaveURL(/\/kongctl\/installation\/authenticate\/$/);
-  await expect(page.getByText("1 of 35", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("1 of 35", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 of 36", { exact: true })).toBeVisible();
 });
 
 test("persists a chosen color theme", async ({ page }) => {

@@ -92,6 +92,12 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_config_store_secrets",
+		resourceType: resources.ResourceTypeAIGatewayConfigStoreSecret,
+		parentKey:    resources.SchemaFieldAIGatewayConfigStore,
+		parentType:   resources.ResourceTypeAIGatewayConfigStore,
+	},
+	{
 		key:          "ai_gateway_vaults",
 		resourceType: resources.ResourceTypeAIGatewayVault,
 		parentKey:    resources.SchemaFieldAIGateway,
@@ -533,6 +539,7 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		aiGatewayChildCollectionScopes,
 	)
 	captureNestedAIGatewayConsumerCredentialScopes(scope, raw)
+	captureNestedAIGatewayConfigStoreSecretScopes(scope, raw)
 	captureNestedCollectionScopes(
 		scope,
 		raw,
@@ -603,6 +610,12 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 		if entry.resourceType == resources.ResourceTypeAIGatewayConfigStore {
 			return fmt.Errorf("%s cannot be empty because each Config Store must declare an ai_gateway parent", entry.key)
 		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayConfigStoreSecret {
+			return fmt.Errorf(
+				"%s cannot be empty because each secret must declare an ai_gateway_config_store parent",
+				entry.key,
+			)
+		}
 		if entry.resourceType == resources.ResourceTypeAIGatewayVault {
 			return fmt.Errorf("%s cannot be empty because each Vault must declare an ai_gateway parent", entry.key)
 		}
@@ -668,6 +681,46 @@ func captureNestedAIGatewayConsumerCredentialScopes(scope *resources.SyncScope, 
 			continue
 		}
 		captureCredentialsUnderConsumers(scope, gateway["consumers"])
+	}
+}
+
+func captureNestedAIGatewayConfigStoreSecretScopes(scope *resources.SyncScope, raw map[string]any) {
+	captureSecretsUnderConfigStores(scope, raw["ai_gateway_config_stores"])
+
+	gateways, ok := asSlice(raw["ai_gateways"])
+	if !ok {
+		return
+	}
+	for _, item := range gateways {
+		gateway, ok := asMap(item)
+		if !ok {
+			continue
+		}
+		captureSecretsUnderConfigStores(scope, gateway["config_stores"])
+	}
+}
+
+func captureSecretsUnderConfigStores(scope *resources.SyncScope, value any) {
+	stores, ok := asSlice(value)
+	if !ok {
+		return
+	}
+	for _, item := range stores {
+		store, ok := asMap(item)
+		if !ok {
+			continue
+		}
+		storeRef := stringValue(store[resources.SchemaFieldRef])
+		if storeRef == "" {
+			continue
+		}
+		if _, ok := store["secrets"]; ok {
+			scope.AddChild(
+				resources.ResourceTypeAIGatewayConfigStore,
+				storeRef,
+				resources.ResourceTypeAIGatewayConfigStoreSecret,
+			)
+		}
 	}
 }
 

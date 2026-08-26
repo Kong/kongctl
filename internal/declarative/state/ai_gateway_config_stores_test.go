@@ -69,3 +69,43 @@ func (failingAIGatewayConfigStoreUpdateAPI) DeleteAiGatewayConfigStore(
 ) (*kkOps.DeleteAiGatewayConfigStoreResponse, error) {
 	return nil, nil
 }
+
+func (failingAIGatewayConfigStoreUpdateAPI) ListAiGatewayConfigStoreSecrets(
+	context.Context,
+	kkOps.ListAiGatewayConfigStoreSecretsRequest,
+	...kkOps.Option,
+) (*kkOps.ListAiGatewayConfigStoreSecretsResponse, error) {
+	return nil, nil
+}
+
+func (failingAIGatewayConfigStoreUpdateAPI) CreateAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.CreateAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.CreateAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (failingAIGatewayConfigStoreUpdateAPI) GetAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.GetAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.GetAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (failingAIGatewayConfigStoreUpdateAPI) UpdateAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.UpdateAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.UpdateAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
+
+func (failingAIGatewayConfigStoreUpdateAPI) DeleteAiGatewayConfigStoreSecret(
+	context.Context,
+	kkOps.DeleteAiGatewayConfigStoreSecretRequest,
+	...kkOps.Option,
+) (*kkOps.DeleteAiGatewayConfigStoreSecretResponse, error) {
+	return nil, nil
+}
