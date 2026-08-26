@@ -92,11 +92,7 @@ func expandConfigTemplateDocuments(documents []*configTemplateDocument) error {
 }
 
 func (r *configTemplateRegistry) resolveDefinitions() error {
-	names := make([]string, 0, len(r.definitions))
-	for name := range r.definitions {
-		names = append(names, name)
-	}
-	slices.Sort(names)
+	names := slices.Sorted(maps.Keys(r.definitions))
 
 	for _, name := range names {
 		definition := r.definitions[name]
@@ -481,11 +477,7 @@ func templateDefinitionContext(definitions map[string]configTemplate) string {
 	if len(definitions) == 0 {
 		return ""
 	}
-	names := make([]string, 0, len(definitions))
-	for name := range definitions {
-		names = append(names, name)
-	}
-	slices.Sort(names)
+	names := slices.Sorted(maps.Keys(definitions))
 
 	parts := make([]string, 0, len(names))
 	for _, name := range names {
