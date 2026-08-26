@@ -75,6 +75,7 @@ const (
 	FieldAPIKey         = "api_key"
 	FieldClientID       = "client_id"
 	FieldClientSecret   = "client_secret"
+	FieldToken          = "token"
 	FieldMetadata       = "metadata"
 	FieldDataURL        = "data_url"
 	FieldDeckBaseDir    = "deck_base_dir"

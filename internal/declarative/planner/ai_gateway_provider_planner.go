@@ -284,9 +284,10 @@ func shouldUpdateAIGatewayProvider(
 	}
 
 	if desired.Config != nil && aiGatewayProviderConfigChanged(current.Config, desired.Config) {
+		currentConfig, desiredConfig := comparableAIGatewayProviderConfigs(current.Config, desired.Config)
 		changedFields[FieldConfig] = FieldChange{
-			Old: scrubAIGatewayProviderSecretFields(normalizeProviderConfigForCompare(current.Config)),
-			New: scrubAIGatewayProviderSecretFields(normalizeProviderConfigForCompare(desired.Config)),
+			Old: currentConfig,
+			New: desiredConfig,
 		}
 	}
 
@@ -315,14 +316,20 @@ func extractAIGatewayProviderFields(provider resources.AIGatewayProviderResource
 }
 
 func aiGatewayProviderConfigChanged(current, desired map[string]any) bool {
-	currentComparable, desiredComparable := normalizeAIGatewayPayloadsForComparison(current, desired)
-	currentComparable = scrubAIGatewayProviderSecretFields(currentComparable).(map[string]any)
-	desiredComparable = scrubAIGatewayProviderSecretFields(desiredComparable).(map[string]any)
+	currentComparable, desiredComparable := comparableAIGatewayProviderConfigs(current, desired)
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
 }
 
-func normalizeProviderConfigForCompare(config map[string]any) map[string]any {
-	return normalizeAIGatewayJSONMap(config)
+func comparableAIGatewayProviderConfigs(current, desired map[string]any) (map[string]any, map[string]any) {
+	currentComparable, desiredComparable := normalizeAIGatewayPayloadsForComparison(current, desired)
+	currentComparable = scrubAIGatewayProviderSecretFields(currentComparable).(map[string]any)
+	desiredComparable = scrubAIGatewayProviderSecretFields(desiredComparable).(map[string]any)
+	pruneUnpairedAIGatewayWriteOnlyReferences(
+		currentComparable,
+		desiredComparable,
+		isAIGatewayProviderSecretField,
+	)
+	return currentComparable, desiredComparable
 }
 
 func scrubAIGatewayProviderSecretFields(value any) any {

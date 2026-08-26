@@ -70,6 +70,24 @@ func TestAIGatewayAuthStrategyConfigChangedComparesPublicVaultReferences(t *test
 	))
 }
 
+func TestAIGatewayAuthStrategyConfigChangedIgnoresVaultReferenceMissingFromResponse(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"auth_methods": []any{"bearer"},
+		"client_id":    []any{"primary-client"},
+		"issuer":       "https://issuer.example.com",
+	}
+	desired := map[string]any{
+		"auth_methods":  []any{"bearer"},
+		"client_id":     []any{"primary-client"},
+		"client_secret": []any{"{vault://support-secrets/primary}"},
+		"issuer":        "https://issuer.example.com",
+	}
+
+	require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
+}
+
 func TestAIGatewayAuthStrategyMatchPrefersIDOverName(t *testing.T) {
 	t.Parallel()
 

@@ -83,6 +83,32 @@ func TestAIGatewayProviderConfigChangedComparesPublicVaultReferences(t *testing.
 	))
 }
 
+func TestAIGatewayProviderConfigChangedIgnoresVaultReferenceMissingFromResponse(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"auth": map[string]any{
+			"type": "basic",
+			"headers": []any{
+				map[string]any{"name": "Authorization"},
+			},
+		},
+	}
+	desired := map[string]any{
+		"auth": map[string]any{
+			"type": "basic",
+			"headers": []any{
+				map[string]any{
+					"name":  "Authorization",
+					"value": "{vault://support-secrets/openai-token}",
+				},
+			},
+		},
+	}
+
+	require.False(t, aiGatewayProviderConfigChanged(current, desired))
+}
+
 func TestShouldUpdateAIGatewayProviderIncludesChangedPublicVaultReference(t *testing.T) {
 	t.Parallel()
 

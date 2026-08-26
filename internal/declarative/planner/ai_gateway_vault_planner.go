@@ -65,7 +65,11 @@ func (p *Planner) planAIGatewayVaultChanges(
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayVault(*fullVault, desiredVault)
+		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayVault(
+			*fullVault,
+			desiredVault,
+			p.resources,
+		)
 		if err != nil {
 			return err
 		}
@@ -211,6 +215,7 @@ func (p *Planner) planAIGatewayVaultDelete(
 func shouldUpdateAIGatewayVault(
 	current state.AIGatewayVault,
 	desired resources.AIGatewayVaultResource,
+	resourceSet *resources.ResourceSet,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	currentPayload, err := resources.AIGatewayVaultMutablePayloadMap(current.AIGatewayVault)
 	if err != nil {
@@ -221,9 +226,8 @@ func shouldUpdateAIGatewayVault(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Vault %q: %w", desired.Ref, err)
 	}
 
-	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
-	currentCompare = scrubAIGatewayVaultWriteOnlyFields(currentCompare).(map[string]any)
-	desiredCompare = scrubAIGatewayVaultWriteOnlyFields(desiredCompare).(map[string]any)
+	currentCompare, desiredCompare := comparableAIGatewayVaultPayloads(currentPayload, desiredPayload)
+	normalizeAIGatewayVaultConfigStoreReferenceForComparison(desiredCompare, resourceSet)
 
 	currentPlanPayload := scrubAIGatewayVaultWriteOnlyFields(currentPayload).(map[string]any)
 	desiredPlanPayload := scrubAIGatewayVaultWriteOnlyFields(desiredPayload).(map[string]any)
@@ -234,6 +238,40 @@ func shouldUpdateAIGatewayVault(
 	}
 
 	return true, desiredPayload, changedFields, nil
+}
+
+func comparableAIGatewayVaultPayloads(current, desired map[string]any) (map[string]any, map[string]any) {
+	currentComparable, desiredComparable := normalizeAIGatewayPayloadsForComparison(current, desired)
+	currentComparable = scrubAIGatewayVaultWriteOnlyFields(currentComparable).(map[string]any)
+	desiredComparable = scrubAIGatewayVaultWriteOnlyFields(desiredComparable).(map[string]any)
+	pruneUnpairedAIGatewayWriteOnlyReferences(
+		currentComparable,
+		desiredComparable,
+		isAIGatewayVaultWriteOnlyField,
+	)
+	return currentComparable, desiredComparable
+}
+
+func normalizeAIGatewayVaultConfigStoreReferenceForComparison(
+	payload map[string]any,
+	resourceSet *resources.ResourceSet,
+) {
+	if resourceSet == nil {
+		return
+	}
+	config, ok := payload[FieldConfig].(map[string]any)
+	if !ok {
+		return
+	}
+	configuredID, ok := config[FieldConfigStoreID].(string)
+	if !ok || configuredID == "" {
+		return
+	}
+	store := resourceSet.GetAIGatewayConfigStoreByRef(resources.NormalizeResourceRef(configuredID))
+	if store == nil || store.GetKonnectID() == "" {
+		return
+	}
+	config[FieldConfigStoreID] = store.GetKonnectID()
 }
 
 func scrubAIGatewayVaultWriteOnlyFields(value any) any {
@@ -263,7 +301,7 @@ func scrubAIGatewayVaultWriteOnlyFields(value any) any {
 
 func isAIGatewayVaultWriteOnlyField(key string) bool {
 	switch strings.ToLower(key) {
-	case FieldAPIKey, FieldClientSecret, "key", "secret_access_key", "secret_id", "token":
+	case FieldAPIKey, FieldClientSecret, "key", "secret_access_key", "secret_id", FieldToken:
 		return true
 	default:
 		return false

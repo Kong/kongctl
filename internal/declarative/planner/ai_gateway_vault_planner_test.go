@@ -151,6 +151,31 @@ func TestAIGatewayVaultPlannerComparesPublicVaultReferences(t *testing.T) {
 	)
 }
 
+func TestAIGatewayVaultPlannerIgnoresVaultReferenceMissingFromResponse(t *testing.T) {
+	currentPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+		},
+	}
+	desiredPayload := map[string]any{
+		FieldType: "hcv",
+		FieldName: "support-hcv",
+		FieldConfig: map[string]any{
+			"auth_method": "token",
+			"host":        "vault.example.test",
+			"port":        float64(8200),
+			"token":       "{vault://support-secrets/hcv-token}",
+		},
+	}
+
+	currentCompare, desiredCompare := comparableAIGatewayVaultPayloads(currentPayload, desiredPayload)
+	require.Equal(t, currentCompare, desiredCompare)
+}
+
 func TestAIGatewayVaultPlannerSendsWriteOnlySecretsOnObservableUpdate(t *testing.T) {
 	var currentVault kkComps.AIGatewayVault
 	require.NoError(t, json.Unmarshal([]byte(`{
@@ -178,7 +203,7 @@ func TestAIGatewayVaultPlannerSendsWriteOnlySecretsOnObservableUpdate(t *testing
 		}
 	}`), &desired))
 
-	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayVault(current, desired)
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayVault(current, desired, nil)
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
 	require.Equal(t, "super-secret-token", fields[FieldConfig].(map[string]any)["token"])

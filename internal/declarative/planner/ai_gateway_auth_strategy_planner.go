@@ -348,6 +348,11 @@ func aiGatewayAuthStrategyConfigChanged(current, desired map[string]any) bool {
 	projectAIGatewayAuthStrategyConfigForComparison(currentComparable, desiredComparable)
 	currentComparable = scrubAIGatewayAuthStrategySecretFields(currentComparable).(map[string]any)
 	desiredComparable = scrubAIGatewayAuthStrategySecretFields(desiredComparable).(map[string]any)
+	pruneUnpairedAIGatewayWriteOnlyReferences(
+		currentComparable,
+		desiredComparable,
+		isAIGatewayAuthStrategySecretField,
+	)
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
 }
 

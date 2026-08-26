@@ -103,6 +103,47 @@ func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
 	}
 }
 
+func pruneUnpairedAIGatewayWriteOnlyReferences(
+	current any,
+	desired any,
+	isWriteOnlyField func(string) bool,
+) {
+	switch currentTyped := current.(type) {
+	case map[string]any:
+		desiredTyped, ok := desired.(map[string]any)
+		if !ok {
+			return
+		}
+		for key, currentValue := range currentTyped {
+			desiredValue, desiredHasKey := desiredTyped[key]
+			if isWriteOnlyField(key) {
+				if !desiredHasKey {
+					delete(currentTyped, key)
+				}
+				continue
+			}
+			if desiredHasKey {
+				pruneUnpairedAIGatewayWriteOnlyReferences(currentValue, desiredValue, isWriteOnlyField)
+			}
+		}
+		for key := range desiredTyped {
+			if isWriteOnlyField(key) {
+				if _, currentHasKey := currentTyped[key]; !currentHasKey {
+					delete(desiredTyped, key)
+				}
+			}
+		}
+	case []any:
+		desiredTyped, ok := desired.([]any)
+		if !ok {
+			return
+		}
+		for i := range min(len(currentTyped), len(desiredTyped)) {
+			pruneUnpairedAIGatewayWriteOnlyReferences(currentTyped[i], desiredTyped[i], isWriteOnlyField)
+		}
+	}
+}
+
 func pruneNilValues(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:

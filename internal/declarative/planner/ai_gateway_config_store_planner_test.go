@@ -164,6 +164,39 @@ func TestAIGatewayConfigStorePlannerResolvesExistingStoreForVault(t *testing.T) 
 	require.Empty(t, plan.Changes[0].DependsOn)
 }
 
+func TestAIGatewayConfigStorePlannerTreatsResolvedVaultStoreReferenceAsUnchanged(t *testing.T) {
+	var currentVault kkComps.AIGatewayVault
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"id": "vault-id",
+		"type": "konnect",
+		"name": "support-vault",
+		"config": {"config_store_id": "existing-store-id"},
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z"
+	}`), &currentVault))
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{
+			stores: []kkComps.AIGatewayConfigStore{{ID: "existing-store-id", Name: "support-store"}},
+		},
+		AIGatewayVaultsAPI: &testAIGatewayVaultAPI{vaults: []kkComps.AIGatewayVault{currentVault}},
+	})
+	rs := testAIGatewayConfigStoreResourceSet(resources.AIGatewayConfigStoreResource{
+		BaseResource: resources.BaseResource{Ref: "support-store"},
+		AIGateway:    "support-gateway",
+		Name:         "support-store",
+	})
+	rs.AIGatewayVaults = []resources.AIGatewayVaultResource{{
+		BaseResource:                resources.BaseResource{Ref: "support-vault"},
+		AIGateway:                   "support-gateway",
+		CreateAIGatewayVaultRequest: testAIGatewayConfigStoreVaultRequest(t),
+	}}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
 func TestAIGatewayConfigStoreSecretPlannerCreateNoOpAndRotation(t *testing.T) {
 	t.Run("create includes deferred write", func(t *testing.T) {
 		client := state.NewClient(state.ClientConfig{
