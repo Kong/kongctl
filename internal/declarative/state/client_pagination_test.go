@@ -528,7 +528,6 @@ func TestListAPIImplementations_NormalizesControlPlaneVariant(t *testing.T) {
 	implementations, err := client.ListAPIImplementations(testContextWithLogger(), "api-id")
 	require.NoError(t, err)
 	require.Len(t, implementations, 1)
-	assert.Equal(t, kkComps.APIImplementationTypeControlPlaneReference, implementations[0].Type)
 	require.NotNil(t, implementations[0].ControlPlane)
 	assert.Equal(t, "control-plane-id", implementations[0].ControlPlane.ID)
 }

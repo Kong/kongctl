@@ -262,7 +262,7 @@ func firstDeclarativeValidationLeaf(validationErr *jsonschema.ValidationError) *
 		}
 	}
 	collect(validationErr)
-	sort.Slice(leaves, func(i, j int) bool {
+	sort.SliceStable(leaves, func(i, j int) bool {
 		return declarativePath(leaves[i].InstanceLocation) < declarativePath(leaves[j].InstanceLocation)
 	})
 	return leaves[0]

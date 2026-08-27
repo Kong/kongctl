@@ -403,7 +403,6 @@ type APIPublication struct {
 type APIImplementation struct {
 	ID                string
 	ImplementationURL string
-	Type              kkComps.APIImplementationType
 	Service           *struct {
 		ID             string
 		ControlPlaneID string
@@ -2661,7 +2660,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 		for _, item := range resp.ListAPIImplementationsResponse.Data {
 			entity := item.APIImplementationListItemGatewayServiceEntity
 			if entity != nil {
-				impl := APIImplementation{ID: entity.GetID(), Type: kkComps.APIImplementationTypeServiceReference}
+				impl := APIImplementation{ID: entity.GetID()}
 				if svc := entity.GetService(); svc != nil {
 					impl.Service = &struct {
 						ID             string
@@ -2679,8 +2678,7 @@ func (c *Client) ListAPIImplementations(ctx context.Context, apiID string) ([]AP
 			if controlPlaneEntity != nil {
 				controlPlane := controlPlaneEntity.GetControlPlane()
 				impl := APIImplementation{
-					ID:   controlPlaneEntity.GetID(),
-					Type: kkComps.APIImplementationTypeControlPlaneReference,
+					ID: controlPlaneEntity.GetID(),
 					ControlPlane: &struct {
 						ID string
 					}{ID: controlPlane.GetID()},
