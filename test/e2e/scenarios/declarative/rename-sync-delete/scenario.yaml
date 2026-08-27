@@ -1,0 +1,138 @@
+baseInputsPath: testdata
+
+test:
+  maturity: beta
+
+env:
+  KONGCTL_E2E_RENAME_MODEL_PROVIDER_KEY: placeholder
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-apply-original-names
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0
+                status: success
+
+  - name: 002-apply-renamed-entities
+    inputOverlayDirs:
+      - overlays/002-renamed
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+
+  - name: 003-plan-sync-deletes-stale-entities
+    inputOverlayDirs:
+      - overlays/002-renamed
+    commands:
+      - name: 000-plan-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: >-
+              changes[?resource_type=='portal' && resource_ref=='rename-sync-portal-original'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='api' && resource_ref=='rename-sync-api-original'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: >-
+              changes[?resource_type=='ai_gateway_model' && resource_ref=='rename-sync-model-original'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 001-sync-delete-stale-entities
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: 002-get-models-after-sync
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - rename-sync-gateway
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='rename-sync-model-original']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='rename-sync-model-renamed'] | [0]"
+            expect:
+              fields:
+                name: rename-sync-model-renamed
+                display_name: Rename Sync Model Renamed
+
+  - name: 004-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
