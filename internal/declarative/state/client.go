@@ -2564,11 +2564,9 @@ func (c *Client) ListAPIPublications(ctx context.Context, apiID string) ([]APIPu
 			pub := APIPublication{
 				ID:                       "", // Publications don't have a separate ID
 				PortalID:                 p.PortalID,
+				Visibility:               string(p.Visibility),
 				AuthStrategyIDs:          p.AuthStrategyIds,
 				AutoApproveRegistrations: p.AutoApproveRegistrations,
-			}
-			if p.Visibility != nil {
-				pub.Visibility = string(*p.Visibility)
 			}
 			// AutoApproveRegistrations not available in list response
 			allPublications = append(allPublications, pub)

@@ -64,7 +64,7 @@ application_auth_strategies:
 
 	apis := document["apis"].([]any)
 	publications := apis[0].(map[string]any)["publications"].([]any)
-	require.NotContains(t, publications[0].(map[string]any), "visibility")
+	require.Equal(t, "private", publications[0].(map[string]any)["visibility"])
 }
 
 func TestOmitAPIDefaultsPreservesNullAndUnknownFields(t *testing.T) {

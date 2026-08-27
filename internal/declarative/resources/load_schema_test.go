@@ -156,6 +156,21 @@ func TestRenderLoadSchemaRetainsKnownRejectedFieldDiagnostics(t *testing.T) {
 		conversionOnly.LoadRejectedFieldMessage("access"),
 	)
 
+	var upstreamServer *JSONSchema
+	for _, branch := range mcpServer.OneOf {
+		if branch.Properties["type"].Const == "upstream-server" {
+			upstreamServer = branch
+			break
+		}
+	}
+	require.NotNil(t, upstreamServer)
+	assert.NotContains(t, upstreamServer.Properties, "access")
+	assert.Equal(
+		t,
+		aiGatewayMCPServerUpstreamServerAccessMessage,
+		upstreamServer.LoadRejectedFieldMessage("access"),
+	)
+
 	portalAuthSettings := schema.Defs[string(ResourceTypePortalAuthSettings)]
 	require.NotNil(t, portalAuthSettings)
 	assert.NotContains(t, portalAuthSettings.Properties, "oidc_auth_enabled")

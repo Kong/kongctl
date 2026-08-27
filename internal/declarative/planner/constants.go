@@ -65,6 +65,7 @@ const (
 	FieldConfigs        = "configs"
 	FieldModel          = "model"
 	FieldRoute          = "route"
+	FieldTools          = "tools"
 	FieldConsumers      = "consumers"
 	FieldEnabled        = "enabled"
 	FieldVersion        = "version"

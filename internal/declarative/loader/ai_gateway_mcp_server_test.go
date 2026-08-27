@@ -132,8 +132,6 @@ ai_gateways:
         display_name: POC MCP Upstream Server
         enabled: true
         tools: []
-        access:
-          acl_attribute_type: consumer
         config:
           url: https://mcp.example.com/mcp
           tools_cache_ttl_seconds: 60
@@ -169,6 +167,75 @@ ai_gateways:
 	require.NoError(t, err)
 	require.Equal(t, []any{"poc-mcp-conversion", "poc-mcp-upstream"}, listenerPayload["sources"])
 	require.Equal(t, "upstream-server", byRef["poc-mcp-upstream"].MCPServerType())
+}
+
+func TestLoaderRejectsUpstreamMCPServerLevelAccess(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    mcp_servers:
+      - ref: support-upstream
+        type: upstream-server
+        name: support-upstream
+        display_name: Support Upstream
+        access:
+          acl_attribute_type: consumer
+        config:
+          url: https://mcp.example.com/mcp
+`
+
+	_, err := New().LoadFromSources(
+		[]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}},
+		false,
+	)
+	require.ErrorContains(t, err, `field "access" is not supported when type is "upstream-server"`)
+}
+
+func TestLoaderRejectsPassthroughToolWithoutAccess(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    mcp_servers:
+      - ref: support-passthrough
+        type: passthrough-listener
+        name: support-passthrough
+        display_name: Support Passthrough
+        tools:
+          - name: remote-tool
+        config:
+          url: https://mcp.example.com/mcp
+`
+
+	_, err := New().LoadFromSources(
+		[]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}},
+		false,
+	)
+	require.ErrorContains(t, err, "access")
+}
+
+func TestLoaderRejectsMCPRouteWithoutMatcher(t *testing.T) {
+	input := `
+ai_gateways:
+  - ref: support-gateway
+    display_name: Support Gateway
+    mcp_servers:
+      - ref: support-passthrough
+        type: passthrough-listener
+        name: support-passthrough
+        display_name: Support Passthrough
+        config:
+          url: https://mcp.example.com/mcp
+          route:
+            protocols: [https]
+`
+
+	_, err := New().LoadFromSources(
+		[]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}},
+		false,
+	)
+	require.Error(t, err)
 }
 
 func TestLoaderRejectsEmptyConversionMCPServerTools(t *testing.T) {

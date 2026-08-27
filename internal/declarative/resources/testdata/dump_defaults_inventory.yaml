@@ -1,4 +1,4 @@
-sdk_version: v0.63.1-0.20260825142304-e5f4081fe48a
+sdk_version: v0.64.1-0.20260827160236-c7425f669914
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -1071,10 +1071,6 @@ resources:
         type: string
         value: unpublished
         source: sdk
-      - path: publications.visibility
-        type: string
-        value: private
-        source: sdk
     overrides: []
     exclusions: []
   - resource_type: api_document
@@ -1090,11 +1086,7 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: api_publication
-    defaults:
-      - path: visibility
-        type: string
-        value: private
-        source: sdk
+    defaults: []
     overrides: []
     exclusions: []
   - resource_type: api_version

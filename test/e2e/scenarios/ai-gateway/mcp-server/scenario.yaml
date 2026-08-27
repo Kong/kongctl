@@ -118,6 +118,32 @@ steps:
                 query.type: object
                 request_body.type: object
                 responses.type: object
+          - select: "oneOf[?properties.type.const=='passthrough-listener'] | [0].properties.tools.items"
+            expect:
+              fields:
+                required[0]: name
+                required[1]: access
+                properties.access.type: object
+          - select: >-
+              contains(keys(oneOf[?properties.type.const=='passthrough-listener'] | [0].properties.tools.items.properties), 'method')
+            expect:
+              fields:
+                "@": false
+          - select: "oneOf[?properties.type.const=='upstream-server'] | [0].properties"
+            expect:
+              fields:
+                tools.items.properties.input_schema: {}
+                tools.items.properties.output_schema: {}
+          - select: >-
+              contains(keys(oneOf[?properties.type.const=='upstream-server'] | [0].properties), 'access')
+            expect:
+              fields:
+                "@": false
+          - select: >-
+              contains(keys(oneOf[?properties.type.const=='upstream-server'] | [0].properties.tools.items.properties), 'method')
+            expect:
+              fields:
+                "@": false
           - select: >-
               oneOf[?properties.type.const=='conversion-listener'] | [0].properties.config.properties.logging.properties
             expect:
@@ -223,6 +249,8 @@ steps:
                 fields.config.route.methods[1]: POST
                 fields.access.acl_attribute_type: oauth_access_token
                 fields.access.access_token_claim_field: sub
+                fields.tools[0].name: resolve-library-id
+                fields.tools[0].access.acls.allow[0]: support-subject
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.conversion_listener_server_ref }}'] | [0]
             expect:
@@ -269,7 +297,12 @@ steps:
                 fields.config.url: https://support-upstream.example.com/mcp
                 fields.config.tools_cache_ttl_seconds: 60
                 fields.config.route.paths[0]: /support-upstream
-                fields.access.acl_attribute_type: consumer
+                fields.tools[0].name: lookup-upstream
+                fields.tools[0].description: "Override the upstream tool description"
+                fields.tools[0].annotations.title: "Lookup upstream"
+                fields.tools[0].access.acls.allow[0]: support-consumers
+                fields.tools[0].input_schema.type: object
+                fields.tools[0].output_schema.type: object
       - name: 001-apply-create
         outputFormat: json
         run:
@@ -390,6 +423,8 @@ steps:
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
+                tools[0].name: resolve-library-id
+                tools[0].access.acls.allow[0]: support-subject
           - select: "[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]"
             expect:
               fields:
@@ -435,8 +470,12 @@ steps:
                 config.url: https://support-upstream.example.com/mcp
                 config.tools_cache_ttl_seconds: 60
                 config.route.paths[0]: /support-upstream
-                access:
-                  acl_attribute_type: consumer
+                tools[0].name: lookup-upstream
+                tools[0].description: "Override the upstream tool description"
+                tools[0].annotations.title: "Lookup upstream"
+                tools[0].access.acls.allow[0]: support-consumers
+                tools[0].input_schema.type: object
+                tools[0].output_schema.type: object
       - name: 006-get-mcp-server-by-name
         run:
           - get
@@ -473,6 +512,8 @@ steps:
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
+                tools[0].name: resolve-library-id
+                tools[0].access.acls.allow[0]: support-subject
       - name: 008-get-conversion-listener-mcp-server-by-name
         run:
           - get
@@ -538,8 +579,8 @@ steps:
                 name: "{{ .vars.upstream_server_name }}"
                 type: upstream-server
                 config.route.paths[0]: /support-upstream
-                access:
-                  acl_attribute_type: consumer
+                tools[0].name: lookup-upstream
+                tools[0].access.acls.allow[0]: support-consumers
       - name: 011-get-mcp-server-by-id
         run:
           - get
@@ -690,6 +731,8 @@ steps:
                 access:
                   acl_attribute_type: oauth_access_token
                   access_token_claim_field: sub
+                tools[0].name: resolve-library-id
+                tools[0].access.acls.allow[0]: support-subject
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].mcp_servers[?name=='{{ .vars.conversion_listener_server_name }}'] | [0]
             expect:
@@ -724,8 +767,12 @@ steps:
                 name: "{{ .vars.upstream_server_name }}"
                 display_name: "{{ .vars.upstream_server_display_name }}"
                 type: upstream-server
-                access:
-                  acl_attribute_type: consumer
+                tools[0].name: lookup-upstream
+                tools[0].description: "Override the upstream tool description"
+                tools[0].annotations.title: "Lookup upstream"
+                tools[0].access.acls.allow[0]: support-consumers
+                tools[0].input_schema.type: object
+                tools[0].output_schema.type: object
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].auth_strategies[?name=='{{ .vars.auth_strategy_name }}'] | [0]
             expect:
