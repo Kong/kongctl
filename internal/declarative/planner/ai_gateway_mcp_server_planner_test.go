@@ -130,8 +130,6 @@ ai_gateways:
         display_name: POC MCP Upstream Server
         enabled: true
         tools: []
-        access:
-          acl_attribute_type: consumer
         config:
           url: https://mcp.example.com/mcp
           tools_cache_ttl_seconds: 60

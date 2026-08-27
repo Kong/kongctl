@@ -67,7 +67,12 @@ ai_gateways:
         labels:
           team: support
           phase: create
-        tools: []
+        tools:
+          - name: resolve-library-id
+            access:
+              acls:
+                allow:
+                  - support-subject
         access:
           acl_attribute_type: oauth_access_token
           access_token_claim_field: sub
@@ -140,9 +145,19 @@ ai_gateways:
         labels:
           team: support
           phase: create
-        tools: []
-        access:
-          acl_attribute_type: consumer
+        tools:
+          - name: lookup-upstream
+            description: "Override the upstream tool description"
+            annotations:
+              title: "Lookup upstream"
+            access:
+              acls:
+                allow:
+                  - support-consumers
+            input_schema:
+              type: object
+            output_schema:
+              type: object
         config:
           url: https://support-upstream.example.com/mcp
           tools_cache_ttl_seconds: 60

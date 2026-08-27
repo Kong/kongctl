@@ -14,6 +14,9 @@ import (
 const aiGatewayMCPServerConversionOnlyAccessMessage = `AI Gateway MCP Server field "access" is not supported ` +
 	`when type is "conversion-only"`
 
+const aiGatewayMCPServerUpstreamServerAccessMessage = `AI Gateway MCP Server field "access" is not supported ` +
+	`when type is "upstream-server"; configure access on individual tools instead`
+
 const (
 	aiGatewayMCPServerFieldID          = "id"
 	aiGatewayMCPServerFieldName        = "name"
@@ -340,6 +343,9 @@ func rejectUnsupportedAIGatewayMCPServerAccess(raw map[string]json.RawMessage) e
 	if serverType == "conversion-only" {
 		return errors.New(aiGatewayMCPServerConversionOnlyAccessMessage)
 	}
+	if serverType == "upstream-server" {
+		return errors.New(aiGatewayMCPServerUpstreamServerAccessMessage)
+	}
 	return nil
 }
 
@@ -465,57 +471,6 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		explainField("display_name", explainStringNode("Customer Support Tools"), true, true),
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("config", aiGatewayMCPServerConfigExplainNode(), true, true),
-		explainField("tools", explainArrayOf(explainObject(
-			explainField("access", explainObject(
-				explainField("acls", aiGatewayMCPACLsExplainNode(), false, false),
-			), false, false),
-			explainField("annotations", explainObject(
-				explainField("destructive_hint", explainBoolNode("false"), false, false),
-				explainField("idempotent_hint", explainBoolNode("true"), false, false),
-				explainField("open_world_hint", explainBoolNode("false"), false, false),
-				explainField("read_only_hint", explainBoolNode("true"), false, false),
-				explainField("title", explainStringNode("Lookup customer"), false, false),
-			), false, false),
-			explainField("name", explainStringNode("lookup-customer"), true, true),
-			explainField("description", explainStringNode("Look up a customer profile"), true, true),
-			explainField(
-				"headers",
-				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
-				false,
-				false,
-			),
-			explainField("host", explainStringNode("api.example.com"), false, false),
-			explainField("method", explainStringNode("GET"), false, true),
-			explainField("path", explainStringNode("/customers/{customer_id}"), false, true),
-			explainField(
-				"query",
-				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
-				false,
-				false,
-			),
-			explainField(
-				"request_body",
-				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
-				false,
-				false,
-			),
-			explainField(
-				"responses",
-				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
-				false,
-				false,
-			),
-			explainField("scheme", explainStringNode("https"), false, false),
-			explainField("parameters", explainArrayOf(explainObject(
-				explainField("name", explainStringNode("customer_id"), true, true),
-				explainField("in", explainStringNode("path"), true, true),
-				explainField("description", explainStringNode("Customer identifier"), false, false),
-				explainField("required", explainBoolNode("true"), false, false),
-				explainField("schema", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
-			)), false, false),
-			explainField("input_schema", &ExplainNode{}, false, false),
-			explainField("output_schema", &ExplainNode{}, false, false),
-		)), false, true),
 		explainField("policies", explainArrayOf(explainStringNode("policy-name")), false, false),
 		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
 		explainField(
@@ -525,26 +480,32 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 			false,
 		),
 	}
+	conversionOnly := explainObject(append(
+		slices.Clone(commonFields),
+		aiGatewayMCPConversionToolsExplainField(),
+		explainField("type", explainConstStringNode("conversion-only"), true, true),
+	)...)
+	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
 	accessFields := append(
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
-	conversionOnly := explainObject(append(
-		slices.Clone(commonFields),
-		explainField("type", explainConstStringNode("conversion-only"), true, true),
-	)...)
-	conversionOnly.rejectLoadField("access", aiGatewayMCPServerConversionOnlyAccessMessage)
-	listenerFields := slices.DeleteFunc(slices.Clone(accessFields), func(field *ExplainField) bool {
-		return field.Name == "tools"
-	})
+	listenerFields := slices.Clone(accessFields)
 	listenerFields = append(
 		listenerFields,
 		explainField("sources", explainArrayOf(explainStringNode("source-server-name")), true, true),
 	)
+	upstreamServer := explainObject(append(
+		slices.Clone(commonFields),
+		aiGatewayMCPUpstreamToolsExplainField(),
+		explainField("type", explainConstStringNode("upstream-server"), true, true),
+	)...)
+	upstreamServer.rejectLoadField("access", aiGatewayMCPServerUpstreamServerAccessMessage)
 	return explainUnionNode(
 		conversionOnly,
 		explainObject(append(
 			slices.Clone(accessFields),
+			aiGatewayMCPConversionToolsExplainField(),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 		)...),
 		explainObject(append(
@@ -553,13 +514,68 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		)...),
 		explainObject(append(
 			slices.Clone(accessFields),
+			aiGatewayMCPPassthroughToolsExplainField(),
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
-		explainObject(append(
-			slices.Clone(accessFields),
-			explainField("type", explainConstStringNode("upstream-server"), true, true),
-		)...),
+		upstreamServer,
 	), nil
+}
+
+func aiGatewayMCPToolAccessExplainNode() *ExplainNode {
+	return explainObject(explainField("acls", aiGatewayMCPACLsExplainNode(), false, false))
+}
+
+func aiGatewayMCPToolAnnotationsExplainNode() *ExplainNode {
+	return explainObject(
+		explainField("destructive_hint", explainBoolNode("false"), false, false),
+		explainField("idempotent_hint", explainBoolNode("true"), false, false),
+		explainField("open_world_hint", explainBoolNode("false"), false, false),
+		explainField("read_only_hint", explainBoolNode("true"), false, false),
+		explainField("title", explainStringNode("Lookup customer"), false, false),
+	)
+}
+
+func aiGatewayMCPConversionToolsExplainField() *ExplainField {
+	tool := explainObject(
+		explainField("access", aiGatewayMCPToolAccessExplainNode(), false, false),
+		explainField("annotations", aiGatewayMCPToolAnnotationsExplainNode(), false, false),
+		explainField("name", explainStringNode("lookup-customer"), true, true),
+		explainField("description", explainStringNode("Look up a customer profile"), true, true),
+		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField("host", explainStringNode("api.example.com"), false, false),
+		explainField("method", explainStringNode("GET"), true, true),
+		explainField("path", explainStringNode("/customers/{customer_id}"), false, true),
+		explainField("query", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField("request_body", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField("responses", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField("scheme", explainStringNode("https"), false, false),
+		explainField("parameters", explainArrayOf(explainObject(
+			explainField("name", explainStringNode("customer_id"), true, true),
+			explainField("in", explainStringNode("path"), true, true),
+			explainField("description", explainStringNode("Customer identifier"), false, false),
+			explainField("required", explainBoolNode("true"), false, false),
+			explainField("schema", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		)), false, false),
+	)
+	return explainField("tools", explainArrayOf(tool), true, true)
+}
+
+func aiGatewayMCPPassthroughToolsExplainField() *ExplainField {
+	return explainField("tools", explainArrayOf(explainObject(
+		explainField("name", explainStringNode("remote-tool-name"), true, true),
+		explainField("access", aiGatewayMCPToolAccessExplainNode(), true, true),
+	)), false, false)
+}
+
+func aiGatewayMCPUpstreamToolsExplainField() *ExplainField {
+	return explainField("tools", explainArrayOf(explainObject(
+		explainField("name", explainStringNode("remote-tool-name"), true, true),
+		explainField("description", explainStringNode("Override the remote tool description"), false, false),
+		explainField("annotations", aiGatewayMCPToolAnnotationsExplainNode(), false, false),
+		explainField("access", aiGatewayMCPToolAccessExplainNode(), false, false),
+		explainField("input_schema", &ExplainNode{}, false, false),
+		explainField("output_schema", &ExplainNode{}, false, false),
+	)), false, false)
 }
 
 func aiGatewayMCPServerAccessExplainNode() *ExplainNode {

@@ -182,7 +182,7 @@ func (a *APIPublicationAPIImpl) publishAPIToPortalWithMergedPayload(
 
 		if current != nil {
 			if publication.Visibility == nil {
-				publication.Visibility = current.Visibility
+				publication.Visibility = current.Visibility.ToPointer()
 			}
 			if publication.AuthStrategyIds == nil {
 				if current.AuthStrategyIds == nil {

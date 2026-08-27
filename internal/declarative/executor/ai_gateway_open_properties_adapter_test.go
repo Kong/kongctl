@@ -32,6 +32,11 @@ func TestAIGatewayMCPServerAdapterRejectsAdditionalProperties(t *testing.T) {
 		planner.FieldConfig: map[string]any{
 			"url": "https://support-tools.example.com",
 		},
+		planner.FieldTools: []any{map[string]any{
+			"name":        "lookup-customer",
+			"description": "Look up a customer",
+			"method":      "GET",
+		}},
 		"future_mcp_server_field": "mcp-server-value",
 	}
 	var request kkComps.CreateAIGatewayMCPServerRequest
