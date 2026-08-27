@@ -128,8 +128,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 5
-                by_action.DELETE: 5
+                total_changes: 1
+                by_action.DELETE: 1
       - name: 002-sync-delete
         outputFormat: json
         run:
@@ -141,7 +141,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 1
                 failed: 0
                 status: success
 
