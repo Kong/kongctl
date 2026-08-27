@@ -91,13 +91,11 @@ steps:
               fields:
                 name: storefront-forward
                 type: forward_to_virtual_cluster
-                config:
-                  type: port_mapping
-                  advertised_host: host.docker.internal
-                  bootstrap_port: at_start
-                  min_broker_id: 0
-                  destination:
-                    name: storefront
+                config.type: port_mapping
+                config.advertised_host: host.docker.internal
+                config.bootstrap_port: at_start
+                config.min_broker_id: 0
+                config.destination.name: storefront
 
   - name: 003-idempotency-check
     commands:
