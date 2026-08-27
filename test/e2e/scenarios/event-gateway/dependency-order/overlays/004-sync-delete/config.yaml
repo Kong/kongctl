@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-dependency-order-test
+
+event_gateways: []
