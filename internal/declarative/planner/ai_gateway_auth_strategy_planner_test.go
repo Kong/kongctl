@@ -192,6 +192,32 @@ func TestAIGatewayAuthStrategyChangedFieldsScrubClientSecret(t *testing.T) {
 	require.NotContains(t, changedFields[FieldConfig].New, "client_secret")
 }
 
+func TestAIGatewayAuthStrategyChangedFieldsPruneUnpairedVaultReference(t *testing.T) {
+	t.Parallel()
+
+	needsUpdate, _, changedFields, err := shouldUpdateAIGatewayAuthStrategy(
+		state.AIGatewayAuthStrategy{
+			Type:        "openid-connect",
+			DisplayName: "Support OIDC",
+			Config: map[string]any{
+				"issuer": "https://issuer.example.com",
+			},
+		},
+		resources.AIGatewayAuthStrategyResource{
+			Type:        "openid-connect",
+			DisplayName: "Support OIDC",
+			Config: map[string]any{
+				"issuer":          "https://issuer-updated.example.com",
+				FieldClientSecret: []any{"{vault://support-secrets/primary}"},
+			},
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.NotContains(t, changedFields[FieldConfig].New, FieldClientSecret)
+}
+
 func TestAIGatewayAuthStrategyUpdatePreservesUndeclaredSecurityConfig(t *testing.T) {
 	t.Parallel()
 

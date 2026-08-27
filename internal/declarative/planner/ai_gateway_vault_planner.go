@@ -241,15 +241,13 @@ func shouldUpdateAIGatewayVault(
 }
 
 func comparableAIGatewayVaultPayloads(current, desired map[string]any) (map[string]any, map[string]any) {
-	currentComparable, desiredComparable := normalizeAIGatewayPayloadsForComparison(current, desired)
-	currentComparable = scrubAIGatewayVaultWriteOnlyFields(currentComparable).(map[string]any)
-	desiredComparable = scrubAIGatewayVaultWriteOnlyFields(desiredComparable).(map[string]any)
-	pruneUnpairedAIGatewayWriteOnlyReferences(
-		currentComparable,
-		desiredComparable,
+	return comparableAIGatewayWriteOnlyPayloads(
+		current,
+		desired,
+		normalizeAIGatewayPayloadsForComparison,
+		scrubAIGatewayVaultWriteOnlyFields,
 		isAIGatewayVaultWriteOnlyField,
 	)
-	return currentComparable, desiredComparable
 }
 
 func normalizeAIGatewayVaultConfigStoreReferenceForComparison(

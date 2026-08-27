@@ -148,6 +148,35 @@ func TestShouldUpdateAIGatewayProviderIncludesChangedPublicVaultReference(t *tes
 	require.Equal(t, newReference, diffHeader[FieldValue])
 }
 
+func TestShouldUpdateAIGatewayProviderDisplaysUnpairedVaultReferenceOnObservableConfigChange(t *testing.T) {
+	t.Parallel()
+
+	const reference = "{vault://support-secrets/oauth-client-secret}"
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayProvider(
+		state.AIGatewayProvider{
+			Type:        "openai",
+			DisplayName: "OpenAI Provider",
+			Config:      map[string]any{"auth": map[string]any{"type": "basic"}},
+		},
+		resources.AIGatewayProviderResource{
+			Type:        "openai",
+			DisplayName: "OpenAI Provider",
+			Config: map[string]any{"auth": map[string]any{
+				"type": "oauth2", FieldClientSecret: reference,
+			}},
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Equal(t, reference, fields[FieldConfig].(map[string]any)["auth"].(map[string]any)[FieldClientSecret])
+	require.Equal(
+		t,
+		reference,
+		changedFields[FieldConfig].New.(map[string]any)["auth"].(map[string]any)[FieldClientSecret],
+	)
+}
+
 func TestAIGatewayProviderCreatePlanKeepsPublicVaultReferenceOutOfSecretWrites(t *testing.T) {
 	t.Parallel()
 

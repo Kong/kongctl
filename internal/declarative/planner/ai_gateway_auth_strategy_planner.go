@@ -297,9 +297,10 @@ func shouldUpdateAIGatewayAuthStrategy(
 	}
 
 	if desired.Config != nil && aiGatewayAuthStrategyConfigChanged(current.Config, desired.Config) {
+		currentConfig, desiredConfig := comparableAIGatewayAuthStrategyConfigs(current.Config, desired.Config)
 		changedFields[FieldConfig] = FieldChange{
-			Old: scrubAIGatewayAuthStrategySecretFields(normalizeAuthStrategyConfigForCompare(current.Config)),
-			New: scrubAIGatewayAuthStrategySecretFields(normalizeAuthStrategyConfigForCompare(desired.Config)),
+			Old: currentConfig,
+			New: desiredConfig,
 		}
 	}
 
@@ -343,17 +344,28 @@ func extractAIGatewayAuthStrategyFields(provider resources.AIGatewayAuthStrategy
 }
 
 func aiGatewayAuthStrategyConfigChanged(current, desired map[string]any) bool {
+	currentComparable, desiredComparable := comparableAIGatewayAuthStrategyConfigs(current, desired)
+	return !reflect.DeepEqual(currentComparable, desiredComparable)
+}
+
+func comparableAIGatewayAuthStrategyConfigs(current, desired map[string]any) (map[string]any, map[string]any) {
+	return comparableAIGatewayWriteOnlyPayloads(
+		current,
+		desired,
+		normalizeAIGatewayAuthStrategyConfigsForComparison,
+		scrubAIGatewayAuthStrategySecretFields,
+		isAIGatewayAuthStrategySecretField,
+	)
+}
+
+func normalizeAIGatewayAuthStrategyConfigsForComparison(
+	current map[string]any,
+	desired map[string]any,
+) (map[string]any, map[string]any) {
 	currentComparable := normalizeAuthStrategyConfigForCompare(current)
 	desiredComparable := normalizeAuthStrategyConfigForCompare(desired)
 	projectAIGatewayAuthStrategyConfigForComparison(currentComparable, desiredComparable)
-	currentComparable = scrubAIGatewayAuthStrategySecretFields(currentComparable).(map[string]any)
-	desiredComparable = scrubAIGatewayAuthStrategySecretFields(desiredComparable).(map[string]any)
-	pruneUnpairedAIGatewayWriteOnlyReferences(
-		currentComparable,
-		desiredComparable,
-		isAIGatewayAuthStrategySecretField,
-	)
-	return !reflect.DeepEqual(currentComparable, desiredComparable)
+	return currentComparable, desiredComparable
 }
 
 func projectAIGatewayAuthStrategyConfigForComparison(currentCompare map[string]any, desiredCompare map[string]any) {
