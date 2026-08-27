@@ -357,24 +357,32 @@ func TestRenderExplainSchema_AnalyticsDashboardDiscriminators(t *testing.T) {
 	assert.Equal(t, "top_n", chart.OneOf[7].Properties["type"].Const)
 }
 
-func TestRenderExplainSchema_APIImplementationServiceShape(t *testing.T) {
+func TestRenderExplainSchema_APIImplementationShapes(t *testing.T) {
 	subject, err := ResolveExplainSubject("api.implementations")
 	require.NoError(t, err)
 
 	schema := RenderExplainSchema(subject)
 	require.NotNil(t, schema)
 
-	assert.Contains(t, schema.Properties, "service")
-	assert.Contains(t, schema.Properties, "type")
-	assert.NotContains(t, schema.Properties, "service_reference")
-	assert.NotContains(t, schema.Properties, "control_plane_reference")
+	require.Len(t, schema.OneOf, 2)
+	serviceBranch := schema.OneOf[0]
+	controlPlaneBranch := schema.OneOf[1]
+	assert.Equal(t, apiImplementationTypeService, serviceBranch.Properties["type"].Const)
+	assert.Equal(t, apiImplementationTypeControlPlane, controlPlaneBranch.Properties["type"].Const)
+	assert.NotContains(t, serviceBranch.Properties, "service_reference")
+	assert.NotContains(t, controlPlaneBranch.Properties, "control_plane_reference")
 
-	service := schema.Properties["service"]
+	service := serviceBranch.Properties["service"]
 	require.NotNil(t, service)
 	require.NotNil(t, service.Properties["id"])
 	require.NotNil(t, service.Properties["control_plane_id"])
 	assert.Equal(t, "gateway_service", service.Properties["id"].XRefKind)
 	assert.Equal(t, "control_plane", service.Properties["control_plane_id"].XRefKind)
+
+	controlPlane := controlPlaneBranch.Properties["control_plane"]
+	require.NotNil(t, controlPlane)
+	require.NotNil(t, controlPlane.Properties["control_plane_id"])
+	assert.Equal(t, "control_plane", controlPlane.Properties["control_plane_id"].XRefKind)
 }
 
 func TestAutoExplainInlineSDKUnionUsesPayloadFields(t *testing.T) {
@@ -551,6 +559,8 @@ func TestRenderScaffoldYAML_RootResource(t *testing.T) {
 	assert.Contains(t, scaffold, "# versions:")
 	assert.Contains(t, scaffold, "# type: service")
 	assert.Contains(t, scaffold, "# service:")
+	assert.Contains(t, scaffold, "# oneOf option: type=control_plane")
+	assert.Contains(t, scaffold, "# control_plane:")
 	assert.NotContains(t, scaffold, "service_reference")
 	assert.NotContains(t, scaffold, "control_plane_reference")
 	assert.NotContains(t, scaffold, "spec_content")

@@ -77,4 +77,29 @@ func TestAdjustControlPlaneAPIImplementationDeleteDependencies(t *testing.T) {
 		adjustControlPlaneAPIImplementationDeleteDependencies(changes, nil)
 		require.Equal(t, []string{"implementation-delete"}, changes[1].DependsOn)
 	})
+
+	t.Run("control plane implementation delete precedes control plane delete", func(t *testing.T) {
+		t.Parallel()
+
+		const controlPlaneID = "3285a0db-a0e6-4c18-8620-c9753c6b96ad"
+		changes := []PlannedChange{
+			{
+				ID:           "implementation-delete",
+				ResourceType: ResourceTypeAPIImplementation,
+				Action:       ActionDelete,
+				Fields: map[string]any{
+					FieldControlPlane: map[string]any{FieldControlPlaneID: controlPlaneID},
+				},
+			},
+			{
+				ID:           "control-plane-delete",
+				ResourceType: ResourceTypeControlPlane,
+				ResourceID:   controlPlaneID,
+				Action:       ActionDelete,
+			},
+		}
+
+		adjustControlPlaneAPIImplementationDeleteDependencies(changes, nil)
+		require.Equal(t, []string{"implementation-delete"}, changes[1].DependsOn)
+	})
 }

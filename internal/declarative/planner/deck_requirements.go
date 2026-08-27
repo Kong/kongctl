@@ -112,6 +112,9 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 
 		plan.AddChange(change)
 		deckChangeIDs[cpRef] = change.ID
+		if cpID != "" {
+			deckChangeIDs[cpID] = change.ID
+		}
 
 		for _, svc := range postResolutionTargets {
 			if svc.ResourceRef == "" {
@@ -142,16 +145,27 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			(change.Action != ActionCreate && change.Action != ActionUpdate) {
 			continue
 		}
-		ref := deckServiceRefFromFields(change.Fields, serviceToDeckChange)
-		if ref == "" {
+		dependencyID := ""
+		logField := ""
+		logValue := ""
+		if ref := deckServiceRefFromFields(change.Fields, serviceToDeckChange); ref != "" {
+			dependencyID = serviceToDeckChange[ref]
+			logField = "gateway_service_ref"
+			logValue = ref
+		} else if ref := deckControlPlaneRefFromFields(change.Fields, deckChangeIDs); ref != "" {
+			dependencyID = deckChangeIDs[ref]
+			logField = "control_plane_ref"
+			logValue = ref
+		}
+		if dependencyID == "" {
 			continue
 		}
-		change.DependsOn = appendDependsOn(change.DependsOn, serviceToDeckChange[ref])
+		change.DependsOn = appendDependsOn(change.DependsOn, dependencyID)
 
 		p.logger.Debug(
 			"Added deck dependency to api_implementation",
 			slog.String("api_implementation_ref", change.ResourceRef),
-			slog.String("gateway_service_ref", ref),
+			slog.String(logField, logValue),
 		)
 	}
 
@@ -271,6 +285,29 @@ func deckServiceRefFromFields(fields map[string]any, deckChangeIDs map[string]st
 		return idValue
 	}
 
+	return ""
+}
+
+func deckControlPlaneRefFromFields(fields map[string]any, deckChangeIDs map[string]string) string {
+	controlPlaneValue, ok := fields[FieldControlPlane]
+	if !ok {
+		return ""
+	}
+	controlPlaneMap, ok := controlPlaneValue.(map[string]any)
+	if !ok {
+		return ""
+	}
+	id, _ := controlPlaneMap[FieldControlPlaneID].(string)
+	if tags.IsRefPlaceholder(id) {
+		ref, field, ok := tags.ParseRefPlaceholder(id)
+		if ok && field == FieldID && deckChangeIDs[ref] != "" {
+			return ref
+		}
+		return ""
+	}
+	if deckChangeIDs[id] != "" {
+		return id
+	}
 	return ""
 }
 

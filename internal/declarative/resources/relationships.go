@@ -26,6 +26,11 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 	},
 	ResourceTypeAPIImplementation: {
 		{
+			FieldPath:  "control_plane.control_plane_id",
+			TargetType: ResourceTypeControlPlane,
+			Kind:       RelationshipKindAPIForeignKey,
+		},
+		{
 			FieldPath:  "service.control_plane_id",
 			TargetType: ResourceTypeControlPlane,
 			Kind:       RelationshipKindAPIForeignKey,

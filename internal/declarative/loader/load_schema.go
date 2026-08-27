@@ -262,7 +262,7 @@ func firstDeclarativeValidationLeaf(validationErr *jsonschema.ValidationError) *
 		}
 	}
 	collect(validationErr)
-	sort.Slice(leaves, func(i, j int) bool {
+	sort.SliceStable(leaves, func(i, j int) bool {
 		return declarativePath(leaves[i].InstanceLocation) < declarativePath(leaves[j].InstanceLocation)
 	})
 	return leaves[0]
@@ -443,11 +443,12 @@ func resolveDeclarativeSchemaRef(root *resources.JSONSchema, schema *resources.J
 func suggestDeclarativeField(field string, candidates []string) string {
 	field = strings.ToLower(field)
 	legacy := map[string]string{
-		"lables":            "labels",
-		"label":             "labels",
-		"strategytype":      "strategy_type",
-		"integration":       "integrations",
-		"service_reference": "service",
+		"lables":                  "labels",
+		"label":                   "labels",
+		"strategytype":            "strategy_type",
+		"integration":             "integrations",
+		"service_reference":       "service",
+		"control_plane_reference": "control_plane",
 	}
 	if candidate := legacy[field]; candidate != "" && slices.Contains(candidates, candidate) {
 		return candidate

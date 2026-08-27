@@ -383,16 +383,25 @@ func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 }
 
 func apiImplementationExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainObject(
+	commonFields := []*ExplainField{
 		explainField(SchemaFieldRef, explainStringNode("my-resource"), true, true),
 		explainField("api", explainStringNode("my-api"), false, false),
-		explainField("type", explainConstStringNode("service"), false, true),
 		explainField("implementation_url", explainStringNode("https://api.example.com"), false, false),
+	}
+	service := explainWithCommonFields(explainObject(
+		explainField("type", explainConstStringNode(apiImplementationTypeService), false, true),
 		explainField("service", explainObject(
 			explainRefField("id", ResourceTypeGatewayService, true),
 			explainRefField("control_plane_id", ResourceTypeControlPlane, true),
 		), true, true),
-	), nil
+	), commonFields...)
+	controlPlane := explainWithCommonFields(explainObject(
+		explainField("type", explainConstStringNode(apiImplementationTypeControlPlane), false, true),
+		explainField("control_plane", explainObject(
+			explainRefField("control_plane_id", ResourceTypeControlPlane, true),
+		), true, true),
+	), commonFields...)
+	return explainUnionNode(service, controlPlane), nil
 }
 
 func dashboardExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

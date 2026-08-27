@@ -756,6 +756,13 @@ func setStringFieldByPath(resource resources.Resource, path, value string) error
 				service.ControlPlaneID = value
 			}
 			return nil
+		case "control_plane.control_plane_id":
+			controlPlane := implementation.ControlPlaneReference.GetControlPlane()
+			if controlPlane == nil {
+				return fmt.Errorf("control_plane is not configured")
+			}
+			controlPlane.ID = value
+			return nil
 		}
 	}
 
@@ -808,6 +815,12 @@ func stringFieldByPath(resource resources.Resource, path string) (string, error)
 				return service.ID, nil
 			}
 			return service.ControlPlaneID, nil
+		case "control_plane.control_plane_id":
+			controlPlane := implementation.ControlPlaneReference.GetControlPlane()
+			if controlPlane == nil {
+				return "", nil
+			}
+			return controlPlane.ID, nil
 		}
 	}
 

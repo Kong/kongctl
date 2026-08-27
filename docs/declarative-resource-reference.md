@@ -198,10 +198,15 @@ apis:
         visibility: One of (public | private)
     implementations: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-implementation
       - ref: string
-        type: service
+        type: service # optional when the service payload is present
         service:
           id: string required (uuid) # prefer: !ref <gateway-service-ref>
           control_plane_id: string required (uuid) # prefer: !ref <control-plane-ref>
+      - ref: string
+        type: control_plane # optional when the control_plane payload is present
+        control_plane:
+          # prefer: !ref <control-plane-ref>
+          control_plane_id: string required (uuid)
     documents: # https://developer.konghq.com/api/konnect/api-builder/v3/#/operations/create-api-document
       - ref: string
         content: string required (markdown) # prefer: !file ./docs/page.md
@@ -220,6 +225,9 @@ apis:
 API specifications must be declared on API versions with `versions[].spec` or
 root-level `api_versions[].spec`; `apis[].spec_content` is not supported in
 declarative configuration.
+
+Each API implementation must define exactly one of `service` or
+`control_plane`. When `type` is present, it must match the selected payload.
 
 ## Application Auth Strategies
 

@@ -1977,26 +1977,42 @@ func buildAPIImplementations(
 
 	results := make([]declresources.APIImplementationResource, 0, len(implementations))
 	for _, impl := range implementations {
-		if impl.Service == nil || strings.TrimSpace(impl.Service.ID) == "" ||
-			strings.TrimSpace(impl.Service.ControlPlaneID) == "" {
-			logWarn(logger, "API implementation missing service reference; skipping", apiID, apiName, nil)
+		res, ok := apiImplementationResourceFromState(impl)
+		if !ok {
+			logWarn(logger, "API implementation missing implementation reference; skipping", apiID, apiName, nil)
 			continue
 		}
-
-		service := kkComps.APIImplementationService{
-			ID:             impl.Service.ID,
-			ControlPlaneID: impl.Service.ControlPlaneID,
-		}
-		ref := kkComps.ServiceReference{Service: &service}
-		res := declresources.APIImplementationResource{
-			Ref:               impl.ID,
-			APIImplementation: kkComps.CreateAPIImplementationServiceReference(ref),
-		}
-
 		results = append(results, res)
 	}
 
 	return results, nil
+}
+
+func apiImplementationResourceFromState(
+	impl declstate.APIImplementation,
+) (declresources.APIImplementationResource, bool) {
+	var implementation kkComps.APIImplementation
+	switch {
+	case impl.Service != nil && strings.TrimSpace(impl.Service.ID) != "" &&
+		strings.TrimSpace(impl.Service.ControlPlaneID) != "":
+		service := kkComps.APIImplementationService{
+			ID:             impl.Service.ID,
+			ControlPlaneID: impl.Service.ControlPlaneID,
+		}
+		implementation = kkComps.CreateAPIImplementationServiceReference(
+			kkComps.ServiceReference{Service: &service},
+		)
+	case impl.ControlPlane != nil && strings.TrimSpace(impl.ControlPlane.ID) != "":
+		implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+			ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: impl.ControlPlane.ID},
+		})
+	default:
+		return declresources.APIImplementationResource{}, false
+	}
+	return declresources.APIImplementationResource{
+		Ref:               impl.ID,
+		APIImplementation: implementation,
+	}, true
 }
 
 func buildAPIDocuments(

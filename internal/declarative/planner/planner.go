@@ -639,11 +639,13 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 		if change.Action != ActionDelete || change.ResourceType != ResourceTypeAPIImplementation {
 			continue
 		}
-		service, ok := change.Fields[FieldService].(map[string]any)
-		if !ok {
-			continue
+		var controlPlaneID string
+		if service, ok := change.Fields[FieldService].(map[string]any); ok {
+			controlPlaneID, _ = service[FieldControlPlaneID].(string)
 		}
-		controlPlaneID, _ := service[FieldControlPlaneID].(string)
+		if controlPlane, ok := change.Fields[FieldControlPlane].(map[string]any); ok {
+			controlPlaneID, _ = controlPlane[FieldControlPlaneID].(string)
+		}
 		if controlPlaneDelete := controlPlaneDeletes[controlPlaneID]; controlPlaneDelete != nil {
 			controlPlaneDelete.DependsOn = appendDependsOn(controlPlaneDelete.DependsOn, change.ID)
 		}
@@ -654,14 +656,14 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 	}
 	for i := range rs.APIImplementations {
 		implementation := &rs.APIImplementations[i]
-		if implementation.ServiceReference == nil {
-			continue
+		var controlPlaneID string
+		if service := implementation.ServiceReference.GetService(); service != nil {
+			controlPlaneID = service.ControlPlaneID
 		}
-		service := implementation.ServiceReference.GetService()
-		if service == nil {
-			continue
+		if controlPlane := implementation.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+			controlPlaneID = controlPlane.ID
 		}
-		controlPlaneDelete := controlPlaneDeletes[normalizeControlPlaneRef(service.ControlPlaneID)]
+		controlPlaneDelete := controlPlaneDeletes[normalizeControlPlaneRef(controlPlaneID)]
 		apiDelete := apiDeletes[resources.NormalizeResourceRef(implementation.API)]
 		if controlPlaneDelete != nil && apiDelete != nil {
 			controlPlaneDelete.DependsOn = appendDependsOn(controlPlaneDelete.DependsOn, apiDelete.ID)
@@ -1013,8 +1015,8 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		}
 	}
 
-	if err := p.resolveAPIImplementationServiceReferences(rs); err != nil {
-		return fmt.Errorf("failed to resolve API implementation services: %w", err)
+	if err := p.resolveAPIImplementationReferences(rs); err != nil {
+		return fmt.Errorf("failed to resolve API implementation references: %w", err)
 	}
 
 	if err := p.resolveCatalogServiceIdentities(ctx, rs.CatalogServices); err != nil {
@@ -1933,7 +1935,7 @@ func (p *Planner) matchGatewayService(
 	return nil, fmt.Errorf("external gateway_service %s: invalid _external configuration", service.GetRef())
 }
 
-func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.ResourceSet) error {
+func (p *Planner) resolveAPIImplementationReferences(rs *resources.ResourceSet) error {
 	if len(rs.APIImplementations) == 0 {
 		return nil
 	}
@@ -1952,6 +1954,16 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 
 	for i := range rs.APIImplementations {
 		impl := &rs.APIImplementations[i]
+		if controlPlane := impl.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+			resolved, err := p.resolveAPIImplementationControlPlaneReference(
+				strings.TrimSpace(controlPlane.ID), controlPlaneByRef, impl.GetRef(),
+			)
+			if err != nil {
+				return err
+			}
+			controlPlane.ID = resolved
+			continue
+		}
 		service := impl.ServiceReference.GetService()
 		if service == nil {
 			p.logger.Debug(
@@ -1990,6 +2002,37 @@ func (p *Planner) resolveAPIImplementationServiceReferences(rs *resources.Resour
 	}
 
 	return nil
+}
+
+func (p *Planner) resolveAPIImplementationControlPlaneReference(
+	value string,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+	implRef string,
+) (string, error) {
+	if value == "" {
+		return "", fmt.Errorf("api_implementation %s: control_plane.control_plane_id is required", implRef)
+	}
+	if util.IsValidUUID(value) {
+		return value, nil
+	}
+
+	ref := value
+	if tags.IsRefPlaceholder(value) {
+		var field string
+		var ok bool
+		ref, field, ok = tags.ParseRefPlaceholder(value)
+		if !ok || field != FieldID {
+			return "", fmt.Errorf("api_implementation %s: control_plane references support '#id' only", implRef)
+		}
+	}
+	cp, ok := controlPlaneByRef[ref]
+	if !ok {
+		return "", fmt.Errorf("api_implementation %s: control_plane %s not found", implRef, ref)
+	}
+	if cp.GetKonnectID() != "" {
+		return cp.GetKonnectID(), nil
+	}
+	return fmt.Sprintf("%s%s#id", tags.RefPlaceholderPrefix, cp.GetRef()), nil
 }
 
 func (p *Planner) normalizeAPIImplementationService(

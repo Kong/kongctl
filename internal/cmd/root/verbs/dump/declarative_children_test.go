@@ -8,6 +8,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,6 +86,19 @@ func TestNormalizePortalPageSlug(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAPIImplementationResourceFromStateControlPlane(t *testing.T) {
+	resource, ok := apiImplementationResourceFromState(declstate.APIImplementation{
+		ID: "implementation-id",
+		ControlPlane: &struct{ ID string }{
+			ID: "control-plane-id",
+		},
+	})
+	require.True(t, ok)
+	assert.Equal(t, "implementation-id", resource.Ref)
+	require.NotNil(t, resource.ControlPlaneReference)
+	assert.Equal(t, "control-plane-id", resource.ControlPlaneReference.GetControlPlane().ID)
 }
 
 func TestMapPortalPageToResourceOmitsMetadataPresentInFrontmatter(t *testing.T) {

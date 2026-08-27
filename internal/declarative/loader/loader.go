@@ -1135,6 +1135,7 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 		"publications":    {"publication", "publish", "published"},
 		"implementations": {"implementation", "impl", "service"},
 		"service":         {"service_reference", "service-reference"},
+		"control_plane":   {"control_plane_reference", "control-plane-reference"},
 
 		// Auth strategy fields
 		"strategy_type": {"type", "auth_type", "strategy-type", "strategytype"},
