@@ -112,3 +112,56 @@ steps:
             expect:
               fields:
                 total_changes: 0
+
+  - name: 004-sync-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete
+    commands:
+      - name: 001-plan-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+      - name: 002-sync-delete
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+  - name: 005-verify-delete
+    skipInputs: true
+    commands:
+      - name: 001-verify-event-gateway-deleted
+        run:
+          - get
+          - event-gateways
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
