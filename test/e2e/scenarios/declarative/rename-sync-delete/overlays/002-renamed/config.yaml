@@ -1,0 +1,50 @@
+_defaults:
+  kongctl:
+    namespace: rename-sync-delete-e2e
+
+portals:
+  - ref: rename-sync-portal
+    name: rename-sync-portal-renamed
+    display_name: Rename Sync Portal Renamed
+    description: Portal used to verify rename cleanup
+
+apis:
+  - ref: rename-sync-api
+    name: rename-sync-api-renamed
+    description: API used to verify rename cleanup
+
+ai_gateways:
+  - ref: rename-sync-gateway
+    name: rename-sync-gateway
+    display_name: Rename Sync Gateway
+    model_providers:
+      - ref: rename-sync-provider
+        name: rename-sync-provider
+        type: openai
+        display_name: Rename Sync Provider
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret {source: !env KONGCTL_E2E_RENAME_MODEL_PROVIDER_KEY}
+
+ai_gateway_models:
+  - ref: rename-sync-model
+    ai_gateway: rename-sync-gateway
+    type: model
+    name: rename-sync-model-renamed
+    display_name: Rename Sync Model Renamed
+    config:
+      route: {}
+      model: {}
+    formats:
+      - type: openai
+    targets:
+      - name: gpt-4o
+        provider: rename-sync-provider
+        config:
+          type: openai
+    policies: []
+    capabilities:
+      - generate
