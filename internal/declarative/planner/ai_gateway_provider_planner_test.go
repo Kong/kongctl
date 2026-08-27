@@ -83,6 +83,32 @@ func TestAIGatewayProviderConfigChangedComparesPublicVaultReferences(t *testing.
 	))
 }
 
+func TestAIGatewayProviderConfigChangedIgnoresVaultReferenceMissingFromResponse(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"auth": map[string]any{
+			"type": "basic",
+			"headers": []any{
+				map[string]any{"name": "Authorization"},
+			},
+		},
+	}
+	desired := map[string]any{
+		"auth": map[string]any{
+			"type": "basic",
+			"headers": []any{
+				map[string]any{
+					"name":  "Authorization",
+					"value": "{vault://support-secrets/openai-token}",
+				},
+			},
+		},
+	}
+
+	require.False(t, aiGatewayProviderConfigChanged(current, desired))
+}
+
 func TestShouldUpdateAIGatewayProviderIncludesChangedPublicVaultReference(t *testing.T) {
 	t.Parallel()
 
@@ -120,6 +146,35 @@ func TestShouldUpdateAIGatewayProviderIncludesChangedPublicVaultReference(t *tes
 	diffConfig := changedFields[FieldConfig].New.(map[string]any)
 	diffHeader := diffConfig["auth"].(map[string]any)["headers"].([]any)[0].(map[string]any)
 	require.Equal(t, newReference, diffHeader[FieldValue])
+}
+
+func TestShouldUpdateAIGatewayProviderDisplaysUnpairedVaultReferenceOnObservableConfigChange(t *testing.T) {
+	t.Parallel()
+
+	const reference = "{vault://support-secrets/oauth-client-secret}"
+	needsUpdate, fields, changedFields, err := shouldUpdateAIGatewayProvider(
+		state.AIGatewayProvider{
+			Type:        "openai",
+			DisplayName: "OpenAI Provider",
+			Config:      map[string]any{"auth": map[string]any{"type": "basic"}},
+		},
+		resources.AIGatewayProviderResource{
+			Type:        "openai",
+			DisplayName: "OpenAI Provider",
+			Config: map[string]any{"auth": map[string]any{
+				"type": "oauth2", FieldClientSecret: reference,
+			}},
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.Equal(t, reference, fields[FieldConfig].(map[string]any)["auth"].(map[string]any)[FieldClientSecret])
+	require.Equal(
+		t,
+		reference,
+		changedFields[FieldConfig].New.(map[string]any)["auth"].(map[string]any)[FieldClientSecret],
+	)
 }
 
 func TestAIGatewayProviderCreatePlanKeepsPublicVaultReferenceOutOfSecretWrites(t *testing.T) {

@@ -93,7 +93,26 @@ steps:
               fields:
                 applied: 5
                 failed: 0
-      - name: 002-list
+      - name: 002-reapply-identical-config-is-no-op
+        outputFormat: json
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                total_changes: 0
+                status: success
+      - name: 003-list
         run:
           - get
           - ai-gateway
@@ -111,7 +130,7 @@ steps:
               fields:
                 name: "{{ .vars.store_name }}"
                 display_name: Support-Store
-      - name: 003-get-by-name
+      - name: 004-get-by-name
         run:
           - get
           - ai-gateway
@@ -127,7 +146,7 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.store_name }}"
-      - name: 004-get-by-id
+      - name: 005-get-by-id
         run:
           - get
           - ai-gateway
@@ -142,12 +161,12 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.store_name }}"
-      - name: 005-list-secrets
+      - name: 006-list-secrets
         run:
           - list
           - ai-gateway
           - config-stores
-          - "{{ .vars.store_name }}"
+          - "{{ .vars.store_id }}"
           - secrets
           - --gateway-name
           - "{{ .vars.gateway_name }}"
@@ -159,12 +178,12 @@ steps:
               fields:
                 key: support-api-key
                 "contains(keys(@), 'value')": false
-      - name: 006-get-secret
+      - name: 007-get-secret
         run:
           - get
           - ai-gateway
           - config-stores
-          - "{{ .vars.store_name }}"
+          - "{{ .vars.store_id }}"
           - secrets
           - support-api-key
           - --gateway-name
@@ -217,7 +236,7 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, '[redacted from !env]')": true
+                "contains(@, 'write requested (current value unavailable; deferred source)')": true
                 "contains(@, 'rotated-config-store-secret-value')": false
       - name: 002-apply-rotation
         outputFormat: json

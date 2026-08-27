@@ -70,6 +70,24 @@ func TestAIGatewayAuthStrategyConfigChangedComparesPublicVaultReferences(t *test
 	))
 }
 
+func TestAIGatewayAuthStrategyConfigChangedIgnoresVaultReferenceMissingFromResponse(t *testing.T) {
+	t.Parallel()
+
+	current := map[string]any{
+		"auth_methods": []any{"bearer"},
+		"client_id":    []any{"primary-client"},
+		"issuer":       "https://issuer.example.com",
+	}
+	desired := map[string]any{
+		"auth_methods":  []any{"bearer"},
+		"client_id":     []any{"primary-client"},
+		"client_secret": []any{"{vault://support-secrets/primary}"},
+		"issuer":        "https://issuer.example.com",
+	}
+
+	require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
+}
+
 func TestAIGatewayAuthStrategyMatchPrefersIDOverName(t *testing.T) {
 	t.Parallel()
 
@@ -172,6 +190,32 @@ func TestAIGatewayAuthStrategyChangedFieldsScrubClientSecret(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, needsUpdate)
 	require.NotContains(t, changedFields[FieldConfig].New, "client_secret")
+}
+
+func TestAIGatewayAuthStrategyChangedFieldsPruneUnpairedVaultReference(t *testing.T) {
+	t.Parallel()
+
+	needsUpdate, _, changedFields, err := shouldUpdateAIGatewayAuthStrategy(
+		state.AIGatewayAuthStrategy{
+			Type:        "openid-connect",
+			DisplayName: "Support OIDC",
+			Config: map[string]any{
+				"issuer": "https://issuer.example.com",
+			},
+		},
+		resources.AIGatewayAuthStrategyResource{
+			Type:        "openid-connect",
+			DisplayName: "Support OIDC",
+			Config: map[string]any{
+				"issuer":          "https://issuer-updated.example.com",
+				FieldClientSecret: []any{"{vault://support-secrets/primary}"},
+			},
+		},
+	)
+
+	require.NoError(t, err)
+	require.True(t, needsUpdate)
+	require.NotContains(t, changedFields[FieldConfig].New, FieldClientSecret)
 }
 
 func TestAIGatewayAuthStrategyUpdatePreservesUndeclaredSecurityConfig(t *testing.T) {

@@ -103,6 +103,76 @@ func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
 	}
 }
 
+type aiGatewayPayloadPairNormalizer func(map[string]any, map[string]any) (map[string]any, map[string]any)
+
+func scrubbedAIGatewayWriteOnlyPayloads(
+	current map[string]any,
+	desired map[string]any,
+	normalize aiGatewayPayloadPairNormalizer,
+	scrub func(any) any,
+) (map[string]any, map[string]any) {
+	currentComparable, desiredComparable := normalize(current, desired)
+	return scrub(currentComparable).(map[string]any), scrub(desiredComparable).(map[string]any)
+}
+
+func comparableAIGatewayWriteOnlyPayloads(
+	current map[string]any,
+	desired map[string]any,
+	normalize aiGatewayPayloadPairNormalizer,
+	scrub func(any) any,
+	isWriteOnlyField func(string) bool,
+) (map[string]any, map[string]any) {
+	currentComparable, desiredComparable := scrubbedAIGatewayWriteOnlyPayloads(
+		current,
+		desired,
+		normalize,
+		scrub,
+	)
+	pruneUnpairedAIGatewayWriteOnlyReferences(currentComparable, desiredComparable, isWriteOnlyField)
+	return currentComparable, desiredComparable
+}
+
+func pruneUnpairedAIGatewayWriteOnlyReferences(
+	current any,
+	desired any,
+	isWriteOnlyField func(string) bool,
+) {
+	switch currentTyped := current.(type) {
+	case map[string]any:
+		desiredTyped, ok := desired.(map[string]any)
+		if !ok {
+			return
+		}
+		for key, currentValue := range currentTyped {
+			desiredValue, desiredHasKey := desiredTyped[key]
+			if isWriteOnlyField(key) {
+				if !desiredHasKey {
+					delete(currentTyped, key)
+				}
+				continue
+			}
+			if desiredHasKey {
+				pruneUnpairedAIGatewayWriteOnlyReferences(currentValue, desiredValue, isWriteOnlyField)
+			}
+		}
+		for key := range desiredTyped {
+			if isWriteOnlyField(key) {
+				if _, currentHasKey := currentTyped[key]; !currentHasKey {
+					delete(desiredTyped, key)
+				}
+			}
+		}
+	case []any:
+		desiredTyped, ok := desired.([]any)
+		if !ok {
+			return
+		}
+		for i := range min(len(currentTyped), len(desiredTyped)) {
+			pruneUnpairedAIGatewayWriteOnlyReferences(currentTyped[i], desiredTyped[i], isWriteOnlyField)
+		}
+	}
+}
+
 func pruneNilValues(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:

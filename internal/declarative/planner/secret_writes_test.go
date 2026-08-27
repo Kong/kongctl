@@ -3,15 +3,19 @@ package planner
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testAIGatewaySecretRef = "gateway"
 
 func TestApplySecretWriteIntentsCreatesSecretOnlyUpdate(t *testing.T) {
 	resourceSet := dcrSecretResourceSet(t)
@@ -33,6 +37,259 @@ func TestApplySecretWriteIntentsCreatesSecretOnlyUpdate(t *testing.T) {
 	assert.Equal(t, "http", change.Fields[FieldDCRProviderUpdateType])
 	assert.NotContains(t, change.Fields, FieldDCRProviderProviderType)
 	assert.Equal(t, 1, plan.Summary.SecretWrites)
+}
+
+func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name         string
+		resourceType resources.ResourceType
+		resourceRef  string
+		field        string
+		selector     string
+		resourceSet  func(*testing.T, string) *resources.ResourceSet
+	}
+
+	provider := func(config func(string) map[string]any) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			t.Helper()
+			resource := resources.AIGatewayProviderResource{
+				BaseResource: resources.BaseResource{Ref: "provider"},
+				AIGateway:    testAIGatewaySecretRef,
+				Name:         "provider",
+				Type:         "openai",
+				DisplayName:  "Provider",
+				Config:       config(placeholder),
+			}
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
+	authStrategy := func(config func(string) map[string]any) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			t.Helper()
+			resource := resources.AIGatewayAuthStrategyResource{
+				BaseResource: resources.BaseResource{Ref: "auth-strategy"},
+				AIGateway:    testAIGatewaySecretRef,
+				Name:         "auth-strategy",
+				Type:         "openid-connect",
+				DisplayName:  "Auth Strategy",
+				Config:       config(placeholder),
+			}
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
+	vault := func(config func(string) map[string]any, vaultType string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			t.Helper()
+			payload := map[string]any{
+				"ref":        "vault",
+				"ai_gateway": testAIGatewaySecretRef,
+				"type":       vaultType,
+				"name":       "vault",
+				"config":     config(placeholder),
+			}
+			data, err := json.Marshal(payload)
+			require.NoError(t, err)
+			var resource resources.AIGatewayVaultResource
+			require.NoError(t, json.Unmarshal(data, &resource))
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
+
+	cases := []testCase{
+		{
+			name: "provider header value", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/headers/0/value",
+			selector: "config.auth.headers[].value",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{
+					"type": "basic", "headers": []any{map[string]any{"name": "Authorization", "value": secret}},
+				}}
+			}),
+		},
+		{
+			name: "provider client secret", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/client_secret", selector: "config.auth.client_secret",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "oauth2", FieldClientSecret: secret}}
+			}),
+		},
+		{
+			name: "provider AWS secret access key", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/secret_access_key",
+			selector: "config.auth.secret_access_key",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "aws", "secret_access_key": secret}}
+			}),
+		},
+		{
+			name: "provider nested AWS secret access key", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/aws/secret_access_key",
+			selector: "config.auth.aws.secret_access_key",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{
+					"type": "aws", "aws": map[string]any{"secret_access_key": secret},
+				}}
+			}),
+		},
+		{
+			name: "provider GCP service account", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/service_account_json",
+			selector: "config.auth.service_account_json",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "gcp", "service_account_json": secret}}
+			}),
+		},
+		{
+			name: "auth strategy client secret array", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
+			resourceRef: "auth-strategy", field: "/config/client_secret/0", selector: "config.client_secret[]",
+			resourceSet: authStrategy(func(secret string) map[string]any {
+				return map[string]any{"issuer": "https://issuer.example.test", FieldClientSecret: []any{secret}}
+			}),
+		},
+		{
+			name: "auth strategy scalar client secret", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
+			resourceRef: "auth-strategy", field: "/config/client_secret", selector: "config.client_secret",
+			resourceSet: authStrategy(func(secret string) map[string]any {
+				return map[string]any{"issuer": "https://issuer.example.test", FieldClientSecret: secret}
+			}),
+		},
+		{
+			name: "Conjur vault API key", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/api_key", selector: "config.api_key",
+			resourceSet: vault(func(secret string) map[string]any {
+				return map[string]any{
+					"account": "account", "endpoint_url": "https://conjur.example.test", "login": "login",
+					"api_key": secret,
+				}
+			}, "conjur"),
+		},
+		{
+			name: "HashiCorp vault token", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/token", selector: "config.token",
+			resourceSet: vault(func(secret string) map[string]any {
+				return map[string]any{
+					"auth_method": "token", "host": "vault.example.test", "port": 8200, "token": secret,
+				}
+			}, "hcv"),
+		},
+		{
+			name: "HashiCorp vault OAuth client secret", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/client_secret", selector: "config.client_secret",
+			resourceSet: vault(func(secret string) map[string]any {
+				config := map[string]any{ //nolint:gosec // Non-secret OAuth test fixture values.
+					"auth_method": "jwt", "host": "vault.example.test", "port": 8200, "role": "role",
+					"token_endpoint": "https://issuer.example.test/token", "client_id": "client",
+				}
+				config[FieldClientSecret] = secret
+				return config
+			}, "hcv"),
+		},
+		{
+			name: "HashiCorp vault AWS secret access key", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/secret_access_key", selector: "config.secret_access_key",
+			resourceSet: vault(func(secret string) map[string]any {
+				return map[string]any{
+					"auth_method": "aws_iam", "host": "vault.example.test", "port": 8200, "role": "role",
+					"region": "us-east-1", "access_key_id": "access-key", "secret_access_key": secret,
+				}
+			}, "hcv"),
+		},
+		{
+			name: "HashiCorp vault AppRole secret ID", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/secret_id", selector: "config.secret_id",
+			resourceSet: vault(func(secret string) map[string]any {
+				return map[string]any{
+					"auth_method": "approle", "host": "vault.example.test", "port": 8200,
+					"role_id": "role", "secret_id": secret,
+				}
+			}, "hcv"),
+		},
+		{
+			name: "config store secret value", resourceType: resources.ResourceTypeAIGatewayConfigStoreSecret,
+			resourceRef: "config-store-secret", field: "/value", selector: "value",
+			resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
+				t.Helper()
+				secret := resources.AIGatewayConfigStoreSecretResource{
+					BaseResource:         resources.BaseResource{Ref: "config-store-secret"},
+					AIGatewayConfigStore: "config-store", Key: "secret", Value: placeholder,
+				}
+				secret.SetKonnectID("remote-id")
+				store := resources.AIGatewayConfigStoreResource{
+					BaseResource: resources.BaseResource{Ref: "config-store"},
+					AIGateway:    testAIGatewaySecretRef,
+					Name:         "store",
+				}
+				store.SetKonnectID("store-id")
+				rs := aiGatewaySecretResourceSet(&secret)
+				rs.AIGatewayConfigStores = []resources.AIGatewayConfigStoreResource{store}
+				return rs
+			},
+		},
+	}
+	coveredCapabilities := make(map[string]bool, len(cases))
+	for _, tc := range cases {
+		capability, ok := secrets.Match(tc.resourceType, tc.field)
+		require.True(t, ok, "%s is not in the reviewed secret catalog", tc.field)
+		coveredCapabilities[string(capability.ResourceType)+":"+capability.PathPattern] = true
+	}
+	expectedCapabilities := make(map[string]bool)
+	for _, capability := range secrets.Capabilities() {
+		if capability.Update && strings.HasPrefix(string(capability.ResourceType), "ai_gateway") {
+			expectedCapabilities[string(capability.ResourceType)+":"+capability.PathPattern] = true
+		}
+	}
+	require.Equal(t, expectedCapabilities, coveredCapabilities)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			for _, mode := range []struct {
+				name    string
+				options Options
+			}{
+				{name: "without write flag", options: Options{Mode: PlanModeApply}},
+				{name: "with --write-secret", options: Options{
+					Mode: PlanModeApply, WriteSecretSelectors: []string{tc.resourceRef + "#" + tc.selector},
+				}},
+				{name: "with --write-secrets", options: Options{Mode: PlanModeApply, WriteSecrets: true}},
+			} {
+				t.Run(mode.name, func(t *testing.T) {
+					t.Parallel()
+					expression := envSecretExpression("AI_GATEWAY_SECRET")
+					placeholder, err := tags.BuildSecretPlaceholder(expression)
+					require.NoError(t, err)
+					rs := tc.resourceSet(t, placeholder)
+					rs.AddSecretSource(tc.resourceRef, tc.field, expression, false)
+					plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+
+					err = (&Planner{}).applySecretWriteIntents(t.Context(), plan, rs, mode.options)
+					require.NoError(t, err)
+					if mode.name == "without write flag" {
+						require.Empty(t, plan.Changes)
+						return
+					}
+
+					require.Len(t, plan.Changes, 1)
+					change := plan.Changes[0]
+					require.Equal(t, ActionUpdate, change.Action)
+					require.Equal(t, string(tc.resourceType), change.ResourceType)
+					require.Equal(t, tc.resourceRef, change.ResourceRef)
+					require.Equal(t, "remote-id", change.ResourceID)
+					require.Len(t, change.SecretWrites, 1)
+					require.Equal(t, tc.field, change.SecretWrites[0].Field)
+					require.Equal(t, 1, plan.Summary.SecretWrites)
+					data, err := json.Marshal(plan)
+					require.NoError(t, err)
+					require.NotContains(t, string(data), placeholder)
+				})
+			}
+		})
+	}
 }
 
 func TestApplySecretWriteIntentsMergesIntoOrdinaryUpdate(t *testing.T) {
@@ -497,4 +754,21 @@ func envSecretExpression(reference string) tags.SecretExpression {
 	return tags.SecretExpression{Parts: []tags.SecretPart{{Source: &tags.SecretSource{
 		Kind: "env", Reference: reference,
 	}}}}
+}
+
+func aiGatewaySecretResourceSet(resource resources.Resource) *resources.ResourceSet {
+	gateway := resources.AIGatewayResource{BaseResource: resources.BaseResource{Ref: testAIGatewaySecretRef}}
+	gateway.SetKonnectID("gateway-id")
+	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
+	switch typed := resource.(type) {
+	case *resources.AIGatewayProviderResource:
+		rs.AIGatewayProviders = []resources.AIGatewayProviderResource{*typed}
+	case *resources.AIGatewayAuthStrategyResource:
+		rs.AIGatewayAuthStrategies = []resources.AIGatewayAuthStrategyResource{*typed}
+	case *resources.AIGatewayVaultResource:
+		rs.AIGatewayVaults = []resources.AIGatewayVaultResource{*typed}
+	case *resources.AIGatewayConfigStoreSecretResource:
+		rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{*typed}
+	}
+	return rs
 }
