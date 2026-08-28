@@ -847,6 +847,10 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 		result.RbacEnabled = rbacEnabled
 	}
 
+	if siprEnabled := portal.GetSiprEnabled(); siprEnabled != nil {
+		result.SiprEnabled = siprEnabled
+	}
+
 	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
 		apiVisibility := kkComps.DefaultAPIVisibility(visibility)
 		result.DefaultAPIVisibility = &apiVisibility
@@ -883,6 +887,7 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 		Description:                      portal.GetDescription(),
 		AuthenticationEnabled:            portal.GetAuthenticationEnabled(),
 		RbacEnabled:                      portal.GetRbacEnabled(),
+		SiprEnabled:                      portal.GetSiprEnabled(),
 		DefaultApplicationAuthStrategyID: portal.GetDefaultApplicationAuthStrategyID(),
 		AutoApproveDevelopers:            portal.GetAutoApproveDevelopers(),
 		AutoApproveApplications:          portal.GetAutoApproveApplications(),

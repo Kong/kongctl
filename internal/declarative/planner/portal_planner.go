@@ -312,6 +312,9 @@ func extractPortalFields(resource any) map[string]any {
 	if portal.RbacEnabled != nil {
 		fields[FieldRBACEnabled] = *portal.RbacEnabled
 	}
+	if portal.SiprEnabled != nil {
+		fields[FieldSIPREnabled] = *portal.SiprEnabled
+	}
 	if portal.DefaultAPIVisibility != nil {
 		fields[FieldDefaultAPIVisibility] = string(*portal.DefaultAPIVisibility)
 	}
@@ -523,6 +526,20 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 			changedFields[FieldRBACEnabled] = FieldChange{
 				Old: oldValue,
 				New: *desired.RbacEnabled,
+			}
+		}
+	}
+
+	if desired.SiprEnabled != nil {
+		if curr := current.GetSiprEnabled(); curr == nil || *curr != *desired.SiprEnabled {
+			updates[FieldSIPREnabled] = *desired.SiprEnabled
+			var oldValue any
+			if curr != nil {
+				oldValue = *curr
+			}
+			changedFields[FieldSIPREnabled] = FieldChange{
+				Old: oldValue,
+				New: *desired.SiprEnabled,
 			}
 		}
 	}

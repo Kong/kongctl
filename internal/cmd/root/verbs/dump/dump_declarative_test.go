@@ -308,6 +308,7 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 	authFalse := false
 	portal.AuthenticationEnabled = &authTrue
 	portal.RbacEnabled = &authTrue
+	portal.SiprEnabled = &authTrue
 	portal.AutoApproveDevelopers = &authTrue
 	portal.AutoApproveApplications = &authFalse
 
@@ -359,6 +360,10 @@ func TestMapPortalToDeclarativeResource(t *testing.T) {
 		t.Fatalf("expected default page visibility public, got %+v", resource.DefaultPageVisibility)
 	}
 
+	if resource.SiprEnabled == nil || !*resource.SiprEnabled {
+		t.Fatalf("expected sipr_enabled to be true")
+	}
+
 	if resource.AutoApproveDevelopers == nil || !*resource.AutoApproveDevelopers {
 		t.Fatalf("expected auto approve developers to be true")
 	}
@@ -387,6 +392,7 @@ func TestMapEventGatewayToDeclarativeResourcePreservesMinRuntimeVersion(t *testi
 func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 	listAuthEnabled := false
 	detailAuthEnabled := true
+	detailSIPREnabled := true
 	var getPortalIDs []string
 
 	api := &portalPaginationStub{
@@ -429,6 +435,7 @@ func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 					ID:                    id,
 					Name:                  "portal-name",
 					AuthenticationEnabled: &detailAuthEnabled,
+					SiprEnabled:           &detailSIPREnabled,
 				},
 			}, nil
 		},
@@ -446,6 +453,10 @@ func TestCollectDeclarativePortalsUsesPortalDetails(t *testing.T) {
 	if resources[0].AuthenticationEnabled == nil || !*resources[0].AuthenticationEnabled {
 		t.Fatalf("expected authentication_enabled to come from portal detail, got %+v",
 			resources[0].AuthenticationEnabled)
+	}
+
+	if resources[0].SiprEnabled == nil || !*resources[0].SiprEnabled {
+		t.Fatalf("expected sipr_enabled to come from portal detail, got %+v", resources[0].SiprEnabled)
 	}
 
 	if len(getPortalIDs) != 1 || getPortalIDs[0] != "portal-id" {
