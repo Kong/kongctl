@@ -86,7 +86,7 @@ func (p *Planner) planAIGatewayPolicyChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentPolicies {
 			policyID := resources.AIGatewayPolicyID(current.AIGatewayPolicy)
 			policyName := resources.AIGatewayPolicyName(current.AIGatewayPolicy)

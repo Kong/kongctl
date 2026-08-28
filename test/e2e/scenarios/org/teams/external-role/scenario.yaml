@@ -160,7 +160,64 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-reset-cleanup
+  - name: 005-sync-delete-role-from-external-team
+    inputOverlayDirs:
+      - overlays/002-remove-role
+    commands:
+      - name: 000-sync-delete-role
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+                by_resource.organization_team_role: 1
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 1
+          - select: plan.changes[?resource_type=='organization_team']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-team-roles-after-sync
+        run:
+          - get
+          - org
+          - team
+          - roles
+          - --team-name
+          - "{{ .vars.teamName }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?role_name=='Admin' && entity_id=='*' && entity_type_name=='APIs']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-external-team-after-sync
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+
+  - name: 006-reset-cleanup
     skipInputs: true
     commands:
       - resetOrg: true

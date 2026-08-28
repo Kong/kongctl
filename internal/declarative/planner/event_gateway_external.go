@@ -7,22 +7,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
-func (p *Planner) isEventGatewayExternal(gatewayRef string) bool {
-	if p == nil || p.resources == nil {
-		return false
-	}
-	eventGateway := p.resources.GetEventGatewayControlPlaneByRef(gatewayRef)
-	return eventGateway != nil && eventGateway.IsExternal()
-}
-
-func (p *Planner) isEventGatewayVirtualClusterExternal(virtualClusterRef string) bool {
-	if p == nil || p.resources == nil {
-		return false
-	}
-	virtualCluster := p.resources.GetVirtualClusterByRef(virtualClusterRef)
-	return virtualCluster != nil && virtualCluster.IsExternal()
-}
-
 func matchExternalEventGatewayVirtualCluster(
 	virtualCluster *resources.EventGatewayVirtualClusterResource,
 	available []state.EventGatewayVirtualCluster,

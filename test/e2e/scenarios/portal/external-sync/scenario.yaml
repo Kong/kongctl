@@ -83,16 +83,17 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 1
+                total_changes: 3
                 by_action.CREATE: 1
+                by_action.DELETE: 2
           - select: plan.changes[?resource_type=='portal_page' && action=='DELETE']
             expect:
               fields:
-                "length(@)": 0
+                "length(@)": 2
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 3
                 failed: 0
 
       - name: 001-get-portal-pages
@@ -110,14 +111,14 @@ steps:
               fields:
                 slug: declarative-page
                 title: "Declarative Page"
-          - select: "[?slug=='getting-started'] | [0]"
+          - select: "[?slug=='getting-started']"
             expect:
               fields:
-                slug: getting-started
-          - select: "[?slug=='guides'] | [0]"
+                "length(@)": 0
+          - select: "[?slug=='guides']"
             expect:
               fields:
-                slug: guides
+                "length(@)": 0
 
   - name: 004-sync-idempotency
     inputOverlayDirs:
@@ -135,9 +136,9 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-sync-remove-declarative-page
+  - name: 005-sync-with-page-collection-omitted
     commands:
-      - name: 000-sync-no-deletions
+      - name: 000-sync-omitted-collection
         run:
           - sync
           - -f
@@ -149,7 +150,7 @@ steps:
               fields:
                 total_changes: 0
 
-      - name: 001-get-portal-pages-after-sync
+      - name: 001-get-portal-pages-after-omitted-collection
         run:
           - get
           - portal
@@ -163,14 +164,14 @@ steps:
             expect:
               fields:
                 slug: declarative-page
-          - select: "[?slug=='getting-started'] | [0]"
+          - select: "[?slug=='getting-started']"
             expect:
               fields:
-                slug: getting-started
-          - select: "[?slug=='guides'] | [0]"
+                "length(@)": 0
+          - select: "[?slug=='guides']"
             expect:
               fields:
-                slug: guides
+                "length(@)": 0
 
   - name: 006-sync-update-declarative-page
     inputOverlayDirs:
@@ -220,14 +221,14 @@ steps:
                 title: "Updated Declarative Page"
                 visibility: "private"
                 status: "unpublished"
-          - select: "[?slug=='getting-started'] | [0]"
+          - select: "[?slug=='getting-started']"
             expect:
               fields:
-                slug: getting-started
-          - select: "[?slug=='guides'] | [0]"
+                "length(@)": 0
+          - select: "[?slug=='guides']"
             expect:
               fields:
-                slug: guides
+                "length(@)": 0
 
   - name: 007-sync-update-idempotency
     inputOverlayDirs:
@@ -296,14 +297,14 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 009-delete-declarative-page
+  - name: 009-sync-delete-pages-from-external-portal
     inputOverlayDirs:
-      - overlays/003-update-page
+      - overlays/004-empty-pages
     commands:
-      - name: 000-delete-page
+      - name: 000-sync-delete-pages
         outputFormat: json
         run:
-          - delete
+          - sync
           - -f
           - "{{ .workdir }}/external-portal.yaml"
           - --auto-approve
@@ -311,18 +312,17 @@ steps:
           - select: plan.metadata
             expect:
               fields:
-                mode: delete
+                mode: sync
           - select: plan.summary
             expect:
               fields:
                 total_changes: 1
                 by_action.DELETE: 1
                 by_resource.portal_page: 1
-          - select: >-
-              plan.changes[?resource_type=='portal_page' && resource_ref=='declarative-page'] | [0]
+          - select: plan.changes[?resource_type=='portal_page' && action=='DELETE']
             expect:
               fields:
-                action: DELETE
+                "length(@)": 1
           - select: summary
             expect:
               fields:
@@ -343,16 +343,14 @@ steps:
             expect:
               fields:
                 "length(@)": 0
-          - select: "[?slug=='getting-started'] | [0]"
+          - select: "[?slug=='getting-started']"
             expect:
               fields:
-                slug: getting-started
-                title: "Getting Started"
-          - select: "[?slug=='guides'] | [0]"
+                "length(@)": 0
+          - select: "[?slug=='guides']"
             expect:
               fields:
-                slug: guides
-                title: "Guides"
+                "length(@)": 0
 
       - name: 002-get-external-portal-after-delete
         run:

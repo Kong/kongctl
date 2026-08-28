@@ -83,6 +83,9 @@ Use YAML tags in field values to load files or reference other resources.
 - For a one-off unmanaged relationship, use `!lookup`. Use an `_external`
   declaration plus `!ref` when the resource needs a reusable declarative ref
   or owns managed child resources.
+- Sync never changes or deletes an external parent. Its child collections
+  placed in sync scope are still fully reconciled, including stale child
+  deletion. Omitted child collections remain out of scope.
 - Large text/spec fields are commonly loaded with `!file`.
 - `!file` paths are resolved relative to the config file and must remain
   within the configured base directory boundary.

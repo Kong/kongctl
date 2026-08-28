@@ -155,7 +155,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	}
 
 	// 4. SYNC MODE: Delete policies no longer in desired state
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayVirtualClusterExternal(virtualClusterRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

@@ -157,7 +157,7 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentStores {
 			if desiredKeys[current.ID] || desiredKeys[current.Name] {
 				continue

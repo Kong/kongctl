@@ -124,7 +124,7 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged certificates
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

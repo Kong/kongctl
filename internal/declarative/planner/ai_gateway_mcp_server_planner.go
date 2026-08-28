@@ -107,7 +107,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range orderCurrentAIGatewayMCPServersForDeletion(currentServers) {
 			serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
 			serverName := resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)

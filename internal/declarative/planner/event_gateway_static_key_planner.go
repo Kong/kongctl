@@ -116,7 +116,7 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged static keys
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

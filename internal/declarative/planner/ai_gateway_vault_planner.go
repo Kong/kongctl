@@ -88,7 +88,7 @@ func (p *Planner) planAIGatewayVaultChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentVaults {
 			vaultID := resources.AIGatewayVaultID(current.AIGatewayVault)
 			vaultName := resources.AIGatewayVaultName(current.AIGatewayVault)

@@ -109,7 +109,7 @@ func (p *Planner) planAIGatewayModelChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentModels {
 			modelID := resources.AIGatewayModelID(current.AIGatewayModel)
 			modelName := resources.AIGatewayModelName(current.AIGatewayModel)

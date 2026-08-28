@@ -136,7 +136,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged policies
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

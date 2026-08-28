@@ -480,6 +480,10 @@ Because kongctl does not own those resources:
   external parent's Konnect ID.
   You do not need to (and cannot) assign a namespace to the external
   definition itself.
+- An external parent is not changed or deleted, but its child collections
+  explicitly included in sync scope are fully reconciled, including stale child
+  deletion. Child collections omitted from the configuration remain out of
+  scope and are not pruned.
 
 Inline lookups use either a `field:value` scalar or a mapping. The target type
 is inferred from the relationship field:

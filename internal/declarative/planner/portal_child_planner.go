@@ -295,7 +295,7 @@ func (p *Planner) planPortalIPAllowListsChanges(
 	if err != nil {
 		var apiErr *state.APIClientError
 		if errors.As(err, &apiErr) && apiErr.ClientType == "portal IP allow list API" {
-			if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+			if plan.Metadata.Mode == PlanModeSync {
 				plan.AddWarning(
 					"",
 					fmt.Sprintf(
@@ -316,7 +316,7 @@ func (p *Planner) planPortalIPAllowListsChanges(
 	}
 
 	if desiredAllowList == nil {
-		if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		if plan.Metadata.Mode == PlanModeSync {
 			for i := range currentEntries {
 				p.planPortalIPAllowListDelete(
 					parentNamespace,
@@ -358,7 +358,7 @@ func (p *Planner) planPortalIPAllowListsChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for i := range currentEntries {
 			if i == selectedIndex {
 				continue
@@ -859,7 +859,7 @@ func (p *Planner) planPortalIdentityProvidersChanges(
 		p.planPortalIdentityProviderCreate(parentNamespace, provider, portalID, plan)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for providerType, current := range existingProviders {
 			if !desiredTypes[providerType] {
 				p.planPortalIdentityProviderDelete(parentNamespace, portalRef, portalID, current, plan)
@@ -1590,7 +1590,7 @@ func (p *Planner) planPortalCustomDomainsChanges(
 	}
 
 	if desiredDomain == nil {
-		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync {
 			p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, currentDomain, "", plan)
 		}
 		return nil
@@ -2274,7 +2274,7 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	}
 
 	if desiredCfg == nil {
-		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync {
 			p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
 		}
 		return nil
@@ -2372,7 +2372,7 @@ func (p *Planner) planPortalAuditLogWebhooksChanges(
 	}
 
 	if desiredWebhook == nil {
-		if currentWebhook != nil && plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+		if currentWebhook != nil && plan.Metadata.Mode == PlanModeSync {
 			p.planPortalAuditLogWebhookDelete(parentNamespace, portalRef, portalID, portalName, plan)
 		}
 		return nil
@@ -2926,7 +2926,7 @@ func (p *Planner) planPortalEmailTemplatesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && portalID != "" && !p.isPortalExternal(portalRef) {
+	if plan.Metadata.Mode == PlanModeSync && portalID != "" {
 		for name, tpl := range existing {
 			if _, ok := desiredByName[name]; ok {
 				continue
@@ -3375,9 +3375,8 @@ func (p *Planner) planPortalPagesChanges(
 		}
 	}
 
-	// In sync mode, delete unmanaged pages only for managed portals.
-	// External portals are managed elsewhere, so we avoid destructive pruning.
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	// In sync mode, delete pages absent from the desired in-scope collection.
+	if plan.Metadata.Mode == PlanModeSync {
 		// Build set of desired page paths
 		desiredPaths := make(map[string]bool)
 		for _, desiredPage := range desired {
@@ -3902,9 +3901,8 @@ func (p *Planner) planPortalSnippetsChanges(
 		}
 	}
 
-	// In sync mode, delete undeclared snippets only for managed portals.
-	// External portals are managed elsewhere, so we avoid destructive pruning.
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	// In sync mode, delete snippets absent from the desired in-scope collection.
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, existingSnippet := range existingSnippets {
 			if !desiredNames[existingSnippet.Name] {
 				p.planPortalSnippetDelete(parentNamespace, portalRef, portalID, existingSnippet, plan)
@@ -4260,7 +4258,7 @@ func (p *Planner) planPortalTeamsChanges(
 	}
 
 	// In SYNC mode: Delete teams not in desired state
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, existingTeam := range existingTeams {
 			if !desiredNames[existingTeam.Name] {
 				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, existingTeam, plan)
@@ -4833,7 +4831,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isPortalExternal(portalRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for teamRef := range teamByRef {
 			if _, ok := rolesByTeam[teamRef]; !ok {
 				rolesByTeam[teamRef] = []resources.PortalTeamRoleResource{}
@@ -4947,7 +4945,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 			)
 		}
 
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" && !p.isPortalExternal(portalRef) {
+		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
 			for key, existingRole := range existingRoles {
 				if !desiredKeys[key] {
 					p.planPortalTeamRoleDelete(

@@ -75,7 +75,6 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		// We still plan their child resources based on the resolved Konnect ID when available.
 		if desiredPortal.IsExternal() {
 			// If we have a resolved Konnect ID, plan full child diffs.
-			// Sync-mode pruning is skipped for external portal children.
 			if portalID := desiredPortal.GetKonnectID(); portalID != "" {
 				// Build a minimal current portal for child planning
 				current := state.Portal{

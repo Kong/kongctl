@@ -431,7 +431,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayConfigStore,
-	) && len(configStores) > 0 {
+	) && (len(configStores) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayConfigStoreChanges(
 			ctx,
 			namespace,
@@ -452,7 +452,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayVault,
-	) && len(vaults) > 0 {
+	) && (len(vaults) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayVaultChanges(
 			ctx,
 			namespace,
@@ -473,7 +473,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayDataPlaneCertificate,
-	) && len(dataPlaneCertificates) > 0 {
+	) && (len(dataPlaneCertificates) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayDataPlaneCertificateChanges(
 			ctx,
 			namespace,
@@ -494,7 +494,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayProvider,
-	) && len(providers) > 0 {
+	) && (len(providers) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayProviderChanges(
 			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", providers, plan,
 		); err != nil {
@@ -509,7 +509,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayAuthStrategy,
-	) && len(authStrategies) > 0 {
+	) && (len(authStrategies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayAuthStrategyChanges(
 			ctx, plannerCtx, namespace, desiredGateway.DisplayName, gatewayID, desiredGateway.Ref, "", authStrategies, plan,
 		); err != nil {
@@ -523,7 +523,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayPolicy,
-	) && len(policies) > 0 {
+	) && (len(policies) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayPolicyChanges(
 			ctx,
 			namespace,
@@ -545,7 +545,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayAgent,
-	) && len(agents) > 0 {
+	) && (len(agents) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayAgentChanges(
 			ctx,
 			namespace,
@@ -567,7 +567,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayConsumer,
-	) && len(consumers) > 0 {
+	) && (len(consumers) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayConsumerChanges(
 			ctx,
 			namespace,
@@ -589,7 +589,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayConsumerGroup,
-	) && len(consumerGroups) > 0 {
+	) && (len(consumerGroups) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayConsumerGroupChanges(
 			ctx,
 			namespace,
@@ -611,7 +611,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayModel,
-	) && len(models) > 0 {
+	) && (len(models) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayModelChanges(
 			ctx,
 			namespace,
@@ -634,7 +634,7 @@ func (p *Planner) planExternalAIGatewayChildren(
 		resources.ResourceTypeAIGateway,
 		desiredGateway.Ref,
 		resources.ResourceTypeAIGatewayMCPServer,
-	) && len(mcpServers) > 0 {
+	) && (len(mcpServers) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		if err := p.planAIGatewayMCPServerChanges(
 			ctx,
 			namespace,
@@ -651,14 +651,6 @@ func (p *Planner) planExternalAIGatewayChildren(
 	}
 
 	return nil
-}
-
-func (p *Planner) isAIGatewayExternal(gatewayRef string) bool {
-	if p == nil || p.resources == nil {
-		return false
-	}
-	gateway := p.resources.GetAIGatewayByRef(gatewayRef)
-	return gateway != nil && gateway.IsExternal()
 }
 
 func (p *Planner) shouldUpdateAIGateway(
