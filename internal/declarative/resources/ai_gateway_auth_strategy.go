@@ -33,6 +33,7 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
 		WithMaturity(aiGatewayMaturity),
+		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
 	)
 }
 

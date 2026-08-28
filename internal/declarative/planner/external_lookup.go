@@ -56,6 +56,8 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeAPI:                        r.lookupAPI,
+		resources.ResourceTypeApplicationAuthStrategy:    r.lookupApplicationAuthStrategy,
 		resources.ResourceTypePortal:                     r.lookupPortal,
 		resources.ResourceTypeControlPlane:               r.lookupControlPlane,
 		resources.ResourceTypeGatewayService:             r.lookupGatewayService,
@@ -164,13 +166,7 @@ func (r *externalLookupResolver) resolveDeclarations(ctx context.Context, rs *re
 	}
 
 	// Resolve unscoped resources first so scoped resources can consume their IDs.
-	for _, resourceType := range []resources.ResourceType{
-		resources.ResourceTypeControlPlane,
-		resources.ResourceTypeEventGatewayControlPlane,
-		resources.ResourceTypePortal,
-		resources.ResourceTypeAIGateway,
-		resources.ResourceTypeOrganizationTeam,
-	} {
+	for _, resourceType := range resources.ExternalResolvableTypesByScope(false) {
 		for _, item := range rs.AllResourcesByType(resourceType) {
 			external, ok := item.(resources.ExternallyResolvableResource)
 			if !ok || external.GetExternalBlock() == nil || item.GetKonnectID() != "" {
@@ -183,22 +179,6 @@ func (r *externalLookupResolver) resolveDeclarations(ctx context.Context, rs *re
 				return err
 			}
 			external.SetKonnectID(id)
-		}
-	}
-
-	if rs.AuditLogs != nil {
-		for i := range rs.AuditLogs.Destinations {
-			destination := &rs.AuditLogs.Destinations[i]
-			if destination.GetKonnectID() != "" {
-				continue
-			}
-			id, err := r.resolve(ctx, externalRequest(
-				destination.GetType(), destination.External, "", externalDeclarationSource(destination),
-			))
-			if err != nil {
-				return err
-			}
-			destination.SetKonnectID(id)
 		}
 	}
 
@@ -215,54 +195,85 @@ func (r *externalLookupResolver) resolveScopedDeclarations(ctx context.Context, 
 		controlPlaneByRef[rs.ControlPlanes[i].GetRef()] = &rs.ControlPlanes[i]
 	}
 	deckControlPlanes := deckControlPlaneRefs(rs.ControlPlanes)
-	for i := range rs.GatewayServices {
-		service := &rs.GatewayServices[i]
-		if !service.IsExternal() || service.GetKonnectID() != "" {
-			continue
-		}
-		parentID, err := r.planner.resolveGatewayServiceControlPlaneID(service, controlPlaneByRef)
-		if err != nil {
-			return err
-		}
-		usesDeck := controlPlaneHasDeck(service, deckControlPlanes)
-		if parentID == "" && usesDeck {
-			continue
-		}
-		id, err := r.resolve(ctx, externalRequest(
-			service.GetType(), service.External, parentID, externalDeclarationSource(service),
-		))
-		if err != nil {
-			if usesDeck {
+	for _, resourceType := range resources.ExternalResolvableTypesByScope(true) {
+		capability, _ := resources.ExternalResolutionFor(resourceType)
+		for _, item := range rs.AllResourcesByType(resourceType) {
+			external, ok := item.(resources.ExternallyResolvableResource)
+			if !ok || external.GetExternalBlock() == nil || item.GetKonnectID() != "" {
 				continue
 			}
-			return err
-		}
-		service.SetKonnectID(id)
-		service.SetResolvedControlPlaneID(parentID)
-	}
 
-	eventGatewayByRef := make(map[string]*resources.EventGatewayControlPlaneResource, len(rs.EventGatewayControlPlanes))
-	for i := range rs.EventGatewayControlPlanes {
-		eventGatewayByRef[rs.EventGatewayControlPlanes[i].GetRef()] = &rs.EventGatewayControlPlanes[i]
-	}
-	for i := range rs.EventGatewayVirtualClusters {
-		cluster := &rs.EventGatewayVirtualClusters[i]
-		if !cluster.IsExternal() || cluster.GetKonnectID() != "" {
-			continue
+			parentID, deferred, err := r.scopedDeclarationParentID(
+				rs, item, capability, controlPlaneByRef, deckControlPlanes,
+			)
+			if err != nil {
+				return err
+			}
+			if deferred {
+				continue
+			}
+			id, err := r.resolve(ctx, externalRequest(
+				item.GetType(), external.GetExternalBlock(), parentID, externalDeclarationSource(item),
+			))
+			if err != nil {
+				if service, ok := item.(*resources.GatewayServiceResource); ok &&
+					controlPlaneHasDeck(service, deckControlPlanes) {
+					continue
+				}
+				return err
+			}
+			external.SetKonnectID(id)
+			if service, ok := item.(*resources.GatewayServiceResource); ok {
+				service.SetResolvedControlPlaneID(parentID)
+			}
 		}
-		parentID, err := resolveScopedParentID(cluster.EventGateway, eventGatewayByRef)
-		if err != nil {
-			return fmt.Errorf("event_gateway_virtual_cluster %q: %w", cluster.GetRef(), err)
-		}
-		id, err := r.resolve(ctx, externalRequest(
-			cluster.GetType(), cluster.External, parentID, externalDeclarationSource(cluster),
-		))
-		if err != nil {
-			return err
-		}
-		cluster.SetKonnectID(id)
 	}
 	return nil
+}
+
+func (r *externalLookupResolver) scopedDeclarationParentID(
+	rs *resources.ResourceSet,
+	item resources.Resource,
+	capability resources.ExternalResolutionRegistration,
+	controlPlaneByRef map[string]*resources.ControlPlaneResource,
+	deckControlPlanes map[string]bool,
+) (parentID string, deferred bool, err error) {
+	if service, ok := item.(*resources.GatewayServiceResource); ok {
+		parentID, err := r.planner.resolveGatewayServiceControlPlaneID(service, controlPlaneByRef)
+		if err != nil {
+			return "", false, err
+		}
+		return parentID, parentID == "" && controlPlaneHasDeck(service, deckControlPlanes), nil
+	}
+
+	parentValue, err := stringFieldByPath(item, capability.ParentFieldPath)
+	if err != nil {
+		return "", false, fmt.Errorf("%s %q: resolve parent scope: %w", item.GetType(), item.GetRef(), err)
+	}
+	if tags.IsRefPlaceholder(parentValue) {
+		ref, field, ok := tags.ParseRefPlaceholder(parentValue)
+		if !ok || field != FieldID {
+			return "", false, fmt.Errorf("%s %q: invalid parent reference %q", item.GetType(), item.GetRef(), parentValue)
+		}
+		parentValue = ref
+	}
+	if util.IsValidUUID(parentValue) {
+		return parentValue, false, nil
+	}
+	parent, ok := rs.GetResourceByRef(parentValue)
+	if !ok || parent.GetType() != capability.ParentType {
+		return "", false, fmt.Errorf(
+			"%s %q: referenced %s parent %q not found",
+			item.GetType(), item.GetRef(), capability.ParentType, parentValue,
+		)
+	}
+	if parent.GetKonnectID() == "" {
+		return "", false, fmt.Errorf(
+			"%s %q: parent %s %q does not have a resolved Konnect ID",
+			item.GetType(), item.GetRef(), capability.ParentType, parentValue,
+		)
+	}
+	return parent.GetKonnectID(), false, nil
 }
 
 func (r *externalLookupResolver) resolveInlineLookups(
@@ -281,60 +292,72 @@ func (r *externalLookupResolver) resolveInlineLookups(
 		for _, relationship := range resources.RelationshipDescriptorsFor(resource) {
 			fieldPath := relationship.FieldPath
 			targetType := relationship.TargetType
+			if relationship.TargetTypeResolver != nil {
+				discriminator, err := stringFieldByPath(resource, relationship.TargetDiscriminatorFieldPath)
+				if err != nil {
+					resolutionErr = fmt.Errorf(
+						"%s %q field %s: resolve target discriminator: %w",
+						resource.GetType(), resource.GetRef(), fieldPath, err,
+					)
+					return false
+				}
+				var ok bool
+				targetType, ok = relationship.TargetTypeResolver(discriminator)
+				if !ok {
+					continue
+				}
+			}
 			if _, selected := targetSet[targetType]; !selected {
 				continue
 			}
-			value, err := stringFieldByPath(resource, fieldPath)
-			if err != nil {
-				resolutionErr = fmt.Errorf("%s %q field %s: %w", resource.GetType(), resource.GetRef(), fieldPath, err)
-				return false
-			}
-			lookup, isLookup := tags.ParseExternalPlaceholder(value)
-			if !isLookup {
-				continue
-			}
+			err := visitStringFieldsByPath(resource, fieldPath, func(value string, set func(string)) error {
+				lookup, isLookup := tags.ParseExternalPlaceholder(value)
+				if !isLookup {
+					return nil
+				}
 
-			parent, err := r.inlineLookupParent(rs, resource, relationship)
-			if err != nil {
-				resolutionErr = fmt.Errorf("%s %q field %s: %w", resource.GetType(), resource.GetRef(), fieldPath, err)
-				return false
-			}
-			source := fmt.Sprintf("%s %q field %s", resource.GetType(), resource.GetRef(), fieldPath)
-			if lookup.Line > 0 {
-				source += fmt.Sprintf(" (line %d, column %d)", lookup.Line, lookup.Column)
-			}
-			id, err := r.resolve(ctx, externalLookupRequest{
-				ResourceType:    targetType,
-				MatchFields:     lookup.MatchFields,
-				SensitiveFields: lookup.SensitiveFields,
-				ParentID:        parent.id,
-				Source:          source,
+				parent, err := r.inlineLookupParent(rs, resource, relationship)
+				if err != nil {
+					return err
+				}
+				source := fmt.Sprintf("%s %q field %s", resource.GetType(), resource.GetRef(), fieldPath)
+				if lookup.Line > 0 {
+					source += fmt.Sprintf(" (line %d, column %d)", lookup.Line, lookup.Column)
+				}
+				id, err := r.resolve(ctx, externalLookupRequest{
+					ResourceType:    targetType,
+					MatchFields:     lookup.MatchFields,
+					SensitiveFields: lookup.SensitiveFields,
+					ParentID:        parent.id,
+					Source:          source,
+				})
+				if err != nil {
+					return err
+				}
+				resolvedRef := id
+				if relationship.ResultField == resources.RelationshipResultFieldRef {
+					resolvedRef = inlineExternalResourceRef(rs, targetType, id)
+				}
+				set(resolvedRef)
+				if relationship.ResultField == resources.RelationshipResultFieldRef {
+					r.hasInlineParents = true
+					if rs.SyncScope != nil {
+						rs.SyncScope.RebindChildParent(targetType, value, resolvedRef)
+					}
+					key := string(targetType) + "|" + resolvedRef
+					inlineParents[key] = inlineExternalParent{
+						resourceType: targetType,
+						id:           id,
+						ref:          resolvedRef,
+						parentID:     parent.id,
+						parentRef:    parent.ref,
+					}
+				}
+				return nil
 			})
 			if err != nil {
-				resolutionErr = err
+				resolutionErr = fmt.Errorf("%s %q field %s: %w", resource.GetType(), resource.GetRef(), fieldPath, err)
 				return false
-			}
-			resolvedRef := id
-			if relationship.Kind == resources.RelationshipKindKongctlParentSelector {
-				resolvedRef = inlineExternalResourceRef(rs, targetType, id)
-			}
-			if err := setStringFieldByPath(resource, fieldPath, resolvedRef); err != nil {
-				resolutionErr = fmt.Errorf("%s: bind resolved external reference: %w", source, err)
-				return false
-			}
-			if relationship.Kind == resources.RelationshipKindKongctlParentSelector {
-				r.hasInlineParents = true
-				if rs.SyncScope != nil {
-					rs.SyncScope.RebindChildParent(targetType, value, resolvedRef)
-				}
-				key := string(targetType) + "|" + resolvedRef
-				inlineParents[key] = inlineExternalParent{
-					resourceType: targetType,
-					id:           id,
-					ref:          resolvedRef,
-					parentID:     parent.id,
-					parentRef:    parent.ref,
-				}
 			}
 		}
 		return true
@@ -375,57 +398,8 @@ func ensureInlineExternalParent(rs *resources.ResourceSet, parent inlineExternal
 		return nil
 	}
 
-	external := &resources.ExternalBlock{ID: parent.id}
-	// Only registered parent-capable external types can reach this switch.
-	//nolint:exhaustive
-	switch parent.resourceType {
-	case resources.ResourceTypePortal:
-		rs.Portals = append(rs.Portals, resources.PortalResource{
-			BaseResource: resources.BaseResource{Ref: parent.ref},
-			External:     external,
-		})
-		rs.Portals[len(rs.Portals)-1].SetKonnectID(parent.id)
-	case resources.ResourceTypeControlPlane:
-		rs.ControlPlanes = append(rs.ControlPlanes, resources.ControlPlaneResource{
-			BaseResource: resources.BaseResource{Ref: parent.ref},
-			External:     external,
-		})
-		rs.ControlPlanes[len(rs.ControlPlanes)-1].SetKonnectID(parent.id)
-	case resources.ResourceTypeAIGateway:
-		rs.AIGateways = append(rs.AIGateways, resources.AIGatewayResource{
-			BaseResource: resources.BaseResource{Ref: parent.ref},
-			External:     external,
-		})
-		rs.AIGateways[len(rs.AIGateways)-1].SetKonnectID(parent.id)
-	case resources.ResourceTypeOrganizationTeam:
-		rs.OrganizationTeams = append(rs.OrganizationTeams, resources.OrganizationTeamResource{
-			BaseResource: resources.BaseResource{Ref: parent.ref},
-			External:     external,
-		})
-		rs.OrganizationTeams[len(rs.OrganizationTeams)-1].SetKonnectID(parent.id)
-	case resources.ResourceTypeEventGatewayControlPlane:
-		rs.EventGatewayControlPlanes = append(
-			rs.EventGatewayControlPlanes,
-			resources.EventGatewayControlPlaneResource{
-				BaseResource: resources.BaseResource{Ref: parent.ref},
-				External:     external,
-			},
-		)
-		rs.EventGatewayControlPlanes[len(rs.EventGatewayControlPlanes)-1].SetKonnectID(parent.id)
-	case resources.ResourceTypeEventGatewayVirtualCluster:
-		rs.EventGatewayVirtualClusters = append(
-			rs.EventGatewayVirtualClusters,
-			resources.EventGatewayVirtualClusterResource{
-				Ref:          parent.ref,
-				EventGateway: parent.parentRef,
-				External:     external,
-			},
-		)
-		rs.EventGatewayVirtualClusters[len(rs.EventGatewayVirtualClusters)-1].SetKonnectID(parent.id)
-	default:
-		return fmt.Errorf("cannot materialize inline external parent for %s", parent.resourceType)
-	}
-	return nil
+	_, err := resources.MaterializeExternalResource(rs, parent.resourceType, parent.ref, parent.id, parent.parentRef)
+	return err
 }
 
 func ensureInlineExternalTraversal(rs *resources.ResourceSet, parent inlineExternalParent) error {
@@ -609,27 +583,6 @@ func deckControlPlaneRefs(controlPlanes []resources.ControlPlaneResource) map[st
 	return result
 }
 
-func resolveScopedParentID[T resources.Resource](value string, byRef map[string]T) (string, error) {
-	if tags.IsRefPlaceholder(value) {
-		ref, field, ok := tags.ParseRefPlaceholder(value)
-		if !ok || field != FieldID {
-			return "", fmt.Errorf("invalid parent reference %q", value)
-		}
-		value = ref
-	}
-	if util.IsValidUUID(value) {
-		return value, nil
-	}
-	parent, ok := byRef[value]
-	if !ok {
-		return "", fmt.Errorf("parent resource %q not found", value)
-	}
-	if parent.GetKonnectID() == "" {
-		return "", fmt.Errorf("parent resource %q does not have a resolved Konnect ID", value)
-	}
-	return parent.GetKonnectID(), nil
-}
-
 func matchExternalCandidates[T any](
 	req externalLookupRequest,
 	candidates []T,
@@ -668,6 +621,25 @@ func (r *externalLookupResolver) lookupPortal(ctx context.Context, req externalL
 		return "", fmt.Errorf("%s: list portals: %w", req.Source, err)
 	}
 	return matchExternalCandidates(req, items, func(item state.Portal) string { return item.ID })
+}
+
+func (r *externalLookupResolver) lookupAPI(ctx context.Context, req externalLookupRequest) (string, error) {
+	items, err := r.planner.client.ListAllAPIs(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: list APIs: %w", req.Source, err)
+	}
+	return matchExternalCandidates(req, items, func(item state.API) string { return item.ID })
+}
+
+func (r *externalLookupResolver) lookupApplicationAuthStrategy(
+	ctx context.Context,
+	req externalLookupRequest,
+) (string, error) {
+	items, err := r.planner.client.ListAllApplicationAuthStrategies(ctx)
+	if err != nil {
+		return "", fmt.Errorf("%s: list application auth strategies: %w", req.Source, err)
+	}
+	return matchExternalCandidates(req, items, func(item state.ApplicationAuthStrategy) string { return item.ID })
 }
 
 func (r *externalLookupResolver) lookupControlPlane(ctx context.Context, req externalLookupRequest) (string, error) {
@@ -832,6 +804,57 @@ func stringFieldByPath(resource resources.Resource, path string) (string, error)
 		return "", fmt.Errorf("field %s is not a string", path)
 	}
 	return current.String(), nil
+}
+
+func visitStringFieldsByPath(resource resources.Resource, path string, visit func(string, func(string)) error) error {
+	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
+		value, err := stringFieldByPath(resource, path)
+		if err != nil || value == "" {
+			return err
+		}
+		return visit(value, func(resolved string) {
+			_ = setStringFieldByPath(implementation, path, resolved)
+		})
+	}
+
+	current := reflect.ValueOf(resource)
+	for part := range strings.SplitSeq(path, ".") {
+		for current.Kind() == reflect.Pointer {
+			if current.IsNil() {
+				return nil
+			}
+			current = current.Elem()
+		}
+		current = findSettableTaggedField(current, part)
+		if !current.IsValid() {
+			return fmt.Errorf("field %s not found", path)
+		}
+	}
+	for current.Kind() == reflect.Pointer {
+		if current.IsNil() {
+			return nil
+		}
+		current = current.Elem()
+	}
+
+	//exhaustive:ignore reflect.Kind is validated by the default branch.
+	switch current.Kind() {
+	case reflect.String:
+		return visit(current.String(), func(resolved string) { current.SetString(resolved) })
+	case reflect.Slice, reflect.Array:
+		for i := range current.Len() {
+			item := current.Index(i)
+			if item.Kind() != reflect.String || !item.CanSet() {
+				return fmt.Errorf("field %s item %d is not a settable string", path, i)
+			}
+			if err := visit(item.String(), func(resolved string) { item.SetString(resolved) }); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("field %s is not a string or string list", path)
+	}
 }
 
 func findSettableTaggedField(value reflect.Value, name string) reflect.Value {

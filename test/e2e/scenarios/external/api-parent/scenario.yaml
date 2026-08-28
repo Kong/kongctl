@@ -1,0 +1,112 @@
+baseInputsPath: testdata
+
+vars:
+  api_name: External Parent API
+  portal_name: External Parent Portal
+  auth_strategy_name: external-parent-auth
+  team_name: external-api-consumers
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-external-resources
+    skipInputs: true
+    commands:
+      - name: 000-create-api
+        create:
+          resource: api
+          payload:
+            inline:
+              name: "{{ .vars.api_name }}"
+              description: API owned outside kongctl declarative management
+          recordVar:
+            name: api_id
+            responsePath: id
+      - name: 001-create-portal
+        create:
+          resource: portal
+          payload:
+            inline:
+              name: "{{ .vars.portal_name }}"
+              display_name: External Parent Portal
+          recordVar:
+            name: portal_id
+            responsePath: id
+      - name: 002-create-auth-strategy
+        create:
+          resource: auth_strategy
+          payload:
+            inline:
+              name: "{{ .vars.auth_strategy_name }}"
+              display_name: External Parent Auth
+              strategy_type: key_auth
+              configs:
+                key-auth:
+                  key_names:
+                    - X-API-Key
+          recordVar:
+            name: auth_strategy_id
+            responsePath: id
+
+  - name: 002-sync-version-under-external-api
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-api.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes[?resource_type=='api']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "plan.changes[?resource_type=='api_version'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                parent.id: "{{ .vars.api_id }}"
+          - select: "plan.changes[?resource_type=='api_publication'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                parent.id: "{{ .vars.api_id }}"
+                "fields.auth_strategy_ids[0]": "{{ .vars.auth_strategy_id }}"
+          - select: "plan.changes[?resource_type=='organization_team_role'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.entity_id: "{{ .vars.api_id }}"
+                fields.entity_type_name: APIs
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 003-sync-idempotent
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-api.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 004-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true

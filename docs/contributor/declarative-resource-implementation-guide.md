@@ -1860,15 +1860,23 @@ Resource types that support `_external` or inline lookup targets must:
 2. Use `registerExternalResourceType` (or its slice-accessor variant) so the
    capability is enforced by the generic registration constraint.
 3. Register supported selectors and any parent resource type.
-4. Provide exactly one planner lookup adapter.
+4. Provide exactly one unrestricted planner lookup adapter. Managed-label
+   filtered list operations are not valid for external identity lookup.
 5. Add unit, integration, and E2E coverage for selector, ambiguity, missing
    scope, caching, and unmanaged lifecycle behavior.
 
 Cross-resource YAML fields use static `RelationshipDescriptor` metadata. Mark
 API schema IDs as `api_foreign_key` and kongctl-added root parent fields as
-`kongctl_parent_selector`. Include the target type, scope field, and root-only
-placement. This metadata drives planner inference and `kongctl explain`; do not
-add field-name switches to individual planners.
+`kongctl_parent_selector`. Include the target type (or discriminator), scalar
+or list cardinality, result field, scope field, and root-only placement. This
+metadata drives planner inference and `kongctl explain`; do not add field-name
+switches to individual planners.
+
+Every relationship target must register either external resolution or a
+specific `WithExternalUnsupportedReason`. The relationship contract test
+enforces that disposition. Registry external registration supplies generic
+materialization, including scoped parent fields, so planner code must not add
+resource-type construction switches.
 
 Keep execution dependencies separate from relationship metadata. Dependencies
 control operation ordering, while relationship descriptors define the YAML

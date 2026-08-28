@@ -44,12 +44,121 @@ func TestExternalLookupResolverInlineAliasesShareCache(t *testing.T) {
 	portalAPI.AssertExpectations(t)
 }
 
+func TestExternalLookupResolverMaterializesAPIParent(t *testing.T) {
+	t.Parallel()
+
+	apiAPI := &MockAPIAPI{}
+	apiAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{{ID: "api-id", Name: "Shared API"}},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}, nil).Once()
+
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{APIAPI: apiAPI}),
+		slog.Default(),
+	))
+	rs := &resources.ResourceSet{APIVersions: []resources.APIVersionResource{{
+		Ref: "v1", API: namedExternalPlaceholder(t, "!lookup", "Shared API"),
+	}}}
+
+	require.NoError(t, resolver.resolveInlineLookups(t.Context(), rs, resources.ResourceTypeAPI))
+	require.Equal(t, "api-id", rs.APIVersions[0].API)
+	require.Len(t, rs.APIs, 1)
+	require.Equal(t, "api-id", rs.APIs[0].GetKonnectID())
+	require.True(t, rs.APIs[0].IsExternal())
+	apiAPI.AssertExpectations(t)
+}
+
+func TestExternalLookupResolverResolvesRBACAPIEntity(t *testing.T) {
+	t.Parallel()
+
+	apiAPI := &MockAPIAPI{}
+	apiAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{{ID: "api-id", Name: "Shared API"}},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}, nil).Once()
+
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{APIAPI: apiAPI}),
+		slog.Default(),
+	))
+	rs := &resources.ResourceSet{OrganizationUserRoles: []resources.OrganizationUserRoleResource{{
+		Ref: "viewer", EntityID: namedExternalPlaceholder(t, "!lookup", "Shared API"), EntityTypeName: "API Products",
+	}}}
+
+	require.NoError(t, resolver.resolveInlineLookups(t.Context(), rs, resources.ResourceTypeAPI))
+	require.Equal(t, "api-id", rs.OrganizationUserRoles[0].EntityID)
+	apiAPI.AssertExpectations(t)
+}
+
+func TestExternalLookupResolverResolvesPortalTeamRoleAPIEntity(t *testing.T) {
+	t.Parallel()
+
+	apiAPI := &MockAPIAPI{}
+	apiAPI.On("ListApis", mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
+		ListAPIResponse: &kkComps.ListAPIResponse{
+			Data: []kkComps.APIResponseSchema{{ID: "api-id", Name: "Shared API"}},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}, nil).Once()
+
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{APIAPI: apiAPI}),
+		slog.Default(),
+	))
+	rs := &resources.ResourceSet{PortalTeamRoles: []resources.PortalTeamRoleResource{{
+		Ref: "viewer", EntityID: namedExternalPlaceholder(t, "!lookup", "Shared API"), EntityTypeName: "API Products",
+	}}}
+
+	require.NoError(t, resolver.resolveInlineLookups(t.Context(), rs, resources.ResourceTypeAPI))
+	require.Equal(t, "api-id", rs.PortalTeamRoles[0].EntityID)
+	apiAPI.AssertExpectations(t)
+}
+
+func TestExternalLookupResolverResolvesAuthStrategyListInOrder(t *testing.T) {
+	t.Parallel()
+
+	authAPI := &MockAppAuthStrategiesAPI{}
+	authResponse := &kkComps.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse{
+		ID: "auth-id", Name: "Shared Auth", DisplayName: "Shared Authentication",
+	}
+	authAPI.On("ListAppAuthStrategies", mock.Anything, mock.Anything).Return(&kkOps.ListAppAuthStrategiesResponse{
+		ListAppAuthStrategiesResponse: &kkComps.ListAppAuthStrategiesResponse{
+			Data: []kkComps.AppAuthStrategy{{
+				AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse: authResponse,
+			}},
+			Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+		},
+	}, nil).Once()
+
+	resolver := newExternalLookupResolver(NewPlanner(
+		state.NewClient(state.ClientConfig{AppAuthAPI: authAPI}),
+		slog.Default(),
+	))
+	rs := &resources.ResourceSet{APIPublications: []resources.APIPublicationResource{{
+		Ref: "publication",
+		APIPublication: kkComps.APIPublication{
+			AuthStrategyIds: []string{"literal-id", namedExternalPlaceholder(t, "!lookup", "Shared Auth")},
+		},
+	}}}
+
+	require.NoError(t, resolver.resolveInlineLookups(
+		t.Context(), rs, resources.ResourceTypeApplicationAuthStrategy,
+	))
+	require.Equal(t, []string{"literal-id", "auth-id"}, rs.APIPublications[0].AuthStrategyIds)
+	authAPI.AssertExpectations(t)
+}
+
 func TestExternalLookupResolverRejectsUnsupportedPlacement(t *testing.T) {
 	t.Parallel()
 
 	resolver := newExternalLookupResolver(NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default()))
 	_, err := resolver.resolve(context.Background(), externalLookupRequest{
-		ResourceType: resources.ResourceTypeAPI,
+		ResourceType: resources.ResourceTypeDCRProvider,
 		MatchFields:  map[string]string{"name": "products"},
 		Source:       "api_publication products field portal_id",
 	})

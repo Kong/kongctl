@@ -54,6 +54,27 @@ configs:
 	}
 }
 
+func TestApplicationAuthStrategyResourceExternalRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	var strategy ApplicationAuthStrategyResource
+	require.NoError(t, yaml.Unmarshal([]byte(`
+ref: shared-auth
+_external:
+  selector:
+    matchFields:
+      display_name: Shared Authentication
+`), &strategy))
+	require.True(t, strategy.IsExternal())
+	require.Equal(t, "Shared Authentication", strategy.External.Selector.MatchFields["display_name"])
+	require.NoError(t, strategy.Validate())
+
+	payload, err := yaml.Marshal(strategy)
+	require.NoError(t, err)
+	require.Contains(t, string(payload), "_external:")
+	require.NotContains(t, string(payload), "strategy_type:")
+}
+
 func TestApplicationAuthStrategyResource_UnmarshalJSON_OIDCConfigAliases(t *testing.T) {
 	tests := []struct {
 		name      string

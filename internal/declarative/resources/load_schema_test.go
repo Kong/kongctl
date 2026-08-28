@@ -64,9 +64,13 @@ func TestRenderLoadSchemaRetainsOnlyUnionDiscriminatorScalars(t *testing.T) {
 	require.NoError(t, err)
 
 	authStrategy := schema.Defs[string(ResourceTypeApplicationAuthStrategy)]
-	require.Len(t, authStrategy.OneOf, 2)
+	require.Len(t, authStrategy.OneOf, 3)
 	for _, branch := range authStrategy.OneOf {
 		strategyType := branch.Properties["strategy_type"]
+		if strategyType == nil {
+			require.Contains(t, branch.Properties, "_external")
+			continue
+		}
 		require.NotNil(t, strategyType)
 		assert.NotNil(t, strategyType.Const)
 		assert.Contains(t, branch.Required, "strategy_type")

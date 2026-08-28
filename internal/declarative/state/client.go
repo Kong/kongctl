@@ -2962,6 +2962,37 @@ func (c *Client) ListManagedAuthStrategies(
 	return PaginateAll(ctx, lister)
 }
 
+// ListAllApplicationAuthStrategies returns all application auth strategies,
+// including resources not managed by kongctl.
+func (c *Client) ListAllApplicationAuthStrategies(ctx context.Context) ([]ApplicationAuthStrategy, error) {
+	if err := ValidateAPIClient(c.appAuthAPI, "app auth API"); err != nil {
+		return nil, err
+	}
+
+	lister := func(ctx context.Context, pageSize, pageNumber int64) ([]ApplicationAuthStrategy, *PageMeta, error) {
+		resp, err := c.appAuthAPI.ListAppAuthStrategies(ctx, kkOps.ListAppAuthStrategiesRequest{
+			PageSize:   &pageSize,
+			PageNumber: &pageNumber,
+		})
+		if err != nil {
+			return nil, nil, WrapAPIError(err, "list application auth strategies", nil)
+		}
+		if resp.ListAppAuthStrategiesResponse == nil {
+			return []ApplicationAuthStrategy{}, &PageMeta{Total: 0}, nil
+		}
+
+		strategies := make([]ApplicationAuthStrategy, 0, len(resp.ListAppAuthStrategiesResponse.Data))
+		for _, candidate := range resp.ListAppAuthStrategiesResponse.Data {
+			if strategy := c.extractAuthStrategyFromUnion(candidate); strategy != nil {
+				strategies = append(strategies, *strategy)
+			}
+		}
+		return strategies, &PageMeta{Total: resp.ListAppAuthStrategiesResponse.Meta.Page.Total}, nil
+	}
+
+	return PaginateAll(ctx, lister)
+}
+
 // extractAuthStrategyFromUnion extracts a normalized auth strategy from the SDK union type
 func (c *Client) extractAuthStrategyFromUnion(s kkComps.AppAuthStrategy) *ApplicationAuthStrategy {
 	if s.AppAuthStrategyKeyAuthResponseAppAuthStrategyKeyAuthResponse != nil {

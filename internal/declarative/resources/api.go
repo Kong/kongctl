@@ -9,19 +9,23 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeAPI,
 		func(rs *ResourceSet) *[]APIResource { return &rs.APIs },
 		AutoExplain[APIResource](
 			WithExplainSchemaBuilder(apiExplainNode),
 		),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 	)
 }
+
+func (a *APIResource) GetExternalBlock() *ExternalBlock { return a.External }
 
 // APIResource represents an API in declarative configuration
 type APIResource struct {
 	BaseResource
 	kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
+	External                 *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 
 	// Nested child resources
 	Versions        []APIVersionResource        `yaml:"versions,omitempty"        json:"versions,omitempty"`
@@ -88,16 +92,22 @@ func (a APIResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid API ref: %w", err)
 	}
+	if err := a.External.Validate(); err != nil {
+		return fmt.Errorf("invalid _external block: %w", err)
+	}
 	return nil
 }
 
 // SetDefaults applies default values to API resource
 func (a *APIResource) SetDefaults() {
 	// If Name is not set, use ref as default
-	if a.Name == "" {
+	if !a.IsExternal() && a.Name == "" {
 		a.Name = a.Ref
 	}
 }
+
+// IsExternal returns true when the API is resolved but not managed by kongctl.
+func (a APIResource) IsExternal() bool { return a.External.IsExternal() }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup
 func (a APIResource) GetKonnectMonikerFilter() string {
@@ -106,5 +116,14 @@ func (a APIResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource.
 func (a *APIResource) TryMatchKonnectResource(konnectResource any) bool {
-	return a.TryMatchByName(a.Name, konnectResource, matchOptions{sdkType: "APIResponseSchema"})
+	id, ok := tryMatchByNameWithExternal(
+		a.Name,
+		konnectResource,
+		matchOptions{sdkType: "APIResponseSchema"},
+		a.External,
+	)
+	if ok {
+		a.SetKonnectID(id)
+	}
+	return ok
 }

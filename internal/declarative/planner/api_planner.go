@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/attributes"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -98,7 +99,11 @@ func (p *Planner) planAPIChanges(
 
 	// Fetch current managed APIs from the specific namespace
 	namespaceFilter := []string{namespace}
-	currentAPIs, err := p.listManagedAPIs(ctx, namespaceFilter)
+	var currentAPIs []state.API
+	var err error
+	if namespace != resources.NamespaceExternal {
+		currentAPIs, err = p.listManagedAPIs(ctx, namespaceFilter)
+	}
 	if err != nil {
 		// If API client is not configured, skip API planning
 		if err.Error() == "API client not configured" {
@@ -117,6 +122,16 @@ func (p *Planner) planAPIChanges(
 	if plan.Metadata.Mode == PlanModeDelete {
 		var protectionErrors []error
 		for _, desiredAPI := range desired {
+			if desiredAPI.IsExternal() {
+				apiID := desiredAPI.GetKonnectID()
+				if apiID == "" {
+					return fmt.Errorf("external API %q does not have a resolved Konnect ID", desiredAPI.GetRef())
+				}
+				if err := p.planExternalAPIChildDeletes(ctx, desiredAPI, apiID, plan); err != nil {
+					return fmt.Errorf("failed to plan deletes beneath external API %q: %w", desiredAPI.GetRef(), err)
+				}
+				continue
+			}
 			current, exists := currentByName[desiredAPI.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
@@ -148,6 +163,16 @@ func (p *Planner) planAPIChanges(
 
 	// Compare each desired API
 	for _, desiredAPI := range desired {
+		if desiredAPI.IsExternal() {
+			if desiredAPI.GetKonnectID() == "" {
+				return fmt.Errorf("external API %q does not have a resolved Konnect ID", desiredAPI.GetRef())
+			}
+			current := state.API{APIResponseSchema: kkComps.APIResponseSchema{ID: desiredAPI.GetKonnectID()}}
+			if err := p.planAPIChildResourceChanges(ctx, plannerCtx, current, desiredAPI, plan); err != nil {
+				return err
+			}
+			continue
+		}
 		current, exists := currentByName[desiredAPI.Name]
 
 		if !exists {
@@ -222,7 +247,9 @@ func (p *Planner) planAPIChanges(
 		// Build set of desired API names
 		desiredNames := make(map[string]bool)
 		for _, api := range desired {
-			desiredNames[api.Name] = true
+			if !api.IsExternal() {
+				desiredNames[api.Name] = true
+			}
 		}
 
 		// Find managed APIs not in desired state
@@ -249,6 +276,126 @@ func (p *Planner) planAPIChanges(
 	}
 
 	return nil
+}
+
+// planExternalAPIChildDeletes deletes only descendants explicitly present in a
+// delete manifest. The external API itself remains outside kongctl's lifecycle.
+func (p *Planner) planExternalAPIChildDeletes(
+	ctx context.Context,
+	desiredAPI resources.APIResource,
+	apiID string,
+	plan *Plan,
+) error {
+	parentNamespace := DefaultNamespace
+	if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Namespace != nil {
+		parentNamespace = *desiredAPI.Kongctl.Namespace
+	}
+	apiRef := desiredAPI.GetRef()
+
+	desiredVersions := p.getAPIVersionsForAPI(desiredAPI)
+	if len(desiredVersions) > 0 {
+		currentVersions, err := p.client.ListAPIVersions(ctx, apiID)
+		if err != nil {
+			return fmt.Errorf("failed to list API versions: %w", err)
+		}
+		versionsByName := make(map[string]state.APIVersion, len(currentVersions))
+		for _, version := range currentVersions {
+			versionsByName[version.Version] = version
+		}
+		for _, desired := range desiredVersions {
+			if desired.Version == nil {
+				continue
+			}
+			if current, ok := versionsByName[*desired.Version]; ok {
+				p.planAPIVersionDelete(parentNamespace, apiRef, apiID, current.ID, current.Version, plan)
+			}
+		}
+	}
+
+	desiredPublications := p.getAPIPublicationsForAPI(desiredAPI)
+	if len(desiredPublications) > 0 {
+		currentPublications, err := p.client.ListAPIPublications(ctx, apiID)
+		if err != nil {
+			return fmt.Errorf("failed to list API publications: %w", err)
+		}
+		publicationsByPortalID := make(map[string]state.APIPublication, len(currentPublications))
+		for _, publication := range currentPublications {
+			publicationsByPortalID[publication.PortalID] = publication
+		}
+		for _, desired := range desiredPublications {
+			portalID, portalRef := p.resolveDesiredPublicationPortal(desired)
+			if current, ok := publicationsByPortalID[portalID]; ok {
+				p.planAPIPublicationDelete(parentNamespace, apiRef, apiID, portalID, portalRef, current, plan)
+			}
+		}
+	}
+
+	desiredImplementations := p.getAPIImplementationsForAPI(desiredAPI)
+	if len(desiredImplementations) > 0 {
+		currentImplementations, err := p.client.ListAPIImplementations(ctx, apiID)
+		if err != nil {
+			return fmt.Errorf("failed to list API implementations: %w", err)
+		}
+		implementationsByService := make(map[string]state.APIImplementation)
+		implementationsByControlPlane := make(map[string]state.APIImplementation)
+		for _, implementation := range currentImplementations {
+			if implementation.Service != nil {
+				key := fmt.Sprintf("%s:%s", implementation.Service.ID, implementation.Service.ControlPlaneID)
+				implementationsByService[key] = implementation
+			}
+			if implementation.ControlPlane != nil {
+				implementationsByControlPlane[implementation.ControlPlane.ID] = implementation
+			}
+		}
+		for _, desired := range desiredImplementations {
+			if service := desired.ServiceReference.GetService(); service != nil {
+				key := fmt.Sprintf("%s:%s", service.ID, service.ControlPlaneID)
+				if current, ok := implementationsByService[key]; ok {
+					p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
+				}
+			}
+			if controlPlane := desired.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
+				if current, ok := implementationsByControlPlane[controlPlane.ID]; ok {
+					p.planAPIImplementationDelete(parentNamespace, apiRef, apiID, current, plan)
+				}
+			}
+		}
+	}
+
+	desiredDocuments := p.getAPIDocumentsForAPI(desiredAPI)
+	if len(desiredDocuments) > 0 {
+		currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
+		if err != nil {
+			return fmt.Errorf("failed to list API documents: %w", err)
+		}
+		documentLookup := p.buildAPIDocumentLookup(desiredDocuments)
+		documentIndex := newAPIDocumentStateIndex(currentDocuments)
+		for _, desired := range desiredDocuments {
+			path := documentLookup.paths[desired.GetRef()]
+			if path == "" && desired.Slug != nil {
+				path = strings.TrimPrefix(*desired.Slug, "/")
+			}
+			if current, ok := documentIndex.getByPath(path); ok {
+				p.planAPIDocumentDelete(parentNamespace, apiRef, apiID, current.ID, path, plan)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (p *Planner) resolveDesiredPublicationPortal(
+	publication resources.APIPublicationResource,
+) (portalID string, portalRef string) {
+	portalID = publication.PortalID
+	portalRef = publication.PortalID
+	if parsedRef, _, ok := tags.ParseRefPlaceholder(publication.PortalID); ok {
+		portalRef = parsedRef
+	}
+	if portal := p.resources.GetPortalByRef(portalRef); portal != nil && portal.GetKonnectID() != "" {
+		portalID = portal.GetKonnectID()
+	}
+	return portalID, portalRef
 }
 
 // extractAPIFields extracts fields from an API resource for planner operations
@@ -802,6 +949,9 @@ func (p *Planner) planAPIVersionChanges(
 
 	// In sync mode, delete unmanaged versions
 	if plan.Metadata.Mode == PlanModeSync {
+		if p.isExternalAPI(apiRef) {
+			return nil
+		}
 		// Check if there are extracted versions for this API that will be processed later
 		hasExtractedVersions := false
 		for _, ver := range p.resources.GetAPIVersionsByNamespace(parentNamespace) {
@@ -1070,6 +1220,9 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// In sync mode, delete unmanaged publications
 	if plan.Metadata.Mode == PlanModeSync {
+		if p.isExternalAPI(apiRef) {
+			return nil
+		}
 		// Check if there are extracted publications for this API that will be processed later
 		hasExtractedPublications := false
 		for _, pub := range p.resources.GetAPIPublicationsByNamespace(parentNamespace) {
@@ -1559,6 +1712,9 @@ func (p *Planner) planAPIImplementationChanges(
 
 	// In sync mode, delete unmanaged implementations
 	if plan.Metadata.Mode == PlanModeSync {
+		if p.isExternalAPI(apiRef) {
+			return nil
+		}
 		// Check if there are extracted implementations for this API that will be processed later
 		hasExtractedImplementations := false
 		for _, impl := range p.resources.GetAPIImplementationsByNamespace(parentNamespace) {
@@ -1782,6 +1938,9 @@ func (p *Planner) planAPIDocumentChanges(
 
 	// In sync mode, delete unmanaged documents
 	if plan.Metadata.Mode == PlanModeSync {
+		if p.isExternalAPI(apiRef) {
+			return nil
+		}
 		remaining := stateIndex.unprocessed()
 		for path, current := range remaining {
 			p.planAPIDocumentDelete(parentNamespace, apiRef, apiID, current.ID, path, plan)
@@ -1789,6 +1948,11 @@ func (p *Planner) planAPIDocumentChanges(
 	}
 
 	return nil
+}
+
+func (p *Planner) isExternalAPI(apiRef string) bool {
+	api := p.resources.GetAPIByRef(apiRef)
+	return api != nil && api.IsExternal()
 }
 
 func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired resources.APIDocumentResource) bool {

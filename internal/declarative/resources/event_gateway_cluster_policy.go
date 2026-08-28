@@ -143,7 +143,7 @@ func (e EventGatewayClusterPolicyResource) MarshalJSON() ([]byte, error) {
 		result["virtual_cluster"] = e.VirtualCluster
 	}
 	if e.EventGateway != "" {
-		result["event_gateway"] = e.EventGateway
+		result[SchemaFieldEventGateway] = e.EventGateway
 	}
 
 	return json.Marshal(result)

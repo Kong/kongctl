@@ -15,7 +15,9 @@ func init() {
 			WithExplainSchemaBuilder(eventGatewayVirtualClusterExplainNode),
 		),
 		ExternalResolutionRegistration{
-			ParentType: ResourceTypeEventGatewayControlPlane, AllowAnyStringSelector: true,
+			ParentType:             ResourceTypeEventGatewayControlPlane,
+			ParentFieldPath:        SchemaFieldEventGateway,
+			AllowAnyStringSelector: true,
 		},
 	)
 }

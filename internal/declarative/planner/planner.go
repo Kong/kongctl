@@ -486,8 +486,49 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	p.addUnresolvedReferenceWarnings(basePlan, rs)
 	p.applyDeferredEnvPlaceholders(basePlan, rs)
+	if err := validateNoExternalResourceChanges(basePlan, rs); err != nil {
+		return nil, err
+	}
 
 	return basePlan, nil
+}
+
+func validateNoExternalResourceChanges(plan *Plan, rs *resources.ResourceSet) error {
+	if plan == nil || rs == nil {
+		return nil
+	}
+	externalRefs := make(map[string]struct{})
+	externalIDs := make(map[string]struct{})
+	rs.ForEachResource(func(resource resources.Resource) bool {
+		external, ok := resource.(resources.ExternallyResolvableResource)
+		if !ok || external.GetExternalBlock() == nil {
+			return true
+		}
+		keyPrefix := string(resource.GetType()) + "|"
+		externalRefs[keyPrefix+resource.GetRef()] = struct{}{}
+		if resource.GetKonnectID() != "" {
+			externalIDs[keyPrefix+resource.GetKonnectID()] = struct{}{}
+		}
+		return true
+	})
+
+	for _, change := range plan.Changes {
+		if change.Action == ActionExternalTool {
+			continue
+		}
+		keyPrefix := change.ResourceType + "|"
+		_, refMatch := externalRefs[keyPrefix+change.ResourceRef]
+		_, idMatch := externalIDs[keyPrefix+change.ResourceID]
+		if refMatch || (change.ResourceID != "" && idMatch) {
+			return fmt.Errorf(
+				"planner invariant violated: external %s %q received %s change",
+				change.ResourceType,
+				change.ResourceRef,
+				change.Action,
+			)
+		}
+	}
+	return nil
 }
 
 func withPlannerHTTPLogContext(
@@ -974,12 +1015,7 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	if err := p.externalResolver.resolveInlineLookups(
 		ctx,
 		rs,
-		resources.ResourceTypeControlPlane,
-		resources.ResourceTypeEventGatewayControlPlane,
-		resources.ResourceTypePortal,
-		resources.ResourceTypeAIGateway,
-		resources.ResourceTypeAuditLogWebhookDestination,
-		resources.ResourceTypeOrganizationTeam,
+		resources.ExternalResolvableTypesByScope(false)...,
 	); err != nil {
 		return fmt.Errorf("failed to resolve inline external lookups: %w", err)
 	}
@@ -999,8 +1035,7 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 	if err := p.externalResolver.resolveInlineLookups(
 		ctx,
 		rs,
-		resources.ResourceTypeGatewayService,
-		resources.ResourceTypeEventGatewayVirtualCluster,
+		resources.ExternalResolvableTypesByScope(true)...,
 	); err != nil {
 		return fmt.Errorf("failed to resolve scoped inline external lookups: %w", err)
 	}
@@ -2634,29 +2669,14 @@ func (p *Planner) resolveAuthStrategyIdentities(
 // getResourceNamespaces extracts all unique namespaces from the desired resources
 func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	namespaceSet := make(map[string]bool)
-	hasExternalPortals := false
-	hasExternalControlPlanes := false
-	hasExternalEventGateways := false
-	hasExternalAIGateways := false
-	hasExternalOrganizationTeams := false
+	hasExternalResources := false
 
 	// External portals, control planes, event gateways, AI gateways, and
 	// organization teams all map to the external namespace instead of
 	// contributing their own.
 	_ = rs.ForEachNamespaceParticipant(func(pt resources.NamespaceParticipant) error {
 		if pt.External {
-			switch pt.Type { //nolint:exhaustive // only external-capable types set pt.External
-			case resources.ResourceTypePortal:
-				hasExternalPortals = true
-			case resources.ResourceTypeControlPlane:
-				hasExternalControlPlanes = true
-			case resources.ResourceTypeEventGatewayControlPlane:
-				hasExternalEventGateways = true
-			case resources.ResourceTypeAIGateway:
-				hasExternalAIGateways = true
-			case resources.ResourceTypeOrganizationTeam:
-				hasExternalOrganizationTeams = true
-			}
+			hasExternalResources = true
 			return nil
 		}
 		namespaceSet[resources.GetNamespace(*pt.Meta)] = true
@@ -2672,11 +2692,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	// Sort for consistent processing order
 	sort.Strings(namespaces)
 
-	if hasExternalPortals ||
-		hasExternalControlPlanes ||
-		hasExternalEventGateways ||
-		hasExternalAIGateways ||
-		hasExternalOrganizationTeams ||
+	if hasExternalResources ||
 		(p.externalResolver != nil && p.externalResolver.hasInlineParents) {
 		namespaces = append(namespaces, resources.NamespaceExternal)
 	}

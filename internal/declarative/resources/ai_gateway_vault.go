@@ -455,11 +455,11 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 func aiGatewayConfigStoreIDExplainNode() *ExplainNode {
 	node := explainStringNode("config-store-id")
 	node.RefKind = string(ResourceTypeAIGatewayConfigStore)
-	node.PreferredTag = "!ref"
+	node.PreferredTag = yamlTagRef
 	node.Relationship = &ExplainRelationship{
 		Target:       ResourceTypeAIGatewayConfigStore,
 		Kind:         RelationshipKindAPIForeignKey,
-		AcceptedTags: []string{"!ref"},
+		AcceptedTags: []string{yamlTagRef},
 	}
 	return node
 }

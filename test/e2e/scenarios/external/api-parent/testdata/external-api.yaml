@@ -1,0 +1,33 @@
+apis:
+  - ref: external-parent-api
+    _external:
+      selector:
+        matchFields:
+          name: External Parent API
+    versions:
+      - ref: external-parent-api-v1
+        version: v1
+        spec:
+          openapi: 3.0.0
+          info:
+            title: External Parent API
+            version: v1
+          paths: {}
+    publications:
+      - ref: external-parent-publication
+        portal_id: !lookup name:External Parent Portal
+        visibility: public
+        auth_strategy_ids:
+          - !lookup name:external-parent-auth
+
+organization:
+  teams:
+    - ref: external-api-consumers
+      name: external-api-consumers
+      description: Team with access to an externally managed API
+      roles:
+        - ref: external-api-viewer
+          role_name: Viewer
+          entity_id: !lookup name:External Parent API
+          entity_type_name: APIs
+          entity_region: us
