@@ -1649,6 +1649,16 @@ func (e *Executor) syncResolvedAPIPublicationAuthStrategyIDs(
 		if resolvedIDs[i] != "" {
 			continue
 		}
+		lookupRef := ref
+		if tags.IsRefPlaceholder(lookupRef) {
+			if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+				lookupRef = parsedRef
+			}
+		}
+		if id, ok := e.getRefAny(planner.ResourceTypeApplicationAuthStrategy, lookupRef, ref); ok {
+			resolvedIDs[i] = id
+			continue
+		}
 		if util.IsValidUUID(ref) {
 			resolvedIDs[i] = ref
 			continue
