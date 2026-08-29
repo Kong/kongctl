@@ -1,0 +1,4 @@
+apis:
+  - ref: control-plane-api
+    name: "E2E Control Plane Implementation API"
+    implementations: []
