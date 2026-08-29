@@ -269,7 +269,7 @@ func loadAPIImplementations(_ context.Context, helper cmd.Helper, parent any) (t
 	rows := make([]table.Row, len(implementations))
 	for i := range implementations {
 		record := implementationToRecord(implementations[i])
-		rows[i] = table.Row{record.ImplementationID, record.ServiceID}
+		rows[i] = table.Row{record.ImplementationID, record.ServiceID, record.ControlPlaneID}
 	}
 
 	detail := func(index int) string {
@@ -280,7 +280,7 @@ func loadAPIImplementations(_ context.Context, helper cmd.Helper, parent any) (t
 	}
 
 	return tableview.ChildView{
-		Headers:        []string{"IMPLEMENTATION", "SERVICE"},
+		Headers:        []string{"IMPLEMENTATION", "SERVICE", "CONTROL PLANE"},
 		Rows:           rows,
 		DetailRenderer: detail,
 		Title:          "Implementations",
