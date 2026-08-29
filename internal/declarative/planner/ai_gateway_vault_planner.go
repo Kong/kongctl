@@ -245,7 +245,6 @@ func comparableAIGatewayVaultPayloads(current, desired map[string]any) (map[stri
 		current,
 		desired,
 		normalizeAIGatewayPayloadsForComparison,
-		scrubAIGatewayVaultWriteOnlyFields,
 		isAIGatewayVaultWriteOnlyField,
 	)
 }
@@ -273,28 +272,7 @@ func normalizeAIGatewayVaultConfigStoreReferenceForComparison(
 }
 
 func scrubAIGatewayVaultWriteOnlyFields(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(typed))
-		for key, val := range typed {
-			if isAIGatewayVaultWriteOnlyField(key) {
-				if references, ok := projectPublicVaultReferences(val); ok {
-					result[key] = references
-				}
-				continue
-			}
-			result[key] = scrubAIGatewayVaultWriteOnlyFields(val)
-		}
-		return result
-	case []any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = scrubAIGatewayVaultWriteOnlyFields(typed[i])
-		}
-		return result
-	default:
-		return value
-	}
+	return scrubAIGatewayWriteOnlyFields(value, isAIGatewayVaultWriteOnlyField)
 }
 
 func isAIGatewayVaultWriteOnlyField(key string) bool {

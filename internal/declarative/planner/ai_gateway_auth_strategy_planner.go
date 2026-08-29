@@ -2,7 +2,6 @@ package planner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -353,7 +352,6 @@ func comparableAIGatewayAuthStrategyConfigs(current, desired map[string]any) (ma
 		current,
 		desired,
 		normalizeAIGatewayAuthStrategyConfigsForComparison,
-		scrubAIGatewayAuthStrategySecretFields,
 		isAIGatewayAuthStrategySecretField,
 	)
 }
@@ -362,8 +360,8 @@ func normalizeAIGatewayAuthStrategyConfigsForComparison(
 	current map[string]any,
 	desired map[string]any,
 ) (map[string]any, map[string]any) {
-	currentComparable := normalizeAuthStrategyConfigForCompare(current)
-	desiredComparable := normalizeAuthStrategyConfigForCompare(desired)
+	currentComparable := normalizeAIGatewayJSONMap(current)
+	desiredComparable := normalizeAIGatewayJSONMap(desired)
 	projectAIGatewayAuthStrategyConfigForComparison(currentComparable, desiredComparable)
 	return currentComparable, desiredComparable
 }
@@ -387,11 +385,11 @@ func projectAIGatewayAuthStrategyConfigForComparison(currentCompare map[string]a
 }
 
 func mergeAIGatewayAuthStrategyConfig(current, desired map[string]any) map[string]any {
-	merged := normalizeAuthStrategyConfigForCompare(current)
+	merged := normalizeAIGatewayJSONMap(current)
 	if merged == nil {
 		merged = make(map[string]any)
 	}
-	mergeAIGatewayAuthStrategyConfigValues(merged, normalizeAuthStrategyConfigForCompare(desired))
+	mergeAIGatewayAuthStrategyConfigValues(merged, normalizeAIGatewayJSONMap(desired))
 	return merged
 }
 
@@ -404,46 +402,6 @@ func mergeAIGatewayAuthStrategyConfigValues(current, desired map[string]any) {
 			continue
 		}
 		current[key] = desiredValue
-	}
-}
-
-func normalizeAuthStrategyConfigForCompare(config map[string]any) map[string]any {
-	if config == nil {
-		return nil
-	}
-	data, err := json.Marshal(config)
-	if err != nil {
-		return config
-	}
-	var normalized map[string]any
-	if err := json.Unmarshal(data, &normalized); err != nil {
-		return config
-	}
-	return normalized
-}
-
-func scrubAIGatewayAuthStrategySecretFields(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(typed))
-		for key, val := range typed {
-			if isAIGatewayAuthStrategySecretField(key) {
-				if references, ok := projectPublicVaultReferences(val); ok {
-					result[key] = references
-				}
-				continue
-			}
-			result[key] = scrubAIGatewayAuthStrategySecretFields(val)
-		}
-		return result
-	case []any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = scrubAIGatewayAuthStrategySecretFields(typed[i])
-		}
-		return result
-	default:
-		return value
 	}
 }
 

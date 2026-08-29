@@ -584,8 +584,7 @@ func resolveAuditLogHeadersAndRows(helper cmd.Helper, records []json.RawMessage)
 		return nil, nil, err
 	}
 	if len(selected) > 0 {
-		headers, rows, err := columns.Project(records, selected)
-		return headers, rows, err
+		return columns.Project(records, selected)
 	}
 
 	headers := []string{"TIMESTAMP", "TYPE", "PRINCIPAL", "ACTION", "RESULT", "TRACE ID"}

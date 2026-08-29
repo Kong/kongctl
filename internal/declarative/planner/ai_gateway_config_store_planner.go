@@ -35,18 +35,10 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 			storeChangeID := p.planAIGatewayConfigStoreCreate(
 				namespace, gatewayRef, gatewayName, "", store, dependsOn, plan,
 			)
-			secrets := p.resources.GetAIGatewayConfigStoreSecretsForStore(store.Ref)
-			if p.shouldPlanChild(
-				plan,
-				resources.ResourceTypeAIGatewayConfigStore,
-				store.Ref,
-				resources.ResourceTypeAIGatewayConfigStoreSecret,
-			) && (len(secrets) > 0 || plan.Metadata.Mode == PlanModeSync) {
-				if err := p.planAIGatewayConfigStoreSecretChanges(
-					ctx, namespace, gatewayRef, "", store.Ref, "", storeChangeID, secrets, plan,
-				); err != nil {
-					return err
-				}
+			if err := p.planAIGatewayConfigStoreSecretChangesIfNeeded(
+				ctx, namespace, gatewayRef, "", store.Ref, "", storeChangeID, plan,
+			); err != nil {
+				return err
 			}
 		}
 		return nil
@@ -75,26 +67,10 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 				nil,
 				plan,
 			)
-			secrets := p.resources.GetAIGatewayConfigStoreSecretsForStore(desiredStore.Ref)
-			if p.shouldPlanChild(
-				plan,
-				resources.ResourceTypeAIGatewayConfigStore,
-				desiredStore.Ref,
-				resources.ResourceTypeAIGatewayConfigStoreSecret,
-			) && (len(secrets) > 0 || plan.Metadata.Mode == PlanModeSync) {
-				if err := p.planAIGatewayConfigStoreSecretChanges(
-					ctx,
-					namespace,
-					gatewayRef,
-					gatewayID,
-					desiredStore.Ref,
-					"",
-					storeChangeID,
-					secrets,
-					plan,
-				); err != nil {
-					return err
-				}
+			if err := p.planAIGatewayConfigStoreSecretChangesIfNeeded(
+				ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, "", storeChangeID, plan,
+			); err != nil {
+				return err
 			}
 			continue
 		}
@@ -134,26 +110,10 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 			})
 		}
 
-		secrets := p.resources.GetAIGatewayConfigStoreSecretsForStore(desiredStore.Ref)
-		if p.shouldPlanChild(
-			plan,
-			resources.ResourceTypeAIGatewayConfigStore,
-			desiredStore.Ref,
-			resources.ResourceTypeAIGatewayConfigStoreSecret,
-		) && (len(secrets) > 0 || plan.Metadata.Mode == PlanModeSync) {
-			if err := p.planAIGatewayConfigStoreSecretChanges(
-				ctx,
-				namespace,
-				gatewayRef,
-				gatewayID,
-				desiredStore.Ref,
-				current.ID,
-				"",
-				secrets,
-				plan,
-			); err != nil {
-				return err
-			}
+		if err := p.planAIGatewayConfigStoreSecretChangesIfNeeded(
+			ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, current.ID, "", plan,
+		); err != nil {
+			return err
 		}
 	}
 
@@ -175,6 +135,30 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 		}
 	}
 	return nil
+}
+
+func (p *Planner) planAIGatewayConfigStoreSecretChangesIfNeeded(
+	ctx context.Context,
+	namespace string,
+	gatewayRef string,
+	gatewayID string,
+	storeRef string,
+	storeID string,
+	storeChangeID string,
+	plan *Plan,
+) error {
+	secrets := p.resources.GetAIGatewayConfigStoreSecretsForStore(storeRef)
+	if !p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGatewayConfigStore,
+		storeRef,
+		resources.ResourceTypeAIGatewayConfigStoreSecret,
+	) || (len(secrets) == 0 && plan.Metadata.Mode != PlanModeSync) {
+		return nil
+	}
+	return p.planAIGatewayConfigStoreSecretChanges(
+		ctx, namespace, gatewayRef, gatewayID, storeRef, storeID, storeChangeID, secrets, plan,
+	)
 }
 
 func (p *Planner) planAIGatewayConfigStoreCreate(

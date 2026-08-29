@@ -114,10 +114,7 @@ func (i APIImplementationResource) Validate() error {
 
 	service := i.getService()
 	controlPlane := i.getControlPlane()
-	if service != nil && controlPlane != nil {
-		return fmt.Errorf("API implementation must define exactly one of service or control_plane")
-	}
-	if service == nil && controlPlane == nil {
+	if (service == nil) == (controlPlane == nil) {
 		return fmt.Errorf("API implementation must define exactly one of service or control_plane")
 	}
 
