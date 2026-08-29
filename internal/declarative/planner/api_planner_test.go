@@ -421,3 +421,43 @@ func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
 	assert.Empty(t, fields)
 	assert.Empty(t, changedFields)
 }
+
+func TestPlanAPIPublicationUpdateAlignsAuthStrategyLookupNames(t *testing.T) {
+	t.Parallel()
+
+	authStrategy := resources.ApplicationAuthStrategyResource{
+		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(
+			kkComps.AppAuthStrategyKeyAuthRequest{
+				Name:         "my-api-key-auth",
+				StrategyType: kkComps.StrategyTypeKeyAuth,
+			},
+		),
+		BaseResource: resources.BaseResource{Ref: "key-auth"},
+	}
+	planner := &Planner{
+		resources: &resources.ResourceSet{
+			ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{authStrategy},
+		},
+	}
+	authStrategyIDs := []string{
+		"a86aec1e-f67f-4624-919f-b11292b11159",
+		tags.RefPlaceholderPrefix + "key-auth#id",
+	}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+
+	planner.planAPIPublicationUpdate(
+		DefaultNamespace,
+		"api",
+		"api-id",
+		state.APIPublication{PortalID: "portal-id"},
+		resources.APIPublicationResource{Ref: "publication", PortalID: "portal-id"},
+		map[string]any{FieldAuthStrategyIDs: authStrategyIDs},
+		map[string]FieldChange{},
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 1)
+	reference := plan.Changes[0].References[FieldAuthStrategyIDs]
+	require.Equal(t, authStrategyIDs, reference.Refs)
+	require.Equal(t, []string{"", "my-api-key-auth"}, reference.LookupArrays["names"])
+}

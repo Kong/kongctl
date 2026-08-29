@@ -1368,23 +1368,12 @@ func (p *Planner) planAPIPublicationCreate(
 
 	// Set up auth_strategy_ids references (array)
 	if len(publication.AuthStrategyIds) > 0 {
-		// Look up names for each auth strategy reference
-		var authStrategyNames []string
-		for _, ref := range publication.AuthStrategyIds {
-			// Find the auth strategy in desired state using global lookup
-			var strategyName string
-			if strategy := p.resources.GetAuthStrategyByRef(ref); strategy != nil {
-				strategyName = p.getAuthStrategyName(*strategy)
-			}
-			authStrategyNames = append(authStrategyNames, strategyName)
-		}
-
 		// Set up array reference with lookup names
 		change.References[FieldAuthStrategyIDs] = ReferenceInfo{
 			Refs:    publication.AuthStrategyIds,
 			IsArray: true,
 			LookupArrays: map[string][]string{
-				"names": authStrategyNames,
+				"names": p.authStrategyLookupNames(publication.AuthStrategyIds),
 			},
 		}
 	}
@@ -1505,26 +1494,36 @@ func (p *Planner) planAPIPublicationUpdate(
 
 	// Handle auth strategy references if they are being updated
 	if authStrategyIDs, ok := updateFields[FieldAuthStrategyIDs].([]string); ok && len(authStrategyIDs) > 0 {
-		// Extract auth strategy names for lookup
-		authStrategyNames := make([]string, 0, len(authStrategyIDs))
-		for _, strategyRef := range authStrategyIDs {
-			// Find the auth strategy by ref to get its name using global lookup
-			if strategy := p.resources.GetAuthStrategyByRef(strategyRef); strategy != nil {
-				authStrategyNames = append(authStrategyNames, p.getAuthStrategyName(*strategy))
-			}
-		}
-
 		// Set auth strategy array reference
 		change.References[FieldAuthStrategyIDs] = ReferenceInfo{
 			Refs:    authStrategyIDs,
 			IsArray: true,
 			LookupArrays: map[string][]string{
-				"names": authStrategyNames,
+				"names": p.authStrategyLookupNames(authStrategyIDs),
 			},
 		}
 	}
 
 	plan.AddChange(change)
+}
+
+func (p *Planner) authStrategyLookupNames(refs []string) []string {
+	names := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		lookupRef := ref
+		if tags.IsRefPlaceholder(lookupRef) {
+			if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+				lookupRef = parsedRef
+			}
+		}
+
+		name := ""
+		if strategy := p.resources.GetAuthStrategyByRef(lookupRef); strategy != nil {
+			name = p.getAuthStrategyName(*strategy)
+		}
+		names = append(names, name)
+	}
+	return names
 }
 
 // shouldUpdateAPIPublication compares current and desired API publication to determine if update is needed
