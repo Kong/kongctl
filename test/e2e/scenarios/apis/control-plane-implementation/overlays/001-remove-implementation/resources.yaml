@@ -1,3 +1,19 @@
+_defaults:
+  kongctl:
+    namespace: api-control-plane-implementation
+
+control_planes:
+  - ref: api-implementation-cp
+    name: "e2e-api-implementation-cp"
+    description: "Control plane implementation E2E"
+    cluster_type: "CLUSTER_TYPE_SERVERLESS"
+    cloud_gateway: false
+    _deck:
+      files:
+        - "ace.yaml"
+      flags:
+        - "--analytics=false"
+
 apis:
   - ref: control-plane-api
     name: "E2E Control Plane Implementation API"
