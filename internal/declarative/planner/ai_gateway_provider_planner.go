@@ -330,34 +330,12 @@ func comparableAIGatewayProviderConfigs(current, desired map[string]any) (map[st
 		current,
 		desired,
 		normalizeAIGatewayPayloadsForComparison,
-		scrubAIGatewayProviderSecretFields,
 		isAIGatewayProviderSecretField,
 	)
 }
 
 func scrubAIGatewayProviderSecretFields(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(typed))
-		for key, val := range typed {
-			if isAIGatewayProviderSecretField(key) {
-				if references, ok := projectPublicVaultReferences(val); ok {
-					result[key] = references
-				}
-				continue
-			}
-			result[key] = scrubAIGatewayProviderSecretFields(val)
-		}
-		return result
-	case []any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = scrubAIGatewayProviderSecretFields(typed[i])
-		}
-		return result
-	default:
-		return value
-	}
+	return scrubAIGatewayWriteOnlyFields(value, isAIGatewayProviderSecretField)
 }
 
 func isAIGatewayProviderSecretField(key string) bool {

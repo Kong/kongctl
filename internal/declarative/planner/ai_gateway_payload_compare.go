@@ -79,6 +79,31 @@ func normalizeAIGatewayJSONMap(payload map[string]any) map[string]any {
 	return normalized
 }
 
+func scrubAIGatewayWriteOnlyFields(value any, isWriteOnly func(string) bool) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, child := range typed {
+			if isWriteOnly(key) {
+				if references, ok := projectPublicVaultReferences(child); ok {
+					result[key] = references
+				}
+				continue
+			}
+			result[key] = scrubAIGatewayWriteOnlyFields(child, isWriteOnly)
+		}
+		return result
+	case []any:
+		result := make([]any, len(typed))
+		for i := range typed {
+			result[i] = scrubAIGatewayWriteOnlyFields(typed[i], isWriteOnly)
+		}
+		return result
+	default:
+		return value
+	}
+}
+
 func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
@@ -119,15 +144,11 @@ func comparableAIGatewayWriteOnlyPayloads(
 	current map[string]any,
 	desired map[string]any,
 	normalize aiGatewayPayloadPairNormalizer,
-	scrub func(any) any,
 	isWriteOnlyField func(string) bool,
 ) (map[string]any, map[string]any) {
-	currentComparable, desiredComparable := scrubbedAIGatewayWriteOnlyPayloads(
-		current,
-		desired,
-		normalize,
-		scrub,
-	)
+	currentComparable, desiredComparable := normalize(current, desired)
+	currentComparable = scrubAIGatewayWriteOnlyFields(currentComparable, isWriteOnlyField).(map[string]any)
+	desiredComparable = scrubAIGatewayWriteOnlyFields(desiredComparable, isWriteOnlyField).(map[string]any)
 	pruneUnpairedAIGatewayWriteOnlyReferences(currentComparable, desiredComparable, isWriteOnlyField)
 	return currentComparable, desiredComparable
 }

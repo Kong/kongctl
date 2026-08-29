@@ -131,26 +131,9 @@ func (h aiGatewayConfigStoresHandler) run(args []string) error {
 	if err != nil {
 		return err
 	}
-	gatewayID, gatewayName := getAIGatewayIdentifiers(cfg)
-	if gatewayID != "" && gatewayName != "" {
-		return &cmd.ConfigurationError{Err: fmt.Errorf(
-			"only one of --%s or --%s can be provided",
-			aiGatewayIDFlagName,
-			aiGatewayNameFlagName,
-		)}
-	}
-	if gatewayID == "" && gatewayName == "" {
-		return &cmd.ConfigurationError{Err: fmt.Errorf(
-			"an AI Gateway identifier is required. Provide --%s or --%s",
-			aiGatewayIDFlagName,
-			aiGatewayNameFlagName,
-		)}
-	}
-	if gatewayID == "" {
-		gatewayID, err = resolveAIGatewayIDByName(gatewayName, sdk.GetAIGatewayAPI(), helper, cfg)
-		if err != nil {
-			return err
-		}
+	gatewayID, err := resolveRequiredAIGatewayID(cfg, sdk.GetAIGatewayAPI(), helper)
+	if err != nil {
+		return err
 	}
 	api := sdk.GetAIGatewayConfigStoresAPI()
 	if api == nil {

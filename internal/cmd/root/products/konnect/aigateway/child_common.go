@@ -5,6 +5,7 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -300,6 +301,32 @@ func bindAIGatewayChildFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(cfg, aiGatewayIDConfigPath, aiGatewayNameConfigPath)
+}
+
+func resolveRequiredAIGatewayID(
+	cfg config.Hook,
+	gatewayAPI helpers.AIGatewayAPI,
+	helper cmd.Helper,
+) (string, error) {
+	gatewayID, gatewayName := getAIGatewayIdentifiers(cfg)
+	if gatewayID != "" && gatewayName != "" {
+		return "", &cmd.ConfigurationError{Err: fmt.Errorf(
+			"only one of --%s or --%s can be provided",
+			aiGatewayIDFlagName,
+			aiGatewayNameFlagName,
+		)}
+	}
+	if gatewayID == "" && gatewayName == "" {
+		return "", &cmd.ConfigurationError{Err: fmt.Errorf(
+			"an AI Gateway identifier is required. Provide --%s or --%s",
+			aiGatewayIDFlagName,
+			aiGatewayNameFlagName,
+		)}
+	}
+	if gatewayID != "" {
+		return gatewayID, nil
+	}
+	return resolveAIGatewayIDByName(gatewayName, gatewayAPI, helper, cfg)
 }
 
 func addAIGatewayProviderFlags(c *cobra.Command) {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/deck"
@@ -59,8 +60,8 @@ func (p *Planner) planDeckDependencies(ctx context.Context, rs *resources.Resour
 			cpName = resolved
 		}
 
-		deckFiles := cloneStringSlice(cp.Deck.Files)
-		deckFlags := cloneStringSlice(cp.Deck.Flags)
+		deckFiles := slices.Clone(cp.Deck.Files)
+		deckFlags := slices.Clone(cp.Deck.Flags)
 		deckBaseDir := strings.TrimSpace(cp.DeckBaseDir())
 
 		if cpCreateID == "" && cpID != "" {
@@ -494,15 +495,6 @@ func (p *Planner) resolveDeckControlPlaneName(ctx context.Context, controlPlaneI
 	}
 
 	return cp.Name, nil
-}
-
-func cloneStringSlice(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	out := make([]string, len(values))
-	copy(out, values)
-	return out
 }
 
 func deckRunErrorSuffix(result *deck.RunResult) string {
