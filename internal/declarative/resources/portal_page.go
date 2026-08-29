@@ -13,6 +13,7 @@ func init() {
 		ResourceTypePortalPage,
 		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
 		AutoExplain[PortalPageResource](),
+		WithExternalUnsupportedReason("scoped portal page lookup is planned for Portal domain enablement"),
 	)
 	registerResourceType(
 		ResourceTypePortalSnippet,

@@ -12,6 +12,7 @@ func init() {
 		ResourceTypePortalTeam,
 		func(rs *ResourceSet) *[]PortalTeamResource { return &rs.PortalTeams },
 		AutoExplain[PortalTeamResource](),
+		WithExternalUnsupportedReason("portal team lookup requires a portal-scoped list adapter"),
 	)
 }
 

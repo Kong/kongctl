@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAPIResourceInterface(t *testing.T) {
@@ -33,6 +34,21 @@ func TestAPIResourceInterface(t *testing.T) {
 	if deps := api.GetDependencies(); len(deps) != 0 {
 		t.Errorf("GetDependencies() = %v, want empty", deps)
 	}
+}
+
+func TestAPIResourceExternalDoesNotDefaultManagedName(t *testing.T) {
+	t.Parallel()
+
+	api := APIResource{
+		BaseResource: BaseResource{Ref: "shared-api"},
+		External: &ExternalBlock{Selector: &ExternalSelector{
+			MatchFields: map[string]string{"name": "Shared API"},
+		}},
+	}
+	api.SetDefaults()
+	require.True(t, api.IsExternal())
+	require.Empty(t, api.Name)
+	require.NoError(t, api.Validate())
 }
 
 func TestAPIResourceLabels(t *testing.T) {

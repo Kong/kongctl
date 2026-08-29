@@ -18,6 +18,9 @@ const (
 	explainKindObject     = "object"
 	explainKindString     = "string"
 	explainKindInteger    = "integer"
+	yamlTagRef            = "!ref"
+	yamlTagExternal       = "!external"
+	yamlTagLookup         = "!lookup"
 	explainKindBoolean    = "boolean"
 
 	explainResourceClassTopLevel = "top-level"
@@ -179,12 +182,16 @@ func (s *JSONSchema) LoadRejectedFieldMessage(name string) string {
 
 // ExplainRelationship describes the user-visible contract of a resource relationship field.
 type ExplainRelationship struct {
-	Target       ResourceType     `json:"target" yaml:"target"`
-	Kind         RelationshipKind `json:"kind" yaml:"kind"`
-	AcceptedTags []string         `json:"accepted_tags,omitempty" yaml:"accepted_tags,omitempty"`
-	Selectors    []string         `json:"selectors,omitempty" yaml:"selectors,omitempty"`
-	ScopeField   string           `json:"scope_field,omitempty" yaml:"scope_field,omitempty"`
-	RootOnly     bool             `json:"root_only,omitempty" yaml:"root_only,omitempty"`
+	Target              ResourceType            `json:"target,omitempty" yaml:"target,omitempty"`
+	Targets             []ResourceType          `json:"targets,omitempty" yaml:"targets,omitempty"`
+	TargetDiscriminator string                  `json:"target_discriminator,omitempty" yaml:"target_discriminator,omitempty"` //nolint:lll
+	Kind                RelationshipKind        `json:"kind" yaml:"kind"`
+	Cardinality         RelationshipCardinality `json:"cardinality" yaml:"cardinality"`
+	ResultField         RelationshipResultField `json:"result_field" yaml:"result_field"`
+	AcceptedTags        []string                `json:"accepted_tags,omitempty" yaml:"accepted_tags,omitempty"`
+	Selectors           []string                `json:"selectors,omitempty" yaml:"selectors,omitempty"`
+	ScopeField          string                  `json:"scope_field,omitempty" yaml:"scope_field,omitempty"`
+	RootOnly            bool                    `json:"root_only,omitempty" yaml:"root_only,omitempty"`
 }
 
 type ExplainSchemaSubject struct {
@@ -1016,31 +1023,59 @@ func applyRelationshipHints(rt ResourceType, node *ExplainNode) {
 			continue
 		}
 		metadata := &ExplainRelationship{
-			Target:     relationship.TargetType,
-			Kind:       relationship.Kind,
-			ScopeField: relationship.ScopeFieldPath,
-			RootOnly:   relationship.RootOnly,
+			Target:              relationship.TargetType,
+			Targets:             append([]ResourceType(nil), relationship.TargetTypes...),
+			TargetDiscriminator: relationship.TargetDiscriminatorFieldPath,
+			Kind:                relationship.Kind,
+			Cardinality:         relationship.Cardinality,
+			ResultField:         relationship.ResultField,
+			ScopeField:          relationship.ScopeFieldPath,
+			RootOnly:            relationship.RootOnly,
 		}
-		capability, supportsExternal := ExternalResolutionFor(relationship.TargetType)
+		capability, supportsExternal := relationshipExternalCapability(relationship)
 		if supportsExternal {
-			metadata.AcceptedTags = []string{"!ref", "!external", "!lookup"}
+			metadata.AcceptedTags = []string{yamlTagRef, yamlTagExternal, yamlTagLookup}
 			metadata.Selectors = append([]string(nil), capability.Selectors...)
 			if capability.AllowAnyStringSelector {
 				metadata.Selectors = []string{"<string field>"}
 			}
 		} else {
-			metadata.AcceptedTags = []string{"!ref"}
+			metadata.AcceptedTags = []string{yamlTagRef}
 		}
 		fieldNode.Relationship = metadata
 		fieldNode.RefKind = string(relationship.TargetType)
 		if fieldNode.PreferredTag == "" {
-			fieldNode.PreferredTag = "!ref"
+			fieldNode.PreferredTag = yamlTagRef
 		}
 		fieldNode.Notes = append(
 			fieldNode.Notes,
 			relationshipExplainNote(relationship.Kind, supportsExternal),
 		)
 	}
+}
+
+func relationshipExternalCapability(relationship RelationshipDescriptor) (ExternalResolutionRegistration, bool) {
+	if relationship.TargetType != "" {
+		return ExternalResolutionFor(relationship.TargetType)
+	}
+	if len(relationship.TargetTypes) == 0 {
+		return ExternalResolutionRegistration{}, false
+	}
+	var common []string
+	for i, targetType := range relationship.TargetTypes {
+		capability, ok := ExternalResolutionFor(targetType)
+		if !ok || capability.AllowAnyStringSelector {
+			return ExternalResolutionRegistration{}, false
+		}
+		if i == 0 {
+			common = append([]string(nil), capability.Selectors...)
+			continue
+		}
+		common = slices.DeleteFunc(common, func(selector string) bool {
+			return !slices.Contains(capability.Selectors, selector)
+		})
+	}
+	return ExternalResolutionRegistration{Selectors: common}, true
 }
 
 func relationshipExplainNote(kind RelationshipKind, supportsExternal bool) string {
@@ -1085,7 +1120,7 @@ func applyReferenceHints(rt ResourceType, node *ExplainNode) {
 			if fieldNode, ok := node.lookup(strings.Split(path, ".")); ok {
 				fieldNode.RefKind = kind
 				if fieldNode.PreferredTag == "" {
-					fieldNode.PreferredTag = "!ref"
+					fieldNode.PreferredTag = yamlTagRef
 				}
 				if fieldNode.Literal == "" {
 					fieldNode.Literal = fmt.Sprintf("!ref my-%s", strings.ReplaceAll(kind, "_", "-"))

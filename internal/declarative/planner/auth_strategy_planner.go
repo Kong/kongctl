@@ -35,6 +35,9 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 	// Get namespace from planner context
 	namespace := plannerCtx.Namespace
 	desired := p.GetDesiredAuthStrategies(namespace)
+	if namespace == resources.NamespaceExternal {
+		return nil
+	}
 
 	// Skip if no auth strategies to plan and not in sync mode
 	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {

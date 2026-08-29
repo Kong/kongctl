@@ -46,7 +46,7 @@ func (rs *ResourceSet) ForEachNamespaceParticipant(fn func(NamespaceParticipant)
 	}
 	for i := range rs.APIs {
 		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeAPI, Ref: rs.APIs[i].Ref,
+			Type: ResourceTypeAPI, Ref: rs.APIs[i].Ref, External: rs.APIs[i].IsExternal(),
 			SupportsProtected: true, Label: "api", Meta: &rs.APIs[i].Kongctl,
 		}); err != nil {
 			return err
@@ -75,7 +75,7 @@ func (rs *ResourceSet) ForEachNamespaceParticipant(fn func(NamespaceParticipant)
 		if err := fn(NamespaceParticipant{
 			Type: ResourceTypeEventGatewayControlPlane, Ref: rs.EventGatewayControlPlanes[i].Ref,
 			External: rs.EventGatewayControlPlanes[i].IsExternal(), SupportsProtected: true,
-			Label: "event_gateway", Meta: &rs.EventGatewayControlPlanes[i].Kongctl,
+			Label: SchemaFieldEventGateway, Meta: &rs.EventGatewayControlPlanes[i].Kongctl,
 		}); err != nil {
 			return err
 		}
@@ -83,6 +83,7 @@ func (rs *ResourceSet) ForEachNamespaceParticipant(fn func(NamespaceParticipant)
 	for i := range rs.ApplicationAuthStrategies {
 		if err := fn(NamespaceParticipant{
 			Type: ResourceTypeApplicationAuthStrategy, Ref: rs.ApplicationAuthStrategies[i].Ref,
+			External:          rs.ApplicationAuthStrategies[i].IsExternal(),
 			SupportsProtected: true, Label: "application_auth_strategy",
 			Meta: &rs.ApplicationAuthStrategies[i].Kongctl,
 		}); err != nil {

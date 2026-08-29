@@ -447,12 +447,37 @@ portals:
           name: "Shared Developer Portal"
 ```
 
+Catalog APIs and application auth strategies can also be declared external.
+An external API may contain managed versions, publications, implementations,
+and documents:
+
+```yaml
+apis:
+  - ref: shared-api
+    _external:
+      selector:
+        matchFields:
+          name: Shared API
+    versions:
+      - ref: shared-api-v2
+        version: v2
+        spec: !file ./openapi.yaml
+```
+
+The API itself remains outside kongctl management. The declared version is
+managed beneath the resolved API ID.
+
 Because kongctl does not own those resources:
-- External resources **cannot** declare `kongctl` metadata. Supplying `kongctl.namespace` or `kongctl.protected`
-  on an external resource results in a parsing error. File-level defaults are ignored for externals.
-- External references do **not** add their namespaces to sync planning. Only namespaces from managed parent
-  resources are considered when sync mode calculates deletes.
-- Child resources (portal pages, customizations, etc.) are still planned by resolving the external parent's Konnect ID.
+
+- External resources **cannot** declare `kongctl` metadata. Supplying
+  `kongctl.namespace` or `kongctl.protected` on an external resource results
+  in a parsing error. File-level defaults are ignored for externals.
+- External references do **not** add their namespaces to sync planning. Only
+  namespaces from managed parent resources are considered when sync mode
+  calculates deletes.
+- Child resources (portal pages, API versions, publications,
+  implementations, documents, etc.) are still planned by resolving the
+  external parent's Konnect ID.
   You do not need to (and cannot) assign a namespace to the external
   definition itself.
 
@@ -802,7 +827,7 @@ portal_id: !lookup
   name: !env PORTAL_NAME
 
 # Compact flow syntax
-control_plane: !external {name: !env CONTROL_PLANE_NAME}
+control_plane: !lookup {name: !env CONTROL_PLANE_NAME}
 ```
 
 Both scalar and map forms of the nested `!env` tag are supported. Multiple

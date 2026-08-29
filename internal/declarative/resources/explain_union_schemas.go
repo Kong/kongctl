@@ -118,7 +118,7 @@ func explainConstStringNode(value string) *ExplainNode {
 func explainRefField(name string, kind ResourceType, required bool) *ExplainField {
 	node := explainStringNode(fmt.Sprintf("!ref my-%s", stringsForResourceRef(kind)))
 	node.RefKind = string(kind)
-	node.PreferredTag = "!ref"
+	node.PreferredTag = yamlTagRef
 	return explainField(name, node, required, required)
 }
 
@@ -586,7 +586,7 @@ func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, er
 	hints := defaultExplainHints(ResourceTypeApplicationAuthStrategy)
 	hints["name"] = ExplainFieldHint{DefaultFrom: SchemaFieldRef, Literal: "my-resource", Recommended: new(true)}
 	hints["dcr_provider_id"] = ExplainFieldHint{
-		PreferredTag: "!ref",
+		PreferredTag: yamlTagRef,
 		RefKind:      string(ResourceTypeDCRProvider),
 		Literal:      "!ref my-dcr-provider",
 	}
@@ -608,11 +608,20 @@ func applicationAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, er
 	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "scopes"})
 	explainSetPathRequired(oidc, []string{"configs", "openid-connect", "auth_methods"})
 	explainAddPropertyAlias(oidc, []string{"configs"}, "openid-connect", "openid_connect")
+	external, err := autoExplainConcreteNode[ExternalBlock](nil)
+	if err != nil {
+		return nil, err
+	}
+	externalBranch := explainObject(
+		explainResourceRefField(),
+		explainField("_external", external, true, true),
+	)
 
 	common := []*ExplainField{explainResourceRefField(), explainKongctlField()}
 	return explainUnionNode(
 		explainWithCommonFields(keyAuth, common...),
 		explainWithCommonFields(oidc, common...),
+		externalBranch,
 	), nil
 }
 
@@ -681,7 +690,7 @@ func eventGatewaySchemaRegistryExplainNode(_ ExplainBuildContext) (*ExplainNode,
 	return explainUnionNode(explainWithCommonFields(
 		confluent,
 		explainResourceRefField(),
-		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+		explainRefField(SchemaFieldEventGateway, ResourceTypeEventGatewayControlPlane, false),
 	)), nil
 }
 
@@ -695,7 +704,7 @@ func eventGatewayClusterPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		acls,
 		explainResourceRefField(),
 		explainRefField("virtual_cluster", ResourceTypeEventGatewayVirtualCluster, false),
-		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+		explainRefField(SchemaFieldEventGateway, ResourceTypeEventGatewayControlPlane, false),
 	)), nil
 }
 
@@ -775,7 +784,7 @@ func eventGatewayVirtualClusterPolicyUnion(branches ...*ExplainNode) *ExplainNod
 	common := []*ExplainField{
 		explainResourceRefField(),
 		explainRefField("virtual_cluster", ResourceTypeEventGatewayVirtualCluster, false),
-		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+		explainRefField(SchemaFieldEventGateway, ResourceTypeEventGatewayControlPlane, false),
 	}
 	withCommon := make([]*ExplainNode, 0, len(branches))
 	for _, branch := range branches {
@@ -815,7 +824,7 @@ func eventGatewayListenerPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode,
 	common := []*ExplainField{
 		explainResourceRefField(),
 		explainRefField("listener", ResourceTypeEventGatewayListener, false),
-		explainRefField("event_gateway", ResourceTypeEventGatewayControlPlane, false),
+		explainRefField(SchemaFieldEventGateway, ResourceTypeEventGatewayControlPlane, false),
 	}
 	return explainUnionNode(
 		explainWithCommonFields(tlsServer, common...),

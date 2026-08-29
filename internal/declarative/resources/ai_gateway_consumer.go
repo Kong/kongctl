@@ -44,6 +44,7 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayConsumerExplainNode),
 		),
 		WithMaturity(aiGatewayMaturity),
+		WithExternalUnsupportedReason("scoped AI Gateway consumer lookup is planned for domain enablement"),
 	)
 }
 

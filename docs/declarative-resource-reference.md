@@ -95,7 +95,7 @@ inside `!secret`:
 portal_id: !lookup
   name: !env PORTAL_NAME
 
-control_plane: !external {name: !env CONTROL_PLANE_NAME}
+control_plane: !lookup {name: !env CONTROL_PLANE_NAME}
 ```
 
 | Outer tag | Supported inner tags |
@@ -142,11 +142,12 @@ selectors such as `ai_gateway` retain their established names. They share the
 same relationship resolution behavior. Parent selectors are omitted when the
 child is nested and the parent can be inferred.
 
-Initially, inline lookup targets are the resource types that already support
-`_external`: portals, control planes, gateway services, AI gateways, audit-log
-webhook destinations, organization teams, Event Gateway control planes, and
-Event Gateway virtual clusters. Run `kongctl explain` to see selectors and
-scope requirements for a specific field.
+Inline lookup targets are the resource types that support `_external`:
+Catalog APIs, application auth strategies, portals, control planes, gateway
+services, AI gateways, audit-log webhook destinations, organization teams,
+Event Gateway control planes, and Event Gateway virtual clusters. Run
+`kongctl explain` to see selectors and scope requirements for a specific
+field.
 
 ## Audit Logs
 
@@ -178,6 +179,8 @@ created, updated, or deleted by declarative apply.
 apis:
   - ref: string
     name: string required (1-255 chars)
+    _external: # alternative to managed API fields
+      id: string # API UUID, or use selector.matchFields.name
     description: string (nullable)
     version: string (1-255 chars, nullable)
     slug: string (pattern: ^[\w-]+$, nullable)
@@ -226,6 +229,12 @@ API specifications must be declared on API versions with `versions[].spec` or
 root-level `api_versions[].spec`; `apis[].spec_content` is not supported in
 declarative configuration.
 
+An external API can own managed versions, publications, implementations, and
+documents in the same manifest. kongctl resolves the API identity and plans
+only its declared children; it never creates, updates, or deletes the API.
+Root-level API children can use `api: !lookup name:Shared API` as the anonymous
+equivalent.
+
 Each API implementation must define exactly one of `service` or
 `control_plane`. When `type` is present, it must match the selected payload.
 
@@ -233,6 +242,25 @@ Each API implementation must define exactly one of `service` or
 
 [API Specification](https://developer.konghq.com/api/konnect/application-auth-strategies/v2/#/operations/create-app-auth-strategy)
 [Example](examples/declarative/portal/auth-strategies.yaml)
+
+```yaml
+application_auth_strategies:
+ - ref: string
+   _external: # alternative to managed strategy fields
+     id: string # strategy UUID, or use selector by name/display_name
+```
+
+External application auth strategies are identity-only declarations. They can
+be referenced from `portals[].default_application_auth_strategy_id` and
+`apis[].publications[].auth_strategy_ids`. For a one-off relationship, use
+`!lookup`, for example:
+
+```yaml
+auth_strategy_ids:
+  - !lookup name:Shared Auth
+```
+
+Managed application auth strategies use the following fields:
 
 ```yaml
 application_auth_strategies:

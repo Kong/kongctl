@@ -11,20 +11,24 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerExternalResourceType(
 		ResourceTypeApplicationAuthStrategy,
 		func(rs *ResourceSet) *[]ApplicationAuthStrategyResource { return &rs.ApplicationAuthStrategies },
 		AutoExplain[ApplicationAuthStrategyResource](
 			WithExplainSchemaBuilder(applicationAuthStrategyExplainNode),
 		),
+		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName, "display_name"}},
 	)
 }
+
+func (a *ApplicationAuthStrategyResource) GetExternalBlock() *ExternalBlock { return a.External }
 
 // ApplicationAuthStrategyResource represents an application auth strategy in declarative configuration
 type ApplicationAuthStrategyResource struct {
 	BaseResource
 	DCRProviderID                        *string `yaml:"dcr_provider_id,omitempty" json:"dcr_provider_id,omitempty"`
 	kkComps.CreateAppAuthStrategyRequest `yaml:",inline" json:",inline"`
+	External                             *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 }
 
 // GetType returns the resource type
@@ -87,6 +91,9 @@ func (a ApplicationAuthStrategyResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid application auth strategy ref: %w", err)
 	}
+	if err := a.External.Validate(); err != nil {
+		return fmt.Errorf("invalid _external block: %w", err)
+	}
 	if providerID := a.GetDCRProviderID(); providerID != "" && !a.allowsDCRProviderID() {
 		return fmt.Errorf("dcr_provider_id is only supported for openid_connect auth strategies")
 	}
@@ -120,8 +127,15 @@ func (a ApplicationAuthStrategyResource) GetKonnectMonikerFilter() string {
 
 // TryMatchKonnectResource attempts to match this resource with a Konnect resource
 func (a *ApplicationAuthStrategyResource) TryMatchKonnectResource(konnectResource any) bool {
-	return a.TryMatchByName(a.GetMoniker(), konnectResource, matchOptions{})
+	id, ok := tryMatchByNameWithExternal(a.GetMoniker(), konnectResource, matchOptions{}, a.External)
+	if ok {
+		a.SetKonnectID(id)
+	}
+	return ok
 }
+
+// IsExternal returns true when the strategy is resolved but not managed by kongctl.
+func (a ApplicationAuthStrategyResource) IsExternal() bool { return a.External.IsExternal() }
 
 // UnmarshalJSON implements custom JSON unmarshaling to handle SDK union types
 // (sigs.k8s.io/yaml uses JSON unmarshaling internally)
@@ -136,6 +150,7 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		DcrProviderID *string           `json:"dcr_provider_id,omitempty"`
 		Labels        map[string]string `json:"labels,omitempty"`
 		Kongctl       *KongctlMeta      `json:"kongctl,omitempty"`
+		External      *ExternalBlock    `json:"_external,omitempty"`
 	}
 
 	// Use a decoder with DisallowUnknownFields to catch typos
@@ -150,6 +165,14 @@ func (a *ApplicationAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	a.Ref = temp.Ref
 	a.Kongctl = temp.Kongctl
 	a.DCRProviderID = temp.DcrProviderID
+	a.External = temp.External
+	if a.External != nil {
+		if temp.StrategyType != "" || temp.Name != "" || temp.DisplayName != "" || len(temp.Configs) > 0 ||
+			temp.DcrProviderID != nil || len(temp.Labels) > 0 {
+			return fmt.Errorf("external application auth strategy %q cannot define managed payload fields", temp.Ref)
+		}
+		return nil
+	}
 
 	// Based on strategy_type, create the appropriate SDK union type
 	switch temp.StrategyType {
@@ -219,6 +242,10 @@ func remarshalConfig(configData any, target any, configType string) error {
 
 // MarshalJSON ensures the ref field is always included alongside the union payload
 func (a ApplicationAuthStrategyResource) MarshalJSON() ([]byte, error) {
+	if a.External != nil {
+		payload := map[string]any{"ref": a.Ref, "_external": a.External}
+		return json.Marshal(payload)
+	}
 	// Marshal the union portion to capture the strategy-specific fields
 	unionBytes, err := json.Marshal(a.CreateAppAuthStrategyRequest)
 	if err != nil {

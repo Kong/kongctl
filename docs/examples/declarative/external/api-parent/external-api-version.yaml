@@ -1,0 +1,11 @@
+# The API must already exist in Konnect. kongctl manages only this version.
+api_versions:
+  - ref: shared-api-v2
+    api: !lookup name:Shared API
+    version: v2
+    spec:
+      openapi: 3.0.0
+      info:
+        title: Shared API
+        version: v2
+      paths: {}

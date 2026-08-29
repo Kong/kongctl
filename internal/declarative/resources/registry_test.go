@@ -35,6 +35,19 @@ func TestAllResources(t *testing.T) {
 	})
 }
 
+func TestMaterializeExternalAPI(t *testing.T) {
+	t.Parallel()
+
+	rs := &ResourceSet{}
+	resource, err := MaterializeExternalResource(rs, ResourceTypeAPI, "shared-api", "api-id", "")
+	require.NoError(t, err)
+	require.Equal(t, "shared-api", resource.GetRef())
+	require.Equal(t, "api-id", resource.GetKonnectID())
+	require.Len(t, rs.APIs, 1)
+	require.True(t, rs.APIs[0].IsExternal())
+	require.Equal(t, "api-id", rs.APIs[0].External.ID)
+}
+
 func TestResourceCount(t *testing.T) {
 	t.Run("matches AllResources length", func(t *testing.T) {
 		rs := &ResourceSet{

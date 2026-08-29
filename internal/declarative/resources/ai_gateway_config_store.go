@@ -26,6 +26,7 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayConfigStoreExplainNode),
 		),
 		WithMaturity(aiGatewayMaturity),
+		WithExternalUnsupportedReason("scoped AI Gateway config store lookup is planned for domain enablement"),
 	)
 }
 

@@ -13,6 +13,7 @@ func init() {
 		ResourceTypeEventGatewayListener,
 		func(rs *ResourceSet) *[]EventGatewayListenerResource { return &rs.EventGatewayListeners },
 		AutoExplain[EventGatewayListenerResource](),
+		WithExternalUnsupportedReason("listener lookup requires an Event Gateway-scoped list adapter"),
 	)
 }
 

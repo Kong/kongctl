@@ -89,11 +89,13 @@ const (
 	SchemaFieldName                 = "name"
 	SchemaFieldPortal               = "portal"
 	SchemaFieldOrganization         = "organization"
+	SchemaFieldTeam                 = "team"
 	SchemaFieldTeams                = "teams"
 	SchemaFieldRoles                = "roles"
 	SchemaFieldUser                 = "user"
 	SchemaFieldSystemAccount        = "system_account"
 	SchemaFieldAIGateway            = "ai_gateway"
+	SchemaFieldEventGateway         = "event_gateway"
 	SchemaFieldAIGatewayConsumer    = "ai_gateway_consumer"
 	SchemaFieldAIGatewayConfigStore = "ai_gateway_config_store"
 	SchemaFieldDisplayName          = "display_name"
@@ -887,6 +889,12 @@ func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesByNamespace(
 func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
 	var filtered []APIResource
 	for _, api := range rs.APIs {
+		if api.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, api)
+			}
+			continue
+		}
 		if GetNamespace(api.Kongctl) == namespace {
 			filtered = append(filtered, api)
 		}
@@ -909,6 +917,12 @@ func (rs *ResourceSet) GetDashboardsByNamespace(namespace string) []DashboardRes
 func (rs *ResourceSet) GetAuthStrategiesByNamespace(namespace string) []ApplicationAuthStrategyResource {
 	var filtered []ApplicationAuthStrategyResource
 	for _, strategy := range rs.ApplicationAuthStrategies {
+		if strategy.IsExternal() {
+			if namespace == NamespaceExternal {
+				filtered = append(filtered, strategy)
+			}
+			continue
+		}
 		if GetNamespace(strategy.Kongctl) == namespace {
 			filtered = append(filtered, strategy)
 		}
@@ -932,7 +946,8 @@ func (rs *ResourceSet) GetAPIVersionsByNamespace(namespace string) []APIVersionR
 	var filtered []APIVersionResource
 	for _, version := range rs.APIVersions {
 		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(version.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+		api := rs.GetAPIByRef(version.API)
+		if api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
 			filtered = append(filtered, version)
 		}
 	}
@@ -944,7 +959,7 @@ func (rs *ResourceSet) GetAPIPublicationsByNamespace(namespace string) []APIPubl
 	var filtered []APIPublicationResource
 	for _, pub := range rs.APIPublications {
 		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(pub.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+		if api := rs.GetAPIByRef(pub.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
 			filtered = append(filtered, pub)
 		}
 	}
@@ -956,7 +971,7 @@ func (rs *ResourceSet) GetAPIImplementationsByNamespace(namespace string) []APII
 	var filtered []APIImplementationResource
 	for _, impl := range rs.APIImplementations {
 		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(impl.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+		if api := rs.GetAPIByRef(impl.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
 			filtered = append(filtered, impl)
 		}
 	}
@@ -968,11 +983,18 @@ func (rs *ResourceSet) GetAPIDocumentsByNamespace(namespace string) []APIDocumen
 	var filtered []APIDocumentResource
 	for _, doc := range rs.APIDocuments {
 		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(doc.API); api != nil && GetNamespace(api.Kongctl) == namespace {
+		if api := rs.GetAPIByRef(doc.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
 			filtered = append(filtered, doc)
 		}
 	}
 	return filtered
+}
+
+func resourceNamespaceMatches(external bool, meta *KongctlMeta, namespace string) bool {
+	if external {
+		return namespace == NamespaceExternal
+	}
+	return GetNamespace(meta) == namespace
 }
 
 // GetPortalCustomizationsByNamespace returns all portal customization resources from the specified namespace

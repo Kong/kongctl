@@ -17,6 +17,9 @@ func init() {
 			WithExplainFieldHint("dcr_config.dcr_token", secretExplainFieldHint("DCR_TOKEN")),
 			WithExplainFieldHint("dcr_config.api_key", secretExplainFieldHint("DCR_API_KEY")),
 		),
+		WithExternalUnsupportedReason(
+			"DCR provider lookup is deferred until write-only configuration can be separated from identity",
+		),
 	)
 }
 

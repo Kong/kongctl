@@ -249,6 +249,13 @@ func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 func (r *ReferenceResolver) getResourceTypeForChangeField(change PlannedChange, fieldName string) string {
 	for _, descriptor := range resources.RelationshipDescriptorsForType(resources.ResourceType(change.ResourceType)) {
 		if descriptor.FieldPath == fieldName || strings.HasPrefix(fieldName, descriptor.FieldPath+".") {
+			if descriptor.TargetTypeResolver != nil {
+				discriminator, _ := change.Fields[descriptor.TargetDiscriminatorFieldPath].(string)
+				if resourceType, ok := descriptor.TargetTypeResolver(discriminator); ok {
+					return string(resourceType)
+				}
+				continue
+			}
 			return string(descriptor.TargetType)
 		}
 	}

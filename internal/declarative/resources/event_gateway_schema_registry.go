@@ -120,7 +120,7 @@ func (e EventGatewaySchemaRegistryResource) MarshalJSON() ([]byte, error) {
 
 	result["ref"] = e.Ref
 	if e.EventGateway != "" {
-		result["event_gateway"] = e.EventGateway
+		result[SchemaFieldEventGateway] = e.EventGateway
 	}
 	removeEmptySchemaRegistryPassword(result)
 

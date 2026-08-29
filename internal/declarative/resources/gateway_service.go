@@ -15,7 +15,11 @@ func init() {
 		ResourceTypeGatewayService,
 		func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices },
 		AutoExplain[GatewayServiceResource](),
-		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}, ParentType: ResourceTypeControlPlane},
+		ExternalResolutionRegistration{
+			Selectors:       []string{SchemaFieldName},
+			ParentType:      ResourceTypeControlPlane,
+			ParentFieldPath: "control_plane",
+		},
 	)
 }
 

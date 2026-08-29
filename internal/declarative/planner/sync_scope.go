@@ -415,7 +415,8 @@ func syncRootParentType(rt resources.ResourceType) bool {
 func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	//nolint:exhaustive
 	switch rt {
-	case resources.ResourceTypePortal,
+	case resources.ResourceTypeAPI,
+		resources.ResourceTypePortal,
 		resources.ResourceTypeControlPlane,
 		resources.ResourceTypeAIGateway,
 		resources.ResourceTypeEventGatewayControlPlane,

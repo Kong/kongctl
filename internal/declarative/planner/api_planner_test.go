@@ -1,15 +1,142 @@
 package planner
 
 import (
+	"log/slog"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPlanAPIChangesExternalParentPlansChildWithoutAPIChange(t *testing.T) {
+	t.Parallel()
+
+	versionName := "v1"
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+		Versions: []resources.APIVersionResource{{
+			Ref: "v1", CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{Version: &versionName},
+		}},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIVersionAPI: &stubAPIVersionAPI{},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionCreate, plan.Changes[0].Action)
+	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
+}
+
+func TestPlanAPIChangesExternalParentDeletesOnlyDeclaredChild(t *testing.T) {
+	t.Parallel()
+
+	versionName := "v1"
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+		Versions: []resources.APIVersionResource{{
+			Ref: "v1", CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{Version: &versionName},
+		}},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIVersionAPI: &stubAPIVersionAPI{response: &kkOps.ListAPIVersionsResponse{
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{
+					{ID: "version-id", Version: "v1"},
+					{ID: "out-of-band-version-id", Version: "v2"},
+				},
+				Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 2}},
+			},
+		}},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeDelete)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, "version-id", plan.Changes[0].ResourceID)
+	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
+}
+
+func TestPlanAPIChangesExternalParentSyncDoesNotDeleteOutOfBandChildren(t *testing.T) {
+	t.Parallel()
+
+	versionName := "v1"
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+		Versions: []resources.APIVersionResource{{
+			Ref: "v1", CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{Version: &versionName},
+		}},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIVersionAPI: &stubAPIVersionAPI{response: &kkOps.ListAPIVersionsResponse{
+			ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+				Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{
+					{ID: "out-of-band-version-id", Version: "v2"},
+				},
+				Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+			},
+		}},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	planner.resources.EnsureSyncScope().AddChild(
+		resources.ResourceTypeAPI,
+		externalAPI.GetRef(),
+		resources.ResourceTypeAPIVersion,
+	)
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionCreate, plan.Changes[0].Action)
+	require.Equal(t, "v1", plan.Changes[0].ResourceRef)
+}
+
+func TestValidateNoExternalResourceChangesRejectsAPIChange(t *testing.T) {
+	t.Parallel()
+
+	api := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+	}
+	api.SetKonnectID("api-id")
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	plan.AddChange(PlannedChange{
+		ResourceType: ResourceTypeAPI,
+		ResourceRef:  "shared-api",
+		ResourceID:   "api-id",
+		Action:       ActionUpdate,
+	})
+
+	err := validateNoExternalResourceChanges(plan, &resources.ResourceSet{APIs: []resources.APIResource{api}})
+	require.ErrorContains(t, err, "external api \"shared-api\" received UPDATE change")
+}
 
 // TestAPIVersionConstraintValidation tests that the loader properly validates API version constraints
 func TestAPIVersionConstraintValidation(t *testing.T) {
@@ -293,4 +420,44 @@ func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
 	require.False(t, needsUpdate)
 	assert.Empty(t, fields)
 	assert.Empty(t, changedFields)
+}
+
+func TestPlanAPIPublicationUpdateAlignsAuthStrategyLookupNames(t *testing.T) {
+	t.Parallel()
+
+	authStrategy := resources.ApplicationAuthStrategyResource{
+		CreateAppAuthStrategyRequest: kkComps.CreateCreateAppAuthStrategyRequestKeyAuth(
+			kkComps.AppAuthStrategyKeyAuthRequest{
+				Name:         "my-api-key-auth",
+				StrategyType: kkComps.StrategyTypeKeyAuth,
+			},
+		),
+		BaseResource: resources.BaseResource{Ref: "key-auth"},
+	}
+	planner := &Planner{
+		resources: &resources.ResourceSet{
+			ApplicationAuthStrategies: []resources.ApplicationAuthStrategyResource{authStrategy},
+		},
+	}
+	authStrategyIDs := []string{
+		"a86aec1e-f67f-4624-919f-b11292b11159",
+		tags.RefPlaceholderPrefix + "key-auth#id",
+	}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+
+	planner.planAPIPublicationUpdate(
+		DefaultNamespace,
+		"api",
+		"api-id",
+		state.APIPublication{PortalID: "portal-id"},
+		resources.APIPublicationResource{Ref: "publication", PortalID: "portal-id"},
+		map[string]any{FieldAuthStrategyIDs: authStrategyIDs},
+		map[string]FieldChange{},
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 1)
+	reference := plan.Changes[0].References[FieldAuthStrategyIDs]
+	require.Equal(t, authStrategyIDs, reference.Refs)
+	require.Equal(t, []string{"", "my-api-key-auth"}, reference.LookupArrays["names"])
 }

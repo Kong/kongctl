@@ -267,7 +267,7 @@ func TestRenderExplainSchema_ApplicationAuthStrategyUnion(t *testing.T) {
 
 	schema := RenderExplainSchema(subject)
 	require.NotNil(t, schema)
-	require.Len(t, schema.OneOf, 2)
+	require.Len(t, schema.OneOf, 3)
 	assert.Nil(t, schema.Properties)
 	assert.Nil(t, schema.Additional)
 
@@ -290,7 +290,7 @@ func TestRenderExplainSchema_ApplicationAuthStrategyUnionField(t *testing.T) {
 	subject, err := ResolveExplainSubject("application_auth_strategies.strategy_type")
 	require.NoError(t, err)
 
-	assert.True(t, subject.FieldRequired)
+	assert.False(t, subject.FieldRequired)
 	schema := RenderExplainSchema(subject)
 	require.NotNil(t, schema)
 	require.Len(t, schema.OneOf, 2)
@@ -298,14 +298,14 @@ func TestRenderExplainSchema_ApplicationAuthStrategyUnionField(t *testing.T) {
 	assert.Equal(t, "key_auth", schema.OneOf[0].Const)
 	assert.Equal(t, "openid_connect", schema.OneOf[1].Const)
 	require.NotNil(t, schema.XSubject)
-	assert.True(t, *schema.XSubject.Required)
+	assert.False(t, *schema.XSubject.Required)
 }
 
 func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing.T) {
 	subject, err := ResolveExplainSubject("application_auth_strategies.configs")
 	require.NoError(t, err)
 
-	assert.True(t, subject.FieldRequired)
+	assert.False(t, subject.FieldRequired)
 	schema := RenderExplainSchema(subject)
 	require.NotNil(t, schema)
 	require.Len(t, schema.OneOf, 2)
@@ -313,7 +313,7 @@ func TestRenderExplainSchema_ApplicationAuthStrategyConfigsUnionField(t *testing
 	assert.Contains(t, schema.OneOf[0].Properties, "key-auth")
 	assert.Contains(t, schema.OneOf[1].Properties, "openid-connect")
 	require.NotNil(t, schema.XSubject)
-	assert.True(t, *schema.XSubject.Required)
+	assert.False(t, *schema.XSubject.Required)
 }
 
 func TestRenderExplainSchema_PortalAuthSettingsOmitsDeprecatedFields(t *testing.T) {
@@ -636,7 +636,7 @@ func TestRenderScaffoldYAML_ApplicationAuthStrategyUnion(t *testing.T) {
 	assert.Contains(t, scaffold, "# strategy_type: openid_connect")
 	assert.Contains(t, scaffold, "# openid-connect:")
 	assert.NotContains(t, scaffold, "# ref: my-resource")
-	assert.NotContains(t, scaffold, "# name: my-resource")
+	assert.Contains(t, scaffold, "# _external:")
 	assert.NotContains(t, scaffold, "app_auth_strategy_key_auth_request")
 	assert.NotContains(t, scaffold, "app_auth_strategy_open_i_d_connect_request")
 }

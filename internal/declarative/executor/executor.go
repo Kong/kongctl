@@ -18,6 +18,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"golang.org/x/sync/errgroup"
 )
@@ -1633,6 +1634,55 @@ func (e *Executor) syncResolvedPortalDefaultAuthStrategyID(
 	)
 }
 
+func (e *Executor) syncResolvedAPIPublicationAuthStrategyIDs(
+	ctx context.Context,
+	change *planner.PlannedChange,
+) error {
+	authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]
+	if !ok || !authStrategyRefs.IsArray {
+		return nil
+	}
+
+	resolvedIDs := make([]string, len(authStrategyRefs.Refs))
+	copy(resolvedIDs, authStrategyRefs.ResolvedIDs)
+	for i, ref := range authStrategyRefs.Refs {
+		if resolvedIDs[i] != "" {
+			continue
+		}
+		lookupRef := ref
+		if tags.IsRefPlaceholder(lookupRef) {
+			if parsedRef, _, ok := tags.ParseRefPlaceholder(lookupRef); ok && parsedRef != "" {
+				lookupRef = parsedRef
+			}
+		}
+		if id, ok := e.getRefAny(planner.ResourceTypeApplicationAuthStrategy, lookupRef, ref); ok {
+			resolvedIDs[i] = id
+			continue
+		}
+		if util.IsValidUUID(ref) {
+			resolvedIDs[i] = ref
+			continue
+		}
+
+		refInfo := planner.ReferenceInfo{Ref: ref}
+		if names := authStrategyRefs.LookupArrays["names"]; i < len(names) && names[i] != "" {
+			refInfo.LookupFields = map[string]string{planner.FieldName: names[i]}
+		}
+		resolvedID, err := e.resolveAuthStrategyRef(ctx, refInfo)
+		if err != nil {
+			return fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
+		}
+		if resolvedID == "" {
+			return fmt.Errorf("failed to resolve auth strategy reference %q", ref)
+		}
+		resolvedIDs[i] = resolvedID
+	}
+
+	authStrategyRefs.ResolvedIDs = resolvedIDs
+	change.References[planner.FieldAuthStrategyIDs] = authStrategyRefs
+	return nil
+}
+
 func (e *Executor) syncResolvedAIGatewayID(
 	ctx context.Context,
 	change *planner.PlannedChange,
@@ -2823,46 +2873,8 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References[planner.FieldPortalID] = portalRef
 		}
-		// Resolve auth_strategy_ids array references if needed
-		if authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]; ok && authStrategyRefs.IsArray {
-			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
-
-			for i, ref := range authStrategyRefs.Refs {
-				var resolvedID string
-				var err error
-
-				// Check if already resolved
-				if authStrategyRefs.ResolvedIDs != nil && i < len(authStrategyRefs.ResolvedIDs) &&
-					authStrategyRefs.ResolvedIDs[i] != "" {
-					resolvedID = authStrategyRefs.ResolvedIDs[i]
-				} else {
-					// Construct ReferenceInfo for the auth strategy
-					refInfo := planner.ReferenceInfo{
-						Ref: ref,
-					}
-					// Add lookup fields if available
-					if names, ok := authStrategyRefs.LookupArrays["names"]; ok && i < len(names) {
-						refInfo.LookupFields = map[string]string{
-							planner.FieldName: names[i],
-						}
-					}
-
-					resolvedID, err = e.resolveAuthStrategyRef(ctx, refInfo)
-					if err != nil {
-						return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
-					}
-				}
-
-				if resolvedID == "" {
-					return "", fmt.Errorf("failed to resolve auth strategy reference %q", ref)
-				}
-
-				resolvedIDs = append(resolvedIDs, resolvedID)
-			}
-
-			// Update the reference with resolved IDs
-			authStrategyRefs.ResolvedIDs = resolvedIDs
-			change.References[planner.FieldAuthStrategyIDs] = authStrategyRefs
+		if err := e.syncResolvedAPIPublicationAuthStrategyIDs(ctx, change); err != nil {
+			return "", err
 		}
 		return e.apiPublicationExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAPIImplementation:
@@ -3482,33 +3494,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			portalRef.ID = portalID
 			change.References[planner.FieldPortalID] = portalRef
 		}
-		// Resolve auth strategy references if present
-		if authStrategyRefs, ok := change.References[planner.FieldAuthStrategyIDs]; ok && authStrategyRefs.IsArray {
-			resolvedIDs := make([]string, 0, len(authStrategyRefs.Refs))
-			for _, ref := range authStrategyRefs.Refs {
-				strategyRef := planner.ReferenceInfo{
-					Ref:          ref,
-					LookupFields: make(map[string]string),
-				}
-				// Copy lookup fields if available
-				if authStrategyRefs.LookupArrays != nil && len(authStrategyRefs.LookupArrays["names"]) > 0 {
-					// Find corresponding name for this ref
-					for i, r := range authStrategyRefs.Refs {
-						if r == ref && i < len(authStrategyRefs.LookupArrays["names"]) {
-							strategyRef.LookupFields[planner.FieldName] = authStrategyRefs.LookupArrays["names"][i]
-							break
-						}
-					}
-				}
-				resolvedID, err := e.resolveAuthStrategyRef(ctx, strategyRef)
-				if err != nil {
-					return "", fmt.Errorf("failed to resolve auth strategy reference %q: %w", ref, err)
-				}
-				resolvedIDs = append(resolvedIDs, resolvedID)
-			}
-			// Update the reference with resolved IDs
-			authStrategyRefs.ResolvedIDs = resolvedIDs
-			change.References[planner.FieldAuthStrategyIDs] = authStrategyRefs
+		if err := e.syncResolvedAPIPublicationAuthStrategyIDs(ctx, change); err != nil {
+			return "", err
 		}
 		// Use Create method which handles PUT (both create and update)
 		return e.apiPublicationExecutor.Create(ctx, *change)

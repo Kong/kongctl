@@ -134,6 +134,114 @@ func TestAPIPublicationAdapterCreatePublishesAPIToResolvedPortal(t *testing.T) {
 	}
 }
 
+func TestExecutorCreateAPIPublicationAcceptsResolvedAuthStrategyUUID(t *testing.T) {
+	t.Parallel()
+
+	const authStrategyID = "a86aec1e-f67f-4624-919f-b11292b11159"
+	authAPI := &stubAppAuthStrategiesAPI{t: t}
+	publicationAPI := &stubAPIPublicationAPI{t: t}
+	client := state.NewClient(state.ClientConfig{
+		AppAuthAPI:        authAPI,
+		APIPublicationAPI: publicationAPI,
+	})
+	exec := New(client, nil, false)
+	change := planner.PlannedChange{
+		ID:           "1:c:api_publication:external-parent-publication",
+		ResourceType: planner.ResourceTypeAPIPublication,
+		ResourceRef:  "external-parent-publication",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			planner.FieldAuthStrategyIDs: []string{authStrategyID},
+			planner.FieldVisibility:      "public",
+		},
+		Parent: &planner.ParentInfo{Ref: "external-parent-api", ID: "api-123"},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldAPIID: {
+				Ref: "external-parent-api",
+				ID:  "api-123",
+			},
+			planner.FieldPortalID: {
+				Ref: "portal-456",
+				ID:  "portal-456",
+			},
+			planner.FieldAuthStrategyIDs: {
+				Refs:         []string{authStrategyID},
+				IsArray:      true,
+				LookupArrays: map[string][]string{"names": {""}},
+			},
+		},
+	}
+
+	_, err := exec.createResource(context.Background(), &change)
+	if err != nil {
+		t.Fatalf("createResource() error = %v", err)
+	}
+	if authAPI.listCalls != 0 {
+		t.Fatalf("ListAppAuthStrategies() calls = %d, want 0", authAPI.listCalls)
+	}
+	if len(publicationAPI.publishReq.AuthStrategyIds) != 1 ||
+		publicationAPI.publishReq.AuthStrategyIds[0] != authStrategyID {
+		t.Fatalf(
+			"PublishAPIToPortal() auth strategy IDs = %v, want [%s]",
+			publicationAPI.publishReq.AuthStrategyIds,
+			authStrategyID,
+		)
+	}
+}
+
+func TestExecutorCreateAPIPublicationUsesRecreatedAuthStrategyForDumpedUUIDRef(t *testing.T) {
+	t.Parallel()
+
+	const (
+		dumpedAuthStrategyRef   = "a86aec1e-f67f-4624-919f-b11292b11159"
+		recreatedAuthStrategyID = "92f2a7e6-3d5d-4df7-ac2e-3391bb2257cf"
+	)
+	authAPI := &stubAppAuthStrategiesAPI{t: t}
+	publicationAPI := &stubAPIPublicationAPI{t: t}
+	client := state.NewClient(state.ClientConfig{
+		AppAuthAPI:        authAPI,
+		APIPublicationAPI: publicationAPI,
+	})
+	exec := New(client, nil, false)
+	exec.setRef(planner.ResourceTypeApplicationAuthStrategy, dumpedAuthStrategyRef, recreatedAuthStrategyID)
+	change := planner.PlannedChange{
+		ID:           "2:c:api_publication:dumped-publication",
+		ResourceType: planner.ResourceTypeAPIPublication,
+		ResourceRef:  "dumped-publication",
+		Action:       planner.ActionCreate,
+		Fields: map[string]any{
+			planner.FieldAuthStrategyIDs: []string{dumpedAuthStrategyRef},
+			planner.FieldVisibility:      "public",
+		},
+		Parent: &planner.ParentInfo{Ref: "dumped-api", ID: "api-123"},
+		References: map[string]planner.ReferenceInfo{
+			planner.FieldAPIID:    {Ref: "dumped-api", ID: "api-123"},
+			planner.FieldPortalID: {Ref: "dumped-portal", ID: "portal-456"},
+			planner.FieldAuthStrategyIDs: {
+				Refs:         []string{dumpedAuthStrategyRef},
+				IsArray:      true,
+				LookupArrays: map[string][]string{"names": {"key-auth"}},
+			},
+		},
+	}
+
+	_, err := exec.createResource(t.Context(), &change)
+	if err != nil {
+		t.Fatalf("createResource() error = %v", err)
+	}
+	if authAPI.listCalls != 0 {
+		t.Fatalf("ListAppAuthStrategies() calls = %d, want 0", authAPI.listCalls)
+	}
+	if len(publicationAPI.publishReq.AuthStrategyIds) != 1 ||
+		publicationAPI.publishReq.AuthStrategyIds[0] != recreatedAuthStrategyID {
+		t.Fatalf(
+			"PublishAPIToPortal() auth strategy IDs = %v, want [%s]",
+			publicationAPI.publishReq.AuthStrategyIds,
+			recreatedAuthStrategyID,
+		)
+	}
+}
+
 func TestAPIPublicationAdapterDeleteFallsBackToCompositeResourceID(t *testing.T) {
 	t.Parallel()
 
