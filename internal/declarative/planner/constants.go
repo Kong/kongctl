@@ -165,6 +165,7 @@ const (
 	FieldPreview                      = "preview"
 	FieldReplyToEmail                 = "reply_to_email"
 	FieldRBACEnabled                  = "rbac_enabled"
+	FieldSIPREnabled                  = "sipr_enabled"
 	FieldSSL                          = "ssl"
 	FieldRobots                       = "robots"
 	FieldSpecRenderer                 = "spec_renderer"

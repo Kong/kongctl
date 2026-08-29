@@ -92,6 +92,46 @@ control_planes:
 	}
 }
 
+func TestDeclarativeLoadSchemaAcceptsPortalSIPREnabled(t *testing.T) {
+	tests := []struct {
+		name  string
+		value bool
+	}{
+		{name: "enabled", value: true},
+		{name: "disabled", value: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+portals:
+  - ref: customer-portal
+    name: customer-portal
+    sipr_enabled: %t
+`, tt.value)
+
+			resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+			require.NoError(t, err)
+			require.Len(t, resourceSet.Portals, 1)
+			require.NotNil(t, resourceSet.Portals[0].SiprEnabled)
+			assert.Equal(t, tt.value, *resourceSet.Portals[0].SiprEnabled)
+		})
+	}
+}
+
+func TestDeclarativeLoadSchemaPreservesOmittedPortalSIPREnabled(t *testing.T) {
+	input := `
+portals:
+  - ref: customer-portal
+    name: customer-portal
+`
+
+	resourceSet, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.NoError(t, err)
+	require.Len(t, resourceSet.Portals, 1)
+	assert.Nil(t, resourceSet.Portals[0].SiprEnabled)
+}
+
 func TestDeclarativeLoadSchemaSelectsUnionBranch(t *testing.T) {
 	input := `
 application_auth_strategies:

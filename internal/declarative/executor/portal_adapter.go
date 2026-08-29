@@ -42,6 +42,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	common.MapOptionalStringFieldToPtr(&create.DisplayName, fields, planner.FieldDisplayName)
 	common.MapOptionalBoolFieldToPtr(&create.AuthenticationEnabled, fields, planner.FieldAuthenticationEnabled)
 	common.MapOptionalBoolFieldToPtr(&create.RbacEnabled, fields, planner.FieldRBACEnabled)
+	common.MapOptionalBoolFieldToPtr(&create.SiprEnabled, fields, planner.FieldSIPREnabled)
 	common.MapOptionalBoolFieldToPtr(&create.AutoApproveDevelopers, fields, planner.FieldAutoApproveDevelopers)
 	common.MapOptionalBoolFieldToPtr(&create.AutoApproveApplications, fields, planner.FieldAutoApproveApplications)
 
@@ -99,6 +100,10 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 		case planner.FieldRBACEnabled:
 			if rbacEnabled, ok := value.(bool); ok {
 				update.RbacEnabled = &rbacEnabled
+			}
+		case planner.FieldSIPREnabled:
+			if siprEnabled, ok := value.(bool); ok {
+				update.SiprEnabled = &siprEnabled
 			}
 		case planner.FieldAutoApproveDevelopers:
 			if autoApproveDevelopers, ok := value.(bool); ok {

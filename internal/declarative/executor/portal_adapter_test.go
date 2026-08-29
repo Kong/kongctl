@@ -10,6 +10,49 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPortalAdapterMapsSIPREnabled(t *testing.T) {
+	tests := []struct {
+		name  string
+		value bool
+	}{
+		{name: "enabled", value: true},
+		{name: "disabled", value: false},
+	}
+
+	adapter := NewPortalAdapter(nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := map[string]any{
+				planner.FieldName:        "customer-portal",
+				planner.FieldSIPREnabled: tt.value,
+			}
+
+			create := kkComps.CreatePortal{}
+			err := adapter.MapCreateFields(
+				t.Context(),
+				&ExecutionContext{},
+				fields,
+				&create,
+			)
+			require.NoError(t, err)
+			require.NotNil(t, create.SiprEnabled)
+			assert.Equal(t, tt.value, *create.SiprEnabled)
+
+			update := kkComps.UpdatePortal{}
+			err = adapter.MapUpdateFields(
+				t.Context(),
+				&ExecutionContext{},
+				fields,
+				&update,
+				nil,
+			)
+			require.NoError(t, err)
+			require.NotNil(t, update.SiprEnabled)
+			assert.Equal(t, tt.value, *update.SiprEnabled)
+		})
+	}
+}
+
 func TestPortalAdapterMapUpdateFieldsKeepsPatchPayloadSparse(t *testing.T) {
 	adapter := NewPortalAdapter(nil)
 	update := kkComps.UpdatePortal{}

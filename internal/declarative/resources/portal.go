@@ -510,6 +510,11 @@ func (p *PortalResource) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(encoded, &p.CreatePortal); err != nil {
 			return err
 		}
+		// The SDK applies its false default while decoding even when this field is
+		// absent. Restore nil so the planner can preserve sparse-update semantics.
+		if _, ok := sdkPayload["sipr_enabled"]; !ok {
+			p.SiprEnabled = nil
+		}
 	} else {
 		// Ensure embedded struct is zeroed if no fields were provided.
 		p.CreatePortal = kkComps.CreatePortal{}
