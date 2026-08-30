@@ -119,7 +119,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 	}
 
 	// SYNC MODE: Delete unmanaged registries
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

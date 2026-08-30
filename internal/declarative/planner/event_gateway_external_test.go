@@ -388,7 +388,7 @@ func TestPlanner_ExternalEventGateway_MissingResolvedIDFailsBeforeChildPlanning(
 	require.Empty(t, plan.Changes)
 }
 
-func TestPlanner_ExternalEventGateway_SyncDoesNotDeleteExistingBackendClusters(t *testing.T) {
+func TestPlanner_ExternalEventGateway_SyncDeletesExistingBackendClusters(t *testing.T) {
 	t.Parallel()
 
 	planner := &Planner{
@@ -418,10 +418,10 @@ func TestPlanner_ExternalEventGateway_SyncDoesNotDeleteExistingBackendClusters(t
 		plan,
 	)
 	require.NoError(t, err)
-	requireNoDeleteChange(t, plan, ResourceTypeEventGatewayBackendCluster)
+	requireDeleteChange(t, plan, ResourceTypeEventGatewayBackendCluster)
 }
 
-func TestPlanner_ExternalEventGateway_SyncDoesNotDeleteExistingVirtualClusters(t *testing.T) {
+func TestPlanner_ExternalEventGateway_SyncDeletesExistingVirtualClusters(t *testing.T) {
 	t.Parallel()
 
 	planner := &Planner{
@@ -451,10 +451,10 @@ func TestPlanner_ExternalEventGateway_SyncDoesNotDeleteExistingVirtualClusters(t
 		plan,
 	)
 	require.NoError(t, err)
-	requireNoDeleteChange(t, plan, ResourceTypeEventGatewayVirtualCluster)
+	requireDeleteChange(t, plan, ResourceTypeEventGatewayVirtualCluster)
 }
 
-func TestPlanner_ExternalEventGatewayVirtualCluster_SyncDoesNotDeleteExistingClusterPolicies(t *testing.T) {
+func TestPlanner_ExternalEventGatewayVirtualCluster_SyncDeletesExistingClusterPolicies(t *testing.T) {
 	t.Parallel()
 
 	policyName := "external-policy"
@@ -492,7 +492,7 @@ func TestPlanner_ExternalEventGatewayVirtualCluster_SyncDoesNotDeleteExistingClu
 		plan,
 	)
 	require.NoError(t, err)
-	requireNoDeleteChange(t, plan, ResourceTypeEventGatewayClusterPolicy)
+	requireDeleteChange(t, plan, ResourceTypeEventGatewayClusterPolicy)
 }
 
 func externalEventGatewayResourceSet() *resources.ResourceSet {
@@ -556,14 +556,15 @@ func externalEventGatewayVirtualClusterResource() resources.EventGatewayVirtualC
 	}
 }
 
-func requireNoDeleteChange(t *testing.T, plan *Plan, resourceType string) {
+func requireDeleteChange(t *testing.T, plan *Plan, resourceType string) {
 	t.Helper()
 
 	for _, change := range plan.Changes {
 		if change.ResourceType == resourceType && change.Action == ActionDelete {
-			t.Fatalf("unexpected %s delete planned for external event gateway: %+v", resourceType, change)
+			return
 		}
 	}
+	t.Fatalf("expected %s delete under external event gateway, got: %+v", resourceType, plan.Changes)
 }
 
 func eventGatewayExternalCursorMeta() *kkComps.CursorMeta {

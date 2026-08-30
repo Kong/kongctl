@@ -103,7 +103,7 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentCredentials {
 			credentialID := resources.AIGatewayConsumerCredentialID(current.AIGatewayConsumerCredential)
 			credentialName := resources.AIGatewayConsumerCredentialName(current.AIGatewayConsumerCredential)

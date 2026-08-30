@@ -110,7 +110,8 @@ func (s *stubAPIPublicationAPI) ListAPIPublications(
 }
 
 type stubAPIVersionAPI struct {
-	response *kkOps.ListAPIVersionsResponse
+	response      *kkOps.ListAPIVersionsResponse
+	fetchResponse *kkOps.FetchAPIVersionResponse
 }
 
 func (s *stubAPIVersionAPI) CreateAPIVersion(
@@ -163,16 +164,24 @@ func (s *stubAPIVersionAPI) FetchAPIVersion(
 	_ string,
 	_ ...kkOps.Option,
 ) (*kkOps.FetchAPIVersionResponse, error) {
+	if s.fetchResponse != nil {
+		return s.fetchResponse, nil
+	}
 	return nil, fmt.Errorf("FetchAPIVersion not implemented")
 }
 
-type stubAPIImplementationAPI struct{}
+type stubAPIImplementationAPI struct {
+	response *kkOps.ListAPIImplementationsResponse
+}
 
 func (s *stubAPIImplementationAPI) ListAPIImplementations(
 	_ context.Context,
 	_ kkOps.ListAPIImplementationsRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.ListAPIImplementationsResponse, error) {
+	if s.response != nil {
+		return s.response, nil
+	}
 	return &kkOps.ListAPIImplementationsResponse{
 		ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
 			Data: []kkComps.APIImplementationListItem{},

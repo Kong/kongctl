@@ -173,7 +173,7 @@ func (s *stubExternalPortalTeamRolesAPI) RemoveRoleFromPortalTeam(
 	return &kkOps.RemoveRoleFromPortalTeamResponse{}, nil
 }
 
-func TestPlanPortalCustomDomain_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) {
+func TestPlanPortalCustomDomain_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubPortalCustomDomainAPI{
@@ -211,10 +211,10 @@ func TestPlanPortalCustomDomain_ExternalPortalSyncSkipsDeleteWhenOmitted(t *test
 		plan,
 	)
 	assert.NoError(t, err)
-	assert.Empty(t, plan.Changes)
+	assertDeleteChangeForResourceType(t, plan, ResourceTypePortalCustomDomain)
 }
 
-func TestPlanPortalEmailConfig_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) {
+func TestPlanPortalEmailConfig_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	planner := &Planner{
@@ -236,10 +236,10 @@ func TestPlanPortalEmailConfig_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testi
 		plan,
 	)
 	assert.NoError(t, err)
-	assert.Empty(t, plan.Changes)
+	assertDeleteChangeForResourceType(t, plan, ResourceTypePortalEmailConfig)
 }
 
-func TestPlanPortalEmailTemplates_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) {
+func TestPlanPortalEmailTemplates_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	planner := &Planner{
@@ -268,10 +268,10 @@ func TestPlanPortalEmailTemplates_ExternalPortalSyncSkipsDeleteWhenOmitted(t *te
 		plan,
 	)
 	assert.NoError(t, err)
-	assert.Empty(t, plan.Changes)
+	assertDeleteChangeForResourceType(t, plan, ResourceTypePortalEmailTemplate)
 }
 
-func TestPlanPortalTeams_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) {
+func TestPlanPortalTeams_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	planner := &Planner{
@@ -306,10 +306,10 @@ func TestPlanPortalTeams_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) 
 		plan,
 	)
 	assert.NoError(t, err)
-	assertNoDeleteChangeForResourceType(t, plan, ResourceTypePortalTeam)
+	assertDeleteChangeForResourceType(t, plan, ResourceTypePortalTeam)
 }
 
-func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing.T) {
+func TestPlanPortalTeamRoles_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	region := kkComps.EntityRegion("us")
@@ -390,7 +390,7 @@ func TestPlanPortalTeamRoles_ExternalPortalSyncSkipsDeleteWhenOmitted(t *testing
 		plan,
 	)
 	assert.NoError(t, err)
-	assertNoDeleteChangeForResourceType(t, plan, ResourceTypePortalTeamRole)
+	assertDeleteChangeForResourceType(t, plan, ResourceTypePortalTeamRole)
 }
 
 func externalPortalResource() resources.PortalResource {
@@ -401,12 +401,13 @@ func externalPortalResource() resources.PortalResource {
 	}
 }
 
-func assertNoDeleteChangeForResourceType(t *testing.T, plan *Plan, resourceType string) {
+func assertDeleteChangeForResourceType(t *testing.T, plan *Plan, resourceType string) {
 	t.Helper()
 
 	for _, change := range plan.Changes {
 		if change.ResourceType == resourceType && change.Action == ActionDelete {
-			t.Fatalf("unexpected %s delete planned for external portal: %+v", resourceType, change)
+			return
 		}
 	}
+	t.Fatalf("expected %s delete under external portal, got: %+v", resourceType, plan.Changes)
 }

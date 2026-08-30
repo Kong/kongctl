@@ -1,0 +1,7 @@
+portals:
+  - ref: external-sync-portal
+    _external:
+      selector:
+        matchFields:
+          name: "external-sync-portal"
+    pages: []

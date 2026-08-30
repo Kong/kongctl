@@ -168,6 +168,76 @@ func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
 	require.Equal(t, "gateway-id", change.Parent.ID)
 }
 
+func TestAIGatewayModelPlannerSyncDeletesStaleModelThroughExternalLookup(t *testing.T) {
+	gateway := testAIGateway()
+	gateway.Name = "bedrock-gateway"
+	gateway.DisplayName = "Amazon Bedrock AI Gateway"
+	gateway.Labels[labels.NamespaceKey] = "bedrock-ai-gateway"
+
+	desiredModel := testAIGatewayModelResource(t)
+	desiredModel.Ref = "proxy-sonet"
+	desiredModel.AIGateway = namedExternalPlaceholder(t, tags.TagLookup, "bedrock-gateway")
+	desiredModel.AIGatewayModelModel.Name = "proxy-sonet"
+	desiredModel.AIGatewayModelModel.DisplayName = "AI Proxy baseline (sonet)"
+
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{gateway}},
+		AIGatewayModelAPI: &testAIGatewayModelAPI{
+			models: []kkComps.AIGatewayModel{testAIGatewayModel("stale-model-id", "proxy-haiku")},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{{
+			BaseResource: resources.BaseResource{
+				Ref:     "bedrock-ai-gateway",
+				Kongctl: &resources.KongctlMeta{Namespace: new("bedrock-ai-gateway")},
+			},
+			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+				Name:        "bedrock-gateway",
+				DisplayName: "Amazon Bedrock AI Gateway",
+			},
+		}},
+		AIGatewayModels:   []resources.AIGatewayModelResource{desiredModel},
+		DefaultNamespaces: []string{"bedrock-ai-gateway", "ai-gateway-feature-tests"},
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+	change := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayModel, "proxy-haiku")
+	require.Equal(t, ActionDelete, change.Action)
+	require.Equal(t, "stale-model-id", change.ResourceID)
+	require.NotNil(t, change.Parent)
+	require.Equal(t, "gateway-id", change.Parent.ID)
+}
+
+func TestAIGatewayModelPlannerSyncDeletesLastModelFromExternalGateway(t *testing.T) {
+	gateway := resources.AIGatewayResource{
+		BaseResource: resources.BaseResource{Ref: "external-gateway"},
+		External:     &resources.ExternalBlock{ID: "gateway-id"},
+	}
+	gateway.SetKonnectID("gateway-id")
+	scope := resources.NewSyncScope()
+	scope.AddRoot(resources.ResourceTypeAIGateway)
+	scope.AddChild(resources.ResourceTypeAIGateway, gateway.Ref, resources.ResourceTypeAIGatewayModel)
+
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+		AIGatewayModelAPI: &testAIGatewayModelAPI{
+			models: []kkComps.AIGatewayModel{testAIGatewayModel("model-id", "last-model")},
+		},
+	})
+	rs := &resources.ResourceSet{
+		AIGateways: []resources.AIGatewayResource{gateway},
+		SyncScope:  scope,
+	}
+
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+	require.NoError(t, err)
+	change := findAIGatewayModelTestChange(t, plan, ResourceTypeAIGatewayModel, "last-model")
+	require.Equal(t, ActionDelete, change.Action)
+	require.Equal(t, "model-id", change.ResourceID)
+}
+
 func TestAIGatewayModelPlannerIgnoresAPIDefaults(t *testing.T) {
 	model := testAIGatewayModelResource(t)
 	var current kkComps.AIGatewayModel

@@ -133,7 +133,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentGroups {
 			groupID := resources.AIGatewayConsumerGroupID(current.AIGatewayConsumerGroup)
 			groupName := resources.AIGatewayConsumerGroupName(current.AIGatewayConsumerGroup)

@@ -160,7 +160,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged listeners
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

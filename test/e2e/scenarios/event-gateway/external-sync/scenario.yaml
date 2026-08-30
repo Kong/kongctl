@@ -179,7 +179,7 @@ steps:
     inputOverlayDirs:
       - overlays/006-remove-root-level-lookup-policy
     commands:
-      - name: 000-sync-no-deletions
+      - name: 000-sync-delete-omitted-policy
         run:
           - sync
           - -f
@@ -189,12 +189,13 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 0
+                total_changes: 1
+                by_action.DELETE: 1
           - select: >-
               plan.changes[?resource_type=='event_gateway_virtual_cluster_cluster_policy' && action=='DELETE']
             expect:
               fields:
-                "length(@)": 0
+                "length(@)": 1
           - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
             expect:
               fields:
@@ -212,11 +213,10 @@ steps:
           - -o
           - json
         assertions:
-          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}'] | [0]"
+          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}']"
             expect:
               fields:
-                name: "{{ .vars.lookup_cluster_policy_name }}"
-                description: "{{ .vars.lookup_cluster_policy_description }}"
+                "length(@)": 0
 
   - name: 006-sync-with-declarative-cluster-policy
     inputOverlayDirs:
@@ -286,9 +286,9 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 008-sync-remove-declarative-cluster-policy
+  - name: 008-sync-with-cluster-policy-collection-omitted
     commands:
-      - name: 000-sync-no-deletions
+      - name: 000-sync-omitted-collection
         run:
           - sync
           - -f
@@ -623,9 +623,9 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 015-cleanup-declarative-policies
+  - name: 015-sync-with-policy-collections-omitted
     commands:
-      - name: 000-sync-no-deletions
+      - name: 000-sync-omitted-collections
         run:
           - sync
           - -f
@@ -657,17 +657,16 @@ steps:
           - select: "length(@)"
             expect:
               fields:
-                "@": 2
+                "@": 1
           - select: "[?name=='{{ .vars.cluster_policy_name }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.cluster_policy_name }}"
                 description: "External sync cluster policy"
-          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}'] | [0]"
+          - select: "[?name=='{{ .vars.lookup_cluster_policy_name }}']"
             expect:
               fields:
-                name: "{{ .vars.lookup_cluster_policy_name }}"
-                description: "{{ .vars.lookup_cluster_policy_description }}"
+                "length(@)": 0
 
       - name: 002-get-produce-policies-after-cleanup
         run:

@@ -102,11 +102,11 @@ steps:
               fields:
                 "@": 0
 
-  - name: 004-sync-does-not-prune-external-children
+  - name: 004-sync-prunes-external-children
     inputOverlayDirs:
       - overlays/001-retain-one-provider
     commands:
-      - name: 000-sync-one-provider
+      - name: 000-sync-delete-omitted-provider
         run:
           - sync
           - -f
@@ -116,13 +116,23 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 0
-          - select: >-
-              plan.changes[?resource_type=='ai_gateway' ||
-                           resource_type=='ai_gateway_model_provider']
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: plan.changes[?resource_type=='ai_gateway_model_provider'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: lookup-openai-provider
+          - select: plan.changes[?resource_type=='ai_gateway']
             expect:
               fields:
                 "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
 
       - name: 001-get-providers
         run:
@@ -137,7 +147,15 @@ steps:
           - select: "length(@)"
             expect:
               fields:
-                "@": 2
+                "@": 1
+          - select: "[?name=='external-openai-provider'] | [0]"
+            expect:
+              fields:
+                name: external-openai-provider
+          - select: "[?name=='lookup-openai-provider']"
+            expect:
+              fields:
+                "length(@)": 0
 
   - name: 005-verify-external-gateway-remains
     skipInputs: true

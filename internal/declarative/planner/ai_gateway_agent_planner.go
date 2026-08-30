@@ -107,7 +107,7 @@ func (p *Planner) planAIGatewayAgentChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentAgents {
 			agentID := resources.AIGatewayAgentID(current.AIGatewayAgent)
 			agentName := resources.AIGatewayAgentName(current.AIGatewayAgent)

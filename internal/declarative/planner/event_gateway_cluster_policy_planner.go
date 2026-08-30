@@ -136,7 +136,7 @@ func (p *Planner) planClusterPolicyChangesForExistingVirtualCluster(
 	}
 
 	// 4. SYNC MODE: Delete unmanaged policies
-	if plan.Metadata.Mode == PlanModeSync && !p.isEventGatewayVirtualClusterExternal(virtualClusterRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
 			if !desiredNames[name] {
 				p.logger.Debug(

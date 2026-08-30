@@ -78,7 +78,7 @@ func TestPlanAPIChangesExternalParentDeletesOnlyDeclaredChild(t *testing.T) {
 	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
 }
 
-func TestPlanAPIChangesExternalParentSyncDoesNotDeleteOutOfBandChildren(t *testing.T) {
+func TestPlanAPIChangesExternalParentSyncDeletesStaleVersions(t *testing.T) {
 	t.Parallel()
 
 	versionName := "v1"
@@ -112,10 +112,190 @@ func TestPlanAPIChangesExternalParentSyncDoesNotDeleteOutOfBandChildren(t *testi
 		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
 	)
 	require.NoError(t, err)
-	require.Len(t, plan.Changes, 1)
+	require.Len(t, plan.Changes, 2)
 	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[0].ResourceType)
 	require.Equal(t, ActionCreate, plan.Changes[0].Action)
 	require.Equal(t, "v1", plan.Changes[0].ResourceRef)
+	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[1].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[1].Action)
+	require.Equal(t, "out-of-band-version-id", plan.Changes[1].ResourceID)
+	require.Equal(t, "api-id", plan.Changes[1].Parent.ID)
+}
+
+func TestPlanAPIChangesExternalParentSyncRetainsExtractedDesiredVersion(t *testing.T) {
+	t.Parallel()
+
+	versionName := "v1"
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIVersionAPI: &stubAPIVersionAPI{
+			response: &kkOps.ListAPIVersionsResponse{
+				ListAPIVersionResponse: &kkComps.ListAPIVersionResponse{
+					Data: []kkComps.ListAPIVersionResponseAPIVersionSummary{
+						{ID: "version-id", Version: versionName},
+						{ID: "stale-version-id", Version: "v2"},
+					},
+					Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 2}},
+				},
+			},
+			fetchResponse: &kkOps.FetchAPIVersionResponse{
+				APIVersionResponse: &kkComps.APIVersionResponse{ID: "version-id", Version: versionName},
+			},
+		},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{
+		APIs: []resources.APIResource{externalAPI},
+		APIVersions: []resources.APIVersionResource{{
+			Ref:                     "v1",
+			API:                     "shared-api",
+			CreateAPIVersionRequest: kkComps.CreateAPIVersionRequest{Version: &versionName},
+		}},
+	}
+	planner.resources.EnsureSyncScope().AddChild(
+		resources.ResourceTypeAPI,
+		externalAPI.GetRef(),
+		resources.ResourceTypeAPIVersion,
+	)
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+	require.NoError(t, err)
+	err = planner.planAPIVersionsChanges(
+		t.Context(),
+		&Config{Namespace: resources.NamespaceExternal},
+		planner.resources.APIVersions,
+		plan,
+	)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIVersion, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, "stale-version-id", plan.Changes[0].ResourceID)
+}
+
+func TestPlanAPIChangesExternalParentSyncDeletesStalePublications(t *testing.T) {
+	t.Parallel()
+
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIPublicationAPI: &stubAPIPublicationAPI{response: &kkOps.ListAPIPublicationsResponse{
+			ListAPIPublicationResponse: &kkComps.ListAPIPublicationResponse{
+				Data: []kkComps.APIPublicationListItem{{APIID: "api-id", PortalID: "portal-id"}},
+				Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+			},
+		}},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	planner.resources.EnsureSyncScope().AddChild(
+		resources.ResourceTypeAPI,
+		externalAPI.GetRef(),
+		resources.ResourceTypeAPIPublication,
+	)
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIPublication, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, "shared-api-to-portal-id", plan.Changes[0].ResourceRef)
+	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
+}
+
+func TestPlanAPIChangesExternalParentSyncDeletesStaleImplementations(t *testing.T) {
+	t.Parallel()
+
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIImplementationAPI: &stubAPIImplementationAPI{response: &kkOps.ListAPIImplementationsResponse{
+			ListAPIImplementationsResponse: &kkComps.ListAPIImplementationsResponse{
+				Data: []kkComps.APIImplementationListItem{
+					kkComps.CreateAPIImplementationListItemAPIImplementationListItemGatewayServiceEntity(
+						kkComps.APIImplementationListItemGatewayServiceEntity{
+							ID:    "implementation-id",
+							APIID: "api-id",
+							Service: &kkComps.APIImplementationService{
+								ID: "service-id", ControlPlaneID: "control-plane-id",
+							},
+						},
+					),
+				},
+				Meta: kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+			},
+		}},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	planner.resources.EnsureSyncScope().AddChild(
+		resources.ResourceTypeAPI,
+		externalAPI.GetRef(),
+		resources.ResourceTypeAPIImplementation,
+	)
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIImplementation, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, "implementation-id", plan.Changes[0].ResourceID)
+	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
+}
+
+func TestPlanAPIChangesExternalParentSyncDeletesStaleDocuments(t *testing.T) {
+	t.Parallel()
+
+	externalAPI := resources.APIResource{
+		BaseResource: resources.BaseResource{Ref: "shared-api"},
+		External:     &resources.ExternalBlock{ID: "api-id"},
+	}
+	externalAPI.SetKonnectID("api-id")
+	planner := NewPlanner(state.NewClient(state.ClientConfig{
+		APIDocumentAPI: &stubAPIDocumentAPI{response: &kkOps.ListAPIDocumentsResponse{
+			ListAPIDocumentResponse: &kkComps.ListAPIDocumentResponse{
+				Data: []kkComps.APIDocumentSummaryWithChildren{
+					{ID: "document-id", Slug: "stale-document", Title: "Stale document"},
+				},
+			},
+		}},
+	}), slog.Default())
+	planner.resources = &resources.ResourceSet{APIs: []resources.APIResource{externalAPI}}
+	planner.resources.EnsureSyncScope().AddChild(
+		resources.ResourceTypeAPI,
+		externalAPI.GetRef(),
+		resources.ResourceTypeAPIDocument,
+	)
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+
+	err := planner.planAPIChanges(
+		t.Context(), &Config{Namespace: resources.NamespaceExternal}, []resources.APIResource{externalAPI}, plan,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ResourceTypeAPIDocument, plan.Changes[0].ResourceType)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, "document-id", plan.Changes[0].ResourceID)
+	require.Equal(t, "api-id", plan.Changes[0].Parent.ID)
 }
 
 func TestValidateNoExternalResourceChangesRejectsAPIChange(t *testing.T) {

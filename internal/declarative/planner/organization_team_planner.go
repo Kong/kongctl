@@ -337,7 +337,6 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 	for _, team := range desiredTeams {
 		teamByRef[team.Ref] = team
 		if plan.Metadata.Mode == PlanModeSync &&
-			!team.IsExternal() &&
 			t.planner.shouldPlanChild(
 				plan,
 				resources.ResourceTypeOrganizationTeam,
@@ -433,7 +432,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 			t.planOrganizationTeamRoleCreate(namespace, teamRef, teamName, teamID, role, plan)
 		}
 
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" && !team.IsExternal() {
+		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
 			for key, existingRole := range existingRoles {
 				if !desiredKeys[key] {
 					t.planOrganizationTeamRoleDelete(namespace, teamRef, teamName, teamID, existingRole, plan)

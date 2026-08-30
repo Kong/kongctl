@@ -106,7 +106,66 @@ steps:
                 failed: 0
                 status: success
 
-  - name: 004-reset-org
+  - name: 004-sync-delete-children-under-external-api
+    inputOverlayDirs:
+      - overlays/002-empty-api-children
+    commands:
+      - name: 000-sync
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-api.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.changes[?resource_type=='api']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "plan.changes[?resource_type=='api_version' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "plan.changes[?resource_type=='api_publication' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+
+      - name: 001-get-api-versions
+        run: ["get", "api", "versions", "--api-name", "{{ .vars.api_name }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-api-publications
+        run: ["get", "api", "publications", "--api-name", "{{ .vars.api_name }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 003-get-external-api
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.api_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.api_name }}"
+
+  - name: 005-reset-org
     skipInputs: true
     commands:
       - resetOrg: true

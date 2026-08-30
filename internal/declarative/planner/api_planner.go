@@ -777,7 +777,7 @@ func (p *Planner) getAPIVersionsForAPI(api resources.APIResource) []resources.AP
 		seen[version.GetRef()] = struct{}{}
 	}
 	for _, version := range p.resources.APIVersions {
-		if version.API != api.GetRef() {
+		if !apiChildParentMatches(api, version.API) {
 			continue
 		}
 		if _, ok := seen[version.GetRef()]; ok {
@@ -797,7 +797,7 @@ func (p *Planner) getAPIPublicationsForAPI(api resources.APIResource) []resource
 		seen[pub.GetRef()] = struct{}{}
 	}
 	for _, pub := range p.resources.APIPublications {
-		if pub.API != api.GetRef() {
+		if !apiChildParentMatches(api, pub.API) {
 			continue
 		}
 		if _, ok := seen[pub.GetRef()]; ok {
@@ -817,7 +817,7 @@ func (p *Planner) getAPIImplementationsForAPI(api resources.APIResource) []resou
 		seen[impl.GetRef()] = struct{}{}
 	}
 	for _, impl := range p.resources.APIImplementations {
-		if impl.API != api.GetRef() {
+		if !apiChildParentMatches(api, impl.API) {
 			continue
 		}
 		if _, ok := seen[impl.GetRef()]; ok {
@@ -837,7 +837,7 @@ func (p *Planner) getAPIDocumentsForAPI(api resources.APIResource) []resources.A
 		seen[doc.GetRef()] = struct{}{}
 	}
 	for _, doc := range p.resources.APIDocuments {
-		if doc.API != api.GetRef() {
+		if !apiChildParentMatches(api, doc.API) {
 			continue
 		}
 		if _, ok := seen[doc.GetRef()]; ok {
@@ -847,6 +847,14 @@ func (p *Planner) getAPIDocumentsForAPI(api resources.APIResource) []resources.A
 		seen[doc.GetRef()] = struct{}{}
 	}
 	return result
+}
+
+func apiChildParentMatches(api resources.APIResource, parent string) bool {
+	return apiChildParentValueMatches(api.GetRef(), api.GetKonnectID(), parent)
+}
+
+func apiChildParentValueMatches(apiRef, apiID, parent string) bool {
+	return parent == apiRef || apiID != "" && parent == apiID
 }
 
 // planAPIChildResourceChanges plans changes for child resources of an existing API
@@ -949,13 +957,10 @@ func (p *Planner) planAPIVersionChanges(
 
 	// In sync mode, delete unmanaged versions
 	if plan.Metadata.Mode == PlanModeSync {
-		if p.isExternalAPI(apiRef) {
-			return nil
-		}
 		// Check if there are extracted versions for this API that will be processed later
 		hasExtractedVersions := false
-		for _, ver := range p.resources.GetAPIVersionsByNamespace(parentNamespace) {
-			if ver.API == apiRef {
+		for _, ver := range p.resources.APIVersions {
+			if apiChildParentValueMatches(apiRef, apiID, ver.API) {
 				hasExtractedVersions = true
 				break
 			}
@@ -1220,13 +1225,10 @@ func (p *Planner) planAPIPublicationChanges(
 
 	// In sync mode, delete unmanaged publications
 	if plan.Metadata.Mode == PlanModeSync {
-		if p.isExternalAPI(apiRef) {
-			return nil
-		}
 		// Check if there are extracted publications for this API that will be processed later
 		hasExtractedPublications := false
-		for _, pub := range p.resources.GetAPIPublicationsByNamespace(parentNamespace) {
-			if pub.API == apiRef {
+		for _, pub := range p.resources.APIPublications {
+			if apiChildParentValueMatches(apiRef, apiID, pub.API) {
 				hasExtractedPublications = true
 				break
 			}
@@ -1711,13 +1713,10 @@ func (p *Planner) planAPIImplementationChanges(
 
 	// In sync mode, delete unmanaged implementations
 	if plan.Metadata.Mode == PlanModeSync {
-		if p.isExternalAPI(apiRef) {
-			return nil
-		}
 		// Check if there are extracted implementations for this API that will be processed later
 		hasExtractedImplementations := false
-		for _, impl := range p.resources.GetAPIImplementationsByNamespace(parentNamespace) {
-			if impl.API == apiRef {
+		for _, impl := range p.resources.APIImplementations {
+			if apiChildParentValueMatches(apiRef, apiID, impl.API) {
 				hasExtractedImplementations = true
 				break
 			}
@@ -1937,9 +1936,17 @@ func (p *Planner) planAPIDocumentChanges(
 
 	// In sync mode, delete unmanaged documents
 	if plan.Metadata.Mode == PlanModeSync {
-		if p.isExternalAPI(apiRef) {
-			return nil
+		for _, doc := range p.resources.APIDocuments {
+			if apiChildParentValueMatches(apiRef, apiID, doc.API) && len(desired) == 0 {
+				p.logger.Debug(
+					"Skipping document deletion - extracted documents exist",
+					slog.String("api", apiRef),
+					slog.Int("current_count", len(currentDocuments)),
+				)
+				return nil
+			}
 		}
+
 		remaining := stateIndex.unprocessed()
 		for path, current := range remaining {
 			p.planAPIDocumentDelete(parentNamespace, apiRef, apiID, current.ID, path, plan)
@@ -1947,11 +1954,6 @@ func (p *Planner) planAPIDocumentChanges(
 	}
 
 	return nil
-}
-
-func (p *Planner) isExternalAPI(apiRef string) bool {
-	api := p.resources.GetAPIByRef(apiRef)
-	return api != nil && api.IsExternal()
 }
 
 func (p *Planner) shouldUpdateAPIDocument(current state.APIDocument, desired resources.APIDocumentResource) bool {

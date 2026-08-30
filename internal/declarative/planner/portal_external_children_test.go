@@ -495,7 +495,7 @@ func TestPlanner_ExternalPortal_PlansChildren(t *testing.T) {
 	assert.True(t, foundSnippet, "expected a portal_snippet create change")
 }
 
-func TestPlanner_ExternalPortal_SyncDoesNotDeleteExistingPages(t *testing.T) {
+func TestPlanner_ExternalPortal_SyncDoesNotDeleteUnscopedExistingPages(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()

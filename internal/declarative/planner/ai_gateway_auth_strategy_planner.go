@@ -92,7 +92,7 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 		)
 	}
 
-	if plan.Metadata.Mode == PlanModeSync && !p.isAIGatewayExternal(gatewayRef) {
+	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentProviders {
 			if desiredKeys[current.ID] || desiredKeys[current.Name] {
 				continue

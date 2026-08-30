@@ -282,8 +282,8 @@ func assignedRoleCollection(roles ...kkComps.AssignedRole) *kkComps.AssignedRole
 	}
 }
 
-func assignedRole(id, roleName, entityID, entityTypeName, entityRegion string) kkComps.AssignedRole {
-	region := kkComps.AssignedRoleEntityRegion(entityRegion)
+func assignedRole(id, roleName, entityID, entityTypeName string) kkComps.AssignedRole {
+	region := kkComps.AssignedRoleEntityRegion("us")
 	return kkComps.AssignedRole{
 		ID:             &id,
 		RoleName:       &roleName,
@@ -317,6 +317,64 @@ func TestOrganizationTeamExternalConfigContributesExternalNamespace(t *testing.T
 
 	namespaces := planner.getResourceNamespaces(rs)
 	require.Equal(t, []string{resources.NamespaceExternal}, namespaces)
+}
+
+func TestOrganizationTeamRoleSyncDeletesStaleRoleFromExternalTeam(t *testing.T) {
+	const (
+		teamRef = "external-team"
+		teamID  = "team-123"
+	)
+
+	team := resources.OrganizationTeamResource{
+		BaseResource: resources.BaseResource{Ref: teamRef},
+		CreateTeam:   kkComps.CreateTeam{Name: "External Team"},
+		External:     &resources.ExternalBlock{ID: teamID},
+	}
+	scope := resources.NewSyncScope()
+	scope.AddChild(
+		resources.ResourceTypeOrganizationTeam,
+		teamRef,
+		resources.ResourceTypeOrganizationTeamRole,
+	)
+	resourceSet := &resources.ResourceSet{
+		OrganizationTeams: []resources.OrganizationTeamResource{team},
+		SyncScope:         scope,
+	}
+	client := state.NewClient(state.ClientConfig{
+		OrganizationTeamRolesAPI: &organizationTeamRolesAPIStub{
+			listTeamRoles: func(
+				_ context.Context,
+				gotTeamID string,
+				_ *kkOps.ListTeamRolesQueryParamFilter,
+				_ ...kkOps.Option,
+			) (*kkOps.ListTeamRolesResponse, error) {
+				require.Equal(t, teamID, gotTeamID)
+				return &kkOps.ListTeamRolesResponse{
+					AssignedRoleCollection: assignedRoleCollection(
+						assignedRole("stale-role-123", "Admin", "*", "APIs"),
+					),
+				}, nil
+			},
+		},
+	})
+	planner := NewPlanner(client, discardPlannerLogger())
+	planner.resources = resourceSet
+	teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(planner)).(*OrganizationTeamPlannerImpl)
+	plan := NewPlan("1.0", "test", PlanModeSync)
+
+	err := teamPlanner.planOrganizationTeamRoleChanges(
+		t.Context(),
+		resources.NamespaceExternal,
+		resourceSet.OrganizationTeams,
+		map[string]state.OrganizationTeam{},
+		plan,
+	)
+
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, ResourceTypeOrganizationTeamRole, plan.Changes[0].ResourceType)
+	require.Equal(t, teamID, plan.Changes[0].Parent.ID)
 }
 
 func TestOrganizationTeamRoleDeleteUsesUniqueCompositeRef(t *testing.T) {
@@ -583,7 +641,7 @@ func TestOrganizationTeamRolePortalEntityRefMatchesExistingRole(t *testing.T) {
 				require.Equal(t, teamID, gotTeamID)
 				return &kkOps.ListTeamRolesResponse{
 					AssignedRoleCollection: assignedRoleCollection(
-						assignedRole("role-123", "Viewer", portalID, "Portals", "us"),
+						assignedRole("role-123", "Viewer", portalID, "Portals"),
 					),
 				}, nil
 			},
@@ -652,7 +710,7 @@ func TestOrganizationUserRolePortalEntityRefMatchesExistingRoleInSyncScope(t *te
 				require.Equal(t, userID, gotUserID)
 				return &kkOps.ListUserRolesResponse{
 					AssignedRoleCollection: assignedRoleCollection(
-						assignedRole("role-123", "Viewer", portalID, "Portals", "us"),
+						assignedRole("role-123", "Viewer", portalID, "Portals"),
 					),
 				}, nil
 			},
@@ -715,7 +773,7 @@ func TestOrganizationSystemAccountRolePortalEntityRefMatchesExistingRoleInSyncSc
 				require.Equal(t, accountID, gotAccountID)
 				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
 					AssignedRoleCollection: assignedRoleCollection(
-						assignedRole("role-123", "Viewer", portalID, "Portals", "us"),
+						assignedRole("role-123", "Viewer", portalID, "Portals"),
 					),
 				}, nil
 			},
