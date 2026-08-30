@@ -34,6 +34,15 @@ type apiImplementationRecord struct {
 	LocalUpdatedTime string
 }
 
+type apiImplementationFields struct {
+	id             string
+	apiID          string
+	serviceID      string
+	controlPlaneID string
+	createdAt      time.Time
+	updatedAt      time.Time
+}
+
 var (
 	implementationsUse = implementationsCommandName
 
@@ -179,7 +188,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 	for i := range implementations {
 		record := implementationToRecord(implementations[i])
 		displayRecords = append(displayRecords, record)
-		tableRows = append(tableRows, table.Row{record.ImplementationID, record.ServiceID})
+		tableRows = append(tableRows, table.Row{record.ImplementationID, record.ServiceID, record.ControlPlaneID})
 	}
 
 	detailFn := func(index int) string {
@@ -199,7 +208,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 		implementations,
 		"",
 		tableview.WithTitle("Implementations"),
-		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE"}, tableRows),
+		apiImplementationTableOption(tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailContext(common.ViewParentAPIImplementation, func(index int) any {
@@ -210,6 +219,10 @@ func (h apiImplementationsHandler) run(args []string) error {
 		}),
 		tableview.WithDetailHelper(helper),
 	)
+}
+
+func apiImplementationTableOption(rows []table.Row) tableview.Option {
+	return tableview.WithExactCustomTable([]string{"IMPLEMENTATION", "SERVICE", "CONTROL PLANE"}, rows)
 }
 
 func fetchImplementations(
@@ -262,19 +275,12 @@ func filterImplementations(
 	implementations []kkComps.APIImplementationListItem,
 	identifier string,
 ) []kkComps.APIImplementationListItem {
-	lowered := strings.ToLower(identifier)
-
 	matches := make([]kkComps.APIImplementationListItem, 0)
 	for _, implementation := range implementations {
-		if item := implementation.APIImplementationListItemGatewayServiceEntity; item != nil {
-			if strings.ToLower(item.GetID()) == lowered {
-				matches = append(matches, implementation)
-				continue
-			}
-			if svc := item.GetService(); svc != nil && strings.ToLower(svc.GetID()) == lowered {
-				matches = append(matches, implementation)
-				continue
-			}
+		fields, ok := getAPIImplementationFields(implementation)
+		if ok && (strings.EqualFold(fields.id, identifier) ||
+			(fields.serviceID != "" && strings.EqualFold(fields.serviceID, identifier))) {
+			matches = append(matches, implementation)
 		}
 	}
 
@@ -282,28 +288,28 @@ func filterImplementations(
 }
 
 func implementationToRecord(implementation kkComps.APIImplementationListItem) apiImplementationRecord {
-	entity := implementation.APIImplementationListItemGatewayServiceEntity
-	if entity == nil {
+	const missing = "n/a"
+
+	fields, ok := getAPIImplementationFields(implementation)
+	if !ok {
 		return apiImplementationRecord{}
 	}
 
-	serviceID := "n/a"
-	controlPlaneID := "n/a"
-	if svc := entity.GetService(); svc != nil {
-		if id := svc.GetID(); id != "" {
-			serviceID = id
-		}
-		if cp := svc.GetControlPlaneID(); cp != "" {
-			controlPlaneID = cp
-		}
+	serviceID := fields.serviceID
+	if serviceID == "" {
+		serviceID = missing
+	}
+	controlPlaneID := fields.controlPlaneID
+	if controlPlaneID == "" {
+		controlPlaneID = missing
 	}
 
 	return apiImplementationRecord{
-		ImplementationID: entity.GetID(),
+		ImplementationID: fields.id,
 		ServiceID:        serviceID,
 		ControlPlaneID:   controlPlaneID,
-		LocalCreatedTime: entity.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		LocalUpdatedTime: entity.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalCreatedTime: fields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
+		LocalUpdatedTime: fields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 }
 
@@ -312,30 +318,28 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 		return ""
 	}
 
-	entity := implementation.APIImplementationListItemGatewayServiceEntity
-	if entity == nil {
+	const missing = "n/a"
+
+	implementationFields, ok := getAPIImplementationFields(*implementation)
+	if !ok {
 		return ""
 	}
 
-	const missing = "n/a"
-
-	serviceID := missing
-	controlPlaneID := missing
-	if svc := entity.GetService(); svc != nil {
-		if id := svc.GetID(); id != "" {
-			serviceID = id
-		}
-		if cp := svc.GetControlPlaneID(); cp != "" {
-			controlPlaneID = cp
-		}
+	serviceID := implementationFields.serviceID
+	if serviceID == "" {
+		serviceID = missing
+	}
+	controlPlaneID := implementationFields.controlPlaneID
+	if controlPlaneID == "" {
+		controlPlaneID = missing
 	}
 
 	fields := map[string]string{
-		"api_id":           entity.GetAPIID(),
+		"api_id":           implementationFields.apiID,
 		"control_plane_id": controlPlaneID,
-		"created_at":       entity.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"created_at":       implementationFields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
 		"service_id":       serviceID,
-		"updated_at":       entity.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"updated_at":       implementationFields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
 	keys := make([]string, 0, len(fields))
@@ -345,10 +349,41 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 	sort.Strings(keys)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "id: %s\n", entity.GetID())
+	fmt.Fprintf(&b, "id: %s\n", implementationFields.id)
 	for _, key := range keys {
 		fmt.Fprintf(&b, "%s: %s\n", key, fields[key])
 	}
 
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func getAPIImplementationFields(
+	implementation kkComps.APIImplementationListItem,
+) (apiImplementationFields, bool) {
+	if entity := implementation.APIImplementationListItemGatewayServiceEntity; entity != nil {
+		fields := apiImplementationFields{
+			id:        entity.GetID(),
+			apiID:     entity.GetAPIID(),
+			createdAt: entity.GetCreatedAt(),
+			updatedAt: entity.GetUpdatedAt(),
+		}
+		if service := entity.GetService(); service != nil {
+			fields.serviceID = service.GetID()
+			fields.controlPlaneID = service.GetControlPlaneID()
+		}
+		return fields, true
+	}
+
+	if entity := implementation.APIImplementationListItemControlPlaneEntity; entity != nil {
+		controlPlane := entity.GetControlPlane()
+		return apiImplementationFields{
+			id:             entity.GetID(),
+			apiID:          entity.GetAPIID(),
+			controlPlaneID: controlPlane.GetID(),
+			createdAt:      entity.GetCreatedAt(),
+			updatedAt:      entity.GetUpdatedAt(),
+		}, true
+	}
+
+	return apiImplementationFields{}, false
 }

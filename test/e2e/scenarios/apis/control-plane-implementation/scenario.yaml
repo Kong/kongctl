@@ -45,6 +45,57 @@ steps:
         recordVar:
           name: apiImplementationCPID
           responsePath: "[?name=='e2e-api-implementation-cp'] | [0].id"
+      - name: 002-list-implementations
+        run:
+          - get
+          - api
+          - implementations
+          - --api-name
+          - "E2E Control Plane Implementation API"
+          - -o
+          - json
+        recordVar:
+          name: apiImplementationID
+          responsePath: "[0].id"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                "length(id) > `0`": true
+                control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
+      - name: 003-get-implementation-by-id
+        run:
+          - get
+          - api
+          - implementations
+          - --api-name
+          - "E2E Control Plane Implementation API"
+          - "{{ .vars.apiImplementationID }}"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.apiImplementationID }}"
+                control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
+      - name: 004-get-implementation-not-found
+        run:
+          - get
+          - api
+          - implementations
+          - --api-name
+          - "E2E Control Plane Implementation API"
+          - nonexistent-impl-xyz
+          - -o
+          - json
+        expectFailure:
+          exitCode: 1
+          contains: "not found"
 
   - name: 002-repeat-is-noop
     commands:
