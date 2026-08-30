@@ -208,7 +208,7 @@ func (h apiImplementationsHandler) run(args []string) error {
 		implementations,
 		"",
 		tableview.WithTitle("Implementations"),
-		tableview.WithCustomTable([]string{"IMPLEMENTATION", "SERVICE", "CONTROL PLANE"}, tableRows),
+		apiImplementationTableOption(tableRows),
 		tableview.WithDetailRenderer(detailFn),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailContext(common.ViewParentAPIImplementation, func(index int) any {
@@ -219,6 +219,10 @@ func (h apiImplementationsHandler) run(args []string) error {
 		}),
 		tableview.WithDetailHelper(helper),
 	)
+}
+
+func apiImplementationTableOption(rows []table.Row) tableview.Option {
+	return tableview.WithExactCustomTable([]string{"IMPLEMENTATION", "SERVICE", "CONTROL PLANE"}, rows)
 }
 
 func fetchImplementations(

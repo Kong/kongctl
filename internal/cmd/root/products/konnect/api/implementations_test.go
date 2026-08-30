@@ -4,7 +4,11 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
+	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,6 +53,27 @@ func TestControlPlaneImplementationFormatting(t *testing.T) {
 	assert.Contains(t, detail, "api_id: api-id")
 	assert.Contains(t, detail, "control_plane_id: control-plane-id")
 	assert.Contains(t, detail, "service_id: n/a")
+}
+
+func TestAPIImplementationTablePreservesControlPlaneColumn(t *testing.T) {
+	streams, _, out, _ := iostreams.NewTestIOStreams()
+	record := implementationToRecord(newControlPlaneImplementation())
+	rows := []table.Row{{record.ImplementationID, record.ServiceID, record.ControlPlaneID}}
+
+	err := tableview.RenderForFormat(
+		nil,
+		false,
+		cmdCommon.TEXT,
+		nil,
+		streams,
+		[]apiImplementationRecord{record},
+		nil,
+		"",
+		apiImplementationTableOption(rows),
+	)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "CONTROL PLANE")
+	assert.Contains(t, out.String(), "control-plane-id")
 }
 
 func newControlPlaneImplementation() kkComps.APIImplementationListItem {
