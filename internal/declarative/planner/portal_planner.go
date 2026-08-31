@@ -455,6 +455,26 @@ func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, port
 	}
 }
 
+func planOptionalBoolChange(
+	desired *bool,
+	current *bool,
+	fieldName string,
+	updates map[string]any,
+	changedFields map[string]FieldChange,
+) {
+	if desired == nil {
+		return
+	}
+	if current == nil || *current != *desired {
+		updates[fieldName] = *desired
+		var oldValue any
+		if current != nil {
+			oldValue = *current
+		}
+		changedFields[fieldName] = FieldChange{Old: oldValue, New: *desired}
+	}
+}
+
 // shouldUpdatePortal checks if portal needs update based on configured fields only
 func (p *portalPlannerImpl) shouldUpdatePortal(
 	current state.Portal,
@@ -501,75 +521,29 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		}
 	}
 
-	if desired.AuthenticationEnabled != nil {
-		if curr := current.GetAuthenticationEnabled(); curr == nil || *curr != *desired.AuthenticationEnabled {
-			updates[FieldAuthenticationEnabled] = *desired.AuthenticationEnabled
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
-			changedFields[FieldAuthenticationEnabled] = FieldChange{
-				Old: oldValue,
-				New: *desired.AuthenticationEnabled,
-			}
-		}
-	}
-
-	if desired.RbacEnabled != nil {
-		if curr := current.GetRbacEnabled(); curr == nil || *curr != *desired.RbacEnabled {
-			updates[FieldRBACEnabled] = *desired.RbacEnabled
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
-			changedFields[FieldRBACEnabled] = FieldChange{
-				Old: oldValue,
-				New: *desired.RbacEnabled,
-			}
-		}
-	}
-
-	if desired.SiprEnabled != nil {
-		if curr := current.GetSiprEnabled(); curr == nil || *curr != *desired.SiprEnabled {
-			updates[FieldSIPREnabled] = *desired.SiprEnabled
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
-			changedFields[FieldSIPREnabled] = FieldChange{
-				Old: oldValue,
-				New: *desired.SiprEnabled,
-			}
-		}
-	}
-
-	if desired.AutoApproveDevelopers != nil {
-		if curr := current.GetAutoApproveDevelopers(); curr == nil || *curr != *desired.AutoApproveDevelopers {
-			updates[FieldAutoApproveDevelopers] = *desired.AutoApproveDevelopers
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
-			changedFields[FieldAutoApproveDevelopers] = FieldChange{
-				Old: oldValue,
-				New: *desired.AutoApproveDevelopers,
-			}
-		}
-	}
-
-	if desired.AutoApproveApplications != nil {
-		if curr := current.GetAutoApproveApplications(); curr == nil || *curr != *desired.AutoApproveApplications {
-			updates[FieldAutoApproveApplications] = *desired.AutoApproveApplications
-			var oldValue any
-			if curr != nil {
-				oldValue = *curr
-			}
-			changedFields[FieldAutoApproveApplications] = FieldChange{
-				Old: oldValue,
-				New: *desired.AutoApproveApplications,
-			}
-		}
-	}
+	planOptionalBoolChange(
+		desired.AuthenticationEnabled,
+		current.GetAuthenticationEnabled(),
+		FieldAuthenticationEnabled,
+		updates,
+		changedFields,
+	)
+	planOptionalBoolChange(desired.RbacEnabled, current.GetRbacEnabled(), FieldRBACEnabled, updates, changedFields)
+	planOptionalBoolChange(desired.SiprEnabled, current.GetSiprEnabled(), FieldSIPREnabled, updates, changedFields)
+	planOptionalBoolChange(
+		desired.AutoApproveDevelopers,
+		current.GetAutoApproveDevelopers(),
+		FieldAutoApproveDevelopers,
+		updates,
+		changedFields,
+	)
+	planOptionalBoolChange(
+		desired.AutoApproveApplications,
+		current.GetAutoApproveApplications(),
+		FieldAutoApproveApplications,
+		updates,
+		changedFields,
+	)
 
 	if desired.DefaultAPIVisibility != nil {
 		currentVisibility := string(current.DefaultAPIVisibility)

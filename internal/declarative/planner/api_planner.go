@@ -854,7 +854,7 @@ func apiChildParentMatches(api resources.APIResource, parent string) bool {
 }
 
 func apiChildParentValueMatches(apiRef, apiID, parent string) bool {
-	return parent == apiRef || apiID != "" && parent == apiID
+	return parent == apiRef || (apiID != "" && parent == apiID)
 }
 
 // planAPIChildResourceChanges plans changes for child resources of an existing API
