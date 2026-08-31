@@ -362,7 +362,6 @@ func declarativeConstValuesAt(
 		}
 	}
 
-	appendValues(parent.Properties[name])
 	for _, branch := range parent.OneOf {
 		branch = resolveDeclarativeSchemaRef(root, branch)
 		if branch != nil {
