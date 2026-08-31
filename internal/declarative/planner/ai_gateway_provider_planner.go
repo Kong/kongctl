@@ -284,12 +284,9 @@ func shouldUpdateAIGatewayProvider(
 	}
 
 	if desired.Config != nil && aiGatewayProviderConfigChanged(current.Config, desired.Config) {
-		currentConfig, desiredConfig := scrubbedAIGatewayWriteOnlyPayloads(
-			current.Config,
-			desired.Config,
-			normalizeAIGatewayPayloadsForComparison,
-			scrubAIGatewayProviderSecretFields,
-		)
+		currentConfig, desiredConfig := normalizeAIGatewayPayloadsForComparison(current.Config, desired.Config)
+		currentConfig = scrubAIGatewayWriteOnlyFields(currentConfig, isAIGatewayProviderSecretField).(map[string]any)
+		desiredConfig = scrubAIGatewayWriteOnlyFields(desiredConfig, isAIGatewayProviderSecretField).(map[string]any)
 		changedFields[FieldConfig] = FieldChange{
 			Old: currentConfig,
 			New: desiredConfig,
@@ -332,10 +329,6 @@ func comparableAIGatewayProviderConfigs(current, desired map[string]any) (map[st
 		normalizeAIGatewayPayloadsForComparison,
 		isAIGatewayProviderSecretField,
 	)
-}
-
-func scrubAIGatewayProviderSecretFields(value any) any {
-	return scrubAIGatewayWriteOnlyFields(value, isAIGatewayProviderSecretField)
 }
 
 func isAIGatewayProviderSecretField(key string) bool {

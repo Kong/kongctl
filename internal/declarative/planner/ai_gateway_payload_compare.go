@@ -105,40 +105,19 @@ func scrubAIGatewayWriteOnlyFields(value any, isWriteOnly func(string) bool) any
 }
 
 func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
-	switch typed := value.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(typed))
-		for key, child := range typed {
-			switch strings.ToLower(key) {
-			case "secret_access_key", "session_token":
-				continue
-			default:
-				result[key] = scrubAIGatewayUpstreamWriteOnlyFields(child)
-			}
-		}
-		return result
-	case []any:
-		result := make([]any, len(typed))
-		for i := range typed {
-			result[i] = scrubAIGatewayUpstreamWriteOnlyFields(typed[i])
-		}
-		return result
+	return scrubAIGatewayWriteOnlyFields(value, isAIGatewayUpstreamWriteOnlyField)
+}
+
+func isAIGatewayUpstreamWriteOnlyField(key string) bool {
+	switch strings.ToLower(key) {
+	case "secret_access_key", "session_token":
+		return true
 	default:
-		return value
+		return false
 	}
 }
 
 type aiGatewayPayloadPairNormalizer func(map[string]any, map[string]any) (map[string]any, map[string]any)
-
-func scrubbedAIGatewayWriteOnlyPayloads(
-	current map[string]any,
-	desired map[string]any,
-	normalize aiGatewayPayloadPairNormalizer,
-	scrub func(any) any,
-) (map[string]any, map[string]any) {
-	currentComparable, desiredComparable := normalize(current, desired)
-	return scrub(currentComparable).(map[string]any), scrub(desiredComparable).(map[string]any)
-}
 
 func comparableAIGatewayWriteOnlyPayloads(
 	current map[string]any,

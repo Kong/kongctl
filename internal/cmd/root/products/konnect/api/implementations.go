@@ -2,7 +2,8 @@ package api
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -41,6 +42,20 @@ type apiImplementationFields struct {
 	controlPlaneID string
 	createdAt      time.Time
 	updatedAt      time.Time
+}
+
+func (f apiImplementationFields) displayServiceID() string {
+	if f.serviceID == "" {
+		return "n/a"
+	}
+	return f.serviceID
+}
+
+func (f apiImplementationFields) displayControlPlaneID() string {
+	if f.controlPlaneID == "" {
+		return "n/a"
+	}
+	return f.controlPlaneID
 }
 
 var (
@@ -288,26 +303,15 @@ func filterImplementations(
 }
 
 func implementationToRecord(implementation kkComps.APIImplementationListItem) apiImplementationRecord {
-	const missing = "n/a"
-
 	fields, ok := getAPIImplementationFields(implementation)
 	if !ok {
 		return apiImplementationRecord{}
 	}
 
-	serviceID := fields.serviceID
-	if serviceID == "" {
-		serviceID = missing
-	}
-	controlPlaneID := fields.controlPlaneID
-	if controlPlaneID == "" {
-		controlPlaneID = missing
-	}
-
 	return apiImplementationRecord{
 		ImplementationID: fields.id,
-		ServiceID:        serviceID,
-		ControlPlaneID:   controlPlaneID,
+		ServiceID:        fields.displayServiceID(),
+		ControlPlaneID:   fields.displayControlPlaneID(),
 		LocalCreatedTime: fields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: fields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
@@ -318,35 +322,20 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 		return ""
 	}
 
-	const missing = "n/a"
-
 	implementationFields, ok := getAPIImplementationFields(*implementation)
 	if !ok {
 		return ""
 	}
 
-	serviceID := implementationFields.serviceID
-	if serviceID == "" {
-		serviceID = missing
-	}
-	controlPlaneID := implementationFields.controlPlaneID
-	if controlPlaneID == "" {
-		controlPlaneID = missing
-	}
-
 	fields := map[string]string{
 		"api_id":           implementationFields.apiID,
-		"control_plane_id": controlPlaneID,
+		"control_plane_id": implementationFields.displayControlPlaneID(),
 		"created_at":       implementationFields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
-		"service_id":       serviceID,
+		"service_id":       implementationFields.displayServiceID(),
 		"updated_at":       implementationFields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	keys := make([]string, 0, len(fields))
-	for key := range fields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", implementationFields.id)
