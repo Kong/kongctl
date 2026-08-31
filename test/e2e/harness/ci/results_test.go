@@ -47,22 +47,22 @@ func TestResultAccountingSeparatesBetaFailures(t *testing.T) {
 	runLog := filepath.Join(dir, "run.log")
 	if err := os.WriteFile(runLog, []byte(strings.Join([]string{
 		"--- PASS: Test_Scenarios/test/e2e/scenarios/portal/pages/scenario.yaml (1.00s)",
-		"--- PASS: Test_Scenarios/scenarios/preview/model/scenario.yaml (2.00s)",
+		"--- PASS: Test_Scenarios/scenarios/declarative/rename-sync-delete/scenario.yaml (2.00s)",
 		"--- FAIL: Test_Scenarios/test/e2e/scenarios/portal/assets/scenario.yaml (3.00s)",
 		"--- SKIP: Test_Scenarios/test/e2e/scenarios/portal/email/scenario.yaml (0.00s)",
 	}, "\n")), 0o600); err != nil {
 		t.Fatalf("write run log: %v", err)
 	}
 
-	failureDir := filepath.Join(dir, "beta-failures", "preview", "model")
+	failureDir := filepath.Join(dir, "beta-failures", "declarative", "rename-sync-delete")
 	if err := os.MkdirAll(failureDir, 0o755); err != nil {
 		t.Fatalf("create beta failure dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(failureDir, "failure.json"), []byte(`{
-  "scenario": "preview/model/scenario.yaml",
+  "scenario": "declarative/rename-sync-delete/scenario.yaml",
   "maturity": "beta",
   "mode": "warn",
-  "error": "model failed",
+  "error": "rename sync delete failed",
   "cleanup_error": "reset failed"
 }`), 0o600); err != nil {
 		t.Fatalf("write beta failure: %v", err)
@@ -86,9 +86,9 @@ e2e_emit_beta_annotations "$2"
 	assertFileContents(t, filepath.Join(dir, "passed"), "portal/pages/scenario.yaml\n")
 	assertFileContents(t, filepath.Join(dir, "failed"), "portal/assets/scenario.yaml\n")
 	assertFileContents(t, filepath.Join(dir, "skipped"), "portal/email/scenario.yaml\n")
-	assertFileContents(t, filepath.Join(dir, "beta"), "preview/model/scenario.yaml\n")
+	assertFileContents(t, filepath.Join(dir, "beta"), "declarative/rename-sync-delete/scenario.yaml\n")
 	annotations := string(output)
-	if !strings.Contains(annotations, "title=Beta E2E failure::model failed") {
+	if !strings.Contains(annotations, "title=Beta E2E failure::rename sync delete failed") {
 		t.Fatalf("annotations missing beta failure: %s", annotations)
 	}
 	if !strings.Contains(annotations, "title=Beta E2E cleanup failure::reset failed") {
