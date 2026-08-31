@@ -26,9 +26,7 @@ Environment:
 
 The full suite creates isolated APIs, portals, control planes, and AI gateways,
 then deletes each resource with kongctl delete. Authentication is taken from the
-selected profile and the existing kongctl environment. An exactly matched known
-CLI issue may use a separate recovery fixture so later checks can run, but the
-overall smoke test still fails and reports the issue.
+selected profile and the existing kongctl environment.
 EOF
 }
 
@@ -143,11 +141,9 @@ scaffold_dir="$artifacts_dir/scaffolds"
 fixtures_dir="$artifacts_dir/fixtures"
 plans_dir="$artifacts_dir/plans"
 dumps_dir="$artifacts_dir/dumps"
-known_issues_dir="$artifacts_dir/known-issues"
 results_file="$artifacts_dir/results.jsonl"
 resources_file="$artifacts_dir/resources.jsonl"
-mkdir -p "$commands_dir" "$explain_dir" "$scaffold_dir" "$fixtures_dir" "$plans_dir" "$dumps_dir" \
-  "$known_issues_dir"
+mkdir -p "$commands_dir" "$explain_dir" "$scaffold_dir" "$fixtures_dir" "$plans_dir" "$dumps_dir"
 : >"$results_file"
 : >"$resources_file"
 
@@ -171,16 +167,9 @@ run_started="$(date +%s)"
 run_failure=""
 cleanup_state="not_needed"
 cleanup_failed="false"
-known_issue_detected="false"
-active_known_issue=""
-active_known_issue_step=""
 in_exit="false"
 cleaned_keys=" "
 declare -a touched_resources=()
-
-# Each ID names one exact failure matcher and one recovery function below. A
-# recovery is considered only after the ordinary smoke-test operation fails.
-known_issue_registry=(1947)
 
 shell_join() {
   local item
@@ -269,144 +258,6 @@ fail_current() {
   fi
   run_failure="$current_name: $message"
   exit 1
-}
-
-known_issue_title() {
-  case "$1" in
-    1947)
-      echo "API document scaffold omits the title required by apply"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-known_issue_url() {
-  case "$1" in
-    1947)
-      echo "https://github.com/Kong/kongctl/issues/1947"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-known_issue_step() {
-  case "$1" in
-    1947)
-      echo "apply-create-api"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-has_known_issue_1947_failure() {
-  grep -Fq 'for CREATE api_document: title is required; regenerate the plan' "$current_stdout" || return 1
-  python3 - "$explain_dir/api.documents.json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as handle:
-    schema = json.load(handle)
-if "title" not in schema.get("properties", {}):
-    raise SystemExit(1)
-if "title" in schema.get("required", []):
-    raise SystemExit(1)
-PY
-}
-
-match_known_issue_1947() {
-  [[ "$current_name" == "apply-create-api" ]] || return 1
-  has_known_issue_1947_failure
-}
-
-has_known_issue_failure() {
-  case "$1" in
-    1947)
-      has_known_issue_1947_failure
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-match_known_issue() {
-  case "$1" in
-    1947)
-      match_known_issue_1947
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-write_known_issue_state() {
-  local issue="$1"
-  local detected="$2"
-  local recovery_status="$3"
-  local original_fixture="${4:-}"
-  local workaround_fixture="${5:-}"
-  local evaluated_step="${6:-${active_known_issue_step:-$current_name}}"
-  KNOWN_ISSUE_ID="$issue" \
-    KNOWN_ISSUE_TITLE="$(known_issue_title "$issue")" \
-    KNOWN_ISSUE_URL="$(known_issue_url "$issue")" \
-    KNOWN_ISSUE_STEP="$evaluated_step" \
-    KNOWN_ISSUE_DETECTED="$detected" \
-    KNOWN_ISSUE_RECOVERY="$recovery_status" \
-    KNOWN_ISSUE_ORIGINAL="$original_fixture" \
-    KNOWN_ISSUE_WORKAROUND="$workaround_fixture" \
-    python3 - "$known_issues_dir/${issue}.json" <<'PY'
-import json
-import os
-import pathlib
-import sys
-
-record = {
-    "issue": int(os.environ["KNOWN_ISSUE_ID"]),
-    "title": os.environ["KNOWN_ISSUE_TITLE"],
-    "url": os.environ["KNOWN_ISSUE_URL"],
-    "step": os.environ["KNOWN_ISSUE_STEP"],
-    "detected": os.environ["KNOWN_ISSUE_DETECTED"] == "true",
-    "recovery_status": os.environ["KNOWN_ISSUE_RECOVERY"],
-    "original_fixture": os.environ["KNOWN_ISSUE_ORIGINAL"] or None,
-    "workaround_fixture": os.environ["KNOWN_ISSUE_WORKAROUND"] or None,
-}
-pathlib.Path(sys.argv[1]).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-PY
-}
-
-recognize_current_known_issue() {
-  local issue
-  for issue in "${known_issue_registry[@]}"; do
-    if match_known_issue "$issue"; then
-      active_known_issue="$issue"
-      active_known_issue_step="$current_name"
-      known_issue_detected="true"
-      record_current "known_issue" "Kong/kongctl#$issue: $(known_issue_title "$issue")"
-      echo " KNOWN ISSUE #$issue"
-      echo "smoke-test: recognized $(known_issue_url "$issue"); attempting recovery" >&2
-      write_known_issue_state "$issue" "true" "pending" "$resource_initial"
-      return 0
-    fi
-  done
-  return 1
-}
-
-record_undetected_known_issues() {
-  local step="$1"
-  local fixture="$2"
-  local issue
-  for issue in "${known_issue_registry[@]}"; do
-    if [[ "$(known_issue_step "$issue")" == "$step" && ! -f "$known_issues_dir/${issue}.json" ]]; then
-      write_known_issue_state "$issue" "false" "not_needed" "$fixture" "" "$step"
-    fi
-  done
 }
 
 require_success() {
@@ -894,54 +745,6 @@ check_list_presence() {
   pass_current
 }
 
-recover_known_issue_1947() {
-  local original_initial="$resource_initial"
-  local original_updated="$resource_updated"
-  local workaround_initial="${original_initial%.yaml}.issue-1947.yaml"
-  local workaround_updated="${original_updated%.yaml}.issue-1947.yaml"
-
-  python3 - "$original_initial" "$workaround_initial" "$original_updated" "$workaround_updated" \
-    "Smoke API ${run_suffix} Guide" <<'PY'
-import json
-import pathlib
-import sys
-
-source_initial, target_initial, source_updated, target_updated, title = sys.argv[1:]
-marker = "      - content: !file ./content/smoke-document.md"
-title_line = f"        title: {json.dumps(title)}"
-for source, target in ((source_initial, target_initial), (source_updated, target_updated)):
-    text = pathlib.Path(source).read_text(encoding="utf-8")
-    if title_line in text:
-        raise SystemExit(f"canonical fixture already contains issue #1947 recovery: {source}")
-    if text.count(marker) != 1:
-        raise SystemExit(f"could not identify the API document in {source}")
-    recovered = text.replace(marker, marker + "\n" + title_line, 1)
-    pathlib.Path(target).write_text(recovered, encoding="utf-8")
-print(target_initial)
-print(target_updated)
-PY
-  local status=$?
-  if [[ "$status" -ne 0 ]]; then
-    return "$status"
-  fi
-
-  resource_initial="$workaround_initial"
-  resource_updated="$workaround_updated"
-  api_initial="$workaround_initial"
-  api_updated="$workaround_updated"
-}
-
-recover_known_issue() {
-  case "$1" in
-    1947)
-      recover_known_issue_1947
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
 smoke_resource() {
   local key="$1"
   "load_resource_${key}"
@@ -971,57 +774,9 @@ smoke_resource() {
   touched_resources+=("$key")
   start_check "apply-create-${key}" "$key" "create"
   run_kongctl apply --plan "$create_plan" --auto-approve -o json
-  if [[ "$current_exit" -eq 0 ]]; then
-    assert_execution 1
-    pass_current
-    record_undetected_known_issues "apply-create-${key}" "$resource_initial"
-  elif recognize_current_known_issue; then
-    local issue="$active_known_issue"
-    local original_fixture="$resource_initial"
-
-    start_check "recover-known-issue-${issue}" "$key" "recovery"
-    current_command="create a separate fixture for known issue #${issue}"
-    set +e
-    recover_known_issue "$issue" >"$current_stdout" 2>"$current_stderr"
-    current_exit=$?
-    set -e
-    current_duration=$(($(date +%s) - current_started))
-    if [[ "$current_exit" -ne 0 ]]; then
-      write_known_issue_state "$issue" "true" "failed" "$original_fixture"
-      require_success
-    fi
-    pass_current "temporary recovery for $(known_issue_url "$issue")"
-
-    create_plan="$plans_dir/${key}-create.issue-${issue}.json"
-    start_check "plan-create-${key}-after-${issue}" "$key" "recovery"
-    run_kongctl plan -f "$resource_initial" --mode apply --require-namespace "$resource_namespace" \
-      --output-file "$create_plan"
-    require_success
-    assert_plan "$create_plan" "apply" "CREATE" "$resource_type" "$resource_ref"
-    pass_current
-
-    start_check "diff-create-${key}-after-${issue}" "$key" "recovery"
-    run_kongctl diff --plan "$create_plan"
-    require_success
-    assert_text_contains "$current_stdout" "$resource_ref"
-    pass_current
-
-    start_check "apply-create-${key}-after-${issue}" "$key" "recovery"
-    run_kongctl apply --plan "$create_plan" --auto-approve -o json
-    if [[ "$current_exit" -ne 0 ]]; then
-      if has_known_issue_failure "$issue"; then
-        write_known_issue_state "$issue" "true" "failed" "$original_fixture" "$resource_initial"
-      else
-        write_known_issue_state "$issue" "true" "succeeded" "$original_fixture" "$resource_initial"
-      fi
-      require_success
-    fi
-    assert_execution 1
-    pass_current
-    write_known_issue_state "$issue" "true" "succeeded" "$original_fixture" "$resource_initial"
-  else
-    require_success
-  fi
+  require_success
+  assert_execution 1
+  pass_current
 
   check_detail_present
   check_list_presence "present"
@@ -1149,14 +904,14 @@ write_report() {
   REPORT_RUN_ID="$run_id" REPORT_MODE="$mode" REPORT_BINARY="$kongctl_bin" REPORT_PROFILE="$effective_profile" \
     REPORT_ARTIFACTS="$artifacts_dir" REPORT_CLEANUP="$cleanup_state" REPORT_EXIT="$exit_code" \
     REPORT_STARTED="$run_started" REPORT_FINISHED="$finished" REPORT_FAILURE="$run_failure" \
-    python3 - "$results_file" "$resources_file" "$known_issues_dir" "$artifacts_dir/binary.json" \
+    python3 - "$results_file" "$resources_file" "$artifacts_dir/binary.json" \
     "$artifacts_dir/report.json" "$artifacts_dir/summary.txt" <<'PY'
 import json
 import os
 import pathlib
 import sys
 
-results_path, resources_path, known_issues_path, binary_path, report_path, summary_path = map(
+results_path, resources_path, binary_path, report_path, summary_path = map(
     pathlib.Path, sys.argv[1:]
 )
 
@@ -1167,11 +922,6 @@ def read_jsonl(path):
 
 checks = read_jsonl(results_path)
 resources = read_jsonl(resources_path)
-known_issue_checks = [
-    json.loads(path.read_text(encoding="utf-8"))
-    for path in sorted(known_issues_path.glob("*.json"))
-]
-known_issues = [issue for issue in known_issue_checks if issue["detected"]]
 binary = {}
 if binary_path.exists():
     binary = json.loads(binary_path.read_text(encoding="utf-8"))
@@ -1191,8 +941,8 @@ report = {
     "finished_epoch": int(os.environ["REPORT_FINISHED"]),
     "duration_seconds": int(os.environ["REPORT_FINISHED"]) - int(os.environ["REPORT_STARTED"]),
     "cleanup": {"status": os.environ["REPORT_CLEANUP"]},
-    "known_issue_checks": known_issue_checks,
-    "known_issues": known_issues,
+    "known_issue_checks": [],
+    "known_issues": [],
     "resources": resources,
     "checks": checks,
 }
@@ -1210,15 +960,6 @@ lines = [
     f"checks: {passed} passed, {failed} failed, {known} known issues",
     f"cleanup: {report['cleanup']['status']}",
 ]
-for issue in known_issues:
-    lines.append(
-        f"known issue: #{issue['issue']} (recovery {issue['recovery_status']}) {issue['url']}"
-    )
-for issue in known_issue_checks:
-    if not issue["detected"]:
-        lines.append(
-            f"known issue check: #{issue['issue']} not detected; recovery may be removable {issue['url']}"
-        )
 lines.append(f"artifacts: {report['artifacts_dir']}")
 summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
@@ -1312,8 +1053,4 @@ for key in "${resource_registry[@]}"; do
 done
 
 cleanup_all "strict"
-if [[ "$known_issue_detected" == "true" ]]; then
-  run_failure="known CLI issues were detected; see the known-issues section of the report"
-  exit 1
-fi
 exit 0
