@@ -115,7 +115,7 @@ docker run --detach --rm --name federated-aigw-dp \
   --volume "$PWD/platform/certs:/etc/kong/certs:ro" \
   --publish 8000:8000 \
   --publish 8443:8443 \
-  kong/kong-ai-gateway:2.0.2
+  kong/kong-ai-gateway:2.0.3
 ```
 
 The image runs as the non-root `kong` user. `--group-add` gives that user
