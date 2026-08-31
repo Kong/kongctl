@@ -121,7 +121,6 @@ def parse_fixture(path):
         "name": scalar("name") or ref,
         "display_name": scalar("display_name"),
         "description": scalar("description"),
-        "document_title": bool(re.search(r"^        title: ", text, re.MULTILINE)),
         "root": root,
     }
 
@@ -227,19 +226,6 @@ elif args[:1] == ["diff"]:
     print("\n".join(change["resource_ref"] for change in plan["changes"]) or "No changes")
 elif args[:1] == ["apply"]:
     plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-    if os.environ.get("FAKE_KNOWN_ISSUE_1947") == "1" and any(
-        change["resource_type"] == "api" and not change["fields"].get("document_title")
-        for change in plan["changes"]
-    ):
-        print(json.dumps({
-            "execution": {"errors": [{
-                "error": "incompatible plan change 2 (\"3:c:api_document:guide\") "
-                         "for CREATE api_document: title is required; regenerate the plan"
-            }]},
-            "summary": {"status": "error", "failed": 1, "applied": 0, "total_changes": 1},
-        }))
-        print("Error: execution completed with 1 errors", file=sys.stderr)
-        raise SystemExit(1)
     for change in plan["changes"]:
         state[change["resource_type"]] = change["fields"]
     save_state()
@@ -305,7 +291,6 @@ new_case() {
 run_smoke() {
   set +e
   FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
-    FAKE_KNOWN_ISSUE_1947="${FAKE_KNOWN_ISSUE_1947:-}" \
     "$SMOKE_SCRIPT" --binary "$FAKE_BIN" --artifacts-dir "$CASE_DIR/artifacts" "$@" >"$OUTPUT" 2>&1
   STATUS=$?
   set -e
@@ -342,39 +327,12 @@ test_full_lifecycle() {
   assert_contains "$FAKE_LOG" "--include-child-resources" "dump requests nested child resources"
   local report_condition="value['status'] == 'passed' and value['cleanup']['status'] == 'passed' "
   report_condition+="and len(value['resources']) == 4 and value['known_issues'] == [] "
-  report_condition+="and len(value['known_issue_checks']) == 1 "
-  report_condition+="and value['known_issue_checks'][0]['detected'] == False"
+  report_condition+="and value['known_issue_checks'] == []"
   assert_json "$RUN_DIR/report.json" "$report_condition" "full report records lifecycle and cleanup"
-  assert_contains "$RUN_DIR/summary.txt" "#1947 not detected; recovery may be removable" \
-    "fixed behavior flags the recovery as a removal candidate"
   pass "full lifecycle covers resources and per-resource delete"
 }
 
-test_known_issue_recovers_and_continues() {
-  new_case known-issue
-  FAKE_KNOWN_ISSUE_1947=1 run_smoke --yes
-  [[ "$STATUS" -eq 1 ]] || fail "known issue keeps the run unsuccessful" "$OUTPUT"
-  assert_contains "$OUTPUT" "KNOWN ISSUE #1947" "terminal output identifies the known issue"
-  assert_contains "$OUTPUT" "recover-known-issue-1947" "terminal output identifies the recovery"
-  assert_contains "$FAKE_LOG" "list portals -o json" "smoke testing continues after recovery"
-  assert_json "$FAKE_STATE" "value == {}" "known-issue run still cleans every resource"
-  assert_not_contains "$RUN_DIR/fixtures/api/initial.yaml" '        title: ' \
-    "canonical fixture remains unchanged"
-  assert_contains "$RUN_DIR/fixtures/api/initial.issue-1947.yaml" '        title: "Smoke API ' \
-    "recovery is written to a separate fixture"
-  local report_condition="value['status'] == 'failed' and value['cleanup']['status'] == 'passed' "
-  report_condition+="and len(value['known_issues']) == 1 and len(value['known_issue_checks']) == 1 "
-  report_condition+="and value['known_issues'][0]['issue'] == 1947 "
-  report_condition+="and value['known_issues'][0]['recovery_status'] == 'succeeded' "
-  report_condition+="and any(check['status'] == 'known_issue' for check in value['checks'])"
-  assert_json "$RUN_DIR/report.json" "$report_condition" \
-    "report records the detected issue and successful recovery"
-  assert_contains "$RUN_DIR/summary.txt" "known issue: #1947 (recovery succeeded)" \
-    "text summary records the known issue"
-  pass "known issue recovery preserves failure status and continues coverage"
-}
-
-test_unrecognized_apply_failure_does_not_recover() {
+test_apply_failure_stops_lifecycle() {
   new_case unrecognized-apply-failure
   set +e
   FAKE_FAIL_ON="apply --plan" FAKE_KONGCTL_LOG="$FAKE_LOG" FAKE_KONGCTL_STATE="$FAKE_STATE" \
@@ -383,12 +341,8 @@ test_unrecognized_apply_failure_does_not_recover() {
   set -e
   RUN_DIR="$(find "$CASE_DIR/artifacts" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
   [[ "$STATUS" -eq 1 ]] || fail "unrecognized apply failure returns one" "$OUTPUT"
-  assert_not_contains "$OUTPUT" "KNOWN ISSUE #1947" "unrecognized errors are not classified as #1947"
-  assert_not_contains "$OUTPUT" "recover-known-issue" "unrecognized errors do not invoke recovery"
   assert_not_contains "$FAKE_LOG" "list portals -o json" "unexpected failure stops the lifecycle"
-  assert_json "$RUN_DIR/report.json" "value['known_issues'] == []" \
-    "unexpected failure is absent from known issues"
-  pass "known-issue matching does not hide unrelated apply failures"
+  pass "unexpected apply failure stops the lifecycle"
 }
 
 test_failure_cleans_up() {
@@ -467,8 +421,7 @@ test_scaffold_contract_failure_is_safe() {
 
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
-test_known_issue_recovers_and_continues
-test_unrecognized_apply_failure_does_not_recover
+test_apply_failure_stops_lifecycle
 test_failure_cleans_up
 test_keep_on_failure
 test_cleanup_failure_is_reported
