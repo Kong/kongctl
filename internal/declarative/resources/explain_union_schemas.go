@@ -159,6 +159,17 @@ func explainUnionNode(branches ...*ExplainNode) *ExplainNode {
 	return node
 }
 
+func explainRefreshUnionAggregate(node *ExplainNode) {
+	if node == nil || len(node.OneOf) == 0 {
+		return
+	}
+
+	branches := node.OneOf
+	refreshed := explainAggregateUnionNode(branches...)
+	refreshed.OneOf = branches
+	*node = *refreshed
+}
+
 func explainAggregateUnionNode(branches ...*ExplainNode) *ExplainNode {
 	if len(branches) == 0 {
 		return explainObject()

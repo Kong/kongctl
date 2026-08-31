@@ -354,6 +354,7 @@ func aiGatewayProviderSDKExplainBranch(
 		explainSetConstStringField(auth.OneOf[i], "type", authType)
 		configureAIGatewayProviderAuthExplain(auth.OneOf[i])
 	}
+	explainRefreshUnionAggregate(auth)
 	return branch, nil
 }
 

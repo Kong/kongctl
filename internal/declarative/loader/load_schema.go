@@ -171,7 +171,13 @@ func formatDeclarativeSchemaError(
 	if path == "" {
 		path = "<document>"
 	}
-	return fmt.Errorf("invalid declarative value at %s in %s: %s", path, sourcePath, declarativeErrorMessage(leaf))
+	message := declarativeErrorMessage(leaf)
+	if _, ok := leaf.ErrorKind.(*kind.Const); ok {
+		if values := declarativeConstValuesAt(schema, document, leaf.InstanceLocation); len(values) > 1 {
+			message = "expected union discriminator one of " + strings.Join(values, ", ")
+		}
+	}
+	return fmt.Errorf("invalid declarative value at %s in %s: %s", path, sourcePath, message)
 }
 
 func portalSingletonNullSchemaError(path string) string {
@@ -326,6 +332,60 @@ func declarativeSchemaPropertiesAt(
 	}
 	slices.Sort(result)
 	return result
+}
+
+func declarativeConstValuesAt(
+	root *resources.JSONSchema,
+	document any,
+	path []string,
+) []string {
+	if len(path) == 0 {
+		return nil
+	}
+
+	parent := declarativeSchemaAt(root, document, path[:len(path)-1])
+	parent = resolveDeclarativeSchemaRef(root, parent)
+	if parent == nil {
+		return nil
+	}
+
+	name := path[len(path)-1]
+	values := make([]string, 0)
+	seen := make(map[string]struct{})
+	appendValues := func(schema *resources.JSONSchema) {
+		for _, value := range declarativeSchemaConstValues(root, schema) {
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			values = append(values, value)
+		}
+	}
+
+	appendValues(parent.Properties[name])
+	for _, branch := range parent.OneOf {
+		branch = resolveDeclarativeSchemaRef(root, branch)
+		if branch != nil {
+			appendValues(branch.Properties[name])
+		}
+	}
+	return values
+}
+
+func declarativeSchemaConstValues(root *resources.JSONSchema, schema *resources.JSONSchema) []string {
+	schema = resolveDeclarativeSchemaRef(root, schema)
+	if schema == nil {
+		return nil
+	}
+	if schema.Const != nil {
+		return []string{fmt.Sprint(schema.Const)}
+	}
+
+	var values []string
+	for _, branch := range schema.OneOf {
+		values = append(values, declarativeSchemaConstValues(root, branch)...)
+	}
+	return values
 }
 
 func declarativeRejectedFieldMessageAt(
