@@ -33,7 +33,6 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConfigStoreSecretExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 

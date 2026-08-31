@@ -162,7 +162,7 @@ test("presents the federated management journey", async ({ page }) => {
     lessons.getByRole("link", { name: /Federated Management/ }),
   ).toBeVisible();
   await expect(
-    lessons.getByRole("link", { name: /AI Gateway 2.0 Beta Steps/ }),
+    lessons.getByRole("link", { name: /AI Gateway 2.0 Setup/ }),
   ).toBeVisible();
   await expect(
     lessons.getByRole("link", { name: /Ownership Boundaries/ }),
@@ -187,12 +187,9 @@ test("presents the federated management journey", async ({ page }) => {
   ).toBeVisible();
   await expect(lessons.getByRole("link", { name: /Clean Up/ })).toBeVisible();
 
-  await page.goto("federated-api-platform-management/ai-gateway-2-beta-steps/");
+  await page.goto("federated-api-platform-management/ai-gateway-2-setup/");
   const lesson = page.locator(".lesson-body");
-  await expect(lesson).toContainText("prerelease-aigw-2");
-  await expect(lesson).toContainText(
-    "KONGCTL_DEFAULT_KONNECT_ENVIRONMENT=tech",
-  );
+  await expect(lesson).toContainText("https://get.konghq.com/kongctl");
   await expect(lesson).toContainText("kongctl login");
   await expect(lesson).toContainText("KONGCTL_DEFAULT_KONNECT_PAT");
 });

@@ -109,7 +109,7 @@ func TestAIGatewayHelpListsModelsOnce(t *testing.T) {
 	require.Equal(t, 1, strings.Count(out.String(), "\n  models "))
 }
 
-func TestAIGatewayCommandsAreBeta(t *testing.T) {
+func TestAIGatewayCommandsAreGA(t *testing.T) {
 	t.Parallel()
 
 	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
@@ -123,12 +123,12 @@ func TestAIGatewayCommandsAreBeta(t *testing.T) {
 
 			resolved, err := maturity.ResolveCommand(rootCmd)
 			require.NoError(t, err)
-			require.Equal(t, maturity.LevelBeta, resolved.Effective.Level)
+			require.Equal(t, maturity.LevelGA, resolved.Effective.Level)
 
 			for _, child := range rootCmd.Commands() {
 				childResolved, err := maturity.ResolveCommand(child)
 				require.NoError(t, err)
-				require.Equal(t, maturity.LevelBeta, childResolved.Effective.Level, child.Name())
+				require.Equal(t, maturity.LevelGA, childResolved.Effective.Level, child.Name())
 			}
 		})
 	}

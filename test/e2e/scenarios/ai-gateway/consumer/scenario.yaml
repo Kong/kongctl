@@ -1,8 +1,5 @@
 baseInputsPath: testdata
 
-test:
-  maturity: beta
-
 env:
   KONGCTL_LOG_LEVEL: info
   KONGCTL_E2E_AI_GATEWAY_CONSUMER_API_KEY: fake-consumer-api-key

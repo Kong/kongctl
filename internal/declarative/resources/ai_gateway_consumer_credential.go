@@ -43,7 +43,6 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerCredentialExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 	)
 }
 

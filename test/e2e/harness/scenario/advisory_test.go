@@ -15,17 +15,17 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 
 	path, err := recordAdvisoryFailureAt(
 		artifactsDir,
-		"test/e2e/scenarios/ai-gateway/model/scenario.yaml",
+		"test/e2e/scenarios/declarative/rename-sync-delete/scenario.yaml",
 		MaturityBeta,
 		BetaModeWarn,
-		errors.New("model scenario failed"),
+		errors.New("rename sync delete scenario failed"),
 		errors.New("reset failed"),
 	)
 	if err != nil {
 		t.Fatalf("RecordAdvisoryFailure() error = %v", err)
 	}
 
-	wantPath := filepath.Join(artifactsDir, "beta-failures", "ai-gateway", "model", "failure.json")
+	wantPath := filepath.Join(artifactsDir, "beta-failures", "declarative", "rename-sync-delete", "failure.json")
 	if path != wantPath {
 		t.Fatalf("RecordAdvisoryFailure() path = %q, want %q", path, wantPath)
 	}
@@ -38,13 +38,13 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("parse advisory artifact: %v", err)
 	}
-	if got.Scenario != "ai-gateway/model/scenario.yaml" {
-		t.Fatalf("scenario = %q, want ai-gateway/model/scenario.yaml", got.Scenario)
+	if got.Scenario != "declarative/rename-sync-delete/scenario.yaml" {
+		t.Fatalf("scenario = %q, want declarative/rename-sync-delete/scenario.yaml", got.Scenario)
 	}
 	if got.Maturity != MaturityBeta || got.Mode != BetaModeWarn {
 		t.Fatalf("policy = %q/%q, want beta/warn", got.Maturity, got.Mode)
 	}
-	if got.Error != "model scenario failed" || got.CleanupError != "reset failed" {
+	if got.Error != "rename sync delete scenario failed" || got.CleanupError != "reset failed" {
 		t.Fatalf("errors = %q/%q, want scenario and cleanup errors", got.Error, got.CleanupError)
 	}
 }
@@ -52,7 +52,7 @@ func TestRecordAdvisoryFailure(t *testing.T) {
 func TestRecordAdvisoryFailureOverwritesInitialRecord(t *testing.T) {
 	artifactsDir := t.TempDir()
 	scenarioErr := errors.New("scenario failed")
-	scenarioPath := "test/e2e/scenarios/ai-gateway/model/scenario.yaml"
+	scenarioPath := "test/e2e/scenarios/declarative/rename-sync-delete/scenario.yaml"
 
 	path, err := recordAdvisoryFailureAt(
 		artifactsDir,

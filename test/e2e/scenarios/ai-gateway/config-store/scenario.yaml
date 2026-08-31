@@ -1,8 +1,5 @@
 baseInputsPath: testdata
 
-test:
-  maturity: beta
-
 env:
   KONGCTL_E2E_CONFIG_STORE_SECRET: kongctl-config-store-secret-value
 

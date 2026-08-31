@@ -1,8 +1,5 @@
 baseInputsPath: testdata
 
-test:
-  maturity: beta
-
 env:
   KONGCTL_LOG_LEVEL: info
   KONGCTL_E2E_MODEL_PROVIDER_KEY: placeholder

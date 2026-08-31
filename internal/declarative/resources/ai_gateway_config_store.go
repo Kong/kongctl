@@ -25,7 +25,6 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, SchemaFieldName, SchemaFieldDisplayName),
 			WithExplainSchemaBuilder(aiGatewayConfigStoreExplainNode),
 		),
-		WithMaturity(aiGatewayMaturity),
 		WithExternalUnsupportedReason("scoped AI Gateway config store lookup is planned for domain enablement"),
 	)
 }
