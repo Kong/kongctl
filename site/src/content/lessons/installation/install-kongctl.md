@@ -22,10 +22,17 @@ software.
 
 Choose the installation command for your operating system.
 
-### macOS with Homebrew
+### macOS or Linux with Homebrew
 
 ```shell
-brew install --cask kong/kongctl/kongctl
+brew install --formula kong/kongctl/kongctl
+```
+
+If you previously installed the cask, migrate to the formula:
+
+```shell
+brew uninstall --cask kongctl
+brew install --formula kong/kongctl/kongctl
 ```
 
 ### Linux or macOS with the shell installer

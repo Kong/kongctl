@@ -21,9 +21,8 @@ files=()
 if [[ -f "Casks/kongctl.rb" ]]; then
   files+=("Casks/kongctl.rb")
 fi
-if [[ -f "kongctl.rb" ]]; then
-  perl -0pi -e 's/^# typed: false/# typed: strict/' kongctl.rb || true
-  files+=("kongctl.rb")
+if [[ -f "Formula/kongctl.rb" ]]; then
+  files+=("Formula/kongctl.rb")
 fi
 
 if [[ ${#files[@]} -eq 0 ]]; then

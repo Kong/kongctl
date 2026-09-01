@@ -67,4 +67,10 @@ homebrew_casks:
       email: rspurgeon@users.noreply.github.com
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
+    custom_block: |
+      deprecate! date: "2026-08-31",
+                 because: "is superseded by the source-built formula",
+                 replacement_formula: "kong/kongctl/kongctl"
+    caveats: >-
+      Migrate with: brew uninstall --cask kongctl && brew install --formula kong/kongctl/kongctl
     skip_upload: true
