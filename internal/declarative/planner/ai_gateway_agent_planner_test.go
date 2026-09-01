@@ -251,7 +251,7 @@ func TestAIGatewayAgentPlannerAuthStrategyRefNoopForExistingAgent(t *testing.T) 
 	current := testAIGatewayAgent(nil)
 	current.Access = &kkComps.AIGatewayAgentAccess{
 		AuthStrategies:    []string{"support-key-auth"},
-		IdentityProviders: []string{"support-key-auth"},
+		IdentityProviders: []string{"support-key-auth"}, //nolint:staticcheck // Legacy response normalization.
 	}
 	rs := &resources.ResourceSet{
 		AIGatewayAuthStrategies: []resources.AIGatewayAuthStrategyResource{{

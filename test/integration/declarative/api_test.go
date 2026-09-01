@@ -108,7 +108,6 @@ apis:
 		CreatedAt:             time.Now(),
 		UpdatedAt:             time.Now(),
 		Slug:                  stringPtr("my-api"), // Must match the ref in the config
-		APISpecIds:            []string{},
 		Portals:               []kkComps.Portals{},
 		CurrentVersionSummary: &kkComps.APIVersionSummary{},
 	}
