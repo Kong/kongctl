@@ -11,6 +11,8 @@ ai_gateways:
         name: runtime-cert
         cert: !file ./certs/runtime.pem
         key: !secret {source: !file ./certs/runtime.key}
+        cert_alt: !file ./certs/runtime-alt.pem
+        key_alt: !secret {source: !file ./certs/runtime-alt.key}
         labels:
           revision: updated
     ca_certificates:

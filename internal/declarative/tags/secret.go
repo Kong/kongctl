@@ -250,13 +250,26 @@ func SecretExpressionFromEnvPlaceholder(value string) (SecretExpression, error) 
 
 // ResolveSecretExpression resolves and concatenates all expression parts.
 func ResolveSecretExpression(expression SecretExpression) (string, error) {
+	return resolveSecretExpression(expression, "")
+}
+
+// ResolveSecretExpressionFromBase resolves file sources relative to a trusted execution boundary.
+func ResolveSecretExpressionFromBase(expression SecretExpression, baseDir string) (string, error) {
+	baseDir = strings.TrimSpace(baseDir)
+	if baseDir == "" {
+		return "", fmt.Errorf("secret source base directory is required")
+	}
+	return resolveSecretExpression(expression, baseDir)
+}
+
+func resolveSecretExpression(expression SecretExpression, baseDir string) (string, error) {
 	var result strings.Builder
 	for _, part := range expression.Parts {
 		switch {
 		case part.Literal != nil && part.Source == nil:
 			result.WriteString(*part.Literal)
 		case part.Source != nil && part.Literal == nil:
-			value, err := resolveSecretSource(*part.Source)
+			value, err := resolveSecretSource(*part.Source, baseDir)
 			if err != nil {
 				return "", err
 			}
@@ -274,27 +287,30 @@ func ResolveSecretExpression(expression SecretExpression) (string, error) {
 	return result.String(), nil
 }
 
-func resolveSecretSource(source SecretSource) (string, error) {
+func resolveSecretSource(source SecretSource, baseDir string) (string, error) {
 	switch source.Kind {
 	case "env":
 		return resolveEnvStringValue(source.Reference, source.Extract)
 	case "file":
-		if source.RootDir == "" || !filepath.IsAbs(source.Reference) {
-			return "", fmt.Errorf("invalid deferred file source")
+		rootDir, reference, err := secretFileResolutionPaths(source, baseDir)
+		if err != nil {
+			return "", err
 		}
-		resolvedPath, err := filepath.EvalSymlinks(source.Reference)
+		if !pathWithinBase(filepath.Clean(rootDir), filepath.Clean(reference)) {
+			return "", fmt.Errorf("secret source file resolves outside base dir %s: %s", rootDir, reference)
+		}
+		resolvedPath, err := filepath.EvalSymlinks(reference)
 		if err != nil {
 			if os.IsNotExist(err) {
-				return "", fmt.Errorf("secret source file not found: %s", source.Reference)
+				return "", fmt.Errorf("secret source file not found: %s", reference)
 			}
-			return "", fmt.Errorf("failed to resolve secret source file %s: %w", source.Reference, err)
+			return "", fmt.Errorf("failed to resolve secret source file %s: %w", reference, err)
 		}
-		rootDir := source.RootDir
-		if realRoot, rootErr := filepath.EvalSymlinks(source.RootDir); rootErr == nil {
+		if realRoot, rootErr := filepath.EvalSymlinks(rootDir); rootErr == nil {
 			rootDir = realRoot
 		}
 		if !pathWithinBase(filepath.Clean(rootDir), filepath.Clean(resolvedPath)) {
-			return "", fmt.Errorf("secret source file resolves outside base dir %s: %s", rootDir, source.Reference)
+			return "", fmt.Errorf("secret source file resolves outside base dir %s: %s", rootDir, reference)
 		}
 		resolver := NewFileTagResolver(filepath.Dir(resolvedPath), rootDir)
 		data, err := resolver.readFile(resolvedPath)
@@ -319,4 +335,21 @@ func resolveSecretSource(source SecretSource) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported secret source kind %q", source.Kind)
 	}
+}
+
+func secretFileResolutionPaths(source SecretSource, baseDir string) (string, string, error) {
+	if baseDir == "" {
+		if source.RootDir == "" || !filepath.IsAbs(source.Reference) {
+			return "", "", fmt.Errorf("invalid deferred file source")
+		}
+		return source.RootDir, source.Reference, nil
+	}
+	if !filepath.IsAbs(baseDir) {
+		return "", "", fmt.Errorf("secret source base directory must be absolute")
+	}
+	if filepath.IsAbs(source.Reference) {
+		return "", "", fmt.Errorf("saved-plan secret file source must be relative to the plan directory")
+	}
+	rootDir := filepath.Clean(baseDir)
+	return rootDir, filepath.Join(rootDir, source.Reference), nil
 }

@@ -11,6 +11,8 @@ def main() -> None:
     cert_dir.mkdir(parents=True, exist_ok=True)
     cert_path = cert_dir / "runtime.pem"
     key_path = cert_dir / "runtime.key"
+    alt_cert_path = cert_dir / "runtime-alt.pem"
+    alt_key_path = cert_dir / "runtime-alt.key"
     subprocess.run(
         [
             "openssl",
@@ -23,6 +25,31 @@ def main() -> None:
             str(key_path),
             "-out",
             str(cert_path),
+            "-days",
+            "1",
+            "-subj",
+            "/CN=runtime-tls.kongctl-e2e.io",
+            "-addext",
+            "subjectAltName=DNS:runtime-tls.kongctl-e2e.io",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-nodes",
+            "-newkey",
+            "ec",
+            "-pkeyopt",
+            "ec_paramgen_curve:P-256",
+            "-keyout",
+            str(alt_key_path),
+            "-out",
+            str(alt_cert_path),
             "-days",
             "1",
             "-subj",

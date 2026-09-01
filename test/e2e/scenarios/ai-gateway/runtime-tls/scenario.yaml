@@ -62,7 +62,8 @@ steps:
             expect:
               fields:
                 "contains(keys(fields), 'key')": false
-                "length(secret_writes)": 1
+                "length(secret_writes)": 2
+                "contains(keys(fields), 'key_alt')": false
           - select: "changes[?resource_type=='ai_gateway_sni'] | [0]"
             expect:
               fields:
@@ -125,16 +126,19 @@ steps:
           - apply
           - --write-secret
           - runtime-cert#key
+          - --write-secret
+          - runtime-cert#key_alt
         assertions:
           - select: summary
             expect:
               fields:
                 by_action.UPDATE: 3
-                secret_writes: 1
+                secret_writes: 2
           - select: "changes[?resource_type=='ai_gateway_certificate'] | [0]"
             expect:
               fields:
                 "contains(keys(fields), 'key')": false
+                "contains(keys(fields), 'key_alt')": false
       - name: 001-apply-update
         outputFormat: json
         run: [apply, --plan, "{{ .workdir }}/plan-update.json", --auto-approve]
@@ -161,7 +165,9 @@ steps:
             expect:
               fields:
                 "contains(keys(@), 'key')": false
+                "contains(keys(@), 'key_alt')": false
                 "contains(cert, 'BEGIN CERTIFICATE')": true
+                "contains(cert_alt, 'BEGIN CERTIFICATE')": true
           - select: "contains(to_string(@), 'BEGIN PRIVATE KEY')"
             expect:
               fields:

@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -64,6 +65,14 @@ func TestAIGatewaySNIRejectsWildcardsAtBothEnds(t *testing.T) {
 		DisplayName: "API SNI", Hostname: "*.example.*", Certificate: "runtime-cert",
 	}
 	require.ErrorContains(t, sni.Validate(), "hostname is invalid")
+}
+
+func TestAIGatewaySNIReportsNameLengthSeparately(t *testing.T) {
+	sni := AIGatewaySNIResource{
+		BaseResource: BaseResource{Ref: "api-sni"}, AIGateway: "gateway", Name: strings.Repeat("a", 257),
+		DisplayName: "API SNI", Hostname: "api.example.test", Certificate: "runtime-cert",
+	}
+	require.ErrorContains(t, sni.Validate(), "must not exceed 256 characters")
 }
 
 func TestAIGatewaySNIRejectsNonStringHostnameFromResponse(t *testing.T) {

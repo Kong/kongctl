@@ -176,6 +176,12 @@ The file path is validated while loading the configuration, but its contents
 are read only during execution. Relative paths must remain within the
 configuration's file boundary.
 
+When saving a plan that contains a file-backed secret, place the plan above
+the referenced file in the same directory tree. kongctl stores the file path
+relative to the plan and confines execution-time reads to the plan directory.
+Move the plan and referenced files together to preserve that relative layout
+on another machine.
+
 Literal values and bare, eager `!file` values are rejected on reviewed secret
 fields because their contents could otherwise enter a saved plan. Wrap a file
 source in `!secret` to keep it deferred. Do not place secret material in a

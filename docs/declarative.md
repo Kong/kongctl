@@ -1113,6 +1113,13 @@ key: !secret
   source: !file ./certs/runtime-key.pem
 ```
 
+Saved plans store deferred secret-file paths relative to the plan file. Keep
+the referenced files in the plan directory or one of its subdirectories, and
+move the plan and those files together when executing on another host. Apply
+resolves the path within the plan directory and rejects absolute paths, parent
+traversal, and symlinks that escape that boundary. When a plan is written to
+standard output, the current working directory is the boundary.
+
 Recognized Konnect vault references can be written literally because they
 identify secret material without containing it. They remain visible in plans,
 and Konnect resolves them when applying the configuration:

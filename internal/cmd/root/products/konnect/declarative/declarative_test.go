@@ -21,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
@@ -38,6 +39,40 @@ func testDeclarativeLogger() *slog.Logger {
 
 func testDeclarativeLoggerTo(w io.Writer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: slog.LevelInfo}))
+}
+
+func TestNormalizeSecretFileSourcesMakesPlanPathsPortable(t *testing.T) {
+	planDir := t.TempDir()
+	secretPath := filepath.Join(planDir, "certs", "runtime.key")
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ResourceType: planner.ResourceTypeAIGatewayCertificate, ResourceRef: "runtime-cert",
+		SecretWrites: []planner.SecretWriteIntent{{Expression: tags.SecretExpression{Parts: []tags.SecretPart{{
+			Source: &tags.SecretSource{Kind: "file", Reference: secretPath, RootDir: planDir},
+		}}}}},
+	})
+
+	require.NoError(t, normalizeSecretFileSources(plan, filepath.Join(planDir, "plan.json")))
+	source := plan.Changes[0].SecretWrites[0].Expression.Parts[0].Source
+	require.Equal(t, filepath.Join("certs", "runtime.key"), source.Reference)
+	require.Empty(t, source.RootDir)
+}
+
+func TestNormalizeSecretFileSourcesRejectsSourceOutsidePlanDirectory(t *testing.T) {
+	planDir := t.TempDir()
+	outsideDir := t.TempDir()
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ResourceType: planner.ResourceTypeAIGatewayCertificate, ResourceRef: "runtime-cert",
+		SecretWrites: []planner.SecretWriteIntent{{Expression: tags.SecretExpression{Parts: []tags.SecretPart{{
+			Source: &tags.SecretSource{
+				Kind: "file", Reference: filepath.Join(outsideDir, "runtime.key"), RootDir: outsideDir,
+			},
+		}}}}},
+	})
+
+	err := normalizeSecretFileSources(plan, filepath.Join(planDir, "plan.json"))
+	require.ErrorContains(t, err, "outside plan directory")
 }
 
 type declarativeAIGatewayConsumerGroupsAPI struct {

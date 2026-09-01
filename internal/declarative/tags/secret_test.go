@@ -86,6 +86,42 @@ func TestSecretTagResolverRejectsFileSourceOutsideRoot(t *testing.T) {
 	require.ErrorContains(t, err, "outside base dir")
 }
 
+func TestResolveSecretExpressionFromBaseUsesTrustedPlanDirectory(t *testing.T) {
+	planDir := t.TempDir()
+	secretDir := filepath.Join(planDir, "certs")
+	require.NoError(t, os.Mkdir(secretDir, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(secretDir, "runtime.key"), []byte("private-key"), 0o600))
+	expression := SecretExpression{Parts: []SecretPart{{Source: &SecretSource{
+		Kind: "file", Reference: filepath.Join("certs", "runtime.key"), RootDir: "/",
+	}}}}
+
+	resolved, err := ResolveSecretExpressionFromBase(expression, planDir)
+	require.NoError(t, err)
+	assert.Equal(t, "private-key", resolved)
+
+	expression.Parts[0].Source.Reference = filepath.Join("..", "outside.key")
+	_, err = ResolveSecretExpressionFromBase(expression, planDir)
+	require.ErrorContains(t, err, "outside base dir")
+
+	expression.Parts[0].Source.Reference = filepath.Join(planDir, "certs", "runtime.key")
+	_, err = ResolveSecretExpressionFromBase(expression, planDir)
+	require.ErrorContains(t, err, "must be relative")
+}
+
+func TestResolveSecretExpressionFromBaseRejectsSymlinkEscape(t *testing.T) {
+	planDir := t.TempDir()
+	outsideDir := t.TempDir()
+	outsidePath := filepath.Join(outsideDir, "outside.key")
+	require.NoError(t, os.WriteFile(outsidePath, []byte("private-key"), 0o600))
+	require.NoError(t, os.Symlink(outsidePath, filepath.Join(planDir, "runtime.key")))
+	expression := SecretExpression{Parts: []SecretPart{{Source: &SecretSource{
+		Kind: "file", Reference: "runtime.key",
+	}}}}
+
+	_, err := ResolveSecretExpressionFromBase(expression, planDir)
+	require.ErrorContains(t, err, "outside base dir")
+}
+
 func TestSecretTagResolverRejectsInvalidForms(t *testing.T) {
 	tests := []struct {
 		name    string

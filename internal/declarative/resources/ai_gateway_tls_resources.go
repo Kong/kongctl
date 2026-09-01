@@ -3,7 +3,6 @@ package resources
 import (
 	"fmt"
 	"regexp"
-	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/util"
@@ -120,6 +119,10 @@ func (a AIGatewayCertificateResource) PayloadMap() map[string]any {
 	return payload
 }
 
+func (a AIGatewayCertificateResource) MutablePayloadMap() (map[string]any, error) {
+	return a.PayloadMap(), nil
+}
+
 type AIGatewayCACertificateResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	AIGateway    string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
@@ -221,7 +224,10 @@ func (a AIGatewaySNIResource) Validate() error {
 	if err := validateAIGatewayTLSChild(a.BaseResource, a.AIGateway, a.Name, "SNI"); err != nil {
 		return err
 	}
-	if len(a.Name) > 256 || !aiGatewaySNINamePattern.MatchString(a.Name) {
+	if len(a.Name) > 256 {
+		return fmt.Errorf("name must not exceed 256 characters for AI Gateway SNI %s", a.Ref)
+	}
+	if !aiGatewaySNINamePattern.MatchString(a.Name) {
 		return fmt.Errorf("name for AI Gateway SNI %s must contain only lowercase letters, numbers, and hyphens", a.Ref)
 	}
 	if a.DisplayName == "" || len(a.DisplayName) > 256 {
@@ -315,31 +321,6 @@ func aiGatewayTLSStringField(value any, field string) string {
 		return id
 	}
 	return name
-}
-
-func AIGatewayCertificateUpdatedAt(value kkComps.AIGatewayCertificate) time.Time {
-	return value.UpdatedAt
-}
-
-func AIGatewayCACertificateUpdatedAt(value kkComps.AIGatewayCACertificate) time.Time {
-	return value.UpdatedAt
-}
-func AIGatewaySNIUpdatedAt(value kkComps.AIGatewaySNI) time.Time { return value.UpdatedAt }
-
-func AIGatewayCertificateMutablePayloadMap(value kkComps.AIGatewayCertificate) map[string]any {
-	return AIGatewayCertificateResourceFromResponse("", value).PayloadMap()
-}
-
-func AIGatewayCACertificateMutablePayloadMap(value kkComps.AIGatewayCACertificate) map[string]any {
-	return AIGatewayCACertificateResourceFromResponse("", value).PayloadMap()
-}
-
-func AIGatewaySNIMutablePayloadMap(value kkComps.AIGatewaySNI) (map[string]any, error) {
-	resource, err := AIGatewaySNIResourceFromResponse("", value)
-	if err != nil {
-		return nil, err
-	}
-	return resource.PayloadMap(), nil
 }
 
 func AIGatewayCertificateResourceFromResponse(

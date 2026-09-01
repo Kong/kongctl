@@ -17,7 +17,13 @@ func (e *Executor) preflightSecretWrites(plan *planner.Plan) error {
 	resolved := make(map[string]map[string]string)
 	for _, change := range plan.Changes {
 		for _, intent := range change.SecretWrites {
-			value, err := tags.ResolveSecretExpression(intent.Expression)
+			var value string
+			var err error
+			if e.planBaseDir == "" {
+				value, err = tags.ResolveSecretExpression(intent.Expression)
+			} else {
+				value, err = tags.ResolveSecretExpressionFromBase(intent.Expression, e.planBaseDir)
+			}
 			if err != nil {
 				return fmt.Errorf("failed to resolve secret source for %s %q field %s: %w",
 					change.ResourceType, change.ResourceRef, intent.Field, err)

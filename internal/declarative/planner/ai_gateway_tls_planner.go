@@ -362,13 +362,12 @@ func diffAIGatewayCertificate(
 	desired resources.AIGatewayCertificateResource,
 ) (map[string]any, map[string]FieldChange) {
 	fields := desired.PayloadMap()
-	changed := diffAIGatewayTLSPayloads(
-		map[string]any{
-			FieldName: current.Name, FieldCert: current.Cert, FieldCertAlt: current.CertAlt,
-			FieldLabels: current.Labels, FieldManagedBy: current.ManagedBy,
-		},
-		fields,
-	)
+	currentFields := map[string]any{FieldName: current.Name, FieldCert: current.Cert}
+	if current.CertAlt != nil {
+		currentFields[FieldCertAlt] = *current.CertAlt
+	}
+	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
+	changed := diffAIGatewayTLSPayloads(currentFields, fields)
 	return fields, changed
 }
 
@@ -377,30 +376,60 @@ func diffAIGatewayCACertificate(
 	desired resources.AIGatewayCACertificateResource,
 ) (map[string]any, map[string]FieldChange) {
 	fields := desired.PayloadMap()
-	return fields, diffAIGatewayTLSPayloads(map[string]any{
-		FieldName: current.Name, FieldCert: current.Cert,
-		FieldLabels: current.Labels, FieldManagedBy: current.ManagedBy,
-	}, fields)
+	currentFields := map[string]any{FieldName: current.Name, FieldCert: current.Cert}
+	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
+	return fields, diffAIGatewayTLSPayloads(currentFields, fields)
 }
 
 func diffAIGatewaySNI(
 	current state.AIGatewaySNI,
 	fields map[string]any,
 ) (map[string]any, map[string]FieldChange) {
-	return fields, diffAIGatewayTLSPayloads(map[string]any{
+	currentFields := map[string]any{
 		FieldName: current.Name, FieldDisplayName: current.DisplayName, FieldHostname: current.Hostname,
-		FieldCertificate: current.Certificate, FieldLabels: current.Labels, FieldManagedBy: current.ManagedBy,
-	}, fields)
+		FieldCertificate: current.Certificate,
+	}
+	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
+	return fields, diffAIGatewayTLSPayloads(currentFields, fields)
+}
+
+func addAIGatewayTLSCurrentMetadata(fields map[string]any, labels, managedBy map[string]string) {
+	if labels != nil {
+		fields[FieldLabels] = labels
+	}
+	if managedBy != nil {
+		fields[FieldManagedBy] = managedBy
+	}
 }
 
 func diffAIGatewayTLSPayloads(current, desired map[string]any) map[string]FieldChange {
 	changed := make(map[string]FieldChange)
 	for field, desiredValue := range desired {
-		if !reflect.DeepEqual(current[field], desiredValue) {
+		if !aigatewayTLSValuesEqual(current[field], desiredValue) {
 			changed[field] = FieldChange{Old: current[field], New: desiredValue}
 		}
 	}
+	for field, currentValue := range current {
+		if _, exists := desired[field]; !exists && !emptyAIGatewayTLSMap(currentValue) {
+			changed[field] = FieldChange{Old: currentValue, New: nil}
+		}
+	}
 	return changed
+}
+
+func aigatewayTLSValuesEqual(current, desired any) bool {
+	if emptyAIGatewayTLSMap(current) && (desired == nil || emptyAIGatewayTLSMap(desired)) {
+		return true
+	}
+	if emptyAIGatewayTLSMap(desired) && current == nil {
+		return true
+	}
+	return reflect.DeepEqual(current, desired)
+}
+
+func emptyAIGatewayTLSMap(value any) bool {
+	field, ok := value.(map[string]string)
+	return ok && len(field) == 0
 }
 
 func normalizeAIGatewaySNICertificateReference(value string, rs *resources.ResourceSet) (string, error) {

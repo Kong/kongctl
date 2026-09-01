@@ -3,6 +3,8 @@ package executor
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -44,6 +46,24 @@ func TestSecretWritePreflightFailurePublishesNoPartialValues(t *testing.T) {
 	err := executor.preflightSecretWrites(plan)
 	require.ErrorContains(t, err, "MISSING_SECRET")
 	assert.Empty(t, executor.resolvedSecrets)
+}
+
+func TestSecretWritePreflightBindsSavedPlanFilesToPlanDirectory(t *testing.T) {
+	planDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(planDir, "runtime.key"), []byte("private-key"), 0o600))
+	plan := secretExecutionPlan(planner.SecretWriteIntent{
+		Field: "/config/value",
+		Expression: tags.SecretExpression{Parts: []tags.SecretPart{{Source: &tags.SecretSource{
+			Kind: "file", Reference: "runtime.key", RootDir: "/",
+		}}}},
+	})
+	executor := &Executor{planBaseDir: planDir}
+
+	require.NoError(t, executor.preflightSecretWrites(plan))
+	require.Equal(t, "private-key", executor.resolvedSecrets["change-1"]["/config/value"])
+
+	plan.Changes[0].SecretWrites[0].Expression.Parts[0].Source.Reference = filepath.Join("..", "outside.key")
+	require.ErrorContains(t, executor.preflightSecretWrites(plan), "outside base dir")
 }
 
 func TestSecretWritePreflightRejectsInvalidTargetBeforeExecution(t *testing.T) {

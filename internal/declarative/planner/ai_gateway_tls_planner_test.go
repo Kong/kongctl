@@ -27,6 +27,54 @@ func TestAIGatewayCertificateUpdateOmitsPrivateKeysFromPlanFields(t *testing.T) 
 	require.Contains(t, changed, FieldCert)
 }
 
+func TestAIGatewayCertificateAlternativeCertificateConverges(t *testing.T) {
+	certAlt := "alternate-public-cert"
+	desired := resources.AIGatewayCertificateResource{
+		BaseResource: resources.BaseResource{Ref: "runtime-cert"},
+		AIGateway:    "gateway", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
+	}
+	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
+		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
+	}}
+
+	_, changed := diffAIGatewayCertificate(current, desired)
+	require.Empty(t, changed)
+}
+
+func TestAIGatewayTLSOptionalFieldRemovalPlansUpdate(t *testing.T) {
+	certAlt := "alternate-public-cert"
+	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
+		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
+		Labels: map[string]string{"revision": "initial"}, ManagedBy: map[string]string{"tool": "test"},
+	}}
+	desired := resources.AIGatewayCertificateResource{
+		BaseResource: resources.BaseResource{Ref: "runtime-cert"},
+		AIGateway:    "gateway", Name: "runtime-cert", Cert: "public-cert",
+	}
+
+	fields, changed := diffAIGatewayCertificate(current, desired)
+	require.NotContains(t, fields, FieldCertAlt)
+	require.NotContains(t, fields, FieldLabels)
+	require.NotContains(t, fields, FieldManagedBy)
+	require.Equal(t, FieldChange{Old: certAlt, New: nil}, changed[FieldCertAlt])
+	require.Equal(t, FieldChange{Old: current.Labels, New: nil}, changed[FieldLabels])
+	require.Equal(t, FieldChange{Old: current.ManagedBy, New: nil}, changed[FieldManagedBy])
+}
+
+func TestAIGatewayTLSEmptyMetadataConvergesWithOmittedMetadata(t *testing.T) {
+	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
+		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert",
+		Labels: map[string]string{}, ManagedBy: map[string]string{},
+	}}
+	desired := resources.AIGatewayCertificateResource{
+		BaseResource: resources.BaseResource{Ref: "runtime-cert"},
+		AIGateway:    "gateway", Name: "runtime-cert", Cert: "public-cert",
+	}
+
+	_, changed := diffAIGatewayCertificate(current, desired)
+	require.Empty(t, changed)
+}
+
 func TestAIGatewayTLSPlannerCreatesCertificateBeforeSNI(t *testing.T) {
 	placeholder, err := tags.BuildSecretPlaceholder(envSecretExpression("RUNTIME_PRIVATE_KEY"))
 	require.NoError(t, err)

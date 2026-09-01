@@ -152,8 +152,10 @@ key: !secret {source: !file ./certs/runtime.key}
 Do not accept a bare `!file` on a reviewed write-only field: ordinary `!file`
 resolution is eager and could place the contents in a saved plan. The deferred
 secret-file resolver validates file scope, symlinks, and size while loading,
-then reads the file during execution preflight. Preserve that phase boundary
-when adding a resource or another secret source kind.
+then stores a path relative to the saved plan. Execution binds that path to the
+plan directory instead of trusting a boundary serialized in the plan. Preserve
+that phase and trust boundary when adding a resource or another secret source
+kind.
 
 Add tests for catalog matching, create and update selection, saved-plan
 execution, dump omission, and redaction at executor and HTTP logging
