@@ -171,6 +171,27 @@ ai_gateway_model_providers:
 	require.NoError(t, err)
 }
 
+func TestDeclarativeLoadSchemaReportsProviderAuthDiscriminatorValues(t *testing.T) {
+	t.Parallel()
+
+	input := `
+ai_gateway_model_providers:
+  - ref: bedrock-prod
+    name: bedrock-prod
+    display_name: Amazon Bedrock Prod
+    ai_gateway: ai-quickstart
+    type: bedrock
+    config:
+      auth:
+        type: gcp
+`
+
+	_, err := New().parseYAML(strings.NewReader(input), "manifest.yaml", ".")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "ai_gateway_model_providers[0].config.auth.type")
+	assert.ErrorContains(t, err, "expected union discriminator one of basic, aws")
+}
+
 func TestDeclarativeLoadSchemaHandlesNestedAIGatewayModelNameHeaderByType(t *testing.T) {
 	input := `
 ai_gateways:
