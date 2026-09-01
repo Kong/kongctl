@@ -538,8 +538,8 @@ The highlights should be:
   ````markdown
   ### Homebrew cask migration
 
-  The Homebrew cask remains current until Homebrew disables it on August 31,
-  2027. Migrate to the source-built formula:
+  The Homebrew cask remains current until Homebrew disables it on November 30,
+  2026. Migrate to the source-built formula:
 
   ```shell
   brew uninstall --cask kongctl

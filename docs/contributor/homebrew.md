@@ -39,9 +39,10 @@ brew uninstall --cask kongctl
 brew install --formula kong/kongctl/kongctl
 ```
 
-Homebrew schedules the cask for automatic disablement on August 31, 2027, one
-year after its deprecation date. Keep publishing current cask releases until
-that date unless maintainers announce a different migration deadline.
+The cask uses a future-dated `disable!` stanza, so Homebrew treats it as
+deprecated until disabling it on November 30, 2026. Keep publishing current
+cask releases until that date unless maintainers announce a different
+migration deadline.
 
 Do not add an `xattr` hook or otherwise bypass macOS Gatekeeper. Signing and
 notarizing prebuilt macOS archives is separate release work.
