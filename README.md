@@ -88,7 +88,7 @@ brew install --formula kong/kongctl/kongctl
 ```
 
 The cask will continue receiving releases until Homebrew disables it on
-November 30, 2026. An ordinary uninstall preserves kongctl configuration and
+February 28, 2027. An ordinary uninstall preserves kongctl configuration and
 authentication data; do not use `--zap` for this migration.
 
 ### Manual download

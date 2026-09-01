@@ -68,7 +68,7 @@ homebrew_casks:
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
     custom_block: |
-      disable! date: "2026-11-30",
+      disable! date: "2027-02-28",
                because: "is superseded by the formula; first run `brew uninstall --cask kongctl`",
                replacement_formula: "kong/kongctl/kongctl"
     caveats: >-

@@ -40,7 +40,7 @@ brew install --formula kong/kongctl/kongctl
 ```
 
 The cask uses a future-dated `disable!` stanza, so Homebrew treats it as
-deprecated until disabling it on November 30, 2026. Keep publishing current
+deprecated until disabling it on February 28, 2027. Keep publishing current
 cask releases until that date unless maintainers announce a different
 migration deadline.
 
