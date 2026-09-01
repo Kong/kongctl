@@ -67,10 +67,4 @@ homebrew_casks:
       email: rspurgeon@users.noreply.github.com
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
-    custom_block: |
-      disable! date: "2027-02-28",
-               because: "is superseded by the formula; first run `brew uninstall --cask kongctl`",
-               replacement_formula: "kong/kongctl/kongctl"
-    caveats: >-
-      Migrate with: brew uninstall --cask kongctl && brew install --formula kong/kongctl/kongctl
     skip_upload: true

@@ -533,20 +533,6 @@ The highlights should be:
 - User-impact focused, not a raw changelog dump
 - Concise and scannable in under one minute
 - Accurate and linked (PRs/issues/docs) where useful
-- Include this migration notice while the deprecated Homebrew cask is supported:
-
-  ````markdown
-  ### Homebrew cask migration
-
-  The Homebrew cask remains current until Homebrew disables it on February 28,
-  2027. Migrate to the source-built formula:
-
-  ```shell
-  brew uninstall --cask kongctl
-  brew install --formula kong/kongctl/kongctl
-  ```
-  ````
-
 ## Workflow
 
 ### 1. Load and Inspect Inputs

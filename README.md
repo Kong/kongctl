@@ -74,22 +74,18 @@ the [release page](https://github.com/kong/kongctl/releases).
 
 ### Homebrew
 
-Install the source-built formula on macOS or Linux:
+Install the prebuilt cask on macOS or Linux:
+
+```shell
+brew install --cask kong/kongctl/kongctl
+```
+
+Alternatively, install the source-built formula. Homebrew installs Go as a
+build dependency when it builds the formula:
 
 ```shell
 brew install --formula kong/kongctl/kongctl
 ```
-
-If you previously installed the cask, migrate to the formula with:
-
-```shell
-brew uninstall --cask kongctl
-brew install --formula kong/kongctl/kongctl
-```
-
-The cask will continue receiving releases until Homebrew disables it on
-February 28, 2027. An ordinary uninstall preserves kongctl configuration and
-authentication data; do not use `--zap` for this migration.
 
 ### Manual download
 
