@@ -20,4 +20,4 @@ ai_gateways:
         name: support-sni
         display_name: Support SNI
         hostname: support.example.com
-        certificate: !ref support-runtime-cert
+        certificate: !ref support-runtime-cert#name

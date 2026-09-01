@@ -215,7 +215,11 @@ func (p *Planner) planAIGatewaySNIChanges(
 	if gatewayID == "" {
 		for _, sni := range desired {
 			fields := sni.PayloadMap()
-			fields[FieldCertificate] = normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
+			certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
+			if err != nil {
+				return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+			}
+			fields[FieldCertificate] = certificate
 			dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
 			p.planAIGatewayTLSCreate(
 				ResourceTypeAIGatewaySNI, namespace, gatewayRef, gatewayChangeID,
@@ -238,7 +242,11 @@ func (p *Planner) planAIGatewaySNIChanges(
 			desiredKeys[id] = true
 		}
 		fields := sni.PayloadMap()
-		fields[FieldCertificate] = normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
+		certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
+		if err != nil {
+			return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+		}
+		fields[FieldCertificate] = certificate
 		dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
 		if !exists {
 			p.planAIGatewayTLSCreate(
@@ -395,19 +403,22 @@ func diffAIGatewayTLSPayloads(current, desired map[string]any) map[string]FieldC
 	return changed
 }
 
-func normalizeAIGatewaySNICertificateReference(value string, rs *resources.ResourceSet) string {
-	ref := resources.NormalizeResourceRef(value)
-	if parsed, _, ok := tags.ParseRefPlaceholder(value); ok {
-		ref = parsed
+func normalizeAIGatewaySNICertificateReference(value string, rs *resources.ResourceSet) (string, error) {
+	ref, field, ok := tags.ParseRefPlaceholder(value)
+	if !ok {
+		return value, nil
+	}
+	if field != FieldName {
+		return "", fmt.Errorf("certificate reference must use #name, got #%s", field)
 	}
 	if rs != nil {
 		for _, certificate := range rs.AIGatewayCertificates {
 			if certificate.Ref == ref {
-				return certificate.Name
+				return certificate.Name, nil
 			}
 		}
 	}
-	return value
+	return value, nil
 }
 
 func certificateChangeDependency(plan *Plan, namespace, reference string) []string {

@@ -30,7 +30,7 @@ ai_gateways:
         name: api-sni
         display_name: API SNI
         hostname: '*.example.test'
-        certificate: !ref runtime-cert
+        certificate: !ref runtime-cert#name
 `
 
 	rs, err := New().LoadFile(writeLoaderTestFile(t, config))
@@ -41,7 +41,7 @@ ai_gateways:
 	assert.Equal(t, "gateway", rs.AIGatewayCertificates[0].AIGateway)
 	assert.Equal(t, "gateway", rs.AIGatewayCACertificates[0].AIGateway)
 	assert.Equal(t, "gateway", rs.AIGatewaySNIs[0].AIGateway)
-	assert.Equal(t, tags.RefPlaceholderPrefix+"runtime-cert#id", rs.AIGatewaySNIs[0].Certificate)
+	assert.Equal(t, tags.RefPlaceholderPrefix+"runtime-cert#name", rs.AIGatewaySNIs[0].Certificate)
 	assert.True(t, tags.IsSecretPlaceholder(rs.AIGatewayCertificates[0].Key))
 	secretSource := rs.GetSecretSources("runtime-cert")["/key"].Expression.Parts[0].Source
 	assert.Equal(t, "RUNTIME_PRIVATE_KEY", secretSource.Reference)
@@ -102,7 +102,7 @@ ai_gateway_snis:
     name: api-sni
     display_name: API SNI
     hostname: example.test
-    certificate: !ref runtime-cert
+    certificate: !ref runtime-cert#name
 `
 
 	rs, err := New().LoadFile(writeLoaderTestFile(t, config))

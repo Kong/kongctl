@@ -403,7 +403,7 @@ func aiGatewaySNIExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField(SchemaFieldName, explainStringNode("api-sni"), true, true),
 		explainField(SchemaFieldDisplayName, explainStringNode("API SNI"), true, true),
 		explainField("hostname", explainStringNode("*.example.test"), true, true),
-		explainField(SchemaFieldCertificate, explainStringNode("!ref runtime-cert"), true, true),
+		explainField(SchemaFieldCertificate, explainStringNode("!ref runtime-cert#name"), true, true),
 		explainAIGatewayTLSLabels(), explainAIGatewayTLSManagedBy(),
 	), nil
 }

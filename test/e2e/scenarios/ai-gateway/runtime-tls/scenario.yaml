@@ -36,7 +36,7 @@ steps:
         assertions:
           - expect:
               fields:
-                "contains(stdout, 'certificate: !ref')": true
+                "contains(stdout, 'certificate: !ref runtime-cert#name')": true
       - name: 002-plan-create
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-create.json"

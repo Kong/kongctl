@@ -48,7 +48,7 @@ func TestAIGatewayTLSPlannerCreatesCertificateBeforeSNI(t *testing.T) {
 		AIGatewaySNIs: []resources.AIGatewaySNIResource{{
 			BaseResource: resources.BaseResource{Ref: "runtime-sni"}, AIGateway: "gateway",
 			Name: "runtime-sni", DisplayName: "Runtime SNI", Hostname: "api.example.test",
-			Certificate: tags.RefPlaceholderPrefix + "runtime-cert#id",
+			Certificate: tags.RefPlaceholderPrefix + "runtime-cert#name",
 		}},
 	}
 	rs.AddSecretSource("runtime-cert", "/key", envSecretExpression("RUNTIME_PRIVATE_KEY"), false)
@@ -72,7 +72,24 @@ func TestAIGatewaySNIReferenceUsesCertificateName(t *testing.T) {
 		BaseResource: resources.BaseResource{Ref: "runtime-cert"}, Name: "tls-production",
 	}}}
 
-	require.Equal(t, "tls-production", normalizeAIGatewaySNICertificateReference("__REF__:runtime-cert#id", rs))
+	actual, err := normalizeAIGatewaySNICertificateReference("__REF__:runtime-cert#name", rs)
+	require.NoError(t, err)
+	require.Equal(t, "tls-production", actual)
+}
+
+func TestAIGatewaySNIReferenceRejectsCertificateID(t *testing.T) {
+	_, err := normalizeAIGatewaySNICertificateReference("__REF__:runtime-cert#id", nil)
+	require.ErrorContains(t, err, "certificate reference must use #name, got #id")
+}
+
+func TestAIGatewaySNILiteralCertificateNameIsNotTreatedAsResourceRef(t *testing.T) {
+	rs := &resources.ResourceSet{AIGatewayCertificates: []resources.AIGatewayCertificateResource{{
+		BaseResource: resources.BaseResource{Ref: "runtime-cert"}, Name: "tls-production",
+	}}}
+
+	actual, err := normalizeAIGatewaySNICertificateReference("runtime-cert", rs)
+	require.NoError(t, err)
+	require.Equal(t, "runtime-cert", actual)
 }
 
 func TestAIGatewayCertificateUpdateRequiresSelectedPrivateKey(t *testing.T) {

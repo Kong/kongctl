@@ -22,4 +22,4 @@ ai_gateways:
         name: runtime-sni
         display_name: Runtime SNI
         hostname: runtime-tls.kongctl-e2e.io
-        certificate: !ref runtime-cert
+        certificate: !ref runtime-cert#name

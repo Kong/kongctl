@@ -669,7 +669,7 @@ ai_gateways:
         name: support-sni
         display_name: Support hostname
         hostname: support.example.com
-        certificate: !ref runtime-cert
+        certificate: !ref runtime-cert#name
 ```
 
 Omit one of these child keys during sync to leave that collection unmanaged.

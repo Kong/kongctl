@@ -1033,7 +1033,7 @@ ai_gateway_snis:
    name: support-sni
    display_name: Support TLS hostname
    hostname: support.example.com
-   certificate: !ref runtime-cert
+   certificate: !ref runtime-cert#name
 ```
 
 The SNI `certificate` relationship resolves to the certificate API `name` and
