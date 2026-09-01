@@ -1,5 +1,5 @@
 jq            1.8.1
 gh            2.83.2
-golangci-lint 2.12.2
+golangci-lint 2.13.1
 goreleaser    2.13.3
 nodejs        24.19.0

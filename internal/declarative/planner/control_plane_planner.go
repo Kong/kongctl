@@ -355,7 +355,7 @@ func (p *controlPlanePlannerImpl) planControlPlaneProtectionChangeWithFields(
 	}
 
 	generic := p.GetGenericPlanner()
-	change := PlannedChange{}
+	var change PlannedChange
 	if generic != nil {
 		change = generic.PlanProtectionChange(context.Background(), config)
 	} else {
