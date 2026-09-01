@@ -42,6 +42,9 @@ func NewAIGatewayCmd(
 		root.AddCommand(newGetAIGatewayVaultsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayNodesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayDataPlaneCertificatesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayCertificatesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayCACertificatesCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewaySNIsCmd(verb, addParentFlags, parentPreRun))
 		return root, nil
 	}
 

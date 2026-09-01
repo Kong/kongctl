@@ -87,6 +87,8 @@ const (
 	FieldFoundry        = "foundry"
 	FieldResource       = "resource"
 	FieldDeploymentType = "deployment_type"
+	FieldCertAlt        = "cert_alt"
+	FieldKeyAlt         = "key_alt"
 )
 
 // Common relationship and reference field identifiers.
@@ -247,6 +249,9 @@ const (
 	ResourceTypeAIGatewayConfigStoreSecret       = string(resources.ResourceTypeAIGatewayConfigStoreSecret)
 	ResourceTypeAIGatewayVault                   = string(resources.ResourceTypeAIGatewayVault)
 	ResourceTypeAIGatewayDataPlaneCertificate    = string(resources.ResourceTypeAIGatewayDataPlaneCertificate)
+	ResourceTypeAIGatewayCertificate             = string(resources.ResourceTypeAIGatewayCertificate)
+	ResourceTypeAIGatewayCACertificate           = string(resources.ResourceTypeAIGatewayCACertificate)
+	ResourceTypeAIGatewaySNI                     = string(resources.ResourceTypeAIGatewaySNI)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)

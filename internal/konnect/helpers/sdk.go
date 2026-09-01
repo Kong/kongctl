@@ -35,6 +35,9 @@ type SDKAPI interface {
 	GetAIGatewayVaultsAPI() AIGatewayVaultsAPI
 	GetAIGatewayNodesAPI() AIGatewayNodesAPI
 	GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI
+	GetAIGatewayCertificatesAPI() AIGatewayCertificatesAPI
+	GetAIGatewayCACertificatesAPI() AIGatewayCACertificatesAPI
+	GetAIGatewaySNIsAPI() AIGatewaySNIsAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetAPIDocumentAPI() APIDocumentAPI
@@ -253,6 +256,27 @@ func (k *KonnectSDK) GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCe
 	}
 
 	return &AIGatewayDataPlaneCertificatesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetAIGatewayCertificatesAPI() AIGatewayCertificatesAPI {
+	if k.SDK == nil || k.SDK.AIGatewayCertificates == nil {
+		return nil
+	}
+	return &AIGatewayCertificatesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetAIGatewayCACertificatesAPI() AIGatewayCACertificatesAPI {
+	if k.SDK == nil || k.SDK.AIGatewayCACertificates == nil {
+		return nil
+	}
+	return &AIGatewayCACertificatesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetAIGatewaySNIsAPI() AIGatewaySNIsAPI {
+	if k.SDK == nil || k.SDK.AIGatewaySNIs == nil {
+		return nil
+	}
+	return &AIGatewaySNIsAPIImpl{SDK: k.SDK}
 }
 
 // Returns the implementation of the CatalogServicesAPI interface

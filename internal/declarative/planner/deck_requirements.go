@@ -14,6 +14,8 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
+const deckGatewayCommand = "gateway"
+
 type deckGatewayService struct {
 	Ref      string
 	Selector *resources.ExternalSelector
@@ -415,7 +417,7 @@ func (p *Planner) deckDiffHasChanges(
 		return false, fmt.Errorf("control_plane %s: deck requires a control plane name", controlPlaneRef)
 	}
 
-	args := append([]string{"gateway", "diff"}, flags...)
+	args := append([]string{deckGatewayCommand, "diff"}, flags...)
 	args = append(args, "--json-output", "--no-color")
 	args = append(args, files...)
 

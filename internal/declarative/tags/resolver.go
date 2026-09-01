@@ -140,7 +140,10 @@ const (
 var supportedNestedTags = map[string]map[string]nestedTagLocation{
 	TagExternal: {TagEnv: nestedTagLocationDirectMappingValue},
 	TagLookup:   {TagEnv: nestedTagLocationDirectMappingValue},
-	TagSecret:   {TagEnv: nestedTagLocationDirectMappingValue | nestedTagLocationOther},
+	TagSecret: {
+		TagEnv:  nestedTagLocationDirectMappingValue | nestedTagLocationOther,
+		TagFile: nestedTagLocationDirectMappingValue | nestedTagLocationOther,
+	},
 }
 
 func validateNestedTags(outer *yaml.Node) error {

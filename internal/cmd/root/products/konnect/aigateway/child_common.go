@@ -91,6 +91,19 @@ const (
 	aiGatewayDataPlaneCertificateIDConfigPath    = "konnect.ai-gateway.data-plane-certificate.id"
 	aiGatewayDataPlaneCertificateTitleConfigPath = "konnect.ai-gateway.data-plane-certificate.title"
 
+	aiGatewayCertificateIDFlagName       = "certificate-id"
+	aiGatewayCertificateNameFlagName     = "certificate-name"
+	aiGatewayCertificateIDConfigPath     = "konnect.ai-gateway.certificate.id"
+	aiGatewayCertificateNameConfigPath   = "konnect.ai-gateway.certificate.name"
+	aiGatewayCACertificateIDFlagName     = "ca-certificate-id"
+	aiGatewayCACertificateNameFlagName   = "ca-certificate-name"
+	aiGatewayCACertificateIDConfigPath   = "konnect.ai-gateway.ca-certificate.id"
+	aiGatewayCACertificateNameConfigPath = "konnect.ai-gateway.ca-certificate.name"
+	aiGatewaySNIIDFlagName               = "sni-id"
+	aiGatewaySNINameFlagName             = "sni-name"
+	aiGatewaySNIIDConfigPath             = "konnect.ai-gateway.sni.id"
+	aiGatewaySNINameConfigPath           = "konnect.ai-gateway.sni.name"
+
 	aiGatewayMissingValue = "n/a"
 
 	aiGatewayFieldCreatedAt   = "created_at"
@@ -288,6 +301,24 @@ var (
 		nameFlag: aiGatewayDataPlaneCertificateTitleFlagName,
 		namePath: aiGatewayDataPlaneCertificateTitleConfigPath,
 		nameHelp: "The title of the AI Gateway data plane certificate to retrieve.",
+	}
+	aiGatewayCertificateFlags = pairedAIGatewayFlags{
+		idFlag: aiGatewayCertificateIDFlagName, idPath: aiGatewayCertificateIDConfigPath,
+		idHelp:   "The ID of the AI Gateway runtime certificate to retrieve.",
+		nameFlag: aiGatewayCertificateNameFlagName, namePath: aiGatewayCertificateNameConfigPath,
+		nameHelp: "The name of the AI Gateway runtime certificate to retrieve.",
+	}
+	aiGatewayCACertificateFlags = pairedAIGatewayFlags{
+		idFlag: aiGatewayCACertificateIDFlagName, idPath: aiGatewayCACertificateIDConfigPath,
+		idHelp:   "The ID of the AI Gateway CA certificate to retrieve.",
+		nameFlag: aiGatewayCACertificateNameFlagName, namePath: aiGatewayCACertificateNameConfigPath,
+		nameHelp: "The name of the AI Gateway CA certificate to retrieve.",
+	}
+	aiGatewaySNIFlags = pairedAIGatewayFlags{
+		idFlag: aiGatewaySNIIDFlagName, idPath: aiGatewaySNIIDConfigPath,
+		idHelp:   "The ID of the AI Gateway SNI to retrieve.",
+		nameFlag: aiGatewaySNINameFlagName, namePath: aiGatewaySNINameConfigPath,
+		nameHelp: "The name of the AI Gateway SNI to retrieve.",
 	}
 )
 

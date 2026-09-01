@@ -23,6 +23,9 @@ type MockKonnectSDK struct {
 	AIGatewayVaultsFactory                func() AIGatewayVaultsAPI
 	AIGatewayNodesFactory                 func() AIGatewayNodesAPI
 	AIGatewayDataPlaneCertificatesFactory func() AIGatewayDataPlaneCertificatesAPI
+	AIGatewayCertificatesFactory          func() AIGatewayCertificatesAPI
+	AIGatewayCACertificatesFactory        func() AIGatewayCACertificatesAPI
+	AIGatewaySNIsFactory                  func() AIGatewaySNIsAPI
 	CatalogServicesFactory                func() CatalogServicesAPI
 	DashboardsFactory                     func() DashboardsAPI
 	APIDocumentFactory                    func() APIDocumentAPI
@@ -207,6 +210,27 @@ func (m *MockKonnectSDK) GetAIGatewayNodesAPI() AIGatewayNodesAPI {
 func (m *MockKonnectSDK) GetAIGatewayDataPlaneCertificatesAPI() AIGatewayDataPlaneCertificatesAPI {
 	if m.AIGatewayDataPlaneCertificatesFactory != nil {
 		return m.AIGatewayDataPlaneCertificatesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetAIGatewayCertificatesAPI() AIGatewayCertificatesAPI {
+	if m.AIGatewayCertificatesFactory != nil {
+		return m.AIGatewayCertificatesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetAIGatewayCACertificatesAPI() AIGatewayCACertificatesAPI {
+	if m.AIGatewayCACertificatesFactory != nil {
+		return m.AIGatewayCACertificatesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetAIGatewaySNIsAPI() AIGatewaySNIsAPI {
+	if m.AIGatewaySNIsFactory != nil {
+		return m.AIGatewaySNIsFactory()
 	}
 	return nil
 }

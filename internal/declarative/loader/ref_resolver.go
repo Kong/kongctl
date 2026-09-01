@@ -327,6 +327,27 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.AIGatewayCertificates {
+		if err := resolveResourceFields(ctx, &rs.AIGatewayCertificates[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway certificate %s: %w", rs.AIGatewayCertificates[i].GetRef(), err)
+		}
+		processCount++
+	}
+	for i := range rs.AIGatewayCACertificates {
+		if err := resolveResourceFields(
+			ctx, &rs.AIGatewayCACertificates[i], rs, resolver, resolutionPath, logger,
+		); err != nil {
+			return fmt.Errorf("resolving AI gateway CA certificate %s: %w", rs.AIGatewayCACertificates[i].GetRef(), err)
+		}
+		processCount++
+	}
+	for i := range rs.AIGatewaySNIs {
+		if err := resolveResourceFields(ctx, &rs.AIGatewaySNIs[i], rs, resolver, resolutionPath, logger); err != nil {
+			return fmt.Errorf("resolving AI gateway SNI %s: %w", rs.AIGatewaySNIs[i].GetRef(), err)
+		}
+		processCount++
+	}
+
 	// Process child resources (PortalPages, PortalSnippets, etc.)
 	for i := range rs.PortalPages {
 		if err := resolveResourceFields(ctx, &rs.PortalPages[i], rs, resolver, resolutionPath, logger); err != nil {

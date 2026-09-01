@@ -643,6 +643,40 @@ complete provider Vault reference.
 [config-store-vault-example]:
   examples/declarative/ai-gateway/config-store-vault.yaml
 
+## AI Gateway Runtime TLS
+
+AI Gateway runtime certificates, CA certificates, and SNIs are gateway child
+resources. They are distinct from data plane certificates, which authenticate
+data planes to Konnect. Runtime certificate private keys are write-only and
+must use `!secret`:
+
+```yaml
+ai_gateways:
+  - ref: support-gateway
+    name: support-gateway
+    display_name: Support Gateway
+    certificates:
+      - ref: runtime-cert
+        name: runtime-cert
+        cert: !file ./certs/runtime.pem
+        key: !secret {source: !file ./certs/runtime-key.pem}
+    ca_certificates:
+      - ref: partner-ca
+        name: partner-ca
+        cert: !file ./certs/partner-ca.pem
+    snis:
+      - ref: support-sni
+        name: support-sni
+        display_name: Support hostname
+        hostname: support.example.com
+        certificate: !ref runtime-cert
+```
+
+Omit one of these child keys during sync to leave that collection unmanaged.
+Use `certificates: []`, `ca_certificates: []`, or `snis: []` under a gateway to
+sync-delete that collection. Dumps omit private keys and can be planned again
+without reporting drift solely because those keys are unavailable.
+
 ## Configuration Templates
 
 Use a top-level `_templates` configuration block to define named, reusable
@@ -844,7 +878,7 @@ The current nested-tag support matrix is:
 | Outer tag | Inner tag | Status |
 |---|---|---|
 | `!lookup` / `!external` | `!env` | Direct mapping values only |
-| `!secret` | `!env` | Direct `source` value or `parts` element |
+| `!secret` | `!env`, `!file` | Direct `source` value or `parts` element |
 | `!lookup` / `!external` | `!file`, `!ref`, lookup tags | Unsupported |
 | `!env`, `!file`, `!ref` | Any custom tag | Unsupported |
 
@@ -852,11 +886,11 @@ The scalar `field:value` lookup form cannot contain a nested YAML tag; use a
 mapping form instead. Tags are also rejected in mapping keys, nested lookup
 objects, and control fields such as `var`, `extract`, or `path`.
 
-Nested `!file` values are not enabled because the permitted value types and
-disclosure behavior have not been defined. Nested `!ref` values are not
-enabled because references resolve after resources load, while remote lookups
-must resolve during planning. A tag contained in data loaded by `!file`
-continues to be treated as file content and is not processed recursively.
+Nested `!file` values are supported only as deferred sources inside `!secret`.
+They are not supported inside lookup tags. Nested `!ref` values are not enabled
+because references resolve after resources load, while remote lookups must
+resolve during planning. A tag contained in data loaded by `!file` continues
+to be treated as file content and is not processed recursively.
 
 For a supported nested `!env`, the environment value is read before the
 planner performs the remote lookup. Diagnostics redact that selector value.
@@ -1058,6 +1092,7 @@ them from `get` or `list` responses. Common examples include:
   `service_account_json`
 - AI Gateway Auth Strategy OpenID Connect `config.client_secret`
 - AI Gateway Vault authentication credentials
+- AI Gateway runtime certificate `key` and `key_alt`
 - Event Gateway schema registry authentication `password`
 - AI Gateway Consumer Credential `api_key`
 
@@ -1067,6 +1102,15 @@ eager `!file` values are rejected because they could enter a saved plan:
 ```yaml
 client_secret: !secret
   source: !env PORTAL_OIDC_CLIENT_SECRET
+```
+
+Deferred files are also supported inside `!secret`. The file is validated when
+the manifest is loaded and read again immediately before execution, without
+placing its contents in a saved plan:
+
+```yaml
+key: !secret
+  source: !file ./certs/runtime-key.pem
 ```
 
 Recognized Konnect vault references can be written literally because they

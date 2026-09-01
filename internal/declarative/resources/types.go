@@ -31,6 +31,9 @@ const (
 	ResourceTypeAIGatewayConfigStoreSecret              ResourceType = "ai_gateway_config_store_secret"
 	ResourceTypeAIGatewayVault                          ResourceType = "ai_gateway_vault"
 	ResourceTypeAIGatewayDataPlaneCertificate           ResourceType = "ai_gateway_data_plane_certificate"
+	ResourceTypeAIGatewayCertificate                    ResourceType = "ai_gateway_certificate"
+	ResourceTypeAIGatewayCACertificate                  ResourceType = "ai_gateway_ca_certificate"
+	ResourceTypeAIGatewaySNI                            ResourceType = "ai_gateway_sni"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
@@ -108,6 +111,11 @@ const (
 	SchemaFieldID                   = "id"
 	SchemaFieldCreatedAt            = "created_at"
 	SchemaFieldUpdatedAt            = "updated_at"
+	SchemaFieldCertificate          = "certificate"
+	SchemaFieldCert                 = "cert"
+	SchemaFieldCertAlt              = "cert_alt"
+	SchemaFieldKey                  = "key"
+	SchemaFieldKeyAlt               = "key_alt"
 	authenticationTypeBasic         = "basic"
 	jsonNullLiteral                 = "null"
 )
@@ -153,6 +161,9 @@ type ResourceSet struct {
 	AIGatewayConfigStoreSecrets       []AIGatewayConfigStoreSecretResource       `yaml:"ai_gateway_config_store_secrets,omitempty"                json:"ai_gateway_config_store_secrets,omitempty"`       //nolint:lll
 	AIGatewayVaults                   []AIGatewayVaultResource                   `yaml:"ai_gateway_vaults,omitempty"                              json:"ai_gateway_vaults,omitempty"`                     //nolint:lll
 	AIGatewayDataPlaneCertificates    []AIGatewayDataPlaneCertificateResource    `yaml:"ai_gateway_data_plane_certificates,omitempty"              json:"ai_gateway_data_plane_certificates,omitempty"`   //nolint:lll
+	AIGatewayCertificates             []AIGatewayCertificateResource             `yaml:"ai_gateway_certificates,omitempty"                         json:"ai_gateway_certificates,omitempty"`              //nolint:lll
+	AIGatewayCACertificates           []AIGatewayCACertificateResource           `yaml:"ai_gateway_ca_certificates,omitempty"                      json:"ai_gateway_ca_certificates,omitempty"`           //nolint:lll
+	AIGatewaySNIs                     []AIGatewaySNIResource                     `yaml:"ai_gateway_snis,omitempty"                                 json:"ai_gateway_snis,omitempty"`                      //nolint:lll
 	APIs                              []APIResource                              `yaml:"apis,omitempty"                                           json:"apis,omitempty"`                                  //nolint:lll
 	GatewayServices                   []GatewayServiceResource                   `yaml:"gateway_services,omitempty"                               json:"gateway_services,omitempty"`                      //nolint:lll
 	ControlPlaneDataPlaneCertificates []ControlPlaneDataPlaneCertificateResource `yaml:"control_plane_data_plane_certificates,omitempty"          json:"control_plane_data_plane_certificates,omitempty"` //nolint:lll
@@ -2011,4 +2022,37 @@ func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesForGateway(
 		}
 	}
 	return certs
+}
+
+// GetAIGatewayCertificatesForGateway returns all runtime certificates for a gateway ref.
+func (rs *ResourceSet) GetAIGatewayCertificatesForGateway(gatewayRef string) []AIGatewayCertificateResource {
+	var certificates []AIGatewayCertificateResource
+	for _, certificate := range rs.AIGatewayCertificates {
+		if NormalizeResourceRef(certificate.AIGateway) == gatewayRef {
+			certificates = append(certificates, certificate)
+		}
+	}
+	return certificates
+}
+
+// GetAIGatewayCACertificatesForGateway returns all CA certificates for a gateway ref.
+func (rs *ResourceSet) GetAIGatewayCACertificatesForGateway(gatewayRef string) []AIGatewayCACertificateResource {
+	var certificates []AIGatewayCACertificateResource
+	for _, certificate := range rs.AIGatewayCACertificates {
+		if NormalizeResourceRef(certificate.AIGateway) == gatewayRef {
+			certificates = append(certificates, certificate)
+		}
+	}
+	return certificates
+}
+
+// GetAIGatewaySNIsForGateway returns all SNIs for a gateway ref.
+func (rs *ResourceSet) GetAIGatewaySNIsForGateway(gatewayRef string) []AIGatewaySNIResource {
+	var snis []AIGatewaySNIResource
+	for _, sni := range rs.AIGatewaySNIs {
+		if NormalizeResourceRef(sni.AIGateway) == gatewayRef {
+			snis = append(snis, sni)
+		}
+	}
+	return snis
 }

@@ -161,15 +161,25 @@ recreate operation.
 
 ## Environment and file recommendations
 
-`!secret` currently accepts deferred `!env` sources. kongctl does not
+`!secret` accepts deferred `!env` and `!file` sources. kongctl does not
 automatically load `.env` files. A CI runner, secret manager, or dotenv tool can
 populate several environment values before execution; kongctl reads them from
 the process environment during secret preflight.
 
-Literal values and eager `!file` values are rejected on reviewed secret fields
-because their contents could otherwise enter a saved plan. Do not place secret
-material in a `parts` literal. A future deferred file source can extend the
-source model without changing the write-selection workflow.
+File-backed secrets use the same explicit wrapper:
+
+```yaml
+key: !secret {source: !file ./certs/runtime.key}
+```
+
+The file path is validated while loading the configuration, but its contents
+are read only during execution. Relative paths must remain within the
+configuration's file boundary.
+
+Literal values and bare, eager `!file` values are rejected on reviewed secret
+fields because their contents could otherwise enter a saved plan. Wrap a file
+source in `!secret` to keep it deferred. Do not place secret material in a
+`parts` literal.
 
 Every required source must resolve to a non-empty string. kongctl checks all
 sources before the first API mutation, so one missing value prevents a partial

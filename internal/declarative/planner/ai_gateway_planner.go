@@ -222,6 +222,12 @@ func (p *Planner) planAIGatewayChanges(
 			}
 		}
 
+		if err := p.planAIGatewayTLSChanges(
+			ctx, namespace, desiredGateway.Ref, gatewayID, gatewayChangeID, plan,
+		); err != nil {
+			return err
+		}
+
 		providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)
 		if p.shouldPlanChild(
 			plan,
@@ -486,6 +492,10 @@ func (p *Planner) planExternalAIGatewayChildren(
 		); err != nil {
 			return err
 		}
+	}
+
+	if err := p.planAIGatewayTLSChanges(ctx, namespace, desiredGateway.Ref, gatewayID, "", plan); err != nil {
+		return err
 	}
 
 	providers := p.resources.GetAIGatewayProvidersForGateway(desiredGateway.Ref)

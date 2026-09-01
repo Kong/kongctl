@@ -17,6 +17,7 @@ const (
 	RelationshipCardinalityList           RelationshipCardinality = "list"
 	RelationshipResultFieldID             RelationshipResultField = "id"
 	RelationshipResultFieldRef            RelationshipResultField = "ref"
+	RelationshipResultFieldName           RelationshipResultField = "name"
 )
 
 // RelationshipDescriptor is static schema metadata for a cross-resource field.
@@ -226,6 +227,9 @@ var aiGatewayChildTypes = []ResourceType{
 	ResourceTypeAIGatewayConfigStore,
 	ResourceTypeAIGatewayVault,
 	ResourceTypeAIGatewayDataPlaneCertificate,
+	ResourceTypeAIGatewayCertificate,
+	ResourceTypeAIGatewayCACertificate,
+	ResourceTypeAIGatewaySNI,
 }
 
 var portalChildTypes = []ResourceType{
@@ -272,6 +276,14 @@ func init() {
 			FieldPath:  SchemaFieldConfig + "." + SchemaFieldConfigStoreID,
 			TargetType: ResourceTypeAIGatewayConfigStore,
 			Kind:       RelationshipKindAPIForeignKey,
+		},
+	)
+	relationshipDescriptors[ResourceTypeAIGatewaySNI] = append(
+		relationshipDescriptors[ResourceTypeAIGatewaySNI],
+		RelationshipDescriptor{
+			FieldPath: SchemaFieldCertificate, TargetType: ResourceTypeAIGatewayCertificate,
+			Kind: RelationshipKindAPIForeignKey, ResultField: RelationshipResultFieldName,
+			ScopeFieldPath: SchemaFieldAIGateway,
 		},
 	)
 	for _, resourceType := range []ResourceType{

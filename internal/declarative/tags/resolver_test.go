@@ -2,6 +2,8 @@ package tags
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -217,4 +219,18 @@ func TestResolverRegistry_RejectsNestedTagInEnvControlField(t *testing.T) {
 	_, err := registry.Process([]byte("value: !lookup {name: !env {var: !env VARIABLE_NAME}}\n"))
 	require.ErrorContains(t, err, "nested YAML tag !env is not supported inside !env")
 	require.ErrorContains(t, err, "line 1, column")
+}
+
+func TestResolverRegistry_AllowsDeferredFileInsideSecret(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "runtime.key"), []byte("private-key"), 0o600))
+
+	registry := NewResolverRegistry()
+	registry.Register(NewSecretTagResolverWithFileScope(dir, dir))
+	registry.Register(NewFileTagResolver(dir, dir))
+
+	output, err := registry.Process([]byte("value: !secret {source: !file runtime.key}\n"))
+	require.NoError(t, err)
+	assert.Contains(t, string(output), SecretPlaceholderPrefix)
+	assert.NotContains(t, string(output), "private-key")
 }

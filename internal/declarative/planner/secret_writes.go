@@ -795,6 +795,20 @@ func (p *Planner) resolveSecretResourceID(
 			return "", err
 		}
 		return current.Key, nil
+	case *resources.AIGatewayCertificateResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("AI Gateway certificate %q has no resolved gateway", typed.Ref)
+		}
+		current, err := p.client.ListAIGatewayCertificates(ctx, parent.ID)
+		if err != nil {
+			return "", err
+		}
+		for _, candidate := range current {
+			if candidate.Name == typed.Name {
+				return candidate.ID, nil
+			}
+		}
 	case *resources.EventGatewaySchemaRegistryResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {
