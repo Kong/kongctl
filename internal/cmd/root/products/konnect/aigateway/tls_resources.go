@@ -204,7 +204,7 @@ func renderAIGatewayTLSResourceList(
 	if err != nil {
 		return err
 	}
-	return renderAIGatewayTLSResources(helper, items, resourceConfig, outType, printer)
+	return renderAIGatewayTLSResources(helper, items, resourceConfig, outType, printer, false)
 }
 
 func renderSingleAIGatewayTLSResource(
@@ -242,7 +242,7 @@ func renderSingleAIGatewayTLSResource(
 			Err: fmt.Errorf("no resource returned for %s", identifier),
 		}
 	}
-	return renderAIGatewayTLSResources(helper, []any{item}, resourceConfig, outType, printer)
+	return renderAIGatewayTLSResources(helper, []any{item}, resourceConfig, outType, printer, true)
 }
 
 func renderAIGatewayTLSResources(
@@ -251,6 +251,7 @@ func renderAIGatewayTLSResources(
 	resourceConfig aiGatewayTLSCommandConfig,
 	outType cmdCommon.OutputFormat,
 	printer cli.PrintFlusher,
+	single bool,
 ) error {
 	records := make([]aiGatewayTLSRecord, 0, len(items))
 	rows := make([]table.Row, 0, len(items))
@@ -265,8 +266,9 @@ func renderAIGatewayTLSResources(
 			rows = append(rows, table.Row{record.ID, record.Name, record.Updated})
 		}
 	}
+	display, raw := aiGatewayTLSRenderValues(records, items, single)
 	return tableview.RenderForFormat(
-		helper, false, outType, printer, helper.GetStreams(), records, items, "",
+		helper, false, outType, printer, helper.GetStreams(), display, raw, "",
 		tableview.WithCustomTable(resourceConfig.headers, rows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 		tableview.WithDetailHelper(helper),
@@ -277,6 +279,13 @@ func renderAIGatewayTLSResources(
 			return items[index]
 		}),
 	)
+}
+
+func aiGatewayTLSRenderValues(records []aiGatewayTLSRecord, items []any, single bool) (any, any) {
+	if single && len(records) == 1 && len(items) == 1 {
+		return records[0], items[0]
+	}
+	return records, items
 }
 
 func fetchAIGatewayTLSResources(

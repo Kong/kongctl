@@ -50,6 +50,8 @@ steps:
           - plan
           - -f
           - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
         assertions:
           - select: summary
             expect:
@@ -65,7 +67,7 @@ steps:
             expect:
               fields:
                 fields.certificate: runtime-cert
-                "length(depends_on)": 1
+                "length(depends_on)": 2
       - name: 003-apply-create
         outputFormat: json
         run: [apply, --plan, "{{ .workdir }}/plan-create.json", --auto-approve]
@@ -119,13 +121,15 @@ steps:
           - plan
           - -f
           - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
           - --write-secret
           - runtime-cert#key
         assertions:
           - select: summary
             expect:
               fields:
-                by_action.UPDATE: 2
+                by_action.UPDATE: 3
                 secret_writes: 1
           - select: "changes[?resource_type=='ai_gateway_certificate'] | [0]"
             expect:
@@ -138,7 +142,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 3
                 failed: 0
       - name: 002-dump
         outputFormat: none
