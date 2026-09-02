@@ -39,7 +39,7 @@ steps:
                 "contains(stdout, 'certificate: !ref runtime-cert#name')": true
       - name: 002-plan-create
         outputFormat: disable
-        stdoutFile: "{{ .workdir }}/plan-create.json"
+        stdoutFile: "{{ .workdir }}/plan-create-observed.json"
         exec:
           - python3
           - "{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py"
@@ -52,6 +52,8 @@ steps:
           - "{{ .workdir }}/config.yaml"
           - --mode
           - apply
+          - --output-file
+          - "{{ .workdir }}/plan-create.json"
         assertions:
           - select: summary
             expect:
@@ -111,7 +113,7 @@ steps:
     commands:
       - name: 000-plan-update
         outputFormat: disable
-        stdoutFile: "{{ .workdir }}/plan-update.json"
+        stdoutFile: "{{ .workdir }}/plan-update-observed.json"
         exec:
           - python3
           - "{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py"
@@ -124,6 +126,8 @@ steps:
           - "{{ .workdir }}/config.yaml"
           - --mode
           - apply
+          - --output-file
+          - "{{ .workdir }}/plan-update.json"
           - --write-secret
           - runtime-cert#key
           - --write-secret

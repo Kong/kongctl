@@ -61,7 +61,12 @@ def main() -> None:
         capture_output=True,
         text=True,
     )
-    sys.exit(subprocess.run(sys.argv[2:], check=False).returncode)
+    command = sys.argv[2:]
+    result = subprocess.run(command, check=False)
+    if result.returncode == 0 and "--output-file" in command:
+        output_index = command.index("--output-file") + 1
+        sys.stdout.write(pathlib.Path(command[output_index]).read_text())
+    sys.exit(result.returncode)
 
 
 if __name__ == "__main__":
