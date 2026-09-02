@@ -178,7 +178,7 @@ func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
 		RequestTimeout: time.Second,
 		Backoff:        BackoffConfig{Attempts: 1},
 	}
-	total, deleteCount, err := deleteAll(
+	total, deleteCount, metrics, err := deleteAll(
 		t.Context(),
 		server.URL,
 		server.URL,
@@ -201,6 +201,15 @@ func TestDeleteAllDeletesFilteredItemsAcrossPages(t *testing.T) {
 	}
 	if deleteCount != 2 {
 		t.Fatalf("deleteAll() deleteCount = %d, want 2", deleteCount)
+	}
+	if metrics.ListCalls != 2 {
+		t.Fatalf("deleteAll() list calls = %d, want 2", metrics.ListCalls)
+	}
+	if metrics.DeleteCalls != 2 {
+		t.Fatalf("deleteAll() delete calls = %d, want 2", metrics.DeleteCalls)
+	}
+	if metrics.Duration <= 0 || metrics.ListDuration <= 0 || metrics.DeleteDuration <= 0 {
+		t.Fatalf("deleteAll() durations = %#v, want positive durations", metrics)
 	}
 	if !deleted["e2e-team-alpha"] || !deleted["e2e-team-beta"] {
 		t.Fatalf("deleteAll() deleted = %#v, want both e2e teams deleted", deleted)
