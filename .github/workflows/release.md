@@ -24,6 +24,11 @@ on:
         options:
           - full
           - smoke
+      recovery_tag:
+        description: Existing stable release tag to verify and finish, for example v1.15.0
+        default: ""
+        required: false
+        type: string
 permissions:
   contents: read
   id-token: write
@@ -60,6 +65,7 @@ jobs:
     permissions:
       contents: read
     outputs:
+      recovery_mode: ${{ steps.compute_config.outputs.recovery_mode }}
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
     steps:
@@ -79,6 +85,67 @@ jobs:
         with:
           script: |
             const releaseType = context.payload.inputs.release_type || "patch";
+            const recoveryTag = (context.payload.inputs.recovery_tag || "").trim();
+
+            // Parse stable semver tags only, e.g. v1.2.3
+            const parseSemver = (tag) => {
+              const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
+              if (!match) return null;
+              return {
+                tag,
+                major: parseInt(match[1], 10),
+                minor: parseInt(match[2], 10),
+                patch: parseInt(match[3], 10),
+              };
+            };
+
+            if (recoveryTag) {
+              const recoveryVersion = parseSemver(recoveryTag);
+              if (!recoveryTag.startsWith("v") || !recoveryVersion) {
+                core.setFailed(`Recovery tag must be a stable v-prefixed semver tag: ${recoveryTag}`);
+                return;
+              }
+
+              let release;
+              try {
+                ({ data: release } = await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: recoveryTag,
+                }));
+              } catch (error) {
+                if (error.status === 404) {
+                  core.setFailed(`Release ${recoveryTag} does not exist.`);
+                  return;
+                }
+                throw error;
+              }
+
+              if (release.draft || release.prerelease || !release.published_at) {
+                core.setFailed(`Release ${recoveryTag} is not a published stable release.`);
+                return;
+              }
+
+              try {
+                await github.rest.git.getRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `tags/${recoveryTag}`,
+                });
+              } catch (error) {
+                if (error.status === 404) {
+                  core.setFailed(`Git tag ${recoveryTag} does not exist.`);
+                  return;
+                }
+                throw error;
+              }
+
+              core.setOutput("recovery_mode", "true");
+              core.setOutput("release_tag", recoveryTag);
+              core.setOutput("release_version", recoveryTag.slice(1));
+              console.log(`✓ Recovering existing release ${recoveryTag}`);
+              return;
+            }
 
             console.log(`Computing next version for release type: ${releaseType}`);
 
@@ -93,18 +160,6 @@ jobs:
               repo: context.repo.repo,
               per_page: 100,
             });
-
-            // Parse stable semver tags only, e.g. v1.2.3
-            const parseSemver = (tag) => {
-              const match = tag.match(/^v?(\d+)\.(\d+)\.(\d+)$/);
-              if (!match) return null;
-              return {
-                tag,
-                major: parseInt(match[1], 10),
-                minor: parseInt(match[2], 10),
-                patch: parseInt(match[3], 10),
-              };
-            };
 
             const sortedVersions = [...new Set(
               [
@@ -190,6 +245,7 @@ jobs:
 
             core.setOutput("release_tag", releaseTag);
             core.setOutput("release_version", releaseVersion);
+            core.setOutput("recovery_mode", "false");
             console.log(`✓ Release tag: ${releaseTag}`);
 
   release:
@@ -203,6 +259,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_RECOVERY_MODE: ${{ needs.config.outputs.recovery_mode }}
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     steps:
       - name: Harden Runner
@@ -222,12 +279,14 @@ jobs:
           set -euo pipefail
 
           RELEASE_BUILD_MODE="${REQUESTED_BUILD_MODE}"
-          if [[ "${GITHUB_REPOSITORY,,}" == *"trial"* ]]; then
+          if [[ "$RELEASE_RECOVERY_MODE" == "true" ]]; then
+            RELEASE_BUILD_MODE="recovery"
+          elif [[ "${GITHUB_REPOSITORY,,}" == *"trial"* ]]; then
             RELEASE_BUILD_MODE="smoke"
           fi
 
           case "$RELEASE_BUILD_MODE" in
-            full|smoke) ;;
+            full|smoke|recovery) ;;
             *)
               echo "::error::Unsupported build mode: $RELEASE_BUILD_MODE"
               exit 1
@@ -237,6 +296,7 @@ jobs:
           echo "RELEASE_BUILD_MODE=$RELEASE_BUILD_MODE" >> "$GITHUB_ENV"
 
       - name: Create and push tag
+        if: env.RELEASE_BUILD_MODE != 'recovery'
         run: |
           set -euo pipefail
 
@@ -254,7 +314,69 @@ jobs:
       - name: Fetch tags
         run: git fetch origin --tags
 
+      - name: Verify existing release
+        if: env.RELEASE_BUILD_MODE == 'recovery'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          tag_commit=$(git rev-list -n 1 "$RELEASE_TAG")
+          if [[ -z "$tag_commit" ]]; then
+            echo "::error::Unable to resolve $RELEASE_TAG to a commit"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$tag_commit" HEAD; then
+            echo "::error::$RELEASE_TAG does not point to a commit on the workflow ref"
+            exit 1
+          fi
+
+          recovery_dir="dist/recovery"
+          mkdir -p "$recovery_dir"
+          gh release download "$RELEASE_TAG" --dir "$recovery_dir"
+
+          expected_assets=(
+            checksums.txt
+            kongctl_darwin_amd64.zip
+            kongctl_darwin_arm64.zip
+            kongctl_linux_amd64.zip
+            kongctl_linux_arm64.zip
+            kongctl_windows_amd64.zip
+            kongctl_windows_arm64.zip
+          )
+          for asset in "${expected_assets[@]}"; do
+            if [[ ! -f "$recovery_dir/$asset" ]]; then
+              echo "::error::Release $RELEASE_TAG is missing $asset"
+              exit 1
+            fi
+          done
+
+          pushd "$recovery_dir" >/dev/null
+          sha256sum --check checksums.txt
+          popd >/dev/null
+
+          gh api repos/Kong/homebrew-kongctl/contents/Casks/kongctl.rb \
+            --jq .content | base64 --decode > "$recovery_dir/kongctl.rb"
+          if ! grep -Fqx "  version \"$RELEASE_VERSION\"" "$recovery_dir/kongctl.rb"; then
+            echo "::error::Homebrew cask is not at $RELEASE_VERSION"
+            exit 1
+          fi
+
+          while read -r checksum archive; do
+            case "$archive" in
+              kongctl_darwin_*.zip|kongctl_linux_*.zip)
+                if ! grep -Fq "sha256 \"$checksum\"" "$recovery_dir/kongctl.rb"; then
+                  echo "::error::Homebrew cask is missing the checksum for $archive"
+                  exit 1
+                fi
+                ;;
+            esac
+          done < "$recovery_dir/checksums.txt"
+
+          echo "✓ Verified $RELEASE_TAG at $tag_commit and the published Homebrew cask"
+
       - name: Configure private git reads for GoReleaser
+        if: env.RELEASE_BUILD_MODE != 'recovery'
         env:
           GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
         run: |
