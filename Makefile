@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: lint test-installer test test-integration
+test-all: lint test-installer test test-e2e-metrics test-integration
 
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -108,6 +108,10 @@ coverage:
 .PHONY: test
 test:
 	go test -race -count=1 ./...
+
+.PHONY: test-e2e-metrics
+test-e2e-metrics:
+	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'
 
 .PHONY: test-integration
 test-integration:
@@ -244,6 +248,20 @@ diagnose-e2e-ci:
 		$(if $(ARTIFACTS_DIR),--artifacts-dir "$(ARTIFACTS_DIR)") \
 		$(if $(DOWNLOAD_DIR),--download-dir "$(DOWNLOAD_DIR)") \
 		$(E2E_CI_DIAGNOSE_FLAGS)
+
+E2E_BASELINE_COUNT ?= 20
+E2E_BASELINE_SCAN ?= 100
+E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
+
+.PHONY: baseline-e2e-ci
+baseline-e2e-ci:
+	@mkdir -p "$(E2E_BASELINE_DIR)"
+	@python3 scripts/e2e-baseline.py \
+		--count "$(E2E_BASELINE_COUNT)" \
+		--scan "$(E2E_BASELINE_SCAN)" \
+		--output "$(E2E_BASELINE_DIR)/e2e-baseline.md" \
+		--json-output "$(E2E_BASELINE_DIR)/e2e-baseline.json"
+	@echo "Wrote $(E2E_BASELINE_DIR)/e2e-baseline.md"
 
 .PHONY: reset-org
 reset-org:

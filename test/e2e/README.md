@@ -559,3 +559,38 @@ flags through `E2E_CI_DIAGNOSE_FLAGS`, for example:
 ```sh
 make diagnose-e2e-ci RUN=2254 E2E_CI_DIAGNOSE_FLAGS="--all-shards"
 ```
+
+### CI Performance Baseline
+
+Every `.com` scenario shard uploads a small `e2e-metrics-*` artifact. It
+contains no credentials or request payloads. The record includes selected and
+individual scenario durations plus reset counts, list calls, resources found,
+delete calls, resources deleted, and list/delete timing.
+
+After at least 20 instrumented successful full runs, generate a reproducible
+baseline with:
+
+```sh
+gh auth status
+make baseline-e2e-ci
+```
+
+The command writes Markdown and JSON reports under
+`.e2e-artifacts/baseline/`. It scans the 100 most recent successful workflow
+runs by default, then retains only complete `.com` runs whose latest attempt
+has every shard and whose build, harness, scenario, coverage-verification, and
+required-status jobs succeeded. This excludes short runs where the gate did
+not require scenarios.
+
+The report includes p50, p75, and p90 values for workflow admission delay,
+queue-to-required-status latency, build job and build-step duration,
+longest-shard duration, shard spread, and reset cost. It also reports each
+organization's admission delay, selected scenario count, execution duration,
+and every scenario's measured Go subtest duration in the JSON data. Percentile
+calculations use the nearest-rank method.
+
+Increase the search window when fewer than 20 eligible runs appear:
+
+```sh
+make baseline-e2e-ci E2E_BASELINE_SCAN=200
+```

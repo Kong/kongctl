@@ -49,7 +49,7 @@ func resetOrg(stage string, capture bool) error {
 		if !truthyEnv(v) { // values like 0,false,off,no
 			Infof("Reset disabled by KONGCTL_E2E_RESET=%s", v)
 			if capture {
-				captureResetEvent(stage, false, "skipped", "reset disabled", "", nil)
+				captureResetEvent(stage, false, "skipped", "reset disabled", "", resetResult{})
 			}
 			return nil
 		}
@@ -62,7 +62,7 @@ func resetOrg(stage string, capture bool) error {
 	if token == "" {
 		Warnf("reset requested, but KONGCTL_E2E_KONNECT_PAT is not set; skipping reset")
 		if capture {
-			captureResetEvent(stage, false, "skipped", "missing PAT", baseURL, nil)
+			captureResetEvent(stage, false, "skipped", "missing PAT", baseURL, resetResult{})
 		}
 		return nil
 	}
@@ -77,7 +77,7 @@ func resetOrg(stage string, capture bool) error {
 			status = "error"
 			reason = err.Error()
 		}
-		captureResetEvent(stage, true, status, reason, baseURL, result.Details)
+		captureResetEvent(stage, true, status, reason, baseURL, result)
 	}
 	if err != nil {
 		return err
@@ -127,7 +127,8 @@ func deleteAll(
 	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string),
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
-) (int, int, error) {
+) (total int, deleted int, metrics resetHTTPMetrics, err error) {
+	startedAt := time.Now()
 	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
 	if deleteBaseURL == "" {
 		deleteBaseURL = baseURL
@@ -146,7 +147,11 @@ func deleteAll(
 	)
 	Infof("Fetching %s for deletion...", endpoint)
 	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
-	defer session.Close()
+	defer func() {
+		session.Close()
+		metrics = session.Metrics()
+		metrics.Duration = time.Since(startedAt)
+	}()
 
 	if filter == nil {
 		filter = shouldDeleteResource
@@ -159,25 +164,23 @@ func deleteAll(
 	const maxAttempts = 5
 	const retryDelay = 2 * time.Second
 
-	total := 0
-	deleted := 0
 	attempt := 0
 
 	for {
 		if err := ctx.Err(); err != nil {
-			return total, deleted, err
+			return total, deleted, metrics, err
 		}
 		items, err := retryListAllItems(ctx, session, url, token, endpoint, policy)
 		if err != nil {
-			return total, deleted, err
+			return total, deleted, metrics, err
 		}
 
 		if len(items) == 0 {
 			if total == 0 {
 				Infof("No %s found", endpoint)
-				return 0, 0, nil
+				return 0, 0, metrics, nil
 			}
-			return total, deleted, nil
+			return total, deleted, metrics, nil
 		}
 
 		// Filter items based on the filter function
@@ -206,7 +209,7 @@ func deleteAll(
 
 		if len(idsToDelete) == 0 {
 			Infof("No %s matched deletion filter; nothing to delete", endpoint)
-			return total, deleted, nil
+			return total, deleted, metrics, nil
 		}
 
 		Infof("Attempt %d deleting %d %s", attempt+1, len(idsToDelete), endpoint)
@@ -228,12 +231,12 @@ func deleteAll(
 		}
 
 		if conflicts == 0 {
-			return total, deleted, nil
+			return total, deleted, metrics, nil
 		}
 
 		attempt++
 		if attempt >= maxAttempts {
-			return total, deleted, fmt.Errorf(
+			return total, deleted, metrics, fmt.Errorf(
 				"failed to delete all %s after %d attempts (conflicts remain)",
 				endpoint,
 				maxAttempts,
@@ -242,7 +245,7 @@ func deleteAll(
 
 		Infof("Retrying deletion of %s (%d conflicts remaining)", endpoint, conflicts)
 		if err := sleepWithContext(ctx, retryDelay); err != nil {
-			return total, deleted, err
+			return total, deleted, metrics, err
 		}
 	}
 }
@@ -291,20 +294,76 @@ func (e *httpError) Error() string {
 }
 
 type resetEndpoint struct {
-	APIVersion string `json:"api_version"`
-	Endpoint   string `json:"endpoint"`
-	Total      int    `json:"total"`
-	Deleted    int    `json:"deleted"`
-	Error      string `json:"error,omitempty"`
+	APIVersion       string `json:"api_version"`
+	Endpoint         string `json:"endpoint"`
+	Total            int    `json:"total"`
+	Deleted          int    `json:"deleted"`
+	DurationMS       int64  `json:"duration_ms"`
+	ListCalls        int    `json:"list_calls"`
+	ListDurationMS   int64  `json:"list_duration_ms"`
+	DeleteCalls      int    `json:"delete_calls"`
+	DeleteDurationMS int64  `json:"delete_duration_ms"`
+	Error            string `json:"error,omitempty"`
 }
 
 type resetResult struct {
-	Details []resetEndpoint
+	DurationMS int64           `json:"duration_ms"`
+	Details    []resetEndpoint `json:"details"`
+}
+
+type resetHTTPMetrics struct {
+	Duration       time.Duration
+	ListCalls      int
+	ListDuration   time.Duration
+	DeleteCalls    int
+	DeleteDuration time.Duration
+}
+
+func resetEndpointResult(apiVersion, endpoint string, total, deleted int, metrics resetHTTPMetrics, err error) resetEndpoint {
+	return resetEndpoint{
+		APIVersion:       apiVersion,
+		Endpoint:         endpoint,
+		Total:            total,
+		Deleted:          deleted,
+		DurationMS:       metrics.Duration.Milliseconds(),
+		ListCalls:        metrics.ListCalls,
+		ListDurationMS:   metrics.ListDuration.Milliseconds(),
+		DeleteCalls:      metrics.DeleteCalls,
+		DeleteDurationMS: metrics.DeleteDuration.Milliseconds(),
+		Error:            errorString(err),
+	}
 }
 
 type resetHTTPSession struct {
 	newClient func() *http.Client
 	client    *http.Client
+	metrics   resetHTTPMetrics
+}
+
+type resetMetricsRoundTripper struct {
+	base    http.RoundTripper
+	metrics *resetHTTPMetrics
+}
+
+func (t *resetMetricsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	startedAt := time.Now()
+	resp, err := t.base.RoundTrip(req)
+	duration := time.Since(startedAt)
+	switch req.Method {
+	case http.MethodGet:
+		t.metrics.ListCalls++
+		t.metrics.ListDuration += duration
+	case http.MethodDelete:
+		t.metrics.DeleteCalls++
+		t.metrics.DeleteDuration += duration
+	}
+	return resp, err
+}
+
+func (t *resetMetricsRoundTripper) CloseIdleConnections() {
+	if transport, ok := t.base.(interface{ CloseIdleConnections() }); ok {
+		transport.CloseIdleConnections()
+	}
 }
 
 func newResetHTTPSession(timeout time.Duration, options HTTPTransportOptions) *resetHTTPSession {
@@ -321,8 +380,20 @@ func (s *resetHTTPSession) Client() *http.Client {
 	}
 	if s.client == nil {
 		s.client = s.newClient()
+		transport := s.client.Transport
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+		s.client.Transport = &resetMetricsRoundTripper{base: transport, metrics: &s.metrics}
 	}
 	return s.client
+}
+
+func (s *resetHTTPSession) Metrics() resetHTTPMetrics {
+	if s == nil {
+		return resetHTTPMetrics{}
+	}
+	return s.metrics
 }
 
 func (s *resetHTTPSession) Rebuild(err error) {
@@ -438,11 +509,15 @@ func tryDeletePortalCustomDomain(
 	}
 }
 
-func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, error) {
+func executeReset(baseURL, token string, policy HTTPRetryPolicy) (result resetResult, firstErr error) {
+	startedAt := time.Now()
+	defer func() {
+		result.DurationMS = time.Since(startedAt).Milliseconds()
+	}()
 	transportOptions := HTTPTransportOptionsFromEnv()
 	globalBaseURL, envErr := KonnectBaseAuthURL()
 	if envErr != nil {
-		return resetResult{}, envErr
+		return result, envErr
 	}
 	ctx := context.Background()
 	cancel := func() {}
@@ -451,20 +526,20 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 	}
 	defer cancel()
 
-	var result resetResult
-	var firstErr error
-
-	tot, del, err := resetConfiguredE2EUserAssignments(ctx, globalBaseURL, token, policy, transportOptions)
+	tot, del, metrics, err := resetConfiguredE2EUserAssignments(
+		ctx,
+		globalBaseURL,
+		token,
+		policy,
+		transportOptions,
+	)
 	if err != nil && firstErr == nil {
 		firstErr = err
 	}
-	result.Details = append(result.Details, resetEndpoint{
-		APIVersion: "v3",
-		Endpoint:   "e2e-user-assignments",
-		Total:      tot,
-		Deleted:    del,
-		Error:      errorString(err),
-	})
+	result.Details = append(
+		result.Details,
+		resetEndpointResult("v3", "e2e-user-assignments", tot, del, metrics, err),
+	)
 
 	for _, step := range resetSequence {
 		if err := ctx.Err(); err != nil {
@@ -490,7 +565,7 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		if step.DeleteUseRegional {
 			deleteTargetURL = baseURL
 		}
-		tot, del, err := deleteAll(
+		tot, del, metrics, err := deleteAll(
 			ctx,
 			targetURL,
 			deleteTargetURL,
@@ -508,13 +583,10 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (resetResult, e
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
-		result.Details = append(result.Details, resetEndpoint{
-			APIVersion: step.Version,
-			Endpoint:   step.Endpoint,
-			Total:      tot,
-			Deleted:    del,
-			Error:      errorString(err),
-		})
+		result.Details = append(
+			result.Details,
+			resetEndpointResult(step.Version, step.Endpoint, tot, del, metrics, err),
+		)
 	}
 
 	return result, firstErr
@@ -530,23 +602,26 @@ func resetConfiguredE2EUserAssignments(
 	token string,
 	policy HTTPRetryPolicy,
 	transportOptions HTTPTransportOptions,
-) (int, int, error) {
+) (total int, deleted int, metrics resetHTTPMetrics, err error) {
+	startedAt := time.Now()
 	emails := configuredE2EUserEmails()
 	if len(emails) == 0 {
 		Debugf("No KONGCTL_E2E_ORG_USER_EMAIL_* values configured; skipping user assignment reset")
-		return 0, 0, nil
+		return 0, 0, metrics, nil
 	}
 
 	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
-	defer session.Close()
+	defer func() {
+		session.Close()
+		metrics = session.Metrics()
+		metrics.Duration = time.Since(startedAt)
+	}()
 
 	usersByEmail, err := listUsersByEmail(ctx, session, globalBaseURL, token, policy)
 	if err != nil {
-		return len(emails), 0, err
+		return len(emails), 0, metrics, err
 	}
 
-	total := 0
-	deleted := 0
 	for _, email := range emails {
 		user, ok := usersByEmail[email]
 		if !ok {
@@ -556,10 +631,10 @@ func resetConfiguredE2EUserAssignments(
 		total += userTotal
 		deleted += userDeleted
 		if err != nil {
-			return total, deleted, err
+			return total, deleted, metrics, err
 		}
 	}
-	return total, deleted, nil
+	return total, deleted, metrics, nil
 }
 
 func configuredE2EUserEmails() []string {
@@ -723,7 +798,7 @@ func captureResetEvent(
 	status string,
 	reason string,
 	baseURL string,
-	details []resetEndpoint,
+	result resetResult,
 ) {
 	// Best-effort capture; never fail tests from here.
 	rd, err := ensureRunDir()
@@ -781,11 +856,12 @@ func captureResetEvent(
 	}
 	// observation.json
 	obs := map[string]any{
-		"type":     "reset_summary",
-		"executed": executed,
-		"status":   status,
-		"reason":   reason,
-		"details":  details,
+		"type":        "reset_summary",
+		"executed":    executed,
+		"status":      status,
+		"reason":      reason,
+		"duration_ms": result.DurationMS,
+		"details":     result.Details,
 	}
 	if b, err := json.MarshalIndent(obs, "", "  "); err == nil {
 		_ = os.WriteFile(dir+string(os.PathSeparator)+"observation.json", b, 0o644)

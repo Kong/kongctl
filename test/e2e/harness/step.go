@@ -1128,11 +1128,16 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 		details := make([]map[string]any, 0, len(result.Details))
 		for _, d := range result.Details {
 			details = append(details, map[string]any{
-				"api_version": d.APIVersion,
-				"endpoint":    d.Endpoint,
-				"total":       d.Total,
-				"deleted":     d.Deleted,
-				"error":       d.Error,
+				"api_version":        d.APIVersion,
+				"endpoint":           d.Endpoint,
+				"total":              d.Total,
+				"deleted":            d.Deleted,
+				"duration_ms":        d.DurationMS,
+				"list_calls":         d.ListCalls,
+				"list_duration_ms":   d.ListDurationMS,
+				"delete_calls":       d.DeleteCalls,
+				"delete_duration_ms": d.DeleteDurationMS,
+				"error":              d.Error,
 			})
 		}
 		status := "ok"
@@ -1145,10 +1150,11 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 			}
 		}
 		summaries = append(summaries, map[string]any{
-			"base_url": baseURL,
-			"status":   status,
-			"reason":   reason,
-			"details":  details,
+			"base_url":    baseURL,
+			"status":      status,
+			"reason":      reason,
+			"duration_ms": result.DurationMS,
+			"details":     details,
 		})
 	}
 

@@ -94,6 +94,8 @@ jobs:
       - name: test
         run: |
           go test -race -count=1 ./...
+      - name: test E2E metrics scripts
+        run: make test-e2e-metrics
       - name: test integration
         run: |
           go test -v -count=1 -tags=integration -race ${GOTESTFLAGS} ./test/integration/...
