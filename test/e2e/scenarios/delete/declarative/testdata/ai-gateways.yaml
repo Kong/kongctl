@@ -1,0 +1,19 @@
+ai_gateways:
+  - ref: delete-test-ai-gw
+    name: delete-test-ai-gw
+    display_name: "Delete Test AI Gateway"
+    description: "AI Gateway for declarative delete e2e"
+    proxy_urls:
+      - host: delete-test-ai-gw.example.com
+        port: 443
+        protocol: https
+    policies:
+      - ref: delete-test-ai-gw-policy
+        name: delete-test-ai-gw-policy
+        type: ai-prompt-guard
+        display_name: "Delete Test Policy"
+        enabled: true
+        global: false
+        config:
+          deny_patterns:
+            - ".*test.*"
