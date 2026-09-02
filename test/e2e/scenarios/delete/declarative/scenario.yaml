@@ -10,6 +10,7 @@ vars:
   controlPlaneName: "delete-test-cp"
   teamName: "delete-test-team-alpha"
   authStrategyName: "delete-test-key-auth"
+  aiGatewayName: "delete-test-ai-gw"
 
 defaults:
   mask:
@@ -42,6 +43,8 @@ steps:
           - "{{ .workdir }}/teams.yaml"
           - -f
           - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/ai-gateways.yaml"
           - --auto-approve
         assertions:
           - select: plan.metadata
@@ -147,6 +150,16 @@ steps:
                 name: "{{ .vars.authStrategyName }}"
                 display_name: "Delete Test Key Auth"
 
+      # Verify AI gateway exists
+      - name: 008-get-ai-gateways
+        run: ["get", "ai-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.aiGatewayName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.aiGatewayName }}"
+                display_name: "Delete Test AI Gateway"
+
   # Step 2: Delete all resources using delete -f
   - name: 002-delete-resources
     commands:
@@ -163,6 +176,8 @@ steps:
           - "{{ .workdir }}/teams.yaml"
           - -f
           - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/ai-gateways.yaml"
           - --auto-approve
         assertions:
           - select: plan.metadata
@@ -172,8 +187,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 6
-                by_action.DELETE: 6
+                total_changes: 7
+                by_action.DELETE: 7
           - select: "plan.changes[?resource_type=='application_auth_strategy'] | [0]"
             expect:
               fields:
@@ -228,6 +243,14 @@ steps:
         run: ["get", "auth-strategies", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.authStrategyName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 005-get-ai-gateways
+        run: ["get", "ai-gateways", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.aiGatewayName }}']"
             expect:
               fields:
                 "length(@)": 0
