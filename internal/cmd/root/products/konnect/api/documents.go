@@ -3,7 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -447,14 +448,12 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 		return ""
 	}
 
-	const missing = "n/a"
-
-	status := missing
+	status := valueNA
 	if doc.Status != nil && *doc.Status != "" {
 		status = string(*doc.Status)
 	}
 
-	parentID := missing
+	parentID := valueNA
 	if doc.ParentDocumentID != nil && *doc.ParentDocumentID != "" {
 		parentID = *doc.ParentDocumentID
 	}
@@ -468,11 +467,7 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 		"updated_at":         doc.UpdatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	var keys []string
-	for key := range fields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", doc.ID)
@@ -493,11 +488,9 @@ func documentSummaryDetailView(doc *kkComps.APIDocumentSummaryWithChildren, deta
 }
 
 func apiDocumentDetailView(record apiDocumentDetailRecord) string {
-	const missing = "n/a"
-
 	parentID := record.ParentDocumentID
 	if strings.TrimSpace(parentID) == "" {
-		parentID = missing
+		parentID = valueNA
 	}
 
 	otherFields := map[string]string{
@@ -508,11 +501,7 @@ func apiDocumentDetailView(record apiDocumentDetailRecord) string {
 		"updated_at":         record.LocalUpdatedTime,
 	}
 
-	keys := make([]string, 0, len(otherFields))
-	for key := range otherFields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(otherFields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", record.RawID)

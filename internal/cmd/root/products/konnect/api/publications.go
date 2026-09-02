@@ -2,7 +2,8 @@ package api
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -323,11 +324,7 @@ func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
 		"updated_at":        publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	keys := make([]string, 0, len(fields))
-	for key := range fields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "api_id: %s\n", publication.GetAPIID())
