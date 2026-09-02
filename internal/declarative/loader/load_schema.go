@@ -350,22 +350,19 @@ func declarativeConstValuesAt(
 	}
 
 	name := path[len(path)-1]
-	values := make([]string, 0)
+	var values []string
 	seen := make(map[string]struct{})
-	appendValues := func(schema *resources.JSONSchema) {
-		for _, value := range declarativeSchemaConstValues(root, schema) {
+	for _, branch := range parent.OneOf {
+		branch = resolveDeclarativeSchemaRef(root, branch)
+		if branch == nil {
+			continue
+		}
+		for _, value := range declarativeSchemaConstValues(root, branch.Properties[name]) {
 			if _, ok := seen[value]; ok {
 				continue
 			}
 			seen[value] = struct{}{}
 			values = append(values, value)
-		}
-	}
-
-	for _, branch := range parent.OneOf {
-		branch = resolveDeclarativeSchemaRef(root, branch)
-		if branch != nil {
-			appendValues(branch.Properties[name])
 		}
 	}
 	return values
