@@ -344,6 +344,27 @@ func populateAIGatewayChildren(
 		} else if len(certs) > 0 {
 			gateway.DataPlaneCertificates = certs
 		}
+
+		certificates, err := buildAIGatewayCertificates(ctx, client, gatewayID, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway certificates", gatewayID, gateway.DisplayName, err)
+		} else if len(certificates) > 0 {
+			gateway.Certificates = certificates
+		}
+
+		caCertificates, err := buildAIGatewayCACertificates(ctx, client, gatewayID, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway CA certificates", gatewayID, gateway.DisplayName, err)
+		} else if len(caCertificates) > 0 {
+			gateway.CACertificates = caCertificates
+		}
+
+		snis, err := buildAIGatewaySNIs(ctx, client, gatewayID, "")
+		if err != nil {
+			logWarn(logger, "failed to load AI Gateway SNIs", gatewayID, gateway.DisplayName, err)
+		} else if len(snis) > 0 {
+			gateway.SNIs = snis
+		}
 	}
 }
 
@@ -847,6 +868,71 @@ func buildAIGatewayDataPlaneCertificates(
 		return cmp.Compare(a.Title, b.Title)
 	})
 
+	return result, nil
+}
+
+func buildAIGatewayCertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID, gatewayRef string,
+) ([]declresources.AIGatewayCertificateResource, error) {
+	certificates, err := client.ListAIGatewayCertificates(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayCertificateResource, 0, len(certificates))
+	for _, certificate := range certificates {
+		result = append(result, declresources.AIGatewayCertificateResourceFromResponse(
+			gatewayRef, certificate.AIGatewayCertificate,
+		))
+	}
+	slices.SortFunc(result, func(a, b declresources.AIGatewayCertificateResource) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	return result, nil
+}
+
+func buildAIGatewayCACertificates(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID, gatewayRef string,
+) ([]declresources.AIGatewayCACertificateResource, error) {
+	certificates, err := client.ListAIGatewayCACertificates(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayCACertificateResource, 0, len(certificates))
+	for _, certificate := range certificates {
+		result = append(result, declresources.AIGatewayCACertificateResourceFromResponse(
+			gatewayRef, certificate.AIGatewayCACertificate,
+		))
+	}
+	slices.SortFunc(result, func(a, b declresources.AIGatewayCACertificateResource) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+	return result, nil
+}
+
+func buildAIGatewaySNIs(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID, gatewayRef string,
+) ([]declresources.AIGatewaySNIResource, error) {
+	snis, err := client.ListAIGatewaySNIs(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewaySNIResource, 0, len(snis))
+	for _, sni := range snis {
+		resource, err := declresources.AIGatewaySNIResourceFromResponse(gatewayRef, sni.AIGatewaySNI)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, resource)
+	}
+	slices.SortFunc(result, func(a, b declresources.AIGatewaySNIResource) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 	return result, nil
 }
 

@@ -47,6 +47,9 @@ type ClientConfig struct {
 	AIGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	AIGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	AIGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
+	AIGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
+	AIGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
+	AIGatewaySNIsAPI                  helpers.AIGatewaySNIsAPI
 	DashboardsAPI                     helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -121,6 +124,9 @@ type Client struct {
 	aiGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	aiGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
 	aiGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
+	aiGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
+	aiGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
+	aiGatewaySNIsAPI                  helpers.AIGatewaySNIsAPI
 	dashboardsAPI                     helpers.DashboardsAPI
 
 	// Portal child resource APIs
@@ -196,6 +202,9 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayConfigStoresAPI:          config.AIGatewayConfigStoresAPI,
 		aiGatewayVaultsAPI:                config.AIGatewayVaultsAPI,
 		aiGatewayDataPlaneCertificatesAPI: config.AIGatewayDataPlaneCertificatesAPI,
+		aiGatewayCertificatesAPI:          config.AIGatewayCertificatesAPI,
+		aiGatewayCACertificatesAPI:        config.AIGatewayCACertificatesAPI,
+		aiGatewaySNIsAPI:                  config.AIGatewaySNIsAPI,
 		dashboardsAPI:                     config.DashboardsAPI,
 
 		// Portal child resource APIs
@@ -375,6 +384,21 @@ type AIGatewayVault struct {
 // AIGatewayDataPlaneCertificate represents a Konnect AI Gateway data plane certificate for internal use.
 type AIGatewayDataPlaneCertificate struct {
 	kkComps.AIGatewayDataPlaneClientCertificate
+}
+
+type AIGatewayCertificate struct {
+	kkComps.AIGatewayCertificate
+	NormalizedLabels map[string]string
+}
+
+type AIGatewayCACertificate struct {
+	kkComps.AIGatewayCACertificate
+	NormalizedLabels map[string]string
+}
+
+type AIGatewaySNI struct {
+	kkComps.AIGatewaySNI
+	NormalizedLabels map[string]string
 }
 
 // Dashboard represents a Konnect Analytics custom dashboard for internal use.

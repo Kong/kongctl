@@ -68,8 +68,8 @@ Use YAML tags in field values to load files or reference other resources.
 - `!env`: Load string content from an environment variable. Supports
   `VAR#extract.path` and `var`/`extract` map form.
 - `!secret`: Declare a sensitive deferred value on a reviewed write-only
-  field. Supports `source: !env VAR` and ordered `parts` containing strings
-  and `!env` sources.
+  field. Supports `source: !env VAR`, `source: !file ./path`, and ordered
+  `parts` containing strings and deferred `!env` or `!file` sources.
 - `!ref`: Reference another declarative resource by `ref`.
   `resource-ref#field` is supported; the default field is `id`.
 - `!lookup`: Resolve an existing Konnect resource directly in a relationship
@@ -91,26 +91,30 @@ Use YAML tags in field values to load files or reference other resources.
   within the configured base directory boundary.
 
 Nested tag composition is opt-in. `!env` can supply a direct mapping selector
-value inside `!lookup` or `!external`, and can supply deferred source values
-inside `!secret`:
+value inside `!lookup` or `!external`. Both `!env` and `!file` can supply
+deferred source values inside `!secret`:
 
 ```yaml
 portal_id: !lookup
   name: !env PORTAL_NAME
 
 control_plane: !lookup {name: !env CONTROL_PLANE_NAME}
+
+key: !secret {source: !file ./certs/runtime.key}
 ```
 
 | Outer tag | Supported inner tags |
 |---|---|
 | `!lookup` / `!external` | `!env` in direct mapping values |
-| `!secret` | `!env` as `source` or a `parts` element |
+| `!secret` | `!env` or `!file` as `source` or a `parts` element |
 | `!env`, `!file`, `!ref` | None |
 
 `!file`, `!ref`, and nested lookup tags are not supported inside lookup tags.
-Tags are not supported in mapping keys or control fields such as `var`,
-`extract`, and `path`. Use mapping lookup syntax for composition; tags cannot
-be interpolated into the scalar `field:value` form.
+A deferred `!file` source is supported only within `!secret`; a bare `!file`
+on a reviewed write-only field is rejected. Tags are not supported in mapping
+keys or control fields such as `var`, `extract`, and `path`. Use mapping lookup
+syntax for composition; tags cannot be interpolated into the scalar
+`field:value` form.
 
 Nested environment values are used only for planner-time lookup and are
 redacted from diagnostics. A saved plan contains the resolved ID, so execution
@@ -434,7 +438,8 @@ This section covers the root AI Gateway resource backed by the Konnect
 Gateway Auth Strategies, AI Gateway MCP Servers, AI Gateway Agents, AI
 Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
 AI Gateway Config Stores, AI Gateway Config Store Secrets, AI Gateway Vaults,
-and AI Gateway Data Plane Certificates. Use
+AI Gateway Data Plane Certificates, runtime Certificates, CA Certificates, and
+SNIs. Use
 `kongctl explain ai_gateway --output yaml`,
 `kongctl explain ai_gateway_model_provider --output yaml`,
 `kongctl explain ai_gateway_auth_strategy --output yaml`,
@@ -447,8 +452,10 @@ and AI Gateway Data Plane Certificates. Use
 `kongctl explain ai_gateway.config_stores --output yaml`,
 `kongctl explain ai_gateway.config_stores.secrets --output yaml`,
 `kongctl explain ai_gateway.vaults --output yaml`, and
-`kongctl explain ai_gateway.data_plane_certificates --output yaml` as the
-authoritative schemas.
+`kongctl explain ai_gateway.data_plane_certificates --output yaml`,
+`kongctl explain ai_gateway.certificates --output yaml`,
+`kongctl explain ai_gateway.ca_certificates --output yaml`, and
+`kongctl explain ai_gateway.snis --output yaml` as the authoritative schemas.
 
 The `ref` value is a local declarative identifier used by kongctl for
 references and planning. Use `name` as the stable Konnect API name for the AI
@@ -485,29 +492,33 @@ OAuth access-token claim selection and protected-resource metadata. The
 `conversion-only` MCP Server type does not support `access`.
 
 For AI Gateway Auth Strategies, Policies, Agents, Consumers, Consumer
-Groups, MCP Servers, Config Stores, Vaults, and Data Plane Certificates,
+Groups, MCP Servers, Config Stores, Vaults, Data Plane Certificates, runtime
+Certificates, CA Certificates, and SNIs,
 root-level declarations must include `ai_gateway`, while nested declarations
 inherit the parent gateway. AI Gateway Consumer Credentials are children of AI
 Gateway Consumers; root-level
 declarations must include `ai_gateway_consumer`, while nested declarations
 inherit the parent consumer. Omit `auth_strategies`, `policies`, `agents`,
 `consumers`, `credentials`, `consumer_groups`, `mcp_servers`, `vaults`, or
-`data_plane_certificates` to leave existing child resources unmanaged during
-sync. Config Store Secrets are children of Config Stores; root-level
+`data_plane_certificates`, `certificates`, `ca_certificates`, or `snis` to
+leave existing child resources unmanaged during sync. Config Store Secrets are
+children of Config Stores; root-level
 declarations must include `ai_gateway_config_store`, while nested declarations
 inherit the parent store. Omit `secrets` to leave existing secrets unmanaged.
 Use `auth_strategies: []`, `policies: []`, `agents: []`,
 `consumers: []`, `credentials: []`, `consumer_groups: []`, `mcp_servers: []`,
 `config_stores: []`, `secrets: []`, `vaults: []`, or
-`data_plane_certificates: []` under a specific parent to sync-delete that child
-type. Root-level `ai_gateway_auth_strategies: []`,
+`data_plane_certificates: []`, `certificates: []`, `ca_certificates: []`, or
+`snis: []` under a specific parent to sync-delete that child type. Root-level
+`ai_gateway_auth_strategies: []`,
 `ai_gateway_policies: []`, `ai_gateway_agents: []`,
 `ai_gateway_consumers: []`, `ai_gateway_consumer_credentials: []`,
 `ai_gateway_consumer_groups: []`, `ai_gateway_mcp_servers: []`,
 `ai_gateway_config_stores: []`, `ai_gateway_config_store_secrets: []`,
 `ai_gateway_vaults: []`, and
-`ai_gateway_data_plane_certificates: []` are rejected because they do not
-identify a parent resource.
+`ai_gateway_data_plane_certificates: []`, `ai_gateway_certificates: []`,
+`ai_gateway_ca_certificates: []`, and `ai_gateway_snis: []` are rejected
+because they do not identify a parent resource.
 
 ```yaml
 ai_gateways:
@@ -991,6 +1002,47 @@ ai_gateway_data_plane_certificates:
    description: string
    cert: string required # prefer !file or !env for PEM data
 ```
+
+Runtime certificates terminate or originate TLS traffic and are distinct from
+data plane client certificates. Private keys are write-only. Supply them with
+`!secret`; `source` accepts deferred `!env` and `!file` values. A dump preserves
+public certificate data and omits `key` and `key_alt`. Creating a certificate
+requires `key`. Updating one requires selecting its configured key with
+`--write-secret <ref>#key` or `--write-secrets`, because the API update payload
+requires the complete certificate/key pair.
+
+```yaml
+ai_gateway_certificates:
+ - ref: runtime-cert
+   ai_gateway: support-gateway
+   name: runtime-cert
+   cert: !file ./certs/runtime.pem
+   key: !secret {source: !file ./certs/runtime-key.pem}
+   cert_alt: !file ./certs/runtime-alt.pem
+   key_alt: !secret {source: !env RUNTIME_ALT_PRIVATE_KEY}
+
+ai_gateway_ca_certificates:
+ - ref: partner-ca
+   ai_gateway: support-gateway
+   name: partner-ca
+   cert: !file ./certs/partner-ca.pem
+
+ai_gateway_snis:
+ - ref: support-sni
+   ai_gateway: support-gateway
+   name: support-sni
+   display_name: Support TLS hostname
+   hostname: support.example.com
+   certificate: !ref runtime-cert#name
+```
+
+The SNI `certificate` relationship resolves to the certificate API `name` and
+orders same-plan operations safely. Gateway-scoped SNI reads are the canonical
+CLI surface: use `kongctl get ai-gateway snis --gateway-id <id>`. The equivalent
+commands for runtime certificates and CA certificates are `certificates` and
+`ca-certificates`; all support list/get by ID or name and text, JSON, and YAML
+output. Certificate-scoped SNI routes are not exposed because they represent
+the same SNI resources through a second API path.
 
 ## Event Gateways
 

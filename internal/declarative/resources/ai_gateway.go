@@ -44,6 +44,9 @@ type AIGatewayResource struct {
 	ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty" json:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty" json:"vaults,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
+	Certificates          []AIGatewayCertificateResource          `yaml:"certificates,omitempty" json:"certificates,omitempty"`                       //nolint:lll
+	CACertificates        []AIGatewayCACertificateResource        `yaml:"ca_certificates,omitempty" json:"ca_certificates,omitempty"`                 //nolint:lll
+	SNIs                  []AIGatewaySNIResource                  `yaml:"snis,omitempty" json:"snis,omitempty"`
 }
 
 func (a AIGatewayResource) MarshalJSON() ([]byte, error) {
@@ -82,6 +85,9 @@ type aiGatewayAlias struct {
 	ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty" yaml:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty" yaml:"data_plane_certificates,omitempty"` //nolint:lll
+	Certificates          []AIGatewayCertificateResource          `json:"certificates,omitempty" yaml:"certificates,omitempty"`                       //nolint:lll
+	CACertificates        []AIGatewayCACertificateResource        `json:"ca_certificates,omitempty" yaml:"ca_certificates,omitempty"`                 //nolint:lll
+	SNIs                  []AIGatewaySNIResource                  `json:"snis,omitempty" yaml:"snis,omitempty"`
 }
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
@@ -106,6 +112,9 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		ConfigStores:          a.ConfigStores,
 		Vaults:                a.Vaults,
 		DataPlaneCertificates: a.DataPlaneCertificates,
+		Certificates:          a.Certificates,
+		CACertificates:        a.CACertificates,
+		SNIs:                  a.SNIs,
 	}
 }
 
@@ -156,6 +165,9 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty"`
+		Certificates          []AIGatewayCertificateResource          `yaml:"certificates,omitempty"`
+		CACertificates        []AIGatewayCACertificateResource        `yaml:"ca_certificates,omitempty"`
+		SNIs                  []AIGatewaySNIResource                  `yaml:"snis,omitempty"`
 	}
 	if err := unmarshal(&raw); err != nil {
 		return err
@@ -178,6 +190,9 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
+	a.Certificates = raw.Certificates
+	a.CACertificates = raw.CACertificates
+	a.SNIs = raw.SNIs
 
 	return nil
 }
@@ -221,6 +236,9 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty"`
+		Certificates          []AIGatewayCertificateResource          `json:"certificates,omitempty"`
+		CACertificates        []AIGatewayCACertificateResource        `json:"ca_certificates,omitempty"`
+		SNIs                  []AIGatewaySNIResource                  `json:"snis,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -243,6 +261,9 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
+	a.Certificates = raw.Certificates
+	a.CACertificates = raw.CACertificates
+	a.SNIs = raw.SNIs
 
 	return nil
 }
@@ -264,6 +285,9 @@ func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.Creat
 		"config_stores",
 		"vaults",
 		"data_plane_certificates",
+		"certificates",
+		"ca_certificates",
+		"snis",
 	} {
 		delete(payload, field)
 	}
@@ -367,6 +391,15 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.DataPlaneCertificates {
 		a.DataPlaneCertificates[i].SetDefaults()
 	}
+	for i := range a.Certificates {
+		a.Certificates[i].SetDefaults()
+	}
+	for i := range a.CACertificates {
+		a.CACertificates[i].SetDefaults()
+	}
+	for i := range a.SNIs {
+		a.SNIs[i].SetDefaults()
+	}
 }
 
 // GetKonnectMonikerFilter returns the filter string for Konnect API lookup.
@@ -431,6 +464,9 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			false,
 		),
+		explainField("certificates", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
+		explainField("ca_certificates", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
+		explainField("snis", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 	), nil
 }
 

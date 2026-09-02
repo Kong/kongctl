@@ -134,6 +134,35 @@ that as legacy behavior, not an implementation pattern. Removing those
 fallbacks requires separately scoped compatibility work; do not copy them into
 new or expanded declarative resources.
 
+### WRITE-ONLY SECRET FIELDS
+
+When an API accepts a field on create or update but does not return it, register
+the field and its supported operations in
+`internal/declarative/secrets/catalog.go`. Require an explicit `!secret`
+declaration for new manifests and keep the resolved value out of plan fields,
+changed-field details, logs, errors, dumps, and test artifacts.
+
+`!secret` sources may be deferred `!env` or `!file` values, including within
+`parts` compositions. A file-backed secret must use the wrapper form:
+
+```yaml
+key: !secret {source: !file ./certs/runtime.key}
+```
+
+Do not accept a bare `!file` on a reviewed write-only field: ordinary `!file`
+resolution is eager and could place the contents in a saved plan. The deferred
+secret-file resolver validates file scope, symlinks, and size while loading,
+then stores a path relative to the saved plan. Execution binds that path to the
+plan directory instead of trusting a boundary serialized in the plan. Preserve
+that phase and trust boundary when adding a resource or another secret source
+kind.
+
+Add tests for catalog matching, create and update selection, saved-plan
+execution, dump omission, and redaction at executor and HTTP logging
+boundaries. If the API requires a write-only value in a full update request,
+make the write-selection requirement explicit and return a value-free error
+when it is not selected.
+
 ### LOGGING & DIAGNOSTICS
 - Always add verbose `slog` debug statements when introducing a new planner or executor path. Helpful patterns:
   - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.
@@ -1975,6 +2004,8 @@ After implementing new resource:
 - [ ] Executor adapter handles parent ID resolution (if child)
 - [ ] Executor change handler added to executeChange switch
 - [ ] Labels properly converted between SDK and internal formats
+- [ ] Write-only fields registered in the secret catalog with `!env` and
+      `!file` source, selection, dump-omission, and redaction coverage
 - [ ] Literal audit completed for resource types, plan fields, references, and
       view identifiers
 - [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources

@@ -266,6 +266,9 @@ func redactResourceOperationFields(resourceType string, value any) any {
 	if resourceType == planner.ResourceTypeAIGatewayConfigStoreSecret {
 		return httpclient.RedactSensitiveFieldsWithExactKeys(value, planner.FieldValue)
 	}
+	if resourceType == planner.ResourceTypeAIGatewayCertificate {
+		return httpclient.RedactSensitiveFieldsWithExactKeys(value, planner.FieldKey, planner.FieldKeyAlt)
+	}
 	return httpclient.RedactSensitiveFields(value)
 }
 

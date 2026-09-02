@@ -500,8 +500,11 @@ func redactBody(body []byte, contentType string) string {
 
 func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) string {
 	var exactKeys map[string]struct{}
-	if isConfigStoreSecretRoute(routeFromURL(parsedURL)) {
+	route := routeFromURL(parsedURL)
+	if isConfigStoreSecretRoute(route) {
 		exactKeys = normalizedKeySet([]string{"value"})
+	} else if isAIGatewayCertificateRoute(route) {
+		exactKeys = normalizedKeySet([]string{"key", "key_alt"})
 	}
 	return redactBodyWithExactKeys(body, contentType, exactKeys)
 }
@@ -534,6 +537,11 @@ func redactBodyWithExactKeys(body []byte, contentType string, exactKeys map[stri
 func isConfigStoreSecretRoute(route string) bool {
 	return strings.Contains(route, "/config-stores/") &&
 		(strings.HasSuffix(route, "/secrets") || strings.Contains(route, "/secrets/"))
+}
+
+func isAIGatewayCertificateRoute(route string) bool {
+	return strings.Contains(route, "/ai-gateways/") &&
+		(strings.HasSuffix(route, "/certificates") || strings.Contains(route, "/certificates/"))
 }
 
 func isTextualBody(body []byte, contentType string) bool {

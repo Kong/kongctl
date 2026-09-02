@@ -252,6 +252,27 @@ func addAIGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceS
 			resources.ResourceTypeAIGatewayDataPlaneCertificate,
 		)
 	}
+	for _, child := range rs.AIGatewayCertificates {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayCertificate,
+		)
+	}
+	for _, child := range rs.AIGatewayCACertificates {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewayCACertificate,
+		)
+	}
+	for _, child := range rs.AIGatewaySNIs {
+		scope.AddChild(
+			resources.ResourceTypeAIGateway,
+			resources.NormalizeResourceRef(child.AIGateway),
+			resources.ResourceTypeAIGatewaySNI,
+		)
+	}
 }
 
 func addEventGatewayChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {

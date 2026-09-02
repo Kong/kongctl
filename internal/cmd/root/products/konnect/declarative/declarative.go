@@ -1101,6 +1101,9 @@ func runPlan(command *cobra.Command, args []string) error {
 	if err := normalizeDeckBaseDirs(plan, outputFile); err != nil {
 		return err
 	}
+	if err := normalizeSecretFileSources(plan, outputFile); err != nil {
+		return err
+	}
 
 	// Marshal plan to JSON
 	planJSON, err := json.MarshalIndent(plan, "", "  ")
@@ -1170,6 +1173,63 @@ func normalizeDeckBaseDirs(plan *planner.Plan, outputFile string) error {
 	}
 
 	return nil
+}
+
+func normalizeSecretFileSources(plan *planner.Plan, outputFile string) error {
+	if plan == nil {
+		return nil
+	}
+
+	planDirAbs, err := planOutputDirectory(outputFile)
+	if err != nil {
+		return err
+	}
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		for j := range change.SecretWrites {
+			expression := &change.SecretWrites[j].Expression
+			for k := range expression.Parts {
+				source := expression.Parts[k].Source
+				if source == nil || source.Kind != "file" {
+					continue
+				}
+				if !filepath.IsAbs(source.Reference) {
+					return fmt.Errorf("secret file source for %s %q must be absolute before plan serialization",
+						change.ResourceType, change.ResourceRef)
+				}
+				relativePath, err := filepath.Rel(planDirAbs, source.Reference)
+				if err != nil {
+					return fmt.Errorf("failed to resolve secret file source for %s %q: %w",
+						change.ResourceType, change.ResourceRef, err)
+				}
+				if relativePath == ".." || strings.HasPrefix(relativePath, ".."+string(filepath.Separator)) {
+					return fmt.Errorf(
+						"secret file source for %s %q is outside plan directory %s: %s",
+						change.ResourceType, change.ResourceRef, planDirAbs, source.Reference,
+					)
+				}
+				source.Reference = filepath.Clean(relativePath)
+				source.RootDir = ""
+			}
+		}
+	}
+	return nil
+}
+
+func planOutputDirectory(outputFile string) (string, error) {
+	planDir := filepath.Dir(outputFile)
+	if strings.TrimSpace(outputFile) == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve current working directory: %w", err)
+		}
+		planDir = cwd
+	}
+	planDirAbs, err := filepath.Abs(planDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve plan directory %q: %w", planDir, err)
+	}
+	return planDirAbs, nil
 }
 
 func deckPlanOptions(
@@ -2834,6 +2894,9 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		AIGatewayConfigStoresAPI:          kkClient.GetAIGatewayConfigStoresAPI(),
 		AIGatewayVaultsAPI:                kkClient.GetAIGatewayVaultsAPI(),
 		AIGatewayDataPlaneCertificatesAPI: kkClient.GetAIGatewayDataPlaneCertificatesAPI(),
+		AIGatewayCertificatesAPI:          kkClient.GetAIGatewayCertificatesAPI(),
+		AIGatewayCACertificatesAPI:        kkClient.GetAIGatewayCACertificatesAPI(),
+		AIGatewaySNIsAPI:                  kkClient.GetAIGatewaySNIsAPI(),
 		DashboardsAPI:                     kkClient.GetDashboardsAPI(),
 
 		// Portal child resource APIs

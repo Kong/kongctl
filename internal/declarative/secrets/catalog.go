@@ -35,6 +35,8 @@ var capabilities = []Capability{
 	{resources.ResourceTypeEventGatewaySchemaRegistry, "/config/authentication/password", true, true},
 	{resources.ResourceTypeAIGatewayConsumerCredential, "/api_key", true, false},
 	{resources.ResourceTypeAIGatewayConfigStoreSecret, "/value", true, true},
+	{resources.ResourceTypeAIGatewayCertificate, "/key", true, true},
+	{resources.ResourceTypeAIGatewayCertificate, "/key_alt", true, true},
 }
 
 // Match returns the reviewed capability for a concrete resource field path.

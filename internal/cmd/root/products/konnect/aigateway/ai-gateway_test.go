@@ -134,6 +134,21 @@ func TestAIGatewayCommandsAreGA(t *testing.T) {
 	}
 }
 
+func TestAIGatewayTLSReadCommandsAreRegistered(t *testing.T) {
+	rootCmd, err := NewAIGatewayCmd(
+		verbs.Get,
+		func(verbs.VerbValue, *cobra.Command) {},
+		func(*cobra.Command, []string) error { return nil },
+	)
+	require.NoError(t, err)
+
+	for _, name := range []string{"certificates", "ca-certificates", "snis"} {
+		child, _, err := rootCmd.Find([]string{name})
+		require.NoError(t, err)
+		require.Equal(t, name, child.Name())
+	}
+}
+
 func TestAIGatewayAuthStrategiesCommandDoesNotExposeIdentityProviderAliases(t *testing.T) {
 	rootCmd, err := NewAIGatewayCmd(
 		verbs.Get,

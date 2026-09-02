@@ -230,6 +230,33 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 				return rs
 			},
 		},
+		{
+			name: "runtime certificate private key", resourceType: resources.ResourceTypeAIGatewayCertificate,
+			resourceRef: "certificate", field: "/key", selector: "key",
+			resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
+				t.Helper()
+				certificate := resources.AIGatewayCertificateResource{
+					BaseResource: resources.BaseResource{Ref: "certificate"}, AIGateway: testAIGatewaySecretRef,
+					Name: "certificate", Cert: "public-certificate", Key: placeholder,
+				}
+				certificate.SetKonnectID("remote-id")
+				return aiGatewaySecretResourceSet(&certificate)
+			},
+		},
+		{
+			name: "runtime certificate alternative private key", resourceType: resources.ResourceTypeAIGatewayCertificate,
+			resourceRef: "certificate", field: "/key_alt", selector: "key_alt",
+			resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
+				t.Helper()
+				certificateAlt := "alternative-public-certificate"
+				certificate := resources.AIGatewayCertificateResource{
+					BaseResource: resources.BaseResource{Ref: "certificate"}, AIGateway: testAIGatewaySecretRef,
+					Name: "certificate", Cert: "public-certificate", CertAlt: &certificateAlt, KeyAlt: &placeholder,
+				}
+				certificate.SetKonnectID("remote-id")
+				return aiGatewaySecretResourceSet(&certificate)
+			},
+		},
 	}
 	coveredCapabilities := make(map[string]bool, len(cases))
 	for _, tc := range cases {
@@ -769,6 +796,8 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 		rs.AIGatewayVaults = []resources.AIGatewayVaultResource{*typed}
 	case *resources.AIGatewayConfigStoreSecretResource:
 		rs.AIGatewayConfigStoreSecrets = []resources.AIGatewayConfigStoreSecretResource{*typed}
+	case *resources.AIGatewayCertificateResource:
+		rs.AIGatewayCertificates = []resources.AIGatewayCertificateResource{*typed}
 	}
 	return rs
 }

@@ -85,6 +85,29 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := l.validateAIGatewayDataPlaneCertificates(rs); err != nil {
 		return err
 	}
+	if err := validateAIGatewayChildren[resources.AIGatewayCertificateResource, *resources.AIGatewayCertificateResource](
+		rs, rs.AIGatewayCertificates, resources.ResourceTypeAIGatewayCertificate,
+		"ai_gateway_certificate", resources.SchemaFieldName,
+		func(cert *resources.AIGatewayCertificateResource) string { return cert.Name },
+	); err != nil {
+		return err
+	}
+	if err := validateAIGatewayChildren[
+		resources.AIGatewayCACertificateResource, *resources.AIGatewayCACertificateResource,
+	](
+		rs, rs.AIGatewayCACertificates, resources.ResourceTypeAIGatewayCACertificate,
+		"ai_gateway_ca_certificate", resources.SchemaFieldName,
+		func(cert *resources.AIGatewayCACertificateResource) string { return cert.Name },
+	); err != nil {
+		return err
+	}
+	if err := validateAIGatewayChildren[resources.AIGatewaySNIResource, *resources.AIGatewaySNIResource](
+		rs, rs.AIGatewaySNIs, resources.ResourceTypeAIGatewaySNI,
+		"ai_gateway_sni", resources.SchemaFieldName,
+		func(sni *resources.AIGatewaySNIResource) string { return sni.Name },
+	); err != nil {
+		return err
+	}
 
 	// Validate dashboards
 	if err := l.validateDashboards(rs.Dashboards, rs); err != nil {

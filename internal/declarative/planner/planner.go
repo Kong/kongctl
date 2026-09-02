@@ -419,6 +419,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.applySecretWriteIntents(ctx, basePlan, rs, opts); err != nil {
 		return nil, fmt.Errorf("failed to plan secret writes: %w", err)
 	}
+	if err := validateAIGatewayCertificateSecretWrites(basePlan); err != nil {
+		return nil, err
+	}
 
 	// Update the base plan summary after merging all namespace changes
 	basePlan.UpdateSummary()

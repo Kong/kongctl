@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/table"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -37,6 +38,85 @@ func init() {
 		common.ViewFieldDataPlaneCertificates,
 		loadAIGatewayDataPlaneCertificates,
 	)
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldCertificates,
+		loadAIGatewayTLSChildren(aiGatewayCertificateKind))
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldCACertificates,
+		loadAIGatewayTLSChildren(aiGatewayCACertificateKind))
+	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldSNIs,
+		loadAIGatewayTLSChildren(aiGatewaySNIKind))
+}
+
+func loadAIGatewayTLSChildren(kind aiGatewayTLSResourceKind) tableview.ChildLoader {
+	return func(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+		gatewayID, err := aiGatewayIDFromParent(parent)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		cfg, err := helper.GetConfig()
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		logger, err := helper.GetLogger()
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		sdk, err := helper.GetKonnectSDK(cfg, logger)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		reader, err := newAIGatewayTLSReader(kind, sdk)
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		items, err := fetchAIGatewayTLSResources(helper, cfg, reader, gatewayID, "AI Gateway TLS resources")
+		if err != nil {
+			return tableview.ChildView{}, err
+		}
+		resourceConfig := aiGatewayTLSChildConfig(kind)
+		rows := make([]table.Row, 0, len(items))
+		for _, item := range items {
+			record := aiGatewayTLSResourceRecord(item)
+			if kind == aiGatewaySNIKind {
+				rows = append(rows, table.Row{
+					record.ID, record.Name, record.DisplayName, record.Hostname, record.Certificate, record.Updated,
+				})
+			} else {
+				rows = append(rows, table.Row{record.ID, record.Name, record.Updated})
+			}
+		}
+		return tableview.ChildView{
+			Headers: resourceConfig.headers, Rows: rows, Title: resourceConfig.resource + "s",
+			ParentType: resourceConfig.viewParent,
+			DetailContext: func(index int) any {
+				if index < 0 || index >= len(items) {
+					return nil
+				}
+				return items[index]
+			},
+		}, nil
+	}
+}
+
+func aiGatewayTLSChildConfig(kind aiGatewayTLSResourceKind) aiGatewayTLSCommandConfig {
+	switch kind {
+	case aiGatewayCertificateKind:
+		return aiGatewayTLSCommandConfig{
+			kind: kind, resource: "AI Gateway Certificate",
+			headers: []string{"ID", "NAME", "UPDATED"}, viewParent: common.ViewParentAIGatewayCertificate,
+		}
+	case aiGatewayCACertificateKind:
+		return aiGatewayTLSCommandConfig{
+			kind: kind, resource: "AI Gateway CA Certificate",
+			headers: []string{"ID", "NAME", "UPDATED"}, viewParent: common.ViewParentAIGatewayCACertificate,
+		}
+	case aiGatewaySNIKind:
+		return aiGatewayTLSCommandConfig{
+			kind: kind, resource: "AI Gateway SNI",
+			headers:    []string{"ID", "NAME", "DISPLAY NAME", "HOSTNAME", "CERTIFICATE", "UPDATED"},
+			viewParent: common.ViewParentAIGatewaySNI,
+		}
+	}
+	return aiGatewayTLSCommandConfig{}
 }
 
 func loadAIGatewayProviders(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {

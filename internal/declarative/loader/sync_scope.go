@@ -110,6 +110,24 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypeAIGateway,
 	},
 	{
+		key:          "ai_gateway_certificates",
+		resourceType: resources.ResourceTypeAIGatewayCertificate,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "ai_gateway_ca_certificates",
+		resourceType: resources.ResourceTypeAIGatewayCACertificate,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "ai_gateway_snis",
+		resourceType: resources.ResourceTypeAIGatewaySNI,
+		parentKey:    resources.SchemaFieldAIGateway,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
 		key:          "control_plane_data_plane_certificates",
 		resourceType: resources.ResourceTypeControlPlaneDataPlaneCertificate,
 		parentKey:    "control_plane",
@@ -466,6 +484,21 @@ var aiGatewayChildCollectionScopes = []childCollectionScope{
 		resourceType: resources.ResourceTypeAIGatewayDataPlaneCertificate,
 		parentType:   resources.ResourceTypeAIGateway,
 	},
+	{
+		key:          "certificates",
+		resourceType: resources.ResourceTypeAIGatewayCertificate,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "ca_certificates",
+		resourceType: resources.ResourceTypeAIGatewayCACertificate,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
+	{
+		key:          "snis",
+		resourceType: resources.ResourceTypeAIGatewaySNI,
+		parentType:   resources.ResourceTypeAIGateway,
+	},
 }
 
 var eventGatewayChildCollectionScopes = []childCollectionScope{
@@ -624,6 +657,11 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 				"%s cannot be empty because each data plane certificate must declare an ai_gateway parent",
 				entry.key,
 			)
+		}
+		if entry.resourceType == resources.ResourceTypeAIGatewayCertificate ||
+			entry.resourceType == resources.ResourceTypeAIGatewayCACertificate ||
+			entry.resourceType == resources.ResourceTypeAIGatewaySNI {
+			return fmt.Errorf("%s cannot be empty because each resource must declare an ai_gateway parent", entry.key)
 		}
 		scope.AddRootChildCollection(entry.resourceType)
 		return nil
