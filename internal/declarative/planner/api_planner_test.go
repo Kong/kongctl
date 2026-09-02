@@ -581,6 +581,39 @@ func TestShouldUpdateAPIPublicationResolvesAuthStrategyRefs(t *testing.T) {
 	assert.Empty(t, changedFields)
 }
 
+func TestPlanAPIPublicationCreateCarriesExternalPortalRoutingID(t *testing.T) {
+	t.Parallel()
+
+	const portalID = "a86aec1e-f67f-4624-919f-b11292b11159"
+	portal := resources.PortalResource{
+		BaseResource: resources.BaseResource{Ref: "shared-portal"},
+		External: &resources.ExternalBlock{Selector: &resources.ExternalSelector{
+			MatchFields: map[string]string{FieldName: "Platform Shared Portal"},
+		}},
+	}
+	portal.SetKonnectID(portalID)
+	planner := &Planner{resources: &resources.ResourceSet{Portals: []resources.PortalResource{portal}}}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	portalRef := tags.RefPlaceholderPrefix + "shared-portal#id"
+
+	planner.planAPIPublicationCreate(
+		DefaultNamespace,
+		"api",
+		"api-id",
+		resources.APIPublicationResource{Ref: "publication", PortalID: portalRef},
+		nil,
+		plan,
+	)
+
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	assert.NotContains(t, change.Fields, FieldPortalID)
+	require.Contains(t, change.References, FieldPortalID)
+	assert.Equal(t, portalRef, change.References[FieldPortalID].Ref)
+	assert.Equal(t, portalID, change.References[FieldPortalID].ID)
+	require.NoError(t, ValidatePlanCompatibility(plan))
+}
+
 func TestShouldUpdateAPIPublicationIgnoresAuthStrategyWhenUnset(t *testing.T) {
 	t.Parallel()
 

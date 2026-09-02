@@ -44,5 +44,14 @@ apis:
 
     publications:
       - ref: test-api-publication
+        portal_id: !ref shared-portal
+        visibility: "public"
+
+  - ref: inline-external-api
+    name: "Inline External API"
+    description: "API published using an inline external portal lookup"
+    version: "1.0.0"
+    publications:
+      - ref: inline-external-publication
         portal_id: !external name:Platform Shared Portal
         visibility: "public"
