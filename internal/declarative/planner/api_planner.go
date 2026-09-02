@@ -1328,9 +1328,14 @@ func (p *Planner) planAPIPublicationCreate(
 		Namespace:    parentNamespace,
 	}
 
-	// Look up portal name for reference resolution using global lookup
-	var portalName string
-	if portal := p.resources.GetPortalByRef(publication.PortalID); portal != nil {
+	// Look up the portal using the declarative ref so resolved external IDs stay in routing metadata.
+	portalRef := publication.PortalID
+	if parsedRef, _, ok := tags.ParseRefPlaceholder(portalRef); ok {
+		portalRef = parsedRef
+	}
+	var portalID, portalName string
+	if portal := p.resources.GetPortalByRef(portalRef); portal != nil {
+		portalID = portal.GetKonnectID()
 		portalName = portal.Name
 	}
 
@@ -1355,8 +1360,7 @@ func (p *Planner) planAPIPublicationCreate(
 
 	// Set portal reference
 	if publication.PortalID != "" {
-		portalID := ""
-		if util.IsValidUUID(publication.PortalID) {
+		if portalID == "" && util.IsValidUUID(publication.PortalID) {
 			portalID = publication.PortalID
 		}
 		change.References[FieldPortalID] = ReferenceInfo{
