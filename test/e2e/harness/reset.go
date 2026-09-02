@@ -203,8 +203,6 @@ func deleteAll(
 			if skipped > 0 {
 				Infof("Skipping %d filtered %s resources", skipped, endpoint)
 			}
-		} else if len(items)+deleted > total {
-			total = len(items) + deleted
 		}
 
 		if len(idsToDelete) == 0 {
@@ -319,7 +317,12 @@ type resetHTTPMetrics struct {
 	DeleteDuration time.Duration
 }
 
-func resetEndpointResult(apiVersion, endpoint string, total, deleted int, metrics resetHTTPMetrics, err error) resetEndpoint {
+func resetEndpointResult(
+	apiVersion, endpoint string,
+	total, deleted int,
+	metrics resetHTTPMetrics,
+	err error,
+) resetEndpoint {
 	return resetEndpoint{
 		APIVersion:       apiVersion,
 		Endpoint:         endpoint,
@@ -340,32 +343,6 @@ type resetHTTPSession struct {
 	metrics   resetHTTPMetrics
 }
 
-type resetMetricsRoundTripper struct {
-	base    http.RoundTripper
-	metrics *resetHTTPMetrics
-}
-
-func (t *resetMetricsRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	startedAt := time.Now()
-	resp, err := t.base.RoundTrip(req)
-	duration := time.Since(startedAt)
-	switch req.Method {
-	case http.MethodGet:
-		t.metrics.ListCalls++
-		t.metrics.ListDuration += duration
-	case http.MethodDelete:
-		t.metrics.DeleteCalls++
-		t.metrics.DeleteDuration += duration
-	}
-	return resp, err
-}
-
-func (t *resetMetricsRoundTripper) CloseIdleConnections() {
-	if transport, ok := t.base.(interface{ CloseIdleConnections() }); ok {
-		transport.CloseIdleConnections()
-	}
-}
-
 func newResetHTTPSession(timeout time.Duration, options HTTPTransportOptions) *resetHTTPSession {
 	return &resetHTTPSession{
 		newClient: func() *http.Client {
@@ -380,11 +357,6 @@ func (s *resetHTTPSession) Client() *http.Client {
 	}
 	if s.client == nil {
 		s.client = s.newClient()
-		transport := s.client.Transport
-		if transport == nil {
-			transport = http.DefaultTransport
-		}
-		s.client.Transport = &resetMetricsRoundTripper{base: transport, metrics: &s.metrics}
 	}
 	return s.client
 }
@@ -394,6 +366,22 @@ func (s *resetHTTPSession) Metrics() resetHTTPMetrics {
 		return resetHTTPMetrics{}
 	}
 	return s.metrics
+}
+
+func (s *resetHTTPSession) RecordList(duration time.Duration) {
+	if s == nil {
+		return
+	}
+	s.metrics.ListCalls++
+	s.metrics.ListDuration += duration
+}
+
+func (s *resetHTTPSession) RecordDelete(duration time.Duration) {
+	if s == nil {
+		return
+	}
+	s.metrics.DeleteCalls++
+	s.metrics.DeleteDuration += duration
 }
 
 func (s *resetHTTPSession) Rebuild(err error) {
@@ -494,6 +482,10 @@ func tryDeletePortalCustomDomain(
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	startedAt := time.Now()
+	defer func() {
+		session.RecordDelete(time.Since(startedAt))
+	}()
 	resp, err := session.Client().Do(req)
 	if err != nil {
 		Warnf("pre-delete portal custom domain %s: %v", portalID, err)
@@ -950,6 +942,7 @@ func retryListItems(
 		client := session.Client()
 		items, err = listItemsWithContext(ctx, client, url, token)
 		duration := time.Since(start)
+		session.RecordList(duration)
 		if err == nil {
 			return items, nil
 		}
@@ -997,6 +990,7 @@ func retryDeleteOne(
 		client := session.Client()
 		err = deleteOneWithContext(ctx, client, baseURL, token, id)
 		duration := time.Since(start)
+		session.RecordDelete(duration)
 		if err == nil {
 			return nil
 		}

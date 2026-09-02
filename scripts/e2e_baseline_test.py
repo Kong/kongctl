@@ -19,18 +19,22 @@ class E2EBaselineTest(unittest.TestCase):
         self.assertEqual(15, MODULE.nearest_rank(values, 0.75))
         self.assertEqual(18, MODULE.nearest_rank(values, 0.90))
 
-    def test_selects_latest_complete_attempt(self) -> None:
+    def test_selects_requested_complete_attempt(self) -> None:
         metrics = [
             {"run_attempt": 1, "shard_index": 0, "shard_total": 2},
             {"run_attempt": 1, "shard_index": 1, "shard_total": 2},
             {"run_attempt": 2, "shard_index": 0, "shard_total": 2},
         ]
-        selected = MODULE.select_latest_complete_attempt(metrics)
+        selected = MODULE.select_complete_attempt(metrics, 1)
         self.assertEqual([1, 1], [metric["run_attempt"] for metric in selected])
 
-    def test_rejects_incomplete_attempt(self) -> None:
-        metrics = [{"run_attempt": 1, "shard_index": 0, "shard_total": 2}]
-        self.assertEqual([], MODULE.select_latest_complete_attempt(metrics))
+    def test_rejects_incomplete_latest_attempt(self) -> None:
+        metrics = [
+            {"run_attempt": 1, "shard_index": 0, "shard_total": 2},
+            {"run_attempt": 1, "shard_index": 1, "shard_total": 2},
+            {"run_attempt": 2, "shard_index": 0, "shard_total": 2},
+        ]
+        self.assertEqual([], MODULE.select_complete_attempt(metrics, 2))
 
 
 if __name__ == "__main__":

@@ -60,25 +60,39 @@ def percentiles(values: Iterable[float]) -> dict[str, float]:
     }
 
 
-def select_latest_complete_attempt(metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    attempts: dict[int, list[dict[str, Any]]] = defaultdict(list)
-    for metric in metrics:
-        attempts[int(metric["run_attempt"])].append(metric)
-    for attempt in sorted(attempts, reverse=True):
-        selected = attempts[attempt]
-        totals = {int(metric["shard_total"]) for metric in selected}
-        indices = {int(metric["shard_index"]) for metric in selected}
-        if len(totals) != 1:
-            continue
-        total = totals.pop()
-        if total > 0 and indices == set(range(total)):
-            return sorted(selected, key=lambda metric: int(metric["shard_index"]))
-    return []
+def select_complete_attempt(metrics: list[dict[str, Any]], run_attempt: int) -> list[dict[str, Any]]:
+    selected = [metric for metric in metrics if int(metric["run_attempt"]) == run_attempt]
+    totals = {int(metric["shard_total"]) for metric in selected}
+    indices = {int(metric["shard_index"]) for metric in selected}
+    if len(totals) != 1:
+        return []
+    total = totals.pop()
+    if total <= 0 or indices != set(range(total)):
+        return []
+    return sorted(selected, key=lambda metric: int(metric["shard_index"]))
 
 
-def download_metrics(repo: str, run_id: int) -> list[dict[str, Any]]:
+def download_metrics(repo: str, run_id: int, run_attempt: int) -> list[dict[str, Any]]:
+    artifact_prefix = f"e2e-metrics-{run_id}-{run_attempt}-"
+    response = gh_json(
+        [
+            "api",
+            "--method",
+            "GET",
+            f"repos/{repo}/actions/runs/{run_id}/artifacts",
+            "-f",
+            "per_page=100",
+        ]
+    )
+    artifacts = response.get("artifacts", [])
+    if not any(
+        artifact["name"].startswith(artifact_prefix) and not artifact.get("expired", False)
+        for artifact in artifacts
+    ):
+        return []
+
     with tempfile.TemporaryDirectory(prefix="kongctl-e2e-metrics-") as temp_dir:
-        process = subprocess.run(
+        subprocess.run(
             [
                 "gh",
                 "run",
@@ -87,20 +101,18 @@ def download_metrics(repo: str, run_id: int) -> list[dict[str, Any]]:
                 "--repo",
                 repo,
                 "--pattern",
-                f"e2e-metrics-{run_id}-*",
+                f"{artifact_prefix}*",
                 "--dir",
                 temp_dir,
             ],
+            check=True,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
         )
-        if process.returncode != 0:
-            return []
         records = [
             json.loads(path.read_text(encoding="utf-8"))
             for path in Path(temp_dir).rglob("e2e-metrics.json")
         ]
-        return select_latest_complete_attempt(records)
+        return select_complete_attempt(records, run_attempt)
 
 
 def named_job(jobs: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
@@ -198,9 +210,6 @@ def collect_runs(repo: str, count: int, scan: int) -> list[dict[str, Any]]:
     )
     selected: list[dict[str, Any]] = []
     for candidate in candidates:
-        metrics = download_metrics(repo, int(candidate["databaseId"]))
-        if not metrics:
-            continue
         view = gh_json(
             [
                 "run",
@@ -209,9 +218,13 @@ def collect_runs(repo: str, count: int, scan: int) -> list[dict[str, Any]]:
                 "--repo",
                 repo,
                 "--json",
-                "jobs",
+                "attempt,jobs",
             ]
         )
+        run_attempt = int(view["attempt"])
+        metrics = download_metrics(repo, int(candidate["databaseId"]), run_attempt)
+        if not metrics:
+            continue
         record = eligible_run(candidate, view["jobs"], metrics)
         if record is not None:
             selected.append(record)

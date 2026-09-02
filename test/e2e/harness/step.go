@@ -1125,21 +1125,6 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 
 	for _, baseURL := range baseURLs {
 		result, runErr := executeReset(baseURL, token, policy)
-		details := make([]map[string]any, 0, len(result.Details))
-		for _, d := range result.Details {
-			details = append(details, map[string]any{
-				"api_version":        d.APIVersion,
-				"endpoint":           d.Endpoint,
-				"total":              d.Total,
-				"deleted":            d.Deleted,
-				"duration_ms":        d.DurationMS,
-				"list_calls":         d.ListCalls,
-				"list_duration_ms":   d.ListDurationMS,
-				"delete_calls":       d.DeleteCalls,
-				"delete_duration_ms": d.DeleteDurationMS,
-				"error":              d.Error,
-			})
-		}
 		status := "ok"
 		reason := ""
 		if runErr != nil {
@@ -1154,7 +1139,7 @@ func (s *Step) ResetOrgForRegions(stage string, regions []string) error {
 			"status":      status,
 			"reason":      reason,
 			"duration_ms": result.DurationMS,
-			"details":     details,
+			"details":     result.Details,
 		})
 	}
 

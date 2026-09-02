@@ -69,10 +69,7 @@ def collect_reset_metrics(root: Path) -> dict[str, int]:
         "resources_deleted": 0,
     }
     for path in root.rglob("observation.json"):
-        try:
-            observation = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
+        observation = json.loads(path.read_text(encoding="utf-8"))
         if observation.get("type") != "reset_summary" or not observation.get("executed"):
             continue
         totals["count"] += 1

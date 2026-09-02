@@ -82,6 +82,16 @@ class E2EMetricsTest(unittest.TestCase):
             metrics["reset"],
         )
 
+    def test_rejects_malformed_observation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            reset_dir = root / "commands" / "000-reset_org"
+            reset_dir.mkdir(parents=True)
+            (reset_dir / "observation.json").write_text("not json", encoding="utf-8")
+
+            with self.assertRaises(json.JSONDecodeError):
+                MODULE.collect_reset_metrics(root)
+
 
 if __name__ == "__main__":
     unittest.main()

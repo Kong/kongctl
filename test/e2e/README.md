@@ -567,6 +567,10 @@ contains no credentials or request payloads. The record includes selected and
 individual scenario durations plus reset counts, list calls, resources found,
 delete calls, resources deleted, and list/delete timing.
 
+`resources_found` counts the initial resources returned for each resource
+family in a reset. List and delete durations cover each complete operation,
+including response-body handling and retry attempts, but exclude retry sleep.
+
 After at least 20 instrumented successful full runs, generate a reproducible
 baseline with:
 
