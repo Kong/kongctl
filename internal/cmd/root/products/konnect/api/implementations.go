@@ -44,18 +44,11 @@ type apiImplementationFields struct {
 	updatedAt      time.Time
 }
 
-func (f apiImplementationFields) displayServiceID() string {
-	if f.serviceID == "" {
-		return "n/a"
+func displayOrNA(value string) string {
+	if value == "" {
+		return valueNA
 	}
-	return f.serviceID
-}
-
-func (f apiImplementationFields) displayControlPlaneID() string {
-	if f.controlPlaneID == "" {
-		return "n/a"
-	}
-	return f.controlPlaneID
+	return value
 }
 
 var (
@@ -310,8 +303,8 @@ func implementationToRecord(implementation kkComps.APIImplementationListItem) ap
 
 	return apiImplementationRecord{
 		ImplementationID: fields.id,
-		ServiceID:        fields.displayServiceID(),
-		ControlPlaneID:   fields.displayControlPlaneID(),
+		ServiceID:        displayOrNA(fields.serviceID),
+		ControlPlaneID:   displayOrNA(fields.controlPlaneID),
 		LocalCreatedTime: fields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
 		LocalUpdatedTime: fields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
@@ -329,9 +322,9 @@ func implementationDetailView(implementation *kkComps.APIImplementationListItem)
 
 	fields := map[string]string{
 		"api_id":           implementationFields.apiID,
-		"control_plane_id": implementationFields.displayControlPlaneID(),
+		"control_plane_id": displayOrNA(implementationFields.controlPlaneID),
 		"created_at":       implementationFields.createdAt.In(time.Local).Format("2006-01-02 15:04:05"),
-		"service_id":       implementationFields.displayServiceID(),
+		"service_id":       displayOrNA(implementationFields.serviceID),
 		"updated_at":       implementationFields.updatedAt.In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 

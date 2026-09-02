@@ -4,7 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -476,11 +477,7 @@ func versionSummaryDetailView(
 		"updated_at": summary.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
 	}
 
-	keys := make([]string, 0, len(fields))
-	for key := range fields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", summary.GetID())
@@ -507,11 +504,7 @@ func apiVersionDetailView(record apiVersionDetailRecord) string {
 		"updated_at": record.LocalUpdatedTime,
 	}
 
-	keys := make([]string, 0, len(fields))
-	for key := range fields {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(fields))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "id: %s\n", record.RawID)

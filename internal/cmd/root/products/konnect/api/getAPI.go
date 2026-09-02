@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -58,31 +60,29 @@ type textDisplayRecord struct {
 }
 
 func apiToDisplayRecord(a *kkComps.APIResponseSchema) textDisplayRecord {
-	missing := "n/a"
-
 	var id, name string
 	if a.ID != "" {
 		id = a.ID
 	} else {
-		id = missing
+		id = valueNA
 	}
 
 	if a.Name != "" {
 		name = a.Name
 	} else {
-		name = missing
+		name = valueNA
 	}
 
-	description := missing
+	description := valueNA
 	if a.Description != nil && *a.Description != "" {
 		description = *a.Description
 	}
 
-	versionCount := missing
+	versionCount := valueNA
 	// Version count is not directly available in APIResponseSchema
 	// It would require a separate API call to list versions
 
-	publicationCount := missing
+	publicationCount := valueNA
 	if a.Portals != nil {
 		publicationCount = fmt.Sprintf("%d", len(a.Portals))
 	}
@@ -106,14 +106,13 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 		return ""
 	}
 
-	const missing = "n/a"
 	id := strings.TrimSpace(api.ID)
 	if id == "" {
-		id = missing
+		id = valueNA
 	}
 	name := strings.TrimSpace(api.Name)
 	if name == "" {
-		name = missing
+		name = valueNA
 	}
 
 	type detailField struct {
@@ -189,11 +188,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 		switch v := attrs.(type) {
 		case map[string]any:
 			if len(v) > 0 {
-				keys := make([]string, 0, len(v))
-				for k := range v {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
+				keys := slices.Sorted(maps.Keys(v))
 				var sb strings.Builder
 				for _, k := range keys {
 					fmt.Fprintf(&sb, "  %s: %v\n", k, v[k])
@@ -202,11 +197,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 			}
 		case map[string]string:
 			if len(v) > 0 {
-				keys := make([]string, 0, len(v))
-				for k := range v {
-					keys = append(keys, k)
-				}
-				sort.Strings(keys)
+				keys := slices.Sorted(maps.Keys(v))
 				var sb strings.Builder
 				for _, k := range keys {
 					fmt.Fprintf(&sb, "  %s: %s\n", k, v[k])
@@ -230,7 +221,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 			case portalName != "":
 				line = portalName
 			default:
-				line = missing
+				line = valueNA
 			}
 			fmt.Fprintf(&sb, "  %s - %s\n", line, portal.ID)
 		}
@@ -238,11 +229,7 @@ func apiDetailView(api *kkComps.APIResponseSchema) string {
 	}
 
 	if labels := api.GetLabels(); len(labels) > 0 {
-		keys := make([]string, 0, len(labels))
-		for k := range labels {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
+		keys := slices.Sorted(maps.Keys(labels))
 		var sb strings.Builder
 		for _, k := range keys {
 			fmt.Fprintf(&sb, "  %s: %s\n", k, labels[k])
