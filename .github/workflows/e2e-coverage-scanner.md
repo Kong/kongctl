@@ -103,10 +103,9 @@ Round-robin rules:
 
 Use these slices for bounded analysis:
 
-- `apis-and-catalog`
+- `apis`
   - scenario dirs:
     `test/e2e/scenarios/apis`,
-    `test/e2e/scenarios/catalog`,
     `test/e2e/scenarios/external/api-impl`,
     `test/e2e/scenarios/protected-resources/apis`
 - `control-plane`
@@ -153,6 +152,12 @@ Use these slices for bounded analysis:
     `test/e2e/scenarios/protected-resources`,
     `test/e2e/scenarios/require-namespace`,
     `test/e2e/scenarios/yaml-tags`
+
+Catalog product coverage is intentionally limited to the API resource surface
+represented by the `apis` slice above. Do not analyze or propose E2E coverage
+changes for Catalog services or any other Catalog product resource, even when
+recent changes touch those areas or an existing scenario covers them. Do not
+inspect `test/e2e/scenarios/catalog` when inventorying a slice.
 
 ## Repository Context
 
@@ -258,6 +263,7 @@ existing scenarios insufficient.
      hours using git history and, if useful, GitHub issue search for linked
      work already in progress
    - Map changed paths to the slice list above
+   - Ignore changes that map only to excluded Catalog product resources
    - If one slice is clearly the best fit for recent activity, process that
      slice
    - Otherwise fall back to round-robin selection using the cache-memory state
@@ -362,6 +368,8 @@ without having to rediscover the gap from scratch.
 
 - Do not create duplicate issues
 - Do not create omnibus backlog issues
+- Do not propose coverage changes for Catalog services or other non-API
+  Catalog product resources
 - Do not ask humans for clarification
 - Do not modify repository files or open pull requests
 - Do not create issues for work that is already adequately covered
