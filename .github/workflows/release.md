@@ -65,6 +65,7 @@ jobs:
     permissions:
       contents: read
     outputs:
+      artifact_mode: ${{ steps.compute_config.outputs.artifact_mode }}
       build_mode: ${{ steps.compute_config.outputs.build_mode }}
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
@@ -127,6 +128,27 @@ jobs:
                 return;
               }
 
+              const releaseVersion = recoveryTag.slice(1);
+              const assetNames = new Set(release.assets.map((asset) => asset.name));
+              const fullAssets = [
+                "checksums.txt",
+                "kongctl_darwin_amd64.zip",
+                "kongctl_darwin_arm64.zip",
+                "kongctl_linux_amd64.zip",
+                "kongctl_linux_arm64.zip",
+                "kongctl_windows_amd64.zip",
+                "kongctl_windows_arm64.zip",
+              ];
+              let artifactMode;
+              if (fullAssets.every((asset) => assetNames.has(asset))) {
+                artifactMode = "full";
+              } else if (assetNames.has(`kongctl-${releaseVersion}-linux-amd64-smoke.tar.gz`)) {
+                artifactMode = "smoke";
+              } else {
+                core.setFailed(`Unable to determine the artifact mode for release ${recoveryTag}.`);
+                return;
+              }
+
               try {
                 await github.rest.git.getRef({
                   owner: context.repo.owner,
@@ -142,9 +164,10 @@ jobs:
               }
 
               core.setOutput("build_mode", "recovery");
+              core.setOutput("artifact_mode", artifactMode);
               core.setOutput("release_tag", recoveryTag);
-              core.setOutput("release_version", recoveryTag.slice(1));
-              console.log(`✓ Recovering existing release ${recoveryTag}`);
+              core.setOutput("release_version", releaseVersion);
+              console.log(`✓ Recovering existing ${artifactMode} release ${recoveryTag}`);
               return;
             }
 
@@ -255,6 +278,7 @@ jobs:
               return;
             }
             core.setOutput("build_mode", buildMode);
+            core.setOutput("artifact_mode", buildMode);
             console.log(`✓ Release tag: ${releaseTag}`);
 
   create_tag:
@@ -333,7 +357,7 @@ jobs:
           echo "Recovery mode will reuse release $RELEASE_TAG"
 
       - name: Configure private git reads for GoReleaser
-        if: env.RELEASE_BUILD_MODE == 'full'
+        if: env.RELEASE_BUILD_MODE != 'recovery'
         env:
           GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
         run: |
@@ -455,6 +479,7 @@ jobs:
       actions: read
       contents: read
     env:
+      RELEASE_ARTIFACT_MODE: ${{ needs.config.outputs.artifact_mode }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
       RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
@@ -470,12 +495,12 @@ jobs:
           persist-credentials: false
 
       - name: Reuse existing Homebrew publication (recovery mode)
-        if: env.RELEASE_BUILD_MODE == 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'recovery' && env.RELEASE_ARTIFACT_MODE == 'full'
         run: |
           echo "Recovery mode will verify the existing Homebrew publication for $RELEASE_TAG"
 
       - name: Skip Homebrew publication (smoke mode)
-        if: env.RELEASE_BUILD_MODE == 'smoke'
+        if: env.RELEASE_ARTIFACT_MODE == 'smoke'
         run: |
           echo "Smoke mode does not publish Homebrew files"
 
@@ -578,6 +603,7 @@ jobs:
     outputs:
       release_id: ${{ steps.verify_release.outputs.release_id }}
     env:
+      RELEASE_ARTIFACT_MODE: ${{ needs.config.outputs.artifact_mode }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
       RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
@@ -620,7 +646,7 @@ jobs:
           mkdir -p "$verification_dir"
           gh release download "$RELEASE_TAG" --dir "$verification_dir"
 
-          if [[ "$RELEASE_BUILD_MODE" == "smoke" ]]; then
+          if [[ "$RELEASE_ARTIFACT_MODE" == "smoke" ]]; then
             smoke_asset="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
             if [[ ! -f "$verification_dir/$smoke_asset" ]]; then
               echo "::error::Release $RELEASE_TAG is missing $smoke_asset"
