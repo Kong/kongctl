@@ -45,7 +45,7 @@ engine:
     service-account-id: svac_017oc62PsXm82aqHWzHYgjfM
     workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
 model: claude-opus-4-6
-strict: false
+strict: true
 timeout-minutes: 30
 network:
   allowed:

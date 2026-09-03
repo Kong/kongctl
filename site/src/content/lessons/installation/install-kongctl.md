@@ -25,13 +25,13 @@ Choose the installation command for your operating system.
 ### macOS or Linux with Homebrew
 
 ```shell
-brew install --formula kong/kongctl/kongctl
+brew install --cask kong/kongctl/kongctl
 ```
 
-If you previously installed the cask, migrate to the formula:
+Alternatively, install the source-built formula. Homebrew installs Go as a
+build dependency when it builds the formula:
 
 ```shell
-brew uninstall --cask kongctl
 brew install --formula kong/kongctl/kongctl
 ```
 
