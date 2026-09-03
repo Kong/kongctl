@@ -45,7 +45,7 @@ engine:
     service-account-id: svac_017oc62PsXm82aqHWzHYgjfM
     workspace-id: wrkspc_01G7dX83HGYMZDwLuJNPnA5T
 model: claude-opus-4-6
-strict: false
+strict: true
 timeout-minutes: 30
 network:
   allowed:
@@ -419,6 +419,7 @@ jobs:
 
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
+        id: goreleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
@@ -439,37 +440,76 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          rm -rf dist/homebrew-tap
-          mkdir -p dist/homebrew-tap
-          git clone --depth 1 "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git" dist/homebrew-tap/homebrew-kongctl
+          tap_path="$(brew --repository)/Library/Taps/kong/homebrew-kongctl"
+          rm -rf "$tap_path"
+          mkdir -p "$(dirname "$tap_path")"
+          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
+          git clone --depth 1 \
+            "${tap_url}/kong/homebrew-kongctl.git" \
+            "$tap_path"
+          echo "HOMEBREW_KONGCTL_TAP=$tap_path" >> "$GITHUB_ENV"
 
-      - name: Sync generated Homebrew files
+      - name: Update Homebrew packages
         if: env.RELEASE_BUILD_MODE == 'full'
+        env:
+          GORELEASER_METADATA: ${{ steps.goreleaser.outputs.metadata }}
         run: |
           set -euo pipefail
-          mkdir -p dist/homebrew-tap/homebrew-kongctl/Casks
-          rm -f dist/homebrew-tap/homebrew-kongctl/kongctl.rb
-          if [[ -f dist/homebrew/Casks/kongctl.rb ]]; then
-            cp dist/homebrew/Casks/kongctl.rb dist/homebrew-tap/homebrew-kongctl/Casks/kongctl.rb
+
+          generated_cask=dist/homebrew/Casks/kongctl.rb
+          if [[ ! -f "$generated_cask" ]]; then
+            echo "::error::GoReleaser did not generate $generated_cask"
+            exit 1
           fi
+
+          metadata_version=$(jq -r '.version' <<<"$GORELEASER_METADATA")
+          metadata_commit=$(jq -r '.commit[0:8]' <<<"$GORELEASER_METADATA")
+          metadata_date=$(jq -r '.date' <<<"$GORELEASER_METADATA")
+          if [[ "$metadata_version" != "$RELEASE_VERSION" ]]; then
+            echo "::error::GoReleaser metadata version $metadata_version" \
+              "does not match $RELEASE_VERSION"
+            exit 1
+          fi
+
+          mkdir -p "$HOMEBREW_KONGCTL_TAP/Casks"
+          cp "$generated_cask" "$HOMEBREW_KONGCTL_TAP/Casks/kongctl.rb"
+          ./scripts/update-homebrew-formula.sh \
+            "$HOMEBREW_KONGCTL_TAP/Formula/kongctl.rb" \
+            "$metadata_version" \
+            "$metadata_commit" \
+            "$metadata_date"
 
       - name: Fix Homebrew tap style
         if: env.RELEASE_BUILD_MODE == 'full'
-        run: ./scripts/fix-homebrew-tap.sh dist/homebrew-tap/homebrew-kongctl
+        run: ./scripts/fix-homebrew-tap.sh "$HOMEBREW_KONGCTL_TAP"
+
+      - name: Validate Homebrew packages
+        if: env.RELEASE_BUILD_MODE == 'full'
+        run: |
+          set -euo pipefail
+          brew audit --new --formula kong/kongctl/kongctl
+          brew install --cask kong/kongctl/kongctl
+          kongctl version --full
+          brew uninstall --cask kong/kongctl/kongctl
+          brew install --formula --build-from-source kong/kongctl/kongctl
+          brew test kong/kongctl/kongctl
+          kongctl version --full
 
       - name: Commit and push Homebrew tap updates
         if: env.RELEASE_BUILD_MODE == 'full'
-        working-directory: dist/homebrew-tap/homebrew-kongctl
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          cd "$HOMEBREW_KONGCTL_TAP"
           git config user.name "kongctl Release Bot"
           git config user.email "kongctl@konghq.com"
-          git remote set-url origin "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/kong/homebrew-kongctl.git"
+          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
+          git remote set-url origin \
+            "${tap_url}/kong/homebrew-kongctl.git"
           if [[ -n "$(git status --porcelain)" ]]; then
             git add .
-            git commit -m "chore: normalize tap files"
+            git commit -m "kongctl ${RELEASE_VERSION}"
             git push origin HEAD:main
           else
             echo "No tap changes to commit"
@@ -619,7 +659,6 @@ The highlights should be:
 - User-impact focused, not a raw changelog dump
 - Concise and scannable in under one minute
 - Accurate and linked (PRs/issues/docs) where useful
-
 ## Workflow
 
 ### 1. Load and Inspect Inputs

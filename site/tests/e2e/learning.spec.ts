@@ -670,7 +670,7 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
 
   const terminal = page
     .locator(".code-shell")
-    .filter({ hasText: "brew install" });
+    .filter({ hasText: "brew install --cask kong/kongctl/kongctl" });
   await expect(
     terminal.getByText("Run this...", { exact: true }),
   ).toBeVisible();

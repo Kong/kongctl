@@ -15,7 +15,7 @@ The CLI ships with:
 - [Documentation](#documentation)
 - [Installation](#installation)
   - [Shell installer](#shell-installer)
-  - [macOS Homebrew](#macos-homebrew)
+  - [Homebrew](#homebrew)
   - [Manual download](#manual-download)
   - [Verify](#verify)
 - [Getting Started](#getting-started)
@@ -72,15 +72,20 @@ sh kongctl-install.sh --version v1.3.0 --install-dir "$HOME/bin"
 Windows is not supported by the shell installer. Download Windows binaries from
 the [release page](https://github.com/kong/kongctl/releases).
 
-### macOS Homebrew
+### Homebrew
 
-Install using Homebrew (distributed as a cask):
+Install the prebuilt cask on macOS or Linux:
 
 ```shell
 brew install --cask kong/kongctl/kongctl
 ```
 
-*Note: If you previously installed the old formula, you may have to remove it first with `brew uninstall kongctl`.*
+Alternatively, install the source-built formula. Homebrew installs Go as a
+build dependency when it builds the formula:
+
+```shell
+brew install --formula kong/kongctl/kongctl
+```
 
 ### Manual download
 
