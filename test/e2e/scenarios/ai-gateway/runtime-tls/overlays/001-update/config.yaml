@@ -1,0 +1,27 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-runtime-tls-e2e
+
+ai_gateways:
+  - ref: runtime-tls-gateway
+    name: runtime-tls-gateway
+    display_name: AI Gateway Runtime TLS E2E
+    certificates:
+      - ref: runtime-cert
+        name: runtime-cert
+        cert: !file ./certs/runtime.pem
+        key: !secret {source: !file ./certs/runtime.key}
+        cert_alt: !file ./certs/runtime-alt.pem
+        key_alt: !secret {source: !file ./certs/runtime-alt.key}
+        labels:
+          revision: updated
+    ca_certificates:
+      - ref: runtime-ca
+        name: runtime-ca
+        cert: !file ./certs/runtime.pem
+    snis:
+      - ref: runtime-sni
+        name: runtime-sni
+        display_name: Runtime SNI Updated
+        hostname: runtime-tls.kongctl-e2e.io
+        certificate: !ref runtime-cert#name

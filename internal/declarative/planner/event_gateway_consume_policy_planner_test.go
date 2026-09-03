@@ -57,8 +57,8 @@ func TestShouldUpdateConsumePolicy_NoChanges(t *testing.T) {
 				},
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
-						KeyValidationAction:   &keyAction,
-						ValueValidationAction: &valueAction,
+						KeyValidationAction:   &keyAction,   //nolint:staticcheck // Legacy field compatibility.
+						ValueValidationAction: &valueAction, //nolint:staticcheck // Legacy field compatibility.
 					},
 				),
 			},
@@ -149,7 +149,7 @@ func TestShouldUpdateConsumePolicy_ConfigChangedNestedField(t *testing.T) {
 				Enabled:     &enabled,
 				Config: kkComps.CreateEventGatewayConsumeSchemaValidationPolicyConfigJSON(
 					kkComps.EventGatewayConsumeSchemaValidationPolicyJSONConfig{
-						KeyValidationAction: &newKeyAction,
+						KeyValidationAction: &newKeyAction, //nolint:staticcheck // Legacy field compatibility.
 					},
 				),
 			},

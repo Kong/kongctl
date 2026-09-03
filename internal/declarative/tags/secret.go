@@ -4,6 +4,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
@@ -17,6 +19,7 @@ type SecretSource struct {
 	Kind      string `json:"kind"`
 	Reference string `json:"reference"`
 	Extract   string `json:"extract,omitempty"`
+	RootDir   string `json:"root_dir,omitempty"`
 }
 
 // SecretPart is either public literal text or a deferred source.
@@ -31,11 +34,19 @@ type SecretExpression struct {
 }
 
 // SecretTagResolver preserves !secret declarations for execution-time resolution.
-type SecretTagResolver struct{}
+type SecretTagResolver struct {
+	fileResolver *FileTagResolver
+}
 
 // NewSecretTagResolver creates a !secret resolver.
 func NewSecretTagResolver() *SecretTagResolver {
 	return &SecretTagResolver{}
+}
+
+// NewSecretTagResolverWithFileScope creates a secret resolver that can preserve
+// deferred !file sources without reading their contents.
+func NewSecretTagResolverWithFileScope(baseDir, rootDir string) *SecretTagResolver {
+	return &SecretTagResolver{fileResolver: NewFileTagResolver(baseDir, rootDir)}
 }
 
 // Tag returns the YAML tag handled by this resolver.
@@ -45,14 +56,14 @@ func (r *SecretTagResolver) Tag() string {
 
 // Resolve validates and serializes a deferred secret expression.
 func (r *SecretTagResolver) Resolve(node *yaml.Node) (any, error) {
-	expression, err := parseSecretExpression(node)
+	expression, err := r.parseSecretExpression(node)
 	if err != nil {
 		return nil, err
 	}
 	return BuildSecretPlaceholder(expression)
 }
 
-func parseSecretExpression(node *yaml.Node) (SecretExpression, error) {
+func (r *SecretTagResolver) parseSecretExpression(node *yaml.Node) (SecretExpression, error) {
 	if node == nil || node.Kind != yaml.MappingNode {
 		return SecretExpression{}, fmt.Errorf("!secret must be a map containing exactly one of 'source' or 'parts'")
 	}
@@ -84,7 +95,7 @@ func parseSecretExpression(node *yaml.Node) (SecretExpression, error) {
 		return SecretExpression{}, fmt.Errorf("!secret requires exactly one of 'source' or 'parts'")
 	}
 	if sourceNode != nil {
-		source, err := parseSecretSource(sourceNode)
+		source, err := r.parseSecretSource(sourceNode)
 		if err != nil {
 			return SecretExpression{}, err
 		}
@@ -99,7 +110,7 @@ func parseSecretExpression(node *yaml.Node) (SecretExpression, error) {
 	hasSource := false
 	for _, partNode := range partsNode.Content {
 		if isCustomTag(partNode.Tag) {
-			source, err := parseSecretSource(partNode)
+			source, err := r.parseSecretSource(partNode)
 			if err != nil {
 				return SecretExpression{}, err
 			}
@@ -119,15 +130,75 @@ func parseSecretExpression(node *yaml.Node) (SecretExpression, error) {
 	return SecretExpression{Parts: parts}, nil
 }
 
-func parseSecretSource(node *yaml.Node) (SecretSource, error) {
-	if node == nil || node.Tag != TagEnv {
-		return SecretSource{}, fmt.Errorf("!secret currently supports only !env sources")
+func (r *SecretTagResolver) parseSecretSource(node *yaml.Node) (SecretSource, error) {
+	if node == nil {
+		return SecretSource{}, fmt.Errorf("!secret source is required")
 	}
-	varRef, extractPath, err := parseEnvNode(node)
-	if err != nil {
-		return SecretSource{}, err
+	switch node.Tag {
+	case TagEnv:
+		varRef, extractPath, err := parseEnvNode(node)
+		if err != nil {
+			return SecretSource{}, err
+		}
+		return SecretSource{Kind: "env", Reference: varRef, Extract: extractPath}, nil
+	case TagFile:
+		if r.fileResolver == nil {
+			return SecretSource{}, fmt.Errorf("!secret !file source requires file scope")
+		}
+		path, extractPath, err := parseDeferredFileNode(node)
+		if err != nil {
+			return SecretSource{}, err
+		}
+		if err := r.fileResolver.validatePath(path); err != nil {
+			return SecretSource{}, err
+		}
+		resolvedPath := r.fileResolver.resolvePath(path)
+		if err := r.fileResolver.validateResolvedPath(path, resolvedPath); err != nil {
+			return SecretSource{}, err
+		}
+		resolvedPath, err = filepath.Abs(resolvedPath)
+		if err != nil {
+			return SecretSource{}, fmt.Errorf("failed to resolve path %s: %w", path, err)
+		}
+		if realPath, realErr := filepath.EvalSymlinks(resolvedPath); realErr == nil {
+			resolvedPath = realPath
+		}
+		rootDir := r.fileResolver.rootDirReal
+		if rootDir == "" {
+			rootDir = r.fileResolver.rootDirAbs
+		}
+		return SecretSource{
+			Kind: "file", Reference: filepath.Clean(resolvedPath), Extract: extractPath, RootDir: filepath.Clean(rootDir),
+		}, nil
+	default:
+		return SecretSource{}, fmt.Errorf("!secret currently supports only !env and !file sources")
 	}
-	return SecretSource{Kind: "env", Reference: varRef, Extract: extractPath}, nil
+}
+
+func parseDeferredFileNode(node *yaml.Node) (string, string, error) {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		path, extractPath := node.Value, ""
+		if before, after, ok := strings.Cut(path, "#"); ok {
+			path, extractPath = before, after
+		}
+		if strings.TrimSpace(path) == "" {
+			return "", "", fmt.Errorf("!file tag requires a path")
+		}
+		return path, extractPath, nil
+	case yaml.MappingNode:
+		var ref FileRef
+		if err := node.Decode(&ref); err != nil {
+			return "", "", fmt.Errorf("invalid !file tag format: %w", err)
+		}
+		if strings.TrimSpace(ref.Path) == "" {
+			return "", "", fmt.Errorf("!file tag requires 'path' field")
+		}
+		return ref.Path, ref.Extract, nil
+	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
+		return "", "", fmt.Errorf("!file tag must be used with a string or map, got %v", node.Kind)
+	}
+	return "", "", fmt.Errorf("!file tag has unsupported node kind %v", node.Kind)
 }
 
 // BuildSecretPlaceholder serializes a secret expression without resolving it.
@@ -179,21 +250,31 @@ func SecretExpressionFromEnvPlaceholder(value string) (SecretExpression, error) 
 
 // ResolveSecretExpression resolves and concatenates all expression parts.
 func ResolveSecretExpression(expression SecretExpression) (string, error) {
+	return resolveSecretExpression(expression, "")
+}
+
+// ResolveSecretExpressionFromBase resolves file sources relative to a trusted execution boundary.
+func ResolveSecretExpressionFromBase(expression SecretExpression, baseDir string) (string, error) {
+	baseDir = strings.TrimSpace(baseDir)
+	if baseDir == "" {
+		return "", fmt.Errorf("secret source base directory is required")
+	}
+	return resolveSecretExpression(expression, baseDir)
+}
+
+func resolveSecretExpression(expression SecretExpression, baseDir string) (string, error) {
 	var result strings.Builder
 	for _, part := range expression.Parts {
 		switch {
 		case part.Literal != nil && part.Source == nil:
 			result.WriteString(*part.Literal)
 		case part.Source != nil && part.Literal == nil:
-			if part.Source.Kind != "env" {
-				return "", fmt.Errorf("unsupported secret source kind %q", part.Source.Kind)
-			}
-			value, err := resolveEnvStringValue(part.Source.Reference, part.Source.Extract)
+			value, err := resolveSecretSource(*part.Source, baseDir)
 			if err != nil {
 				return "", err
 			}
 			if value == "" {
-				return "", fmt.Errorf("secret source environment variable %s resolved to an empty value", part.Source.Reference)
+				return "", fmt.Errorf("secret source %s %s resolved to an empty value", part.Source.Kind, part.Source.Reference)
 			}
 			result.WriteString(value)
 		default:
@@ -204,4 +285,71 @@ func ResolveSecretExpression(expression SecretExpression) (string, error) {
 		return "", fmt.Errorf("secret expression resolved to an empty value")
 	}
 	return result.String(), nil
+}
+
+func resolveSecretSource(source SecretSource, baseDir string) (string, error) {
+	switch source.Kind {
+	case "env":
+		return resolveEnvStringValue(source.Reference, source.Extract)
+	case "file":
+		rootDir, reference, err := secretFileResolutionPaths(source, baseDir)
+		if err != nil {
+			return "", err
+		}
+		if !pathWithinBase(filepath.Clean(rootDir), filepath.Clean(reference)) {
+			return "", fmt.Errorf("secret source file resolves outside base dir %s: %s", rootDir, reference)
+		}
+		resolvedPath, err := filepath.EvalSymlinks(reference)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("secret source file not found: %s", reference)
+			}
+			return "", fmt.Errorf("failed to resolve secret source file %s: %w", reference, err)
+		}
+		if realRoot, rootErr := filepath.EvalSymlinks(rootDir); rootErr == nil {
+			rootDir = realRoot
+		}
+		if !pathWithinBase(filepath.Clean(rootDir), filepath.Clean(resolvedPath)) {
+			return "", fmt.Errorf("secret source file resolves outside base dir %s: %s", rootDir, reference)
+		}
+		resolver := NewFileTagResolver(filepath.Dir(resolvedPath), rootDir)
+		data, err := resolver.readFile(resolvedPath)
+		if err != nil {
+			return "", err
+		}
+		value, err := resolver.parseContent(resolvedPath, data)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse %s: %w", source.Reference, err)
+		}
+		if source.Extract != "" {
+			value, err = ExtractValue(value, source.Extract)
+			if err != nil {
+				return "", fmt.Errorf("failed to extract %q from %s: %w", source.Extract, source.Reference, err)
+			}
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			return "", fmt.Errorf("secret source file %s did not resolve to a string", source.Reference)
+		}
+		return stringValue, nil
+	default:
+		return "", fmt.Errorf("unsupported secret source kind %q", source.Kind)
+	}
+}
+
+func secretFileResolutionPaths(source SecretSource, baseDir string) (string, string, error) {
+	if baseDir == "" {
+		if source.RootDir == "" || !filepath.IsAbs(source.Reference) {
+			return "", "", fmt.Errorf("invalid deferred file source")
+		}
+		return source.RootDir, source.Reference, nil
+	}
+	if !filepath.IsAbs(baseDir) {
+		return "", "", fmt.Errorf("secret source base directory must be absolute")
+	}
+	if filepath.IsAbs(source.Reference) {
+		return "", "", fmt.Errorf("saved-plan secret file source must be relative to the plan directory")
+	}
+	rootDir := filepath.Clean(baseDir)
+	return rootDir, filepath.Join(rootDir, source.Reference), nil
 }

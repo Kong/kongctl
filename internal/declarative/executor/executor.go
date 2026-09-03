@@ -91,7 +91,13 @@ type Executor struct {
 		kkComps.CreateAIGatewayConfigStoreSecretRequest, kkComps.UpdateAIGatewayConfigStoreSecretRequest]
 	aiGatewayVaultExecutor *BaseExecutor[
 		kkComps.CreateAIGatewayVaultRequest, kkComps.UpdateAIGatewayVaultRequest]
-	aiGatewayDataPlaneCertificateExecutor  *BaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest]
+	aiGatewayDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[createAIGatewayDataPlaneCertificateRequest]
+	aiGatewayCertificateExecutor          *BaseExecutor[
+		kkComps.CreateAIGatewayCertificateRequest, kkComps.UpdateAIGatewayCertificateRequest]
+	aiGatewayCACertificateExecutor *BaseExecutor[
+		kkComps.CreateAIGatewayCACertificateRequest, kkComps.UpdateAIGatewayCACertificateRequest]
+	aiGatewaySNIExecutor *BaseExecutor[
+		kkComps.CreateAIGatewaySNIRequest, kkComps.UpdateAIGatewaySNIRequest]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
 	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
@@ -361,6 +367,17 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		NewAIGatewayDataPlaneCertificateAdapter(client),
 		dryRun,
 	)
+	e.aiGatewayCertificateExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayCertificateRequest, kkComps.UpdateAIGatewayCertificateRequest](
+		NewAIGatewayCertificateAdapter(client), client, dryRun,
+	)
+	e.aiGatewayCACertificateExecutor = NewBaseExecutor[
+		kkComps.CreateAIGatewayCACertificateRequest, kkComps.UpdateAIGatewayCACertificateRequest](
+		NewAIGatewayCACertificateAdapter(client), client, dryRun,
+	)
+	e.aiGatewaySNIExecutor = NewBaseExecutor[kkComps.CreateAIGatewaySNIRequest, kkComps.UpdateAIGatewaySNIRequest](
+		NewAIGatewaySNIAdapter(client), client, dryRun,
+	)
 	e.dashboardExecutor = NewManagedLabelBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
 		NewDashboardAdapter(client),
 		client,
@@ -611,6 +628,9 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		e.aiGatewayConfigStoreSecretExecutor,
 		e.aiGatewayVaultExecutor,
 		e.aiGatewayDataPlaneCertificateExecutor,
+		e.aiGatewayCertificateExecutor,
+		e.aiGatewayCACertificateExecutor,
+		e.aiGatewaySNIExecutor,
 		e.dashboardExecutor,
 		e.eventGatewayControlPlaneExecutor,
 		e.organizationTeamExecutor,
@@ -2836,6 +2856,21 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayCertificateExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewayCACertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayCACertificateExecutor.Create(ctx, *change)
+	case planner.ResourceTypeAIGatewaySNI:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewaySNIExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Create(ctx, *change)
 	case planner.ResourceTypeDCRProvider:
@@ -3442,6 +3477,21 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.aiGatewayVaultExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayCertificateExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewayCACertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewayCACertificateExecutor.Update(ctx, *change)
+	case planner.ResourceTypeAIGatewaySNI:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return "", err
+		}
+		return e.aiGatewaySNIExecutor.Update(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIDocument:
@@ -3946,6 +3996,21 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			return err
 		}
 		return e.aiGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayCertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayCertificateExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewayCACertificate:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewayCACertificateExecutor.Delete(ctx, *change)
+	case planner.ResourceTypeAIGatewaySNI:
+		if err := e.syncResolvedAIGatewayID(ctx, change); err != nil {
+			return err
+		}
+		return e.aiGatewaySNIExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeDashboard:
 		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:

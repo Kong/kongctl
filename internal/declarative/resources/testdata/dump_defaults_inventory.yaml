@@ -561,6 +561,14 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: ai_gateway_ca_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_gateway_config_store
     defaults: []
     overrides: []
@@ -987,6 +995,10 @@ resources:
         type: boolean
         value: false
         source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_sni
+    defaults: []
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_vault

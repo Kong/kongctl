@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-runtime-tls-e2e
+
+ai_gateways:
+  - ref: runtime-tls-gateway
+    name: runtime-tls-gateway
+    display_name: AI Gateway Runtime TLS E2E
+    certificates: []
+    ca_certificates: []
+    snis: []

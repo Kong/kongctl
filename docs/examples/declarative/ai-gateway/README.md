@@ -24,6 +24,11 @@ Gateway resources.
   Gateway data plane certificates using both nested
   `data_plane_certificates` and root-level
   `ai_gateway_data_plane_certificates` declarations.
+- [runtime-tls.yaml](runtime-tls.yaml) defines a runtime certificate, CA
+  certificate, and SNI. It demonstrates a public certificate loaded with
+  `!file` and a private key loaded at execution time with
+  `!secret {source: !file ...}`. Runtime certificates are distinct from data
+  plane certificates.
 - [federated](federated) shows a multi-folder
   layout where a central team owns an AI Gateway and providers, while a peer
   team owns root-level policies, agents, consumers, consumer groups, models, MCP
@@ -41,3 +46,8 @@ from this deferred source without placing its value in the plan. The model
 provider uses the public
 `{vault://support-secrets/openai-auth-header}` reference, which remains visible
 in plans and is resolved by Konnect when the provider uses it.
+
+Before applying `runtime-tls.yaml`, place the matching runtime certificate and
+private key at `certs/runtime.pem` and `certs/runtime.key`, and place the CA
+certificate at `certs/ca.pem`. The private-key file is intentionally not
+included in this repository.

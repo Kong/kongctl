@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 
@@ -172,11 +174,7 @@ func (h apiAttributesHandler) run(args []string) error {
 		normalized = map[string][]string{key: values}
 	}
 
-	keys := make([]string, 0, len(normalized))
-	for key := range normalized {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
+	keys := slices.Sorted(maps.Keys(normalized))
 
 	records := make([]apiAttributeRecord, 0, len(keys))
 	rows := make([]table.Row, 0, len(keys))

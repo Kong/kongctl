@@ -420,6 +420,22 @@ func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
 	assert.Contains(t, text, "ALLOWED: api_usage|llm_usage|agentic_usage|platform_usage")
 }
 
+func TestRenderExplainText_AIGatewayProviderAuthAllowedValues(t *testing.T) {
+	t.Parallel()
+
+	resource, err := ResolveExplainSubject("ai_gateway.model_providers")
+	require.NoError(t, err)
+	assert.Contains(
+		t,
+		RenderExplainText(resource, true),
+		"- type: string required allowed: basic|azure|aws|gcp|sagemaker",
+	)
+
+	field, err := ResolveExplainSubject("ai_gateway.model_providers.config.auth.type")
+	require.NoError(t, err)
+	assert.Contains(t, RenderExplainText(field, false), "ALLOWED: basic|azure|aws|gcp|sagemaker")
+}
+
 func TestRenderExplainText_ResourceSubject(t *testing.T) {
 	subject, err := ResolveExplainSubject("portal")
 	require.NoError(t, err)

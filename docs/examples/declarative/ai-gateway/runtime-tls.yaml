@@ -1,0 +1,23 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-runtime-tls-example
+
+ai_gateways:
+  - ref: support-gateway
+    name: support-gateway
+    display_name: Support Gateway
+    certificates:
+      - ref: support-runtime-cert
+        name: support-runtime-cert
+        cert: !file ./certs/runtime.pem
+        key: !secret {source: !file ./certs/runtime.key}
+    ca_certificates:
+      - ref: support-ca
+        name: support-ca
+        cert: !file ./certs/ca.pem
+    snis:
+      - ref: support-sni
+        name: support-sni
+        display_name: Support SNI
+        hostname: support.example.com
+        certificate: !ref support-runtime-cert#name

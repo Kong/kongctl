@@ -195,8 +195,12 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 		t.Run(string(capability.ResourceType)+capability.PathPattern, func(t *testing.T) {
 			payload := secretCatalogPatternValue(strings.Split(strings.Trim(capability.PathPattern, "/"), "/"), sentinel)
 			redacted := RedactSensitiveFields(payload)
-			if capability.ResourceType == resources.ResourceTypeAIGatewayConfigStoreSecret {
-				redacted = RedactSensitiveFieldsWithExactKeys(payload, "value")
+			exactKeysByResourceType := map[resources.ResourceType][]string{
+				resources.ResourceTypeAIGatewayConfigStoreSecret: {"value"},
+				resources.ResourceTypeAIGatewayCertificate:       {"key", "key_alt"},
+			}
+			if exactKeys := exactKeysByResourceType[capability.ResourceType]; len(exactKeys) > 0 {
+				redacted = RedactSensitiveFieldsWithExactKeys(payload, exactKeys...)
 			}
 			data, err := json.Marshal(redacted)
 			require.NoError(t, err)
@@ -226,6 +230,26 @@ func TestRedactBodyForURLScopesConfigStoreSecretValue(t *testing.T) {
 
 	unredacted := redactBodyForURL(body, "application/json", unrelatedURL)
 	assert.Contains(t, unredacted, `"value":"secret-value"`)
+}
+
+func TestRedactBodyForURLScopesAIGatewayCertificateKeys(t *testing.T) {
+	body := []byte(`{"name":"example","cert":"public-cert","key":"private-key","key_alt":"alternate-key"}`)
+
+	certificateURL, err := url.Parse(
+		"https://global.api.konghq.com/v1/ai-gateways/gateway/certificates",
+	)
+	require.NoError(t, err)
+
+	redacted := redactBodyForURL(body, "application/json", certificateURL)
+	assert.Contains(t, redacted, `"cert":"public-cert"`)
+	assert.NotContains(t, redacted, "private-key")
+	assert.NotContains(t, redacted, "alternate-key")
+
+	unrelatedURL, err := url.Parse("https://global.api.konghq.com/v1/ai-gateways/gateway/providers")
+	require.NoError(t, err)
+
+	unredacted := redactBodyForURL(body, "application/json", unrelatedURL)
+	assert.Contains(t, unredacted, `"key":"private-key"`)
 }
 
 func secretCatalogPatternValue(segments []string, value string) any {

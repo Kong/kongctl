@@ -24,6 +24,10 @@ vars:
   listener_policy_ref: external-sync-listener-forward-policy
   listener_policy_name: external-sync-listener-forward-policy
   listener_policy_description: External sync listener forward policy
+  data_plane_certificate_ref: external-sync-data-plane-certificate
+  data_plane_certificate_name: external-sync-data-plane-certificate
+  data_plane_certificate_description: External sync data plane certificate
+  data_plane_certificate_updated_description: Updated external sync data plane certificate
 
 defaults:
   mask:
@@ -426,7 +430,192 @@ steps:
                 name: "{{ .vars.consume_policy_name }}"
                 description: "{{ .vars.consume_policy_description }}"
 
-  - name: 011-sync-with-declarative-listener
+  - name: 011-sync-with-declarative-data-plane-certificate
+    inputOverlayDirs:
+      - overlays/008-add-data-plane-certificate
+    commands:
+      - name: 000-sync-add-data-plane-certificate
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_data_plane_certificate' &&
+              resource_ref=='{{ .vars.data_plane_certificate_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.data_plane_certificate_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-data-plane-certificates
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.data_plane_certificate_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.data_plane_certificate_name }}"
+                description: "{{ .vars.data_plane_certificate_description }}"
+
+  - name: 012-sync-idempotency-declarative-data-plane-certificate
+    inputOverlayDirs:
+      - overlays/008-add-data-plane-certificate
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-data-plane-certificates-after-idempotent-sync
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.data_plane_certificate_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.data_plane_certificate_name }}"
+                description: "{{ .vars.data_plane_certificate_description }}"
+
+  - name: 013-sync-update-declarative-data-plane-certificate
+    inputOverlayDirs:
+      - overlays/009-update-data-plane-certificate
+    commands:
+      - name: 000-sync-update-data-plane-certificate
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_data_plane_certificate' &&
+              resource_ref=='{{ .vars.data_plane_certificate_ref }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                resource_ref: "{{ .vars.data_plane_certificate_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-data-plane-certificates-after-update
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.data_plane_certificate_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.data_plane_certificate_name }}"
+                description: "{{ .vars.data_plane_certificate_updated_description }}"
+
+  - name: 014-sync-with-data-plane-certificate-collection-omitted
+    commands:
+      - name: 000-sync-no-deletions
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_data_plane_certificate' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-data-plane-certificates-after-omission
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.data_plane_certificate_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.data_plane_certificate_name }}"
+                description: "{{ .vars.data_plane_certificate_updated_description }}"
+
+  - name: 015-sync-with-declarative-listener
     inputOverlayDirs:
       - overlays/007-add-listener
     commands:
@@ -516,7 +705,7 @@ steps:
                 config.type: sni
                 config.sni_suffix: ".external-sync.example.com"
 
-  - name: 012-sync-idempotency-declarative-listener
+  - name: 016-sync-idempotency-declarative-listener
     inputOverlayDirs:
       - overlays/007-add-listener
     commands:
@@ -536,7 +725,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 013-sync-omit-declarative-listener
+  - name: 017-sync-omit-declarative-listener
     commands:
       - name: 000-sync-no-deletions
         run:
@@ -601,7 +790,7 @@ steps:
                 type: forward_to_virtual_cluster
                 enabled: true
 
-  - name: 014-idempotency-all-declarative-policies
+  - name: 018-idempotency-all-declarative-policies
     inputOverlayDirs:
       - overlays/002-add-cluster-policy
       - overlays/003-add-produce-policy
@@ -623,7 +812,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 015-sync-with-policy-collections-omitted
+  - name: 019-sync-with-policy-collections-omitted
     commands:
       - name: 000-sync-omitted-collections
         run:

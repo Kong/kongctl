@@ -32,7 +32,16 @@ if [[ ! "$build_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(
 fi
 
 source_url="https://github.com/Kong/kongctl/archive/refs/tags/v${version}.tar.gz"
-source_archive=$(mktemp)
+temp_dir=$(go env GOTMPDIR)
+if [[ -z "$temp_dir" ]]; then
+  temp_dir=$(go env GOCACHE)
+fi
+if [[ -z "$temp_dir" ]]; then
+  echo "go did not provide a temporary or cache directory" >&2
+  exit 1
+fi
+mkdir -p "$temp_dir/kongctl-homebrew"
+source_archive=$(mktemp "$temp_dir/kongctl-homebrew/source.XXXXXX")
 trap 'rm -f "$source_archive"' EXIT
 
 curl --fail --location --retry 3 --silent --show-error \

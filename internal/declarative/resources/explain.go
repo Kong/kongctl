@@ -2539,12 +2539,20 @@ func explainAllowedValues(node *ExplainNode) []string {
 	}
 	if len(node.OneOf) > 0 {
 		values := make([]string, 0, len(node.OneOf))
+		seen := make(map[string]struct{})
 		for _, branch := range node.OneOf {
-			if branch == nil || branch.Const == nil {
+			branchValues := explainAllowedValues(branch)
+			if len(branchValues) == 0 {
 				values = nil
 				break
 			}
-			values = append(values, fmt.Sprint(branch.Const))
+			for _, value := range branchValues {
+				if _, ok := seen[value]; ok {
+					continue
+				}
+				seen[value] = struct{}{}
+				values = append(values, value)
+			}
 		}
 		if len(values) > 0 {
 			return values

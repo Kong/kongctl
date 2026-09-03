@@ -5,6 +5,8 @@ vars:
   platformPortalName: "Platform Shared Portal"
   teamAPIRef: test-api
   teamAPIName: "Test API"
+  inlineExternalAPIRef: inline-external-api
+  inlineExternalAPIName: "Inline External API"
   teamPortalDisplayName: "Shared Portal"
 
 steps:
@@ -70,6 +72,20 @@ steps:
               fields:
                 action: CREATE
                 "fields.visibility": "public"
+          - select: >-
+              plan.changes[?resource_type=='api' &&
+                            resource_ref=='{{ .vars.inlineExternalAPIRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.name": "{{ .vars.inlineExternalAPIName }}"
+          - select: >-
+              plan.changes[?resource_type=='api_publication' &&
+                            resource_ref=='inline-external-publication'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "fields.visibility": "public"
       - name: 001-record-api-id
         run:
           - get
@@ -86,6 +102,20 @@ steps:
                 name: "{{ .vars.teamAPIName }}"
                 labels.team: team-a
                 labels.environment: test
+      - name: 002-record-inline-external-api-id
+        run:
+          - get
+          - apis
+          - -o
+          - json
+        recordVar:
+          name: inlineExternalAPIID
+          responsePath: "[?name=='{{ .vars.inlineExternalAPIName }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.inlineExternalAPIName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.inlineExternalAPIName }}"
 
   - name: 003-verify-publication
     skipInputs: true
@@ -117,6 +147,22 @@ steps:
             expect:
               fields:
                 "length(@)": 1
+      - name: 002-get-inline-external-publication
+        run:
+          - get
+          - api
+          - publications
+          - --api-id
+          - "{{ .vars.inlineExternalAPIID }}"
+          - "{{ .vars.platformPortalID }}"
+          - -o
+          - json
+        assertions:
+          - select: "[0]"
+            expect:
+              fields:
+                portal_id: "{{ .vars.platformPortalID }}"
+                visibility: public
 
   - name: 004-delete-cleanup
     commands:

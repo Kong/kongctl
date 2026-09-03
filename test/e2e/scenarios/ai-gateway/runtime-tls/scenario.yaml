@@ -1,0 +1,213 @@
+baseInputsPath: testdata
+
+vars:
+  namespace: ai-gateway-runtime-tls-e2e
+  gateway_name: AI Gateway Runtime TLS E2E
+
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-explain-scaffold-create-read
+    commands:
+      - name: 000-explain-certificate
+        run: [explain, ai_gateway_certificate, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                '"x-kongctl-root-key"': ai_gateway_certificates
+      - name: 001-scaffold-sni
+        run: [scaffold, ai_gateway_sni]
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'certificate: !ref runtime-cert#name')": true
+      - name: 002-plan-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-create-observed.json"
+        exec:
+          - python3
+          - "{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py"
+          - "{{ .workdir }}"
+          - "{{ .bin }}"
+          - --profile
+          - e2e
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --output-file
+          - "{{ .workdir }}/plan-create.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: "changes[?resource_type=='ai_gateway_certificate'] | [0]"
+            expect:
+              fields:
+                "contains(keys(fields), 'key')": false
+                "length(secret_writes)": 2
+                "contains(keys(fields), 'key_alt')": false
+          - select: "changes[?resource_type=='ai_gateway_sni'] | [0]"
+            expect:
+              fields:
+                fields.certificate: runtime-cert
+                "length(depends_on)": 2
+      - name: 003-apply-create
+        outputFormat: json
+        run: [apply, --plan, "{{ .workdir }}/plan-create.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+          - select: "contains(to_string(@), 'BEGIN PRIVATE KEY')"
+            expect:
+              fields:
+                "@": false
+      - name: 004-list-certificates
+        run: [get, ai-gateway, certificates, --gateway-name, "{{ .vars.gateway_name }}", -o, json]
+        assertions:
+          - select: "[?name=='runtime-cert'] | [0]"
+            expect:
+              fields:
+                name: runtime-cert
+                "contains(keys(@), 'key')": false
+      - name: 005-get-ca-certificate
+        run: [get, ai-gateway, ca-certificates, runtime-ca, --gateway-name, "{{ .vars.gateway_name }}", -o, yaml]
+        parseAs: yaml
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": runtime-ca
+      - name: 006-list-snis
+        run: [list, ai-gateway, snis, --gateway-name, "{{ .vars.gateway_name }}", -o, json]
+        assertions:
+          - select: "[?name=='runtime-sni'] | [0]"
+            expect:
+              fields:
+                certificate: runtime-cert
+
+  - name: 002-update-and-dump-round-trip
+    inputOverlayDirs: [overlays/001-update]
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-update-observed.json"
+        exec:
+          - python3
+          - "{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py"
+          - "{{ .workdir }}"
+          - "{{ .bin }}"
+          - --profile
+          - e2e
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --output-file
+          - "{{ .workdir }}/plan-update.json"
+          - --write-secret
+          - runtime-cert#key
+          - --write-secret
+          - runtime-cert#key_alt
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                by_action.UPDATE: 3
+                secret_writes: 2
+          - select: "changes[?resource_type=='ai_gateway_certificate'] | [0]"
+            expect:
+              fields:
+                "contains(keys(fields), 'key')": false
+                "contains(keys(fields), 'key_alt')": false
+      - name: 001-apply-update
+        outputFormat: json
+        run: [apply, --plan, "{{ .workdir }}/plan-update.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+      - name: 002-dump
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateways
+          - --include-child-resources
+          - "--default-namespace={{ .vars.namespace }}"
+        assertions:
+          - select: >-
+              ai_gateways[?display_name=='{{ .vars.gateway_name }}'] |
+              [0].certificates[?name=='runtime-cert'] | [0]
+            expect:
+              fields:
+                "contains(keys(@), 'key')": false
+                "contains(keys(@), 'key_alt')": false
+                "contains(cert, 'BEGIN CERTIFICATE')": true
+                "contains(cert_alt, 'BEGIN CERTIFICATE')": true
+          - select: "contains(to_string(@), 'BEGIN PRIVATE KEY')"
+            expect:
+              fields:
+                "@": false
+      - name: 003-plan-dump
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/dump.yaml"]
+        assertions:
+          - select: summary.total_changes
+            expect:
+              fields:
+                "@": 0
+
+  - name: 003-sync-delete
+    inputOverlayDirs: [overlays/002-sync-delete]
+    commands:
+      - name: 000-plan-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-delete.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+          - select: "changes[?resource_type=='ai_gateway_certificate'] | [0]"
+            expect:
+              fields:
+                "length(depends_on)": 1
+      - name: 001-sync-delete
+        outputFormat: json
+        run: [sync, --plan, "{{ .workdir }}/plan-delete.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0

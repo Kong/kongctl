@@ -277,7 +277,7 @@ func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir strin
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
-	placeholderRegistry.Register(tags.NewSecretTagResolver())
+	placeholderRegistry.Register(tags.NewSecretTagResolverWithFileScope(baseDir, tagRootDir))
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
 	if err != nil {
@@ -841,6 +841,24 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
 		}
 		gateway.DataPlaneCertificates = nil
+
+		for _, cert := range gateway.Certificates {
+			cert.AIGateway = gateway.Ref
+			rs.AIGatewayCertificates = append(rs.AIGatewayCertificates, cert)
+		}
+		gateway.Certificates = nil
+
+		for _, cert := range gateway.CACertificates {
+			cert.AIGateway = gateway.Ref
+			rs.AIGatewayCACertificates = append(rs.AIGatewayCACertificates, cert)
+		}
+		gateway.CACertificates = nil
+
+		for _, sni := range gateway.SNIs {
+			sni.AIGateway = gateway.Ref
+			rs.AIGatewaySNIs = append(rs.AIGatewaySNIs, sni)
+		}
+		gateway.SNIs = nil
 	}
 
 	for i := range rs.AIGatewayConfigStores {

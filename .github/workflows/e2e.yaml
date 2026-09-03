@@ -907,6 +907,20 @@ jobs:
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
 
+      - name: Generate shard metrics
+        if: always()
+        run: |
+          python3 scripts/e2e-metrics.py \
+            "${KONGCTL_E2E_ARTIFACTS_DIR}" \
+            "${KONGCTL_E2E_ARTIFACTS_DIR}/e2e-metrics.json"
+
+      - name: Upload shard metrics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-metrics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.org_name }}
+          path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}/e2e-metrics.json
+
       - name: Upload scenario results and diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
