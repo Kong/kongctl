@@ -2,6 +2,890 @@
   "repository": "kong/kongctl",
   "runs": [
     {
+      "build_job_seconds": 314.0,
+      "build_kongctl_seconds": 244.0,
+      "build_scenario_binary_seconds": 39.0,
+      "created_at": "2026-09-04T17:08:46Z",
+      "longest_shard_seconds": 551.0,
+      "queue_to_required_status_seconds": 974.0,
+      "reset": {
+        "count": 164,
+        "delete_calls": 103,
+        "delete_duration_ms": 8636,
+        "duration_ms": 402655,
+        "list_calls": 2459,
+        "list_duration_ms": 392502,
+        "resources_deleted": 84,
+        "resources_found": 1614
+      },
+      "run_attempt": 1,
+      "run_id": 33898988419,
+      "scenario_durations": [
+        {
+          "duration_seconds": 10.71,
+          "result": "pass",
+          "scenario": "adopt/auth-strategy-adopt/scenario.yaml"
+        },
+        {
+          "duration_seconds": 17.61,
+          "result": "pass",
+          "scenario": "ai-gateway/agent/scenario.yaml"
+        },
+        {
+          "duration_seconds": 14.34,
+          "result": "pass",
+          "scenario": "ai-gateway/data-plane-certificate/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.91,
+          "result": "pass",
+          "scenario": "ai-gateway/model/scenario.yaml"
+        },
+        {
+          "duration_seconds": 14.31,
+          "result": "pass",
+          "scenario": "ai-gateway/vault/scenario.yaml"
+        },
+        {
+          "duration_seconds": 12.52,
+          "result": "pass",
+          "scenario": "apis/comprehensive-fields/scenario.yaml"
+        },
+        {
+          "duration_seconds": 18.48,
+          "result": "pass",
+          "scenario": "apis/root-level-publication-visibility/scenario.yaml"
+        },
+        {
+          "duration_seconds": 14.34,
+          "result": "pass",
+          "scenario": "control-plane/data-plane-certificate/scenario.yaml"
+        },
+        {
+          "duration_seconds": 14.37,
+          "result": "pass",
+          "scenario": "control-plane/serverless/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.4,
+          "result": "pass",
+          "scenario": "deck/env-vars/scenario.yaml"
+        },
+        {
+          "duration_seconds": 14.35,
+          "result": "pass",
+          "scenario": "declarative/rename-sync-delete/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.24,
+          "result": "pass",
+          "scenario": "delete/plan-based/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.55,
+          "result": "pass",
+          "scenario": "dump/dcr-provider/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.07,
+          "result": "pass",
+          "scenario": "event-gateway/backend-cluster-pagination/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.0,
+          "result": "pass",
+          "scenario": "event-gateway/dataplane-certificate/scenario.yaml"
+        },
+        {
+          "duration_seconds": 13.92,
+          "result": "pass",
+          "scenario": "event-gateway/listener-policy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 29.73,
+          "result": "pass",
+          "scenario": "event-gateway/produce-policy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 17.45,
+          "result": "pass",
+          "scenario": "event-gateway/virtual-cluster/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.95,
+          "result": "pass",
+          "scenario": "external/portal-publication/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.87,
+          "result": "pass",
+          "scenario": "org/get-org/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.82,
+          "result": "pass",
+          "scenario": "org/teams/plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 15.03,
+          "result": "pass",
+          "scenario": "plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 10.73,
+          "result": "pass",
+          "scenario": "portal/api_with_attributes/scenario.yaml"
+        },
+        {
+          "duration_seconds": 22.83,
+          "result": "pass",
+          "scenario": "portal/auth-strategy-link/scenario.yaml"
+        },
+        {
+          "duration_seconds": 15.55,
+          "result": "pass",
+          "scenario": "portal/default_application_auth_strategy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 16.12,
+          "result": "pass",
+          "scenario": "portal/email/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.97,
+          "result": "pass",
+          "scenario": "portal/integrations/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.8,
+          "result": "pass",
+          "scenario": "portal/publication-auth-omitted-noop/scenario.yaml"
+        },
+        {
+          "duration_seconds": 28.74,
+          "result": "pass",
+          "scenario": "portal/teams/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.87,
+          "result": "pass",
+          "scenario": "protected-resources/org/teams/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.06,
+          "result": "pass",
+          "scenario": "smoke/version/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.4,
+          "result": "pass",
+          "scenario": "apis/eventual-consistency-polp/scenario.yaml"
+        },
+        {
+          "duration_seconds": 18.51,
+          "result": "pass",
+          "scenario": "dump/organization-teams/scenario.yaml"
+        },
+        {
+          "duration_seconds": 16.1,
+          "result": "pass",
+          "scenario": "org/system-accounts/assignments/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.13,
+          "result": "pass",
+          "scenario": "org/system-accounts/plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 12.44,
+          "result": "pass",
+          "scenario": "org/system-accounts/plan/sync-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.52,
+          "result": "pass",
+          "scenario": "org/system-accounts/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.12,
+          "result": "pass",
+          "scenario": "org/token/scenario.yaml"
+        },
+        {
+          "duration_seconds": 18.18,
+          "result": "pass",
+          "scenario": "org/users/assignments/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.53,
+          "result": "pass",
+          "scenario": "org/users/get/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.31,
+          "result": "pass",
+          "scenario": "org/users/plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 13.15,
+          "result": "pass",
+          "scenario": "org/users/plan/sync-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 12.91,
+          "result": "pass",
+          "scenario": "org/users/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.17,
+          "result": "pass",
+          "scenario": "adopt/create-portal-adopt-dump-plan/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.61,
+          "result": "pass",
+          "scenario": "ai-gateway/auth-strategy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.43,
+          "result": "pass",
+          "scenario": "ai-gateway/maturity/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.99,
+          "result": "pass",
+          "scenario": "ai-gateway/policy-matrix/scenario.yaml"
+        },
+        {
+          "duration_seconds": 19.09,
+          "result": "pass",
+          "scenario": "all/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.58,
+          "result": "pass",
+          "scenario": "apis/control-plane-implementation/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.67,
+          "result": "pass",
+          "scenario": "apis/versions-pagination/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.98,
+          "result": "pass",
+          "scenario": "control-plane/delete-groups/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.43,
+          "result": "pass",
+          "scenario": "control-plane/sync-groups/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.47,
+          "result": "pass",
+          "scenario": "deck/idempotent/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.04,
+          "result": "pass",
+          "scenario": "delete/declarative/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.84,
+          "result": "pass",
+          "scenario": "diff/command-coverage/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.15,
+          "result": "pass",
+          "scenario": "dump/filtered/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.32,
+          "result": "pass",
+          "scenario": "event-gateway/backend-cluster/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.52,
+          "result": "pass",
+          "scenario": "event-gateway/dependency-order/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.3,
+          "result": "pass",
+          "scenario": "event-gateway/listener/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.5,
+          "result": "pass",
+          "scenario": "event-gateway/schema-registry/scenario.yaml"
+        },
+        {
+          "duration_seconds": 1.36,
+          "result": "pass",
+          "scenario": "explain/command-coverage/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.58,
+          "result": "pass",
+          "scenario": "external/portal-sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.48,
+          "result": "pass",
+          "scenario": "org/system-accounts/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.26,
+          "result": "pass",
+          "scenario": "org/teams/plan/sync-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.75,
+          "result": "pass",
+          "scenario": "plan/remote-url-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.45,
+          "result": "pass",
+          "scenario": "portal/app-auth-strategy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.15,
+          "result": "pass",
+          "scenario": "portal/auth_settings/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.05,
+          "result": "pass",
+          "scenario": "portal/default_application_auth_strategy_ref_selection/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.35,
+          "result": "pass",
+          "scenario": "portal/external-sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.42,
+          "result": "pass",
+          "scenario": "portal/ip-allow-list/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.22,
+          "result": "pass",
+          "scenario": "portal/snippets-pagination/scenario.yaml"
+        },
+        {
+          "duration_seconds": 25.48,
+          "result": "pass",
+          "scenario": "portal/visibility/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.07,
+          "result": "pass",
+          "scenario": "protected-resources/portals/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.38,
+          "result": "pass",
+          "scenario": "yaml-tags/env/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.27,
+          "result": "pass",
+          "scenario": "adopt/event-gateway-adopt/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.52,
+          "result": "pass",
+          "scenario": "ai-gateway/config-store/scenario.yaml"
+        },
+        {
+          "duration_seconds": 12.84,
+          "result": "pass",
+          "scenario": "ai-gateway/mcp-server/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.91,
+          "result": "pass",
+          "scenario": "ai-gateway/policy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 1.01,
+          "result": "pass",
+          "scenario": "analytics/dashboard-repro/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.06,
+          "result": "pass",
+          "scenario": "apis/get-api-by-name-and-id/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.0,
+          "result": "skip",
+          "scenario": "auth/get-me/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.46,
+          "result": "pass",
+          "scenario": "control-plane/get/scenario.yaml"
+        },
+        {
+          "duration_seconds": 2.97,
+          "result": "pass",
+          "scenario": "control-plane/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.75,
+          "result": "pass",
+          "scenario": "deck/multi-file/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.21,
+          "result": "pass",
+          "scenario": "delete/dry-run/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.54,
+          "result": "pass",
+          "scenario": "dump/ai-gateways/scenario.yaml"
+        },
+        {
+          "duration_seconds": 26.94,
+          "result": "pass",
+          "scenario": "dump/portal-owned/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.71,
+          "result": "pass",
+          "scenario": "event-gateway/cluster-policy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.74,
+          "result": "pass",
+          "scenario": "event-gateway/diff/scenario.yaml"
+        },
+        {
+          "duration_seconds": 17.45,
+          "result": "pass",
+          "scenario": "event-gateway/plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.82,
+          "result": "pass",
+          "scenario": "event-gateway/static-key/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.29,
+          "result": "pass",
+          "scenario": "external/ai-gateway-parent/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.35,
+          "result": "pass",
+          "scenario": "lint/command-coverage/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.05,
+          "result": "pass",
+          "scenario": "org/teams/apply/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.48,
+          "result": "pass",
+          "scenario": "org/teams/roles/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.74,
+          "result": "pass",
+          "scenario": "plan/sync-partial-scope/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.0,
+          "result": "skip",
+          "scenario": "portal/applications/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.19,
+          "result": "pass",
+          "scenario": "portal/auth_settings_deprecated_fields/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.93,
+          "result": "pass",
+          "scenario": "portal/edit/scenario.yaml"
+        },
+        {
+          "duration_seconds": 16.25,
+          "result": "pass",
+          "scenario": "portal/identity_providers/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.46,
+          "result": "pass",
+          "scenario": "portal/oidc-auth-strategy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.02,
+          "result": "pass",
+          "scenario": "portal/snippets/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.08,
+          "result": "pass",
+          "scenario": "protected-resources/apis/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.16,
+          "result": "pass",
+          "scenario": "require-namespace/external/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.39,
+          "result": "pass",
+          "scenario": "yaml-tags/file/scenario.yaml"
+        },
+        {
+          "duration_seconds": 12.49,
+          "result": "pass",
+          "scenario": "adopt/full/scenario.yaml"
+        },
+        {
+          "duration_seconds": 16.03,
+          "result": "pass",
+          "scenario": "ai-gateway/consumer-group/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.12,
+          "result": "pass",
+          "scenario": "ai-gateway/model-matrix/scenario.yaml"
+        },
+        {
+          "duration_seconds": 13.68,
+          "result": "pass",
+          "scenario": "ai-gateway/root/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.63,
+          "result": "pass",
+          "scenario": "analytics/dashboard/scenario.yaml"
+        },
+        {
+          "duration_seconds": 25.04,
+          "result": "pass",
+          "scenario": "apis/nested-child-lifecycle/scenario.yaml"
+        },
+        {
+          "duration_seconds": 10.03,
+          "result": "pass",
+          "scenario": "catalog/service/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.87,
+          "result": "pass",
+          "scenario": "control-plane/groups/scenario.yaml"
+        },
+        {
+          "duration_seconds": 19.12,
+          "result": "pass",
+          "scenario": "dcr-providers/workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 10.0,
+          "result": "pass",
+          "scenario": "deck/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.92,
+          "result": "pass",
+          "scenario": "delete/idempotent/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.48,
+          "result": "pass",
+          "scenario": "dump/analytics-dashboards/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.96,
+          "result": "pass",
+          "scenario": "errors/declarative/scenario.yaml"
+        },
+        {
+          "duration_seconds": 24.36,
+          "result": "pass",
+          "scenario": "event-gateway/consume-policy/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.27,
+          "result": "pass",
+          "scenario": "event-gateway/dump/scenario.yaml"
+        },
+        {
+          "duration_seconds": 39.31,
+          "result": "pass",
+          "scenario": "event-gateway/plan/sync-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.11,
+          "result": "pass",
+          "scenario": "event-gateway/tls-trust-bundle/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.55,
+          "result": "pass",
+          "scenario": "external/api-impl/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.79,
+          "result": "pass",
+          "scenario": "namespace/defaults-sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.55,
+          "result": "pass",
+          "scenario": "org/teams/external-role/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.6,
+          "result": "pass",
+          "scenario": "org/teams/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.54,
+          "result": "pass",
+          "scenario": "plan/sync-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 10.78,
+          "result": "pass",
+          "scenario": "portal/assets/scenario.yaml"
+        },
+        {
+          "duration_seconds": 23.68,
+          "result": "pass",
+          "scenario": "portal/custom-domain/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.45,
+          "result": "pass",
+          "scenario": "portal/email-domains/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.19,
+          "result": "pass",
+          "scenario": "portal/identity_providers_duplicate_type/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.17,
+          "result": "pass",
+          "scenario": "portal/page-frontmatter-conflict/scenario.yaml"
+        },
+        {
+          "duration_seconds": 32.68,
+          "result": "pass",
+          "scenario": "portal/sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.23,
+          "result": "pass",
+          "scenario": "protected-resources/control-planes/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.66,
+          "result": "pass",
+          "scenario": "require-namespace/portal/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.78,
+          "result": "pass",
+          "scenario": "adopt/team-create-adopt-dump/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.32,
+          "result": "pass",
+          "scenario": "ai-gateway/consumer/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.81,
+          "result": "pass",
+          "scenario": "ai-gateway/model-provider/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.73,
+          "result": "pass",
+          "scenario": "ai-gateway/runtime-tls/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.85,
+          "result": "pass",
+          "scenario": "apis/child-delete-namespace/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.0,
+          "result": "pass",
+          "scenario": "apis/region/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.66,
+          "result": "pass",
+          "scenario": "control-plane/apply/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.87,
+          "result": "pass",
+          "scenario": "control-plane/plan/apply-workflow/scenario.yaml"
+        },
+        {
+          "duration_seconds": 9.57,
+          "result": "pass",
+          "scenario": "deck/basic/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.59,
+          "result": "pass",
+          "scenario": "declarative/plan-mode-validation/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.55,
+          "result": "pass",
+          "scenario": "delete/partial-delete/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.18,
+          "result": "pass",
+          "scenario": "dump/control-planes/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.14,
+          "result": "pass",
+          "scenario": "event-gateway/adopt/scenario.yaml"
+        },
+        {
+          "duration_seconds": 4.62,
+          "result": "pass",
+          "scenario": "event-gateway/control-planes/scenario.yaml"
+        },
+        {
+          "duration_seconds": 13.37,
+          "result": "pass",
+          "scenario": "event-gateway/external-sync/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.0,
+          "result": "skip",
+          "scenario": "event-gateway/principal-metadata/scenario.yaml"
+        },
+        {
+          "duration_seconds": 5.51,
+          "result": "pass",
+          "scenario": "event-gateway/topic-aliases/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.04,
+          "result": "pass",
+          "scenario": "external/api-parent/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.88,
+          "result": "pass",
+          "scenario": "namespace/validation/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.18,
+          "result": "pass",
+          "scenario": "org/teams/get/scenario.yaml"
+        },
+        {
+          "duration_seconds": 0.47,
+          "result": "pass",
+          "scenario": "patch/command-coverage/scenario.yaml"
+        },
+        {
+          "duration_seconds": 20.34,
+          "result": "pass",
+          "scenario": "portal/api_docs_with_children/scenario.yaml"
+        },
+        {
+          "duration_seconds": 11.58,
+          "result": "pass",
+          "scenario": "portal/audit-log-webhook/scenario.yaml"
+        },
+        {
+          "duration_seconds": 7.98,
+          "result": "pass",
+          "scenario": "portal/customization/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.95,
+          "result": "pass",
+          "scenario": "portal/email-templates/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.97,
+          "result": "pass",
+          "scenario": "portal/idp_team_group_mappings_readback/scenario.yaml"
+        },
+        {
+          "duration_seconds": 8.22,
+          "result": "pass",
+          "scenario": "portal/pages/scenario.yaml"
+        },
+        {
+          "duration_seconds": 3.85,
+          "result": "pass",
+          "scenario": "portal/team_group_mappings_no_idp/scenario.yaml"
+        },
+        {
+          "duration_seconds": 6.8,
+          "result": "pass",
+          "scenario": "protected-resources/event-gateways/scenario.yaml"
+        },
+        {
+          "duration_seconds": 1.01,
+          "result": "pass",
+          "scenario": "scaffold/command-coverage/scenario.yaml"
+        }
+      ],
+      "shard_admission_delay_seconds": {
+        "kongctl-acceptance": 3.0,
+        "kongctl-acceptance-2": 3.0,
+        "kongctl-acceptance-3": 3.0,
+        "kongctl-acceptance-4": 4.0,
+        "kongctl-acceptance-5": 3.0
+      },
+      "shard_spread_seconds": 365.0,
+      "shards": [
+        {
+          "execution_duration_seconds": 551,
+          "org_name": "kongctl-acceptance",
+          "selected_scenario_count": 43
+        },
+        {
+          "execution_duration_seconds": 195,
+          "org_name": "kongctl-acceptance-2",
+          "selected_scenario_count": 31
+        },
+        {
+          "execution_duration_seconds": 186,
+          "org_name": "kongctl-acceptance-3",
+          "selected_scenario_count": 31
+        },
+        {
+          "execution_duration_seconds": 363,
+          "org_name": "kongctl-acceptance-4",
+          "selected_scenario_count": 30
+        },
+        {
+          "execution_duration_seconds": 189,
+          "org_name": "kongctl-acceptance-5",
+          "selected_scenario_count": 30
+        }
+      ],
+      "url": "https://github.com/Kong/kongctl/actions/runs/33898988419",
+      "workflow_admission_delay_seconds": 3.0
+    },
+    {
       "build_job_seconds": 319.0,
       "build_kongctl_seconds": 252.0,
       "build_scenario_binary_seconds": 39.0,
