@@ -601,10 +601,22 @@ jobs:
           echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
 
       - name: Setup Go
+        id: setup-go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
+          cache-dependency-path: |
+            go.mod
+            go.sum
+
+      - name: Report Go cache status
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.setup-go.outputs.cache-hit }}
+        run: |
+          echo "Go build cache primary-key hit: ${CACHE_HIT}"
+          printf 'Go build cache primary-key hit: `%s`\n' "${CACHE_HIT}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Use local private SDK module
         shell: bash
