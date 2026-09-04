@@ -598,3 +598,23 @@ Increase the search window when fewer than 20 eligible runs appear:
 ```sh
 make baseline-e2e-ci E2E_BASELINE_SCAN=200
 ```
+
+GitHub Actions metrics artifacts may expire before 20 eligible runs complete.
+Collect and retain partial observations in the versioned Stage 0 snapshot with:
+
+```sh
+make collect-e2e-baseline
+```
+
+The target reads and updates
+`test/e2e/baselines/stage0-2026-09-observations.json`, deduplicates saved and
+new runs by workflow run ID, and writes the current report to
+`test/e2e/baselines/stage0-2026-09.md`. It succeeds while the report is still
+collecting so the updated files can be committed before source artifacts
+expire. Saved observations remain eligible after their source artifacts are
+deleted.
+
+Use `E2E_BASELINE_OBSERVATIONS` and `E2E_BASELINE_REPORT` to collect a different
+baseline without changing the Stage 0 files. The observation file is
+repository-specific and schema-versioned; incompatible or malformed input
+fails before collection.
