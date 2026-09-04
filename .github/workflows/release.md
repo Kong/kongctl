@@ -65,7 +65,8 @@ jobs:
     permissions:
       contents: read
     outputs:
-      recovery_mode: ${{ steps.compute_config.outputs.recovery_mode }}
+      artifact_mode: ${{ steps.compute_config.outputs.artifact_mode }}
+      build_mode: ${{ steps.compute_config.outputs.build_mode }}
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
     steps:
@@ -86,6 +87,7 @@ jobs:
           script: |
             const releaseType = context.payload.inputs.release_type || "patch";
             const recoveryTag = (context.payload.inputs.recovery_tag || "").trim();
+            const requestedBuildMode = context.payload.inputs.build_mode || "full";
 
             // Parse stable semver tags only, e.g. v1.2.3
             const parseSemver = (tag) => {
@@ -126,6 +128,27 @@ jobs:
                 return;
               }
 
+              const releaseVersion = recoveryTag.slice(1);
+              const assetNames = new Set(release.assets.map((asset) => asset.name));
+              const fullAssets = [
+                "checksums.txt",
+                "kongctl_darwin_amd64.zip",
+                "kongctl_darwin_arm64.zip",
+                "kongctl_linux_amd64.zip",
+                "kongctl_linux_arm64.zip",
+                "kongctl_windows_amd64.zip",
+                "kongctl_windows_arm64.zip",
+              ];
+              let artifactMode;
+              if (fullAssets.every((asset) => assetNames.has(asset))) {
+                artifactMode = "full";
+              } else if (assetNames.has(`kongctl-${releaseVersion}-linux-amd64-smoke.tar.gz`)) {
+                artifactMode = "smoke";
+              } else {
+                core.setFailed(`Unable to determine the artifact mode for release ${recoveryTag}.`);
+                return;
+              }
+
               try {
                 await github.rest.git.getRef({
                   owner: context.repo.owner,
@@ -140,10 +163,11 @@ jobs:
                 throw error;
               }
 
-              core.setOutput("recovery_mode", "true");
+              core.setOutput("build_mode", "recovery");
+              core.setOutput("artifact_mode", artifactMode);
               core.setOutput("release_tag", recoveryTag);
-              core.setOutput("release_version", recoveryTag.slice(1));
-              console.log(`✓ Recovering existing release ${recoveryTag}`);
+              core.setOutput("release_version", releaseVersion);
+              console.log(`✓ Recovering existing ${artifactMode} release ${recoveryTag}`);
               return;
             }
 
@@ -245,55 +269,42 @@ jobs:
 
             core.setOutput("release_tag", releaseTag);
             core.setOutput("release_version", releaseVersion);
-            core.setOutput("recovery_mode", "false");
+            const repository = `${context.repo.owner}/${context.repo.repo}`.toLowerCase();
+            const buildMode = repository.includes("trial")
+              ? "smoke"
+              : requestedBuildMode;
+            if (!["full", "smoke"].includes(buildMode)) {
+              core.setFailed(`Unsupported build mode: ${buildMode}`);
+              return;
+            }
+            core.setOutput("build_mode", buildMode);
+            core.setOutput("artifact_mode", buildMode);
             console.log(`✓ Release tag: ${releaseTag}`);
 
-  release:
-    needs: ["pre_activation", "activation", "config"]
+  create_tag:
+    needs: ["config"]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
-    outputs:
-      release_id: ${{ steps.get_release.outputs.release_id }}
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
-      RELEASE_RECOVERY_MODE: ${{ needs.config.outputs.recovery_mode }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
       - name: Checkout repository
+        if: env.RELEASE_BUILD_MODE != 'recovery'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Determine build mode
-        env:
-          REQUESTED_BUILD_MODE: ${{ github.event.inputs.build_mode || 'full' }}
+      - name: Reuse existing tag (recovery mode)
+        if: env.RELEASE_BUILD_MODE == 'recovery'
         run: |
-          set -euo pipefail
-
-          RELEASE_BUILD_MODE="${REQUESTED_BUILD_MODE}"
-          if [[ "$RELEASE_RECOVERY_MODE" == "true" ]]; then
-            RELEASE_BUILD_MODE="recovery"
-          elif [[ "${GITHUB_REPOSITORY,,}" == *"trial"* ]]; then
-            RELEASE_BUILD_MODE="smoke"
-          fi
-
-          case "$RELEASE_BUILD_MODE" in
-            full|smoke|recovery) ;;
-            *)
-              echo "::error::Unsupported build mode: $RELEASE_BUILD_MODE"
-              exit 1
-              ;;
-          esac
-
-          echo "RELEASE_BUILD_MODE=$RELEASE_BUILD_MODE" >> "$GITHUB_ENV"
+          echo "Recovery mode will reuse $RELEASE_TAG"
 
       - name: Create and push tag
         if: env.RELEASE_BUILD_MODE != 'recovery'
@@ -301,8 +312,14 @@ jobs:
           set -euo pipefail
 
           git fetch origin --tags
-          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "::error::Tag $RELEASE_TAG already exists."
+          if git rev-parse "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            tag_commit=$(git rev-list -n 1 "refs/tags/$RELEASE_TAG")
+            head_commit=$(git rev-parse HEAD)
+            if [[ "$tag_commit" == "$head_commit" ]]; then
+              echo "Tag $RELEASE_TAG already points to $head_commit"
+              exit 0
+            fi
+            echo "::error::Tag $RELEASE_TAG already points to $tag_commit, not $head_commit"
             exit 1
           fi
 
@@ -311,69 +328,33 @@ jobs:
           git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
           git push origin "$RELEASE_TAG"
 
-      - name: Fetch tags
-        run: git fetch origin --tags
+  publish_release:
+    needs: ["config", "create_tag"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        if: env.RELEASE_BUILD_MODE != 'recovery'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Verify existing release
+      - name: Reuse existing release (recovery mode)
         if: env.RELEASE_BUILD_MODE == 'recovery'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-
-          tag_commit=$(git rev-list -n 1 "$RELEASE_TAG")
-          if [[ -z "$tag_commit" ]]; then
-            echo "::error::Unable to resolve $RELEASE_TAG to a commit"
-            exit 1
-          fi
-          if ! git merge-base --is-ancestor "$tag_commit" HEAD; then
-            echo "::error::$RELEASE_TAG does not point to a commit on the workflow ref"
-            exit 1
-          fi
-
-          recovery_dir="dist/recovery"
-          mkdir -p "$recovery_dir"
-          gh release download "$RELEASE_TAG" --dir "$recovery_dir"
-
-          expected_assets=(
-            checksums.txt
-            kongctl_darwin_amd64.zip
-            kongctl_darwin_arm64.zip
-            kongctl_linux_amd64.zip
-            kongctl_linux_arm64.zip
-            kongctl_windows_amd64.zip
-            kongctl_windows_arm64.zip
-          )
-          for asset in "${expected_assets[@]}"; do
-            if [[ ! -f "$recovery_dir/$asset" ]]; then
-              echo "::error::Release $RELEASE_TAG is missing $asset"
-              exit 1
-            fi
-          done
-
-          pushd "$recovery_dir" >/dev/null
-          sha256sum --check checksums.txt
-          popd >/dev/null
-
-          gh api repos/Kong/homebrew-kongctl/contents/Casks/kongctl.rb \
-            --jq .content | base64 --decode > "$recovery_dir/kongctl.rb"
-          if ! grep -Fqx "  version \"$RELEASE_VERSION\"" "$recovery_dir/kongctl.rb"; then
-            echo "::error::Homebrew cask is not at $RELEASE_VERSION"
-            exit 1
-          fi
-
-          while read -r checksum archive; do
-            case "$archive" in
-              kongctl_darwin_*.zip|kongctl_linux_*.zip)
-                if ! grep -Fq "sha256 \"$checksum\"" "$recovery_dir/kongctl.rb"; then
-                  echo "::error::Homebrew cask is missing the checksum for $archive"
-                  exit 1
-                fi
-                ;;
-            esac
-          done < "$recovery_dir/checksums.txt"
-
-          echo "✓ Verified $RELEASE_TAG at $tag_commit and the published Homebrew cask"
+          echo "Recovery mode will reuse release $RELEASE_TAG"
 
       - name: Configure private git reads for GoReleaser
         if: env.RELEASE_BUILD_MODE != 'recovery'
@@ -430,6 +411,106 @@ jobs:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           CGO_ENABLED: "0"
 
+      - name: Stage Homebrew release metadata
+        if: env.RELEASE_BUILD_MODE == 'full'
+        env:
+          GORELEASER_METADATA: ${{ steps.goreleaser.outputs.metadata }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/homebrew
+          jq -e . <<<"$GORELEASER_METADATA" > dist/homebrew/goreleaser-metadata.json
+
+      - name: Upload generated Homebrew files
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: homebrew-${{ needs.config.outputs.release_tag }}
+          path: dist/homebrew/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+      - name: Setup Go (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Build smoke artifact
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          COMMIT="$(git rev-parse --short HEAD)"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          SMOKE_BIN="kongctl-linux-amd64"
+          SMOKE_TAR="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+
+          CGO_ENABLED=0 go build \
+            -trimpath \
+            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
+            -o "dist/${SMOKE_BIN}" \
+            .
+
+          tar -czf "dist/${SMOKE_TAR}" -C dist "${SMOKE_BIN}"
+
+      - name: Create GitHub release (smoke mode)
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          SMOKE_TAR="dist/kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$SMOKE_TAR" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$SMOKE_TAR" \
+              --title "$RELEASE_TAG" \
+              --generate-notes
+          fi
+
+  publish_homebrew:
+    needs: ["config", "publish_release"]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      RELEASE_ARTIFACT_MODE: ${{ needs.config.outputs.artifact_mode }}
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Reuse existing Homebrew publication (recovery mode)
+        if: env.RELEASE_BUILD_MODE == 'recovery' && env.RELEASE_ARTIFACT_MODE == 'full'
+        run: |
+          echo "Recovery mode will verify the existing Homebrew publication for $RELEASE_TAG"
+
+      - name: Skip Homebrew publication (smoke mode)
+        if: env.RELEASE_ARTIFACT_MODE == 'smoke'
+        run: |
+          echo "Smoke mode does not publish Homebrew files"
+
+      - name: Download generated Homebrew files
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: homebrew-${{ needs.config.outputs.release_tag }}
+          path: dist/homebrew
+
       - name: Set up Homebrew
         if: env.RELEASE_BUILD_MODE == 'full'
         uses: Homebrew/actions/setup-homebrew@cced187498280712e078aaba62dc13a3e9cd80bf
@@ -451,20 +532,19 @@ jobs:
 
       - name: Update Homebrew packages
         if: env.RELEASE_BUILD_MODE == 'full'
-        env:
-          GORELEASER_METADATA: ${{ steps.goreleaser.outputs.metadata }}
         run: |
           set -euo pipefail
 
           generated_cask=dist/homebrew/Casks/kongctl.rb
-          if [[ ! -f "$generated_cask" ]]; then
-            echo "::error::GoReleaser did not generate $generated_cask"
+          metadata_file=dist/homebrew/goreleaser-metadata.json
+          if [[ ! -f "$generated_cask" || ! -f "$metadata_file" ]]; then
+            echo "::error::Homebrew artifact is missing generated release data"
             exit 1
           fi
 
-          metadata_version=$(jq -r '.version' <<<"$GORELEASER_METADATA")
-          metadata_commit=$(jq -r '.commit[0:8]' <<<"$GORELEASER_METADATA")
-          metadata_date=$(jq -r '.date' <<<"$GORELEASER_METADATA")
+          metadata_version=$(jq -r '.version' "$metadata_file")
+          metadata_commit=$(jq -r '.commit[0:8]' "$metadata_file")
+          metadata_date=$(jq -r '.date' "$metadata_file")
           if [[ "$metadata_version" != "$RELEASE_VERSION" ]]; then
             echo "::error::GoReleaser metadata version $metadata_version" \
               "does not match $RELEASE_VERSION"
@@ -515,61 +595,119 @@ jobs:
             echo "No tap changes to commit"
           fi
 
-      - name: Setup Go (smoke mode)
-        if: env.RELEASE_BUILD_MODE == 'smoke'
-        uses: actions/setup-go@v6
+  release_complete:
+    needs: ["config", "publish_release", "publish_homebrew"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      release_id: ${{ steps.verify_release.outputs.release_id }}
+    env:
+      RELEASE_ARTIFACT_MODE: ${{ needs.config.outputs.artifact_mode }}
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
-          go-version-file: go.mod
-          cache: false
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Build smoke artifact
-        if: env.RELEASE_BUILD_MODE == 'smoke'
-        run: |
-          set -euo pipefail
-
-          mkdir -p dist
-          COMMIT="$(git rev-parse --short HEAD)"
-          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SMOKE_BIN="kongctl-linux-amd64"
-          SMOKE_TAR="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
-
-          CGO_ENABLED=0 go build \
-            -trimpath \
-            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
-            -o "dist/${SMOKE_BIN}" \
-            .
-
-          tar -czf "dist/${SMOKE_TAR}" -C dist "${SMOKE_BIN}"
-
-      - name: Create GitHub release (smoke mode)
-        if: env.RELEASE_BUILD_MODE == 'smoke'
+      - name: Verify completed release
+        id: verify_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
-          SMOKE_TAR="dist/kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "$SMOKE_TAR" --clobber
-          else
-            gh release create "$RELEASE_TAG" "$SMOKE_TAR" \
-              --title "$RELEASE_TAG" \
-              --generate-notes
+          git fetch origin --tags
+          tag_commit=$(git rev-list -n 1 "$RELEASE_TAG")
+          if [[ -z "$tag_commit" ]]; then
+            echo "::error::Unable to resolve $RELEASE_TAG to a commit"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$tag_commit" HEAD; then
+            echo "::error::$RELEASE_TAG does not point to a commit on the workflow ref"
+            exit 1
           fi
 
-      - name: Capture release id
-        id: get_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          RELEASE_ID=$(gh release view "$RELEASE_TAG" --json databaseId --jq '.databaseId')
-          echo "release_id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+          release_json=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          if [[ "$(jq -r '.draft or .prerelease or (.published_at == null)' <<< "$release_json")" == "true" ]]; then
+            echo "::error::Release $RELEASE_TAG is not a published stable release"
+            exit 1
+          fi
+
+          verification_dir="dist/verification"
+          mkdir -p "$verification_dir"
+          gh release download "$RELEASE_TAG" --dir "$verification_dir"
+
+          if [[ "$RELEASE_ARTIFACT_MODE" == "smoke" ]]; then
+            smoke_asset="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
+            if [[ ! -f "$verification_dir/$smoke_asset" ]]; then
+              echo "::error::Release $RELEASE_TAG is missing $smoke_asset"
+              exit 1
+            fi
+          else
+            expected_assets=(
+              checksums.txt
+              kongctl_darwin_amd64.zip
+              kongctl_darwin_arm64.zip
+              kongctl_linux_amd64.zip
+              kongctl_linux_arm64.zip
+              kongctl_windows_amd64.zip
+              kongctl_windows_arm64.zip
+            )
+            for asset in "${expected_assets[@]}"; do
+              if [[ ! -f "$verification_dir/$asset" ]]; then
+                echo "::error::Release $RELEASE_TAG is missing $asset"
+                exit 1
+              fi
+            done
+
+            pushd "$verification_dir" >/dev/null
+            sha256sum --check checksums.txt
+            popd >/dev/null
+
+            gh api repos/Kong/homebrew-kongctl/contents/Casks/kongctl.rb \
+              --jq .content | base64 --decode > "$verification_dir/kongctl.rb"
+            if ! grep -Fqx "  version \"$RELEASE_VERSION\"" "$verification_dir/kongctl.rb"; then
+              echo "::error::Homebrew cask is not at $RELEASE_VERSION"
+              exit 1
+            fi
+
+            gh api repos/Kong/homebrew-kongctl/contents/Formula/kongctl.rb \
+              --jq .content | base64 --decode > "$verification_dir/kongctl-formula.rb"
+            source_url="  url \"https://github.com/Kong/kongctl/archive/refs/tags/v${RELEASE_VERSION}.tar.gz\""
+            if ! grep -Fqx "$source_url" "$verification_dir/kongctl-formula.rb"; then
+              echo "::error::Homebrew formula is not at $RELEASE_VERSION"
+              exit 1
+            fi
+
+            while read -r checksum archive; do
+              case "$archive" in
+                kongctl_darwin_*.zip|kongctl_linux_*.zip)
+                  if ! grep -Fq "sha256 \"$checksum\"" "$verification_dir/kongctl.rb"; then
+                    echo "::error::Homebrew cask is missing the checksum for $archive"
+                    exit 1
+                  fi
+                  ;;
+              esac
+            done < "$verification_dir/checksums.txt"
+          fi
+
+          release_id=$(jq -r .id <<< "$release_json")
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "✓ Verified completed release $RELEASE_TAG at $tag_commit"
 
 steps:
   - name: Setup environment and fetch release data
     env:
-      RELEASE_ID: ${{ needs.release.outputs.release_id }}
+      RELEASE_ID: ${{ needs.release_complete.outputs.release_id }}
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
@@ -628,7 +766,7 @@ steps:
 Generate an engaging release highlights summary for **${{ github.repository }}**
 release `${RELEASE_TAG}`.
 
-**Release ID**: ${{ needs.release.outputs.release_id }}
+**Release ID**: ${{ needs.release_complete.outputs.release_id }}
 
 ## Data Available
 
