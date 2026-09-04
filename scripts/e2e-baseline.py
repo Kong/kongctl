@@ -7,6 +7,7 @@ import argparse
 import json
 import math
 import subprocess
+import sys
 import tempfile
 from collections import defaultdict
 from datetime import datetime
@@ -19,6 +20,24 @@ HARNESS_JOB = "Test scenario harness"
 VERIFY_JOB = "Verify scenario results and coverage"
 REQUIRED_JOB = "Publish “E2E Required”"
 SCENARIO_JOB_PREFIX = "Run scenarios — "
+OBSERVATION_SCHEMA_VERSION = 1
+RUN_REQUIRED_FIELDS = {
+    "run_id",
+    "run_attempt",
+    "url",
+    "created_at",
+    "workflow_admission_delay_seconds",
+    "queue_to_required_status_seconds",
+    "build_job_seconds",
+    "build_kongctl_seconds",
+    "build_scenario_binary_seconds",
+    "longest_shard_seconds",
+    "shard_spread_seconds",
+    "shard_admission_delay_seconds",
+    "shards",
+    "scenario_durations",
+    "reset",
+}
 
 
 def gh_json(arguments: list[str]) -> Any:
@@ -162,6 +181,7 @@ def eligible_run(
 
     return {
         "run_id": int(run["databaseId"]),
+        "run_attempt": int(metrics[0]["run_attempt"]),
         "url": run["url"],
         "created_at": run["createdAt"],
         "workflow_admission_delay_seconds": (first_job_started_at - workflow_created_at).total_seconds(),
@@ -191,7 +211,15 @@ def eligible_run(
     }
 
 
-def collect_runs(repo: str, count: int, scan: int) -> list[dict[str, Any]]:
+def collect_runs(
+    repo: str,
+    count: int,
+    scan: int,
+    excluded_run_ids: set[int] | None = None,
+) -> list[dict[str, Any]]:
+    if count <= 0:
+        return []
+    excluded_run_ids = excluded_run_ids or set()
     candidates = gh_json(
         [
             "run",
@@ -210,6 +238,8 @@ def collect_runs(repo: str, count: int, scan: int) -> list[dict[str, Any]]:
     )
     selected: list[dict[str, Any]] = []
     for candidate in candidates:
+        if int(candidate["databaseId"]) in excluded_run_ids:
+            continue
         view = gh_json(
             [
                 "run",
@@ -231,6 +261,82 @@ def collect_runs(repo: str, count: int, scan: int) -> list[dict[str, Any]]:
         if len(selected) == count:
             break
     return selected
+
+
+def validate_run(run: Any, index: int) -> dict[str, Any]:
+    if not isinstance(run, dict):
+        raise ValueError(f"observation run {index} must be an object")
+    missing = sorted(RUN_REQUIRED_FIELDS - run.keys())
+    if missing:
+        raise ValueError(f"observation run {index} is missing fields: {', '.join(missing)}")
+    if not isinstance(run["run_id"], int) or run["run_id"] <= 0:
+        raise ValueError(f"observation run {index} has an invalid run_id")
+    if not isinstance(run["run_attempt"], int) or run["run_attempt"] <= 0:
+        raise ValueError(f"observation run {index} has an invalid run_attempt")
+    if not isinstance(run["created_at"], str):
+        raise ValueError(f"observation run {index} has an invalid created_at")
+    timestamp(run["created_at"])
+    return run
+
+
+def load_observations(path: Path, repo: str) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise ValueError(f"parse observations {path}: {error}") from error
+    if not isinstance(document, dict):
+        raise ValueError(f"observations {path} must contain an object")
+    if document.get("schema_version") != OBSERVATION_SCHEMA_VERSION:
+        raise ValueError(
+            f"observations {path} use unsupported schema_version "
+            f"{document.get('schema_version')!r}; expected {OBSERVATION_SCHEMA_VERSION}"
+        )
+    if document.get("repository") != repo:
+        raise ValueError(
+            f"observations {path} are for repository {document.get('repository')!r}, expected {repo!r}"
+        )
+    runs = document.get("runs")
+    if not isinstance(runs, list):
+        raise ValueError(f"observations {path} field runs must be an array")
+    return [validate_run(run, index) for index, run in enumerate(runs)]
+
+
+def merge_runs(
+    saved: Iterable[dict[str, Any]],
+    collected: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    by_run_id = {int(run["run_id"]): run for run in saved}
+    by_run_id.update({int(run["run_id"]): run for run in collected})
+    return sorted(
+        by_run_id.values(),
+        key=lambda run: (timestamp(run["created_at"]), int(run["run_id"])),
+        reverse=True,
+    )
+
+
+def observation_document(repo: str, runs: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "schema_version": OBSERVATION_SCHEMA_VERSION,
+        "repository": repo,
+        "runs": runs,
+    }
+
+
+def write_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        delete=False,
+    ) as temporary:
+        json.dump(value, temporary, indent=2, sort_keys=True)
+        temporary.write("\n")
+        temporary_path = Path(temporary.name)
+    temporary_path.replace(path)
 
 
 def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -262,12 +368,20 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def markdown_report(repo: str, runs: list[dict[str, Any]], summary: dict[str, Any]) -> str:
+def markdown_report(
+    repo: str,
+    runs: list[dict[str, Any]],
+    summary: dict[str, Any],
+    target_count: int,
+) -> str:
+    status = "complete" if len(runs) >= target_count else "collecting"
     lines = [
         "# Konnect `.com` E2E baseline",
         "",
-        f"Repository: `{repo}`  ",
-        f"Full successful runs: {len(runs)}",
+        f"Repository: `{repo}`",
+        "",
+        f"Full successful runs: {len(runs)} of {target_count}",
+        f"Status: **{status}**",
         "",
         "The report scans successful `e2e.yaml` runs newest-first, retains only runs with a complete",
         "latest-attempt metrics manifest for every `.com` shard, and requires successful build, harness,",
@@ -365,24 +479,54 @@ def main() -> int:
     parser.add_argument("--scan", type=int, default=100)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
+    parser.add_argument(
+        "--observations",
+        type=Path,
+        help="versioned cumulative observation file to read and update",
+    )
+    parser.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="write a collecting report and exit successfully before reaching --count",
+    )
     args = parser.parse_args()
-    if args.count < 1 or args.scan < args.count:
-        parser.error("--count must be positive and --scan must be at least --count")
+    if args.count < 1 or args.scan < 1:
+        parser.error("--count and --scan must be positive")
 
-    runs = collect_runs(args.repo, args.count, args.scan)
+    try:
+        saved = load_observations(args.observations, args.repo) if args.observations else []
+    except ValueError as error:
+        parser.error(str(error))
+    saved_run_ids = {int(run["run_id"]) for run in saved}
+    collected = collect_runs(
+        args.repo,
+        max(0, args.count - len(saved)),
+        args.scan,
+        excluded_run_ids=saved_run_ids,
+    )
+    runs = merge_runs(saved, collected)
+    if args.observations is not None:
+        write_json(args.observations, observation_document(args.repo, runs))
     if len(runs) < args.count:
-        raise SystemExit(
+        message = (
             f"found {len(runs)} eligible full .com runs, need {args.count}; "
-            "increase --scan or wait for more instrumented runs"
+            "increase --scan or collect again before older artifacts expire"
         )
+        if not args.allow_partial:
+            raise SystemExit(message)
+        print(message, file=sys.stderr)
     summary = summarize(runs)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(markdown_report(args.repo, runs, summary), encoding="utf-8")
+    args.output.write_text(markdown_report(args.repo, runs, summary, args.count), encoding="utf-8")
     if args.json_output is not None:
-        args.json_output.parent.mkdir(parents=True, exist_ok=True)
-        args.json_output.write_text(
-            json.dumps({"summary": summary, "runs": runs}, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        write_json(
+            args.json_output,
+            {
+                "schema_version": OBSERVATION_SCHEMA_VERSION,
+                "summary": summary,
+                "target_run_count": args.count,
+                "runs": runs,
+            },
         )
     return 0
 

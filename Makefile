@@ -252,6 +252,19 @@ diagnose-e2e-ci:
 E2E_BASELINE_COUNT ?= 20
 E2E_BASELINE_SCAN ?= 100
 E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
+E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/stage0-2026-09-observations.json
+E2E_BASELINE_REPORT ?= test/e2e/baselines/stage0-2026-09.md
+
+.PHONY: collect-e2e-baseline
+collect-e2e-baseline:
+	@python3 scripts/e2e-baseline.py \
+		--count "$(E2E_BASELINE_COUNT)" \
+		--scan "$(E2E_BASELINE_SCAN)" \
+		--observations "$(E2E_BASELINE_OBSERVATIONS)" \
+		--output "$(E2E_BASELINE_REPORT)" \
+		--allow-partial
+	@echo "Updated $(E2E_BASELINE_OBSERVATIONS)"
+	@echo "Updated $(E2E_BASELINE_REPORT)"
 
 .PHONY: baseline-e2e-ci
 baseline-e2e-ci:
