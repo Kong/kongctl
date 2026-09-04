@@ -76,13 +76,7 @@ func loadAIGatewayTLSChildren(kind aiGatewayTLSResourceKind) tableview.ChildLoad
 		rows := make([]table.Row, 0, len(items))
 		for _, item := range items {
 			record := aiGatewayTLSResourceRecord(item)
-			if kind == aiGatewaySNIKind {
-				rows = append(rows, table.Row{
-					record.ID, record.Name, record.DisplayName, record.Hostname, record.Certificate, record.Updated,
-				})
-			} else {
-				rows = append(rows, table.Row{record.ID, record.Name, record.Updated})
-			}
+			rows = append(rows, aiGatewayTLSRow(kind, record))
 		}
 		return tableview.ChildView{
 			Headers: resourceConfig.headers, Rows: rows, Title: resourceConfig.resource + "s",
@@ -526,15 +520,7 @@ func aiGatewayConsumerCredentialParentIDs(parent any) (string, string, error) {
 
 	switch p := parent.(type) {
 	case *aiGatewayConsumerDetailContext:
-		gatewayID := strings.TrimSpace(p.GatewayID)
-		consumerID := strings.TrimSpace(p.Consumer.ID)
-		if gatewayID == "" {
-			return "", "", fmt.Errorf("AI Gateway identifier is missing")
-		}
-		if consumerID == "" {
-			return "", "", fmt.Errorf("AI Gateway Consumer identifier is missing")
-		}
-		return gatewayID, consumerID, nil
+		return aiGatewayConsumerCredentialParentIDs(*p)
 	case aiGatewayConsumerDetailContext:
 		gatewayID := strings.TrimSpace(p.GatewayID)
 		consumerID := strings.TrimSpace(p.Consumer.ID)
@@ -557,11 +543,7 @@ func aiGatewayIDFromParent(parent any) (string, error) {
 
 	switch p := parent.(type) {
 	case *kkComps.AIGateway:
-		id := strings.TrimSpace(p.ID)
-		if id == "" {
-			return "", fmt.Errorf("AI Gateway identifier is missing")
-		}
-		return id, nil
+		return aiGatewayIDFromParent(*p)
 	case kkComps.AIGateway:
 		id := strings.TrimSpace(p.ID)
 		if id == "" {

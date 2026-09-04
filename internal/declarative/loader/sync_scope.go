@@ -351,6 +351,25 @@ var rootChildCollectionScopes = []childCollectionScope{
 	},
 }
 
+var rootChildParentDescriptions = map[resources.ResourceType]string{
+	resources.ResourceTypeAIGatewayProvider:             "each Model Provider must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayAuthStrategy:         "each Auth Strategy must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayPolicy:               "each policy must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayAgent:                "each Agent must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayConsumer:             "each Consumer must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayConsumerGroup:        "each Consumer Group must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayConsumerCredential:   "each Credential must declare an ai_gateway_consumer parent",
+	resources.ResourceTypeAIGatewayModel:                "each model must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayMCPServer:            "each MCP Server must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayConfigStore:          "each Config Store must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayConfigStoreSecret:    "each secret must declare an ai_gateway_config_store parent",
+	resources.ResourceTypeAIGatewayVault:                "each Vault must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayDataPlaneCertificate: "each data plane certificate must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayCertificate:          "each resource must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewayCACertificate:        "each resource must declare an ai_gateway parent",
+	resources.ResourceTypeAIGatewaySNI:                  "each resource must declare an ai_gateway parent",
+}
+
 var apiChildCollectionScopes = []childCollectionScope{
 	{key: "versions", resourceType: resources.ResourceTypeAPIVersion, parentType: resources.ResourceTypeAPI},
 	{key: "publications", resourceType: resources.ResourceTypeAPIPublication, parentType: resources.ResourceTypeAPI},
@@ -610,58 +629,8 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 	}
 	items, ok := asSlice(value)
 	if !ok || len(items) == 0 {
-		if entry.resourceType == resources.ResourceTypeAIGatewayProvider {
-			return fmt.Errorf("%s cannot be empty because each Model Provider must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayAuthStrategy {
-			return fmt.Errorf(
-				"%s cannot be empty because each Auth Strategy must declare an ai_gateway parent",
-				entry.key,
-			)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayPolicy {
-			return fmt.Errorf("%s cannot be empty because each policy must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayAgent {
-			return fmt.Errorf("%s cannot be empty because each Agent must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayConsumer {
-			return fmt.Errorf("%s cannot be empty because each Consumer must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayConsumerGroup {
-			return fmt.Errorf("%s cannot be empty because each Consumer Group must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayConsumerCredential {
-			return fmt.Errorf("%s cannot be empty because each Credential must declare an ai_gateway_consumer parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayModel {
-			return fmt.Errorf("%s cannot be empty because each model must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayMCPServer {
-			return fmt.Errorf("%s cannot be empty because each MCP Server must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayConfigStore {
-			return fmt.Errorf("%s cannot be empty because each Config Store must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayConfigStoreSecret {
-			return fmt.Errorf(
-				"%s cannot be empty because each secret must declare an ai_gateway_config_store parent",
-				entry.key,
-			)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayVault {
-			return fmt.Errorf("%s cannot be empty because each Vault must declare an ai_gateway parent", entry.key)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayDataPlaneCertificate {
-			return fmt.Errorf(
-				"%s cannot be empty because each data plane certificate must declare an ai_gateway parent",
-				entry.key,
-			)
-		}
-		if entry.resourceType == resources.ResourceTypeAIGatewayCertificate ||
-			entry.resourceType == resources.ResourceTypeAIGatewayCACertificate ||
-			entry.resourceType == resources.ResourceTypeAIGatewaySNI {
-			return fmt.Errorf("%s cannot be empty because each resource must declare an ai_gateway parent", entry.key)
+		if description, found := rootChildParentDescriptions[entry.resourceType]; found {
+			return fmt.Errorf("%s cannot be empty because %s", entry.key, description)
 		}
 		scope.AddRootChildCollection(entry.resourceType)
 		return nil

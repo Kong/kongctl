@@ -258,13 +258,7 @@ func renderAIGatewayTLSResources(
 	for _, item := range items {
 		record := aiGatewayTLSResourceRecord(item)
 		records = append(records, record)
-		if resourceConfig.kind == aiGatewaySNIKind {
-			rows = append(rows, table.Row{
-				record.ID, record.Name, record.DisplayName, record.Hostname, record.Certificate, record.Updated,
-			})
-		} else {
-			rows = append(rows, table.Row{record.ID, record.Name, record.Updated})
-		}
+		rows = append(rows, aiGatewayTLSRow(resourceConfig.kind, record))
 	}
 	display, raw := aiGatewayTLSRenderValues(records, items, single)
 	return tableview.RenderForFormat(
@@ -279,6 +273,15 @@ func renderAIGatewayTLSResources(
 			return items[index]
 		}),
 	)
+}
+
+func aiGatewayTLSRow(kind aiGatewayTLSResourceKind, record aiGatewayTLSRecord) table.Row {
+	if kind == aiGatewaySNIKind {
+		return table.Row{
+			record.ID, record.Name, record.DisplayName, record.Hostname, record.Certificate, record.Updated,
+		}
+	}
+	return table.Row{record.ID, record.Name, record.Updated}
 }
 
 func aiGatewayTLSRenderValues(records []aiGatewayTLSRecord, items []any, single bool) (any, any) {
