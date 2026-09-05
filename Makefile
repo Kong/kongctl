@@ -252,12 +252,14 @@ diagnose-e2e-ci:
 E2E_BASELINE_COUNT ?= 20
 E2E_BASELINE_SCAN ?= 100
 E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
-E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/stage0-2026-09-observations.json
-E2E_BASELINE_REPORT ?= test/e2e/baselines/stage0-2026-09.md
+E2E_BASELINE_COHORT ?= cache-enabled
+E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/post-cache-2026-09-observations.json
+E2E_BASELINE_REPORT ?= test/e2e/baselines/post-cache-2026-09.md
 
 .PHONY: collect-e2e-baseline
 collect-e2e-baseline:
 	@python3 scripts/e2e-baseline.py \
+		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \
 		--scan "$(E2E_BASELINE_SCAN)" \
 		--observations "$(E2E_BASELINE_OBSERVATIONS)" \
@@ -270,6 +272,7 @@ collect-e2e-baseline:
 baseline-e2e-ci:
 	@mkdir -p "$(E2E_BASELINE_DIR)"
 	@python3 scripts/e2e-baseline.py \
+		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \
 		--scan "$(E2E_BASELINE_SCAN)" \
 		--output "$(E2E_BASELINE_DIR)/e2e-baseline.md" \

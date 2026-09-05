@@ -20,8 +20,16 @@ HARNESS_JOB = "Test scenario harness"
 VERIFY_JOB = "Verify scenario results and coverage"
 REQUIRED_JOB = "Publish “E2E Required”"
 SCENARIO_JOB_PREFIX = "Run scenarios — "
-OBSERVATION_SCHEMA_VERSION = 1
+OBSERVATION_SCHEMA_VERSION = 2
+COHORTS = ("uncached", "cache-enabled")
 RUN_REQUIRED_FIELDS = {
+    "cohort",
+    "original_created_at",
+    "head_sha",
+    "harness_job_seconds",
+    "harness_setup_seconds",
+    "harness_test_seconds",
+    "build_setup_seconds",
     "run_id",
     "run_attempt",
     "url",
@@ -142,6 +150,13 @@ def named_step(job: dict[str, Any], name: str) -> dict[str, Any] | None:
     return next((step for step in job.get("steps", []) if step["name"] == name), None)
 
 
+def run_cohort(jobs: list[dict[str, Any]]) -> str | None:
+    build = named_job(jobs, BUILD_JOB)
+    if build is None:
+        return None
+    return "cache-enabled" if named_step(build, "Report Go cache status") else "uncached"
+
+
 def eligible_run(
     run: dict[str, Any],
     jobs: list[dict[str, Any]],
@@ -166,9 +181,17 @@ def eligible_run(
     build_scenarios = named_step(build, "Build scenario test binary")
     if build_kongctl is None or build_scenarios is None:
         return None
+    harness_setup = named_step(harness, "Setup Go")
+    harness_test = named_step(harness, HARNESS_JOB)
+    build_setup = named_step(build, "Setup Go")
+    if harness_setup is None or harness_test is None or build_setup is None:
+        return None
 
     ready_at = max(timestamp(build["completedAt"]), timestamp(harness["completedAt"]))
     workflow_created_at = timestamp(run["createdAt"])
+    if any(timestamp(job["startedAt"]) < workflow_created_at for job in required_jobs):
+        # A partial rerun can reuse jobs from an earlier attempt.
+        return None
     first_job_started_at = min(timestamp(job["startedAt"]) for job in jobs if job["startedAt"])
     shard_durations = [float(metric["execution_duration_seconds"]) for metric in metrics]
 
@@ -180,6 +203,13 @@ def eligible_run(
         scenarios.extend(metric["scenario_durations"])
 
     return {
+        "cohort": run_cohort(jobs),
+        "original_created_at": run["original_created_at"],
+        "head_sha": run["head_sha"],
+        "harness_job_seconds": duration(harness),
+        "harness_setup_seconds": duration(harness_setup),
+        "harness_test_seconds": duration(harness_test),
+        "build_setup_seconds": duration(build_setup),
         "run_id": int(run["databaseId"]),
         "run_attempt": int(metrics[0]["run_attempt"]),
         "url": run["url"],
@@ -216,6 +246,7 @@ def collect_runs(
     count: int,
     scan: int,
     excluded_run_ids: set[int] | None = None,
+    cohort: str = "cache-enabled",
 ) -> list[dict[str, Any]]:
     if count <= 0:
         return []
@@ -252,9 +283,22 @@ def collect_runs(
             ]
         )
         run_attempt = int(view["attempt"])
+        if run_cohort(view["jobs"]) != cohort:
+            continue
         metrics = download_metrics(repo, int(candidate["databaseId"]), run_attempt)
         if not metrics:
             continue
+        attempt = gh_json(
+            ["api", f"repos/{repo}/actions/runs/{candidate['databaseId']}/attempts/{run_attempt}"]
+        )
+        if attempt["conclusion"] != "success":
+            continue
+        candidate = {
+            **candidate,
+            "original_created_at": candidate["createdAt"],
+            "createdAt": attempt["created_at"],
+            "head_sha": attempt["head_sha"],
+        }
         record = eligible_run(candidate, view["jobs"], metrics)
         if record is not None:
             selected.append(record)
@@ -276,10 +320,21 @@ def validate_run(run: Any, index: int) -> dict[str, Any]:
     if not isinstance(run["created_at"], str):
         raise ValueError(f"observation run {index} has an invalid created_at")
     timestamp(run["created_at"])
+    if not isinstance(run["original_created_at"], str):
+        raise ValueError(f"observation run {index} has an invalid original_created_at")
+    timestamp(run["original_created_at"])
+    if not isinstance(run["head_sha"], str) or not run["head_sha"]:
+        raise ValueError(f"observation run {index} has an invalid head_sha")
+    for field in ("build_setup_seconds", "harness_job_seconds", "harness_setup_seconds", "harness_test_seconds"):
+        value = run[field]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+            raise ValueError(f"observation run {index} has an invalid {field}")
+    if run["cohort"] not in COHORTS:
+        raise ValueError(f"observation run {index} has an invalid cohort")
     return run
 
 
-def load_observations(path: Path, repo: str) -> list[dict[str, Any]]:
+def load_observations(path: Path, repo: str, cohort: str = "cache-enabled") -> list[dict[str, Any]]:
     if not path.exists():
         return []
     try:
@@ -297,10 +352,15 @@ def load_observations(path: Path, repo: str) -> list[dict[str, Any]]:
         raise ValueError(
             f"observations {path} are for repository {document.get('repository')!r}, expected {repo!r}"
         )
+    if document.get("cohort") != cohort:
+        raise ValueError(f"observations {path} cohort does not match requested {cohort!r}")
     runs = document.get("runs")
     if not isinstance(runs, list):
         raise ValueError(f"observations {path} field runs must be an array")
-    return [validate_run(run, index) for index, run in enumerate(runs)]
+    validated = [validate_run(run, index) for index, run in enumerate(runs)]
+    if any(run["cohort"] != cohort for run in validated):
+        raise ValueError(f"observations {path} contain mixed cohorts")
+    return validated
 
 
 def merge_runs(
@@ -316,10 +376,13 @@ def merge_runs(
     )
 
 
-def observation_document(repo: str, runs: list[dict[str, Any]]) -> dict[str, Any]:
+def observation_document(
+    repo: str, runs: list[dict[str, Any]], cohort: str = "cache-enabled"
+) -> dict[str, Any]:
     return {
         "schema_version": OBSERVATION_SCHEMA_VERSION,
         "repository": repo,
+        "cohort": cohort,
         "runs": runs,
     }
 
@@ -346,6 +409,10 @@ def summarize(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "build_job_seconds",
         "build_kongctl_seconds",
         "build_scenario_binary_seconds",
+        "build_setup_seconds",
+        "harness_job_seconds",
+        "harness_setup_seconds",
+        "harness_test_seconds",
         "longest_shard_seconds",
         "shard_spread_seconds",
     ]
@@ -373,20 +440,29 @@ def markdown_report(
     runs: list[dict[str, Any]],
     summary: dict[str, Any],
     target_count: int,
+    cohort: str = "cache-enabled",
+    frozen: bool = False,
 ) -> str:
-    status = "complete" if len(runs) >= target_count else "collecting"
+    status = "frozen preliminary" if frozen else ("complete" if len(runs) >= target_count else "collecting")
     lines = [
         "# Konnect `.com` E2E baseline",
         "",
         f"Repository: `{repo}`",
+        f"Cohort: `{cohort}`",
         "",
         f"Full successful runs: {len(runs)} of {target_count}",
         f"Status: **{status}**",
         "",
-        "The report scans successful `e2e.yaml` runs newest-first, retains only runs with a complete",
-        "latest-attempt metrics manifest for every `.com` shard, and requires successful build, harness,",
-        "scenario, coverage-verification, and required-status jobs. Short gate-only runs are excluded.",
+        "The report scans successful `e2e.yaml` runs newest-first and retains only",
+        "runs with a complete latest-attempt metrics manifest for every `.com` shard.",
+        "Build, harness, scenario, coverage-verification, and required-status jobs",
+        "must succeed. Short gate-only runs are excluded.",
         "Percentiles use the nearest-rank method.",
+        "Latency starts at the selected attempt's creation time. Jobs reused from an",
+        "earlier attempt are excluded. Cache-enabled identifies the cache-reporting",
+        "step introduced by #2069 and includes both hits and misses. Keep that step",
+        "when changing the cache policy. Each run ID contributes one saved successful",
+        "attempt; reruns are not independent samples.",
         "",
         "## Latency",
         "",
@@ -417,13 +493,14 @@ def markdown_report(
             "",
             "## Included runs",
             "",
-            "| Run | Created | Queue-to-status | Build | Longest shard | Spread | Resets |",
+            "| Run / Attempt | Attempt created | Queue-to-status | Build | Longest shard | Spread | Resets |",
             "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for run in runs:
         lines.append(
-            f"| [{run['run_id']}]({run['url']}) | {run['created_at']} | "
+            f"| [{run['run_id']} / {run['run_attempt']}]({run['url']}/attempts/{run['run_attempt']}) | "
+            f"{run['created_at']} | "
             f"{run['queue_to_required_status_seconds']:.0f}s | {run['build_job_seconds']:.0f}s | "
             f"{run['longest_shard_seconds']:.0f}s | {run['shard_spread_seconds']:.0f}s | "
             f"{run['reset'].get('count', 0)} |"
@@ -477,6 +554,8 @@ def main() -> int:
     parser.add_argument("--repo", default="kong/kongctl")
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--scan", type=int, default=100)
+    parser.add_argument("--cohort", choices=COHORTS, default="cache-enabled")
+    parser.add_argument("--frozen", action="store_true", help="report saved observations without collecting")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument(
@@ -492,22 +571,25 @@ def main() -> int:
     args = parser.parse_args()
     if args.count < 1 or args.scan < 1:
         parser.error("--count and --scan must be positive")
+    if args.frozen and (args.observations is None or not args.observations.exists()):
+        parser.error("--frozen requires an existing --observations file")
 
     try:
-        saved = load_observations(args.observations, args.repo) if args.observations else []
+        saved = load_observations(args.observations, args.repo, args.cohort) if args.observations else []
     except ValueError as error:
         parser.error(str(error))
     saved_run_ids = {int(run["run_id"]) for run in saved}
     collected = collect_runs(
         args.repo,
-        max(0, args.count - len(saved)),
+        0 if args.frozen else max(0, args.count - len(saved)),
         args.scan,
         excluded_run_ids=saved_run_ids,
+        cohort=args.cohort,
     )
     runs = merge_runs(saved, collected)
     if args.observations is not None:
-        write_json(args.observations, observation_document(args.repo, runs))
-    if len(runs) < args.count:
+        write_json(args.observations, observation_document(args.repo, runs, args.cohort))
+    if len(runs) < args.count and not args.frozen:
         message = (
             f"found {len(runs)} eligible full .com runs, need {args.count}; "
             "increase --scan or collect again before older artifacts expire"
@@ -517,12 +599,15 @@ def main() -> int:
         print(message, file=sys.stderr)
     summary = summarize(runs)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(markdown_report(args.repo, runs, summary, args.count), encoding="utf-8")
+    args.output.write_text(
+        markdown_report(args.repo, runs, summary, args.count, args.cohort, args.frozen), encoding="utf-8"
+    )
     if args.json_output is not None:
         write_json(
             args.json_output,
             {
                 "schema_version": OBSERVATION_SCHEMA_VERSION,
+                "cohort": args.cohort,
                 "summary": summary,
                 "target_run_count": args.count,
                 "runs": runs,

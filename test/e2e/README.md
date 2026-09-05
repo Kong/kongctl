@@ -600,21 +600,53 @@ make baseline-e2e-ci E2E_BASELINE_SCAN=200
 ```
 
 GitHub Actions metrics artifacts may expire before 20 eligible runs complete.
-Collect and retain partial observations in the versioned Stage 0 snapshot with:
+Collect and retain partial observations in the versioned post-cache snapshot:
 
 ```sh
 make collect-e2e-baseline
 ```
 
 The target reads and updates
-`test/e2e/baselines/stage0-2026-09-observations.json`, deduplicates saved and
+`test/e2e/baselines/post-cache-2026-09-observations.json`, deduplicates saved and
 new runs by workflow run ID, and writes the current report to
-`test/e2e/baselines/stage0-2026-09.md`. It succeeds while the report is still
+`test/e2e/baselines/post-cache-2026-09.md`. It succeeds while the report is still
 collecting so the updated files can be committed before source artifacts
 expire. Saved observations remain eligible after their source artifacts are
 deleted.
 
-Use `E2E_BASELINE_OBSERVATIONS` and `E2E_BASELINE_REPORT` to collect a different
-baseline without changing the Stage 0 files. The observation file is
-repository-specific and schema-versioned; incompatible or malformed input
-fails before collection.
+Commit the updated files regularly, for example twice a week, before the
+10-day artifact retention expires. Collection remains an administrator task.
+
+`E2E_BASELINE_COHORT` defaults to `cache-enabled`. This includes cache hits and
+misses in builds containing the `Report Go cache status` step added by #2069.
+Keep that step as the identification marker when changing the cache policy.
+The `uncached` cohort contains builds without that step. A dependency change
+may produce a cold build and still belongs to `cache-enabled`.
+
+The collector rejects a saved file belonging to a different cohort and rejects
+mixed records. Set `E2E_BASELINE_COHORT`, `E2E_BASELINE_OBSERVATIONS`, and
+`E2E_BASELINE_REPORT` together when collecting a different cohort. Schema 2
+adds cohort, source revision, attempt timestamps, and build/harness setup and
+harness test timing. Older private copies must be recollected or explicitly
+migrated from verified job metadata; their cohort is never guessed on load.
+
+The Stage 0 files preserve the preliminary uncached baseline. They are frozen
+below the original 20-run target, rather than filling that target with cached
+runs. Regenerate their report offline with:
+
+```sh
+python3 scripts/e2e-baseline.py --cohort uncached --frozen \
+  --observations test/e2e/baselines/stage0-2026-09-observations.json \
+  --output test/e2e/baselines/stage0-2026-09.md
+```
+
+Latency uses the selected attempt's creation timestamp from GitHub's attempt
+API. The original workflow creation timestamp is retained for provenance but
+does not charge time between reruns as queue delay. Each workflow run ID
+contributes one saved successful attempt; collection keeps saved observations
+even when a later rerun occurs. Controlled same-commit reruns are useful cache
+experiments, but should not be counted as independent baseline samples.
+
+Gather the post-cache baseline before changing concurrency, assignment, or
+reset policy. Those future changes require a new, explicitly identified
+measurement period; the cache cohort alone does not distinguish them.
