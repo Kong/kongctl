@@ -34,7 +34,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Test verification failure gates without credentials
-        run: bash scripts/tests/test-verify-apple-binary.sh
+        run: |
+          bash scripts/tests/test-verify-apple-binary.sh
+          bash scripts/tests/test-apple-fixtures.sh
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
