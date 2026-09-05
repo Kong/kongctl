@@ -26,6 +26,9 @@ brew tap-new "$tap"
 tap_dir=$(brew --repository "$tap")
 render_fixture "$repo_root/scripts/tests/apple-signing/kongctl-signing-validation.rb" \
   "$tap_dir/Formula/kongctl-signing-validation.rb"
+# Explicitly trust only the local fixtures we just rendered. Local bottle
+# installation does not implicitly trust the tap on current Homebrew.
+brew trust "$tap"
 brew install --formula --build-bottle "$formula"
 bash "$repo_root/scripts/verify-apple-binary.sh" "$(brew --prefix "$formula")/bin/kongctl"
 
