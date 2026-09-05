@@ -14,11 +14,24 @@ export KONGCTL_SIGNING_VALIDATION_URL="file://$archive_dir/kongctl_darwin_$arch.
 KONGCTL_SIGNING_VALIDATION_SHA256=$(shasum -a 256 "$archive_dir/kongctl_darwin_$arch.zip" | awk '{print $1}')
 export KONGCTL_SIGNING_VALIDATION_SHA256
 
+# Homebrew deliberately clears arbitrary environment variables while loading
+# formulae. Render ordinary Ruby string literals before giving it the fixtures.
+render_fixture() {
+  ruby -e '
+    template = File.read(ARGV.fetch(0))
+    rendered = template.gsub(/ENV.fetch\("([A-Z_]+)"\)/) do
+      ENV.fetch(Regexp.last_match(1)).dump
+    end
+    File.write(ARGV.fetch(1), rendered)
+  ' "$1" "$2"
+}
+
 tap=kong/signing-validation
 formula="$tap/kongctl-signing-validation"
 brew tap-new "$tap"
 tap_dir=$(brew --repository "$tap")
-cp "$repo_root/scripts/tests/apple-signing/kongctl-signing-validation.rb" "$tap_dir/Formula/"
+render_fixture "$repo_root/scripts/tests/apple-signing/kongctl-signing-validation.rb" \
+  "$tap_dir/Formula/kongctl-signing-validation.rb"
 brew install --formula --build-bottle "$formula"
 bash "$repo_root/scripts/verify-apple-binary.sh" "$(brew --prefix "$formula")/bin/kongctl"
 
@@ -44,7 +57,7 @@ echo 'Bottle creation and pouring preserved the signed executable byte-for-byte'
 # quarantine-removal or ad-hoc re-signing workaround.
 brew uninstall --formula "$formula"
 mkdir -p "$tap_dir/Casks"
-cp "$repo_root/scripts/tests/apple-signing/kongctl-signing-validation-cask.rb" \
+render_fixture "$repo_root/scripts/tests/apple-signing/kongctl-signing-validation-cask.rb" \
   "$tap_dir/Casks/kongctl-signing-validation.rb"
 brew install --cask "$tap/kongctl-signing-validation"
 installed="$(brew --prefix)/bin/kongctl"

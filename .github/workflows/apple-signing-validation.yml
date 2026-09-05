@@ -10,6 +10,8 @@ on:
       - .github/workflows/apple-signing-validation.yml
       - .goreleaser.apple-validation.yml
       - scripts/verify-apple-binary.sh
+      - scripts/tests/apple-signing/**
+      - scripts/tests/test-*apple*.sh
 
 permissions:
   contents: read
