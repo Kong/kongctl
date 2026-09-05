@@ -13,6 +13,11 @@ verifier="$repo_root/scripts/verify-apple-binary.sh"
 binary="$test_dir/codesign"
 
 bash "$verifier" "$binary" > /dev/null
+TEST_TEAM_ID='not set' bash "$verifier" "$binary" > /dev/null
+if TEST_CERTIFICATE_EXIT=1 bash "$verifier" "$binary" > /dev/null 2>&1; then
+  echo 'accepted wrong certificate team or untrusted certificate anchor' >&2
+  exit 1
+fi
 if TEST_SIGNATURE_EXIT=1 bash "$verifier" "$binary" > /dev/null 2>&1; then
   echo 'accepted invalid signature' >&2
   exit 1

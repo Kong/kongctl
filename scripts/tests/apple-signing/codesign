@@ -12,6 +12,9 @@ case "$*" in
   *--check-notarization*)
     exit "${TEST_NOTARY_EXIT:-0}"
     ;;
+  *'certificate leaf[subject.OU]'*)
+    exit "${TEST_CERTIFICATE_EXIT:-0}"
+    ;;
   *)
     exit "${TEST_SIGNATURE_EXIT:-0}"
     ;;

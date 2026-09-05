@@ -15,9 +15,15 @@ fi
 
 binary=$1
 codesign --verify --strict --verbose=2 "$binary"
+# Quill in GoReleaser 2.13.3 omits the CodeDirectory TeamIdentifier. Verify
+# team ownership cryptographically against the Apple-issued leaf certificate
+# instead of requiring that optional display field to be populated.
+codesign --verify --strict --verbose=2 \
+  --test-requirement="anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\"" \
+  "$binary"
 details=$(codesign --display --verbose=4 "$binary" 2>&1)
 printf '%s\n' "$details"
-grep -Fx "TeamIdentifier=$APPLE_TEAM_ID" <<< "$details"
+grep -Ex "TeamIdentifier=($APPLE_TEAM_ID|not set)" <<< "$details"
 grep -Fx "Authority=$APPLE_SIGNING_IDENTITY" <<< "$details"
 grep -E '^CodeDirectory .*flags=.*runtime' <<< "$details"
 grep -E '^Timestamp=.' <<< "$details"

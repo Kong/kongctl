@@ -78,6 +78,12 @@ Bare executables and ZIPs cannot have stapled notarization tickets: initial
 assessment needs access to Apple's service. Signing is not a promise of no
 prompts on every offline or organization-managed Mac.
 
+Quill in the pinned GoReleaser version leaves the CodeDirectory TeamIdentifier
+unset. Apple accepted both such binaries in the first validation run. Verify
+team ownership with the Apple certificate chain and leaf certificate's
+`subject.OU` code-signing requirement, not by requiring that optional display
+field. A populated but unexpected TeamIdentifier is still rejected.
+
 ## Remaining production integration
 
 Do not merge this as a completed all-installation-method signing rollout.
