@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Test double: exercises our verification gates, not Apple's implementation.
+set -euo pipefail
+case "$*" in
+  *--display*)
+    printf '%s\n' \
+      'Authority=Developer ID Application: Example Inc. (ABCDE12345)' \
+      "TeamIdentifier=${TEST_TEAM_ID:-ABCDE12345}" \
+      'CodeDirectory v=20500 size=123 flags=0x10000(runtime) hashes=1+2' \
+      'Timestamp=Sep 5, 2026 at 12:00:00'
+    ;;
+  *--check-notarization*)
+    exit "${TEST_NOTARY_EXIT:-0}"
+    ;;
+  *)
+    exit "${TEST_SIGNATURE_EXIT:-0}"
+    ;;
+esac

@@ -1,0 +1,41 @@
+# Validation only: no release, cask, container, or bottle publication.
+# Keep the compiler flags aligned with .goreleaser.yml.
+version: 2
+project_name: kongctl
+dist: dist/apple-validation
+builds:
+  - id: kongctl
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    goos: [darwin]
+    goarch: [amd64, arm64]
+notarize:
+  macos:
+    - enabled: 'true'
+      ids: [kongctl]
+      sign:
+        certificate: '{{ .Env.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}'
+        password: '{{ .Env.APPLE_SIGNING_CERTIFICATE_PASSWORD }}'
+      notarize:
+        issuer_id: '{{ .Env.APPLE_NOTARY_API_ISSUER_ID }}'
+        key_id: '{{ .Env.APPLE_NOTARY_API_KEY_ID }}'
+        # The repository secret is raw PEM. The workflow creates this file.
+        key: '{{ .Env.APPLE_NOTARY_KEY_PATH }}'
+        wait: true
+        timeout: 20m
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}'
+    formats: [zip]
+checksum:
+  name_template: checksums.txt
+snapshot:
+  version_template: '{{ .Version }}-apple-validation-{{ .ShortCommit }}'
+changelog:
+  disable: true
+release:
+  disable: true

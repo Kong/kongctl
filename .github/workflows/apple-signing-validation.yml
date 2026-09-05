@@ -1,0 +1,154 @@
+name: Apple signing validation
+
+on:
+  workflow_dispatch:
+  # Temporary, trusted rollout branch. Remove before merging the draft PR.
+  # No pull_request trigger: Apple credentials never reach fork/PR jobs.
+  push:
+    branches: [task/apple-notarization]
+    paths:
+      - .github/workflows/apple-signing-validation.yml
+      - .goreleaser.apple-validation.yml
+      - scripts/verify-apple-binary.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-signing-validation
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/task/apple-notarization')
+    runs-on: macos-15
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test verification failure gates without credentials
+        run: bash scripts/tests/test-verify-apple-binary.sh
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Download dependencies without signing credentials
+        env:
+          CGO_ENABLED: '0'
+        run: go mod download
+      - name: Prepare API key
+        env:
+          APPLE_NOTARY_API_PRIVATE_KEY: ${{ secrets.APPLE_NOTARY_API_PRIVATE_KEY }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        shell: bash
+        run: |
+          set +x
+          set -euo pipefail
+          for name in APPLE_NOTARY_API_PRIVATE_KEY APPLE_NOTARY_API_ISSUER_ID \
+            APPLE_NOTARY_API_KEY_ID APPLE_SIGNING_CERTIFICATE_P12_BASE64 \
+            APPLE_SIGNING_CERTIFICATE_PASSWORD APPLE_TEAM_ID APPLE_SIGNING_IDENTITY; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing $name"
+              exit 1
+            fi
+          done
+          umask 077
+          key_path="$RUNNER_TEMP/kongctl-notary-key.p8"
+          printf '%s\n' "$APPLE_NOTARY_API_PRIVATE_KEY" > "$key_path"
+          openssl pkey -in "$key_path" -noout
+          echo "APPLE_NOTARY_KEY_PATH=$key_path" >> "$GITHUB_ENV"
+          # Confirm Apple accepts the API credentials, without dumping history.
+          xcrun notarytool history --key "$key_path" \
+            --key-id "$APPLE_NOTARY_API_KEY_ID" \
+            --issuer "$APPLE_NOTARY_API_ISSUER_ID" --output-format json \
+            > "$RUNNER_TEMP/kongctl-notary-history.json"
+      - name: Sign and notarize both architectures using GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.13.3
+          args: release --snapshot --clean --parallelism=1 --timeout=55m --config .goreleaser.apple-validation.yml
+        env:
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+      - name: Verify final archives before exposing artifacts
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist/apple-validation
+          shasum -a 256 --check checksums.txt
+          cd ../..
+          for arch in arm64 amd64; do
+            extract_dir="$RUNNER_TEMP/kongctl-verify-$arch"
+            mkdir -p "$extract_dir"
+            unzip -q "dist/apple-validation/kongctl_darwin_$arch.zip" -d "$extract_dir"
+            bash scripts/verify-apple-binary.sh "$extract_dir/kongctl"
+          done
+      - name: Upload verified archives only
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-signed-validation
+          path: |
+            dist/apple-validation/kongctl_darwin_*.zip
+            dist/apple-validation/checksums.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove temporary API credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/kongctl-notary-key.p8" \
+            "$RUNNER_TEMP/kongctl-notary-history.json"
+
+  verify-install:
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+        with:
+          name: apple-signed-validation
+          path: signed
+      - name: Verify and execute a quarantined binary on a fresh runner
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd signed
+          shasum -a 256 --check checksums.txt
+          unzip -q "kongctl_darwin_$ARCH.zip" -d unpacked
+          cd ..
+          binary="$PWD/signed/unpacked/kongctl"
+          bash scripts/verify-apple-binary.sh "$binary"
+          xattr -w com.apple.quarantine '0083;00000000;AppleSigningValidation;' "$binary"
+          "$binary" version --full
+          "$binary" completion zsh > /dev/null
