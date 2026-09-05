@@ -575,7 +575,28 @@ jobs:
           brew test kong/kongctl/kongctl
           kongctl version --full
 
-      - name: Open Homebrew release pull request
+      - name: Publish Homebrew cask
+        if: env.RELEASE_BUILD_MODE == 'full'
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd "$HOMEBREW_KONGCTL_TAP"
+          git config user.name "kongctl Release Bot"
+          git config user.email "kongctl@konghq.com"
+          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
+          git remote set-url origin \
+            "${tap_url}/kong/homebrew-kongctl.git"
+
+          if git diff --quiet -- Casks/kongctl.rb; then
+            echo "The Homebrew cask already publishes kongctl $RELEASE_VERSION"
+          else
+            git add Casks/kongctl.rb
+            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION} cask"
+            git push origin HEAD:main
+          fi
+
+      - name: Open Homebrew formula pull request
         id: homebrew_pr
         if: env.RELEASE_BUILD_MODE == 'full'
         env:
@@ -590,16 +611,17 @@ jobs:
           git remote set-url origin \
             "${tap_url}/kong/homebrew-kongctl.git"
 
-          if [[ -z "$(git status --porcelain -- Casks/kongctl.rb Formula/kongctl.rb)" ]]; then
-            echo "The Homebrew tap already publishes kongctl $RELEASE_VERSION"
+          if git diff --quiet -- Formula/kongctl.rb; then
+            echo "The Homebrew formula already publishes kongctl $RELEASE_VERSION"
             echo "number=" >> "$GITHUB_OUTPUT"
+            echo "head_sha=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           branch="release/kongctl-${RELEASE_VERSION}"
           if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
             git fetch origin "$branch"
-            if ! git diff --quiet FETCH_HEAD -- Casks/kongctl.rb Formula/kongctl.rb; then
+            if ! git diff --quiet FETCH_HEAD -- Formula/kongctl.rb; then
               echo "::error::Existing $branch does not match this release"
               exit 1
             fi
@@ -616,13 +638,14 @@ jobs:
             fi
           else
             git switch --create "$branch"
-            git add Casks/kongctl.rb Formula/kongctl.rb
-            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION}"
+            git add Formula/kongctl.rb
+            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION} formula"
             git push --set-upstream origin "$branch"
 
-            pr_body="Publish the cask and source formula for kongctl ${RELEASE_VERSION}. "
-            pr_body+="Native Homebrew CI builds the formula bottles before "
-            pr_body+="brew pr-pull publishes this change."
+            pr_body="Publish the formula for kongctl ${RELEASE_VERSION}. "
+            pr_body+="Homebrew CI builds native bottles before the automated "
+            pr_body+="brew pr-pull workflow publishes this change. The cask "
+            pr_body+="continues to use its existing direct publication path."
             pr_url=$(gh pr create \
               --repo Kong/homebrew-kongctl \
               --base main \
@@ -632,8 +655,13 @@ jobs:
             pr_number=${pr_url##*/}
           fi
 
+          head_sha=$(gh pr view "$pr_number" \
+            --repo Kong/homebrew-kongctl \
+            --json headRefOid \
+            --jq '.headRefOid')
           echo "number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "Homebrew release PR: https://github.com/Kong/homebrew-kongctl/pull/$pr_number"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "Homebrew formula PR: https://github.com/Kong/homebrew-kongctl/pull/$pr_number"
 
       - name: Wait for Homebrew bottle builds
         if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
@@ -664,31 +692,20 @@ jobs:
             --fail-fast \
             --interval 15
 
-      - name: Publish Homebrew bottles
+      - name: Publish Homebrew formula and bottles
         if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
         env:
           GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          HEAD_SHA: ${{ steps.homebrew_pr.outputs.head_sha }}
           PR_NUMBER: ${{ steps.homebrew_pr.outputs.number }}
         run: |
           set -euo pipefail
 
-          gh label create pr-pull \
+          gh workflow run publish.yml \
             --repo Kong/homebrew-kongctl \
-            --color 0E8A16 \
-            --description "Publish tested Homebrew bottles" \
-            --force
-
-          if gh pr view "$PR_NUMBER" \
-            --repo Kong/homebrew-kongctl \
-            --json labels \
-            --jq '.labels[].name' | grep -Fqx pr-pull; then
-            gh pr edit "$PR_NUMBER" \
-              --repo Kong/homebrew-kongctl \
-              --remove-label pr-pull
-          fi
-          gh pr edit "$PR_NUMBER" \
-            --repo Kong/homebrew-kongctl \
-            --add-label pr-pull
+            --ref main \
+            --field pull_request="$PR_NUMBER" \
+            --field head_sha="$HEAD_SHA"
 
           for attempt in {1..160}; do
             pr_state=$(gh pr view "$PR_NUMBER" \
@@ -696,12 +713,21 @@ jobs:
               --json state,mergedAt \
               --jq 'if .mergedAt then "merged" else (.state | ascii_downcase) end')
             case "$pr_state" in
-              merged)
-                echo "Homebrew PR $PR_NUMBER published with bottles"
-                exit 0
-                ;;
-              closed)
-                echo "::error::Homebrew PR $PR_NUMBER closed without merging"
+              merged|closed)
+                published_formula=$(gh api \
+                  "repos/Kong/homebrew-kongctl/contents/Formula/kongctl.rb?ref=main" \
+                  --jq '.content' | base64 --decode)
+                if grep -Fq \
+                  "url \"https://github.com/Kong/kongctl/archive/refs/tags/v${RELEASE_VERSION}.tar.gz\"" \
+                  <<< "$published_formula" && \
+                    grep -Fqx "  bottle do" <<< "$published_formula"; then
+                  echo "Homebrew PR $PR_NUMBER published with bottles"
+                  git -C "$HOMEBREW_KONGCTL_TAP" push origin \
+                    --delete "release/kongctl-${RELEASE_VERSION}" || \
+                    echo "::warning::Unable to delete the published Homebrew release branch"
+                  exit 0
+                fi
+                echo "::error::Homebrew PR $PR_NUMBER closed without publishing the formula"
                 exit 1
                 ;;
             esac
