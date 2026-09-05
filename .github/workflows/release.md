@@ -575,9 +575,11 @@ jobs:
           brew test kong/kongctl/kongctl
           kongctl version --full
 
-      - name: Commit and push Homebrew tap updates
+      - name: Open Homebrew release pull request
+        id: homebrew_pr
         if: env.RELEASE_BUILD_MODE == 'full'
         env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
@@ -587,13 +589,127 @@ jobs:
           tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
           git remote set-url origin \
             "${tap_url}/kong/homebrew-kongctl.git"
-          if [[ -n "$(git status --porcelain)" ]]; then
-            git add .
-            git commit -m "kongctl ${RELEASE_VERSION}"
-            git push origin HEAD:main
-          else
-            echo "No tap changes to commit"
+
+          if [[ -z "$(git status --porcelain -- Casks/kongctl.rb Formula/kongctl.rb)" ]]; then
+            echo "The Homebrew tap already publishes kongctl $RELEASE_VERSION"
+            echo "number=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          branch="release/kongctl-${RELEASE_VERSION}"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
+            git fetch origin "$branch"
+            if ! git diff --quiet FETCH_HEAD -- Casks/kongctl.rb Formula/kongctl.rb; then
+              echo "::error::Existing $branch does not match this release"
+              exit 1
+            fi
+
+            pr_number=$(gh pr list \
+              --repo Kong/homebrew-kongctl \
+              --head "$branch" \
+              --state open \
+              --json number \
+              --jq '.[0].number // empty')
+            if [[ -z "$pr_number" ]]; then
+              echo "::error::Existing $branch has no open pull request"
+              exit 1
+            fi
+          else
+            git switch --create "$branch"
+            git add Casks/kongctl.rb Formula/kongctl.rb
+            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION}"
+            git push --set-upstream origin "$branch"
+
+            pr_body="Publish the cask and source formula for kongctl ${RELEASE_VERSION}. "
+            pr_body+="Native Homebrew CI builds the formula bottles before "
+            pr_body+="brew pr-pull publishes this change."
+            pr_url=$(gh pr create \
+              --repo Kong/homebrew-kongctl \
+              --base main \
+              --head "$branch" \
+              --title "homebrew: publish kongctl ${RELEASE_VERSION}" \
+              --body "$pr_body")
+            pr_number=${pr_url##*/}
+          fi
+
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "Homebrew release PR: https://github.com/Kong/homebrew-kongctl/pull/$pr_number"
+
+      - name: Wait for Homebrew bottle builds
+        if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.homebrew_pr.outputs.number }}
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..30}; do
+            bottle_check_count=$(gh pr view "$PR_NUMBER" \
+              --repo Kong/homebrew-kongctl \
+              --json statusCheckRollup \
+              --jq '[.statusCheckRollup[] | select(.name | startswith("test-bot ("))] | length')
+            if (( bottle_check_count >= 3 )); then
+              break
+            fi
+            if (( attempt == 30 )); then
+              echo "::error::Native bottle checks did not start for Homebrew PR $PR_NUMBER"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          gh pr checks "$PR_NUMBER" \
+            --repo Kong/homebrew-kongctl \
+            --watch \
+            --fail-fast \
+            --interval 15
+
+      - name: Publish Homebrew bottles
+        if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.homebrew_pr.outputs.number }}
+        run: |
+          set -euo pipefail
+
+          gh label create pr-pull \
+            --repo Kong/homebrew-kongctl \
+            --color 0E8A16 \
+            --description "Publish tested Homebrew bottles" \
+            --force
+
+          if gh pr view "$PR_NUMBER" \
+            --repo Kong/homebrew-kongctl \
+            --json labels \
+            --jq '.labels[].name' | grep -Fqx pr-pull; then
+            gh pr edit "$PR_NUMBER" \
+              --repo Kong/homebrew-kongctl \
+              --remove-label pr-pull
+          fi
+          gh pr edit "$PR_NUMBER" \
+            --repo Kong/homebrew-kongctl \
+            --add-label pr-pull
+
+          for attempt in {1..160}; do
+            pr_state=$(gh pr view "$PR_NUMBER" \
+              --repo Kong/homebrew-kongctl \
+              --json state,mergedAt \
+              --jq 'if .mergedAt then "merged" else (.state | ascii_downcase) end')
+            case "$pr_state" in
+              merged)
+                echo "Homebrew PR $PR_NUMBER published with bottles"
+                exit 0
+                ;;
+              closed)
+                echo "::error::Homebrew PR $PR_NUMBER closed without merging"
+                exit 1
+                ;;
+            esac
+            sleep 15
+          done
+
+          echo "::error::Timed out waiting for Homebrew PR $PR_NUMBER to publish"
+          exit 1
 
   release_complete:
     needs: ["config", "publish_release", "publish_homebrew"]
@@ -685,6 +801,10 @@ jobs:
             source_url="  url \"https://github.com/Kong/kongctl/archive/refs/tags/v${RELEASE_VERSION}.tar.gz\""
             if ! grep -Fqx "$source_url" "$verification_dir/kongctl-formula.rb"; then
               echo "::error::Homebrew formula is not at $RELEASE_VERSION"
+              exit 1
+            fi
+            if ! grep -Fqx "  bottle do" "$verification_dir/kongctl-formula.rb"; then
+              echo "::error::Homebrew formula does not publish bottles for $RELEASE_VERSION"
               exit 1
             fi
 
