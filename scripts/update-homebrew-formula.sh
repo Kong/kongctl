@@ -64,6 +64,26 @@ formula_path = Path(sys.argv[1])
 source_url, source_sha, commit, build_date = sys.argv[2:]
 content = formula_path.read_text()
 
+# Bottle checksums describe one exact formula version. Drop the previous
+# version's generated block only when advancing the source URL. This preserves
+# an already-published bottle block when a release job is retried.
+current_url_match = re.search(r'^  url "([^"]+)"$', content, flags=re.MULTILINE)
+if not current_url_match:
+    raise SystemExit("expected exactly one formula source URL")
+if current_url_match.group(1) != source_url:
+    bottle_pattern = r"^  bottle do\n.*?^  end\n\n?"
+    bottle_matches = re.findall(bottle_pattern, content, flags=re.MULTILINE | re.DOTALL)
+    if len(bottle_matches) > 1:
+        raise SystemExit(f"expected at most one bottle block, found {len(bottle_matches)}")
+    if bottle_matches:
+        content = re.sub(
+            bottle_pattern,
+            "",
+            content,
+            count=1,
+            flags=re.MULTILINE | re.DOTALL,
+        )
+
 replacements = (
     (r'^  url "[^"]+"$', f'  url "{source_url}"'),
     (r'^  sha256 "[0-9a-f]{64}"$', f'  sha256 "{source_sha}"'),
