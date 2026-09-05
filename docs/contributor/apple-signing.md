@@ -63,6 +63,10 @@ of stale repository overrides. No secret values belong in PRs, logs, or docs.
    and Apple's online notarization requirement.
 4. Fresh ARM and Intel runners independently verify downloaded artifacts and
    execute the native binary with a quarantine attribute present.
+   They also exercise the actual installer against local signed ZIP fixtures,
+   plus an isolated Homebrew test tap for bottle creation/pouring and cask
+   installation. Each path must preserve the executable byte-for-byte.
+   These fixtures never update the production tap or publish a release.
 5. Before production enablement, also test a browser download on a clean Mac.
    CI's synthetic quarantine test does not reproduce every Finder/browser or
    managed-device policy.

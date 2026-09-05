@@ -152,3 +152,15 @@ jobs:
           xattr -w com.apple.quarantine '0083;00000000;AppleSigningValidation;' "$binary"
           "$binary" version --full
           "$binary" completion zsh > /dev/null
+      - name: Verify the installer preserves the signature
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-signed-apple-install.sh signed "$ARCH"
+      - name: Verify bottling and pouring preserve the signature
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-signed-apple-bottle.sh signed "$ARCH"
