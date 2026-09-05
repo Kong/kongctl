@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).with_name("e2e-baseline.py")
@@ -63,7 +64,7 @@ class E2EBaselineTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "observations.json"
             path.write_text(
-                json.dumps({"schema_version": 2, "repository": "kong/kongctl", "runs": []}),
+                json.dumps({"schema_version": 99, "repository": "kong/kongctl", "runs": []}),
                 encoding="utf-8",
             )
 
@@ -76,8 +77,9 @@ class E2EBaselineTest(unittest.TestCase):
             path.write_text(
                 json.dumps(
                     {
-                        "schema_version": 1,
+                        "schema_version": MODULE.OBSERVATION_SCHEMA_VERSION,
                         "repository": "kong/kongctl",
+                        "cohort": "cache-enabled",
                         "runs": [{"run_id": 1}],
                     }
                 ),
@@ -95,6 +97,70 @@ class E2EBaselineTest(unittest.TestCase):
         self.assertIn("Full successful runs: 1 of 20", report)
         self.assertIn("Status: **collecting**", report)
 
+    def test_rejects_wrong_cohort_and_mixed_saved_data(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "observations.json"
+            runs = [self.run_record(1, "2026-09-01T00:00:00Z")]
+            MODULE.write_json(path, MODULE.observation_document("kong/kongctl", runs))
+            with self.assertRaisesRegex(ValueError, "cohort does not match"):
+                MODULE.load_observations(path, "kong/kongctl", "uncached")
+            runs[0]["cohort"] = "uncached"
+            MODULE.write_json(path, MODULE.observation_document("kong/kongctl", runs))
+            with self.assertRaisesRegex(ValueError, "mixed cohorts"):
+                MODULE.load_observations(path, "kong/kongctl")
+
+    def test_frozen_report_remains_preliminary(self) -> None:
+        runs = [self.run_record(1, "2026-09-01T00:00:00Z")]
+        report = MODULE.markdown_report("kong/kongctl", runs, MODULE.summarize(runs), 20, frozen=True)
+        self.assertIn("Status: **frozen preliminary**", report)
+        with patch.object(MODULE, "gh_json") as api:
+            self.assertEqual([], MODULE.collect_runs("kong/kongctl", 0, 100))
+            api.assert_not_called()
+
+    def test_rerun_uses_attempt_creation_and_records_harness_cost(self) -> None:
+        start = "2026-09-04T19:08:00Z"
+        end = "2026-09-04T19:18:50Z"
+        jobs = [
+            {"name": name, "conclusion": "success", "startedAt": start, "completedAt": end, "steps": []}
+            for name in [MODULE.BUILD_JOB, MODULE.HARNESS_JOB, MODULE.VERIFY_JOB,
+                         MODULE.REQUIRED_JOB, MODULE.SCENARIO_JOB_PREFIX + "org"]
+        ]
+        for job, names in [(jobs[0], ["Setup Go", "Build kongctl", "Build scenario test binary",
+                                    "Report Go cache status"]),
+                           (jobs[1], ["Setup Go", MODULE.HARNESS_JOB])]:
+            job["steps"] = [{"name": name, "startedAt": start, "completedAt": end} for name in names]
+        candidate = {"databaseId": 1, "createdAt": "2026-09-04T18:35:56Z", "url": "https://example.test/1"}
+        attempt = {"created_at": "2026-09-04T19:07:59Z", "head_sha": "abc", "conclusion": "success"}
+        metrics = [{"konnect_environment": "com", "run_attempt": 3, "org_name": "org",
+                    "execution_duration_seconds": 100, "selected_scenario_count": 1,
+                    "scenario_durations": [], "reset": {}}]
+        with patch.object(MODULE, "gh_json", side_effect=[
+            [candidate], {"attempt": 3, "jobs": jobs}, attempt,
+        ]) as api, patch.object(MODULE, "download_metrics", return_value=metrics):
+            records = MODULE.collect_runs("kong/kongctl", 1, 100)
+        record = records[0]
+        self.assertEqual(651, record["queue_to_required_status_seconds"])
+        self.assertEqual(1, record["workflow_admission_delay_seconds"])
+        self.assertEqual(650, record["harness_job_seconds"])
+        self.assertEqual(650, record["harness_setup_seconds"])
+        self.assertEqual(650, record["harness_test_seconds"])
+        self.assertEqual(candidate["createdAt"], record["original_created_at"])
+        self.assertEqual("cache-enabled", record["cohort"])
+        self.assertIn("/attempts/3", api.call_args.args[0][1])
+        jobs[0]["startedAt"] = candidate["createdAt"]
+        self.assertIsNone(MODULE.eligible_run(
+            {**candidate, "createdAt": attempt["created_at"], "original_created_at": candidate["createdAt"],
+             "head_sha": "abc"}, jobs, metrics,
+        ))
+
+    def test_other_cohort_is_excluded_before_artifact_download(self) -> None:
+        jobs = [{"name": MODULE.BUILD_JOB, "steps": []}]
+        with patch.object(MODULE, "gh_json", side_effect=[
+            [{"databaseId": 1}], {"attempt": 1, "jobs": jobs},
+        ]), patch.object(MODULE, "download_metrics") as download:
+            self.assertEqual([], MODULE.collect_runs("kong/kongctl", 1, 100))
+            download.assert_not_called()
+
     @staticmethod
     def run_record(
         run_id: int,
@@ -104,6 +170,13 @@ class E2EBaselineTest(unittest.TestCase):
         marker: str = "",
     ) -> dict[str, object]:
         return {
+            "cohort": "cache-enabled",
+            "original_created_at": created_at,
+            "head_sha": "abc",
+            "harness_job_seconds": 3.0,
+            "harness_setup_seconds": 1.0,
+            "harness_test_seconds": 2.0,
+            "build_setup_seconds": 1.0,
             "run_id": run_id,
             "run_attempt": attempt,
             "url": f"https://example.test/runs/{run_id}",
