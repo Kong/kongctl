@@ -19,7 +19,7 @@ codesign --verify --strict --verbose=2 "$binary"
 # team ownership cryptographically against the Apple-issued leaf certificate
 # instead of requiring that optional display field to be populated.
 codesign --verify --strict --verbose=2 \
-  --test-requirement="anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\"" \
+  --test-requirement="=anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\"" \
   "$binary"
 details=$(codesign --display --verbose=4 "$binary" 2>&1)
 printf '%s\n' "$details"
@@ -32,4 +32,4 @@ grep -E '^Timestamp=.' <<< "$details"
 # Online lookup is required: a CLI/ZIP cannot have a stapled ticket.
 # Fail closed even if GoReleaser returned success with notarization pending.
 codesign --verify --strict --verbose=2 --check-notarization \
-  --test-requirement='notarized' "$binary"
+  --test-requirement='=notarized' "$binary"

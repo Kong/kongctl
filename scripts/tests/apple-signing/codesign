@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Test double: exercises our verification gates, not Apple's implementation.
 set -euo pipefail
+for argument in "$@"; do
+  if [[ "$argument" == --test-requirement=* && "$argument" != --test-requirement==* ]]; then
+    echo 'inline requirements must start with =, otherwise codesign reads a file' >&2
+    exit 2
+  fi
+done
 case "$*" in
   *--display*)
     printf '%s\n' \
