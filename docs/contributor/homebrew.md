@@ -64,10 +64,10 @@ recipe are unchanged. It records the producer SHA/run, re-verifies native
 signatures, and never receives signing credentials or publishes packages.
 This avoids recompilation/notarization for packaging-only test iterations.
 
-The separate registry-access validation tests package write permission by
-opening and cancelling an empty upload session. It publishes no bottle bytes
-or manifest and needs no Apple credentials. It can run independently of the
-longer signing workflow. Remove its temporary branch trigger before merging.
+Confirm package Actions write access in the GitHub package settings before
+rollout. Do not use empty uploads as a recurring permission probe: GHCR accepts
+upload initiation but rejects cancellation with HTTP 405. The first controlled
+release must still exercise actual bottle publication and anonymous downloads.
 
 Coordinate [kongctl #2078] and [tap #15]. Merge the tap PR first, then the
 upstream PR, without dispatching a release between them. The new tap publisher

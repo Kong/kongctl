@@ -95,7 +95,6 @@ jobs:
         run: |
           bash scripts/tests/test-homebrew-formula.sh
           bash scripts/tests/test-homebrew-bottles.sh
-          bash scripts/tests/test-homebrew-registry-probe.sh
           bash scripts/tests/test-prepare-apple-signing.sh
           bash scripts/tests/test-verify-apple-binary.sh
           bash scripts/tests/test-apple-release-gates.sh
