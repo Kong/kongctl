@@ -155,6 +155,43 @@ arbitrary previews needs a separate trusted approval boundary.
 
 ## Remaining production integration
 
+### Diagnose an existing signed release without publishing it
+
+Use **Apple notarization diagnostics**, dispatched from `main`, when a native
+notarization check repeatedly fails despite GoReleaser reporting success:
+
+- `release_tag`: the existing draft or published tag, such as `v1.15.1`.
+- `release_run_id`: the original signing Release run, not a recovery run.
+  For the first v1.15.1 draft this is `34009395370`.
+
+Both Intel and ARM runners download the existing assets, check their manifest,
+and assess **both** Darwin binaries without executing or modifying them. Each
+records code hashes, verification exit codes, and macOS security-service logs
+on failure. This distinguishes a binary-specific failure from a runner-specific
+failure without rebuilding or re-signing.
+
+A separate job uses only the three existing Apple notary API secrets to fetch
+submission history and logs for the original publisher's time window. It
+compares ticket code hashes against the exact downloaded binaries. No signing
+certificate is needed. Raw history, private keys, unrelated submission details,
+and raw Apple logs are not uploaded. Filtered ticket evidence and native
+diagnostics are retained for three days. Missing matches are inconclusive if
+history is incomplete or Apple requests fail.
+
+**A green diagnostic run means evidence was collected, not that notarization
+passed.** Read the job summaries and `apple-diagnostics-*` and
+`apple-notary-ticket-report` artifacts. The workflow never builds, signs,
+submits for notarization, changes release state, or updates Homebrew. Only the
+normal release verification and publication gates can approve a release.
+
+Apple explains how to [fetch the notary log][notary-log] and interpret its
+[ticket contents][notary-tickets].
+
+[notary-log]: https://developer.apple.com/forums/thread/705839
+[notary-tickets]: https://developer.apple.com/forums/thread/720093
+
+### Remaining rollout checks
+
 Do not merge this as a completed all-installation-method signing rollout.
 
 - Exercise the staged production build/draft/download/publish integration

@@ -99,6 +99,7 @@ jobs:
           bash scripts/tests/test-verify-apple-binary.sh
           bash scripts/tests/test-apple-release-gates.sh
           node --test scripts/tests/test-release-recovery.mjs
+          node --test scripts/tests/test-apple-notary-diagnostics.mjs
       - name: test
         run: |
           go test -race -count=1 ./...

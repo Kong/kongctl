@@ -1,0 +1,111 @@
+name: Apple notarization diagnostics
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release or draft tag to inspect
+        required: true
+        default: v1.15.1
+        type: string
+      release_run_id:
+        description: Original signing Release run ID (not the recovery run)
+        required: true
+        default: '34009395370'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-notary-diagnostics
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      # Required to read draft releases; no GitHub write operations are performed.
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download and checksum existing assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_id=$(bash scripts/apple-release-id.sh)
+          mkdir -p assets diagnostics
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" |
+            jq -Se --arg tag "$RELEASE_TAG" -f scripts/apple-release-snapshot.jq > diagnostics/release.json
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir assets
+          (cd assets && shasum -a 256 --check checksums.txt)
+          for arch in amd64 arm64; do
+            checksum=$(cd assets && shasum -a 256 "kongctl_darwin_$arch.zip")
+            grep -Fx "$checksum" assets/checksums.txt > /dev/null
+          done
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" |
+            jq -Se --arg tag "$RELEASE_TAG" -f scripts/apple-release-snapshot.jq > assets/after.json
+          cmp diagnostics/release.json assets/after.json
+      - name: Assess both architectures without executing either binary
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: bash scripts/diagnose-apple-binaries.sh assets diagnostics
+      - name: Preserve diagnostic evidence (not release approval)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-diagnostics-${{ matrix.os }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 3
+
+  notary-records:
+    needs: inspect
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: apple-diagnostics-*
+          path: evidence
+      - name: Fetch original submission records and compare ticket hashes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          APPLE_NOTARY_API_PRIVATE_KEY: ${{ secrets.APPLE_NOTARY_API_PRIVATE_KEY }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+        run: node scripts/diagnose-apple-notary.mjs evidence notary-report
+      - name: Preserve only filtered ticket evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-notary-ticket-report
+          path: notary-report/
+          if-no-files-found: warn
+          retention-days: 3
