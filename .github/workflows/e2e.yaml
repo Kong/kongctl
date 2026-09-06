@@ -919,6 +919,18 @@ jobs:
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
 
+      - name: Report weighted sharding predictions
+        if: always() && env.KONGCTL_E2E_KONNECT_ENV == 'com'
+        continue-on-error: true
+        run: |
+          report="${KONGCTL_E2E_ARTIFACTS_DIR}/weighted-sharding-summary.md"
+          if [ -f "${report}" ]; then
+            cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "::warning::Weighted sharding report unavailable; live assignments are unchanged"
+            echo "Weighted sharding predictions unavailable for this shard." >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
       - name: Generate shard metrics
         if: always()
         run: |

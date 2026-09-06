@@ -1,0 +1,662 @@
+{
+  "default_duration_ms": 8840,
+  "scenarios": {
+    "adopt/auth-strategy-adopt/scenario.yaml": {
+      "duration_ms": 8310,
+      "samples": 21
+    },
+    "adopt/create-portal-adopt-dump-plan/scenario.yaml": {
+      "duration_ms": 6280,
+      "samples": 21
+    },
+    "adopt/event-gateway-adopt/scenario.yaml": {
+      "duration_ms": 6100,
+      "samples": 21
+    },
+    "adopt/full/scenario.yaml": {
+      "duration_ms": 10490,
+      "samples": 21
+    },
+    "adopt/team-create-adopt-dump/scenario.yaml": {
+      "duration_ms": 5570,
+      "samples": 21
+    },
+    "ai-gateway/agent/scenario.yaml": {
+      "duration_ms": 15000,
+      "samples": 21
+    },
+    "ai-gateway/auth-strategy/scenario.yaml": {
+      "duration_ms": 11950,
+      "samples": 21
+    },
+    "ai-gateway/config-store/scenario.yaml": {
+      "duration_ms": 10710,
+      "samples": 21
+    },
+    "ai-gateway/consumer-group/scenario.yaml": {
+      "duration_ms": 12240,
+      "samples": 21
+    },
+    "ai-gateway/consumer/scenario.yaml": {
+      "duration_ms": 16840,
+      "samples": 21
+    },
+    "ai-gateway/data-plane-certificate/scenario.yaml": {
+      "duration_ms": 12970,
+      "samples": 21
+    },
+    "ai-gateway/maturity/scenario.yaml": {
+      "duration_ms": 430,
+      "samples": 21
+    },
+    "ai-gateway/mcp-server/scenario.yaml": {
+      "duration_ms": 15220,
+      "samples": 21
+    },
+    "ai-gateway/model-matrix/scenario.yaml": {
+      "duration_ms": 6870,
+      "samples": 21
+    },
+    "ai-gateway/model-provider/scenario.yaml": {
+      "duration_ms": 15360,
+      "samples": 21
+    },
+    "ai-gateway/model/scenario.yaml": {
+      "duration_ms": 10700,
+      "samples": 21
+    },
+    "ai-gateway/policy-matrix/scenario.yaml": {
+      "duration_ms": 10340,
+      "samples": 21
+    },
+    "ai-gateway/policy/scenario.yaml": {
+      "duration_ms": 3760,
+      "samples": 21
+    },
+    "ai-gateway/root/scenario.yaml": {
+      "duration_ms": 10320,
+      "samples": 21
+    },
+    "ai-gateway/runtime-tls/scenario.yaml": {
+      "duration_ms": 10250,
+      "samples": 21
+    },
+    "ai-gateway/vault/scenario.yaml": {
+      "duration_ms": 13040,
+      "samples": 21
+    },
+    "all/scenario.yaml": {
+      "duration_ms": 28770,
+      "samples": 21
+    },
+    "analytics/dashboard-repro/scenario.yaml": {
+      "duration_ms": 1040,
+      "samples": 21
+    },
+    "analytics/dashboard/scenario.yaml": {
+      "duration_ms": 6450,
+      "samples": 21
+    },
+    "apis/child-delete-namespace/scenario.yaml": {
+      "duration_ms": 9700,
+      "samples": 21
+    },
+    "apis/comprehensive-fields/scenario.yaml": {
+      "duration_ms": 11110,
+      "samples": 21
+    },
+    "apis/control-plane-implementation/scenario.yaml": {
+      "duration_ms": 14960,
+      "samples": 21
+    },
+    "apis/eventual-consistency-polp/scenario.yaml": {
+      "duration_ms": 6660,
+      "samples": 21
+    },
+    "apis/get-api-by-name-and-id/scenario.yaml": {
+      "duration_ms": 3960,
+      "samples": 21
+    },
+    "apis/nested-child-lifecycle/scenario.yaml": {
+      "duration_ms": 19010,
+      "samples": 21
+    },
+    "apis/region/scenario.yaml": {
+      "duration_ms": 11370,
+      "samples": 21
+    },
+    "apis/root-level-publication-visibility/scenario.yaml": {
+      "duration_ms": 17420,
+      "samples": 21
+    },
+    "apis/versions-pagination/scenario.yaml": {
+      "duration_ms": 4970,
+      "samples": 21
+    },
+    "catalog/service/scenario.yaml": {
+      "duration_ms": 7850,
+      "samples": 21
+    },
+    "control-plane/apply/scenario.yaml": {
+      "duration_ms": 5840,
+      "samples": 21
+    },
+    "control-plane/data-plane-certificate/scenario.yaml": {
+      "duration_ms": 13160,
+      "samples": 21
+    },
+    "control-plane/delete-groups/scenario.yaml": {
+      "duration_ms": 5190,
+      "samples": 21
+    },
+    "control-plane/get/scenario.yaml": {
+      "duration_ms": 4390,
+      "samples": 21
+    },
+    "control-plane/groups/scenario.yaml": {
+      "duration_ms": 5270,
+      "samples": 21
+    },
+    "control-plane/plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 6050,
+      "samples": 21
+    },
+    "control-plane/serverless/scenario.yaml": {
+      "duration_ms": 12830,
+      "samples": 21
+    },
+    "control-plane/sync-groups/scenario.yaml": {
+      "duration_ms": 7520,
+      "samples": 21
+    },
+    "control-plane/sync/scenario.yaml": {
+      "duration_ms": 3680,
+      "samples": 21
+    },
+    "dcr-providers/workflow/scenario.yaml": {
+      "duration_ms": 16020,
+      "samples": 21
+    },
+    "deck/basic/scenario.yaml": {
+      "duration_ms": 15000,
+      "samples": 21
+    },
+    "deck/env-vars/scenario.yaml": {
+      "duration_ms": 8710,
+      "samples": 21
+    },
+    "deck/idempotent/scenario.yaml": {
+      "duration_ms": 6300,
+      "samples": 21
+    },
+    "deck/multi-file/scenario.yaml": {
+      "duration_ms": 5070,
+      "samples": 21
+    },
+    "deck/sync/scenario.yaml": {
+      "duration_ms": 7670,
+      "samples": 21
+    },
+    "declarative/plan-mode-validation/scenario.yaml": {
+      "duration_ms": 570,
+      "samples": 21
+    },
+    "declarative/rename-sync-delete/scenario.yaml": {
+      "duration_ms": 13310,
+      "samples": 21
+    },
+    "delete/declarative/scenario.yaml": {
+      "duration_ms": 10040,
+      "samples": 21
+    },
+    "delete/dry-run/scenario.yaml": {
+      "duration_ms": 3870,
+      "samples": 21
+    },
+    "delete/idempotent/scenario.yaml": {
+      "duration_ms": 2790,
+      "samples": 21
+    },
+    "delete/partial-delete/scenario.yaml": {
+      "duration_ms": 8580,
+      "samples": 21
+    },
+    "delete/plan-based/scenario.yaml": {
+      "duration_ms": 6630,
+      "samples": 21
+    },
+    "diff/command-coverage/scenario.yaml": {
+      "duration_ms": 14700,
+      "samples": 21
+    },
+    "dump/ai-gateways/scenario.yaml": {
+      "duration_ms": 5540,
+      "samples": 21
+    },
+    "dump/analytics-dashboards/scenario.yaml": {
+      "duration_ms": 6270,
+      "samples": 21
+    },
+    "dump/control-planes/scenario.yaml": {
+      "duration_ms": 9560,
+      "samples": 21
+    },
+    "dump/dcr-provider/scenario.yaml": {
+      "duration_ms": 6020,
+      "samples": 21
+    },
+    "dump/filtered/scenario.yaml": {
+      "duration_ms": 13300,
+      "samples": 21
+    },
+    "dump/organization-teams/scenario.yaml": {
+      "duration_ms": 16880,
+      "samples": 21
+    },
+    "dump/portal-owned/scenario.yaml": {
+      "duration_ms": 33460,
+      "samples": 21
+    },
+    "errors/declarative/scenario.yaml": {
+      "duration_ms": 3930,
+      "samples": 21
+    },
+    "event-gateway/adopt/scenario.yaml": {
+      "duration_ms": 5520,
+      "samples": 21
+    },
+    "event-gateway/backend-cluster-pagination/scenario.yaml": {
+      "duration_ms": 5430,
+      "samples": 21
+    },
+    "event-gateway/backend-cluster/scenario.yaml": {
+      "duration_ms": 14380,
+      "samples": 21
+    },
+    "event-gateway/cluster-policy/scenario.yaml": {
+      "duration_ms": 8560,
+      "samples": 21
+    },
+    "event-gateway/consume-policy/scenario.yaml": {
+      "duration_ms": 18060,
+      "samples": 21
+    },
+    "event-gateway/control-planes/scenario.yaml": {
+      "duration_ms": 7220,
+      "samples": 21
+    },
+    "event-gateway/dataplane-certificate/scenario.yaml": {
+      "duration_ms": 10100,
+      "samples": 21
+    },
+    "event-gateway/dependency-order/scenario.yaml": {
+      "duration_ms": 6350,
+      "samples": 21
+    },
+    "event-gateway/diff/scenario.yaml": {
+      "duration_ms": 9330,
+      "samples": 21
+    },
+    "event-gateway/dump/scenario.yaml": {
+      "duration_ms": 5330,
+      "samples": 21
+    },
+    "event-gateway/external-sync/scenario.yaml": {
+      "duration_ms": 19820,
+      "samples": 21
+    },
+    "event-gateway/listener-policy/scenario.yaml": {
+      "duration_ms": 12640,
+      "samples": 21
+    },
+    "event-gateway/listener/scenario.yaml": {
+      "duration_ms": 9220,
+      "samples": 21
+    },
+    "event-gateway/plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 21250,
+      "samples": 21
+    },
+    "event-gateway/plan/sync-workflow/scenario.yaml": {
+      "duration_ms": 28680,
+      "samples": 21
+    },
+    "event-gateway/produce-policy/scenario.yaml": {
+      "duration_ms": 26860,
+      "samples": 21
+    },
+    "event-gateway/schema-registry/scenario.yaml": {
+      "duration_ms": 11080,
+      "samples": 21
+    },
+    "event-gateway/static-key/scenario.yaml": {
+      "duration_ms": 9410,
+      "samples": 21
+    },
+    "event-gateway/tls-trust-bundle/scenario.yaml": {
+      "duration_ms": 6730,
+      "samples": 21
+    },
+    "event-gateway/topic-aliases/scenario.yaml": {
+      "duration_ms": 8970,
+      "samples": 21
+    },
+    "event-gateway/virtual-cluster/scenario.yaml": {
+      "duration_ms": 15560,
+      "samples": 21
+    },
+    "explain/command-coverage/scenario.yaml": {
+      "duration_ms": 1360,
+      "samples": 21
+    },
+    "external/ai-gateway-parent/scenario.yaml": {
+      "duration_ms": 6640,
+      "samples": 21
+    },
+    "external/api-impl/scenario.yaml": {
+      "duration_ms": 6390,
+      "samples": 21
+    },
+    "external/api-parent/scenario.yaml": {
+      "duration_ms": 11830,
+      "samples": 21
+    },
+    "external/portal-publication/scenario.yaml": {
+      "duration_ms": 9180,
+      "samples": 21
+    },
+    "external/portal-sync/scenario.yaml": {
+      "duration_ms": 4710,
+      "samples": 21
+    },
+    "lint/command-coverage/scenario.yaml": {
+      "duration_ms": 350,
+      "samples": 21
+    },
+    "namespace/defaults-sync/scenario.yaml": {
+      "duration_ms": 4230,
+      "samples": 21
+    },
+    "namespace/validation/scenario.yaml": {
+      "duration_ms": 890,
+      "samples": 21
+    },
+    "org/get-org/scenario.yaml": {
+      "duration_ms": 4410,
+      "samples": 21
+    },
+    "org/system-accounts/assignments/scenario.yaml": {
+      "duration_ms": 14350,
+      "samples": 21
+    },
+    "org/system-accounts/plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 8350,
+      "samples": 21
+    },
+    "org/system-accounts/plan/sync-workflow/scenario.yaml": {
+      "duration_ms": 11110,
+      "samples": 21
+    },
+    "org/system-accounts/scenario.yaml": {
+      "duration_ms": 4920,
+      "samples": 21
+    },
+    "org/system-accounts/sync/scenario.yaml": {
+      "duration_ms": 10170,
+      "samples": 21
+    },
+    "org/teams/apply/scenario.yaml": {
+      "duration_ms": 3880,
+      "samples": 21
+    },
+    "org/teams/external-role/scenario.yaml": {
+      "duration_ms": 6740,
+      "samples": 21
+    },
+    "org/teams/get/scenario.yaml": {
+      "duration_ms": 5520,
+      "samples": 21
+    },
+    "org/teams/plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 6110,
+      "samples": 21
+    },
+    "org/teams/plan/sync-workflow/scenario.yaml": {
+      "duration_ms": 5930,
+      "samples": 21
+    },
+    "org/teams/roles/scenario.yaml": {
+      "duration_ms": 10230,
+      "samples": 21
+    },
+    "org/teams/sync/scenario.yaml": {
+      "duration_ms": 4020,
+      "samples": 21
+    },
+    "org/token/scenario.yaml": {
+      "duration_ms": 8380,
+      "samples": 21
+    },
+    "org/users/assignments/scenario.yaml": {
+      "duration_ms": 16500,
+      "samples": 21
+    },
+    "org/users/get/scenario.yaml": {
+      "duration_ms": 5560,
+      "samples": 21
+    },
+    "org/users/plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 8470,
+      "samples": 21
+    },
+    "org/users/plan/sync-workflow/scenario.yaml": {
+      "duration_ms": 11770,
+      "samples": 21
+    },
+    "org/users/sync/scenario.yaml": {
+      "duration_ms": 11640,
+      "samples": 21
+    },
+    "patch/command-coverage/scenario.yaml": {
+      "duration_ms": 460,
+      "samples": 21
+    },
+    "plan/apply-workflow/scenario.yaml": {
+      "duration_ms": 13420,
+      "samples": 21
+    },
+    "plan/remote-url-workflow/scenario.yaml": {
+      "duration_ms": 6430,
+      "samples": 21
+    },
+    "plan/sync-partial-scope/scenario.yaml": {
+      "duration_ms": 5640,
+      "samples": 21
+    },
+    "plan/sync-workflow/scenario.yaml": {
+      "duration_ms": 5700,
+      "samples": 21
+    },
+    "portal/api_docs_with_children/scenario.yaml": {
+      "duration_ms": 30140,
+      "samples": 21
+    },
+    "portal/api_with_attributes/scenario.yaml": {
+      "duration_ms": 9550,
+      "samples": 21
+    },
+    "portal/app-auth-strategy/scenario.yaml": {
+      "duration_ms": 8600,
+      "samples": 21
+    },
+    "portal/assets/scenario.yaml": {
+      "duration_ms": 8460,
+      "samples": 21
+    },
+    "portal/audit-log-webhook/scenario.yaml": {
+      "duration_ms": 18570,
+      "samples": 21
+    },
+    "portal/auth-strategy-link/scenario.yaml": {
+      "duration_ms": 20900,
+      "samples": 21
+    },
+    "portal/auth_settings/scenario.yaml": {
+      "duration_ms": 10980,
+      "samples": 21
+    },
+    "portal/auth_settings_deprecated_fields/scenario.yaml": {
+      "duration_ms": 190,
+      "samples": 21
+    },
+    "portal/custom-domain/scenario.yaml": {
+      "duration_ms": 18390,
+      "samples": 21
+    },
+    "portal/customization/scenario.yaml": {
+      "duration_ms": 12250,
+      "samples": 21
+    },
+    "portal/default_application_auth_strategy/scenario.yaml": {
+      "duration_ms": 13450,
+      "samples": 21
+    },
+    "portal/default_application_auth_strategy_ref_selection/scenario.yaml": {
+      "duration_ms": 5100,
+      "samples": 21
+    },
+    "portal/edit/scenario.yaml": {
+      "duration_ms": 6080,
+      "samples": 21
+    },
+    "portal/email-domains/scenario.yaml": {
+      "duration_ms": 3080,
+      "samples": 21
+    },
+    "portal/email-templates/scenario.yaml": {
+      "duration_ms": 13900,
+      "samples": 21
+    },
+    "portal/email/scenario.yaml": {
+      "duration_ms": 14050,
+      "samples": 21
+    },
+    "portal/external-sync/scenario.yaml": {
+      "duration_ms": 13410,
+      "samples": 21
+    },
+    "portal/identity_providers/scenario.yaml": {
+      "duration_ms": 20000,
+      "samples": 21
+    },
+    "portal/identity_providers_duplicate_type/scenario.yaml": {
+      "duration_ms": 190,
+      "samples": 21
+    },
+    "portal/idp_team_group_mappings_readback/scenario.yaml": {
+      "duration_ms": 10910,
+      "samples": 21
+    },
+    "portal/integrations/scenario.yaml": {
+      "duration_ms": 10380,
+      "samples": 21
+    },
+    "portal/ip-allow-list/scenario.yaml": {
+      "duration_ms": 16180,
+      "samples": 21
+    },
+    "portal/oidc-auth-strategy/scenario.yaml": {
+      "duration_ms": 5390,
+      "samples": 21
+    },
+    "portal/page-frontmatter-conflict/scenario.yaml": {
+      "duration_ms": 9040,
+      "samples": 21
+    },
+    "portal/pages/scenario.yaml": {
+      "duration_ms": 12610,
+      "samples": 21
+    },
+    "portal/publication-auth-omitted-noop/scenario.yaml": {
+      "duration_ms": 10900,
+      "samples": 21
+    },
+    "portal/snippets-pagination/scenario.yaml": {
+      "duration_ms": 4010,
+      "samples": 21
+    },
+    "portal/snippets/scenario.yaml": {
+      "duration_ms": 6170,
+      "samples": 21
+    },
+    "portal/sync/scenario.yaml": {
+      "duration_ms": 24460,
+      "samples": 21
+    },
+    "portal/team_group_mappings_no_idp/scenario.yaml": {
+      "duration_ms": 6900,
+      "samples": 21
+    },
+    "portal/teams/scenario.yaml": {
+      "duration_ms": 26050,
+      "samples": 21
+    },
+    "portal/visibility/scenario.yaml": {
+      "duration_ms": 42110,
+      "samples": 21
+    },
+    "protected-resources/apis/scenario.yaml": {
+      "duration_ms": 9560,
+      "samples": 21
+    },
+    "protected-resources/control-planes/scenario.yaml": {
+      "duration_ms": 4760,
+      "samples": 21
+    },
+    "protected-resources/event-gateways/scenario.yaml": {
+      "duration_ms": 9440,
+      "samples": 21
+    },
+    "protected-resources/org/teams/scenario.yaml": {
+      "duration_ms": 7010,
+      "samples": 21
+    },
+    "protected-resources/portals/scenario.yaml": {
+      "duration_ms": 9030,
+      "samples": 21
+    },
+    "require-namespace/external/scenario.yaml": {
+      "duration_ms": 3900,
+      "samples": 21
+    },
+    "require-namespace/portal/scenario.yaml": {
+      "duration_ms": 7080,
+      "samples": 21
+    },
+    "scaffold/command-coverage/scenario.yaml": {
+      "duration_ms": 980,
+      "samples": 21
+    },
+    "smoke/version/scenario.yaml": {
+      "duration_ms": 60,
+      "samples": 21
+    },
+    "yaml-tags/env/scenario.yaml": {
+      "duration_ms": 12840,
+      "samples": 21
+    },
+    "yaml-tags/file/scenario.yaml": {
+      "duration_ms": 4120,
+      "samples": 21
+    }
+  },
+  "schema_version": 1,
+  "source_sha256": {
+    "test/e2e/baselines/post-cache-2026-09-observations.json": "522713d68c11ee949a4b3418b0703c4831b2449a446a413247b57bac1ae7e6f7",
+    "test/e2e/baselines/stage0-2026-09-observations.json": "d8fbb43c85bc02479536fb30b51e7af2b2e1f72f85b6b54517991c49e685bdf5"
+  },
+  "sources": [
+    "test/e2e/baselines/post-cache-2026-09-observations.json",
+    "test/e2e/baselines/stage0-2026-09-observations.json"
+  ]
+}
