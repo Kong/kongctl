@@ -54,19 +54,7 @@ func prepareResourceExecutor(
 	resource resourceExecutor,
 	prepare func(context.Context, *planner.PlannedChange) error,
 ) resourceExecutor {
-	prepareWrite := func(write resourceWrite) resourceWrite {
-		if write == nil {
-			return nil
-		}
-		return func(ctx context.Context, change *planner.PlannedChange) (string, error) {
-			if err := prepare(ctx, change); err != nil {
-				return "", err
-			}
-			return write(ctx, change)
-		}
-	}
-	resource.create = prepareWrite(resource.create)
-	resource.update = prepareWrite(resource.update)
+	resource = prepareResourceWrites(resource, prepare)
 	if remove := resource.remove; remove != nil {
 		resource.remove = func(ctx context.Context, change *planner.PlannedChange) error {
 			if err := prepare(ctx, change); err != nil {
@@ -76,6 +64,32 @@ func prepareResourceExecutor(
 		}
 	}
 	return resource
+}
+
+// prepareResourceWrites leaves deletion unchanged for resources whose delete
+// plans already carry all required routing information.
+func prepareResourceWrites(
+	resource resourceExecutor,
+	prepare func(context.Context, *planner.PlannedChange) error,
+) resourceExecutor {
+	resource.create = prepareResourceWrite(resource.create, prepare)
+	resource.update = prepareResourceWrite(resource.update, prepare)
+	return resource
+}
+
+func prepareResourceWrite(
+	write resourceWrite,
+	prepare func(context.Context, *planner.PlannedChange) error,
+) resourceWrite {
+	if write == nil {
+		return nil
+	}
+	return func(ctx context.Context, change *planner.PlannedChange) (string, error) {
+		if err := prepare(ctx, change); err != nil {
+			return "", err
+		}
+		return write(ctx, change)
+	}
 }
 
 func (e *Executor) registerResourceExecutor(resource resourceExecutor) {
