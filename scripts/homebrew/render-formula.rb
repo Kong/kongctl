@@ -26,4 +26,8 @@ values = { "VERSION" => version }
   values["#{os}_#{arch}_SHA".upcase] = checksums.fetch(filename)
 end
 template = File.read(File.join(__dir__, "kongctl.rb.template"))
-puts template.gsub(/@([A-Z0-9_]+)@/) { values.fetch(Regexp.last_match(1)).dump }
+rendered = template.gsub(/@([A-Z0-9_]+)@/) { values.fetch(Regexp.last_match(1)).dump }
+# Stable versions are inferred from the release URL; an explicit duplicate
+# fails brew audit. Preserve the full prerelease version for snapshot tests.
+rendered = rendered.sub(/^  version .*\n/, "") unless version.include?("-")
+puts rendered

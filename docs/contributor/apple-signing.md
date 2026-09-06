@@ -12,9 +12,10 @@ neither GoReleaser Pro nor an Apple ID/app-specific password is needed.
 
 The validation uses the actual kongctl executable and release compiler flags.
 It creates snapshot ZIPs, but no GitHub release, tag, container, cask update,
-formula update, or bottle upload. Only verified ZIPs and checksums are retained
-as Actions artifacts for seven days. These are test builds, not replacements
-for existing release assets.
+formula update, or registry upload. It also packages Linux and macOS bottles
+from those upstream executables and tests the production metadata merger.
+Verified ZIPs, bottles and metadata are retained as Actions artifacts for seven
+days. These are test builds, not replacements for existing release assets.
 
 During development the workflow runs on pushes to `task/apple-notarization`.
 This is a trusted repository branch, not a pull-request event. Only reviewed,
@@ -24,7 +25,7 @@ workflow on main. There is no arbitrary source-ref input.
 
 ## Credentials
 
-Repository or selected-repository organization secrets:
+Keep these secrets available only to `Kong/kongctl`, not the tap repository:
 
 | Secret | Contents |
 | --- | --- |
@@ -103,9 +104,9 @@ following sequence; it has not yet been exercised as a real release:
 5. Each Mac records the release ID and exact asset identities. Both receipts
    must match each other and the current GitHub assets before publication.
    Replacing, deleting, or uploading an asset invalidates that approval.
-6. Only then publish the release and start the existing Homebrew automation.
-   The cask receives signed release ZIPs. The formula's independently built
-   bottles still need the separate signing work described below.
+6. Only then publish the release and update the cask. Package the same upstream
+   executables as bottles, verify local and public pouring, and publish the
+   completed formula metadata through a tap PR. See [Homebrew](homebrew.md).
 
 The publication-policy test uses an offline GitHub API double; it never
 publishes a test release. Mac validation also runs this test with real signed
@@ -144,42 +145,30 @@ Do not merge this as a completed all-installation-method signing rollout.
   installer, checking they preserve the signed executable byte-for-byte.
 - If signed ad-hoc previews are required, add a separately trusted signing
   process; do not expose credentials to their arbitrary source checkout.
-- Sign the independently compiled macOS Homebrew bottles too, as below.
+- Complete the production packaging, public registry and tap integration
+  checks. No second compilation or signing step is needed for bottles.
 - Remove the temporary trusted-branch push trigger before merging.
 - Test on a prerelease first. Do not replace existing 1.15.0 assets or bottles.
 
-## Homebrew is a separate signing boundary
+## Homebrew packages the same signed executable
 
 The cask, downloaded release ZIP, and installer script all consume release
 executables. They can share GoReleaser's signed and notarized output.
 
-The formula currently builds from source. Its bottles contain different
-executables, so signing the release ZIPs does **not** sign those bottles.
-Preserve the working bottle infrastructure and add a trusted signing stage
-before the final bottle checksums, attestations, and GHCR publication:
+The revised formula no longer compiles Go. It installs the upstream release
+ZIP, so the cask, ZIP fallback and bottles all consume the same signed bytes.
+The bottle runners need only public identity/team variables for verification,
+not private signing credentials. Both local pouring and the final public
+registry installation must preserve those bytes and their Apple approval.
 
-1. Test/build unprivileged source bottles as today. Never expose Apple secrets
-   to ordinary tap PR test-bot jobs.
-2. In an explicitly trusted publication job, validate the release PR, exact
-   tested SHA, expected artifacts and source version before signing anything.
-3. Sign/notarize both macOS bottle executables using the same Kong identity.
-   Repackage and regenerate metadata/checksums with Homebrew, rather than
-   editing checksums by hand. Leave Linux unchanged.
-4. Test pouring the final signed bottles on both architectures. Homebrew
-   relocation or re-signing must not invalidate the Developer ID signature.
-   Check the installed binary, not just the pre-packaging file.
-5. Publish only the verified, signed artifacts and attest those final bytes.
-   Update partial-upload recovery to verify the signed metadata as well.
+All packaging and publication jobs live in `Kong/kongctl`. The tap only holds
+definitions, checks installation, and merges the finished metadata. Do not
+copy Apple secrets into the tap or grant them to ordinary PR test jobs.
 
-This will require a separate tap PR and either scoped organization secrets or
-an approved signing service. Repository secrets in Kong/kongctl are not
-automatically available to Kong/homebrew-kongctl. Do not copy or broaden secret
-access without administrator approval.
-
-A formula explicitly built from source on a user's machine cannot carry Kong's
-Developer ID signature: the user produces new executable bytes and must never
-receive Kong's signing key. The supported downloaded macOS distributions must
-be signed; local source builds need to remain clearly distinguished.
+Homebrew's `--build-from-source` option selects the formula's install recipe;
+in this prebuilt formula that recipe still installs the upstream signed ZIP.
+It does not compile Go. Someone manually building the project source produces
+a separate unsigned executable and never receives Kong's signing key.
 
 ## References
 

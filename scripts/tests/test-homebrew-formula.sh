@@ -16,6 +16,11 @@ grep -Fq 'bin.install "kongctl"' "$test_dir/kongctl.rb"
 if grep -Eq 'depends_on|system "go"|archive/refs/tags' "$test_dir/kongctl.rb"; then
   echo 'Formula unexpectedly requires a compiler/source archive' >&2; exit 1
 fi
+if grep -q '^  version ' "$test_dir/kongctl.rb"; then
+  echo 'Stable version is redundant with its release URL' >&2; exit 1
+fi
+render 1.2.3-apple-validation-abcdef "$test_dir/checksums.txt" > "$test_dir/snapshot.rb"
+grep -Fqx '  version "1.2.3-apple-validation-abcdef"' "$test_dir/snapshot.rb"
 reject() {
   if render "$@" > /dev/null 2>&1; then
     echo 'Accepted invalid formula input' >&2; exit 1

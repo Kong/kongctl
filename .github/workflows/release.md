@@ -848,7 +848,7 @@ jobs:
 
             gh api repos/Kong/homebrew-kongctl/contents/Formula/kongctl.rb \
               --jq .content | base64 --decode > "$verification_dir/kongctl-formula.rb"
-            if ! grep -Fqx "  version \"$RELEASE_VERSION\"" "$verification_dir/kongctl-formula.rb"; then
+            if ! grep -Fq "/releases/download/v$RELEASE_VERSION/" "$verification_dir/kongctl-formula.rb"; then
               echo "::error::Homebrew formula is not at $RELEASE_VERSION"
               exit 1
             fi

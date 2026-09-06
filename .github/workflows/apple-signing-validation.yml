@@ -46,12 +46,16 @@ jobs:
           bash scripts/tests/test-apple-release-gates.sh
           bash scripts/tests/test-prepare-apple-signing.sh
           bash scripts/tests/test-homebrew-formula.sh
+          bash scripts/tests/test-homebrew-bottles.sh
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
           # Cache compiler outputs only; keys and signed dist files are outside
           # the Go cache and are never included in this cache.
           cache: true
+          cache-dependency-path: |
+            go.sum
+            .goreleaser.apple-validation.yml
       - name: Download dependencies without signing credentials
         env:
           CGO_ENABLED: '0'
@@ -235,11 +239,17 @@ jobs:
           retention-days: 7
 
   registry-access:
-    if: github.repository == 'Kong/kongctl'
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/task/apple-notarization')
     runs-on: ubuntu-latest
     permissions:
-      packages: read
+      contents: read
+      packages: write
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Inspect package access without publishing or changing permissions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -250,3 +260,7 @@ jobs:
           else
             echo '::warning::Confirm Kong/kongctl has Actions write access in the existing bottle package settings before release'
           fi
+      - name: Test push authorization with a cancelled empty upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/homebrew/probe-registry-write.sh

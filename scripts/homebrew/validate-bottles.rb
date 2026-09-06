@@ -20,6 +20,7 @@ files.each do |file|
   abort "unexpected rebuild" unless bottle["rebuild"] == 0
   abort "expected exactly one platform" unless bottle.fetch("tags").length == 1
   tag, entry = bottle.fetch("tags").first
+  abort "unexpected platform" unless %w[arm64_sequoia sequoia x86_64_linux].include?(tag)
   tags << tag
   cellar = entry["cellar"] || bottle["cellar"]
   abort "bottle would require relocation" unless cellar == "any_skip_relocation"
@@ -33,7 +34,7 @@ files.each do |file|
   recipe = File.read(File.join(directory, "kongctl-#{tag}.rb"))
   abort "not an upstream binary formula" unless recipe.include?('bin.install "kongctl"') &&
                                               !recipe.include?("depends_on") &&
-                                              recipe.include?("  version \"#{version}\"") &&
+                                              recipe.include?("/releases/download/v#{version}/") &&
                                               !recipe.include?("file://")
   recipes << recipe
 end
