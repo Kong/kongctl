@@ -55,171 +55,36 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		return fmt.Errorf("failed to list current auth strategies: %w", err)
 	}
 
-	// Index current strategies by name
-	currentByName := make(map[string]state.ApplicationAuthStrategy)
-	for _, strategy := range currentStrategies {
-		currentByName[strategy.Name] = strategy
-	}
-
-	// Collect protection validation errors
-	protectionErrors := &ProtectionErrorCollector{}
-
-	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
-	if plan.Metadata.Mode == PlanModeDelete {
-		for _, desiredStrategy := range desired {
-			var name string
-			switch desiredStrategy.Type {
-			case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
-				if desiredStrategy.AppAuthStrategyKeyAuthRequest != nil {
-					name = desiredStrategy.AppAuthStrategyKeyAuthRequest.Name
-				}
-			case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
-				if desiredStrategy.AppAuthStrategyOpenIDConnectRequest != nil {
-					name = desiredStrategy.AppAuthStrategyOpenIDConnectRequest.Name
-				}
-			}
-
-			if name == "" {
-				continue
-			}
-
-			current, exists := currentByName[name]
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"application_auth_strategy %q not found in Konnect, skipping delete", name,
-				))
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionDelete)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planAuthStrategyDelete(current, plan)
-			}
-		}
-
-		if protectionErrors.HasErrors() {
-			return protectionErrors.Error()
-		}
-		return nil
-	}
-
-	// Compare each desired auth strategy
-	for _, desiredStrategy := range desired {
-		// Extract name based on strategy type
-		var name string
-		switch desiredStrategy.Type {
-		case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
-			if desiredStrategy.AppAuthStrategyKeyAuthRequest != nil {
-				name = desiredStrategy.AppAuthStrategyKeyAuthRequest.Name
-			}
-		case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
-			if desiredStrategy.AppAuthStrategyOpenIDConnectRequest != nil {
-				name = desiredStrategy.AppAuthStrategyOpenIDConnectRequest.Name
-			}
-		}
-
+	desiredRoots := make([]managedRoot[resources.ApplicationAuthStrategyResource], 0, len(desired))
+	for _, strategy := range desired {
+		name := strategy.GetMoniker()
 		if name == "" {
 			continue
 		}
-
-		current, exists := currentByName[name]
-
-		if !exists {
-			// CREATE action
-			p.planAuthStrategyCreate(desiredStrategy, plan)
-		} else {
-			// Check if update needed
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-
-			// Get protection status from desired configuration
-			shouldProtect := false
-			if desiredStrategy.Kongctl != nil && desiredStrategy.Kongctl.Protected != nil && *desiredStrategy.Kongctl.Protected {
-				shouldProtect = true
-			}
-
-			// Handle protection changes
-			if isProtected != shouldProtect {
-				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields, changedFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
-
-				// Create protection change object
-				protectionChange := &ProtectionChange{
-					Old: isProtected,
-					New: shouldProtect,
-				}
-
-				// Validate protection change
-				err := p.ValidateProtectionWithChange(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionUpdate,
-					protectionChange, needsUpdate)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planAuthStrategyProtectionChangeWithFields(
-						current, desiredStrategy, isProtected, shouldProtect, updateFields, changedFields, plan,
-					)
-				}
-			} else {
-				// Check if update needed based on configuration
-				needsUpdate, updateFields, changedFields := p.shouldUpdateAuthStrategy(current, desiredStrategy)
-				if needsUpdate {
-					// Check for strategy type change error
-					if errMsg, hasError := updateFields[FieldError].(string); hasError {
-						protectionErrors.Add(fmt.Errorf("%s", errMsg))
-					} else {
-						// Regular update - check protection
-						err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionUpdate)
-						protectionErrors.Add(err)
-						if err == nil {
-							p.planAuthStrategyUpdateWithFields(current, desiredStrategy, updateFields, changedFields, plan)
-						}
-					}
-				}
-			}
-		}
+		desiredRoots = append(desiredRoots, managedRoot[resources.ApplicationAuthStrategyResource]{
+			resource:  strategy,
+			name:      name,
+			protected: strategy.Kongctl != nil && strategy.Kongctl.Protected != nil && *strategy.Kongctl.Protected,
+		})
 	}
 
-	// Check for managed resources to delete (sync mode only)
-	if plan.Metadata.Mode == PlanModeSync {
-		// Build set of desired strategy names
-		desiredNames := make(map[string]bool)
-		for _, strategy := range desired {
-			var name string
-			switch strategy.Type {
-			case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
-				if strategy.AppAuthStrategyKeyAuthRequest != nil {
-					name = strategy.AppAuthStrategyKeyAuthRequest.Name
-				}
-			case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
-				if strategy.AppAuthStrategyOpenIDConnectRequest != nil {
-					name = strategy.AppAuthStrategyOpenIDConnectRequest.Name
-				}
-			}
-			if name != "" {
-				desiredNames[name] = true
-			}
-		}
-
-		// Find managed strategies not in desired state
-		for name, current := range currentByName {
-			if !desiredNames[name] {
-				// Validate protection before adding DELETE
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := p.ValidateProtection(ResourceTypeApplicationAuthStrategy, name, isProtected, ActionDelete)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planAuthStrategyDelete(current, plan)
-				}
-			}
-		}
+	currentRoots := make([]managedRoot[state.ApplicationAuthStrategy], 0, len(currentStrategies))
+	for _, strategy := range currentStrategies {
+		currentRoots = append(currentRoots, managedRoot[state.ApplicationAuthStrategy]{
+			resource:  strategy,
+			name:      strategy.Name,
+			protected: labels.IsProtectedResource(strategy.NormalizedLabels),
+		})
 	}
 
-	// Fail fast if any protected resources would be modified
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
-
-	return nil
+	return reconcileManagedRoots(p.BasePlanner, ResourceTypeApplicationAuthStrategy, desiredRoots, currentRoots,
+		managedRootOperations[resources.ApplicationAuthStrategyResource, state.ApplicationAuthStrategy]{
+			diff:             p.shouldUpdateAuthStrategy,
+			create:           p.planAuthStrategyCreate,
+			update:           p.planAuthStrategyUpdateWithFields,
+			changeProtection: p.planAuthStrategyProtectionChangeWithFields,
+			remove:           p.planAuthStrategyDelete,
+		}, plan)
 }
 
 // planAuthStrategyCreate creates a CREATE change for an auth strategy

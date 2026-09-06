@@ -39,105 +39,33 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 		return fmt.Errorf("failed to list current DCR providers: %w", err)
 	}
 
-	currentByName := make(map[string]state.DCRProvider)
+	desiredRoots := make([]managedRoot[resources.DCRProviderResource], 0, len(desired))
+	for _, provider := range desired {
+		name := provider.Name
+		desiredRoots = append(desiredRoots, managedRoot[resources.DCRProviderResource]{
+			resource:  provider,
+			name:      name,
+			protected: provider.Kongctl != nil && provider.Kongctl.Protected != nil && *provider.Kongctl.Protected,
+		})
+	}
+
+	currentRoots := make([]managedRoot[state.DCRProvider], 0, len(currentProviders))
 	for _, provider := range currentProviders {
-		currentByName[provider.Name] = provider
+		currentRoots = append(currentRoots, managedRoot[state.DCRProvider]{
+			resource:  provider,
+			name:      provider.Name,
+			protected: labels.IsProtectedResource(provider.NormalizedLabels),
+		})
 	}
 
-	protectionErrors := &ProtectionErrorCollector{}
-
-	if plan.Metadata.Mode == PlanModeDelete {
-		for _, desiredProvider := range desired {
-			current, exists := currentByName[desiredProvider.Name]
-			if !exists {
-				plan.AddWarning(
-					"",
-					fmt.Sprintf("dcr_provider %q not found in Konnect, skipping delete", desiredProvider.Name),
-				)
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection(ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionDelete)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planDCRProviderDelete(current, plan)
-			}
-		}
-
-		if protectionErrors.HasErrors() {
-			return protectionErrors.Error()
-		}
-		return nil
-	}
-
-	for _, desiredProvider := range desired {
-		current, exists := currentByName[desiredProvider.Name]
-		if !exists {
-			p.planDCRProviderCreate(desiredProvider, plan)
-			continue
-		}
-
-		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		shouldProtect := false
-		if desiredProvider.Kongctl != nil && desiredProvider.Kongctl.Protected != nil &&
-			*desiredProvider.Kongctl.Protected {
-			shouldProtect = true
-		}
-
-		needsUpdate, updateFields, changedFields := p.shouldUpdateDCRProvider(current, desiredProvider)
-		if isProtected != shouldProtect {
-			protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
-			err := p.ValidateProtectionWithChange(
-				ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionUpdate, protectionChange, needsUpdate,
-			)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planDCRProviderProtectionChangeWithFields(
-					current, desiredProvider, isProtected, shouldProtect, updateFields, changedFields, plan,
-				)
-			}
-			continue
-		}
-
-		if needsUpdate {
-			if errMsg, hasError := updateFields[FieldError].(string); hasError {
-				protectionErrors.Add(fmt.Errorf("%s", errMsg))
-			} else {
-				err := p.ValidateProtection(ResourceTypeDCRProvider, desiredProvider.Name, isProtected, ActionUpdate)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planDCRProviderUpdateWithFields(current, desiredProvider, updateFields, changedFields, plan)
-				}
-			}
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		desiredNames := make(map[string]bool)
-		for _, provider := range desired {
-			desiredNames[provider.Name] = true
-		}
-
-		for name, current := range currentByName {
-			if desiredNames[name] {
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection(ResourceTypeDCRProvider, name, isProtected, ActionDelete)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planDCRProviderDelete(current, plan)
-			}
-		}
-	}
-
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
-
-	return nil
+	return reconcileManagedRoots(p.BasePlanner, ResourceTypeDCRProvider, desiredRoots, currentRoots,
+		managedRootOperations[resources.DCRProviderResource, state.DCRProvider]{
+			diff:             p.shouldUpdateDCRProvider,
+			create:           p.planDCRProviderCreate,
+			update:           p.planDCRProviderUpdateWithFields,
+			changeProtection: p.planDCRProviderProtectionChangeWithFields,
+			remove:           p.planDCRProviderDelete,
+		}, plan)
 }
 
 func (p *dcrProviderPlannerImpl) planDCRProviderCreate(
