@@ -294,6 +294,21 @@ jobs:
             exit 1
           fi
 
+      - name: Require the upstream-artifact tap protocol before creating a tag
+        if: steps.compute_config.outputs.build_mode == 'full'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh api 'repos/Kong/homebrew-kongctl/contents/.github/kongctl-release-protocol.json?ref=main' \
+            --jq .content | base64 --decode | jq -e '
+              .schema == 1 and .bottle_producer == "Kong/kongctl" and
+              .formula_install == "upstream-binary" and .publisher == "metadata-only"
+            '; then
+            echo '::error::Merge the coordinated metadata-only tap change before starting a release'
+            exit 1
+          fi
+
   create_tag:
     needs: ["config"]
     runs-on: ubuntu-latest

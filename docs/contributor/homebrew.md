@@ -58,10 +58,18 @@ on all three platforms and merges their metadata, without publishing anything
 to GHCR or the tap. It uses the production renderer and packaging scripts.
 Its temporary trusted-branch push trigger must be removed before merging.
 
+The packaging-only validation workflow can reuse a previous run's verified
+executables when Go source, embedded assets, module dependencies and the build
+recipe are unchanged. It records the producer SHA/run, re-verifies native
+signatures, and never receives signing credentials or publishes packages.
+This avoids recompilation/notarization for packaging-only test iterations.
+
 Coordinate [kongctl #2078] and [tap #15]. Merge the tap PR first, then the
 upstream PR, without dispatching a release between them. The new tap publisher
 deliberately rejects old source-building release PRs. Existing installations
 remain available during this interval.
+The upstream workflow checks the tap's release-protocol marker before creating
+a new tag, preventing it from accidentally dispatching the old bottle builder.
 
 The tap transition preserves the 1.15.0 bottle block and cask exactly. It does
 not replace old assets or retroactively sign them. Only a new release built by

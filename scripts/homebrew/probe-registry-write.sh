@@ -17,7 +17,7 @@ cleanup() {
     fi
   fi
   rm -rf "$work"
-  return "$result"
+  exit "$result"
 }
 trap cleanup EXIT
 token=$(curl --fail --silent --show-error --max-time 60 \

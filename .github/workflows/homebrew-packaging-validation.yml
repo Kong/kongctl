@@ -46,7 +46,9 @@ jobs:
             [[ "$run" =~ ^[0-9]+$ ]]
             sha=$(gh api "repos/Kong/kongctl/actions/runs/$run" --jq .head_sha)
             git merge-base --is-ancestor "$sha" HEAD || continue
-            git diff --quiet "$sha" HEAD -- '*.go' go.mod go.sum .goreleaser.apple-validation.yml || continue
+            git diff --quiet "$sha" HEAD -- '*.go' go.mod go.sum skills \
+              internal/art/assets internal/cmd/root/verbs/help/templates \
+              .goreleaser.apple-validation.yml || continue
             approved=$(gh api "repos/Kong/kongctl/actions/runs/$run/jobs?per_page=100" \
               --jq '[.jobs[] | select(.name == "sign" and .conclusion == "success")] | length')
             [[ "$approved" == 1 ]] || continue
