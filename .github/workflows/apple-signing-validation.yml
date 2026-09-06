@@ -10,6 +10,10 @@ on:
       - .github/workflows/apple-signing-validation.yml
       - .goreleaser.apple-validation.yml
       - scripts/verify-apple-binary.sh
+      - scripts/prepare-apple-signing.sh
+      - scripts/verify-apple-release.sh
+      - scripts/publish-apple-release.sh
+      - scripts/apple-release-snapshot.jq
       - scripts/tests/apple-signing/**
       - scripts/tests/test-*apple*.sh
 
@@ -37,6 +41,8 @@ jobs:
         run: |
           bash scripts/tests/test-verify-apple-binary.sh
           bash scripts/tests/test-apple-fixtures.sh
+          bash scripts/tests/test-apple-release-gates.sh
+          bash scripts/tests/test-prepare-apple-signing.sh
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -58,21 +64,9 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         shell: bash
         run: |
-          set +x
           set -euo pipefail
-          for name in APPLE_NOTARY_API_PRIVATE_KEY APPLE_NOTARY_API_ISSUER_ID \
-            APPLE_NOTARY_API_KEY_ID APPLE_SIGNING_CERTIFICATE_P12_BASE64 \
-            APPLE_SIGNING_CERTIFICATE_PASSWORD APPLE_TEAM_ID APPLE_SIGNING_IDENTITY; do
-            if [[ -z "${!name}" ]]; then
-              echo "::error::Missing $name"
-              exit 1
-            fi
-          done
-          umask 077
+          bash scripts/prepare-apple-signing.sh
           key_path="$RUNNER_TEMP/kongctl-notary-key.p8"
-          printf '%s\n' "$APPLE_NOTARY_API_PRIVATE_KEY" > "$key_path"
-          openssl pkey -in "$key_path" -noout
-          echo "APPLE_NOTARY_KEY_PATH=$key_path" >> "$GITHUB_ENV"
           # Confirm Apple accepts the API credentials, without dumping history.
           xcrun notarytool history --key "$key_path" \
             --key-id "$APPLE_NOTARY_API_KEY_ID" \
@@ -164,6 +158,12 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
           ARCH: ${{ matrix.arch }}
         run: bash scripts/tests/test-signed-apple-install.sh signed "$ARCH"
+      - name: Exercise production publication gates against an offline API
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-apple-release-gates.sh signed "$ARCH"
       - name: Verify bottling and pouring preserve the signature
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}

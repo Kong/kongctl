@@ -1,6 +1,6 @@
 # Apple signing and notarization rollout
 
-Status: draft validation, not enabled for production releases.
+Status: draft implementation, not merged or enabled in production.
 
 ## What this draft tests
 
@@ -84,22 +84,66 @@ team ownership with the Apple certificate chain and leaf certificate's
 `subject.OU` code-signing requirement, not by requiring that optional display
 field. A populated but unexpected TeamIdentifier is still rejected.
 
+## Stable release integration staged in this draft
+
+The production GoReleaser configuration now includes the same notarization
+settings as the validation configuration. The `Release` workflow stages the
+following sequence; it has not yet been exercised as a real release:
+
+1. Full releases and recovery must run from `Kong/kongctl` main.
+2. Require all five Apple secrets and both variables. Create a temporary API
+   key file, then sign/notarize before producing ZIPs and checksums.
+3. Upload GitHub assets into a **draft** release. The existing GoReleaser
+   container publication still occurs here; Linux container images do not
+   depend on Apple signing. This is not an atomic multi-registry transaction.
+4. Fresh Intel and ARM Macs download the draft assets, verify checksums,
+   signatures and notarization, execute their native binary with quarantine,
+   and exercise the installer against those same assets. No Apple private
+   credentials are available in these jobs.
+5. Each Mac records the release ID and exact asset identities. Both receipts
+   must match each other and the current GitHub assets before publication.
+   Replacing, deleting, or uploading an asset invalidates that approval.
+6. Only then publish the release and start the existing Homebrew automation.
+   The cask receives signed release ZIPs. The formula's independently built
+   bottles still need the separate signing work described below.
+
+The publication-policy test uses an offline GitHub API double; it never
+publishes a test release. Mac validation also runs this test with real signed
+ZIPs and native verification. Fixture Linux/Windows assets are placeholders,
+not tests of those executables or the actual GitHub publication API.
+
+### Failure and recovery
+
+- Missing credentials, rejected/pending notarization, or failed native checks
+  must stop publication. Do not remove the gates or manually publish a draft.
+- If Apple is still processing a submission, investigate its status, then
+  retry the failed verification jobs in the **original run**. Successful
+  signing/build jobs need not be repeated. Receipts last seven days.
+- The `recovery_tag` input still accepts only already-published stable
+  releases. It now rechecks full macOS assets before proceeding, so it cannot
+  bypass notarization. Older unsigned releases cannot pass this new gate.
+- A changed asset requires both native gates to run again. A missing/expired
+  receipt also requires fresh verification. Do not reuse receipts across runs.
+- Do not start a normal new release or rerun every job merely to recover a
+  draft: version computation can select a new tag. Recovery after a failed
+  build, expired run, or partial Homebrew publication still needs maintainer
+  investigation; this draft does not introduce a rebuild/resume dispatcher.
+
+Arbitrary-ref ad-hoc prereleases remain explicitly unsigned. Their workflow
+uses `goreleaser build`, not the notarization/release pipeline, and its notes
+now disclose this. No Apple secrets were added to that workflow. Signing
+arbitrary previews needs a separate trusted approval boundary.
+
 ## Remaining production integration
 
 Do not merge this as a completed all-installation-method signing rollout.
 
-- Move the validated notarization configuration into the stable release path.
-  Require all five secrets; never silently skip signing when one is missing.
-- Build/sign before generating archives and checksums. Hold GitHub assets in
-  a draft release until native macOS signature/notarization checks pass, then
-  publish and let the existing Homebrew release automation proceed.
-- Ensure recovery mode cannot bypass verification of newly signed releases.
+- Exercise the staged production build/draft/download/publish integration
+  against GitHub before approving a stable rollout.
 - Exercise both architecture downloads through the cask and `curl | sh`
   installer, checking they preserve the signed executable byte-for-byte.
-- Decide how to handle ad-hoc prereleases, which currently use `goreleaser
-  build` and their own archive/publication path. Do not give signing secrets to
-  their arbitrary `source_ref` checkout. Keep arbitrary-code previews explicitly
-  unsigned or add a separately trusted signing process and approval boundary.
+- If signed ad-hoc previews are required, add a separately trusted signing
+  process; do not expose credentials to their arbitrary source checkout.
 - Sign the independently compiled macOS Homebrew bottles too, as below.
 - Remove the temporary trusted-branch push trigger before merging.
 - Test on a prerelease first. Do not replace existing 1.15.0 assets or bottles.

@@ -125,6 +125,9 @@ jobs:
 
               if (release.draft || release.prerelease || !release.published_at) {
                 core.setFailed(`Release ${recoveryTag} is not a published stable release.`);
+                if (release.draft) {
+                  core.error("For a pending signed draft, retry the failed verification jobs in the original run. Do not publish it manually.");
+                }
                 return;
               }
 
@@ -281,6 +284,16 @@ jobs:
             core.setOutput("artifact_mode", buildMode);
             console.log(`✓ Release tag: ${releaseTag}`);
 
+      - name: Restrict full releases to trusted main
+        if: steps.compute_config.outputs.artifact_mode == 'full'
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          if [[ "$GITHUB_REPOSITORY" != "Kong/kongctl" || "$WORKFLOW_REF" != "refs/heads/main" ]]; then
+            echo "::error::Full releases and their recovery must run from Kong/kongctl main"
+            exit 1
+          fi
+
   create_tag:
     needs: ["config"]
     runs-on: ubuntu-latest
@@ -331,6 +344,7 @@ jobs:
   publish_release:
     needs: ["config", "create_tag"]
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     permissions:
       contents: write
       packages: write
@@ -398,6 +412,18 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
+      - name: Prepare Apple signing (full mode)
+        if: env.RELEASE_BUILD_MODE == 'full'
+        env:
+          APPLE_NOTARY_API_PRIVATE_KEY: ${{ secrets.APPLE_NOTARY_API_PRIVATE_KEY }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: bash scripts/prepare-apple-signing.sh
+
       - name: Run GoReleaser (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
         id: goreleaser
@@ -405,11 +431,19 @@ jobs:
         with:
           distribution: goreleaser
           version: v2.13.3
-          args: release --clean --parallelism=1
+          args: release --clean --parallelism=1 --timeout=80m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           CGO_ENABLED: "0"
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+
+      - name: Remove temporary Apple API key
+        if: always() && env.RELEASE_BUILD_MODE == 'full'
+        run: rm -f "$RUNNER_TEMP/kongctl-notary-key.p8"
 
       - name: Stage Homebrew release metadata
         if: env.RELEASE_BUILD_MODE == 'full'
@@ -472,8 +506,74 @@ jobs:
               --generate-notes
           fi
 
-  publish_homebrew:
+  verify_apple_release:
     needs: ["config", "publish_release"]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout trusted verification scripts
+        if: needs.config.outputs.artifact_mode == 'full'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify release downloads and notarization
+        if: needs.config.outputs.artifact_mode == 'full'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/verify-apple-release.sh "$ARCH" receipts
+      - name: Record the exact verified assets
+        if: needs.config.outputs.artifact_mode == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-release-${{ needs.config.outputs.release_tag }}-${{ matrix.arch }}
+          path: receipts/${{ matrix.arch }}.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  approve_release:
+    needs: ["config", "verify_apple_release"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout trusted publication scripts
+        if: needs.config.outputs.artifact_mode == 'full'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download both verification receipts from this run
+        if: needs.config.outputs.artifact_mode == 'full'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+        with:
+          pattern: apple-release-${{ needs.config.outputs.release_tag }}-*
+          path: receipts
+          merge-multiple: true
+      - name: Publish only unchanged verified assets
+        if: needs.config.outputs.artifact_mode == 'full'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+          RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+        run: bash scripts/publish-apple-release.sh receipts
+
+  publish_homebrew:
+    needs: ["config", "publish_release", "approve_release"]
     runs-on: ubuntu-latest
     permissions:
       actions: read
