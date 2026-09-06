@@ -109,6 +109,12 @@ coverage:
 test:
 	go test -race -count=1 ./...
 
+.PHONY: refresh-e2e-weights
+refresh-e2e-weights:
+	python3 scripts/e2e-weights.py \
+		test/e2e/baselines/stage0-2026-09-observations.json \
+		test/e2e/baselines/post-cache-2026-09-observations.json
+
 .PHONY: test-e2e-metrics
 test-e2e-metrics:
 	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'

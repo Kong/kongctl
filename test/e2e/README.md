@@ -650,3 +650,71 @@ experiments, but should not be counted as independent baseline samples.
 Gather the post-cache baseline before changing concurrency, assignment, or
 reset policy. Those future changes require a new, explicitly identified
 measurement period; the cache cohort alone does not distinguish them.
+
+### Weighted sharding predictions
+
+Full, sharded `.com` runs also compute a **report-only** weighted assignment.
+Live execution still uses the existing selector, including its ordering and
+organization pins. Filtered, unsharded, and `.tech` runs do not generate these
+predictions. This does not introduce replay, skip scenarios, or change reset
+policy or concurrency.
+
+The proposed scheduler reserves pinned load first, then assigns unpinned
+scenarios in descending estimated-duration order to the least-loaded org.
+Equal weights use scenario path order; equal loads use configured organization
+order. Proposed scenario lists are sorted by path. Counts need not be equal:
+the goal is balanced estimated time, not balanced scenario counts.
+
+Refresh the checked-in snapshot manually from saved observations:
+
+```sh
+make refresh-e2e-weights
+```
+
+This writes `test/e2e/baselines/scenario-weights.json`. The initial inputs are
+the frozen Stage 0 and post-cache observations; these are pooled only for
+scenario duration estimates, not for workflow/build-cache comparisons. The
+generator uses one attempt per workflow run (the highest supplied attempt),
+rejects conflicting duplicate observations, and requires at least 10 finite,
+positive, passing durations per scenario. Weights are conventional medians
+rounded to milliseconds. Failed, skipped, and nonpositive durations do not
+contribute. Removed scenarios are omitted on refresh.
+
+New or insufficiently sampled scenarios use the median of established scenario
+weights. If no scenario qualifies, all scenarios receive a uniform 1000ms
+weight. Such a report is a balancing illustration, not a calibrated time
+prediction. The snapshot records sample counts and source paths/SHA-256 hashes
+and is embedded in the scenario test binary; selection never queries GitHub.
+Refresh is explicit, not part of builds or baseline collection.
+
+Predictions do not learn from each run: unchanged manifests, organizations,
+and weights produce the same proposed assignments. Collect observations first,
+then refresh and review the snapshot when newer timing data warrants it.
+Malformed observation records are rejected before replacing the snapshot.
+
+The build job runs the weighted scheduler tests using its already compiled
+test binary and kongctl executable. This offline check covers the full
+repository corpus, pin preservation, coverage, and identical full-pool reports
+across matrix organizations; it never executes scenarios or contacts Konnect.
+Run it locally with:
+
+```sh
+CGO_ENABLED=0 go test -tags=e2e ./test/e2e -run '^TestWeighted' -v
+```
+
+Each shard's workflow summary compares current and proposed estimated totals,
+longest-shard time, and spread. Its `e2e-artifacts-*` artifact contains:
+
+- `proposed-scenario-assignments.json`: versioned, full-pool comparison with
+  per-scenario weights, fallback indicators, and organization assignments.
+- `weighted-sharding-summary.md`: the human-readable comparison.
+
+These are separate from `assigned-scenarios.txt` and `e2e-metrics.json`, which
+continue to describe actual execution. Reporting errors produce warnings and
+do not fail scenario tests. Missing reports also appear as workflow warnings.
+
+Predictions exclude job overhead and assume that scenario durations transfer
+across organizations and execution ordering. They are not measured savings.
+Repeated runs from the same PR are correlated samples. Review these reports
+alongside the completed post-cache baseline before a separate activation PR;
+activation must start a separately identified measurement period.

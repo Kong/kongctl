@@ -645,6 +645,11 @@ jobs:
       - name: Build scenario test binary
         run: go test -c -tags=e2e -o e2e.test ./test/e2e
 
+      - name: Validate report-only scheduler offline
+        env:
+          KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
+        run: ./e2e.test -test.v -test.run '^TestWeighted' -test.timeout 1m
+
       - name: Upload scenario executables
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -834,11 +839,13 @@ jobs:
       #     echo "Skipping E2E (no 'run-e2e' label)." && exit 0
 
       - name: Run assigned Konnect scenarios
+        id: scenarios
         run: |
           set -euo pipefail
 
           ART_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/$(date +%Y%m%d-%H%M%S)"
           mkdir -p "${ART_DIR}"
+          echo "artifacts_dir=${ART_DIR}" >> "${GITHUB_OUTPUT}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
 
           source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
@@ -918,6 +925,20 @@ jobs:
 
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
+
+      - name: Report weighted sharding predictions
+        if: always() && env.KONGCTL_E2E_KONNECT_ENV == 'com'
+        continue-on-error: true
+        env:
+          WEIGHTED_REPORT_DIR: ${{ steps.scenarios.outputs.artifacts_dir }}
+        run: |
+          report="${WEIGHTED_REPORT_DIR}/weighted-sharding-summary.md"
+          if [ -f "${report}" ]; then
+            cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "::warning::Weighted sharding report unavailable; live assignments are unchanged"
+            echo "Weighted sharding predictions unavailable for this shard." >> "${GITHUB_STEP_SUMMARY}"
+          fi
 
       - name: Generate shard metrics
         if: always()
