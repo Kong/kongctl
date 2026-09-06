@@ -37,6 +37,10 @@ for path in upload uploads; do
     [[ $(< "$PROBE_LOG") == "https://ghcr.io/v2/kong/kongctl/kongctl/blobs/$path/01234567-89ab-cdef-0123-456789abcdef" ]]
   done
 done
+PROBE_LOCATION='/v2/kong/kongctl/kongctl/blobs/upload/opaque_SESSION-id123==?state=fixture'
+: > "$PROBE_LOG"
+bash "$root/scripts/homebrew/probe-registry-write.sh"
+[[ $(wc -l < "$PROBE_LOG") -eq 1 ]]
 for PROBE_LOCATION in \
   'https://example.com/v2/kong/kongctl/kongctl/blobs/upload/abcd' \
   '/v2/kong/other/blobs/upload/abcd' \
