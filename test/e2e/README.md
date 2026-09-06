@@ -600,22 +600,36 @@ make baseline-e2e-ci E2E_BASELINE_SCAN=200
 ```
 
 GitHub Actions metrics artifacts may expire before 20 eligible runs complete.
-Collect and retain partial observations in the versioned post-cache snapshot:
+Collect and retain partial observations in the versioned weighted snapshot:
 
 ```sh
 make collect-e2e-baseline
 ```
 
 The target reads and updates
-`test/e2e/baselines/post-cache-2026-09-observations.json`, deduplicates saved and
+`test/e2e/baselines/weighted-v1-2026-09-observations.json`, deduplicates saved and
 new runs by workflow run ID, and writes the current report to
-`test/e2e/baselines/post-cache-2026-09.md`. It succeeds while the report is still
+`test/e2e/baselines/weighted-v1-2026-09.md`. It succeeds while the report is still
 collecting so the updated files can be committed before source artifacts
 expire. Saved observations remain eligible after their source artifacts are
 deleted.
 
 Commit the updated files regularly, for example twice a week, before the
 10-day artifact retention expires. Collection remains an administrator task.
+
+Collection defaults to the exact weighted allocation embedded in the current
+checkout. `E2E_BASELINE_ALLOCATION` combines the algorithm version and the
+weight snapshot SHA-256. A different strategy or weight hash is excluded from
+collection; a mismatched saved file is rejected before it is overwritten.
+Keep the 20-run `post-cache-2026-09-*` files as the pre-activation baseline.
+Do not overwrite them with weighted or rollback observations.
+
+Metrics schema 2 records `allocation_id` from the harness allocation sidecar,
+not from requested environment settings. Missing or inconsistent metadata fails
+metrics generation. Historical schema 1 metrics and saved observations without
+allocation identity are explicitly treated as `modulo-v1`; mixed-shard runs
+are rejected. Observation schema 2 is retained with an additive allocation ID
+on newly saved documents and runs.
 
 `E2E_BASELINE_COHORT` defaults to `cache-enabled`. This includes cache hits and
 misses in builds containing the `Report Go cache status` step added by #2069.
@@ -651,30 +665,31 @@ Gather the post-cache baseline before changing concurrency, assignment, or
 reset policy. Those future changes require a new, explicitly identified
 measurement period; the cache cohort alone does not distinguish them.
 
-### Weighted sharding predictions
+### Weighted sharding allocation and rollback
 
-Full, sharded `.com` runs also compute a **report-only** weighted assignment.
-Live execution still uses the existing selector, including its ordering and
-organization pins. Filtered, unsharded, and `.tech` runs do not generate these
-predictions. This does not introduce replay, skip scenarios, or change reset
-policy or concurrency.
+Full, sharded `.com` runs use weighted allocation by default. This is the
+activation following #2094, which only reported proposals. Filtered, unsharded,
+and `.tech` execution retains the original selector. No scenarios are removed,
+no replay is introduced, and reset policy and concurrency are unchanged.
 
-The proposed scheduler reserves pinned load first, then assigns unpinned
+The scheduler reserves pinned load first, then assigns unpinned
 scenarios in descending estimated-duration order to the least-loaded org.
 Equal weights use scenario path order; equal loads use configured organization
-order. Proposed scenario lists are sorted by path. Counts need not be equal:
+order. Weighted execution lists are sorted by path. Counts need not be equal:
 the goal is balanced estimated time, not balanced scenario counts.
 
-Refresh the checked-in snapshot manually from saved observations:
+The activation snapshot uses only the completed 20-run cache-enabled baseline.
+Keep it fixed during the first 20 successful weighted runs. An intentional
+refresh starts a new allocation identity and requires a separate observation
+file; it is not routine maintenance during that experiment. To regenerate the
+activation snapshot from its frozen source:
 
 ```sh
 make refresh-e2e-weights
 ```
 
-This writes `test/e2e/baselines/scenario-weights.json`. The initial inputs are
-the frozen Stage 0 and post-cache observations; these are pooled only for
-scenario duration estimates, not for workflow/build-cache comparisons. The
-generator uses one attempt per workflow run (the highest supplied attempt),
+This writes `test/e2e/baselines/scenario-weights.json`. The generator uses one
+attempt per workflow run (the highest supplied attempt),
 rejects conflicting duplicate observations, and requires at least 10 finite,
 positive, passing durations per scenario. Weights are conventional medians
 rounded to milliseconds. Failed, skipped, and nonpositive durations do not
@@ -687,10 +702,32 @@ prediction. The snapshot records sample counts and source paths/SHA-256 hashes
 and is embedded in the scenario test binary; selection never queries GitHub.
 Refresh is explicit, not part of builds or baseline collection.
 
-Predictions do not learn from each run: unchanged manifests, organizations,
-and weights produce the same proposed assignments. Collect observations first,
-then refresh and review the snapshot when newer timing data warrants it.
-Malformed observation records are rejected before replacing the snapshot.
+Weights do not learn from each run: unchanged manifests, organizations, and
+weights produce the same assignments. Malformed activation weights fail before
+execution instead of silently reverting to a different allocation. Malformed
+observation records are rejected before replacing the snapshot.
+
+For rollback, set the GitHub repository variable `KONGCTL_E2E_SHARD_STRATEGY`
+to `modulo`. The target-selection job captures it once for the entire matrix;
+already selected runs keep their allocation, and later runs use the original
+selector, including its original ordering. Rollback works even if weights are
+invalid. Set it to `weighted` (or remove the variable) to resume activation.
+An invalid value fails the `.com` target-selection job. Locally the equivalent
+override is `KONGCTL_E2E_SHARD_STRATEGY=modulo`.
+
+Record rollback measurements separately, for example:
+
+```sh
+make collect-e2e-baseline E2E_BASELINE_ALLOCATION=modulo-v1 \
+  E2E_BASELINE_OBSERVATIONS=.e2e-artifacts/rollback-observations.json \
+  E2E_BASELINE_REPORT=.e2e-artifacts/rollback.md
+```
+
+For an exact snapshot identity without changing weights:
+
+```sh
+python3 scripts/e2e-weights.py --print-allocation-id
+```
 
 The build job runs the weighted scheduler tests using its already compiled
 test binary and kongctl executable. This offline check covers the full
@@ -702,19 +739,26 @@ Run it locally with:
 CGO_ENABLED=0 go test -tags=e2e ./test/e2e -run '^TestWeighted' -v
 ```
 
-Each shard's workflow summary compares current and proposed estimated totals,
+Each shard's workflow summary identifies the actual allocation and compares
+modulo and weighted estimated totals,
 longest-shard time, and spread. Its `e2e-artifacts-*` artifact contains:
 
-- `proposed-scenario-assignments.json`: versioned, full-pool comparison with
-  per-scenario weights, fallback indicators, and organization assignments.
+- `scenario-allocation.json`: the actual strategy and allocation identity.
+- `proposed-scenario-assignments.json`: schema 2 full-pool comparison with
+  `legacy` and `weighted` assignments plus the actual allocation identity.
+  Schema 1 `current`/`proposed` fields from report-only runs are historical.
 - `weighted-sharding-summary.md`: the human-readable comparison.
 
 These are separate from `assigned-scenarios.txt` and `e2e-metrics.json`, which
-continue to describe actual execution. Reporting errors produce warnings and
-do not fail scenario tests. Missing reports also appear as workflow warnings.
+describe actual weighted or modulo execution. Comparison-report errors produce
+warnings; allocation metadata errors fail before execution so measurements
+cannot silently be assigned to the wrong experiment.
 
 Predictions exclude job overhead and assume that scenario durations transfer
 across organizations and execution ordering. They are not measured savings.
-Repeated runs from the same PR are correlated samples. Review these reports
-alongside the completed post-cache baseline before a separate activation PR;
-activation must start a separately identified measurement period.
+Repeated runs from the same PR are correlated samples. Compare measured
+longest-shard duration, spread, and overall latency with the completed
+pre-activation baseline. Also inspect failed/cancelled workflows and beta
+scenario failures: this successful-run collector alone cannot establish
+reliability. Roll back promptly for coverage/pinning problems or reproducible
+ordering-dependent failures; do not weaken assertions to retain speedups.

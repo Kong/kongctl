@@ -23,22 +23,22 @@ func TestWeightedScenarioPlan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Organizations[0].ProposedMS != 100 || plan.Organizations[1].ProposedMS != 70 {
+	if plan.Organizations[0].WeightedMS != 100 || plan.Organizations[1].WeightedMS != 70 {
 		t.Fatalf("pinned load not reserved first: %+v", plan)
 	}
 	seen := map[string]bool{}
 	for _, org := range plan.Organizations {
-		for _, item := range org.Proposed {
+		for _, item := range org.Weighted {
 			if seen[item.Scenario] {
 				t.Fatalf("duplicate assignment: %s", item.Scenario)
 			}
 			seen[item.Scenario] = true
 		}
 	}
-	if len(seen) != len(paths) || !plan.Organizations[1].Proposed[1].Fallback {
+	if len(seen) != len(paths) || !plan.Organizations[1].Weighted[1].Fallback {
 		t.Fatalf("coverage or new-scenario fallback incorrect: %+v", plan)
 	}
-	if plan.Organizations[0].CurrentMS != 160 || plan.Organizations[1].CurrentMS != 10 {
+	if plan.Organizations[0].LegacyMS != 160 || plan.Organizations[1].LegacyMS != 10 {
 		t.Fatalf("current selector comparison incorrect: %+v", plan)
 	}
 	reversed := slices.Clone(paths)
@@ -48,7 +48,7 @@ func TestWeightedScenarioPlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, org := range plan.Organizations {
-		if !reflect.DeepEqual(org.Proposed, other.Organizations[i].Proposed) {
+		if !reflect.DeepEqual(org.Weighted, other.Organizations[i].Weighted) {
 			t.Fatal("proposed assignment depends on input order")
 		}
 	}
@@ -67,7 +67,7 @@ func TestWeightedUniformTiesAndEmptyShards(t *testing.T) {
 		if !plan.Uniform || len(plan.Organizations) != 3 {
 			t.Fatal("uniform fallback or empty shard missing")
 		}
-		if len(paths) > 0 && plan.Organizations[0].Proposed[0].Scenario != "a" {
+		if len(paths) > 0 && plan.Organizations[0].Weighted[0].Scenario != "a" {
 			t.Fatal("ties must use path and configured org order")
 		}
 	}

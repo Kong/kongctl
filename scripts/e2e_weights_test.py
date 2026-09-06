@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
@@ -133,6 +134,17 @@ class E2EWeightsTest(unittest.TestCase):
         self.assertIn("unsupported observations", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
         self.assertEqual("preserved snapshot\n", output.read_text())
+
+    def test_print_allocation_id_does_not_modify_snapshot(self):
+        output = self.root / "weights.json"
+        content = b'{"schema_version": 1}\n'
+        output.write_bytes(content)
+        result = subprocess.run(
+            [sys.executable, str(Path(MODULE.__file__)), "--print-allocation-id", "--output", str(output)],
+            capture_output=True, text=True, check=True,
+        )
+        self.assertEqual("weighted-v1:" + hashlib.sha256(content).hexdigest(), result.stdout.strip())
+        self.assertEqual(content, output.read_bytes())
 
 
 if __name__ == "__main__":

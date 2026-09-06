@@ -31,6 +31,9 @@ class E2EMetricsTest(unittest.TestCase):
                 "    --- FAIL: Test_Scenarios/test/e2e/scenarios/b/scenario.yaml (2.50s)\n",
                 encoding="utf-8",
             )
+            (root / "scenario-allocation.json").write_text(json.dumps({
+                "schema_version": 1, "strategy": "weighted", "allocation_id": "weighted-v1:" + "a" * 64,
+            }))
             reset_dir = root / "commands" / "000-reset_org"
             reset_dir.mkdir(parents=True)
             (reset_dir / "observation.json").write_text(
@@ -64,6 +67,8 @@ class E2EMetricsTest(unittest.TestCase):
             )
 
         self.assertEqual(2, metrics["selected_scenario_count"])
+        self.assertEqual(2, metrics["schema_version"])
+        self.assertEqual("weighted-v1:" + "a" * 64, metrics["allocation_id"])
         self.assertEqual(42, metrics["execution_duration_seconds"])
         self.assertEqual("acceptance-2", metrics["org_name"])
         self.assertEqual(1.25, metrics["scenario_durations"][0]["duration_seconds"])
@@ -91,6 +96,23 @@ class E2EMetricsTest(unittest.TestCase):
 
             with self.assertRaises(json.JSONDecodeError):
                 MODULE.collect_reset_metrics(root)
+
+    def test_allocation_is_required_and_authoritative(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "assigned-scenarios.txt").write_text("shard_index=0\nshard_total=1\n\na/scenario.yaml\n")
+            (root / "scenario-results.txt").write_text("duration_seconds=1\n")
+            (root / "run.log").write_text("")
+            with self.assertRaises(FileNotFoundError):
+                MODULE.collect_metrics(root, {})
+            path = root / "scenario-allocation.json"
+            for allocation in (None, {}, {"schema_version": 1, "strategy": "weighted", "allocation_id": "modulo-v1"}):
+                path.write_text(json.dumps(allocation))
+                with self.assertRaises(ValueError):
+                    MODULE.collect_metrics(root, {})
+            path.write_text(json.dumps({"schema_version": 1, "strategy": "modulo", "allocation_id": "modulo-v1"}))
+            metrics = MODULE.collect_metrics(root, {"KONGCTL_E2E_SHARD_STRATEGY": "weighted"})
+            self.assertEqual("modulo-v1", metrics["allocation_id"])
 
 
 if __name__ == "__main__":

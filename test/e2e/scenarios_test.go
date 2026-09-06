@@ -69,6 +69,7 @@ func Test_Scenarios(t *testing.T) {
 	)
 
 	selectionConfig := scenarioSelectionConfig{
+		Strategy:     os.Getenv("KONGCTL_E2E_SHARD_STRATEGY"),
 		Filter:       filt,
 		Shard:        shard,
 		CurrentEnv:   os.Getenv("KONGCTL_E2E_MATRIX_ORG"),
@@ -77,16 +78,19 @@ func Test_Scenarios(t *testing.T) {
 		ValidateEnvs: validateEnvs,
 		EnforceEnv:   shard.Enabled,
 	}
-	selected, err := selectScenariosWithConfig(scenarios, selectionConfig)
+	selected, allocation, err := selectScenariosForExecution(scenarios, selectionConfig)
 	if err != nil {
 		t.Fatalf("select scenarios: %v", err)
 	}
 	excluded := missingAssignedEnvironmentScenarios(scenarios, assignments, allowedEnvs, validateEnvs)
+	if err := writeScenarioAllocation(os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"), shard, allocation); err != nil {
+		t.Fatalf("write scenario allocation: %v", err)
+	}
 	if err := writeScenarioShardManifest(os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"), shard, selected, excluded); err != nil {
 		t.Fatalf("write shard manifest: %v", err)
 	}
 	if err := writeWeightedScenarioReport(os.Getenv("KONGCTL_E2E_ARTIFACTS_DIR"), scenarios, selectionConfig); err != nil {
-		t.Logf("WARNING: weighted sharding report unavailable (live assignments unchanged): %v", err)
+		t.Logf("WARNING: sharding comparison unavailable (allocation %s): %v", allocation.ID, err)
 	}
 
 	if len(selected) == 0 {

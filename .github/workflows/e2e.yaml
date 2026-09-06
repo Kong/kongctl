@@ -112,6 +112,7 @@ jobs:
       konnect_base_auth_url: ${{ steps.target.outputs.konnect_base_auth_url }}
       konnect_machine_client_id: ${{ steps.target.outputs.konnect_machine_client_id }}
       orgs_json: ${{ steps.target.outputs.orgs_json }}
+      shard_strategy: ${{ steps.target.outputs.shard_strategy }}
       status_sha: ${{ steps.detect.outputs.status_sha }}
       checkout_repository: ${{ steps.detect.outputs.checkout_repository }}
       checkout_ref: ${{ steps.detect.outputs.checkout_ref }}
@@ -133,6 +134,7 @@ jobs:
         env:
           DISPATCH_KONNECT_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.konnect_environment || '' }}
           CONFIGURED_KONNECT_ENVIRONMENT: ${{ vars.KONGCTL_E2E_KONNECT_ENV || '' }}
+          CONFIGURED_SHARD_STRATEGY: ${{ vars.KONGCTL_E2E_SHARD_STRATEGY || 'weighted' }}
           PR_HAS_TECH_LABEL: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'konnect-env:tech') && 'true' || 'false' }}
           DEFAULT_ORGS_JSON: ${{ vars.KONGCTL_E2E_ORGS_JSON || '' }}
           COM_ORGS_JSON: ${{ vars.KONGCTL_E2E_COM_ORGS_JSON || '' }}
@@ -252,6 +254,14 @@ jobs:
           echo "konnect_base_auth_url=${konnect_base_auth_url}" >> "${GITHUB_OUTPUT}"
           echo "konnect_machine_client_id=${konnect_machine_client_id}" >> "${GITHUB_OUTPUT}"
           echo "orgs_json=${orgs_json}" >> "${GITHUB_OUTPUT}"
+          shard_strategy=modulo
+          if [ "${konnect_environment}" = "com" ]; then
+            case "${CONFIGURED_SHARD_STRATEGY}" in
+              weighted|modulo) shard_strategy="${CONFIGURED_SHARD_STRATEGY}" ;;
+              *) echo "::error::KONGCTL_E2E_SHARD_STRATEGY must be weighted or modulo"; exit 1 ;;
+            esac
+          fi
+          echo "shard_strategy=${shard_strategy}" >> "${GITHUB_OUTPUT}"
 
       - name: Decide whether scenario suite is required
         id: detect
@@ -645,7 +655,7 @@ jobs:
       - name: Build scenario test binary
         run: go test -c -tags=e2e -o e2e.test ./test/e2e
 
-      - name: Validate report-only scheduler offline
+      - name: Validate scenario allocation offline
         env:
           KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
         run: ./e2e.test -test.v -test.run '^TestWeighted' -test.timeout 1m
@@ -680,6 +690,8 @@ jobs:
         include: ${{ fromJSON(needs.e2e-needed.outputs.orgs_json) }}
     env:
       KONGCTL_E2E_MATRIX_ORG: ${{ matrix.org_name }}
+      # Roll back full .com allocation by setting the repository variable to modulo.
+      KONGCTL_E2E_SHARD_STRATEGY: ${{ needs.e2e-needed.outputs.shard_strategy }}
       KONGCTL_E2E_BIN: ${{ github.workspace }}/kongctl
       KONGCTL_E2E_TEST_BIN: ${{ github.workspace }}/e2e.test
       KONGCTL_E2E_TEST_TIMEOUT: ${{ vars.KONGCTL_E2E_TEST_TIMEOUT || '55m' }}
@@ -936,7 +948,7 @@ jobs:
           if [ -f "${report}" ]; then
             cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
           else
-            echo "::warning::Weighted sharding report unavailable; live assignments are unchanged"
+            echo "::warning::Sharding comparison unavailable; inspect scenario-allocation.json for actual allocation"
             echo "Weighted sharding predictions unavailable for this shard." >> "${GITHUB_STEP_SUMMARY}"
           fi
 
