@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Offline GitHub API test double. Never makes network requests.
+set -euo pipefail
+case "$1 $2" in
+  'api repos/'*) cat "$TEST_RELEASE_JSON" ;;
+  'release download')
+    while [[ $# -gt 0 ]]; do
+      if [[ "$1" == '--dir' ]]; then
+        cp "$TEST_RELEASE_ASSETS/"* "$2/"
+        exit 0
+      fi
+      shift
+    done
+    exit 1
+    ;;
+  'release edit')
+    printf '%s\n' "$*" >> "$TEST_PUBLICATION_LOG"
+    ;;
+  *) echo "Unexpected gh fixture invocation: $*" >&2; exit 1 ;;
+esac

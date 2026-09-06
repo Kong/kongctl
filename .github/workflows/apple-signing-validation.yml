@@ -1,0 +1,222 @@
+name: Apple signing validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-signing-validation
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test verification failure gates without credentials
+        run: |
+          bash scripts/tests/test-verify-apple-binary.sh
+          bash scripts/tests/test-apple-fixtures.sh
+          bash scripts/tests/test-apple-release-gates.sh
+          bash scripts/tests/test-prepare-apple-signing.sh
+          bash scripts/tests/test-homebrew-formula.sh
+          bash scripts/tests/test-homebrew-bottles.sh
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # Cache compiler outputs only; keys and signed dist files are outside
+          # the Go cache and are never included in this cache.
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            .goreleaser.apple-validation.yml
+      - name: Download dependencies without signing credentials
+        env:
+          CGO_ENABLED: '0'
+        run: go mod download
+      - name: Prepare API key
+        env:
+          APPLE_NOTARY_API_PRIVATE_KEY: ${{ secrets.APPLE_NOTARY_API_PRIVATE_KEY }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/prepare-apple-signing.sh
+          key_path="$RUNNER_TEMP/kongctl-notary-key.p8"
+          # Confirm Apple accepts the API credentials, without dumping history.
+          xcrun notarytool history --key "$key_path" \
+            --key-id "$APPLE_NOTARY_API_KEY_ID" \
+            --issuer "$APPLE_NOTARY_API_ISSUER_ID" --output-format json \
+            > "$RUNNER_TEMP/kongctl-notary-history.json"
+      - name: Sign and notarize both architectures using GoReleaser
+        id: goreleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.13.3
+          args: release --snapshot --clean --parallelism=1 --timeout=55m --config .goreleaser.apple-validation.yml
+        env:
+          APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
+          APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
+      - name: Verify final archives before exposing artifacts
+        env:
+          GORELEASER_METADATA: ${{ steps.goreleaser.outputs.metadata }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist/apple-validation
+          jq -e . <<< "$GORELEASER_METADATA" > metadata.json
+          shasum -a 256 --check checksums.txt
+          cd ../..
+          for arch in arm64 amd64; do
+            extract_dir="$RUNNER_TEMP/kongctl-verify-$arch"
+            mkdir -p "$extract_dir"
+            unzip -q "dist/apple-validation/kongctl_darwin_$arch.zip" -d "$extract_dir"
+            bash scripts/verify-apple-binary.sh "$extract_dir/kongctl"
+          done
+      - name: Upload verified archives only
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apple-signed-validation
+          path: |
+            dist/apple-validation/kongctl_*.zip
+            dist/apple-validation/checksums.txt
+            dist/apple-validation/metadata.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Remove temporary API credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/kongctl-notary-key.p8" \
+            "$RUNNER_TEMP/kongctl-notary-history.json"
+
+  verify-install:
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            arch: arm64
+          - os: macos-15-intel
+            arch: amd64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.0
+        with:
+          name: apple-signed-validation
+          path: signed
+      - name: Verify and execute a quarantined binary on a fresh runner
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd signed
+          shasum -a 256 --check checksums.txt
+          unzip -q "kongctl_darwin_$ARCH.zip" -d unpacked
+          cd ..
+          binary="$PWD/signed/unpacked/kongctl"
+          bash scripts/verify-apple-binary.sh "$binary"
+          xattr -w com.apple.quarantine '0083;00000000;AppleSigningValidation;' "$binary"
+          "$binary" version --full
+          "$binary" completion zsh > /dev/null
+      - name: Verify the installer preserves the signature
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-signed-apple-install.sh signed "$ARCH"
+      - name: Exercise production publication gates against an offline API
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-apple-release-gates.sh signed "$ARCH"
+      - name: Verify bottling and pouring preserve the signature
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          ARCH: ${{ matrix.arch }}
+        run: bash scripts/tests/test-signed-apple-bottle.sh signed "$ARCH"
+
+  package-bottles:
+    needs: sign
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: apple-signed-validation
+          path: signed
+      - name: Package real upstream executables and verify local pouring
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: |
+          version=$(jq -er .version signed/metadata.json)
+          bash scripts/homebrew/package-bottle.sh signed "$version" bottles
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: validation-bottles-${{ matrix.os }}
+          path: bottles/
+          if-no-files-found: error
+          retention-days: 7
+
+  merge-bottle-metadata:
+    needs: package-bottles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: validation-bottles-*
+          path: bottles
+          merge-multiple: true
+      - name: Validate and merge only; never upload to a registry or tap
+        run: |
+          version=$(jq -er '.[] .formula.pkg_version' bottles/*.bottle.json | sort -u)
+          bash scripts/homebrew/prepare-publication.sh bottles "$version"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: validation-merged-formula
+          path: bottles/kongctl.rb
+          if-no-files-found: error
+          retention-days: 7

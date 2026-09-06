@@ -23,6 +23,19 @@ builds:
     goarch:
       - amd64
       - arm64
+notarize:
+  macos:
+    - enabled: 'true'
+      ids: [kongctl]
+      sign:
+        certificate: '{{ .Env.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}'
+        password: '{{ .Env.APPLE_SIGNING_CERTIFICATE_PASSWORD }}'
+      notarize:
+        issuer_id: '{{ .Env.APPLE_NOTARY_API_ISSUER_ID }}'
+        key_id: '{{ .Env.APPLE_NOTARY_API_KEY_ID }}'
+        key: '{{ .Env.APPLE_NOTARY_KEY_PATH }}'
+        wait: true
+        timeout: 20m
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     formats: ['zip']
@@ -37,6 +50,8 @@ changelog:
       - "^docs:"
       - "^test:"
 release:
+  # Native macOS verification in release.md must approve these exact assets.
+  draft: true
   prerelease: auto
   make_latest: false
 dockers_v2:
