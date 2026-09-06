@@ -35,15 +35,13 @@ location=$(awk 'tolower($1) == "location:" {print $2}' "$work/headers" | tr -d '
 [[ "$location" != /* ]] || location="https://ghcr.io$location"
 # GHCR returns singular /upload/ even though initiation uses /uploads/.
 # Keep cancellation confined to this package's returned upload-session URL.
-allowed='^https://ghcr\.io/v2/kong/kongctl/kongctl/blobs/uploads?/[[:alnum:]_=-]+(\?[^[:space:]#]*)?$'
-if [[ ! "$location" =~ $allowed ]]; then
+allowed='^https://ghcr\.io/v2/kong/kongctl/kongctl/blobs/uploads?/[[:alnum:]_.=-]+(\?[^[:space:]#]*)?$'
+session=${location%%\?*}
+session=${session##*/}
+if [[ ! "$location" =~ $allowed || "$session" == . || "$session" == .. ]]; then
   # Describe structure only; an upload URL may contain a credential-like ID.
   case "$location" in
     https://ghcr.io/v2/kong/kongctl/kongctl/blobs/*)
-      shape=${location#https://ghcr.io/v2/kong/kongctl/kongctl/blobs/}
-      # Only punctuation remains; never log the session identifier or query.
-      shape=$(printf '%s' "${shape%%\?*}" | sed -E 's/[[:alnum:]]+/X/g')
-      echo "::notice::Redacted upload path shape: $shape" >&2
       echo '::error::Unexpected upload-session path shape on the expected GHCR package' >&2 ;;
     *) echo '::error::Unexpected upload cancellation host/package; refusing to follow it' >&2 ;;
   esac
