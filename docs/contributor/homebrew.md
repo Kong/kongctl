@@ -56,7 +56,10 @@ is required.
 The manual Apple validation workflow also creates and pours snapshot bottles
 on all three platforms and merges their metadata, without publishing anything
 to GHCR or the tap. It uses the production renderer and packaging scripts.
-Its temporary trusted-branch push trigger must be removed before merging.
+Both validation workflows are manual-only and restricted to upstream `main`.
+Run Apple signing validation first on main; packaging-only validation can
+then reuse those artifacts. Pre-merge branch artifacts are not selected after
+a squash merge because their producer commit is not an ancestor of main.
 
 The packaging-only validation workflow can reuse a previous run's verified
 executables when Go source, embedded assets, module dependencies and the build

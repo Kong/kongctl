@@ -1,8 +1,8 @@
 # Apple signing and notarization rollout
 
-Status: draft implementation, not merged or enabled in production.
+Status: automated validation complete; first production rollout pending.
 
-## What this draft tests
+## What validation tests
 
 The `Apple signing validation` workflow builds both macOS architectures with
 GoReleaser 2.13.3, signs with Kong's Developer ID Application certificate, and
@@ -17,11 +17,10 @@ from those upstream executables and tests the production metadata merger.
 Verified ZIPs, bottles and metadata are retained as Actions artifacts for seven
 days. These are test builds, not replacements for existing release assets.
 
-During development the workflow runs on pushes to `task/apple-notarization`.
-This is a trusted repository branch, not a pull-request event. Only reviewed,
-trusted code should be pushed there: its workflow can access signing secrets.
-Remove the temporary push trigger before merging. Afterward use the manual
-workflow on main. There is no arbitrary source-ref input.
+Run this workflow manually on `main` in `Kong/kongctl`. Other branches and
+repositories are rejected before signing jobs start. It has no push or
+pull-request trigger and no arbitrary source-ref input. Apple credentials
+remain confined to trusted signing steps in the upstream repository.
 
 ## Credentials
 
@@ -71,6 +70,7 @@ of stale repository overrides. No secret values belong in PRs, logs, or docs.
 5. Before production enablement, also test a browser download on a clean Mac.
    CI's synthetic quarantine test does not reproduce every Finder/browser or
    managed-device policy.
+   Follow the [clean-Mac acceptance procedure](apple-signing-mac-test.md).
 
 GoReleaser 2.13.3 can log a notarization timeout and still return success.
 Therefore its exit code alone is insufficient. `verify-apple-binary.sh` checks
@@ -85,7 +85,7 @@ team ownership with the Apple certificate chain and leaf certificate's
 `subject.OU` code-signing requirement, not by requiring that optional display
 field. A populated but unexpected TeamIdentifier is still rejected.
 
-## Stable release integration staged in this draft
+## Stable release integration
 
 The production GoReleaser configuration now includes the same notarization
 settings as the validation configuration. The `Release` workflow stages the
@@ -128,7 +128,8 @@ not tests of those executables or the actual GitHub publication API.
 - Do not start a normal new release or rerun every job merely to recover a
   draft: version computation can select a new tag. Recovery after a failed
   build, expired run, or partial Homebrew publication still needs maintainer
-  investigation; this draft does not introduce a rebuild/resume dispatcher.
+  investigation; this implementation does not introduce a rebuild/resume
+  dispatcher.
 
 Arbitrary-ref ad-hoc prereleases remain explicitly unsigned. Their workflow
 uses `goreleaser build`, not the notarization/release pipeline, and its notes
@@ -147,8 +148,10 @@ Do not merge this as a completed all-installation-method signing rollout.
   process; do not expose credentials to their arbitrary source checkout.
 - Complete the production packaging, public registry and tap integration
   checks. No second compilation or signing step is needed for bottles.
-- Remove the temporary trusted-branch push trigger before merging.
-- Test on a prerelease first. Do not replace existing 1.15.0 assets or bottles.
+- Validation workflows are manual-only and restricted to upstream `main`.
+- Complete signed snapshot validation first, then supervise a new stable
+  release. Ad-hoc prereleases remain unsigned and cannot validate this path.
+  Do not replace existing 1.15.0 assets or bottles.
 
 ## Homebrew packages the same signed executable
 

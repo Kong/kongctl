@@ -2,13 +2,6 @@ name: Homebrew packaging validation
 
 on:
   workflow_dispatch:
-  # Temporary trusted rollout branch. Remove before merging.
-  push:
-    branches: [task/apple-notarization]
-    paths:
-      - .github/workflows/homebrew-packaging-validation.yml
-      - scripts/homebrew/**
-      - scripts/tests/test-homebrew-*.sh
 
 permissions:
   contents: read
@@ -20,7 +13,9 @@ concurrency:
 
 jobs:
   source:
-    if: github.repository == 'Kong/kongctl'
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       run: ${{ steps.select.outputs.run }}

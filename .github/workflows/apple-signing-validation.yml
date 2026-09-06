@@ -2,20 +2,6 @@ name: Apple signing validation
 
 on:
   workflow_dispatch:
-  # Temporary, trusted rollout branch. Remove before merging the draft PR.
-  # No pull_request trigger: Apple credentials never reach fork/PR jobs.
-  push:
-    branches: [task/apple-notarization]
-    paths:
-      - .github/workflows/apple-signing-validation.yml
-      - .goreleaser.apple-validation.yml
-      - scripts/verify-apple-binary.sh
-      - scripts/prepare-apple-signing.sh
-      - scripts/verify-apple-release.sh
-      - scripts/publish-apple-release.sh
-      - scripts/apple-release-snapshot.jq
-      - scripts/tests/apple-signing/**
-      - scripts/tests/test-*apple*.sh
 
 permissions:
   contents: read
@@ -28,8 +14,7 @@ jobs:
   sign:
     if: >-
       github.repository == 'Kong/kongctl' &&
-      (github.ref == 'refs/heads/main' ||
-       github.ref == 'refs/heads/task/apple-notarization')
+      github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     runs-on: macos-15
     timeout-minutes: 65
     steps:
