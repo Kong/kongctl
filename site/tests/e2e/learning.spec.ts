@@ -670,7 +670,7 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
 
   const terminal = page
     .locator(".code-shell")
-    .filter({ hasText: "brew install --cask kong/kongctl/kongctl" });
+    .filter({ hasText: "brew install --formula kong/kongctl/kongctl" });
   await expect(
     terminal.getByText("Run this...", { exact: true }),
   ).toBeVisible();
@@ -679,7 +679,7 @@ test("copies terminal commands without a prompt", async ({ context, page }) => {
   await expect(terminal.getByText("Copied", { exact: true })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe("brew install --cask kong/kongctl/kongctl");
+    .toBe("brew install --formula kong/kongctl/kongctl");
   await expect(page.getByText("Example output", { exact: true })).toBeVisible();
 });
 

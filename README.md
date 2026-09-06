@@ -74,14 +74,7 @@ the [release page](https://github.com/kong/kongctl/releases).
 
 ### Homebrew
 
-Install the prebuilt cask on macOS or Linux:
-
-```shell
-brew install --cask kong/kongctl/kongctl
-```
-
-Alternatively, install the source-built formula. Homebrew installs Go as a
-build dependency when it builds the formula:
+Install kongctl on macOS or Linux with Homebrew:
 
 ```shell
 brew install --formula kong/kongctl/kongctl
