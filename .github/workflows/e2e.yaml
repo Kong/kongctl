@@ -839,11 +839,13 @@ jobs:
       #     echo "Skipping E2E (no 'run-e2e' label)." && exit 0
 
       - name: Run assigned Konnect scenarios
+        id: scenarios
         run: |
           set -euo pipefail
 
           ART_DIR="${KONGCTL_E2E_ARTIFACTS_DIR}/$(date +%Y%m%d-%H%M%S)"
           mkdir -p "${ART_DIR}"
+          echo "artifacts_dir=${ART_DIR}" >> "${GITHUB_OUTPUT}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
 
           source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
@@ -927,8 +929,10 @@ jobs:
       - name: Report weighted sharding predictions
         if: always() && env.KONGCTL_E2E_KONNECT_ENV == 'com'
         continue-on-error: true
+        env:
+          WEIGHTED_REPORT_DIR: ${{ steps.scenarios.outputs.artifacts_dir }}
         run: |
-          report="${KONGCTL_E2E_ARTIFACTS_DIR}/weighted-sharding-summary.md"
+          report="${WEIGHTED_REPORT_DIR}/weighted-sharding-summary.md"
           if [ -f "${report}" ]; then
             cat "${report}" >> "${GITHUB_STEP_SUMMARY}"
           else
