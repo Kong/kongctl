@@ -3,7 +3,7 @@
 Repository: `kong/kongctl`
 Cohort: `cache-enabled`
 
-Full successful runs: 2 of 20
+Full successful runs: 14 of 20
 Status: **collecting**
 
 The report scans successful `e2e.yaml` runs newest-first and retains only
@@ -21,35 +21,47 @@ attempt; reruns are not independent samples.
 
 | Metric | p50 | p75 | p90 |
 | --- | ---: | ---: | ---: |
-| workflow_admission_delay_seconds | 3.0s | 4.0s | 4.0s |
-| queue_to_required_status_seconds | 651.0s | 912.0s | 912.0s |
-| build_job_seconds | 49.0s | 322.0s | 322.0s |
-| build_kongctl_seconds | 4.0s | 243.0s | 243.0s |
-| build_scenario_binary_seconds | 1.0s | 38.0s | 38.0s |
-| build_setup_seconds | 11.0s | 25.0s | 25.0s |
-| harness_job_seconds | 60.0s | 78.0s | 78.0s |
-| harness_setup_seconds | 10.0s | 11.0s | 11.0s |
-| harness_test_seconds | 38.0s | 53.0s | 53.0s |
-| longest_shard_seconds | 485.0s | 496.0s | 496.0s |
-| shard_spread_seconds | 267.0s | 332.0s | 332.0s |
+| workflow_admission_delay_seconds | 4.0s | 30.0s | 546.0s |
+| queue_to_required_status_seconds | 657.0s | 912.0s | 1102.0s |
+| build_job_seconds | 49.0s | 55.0s | 64.0s |
+| build_kongctl_seconds | 4.0s | 8.0s | 11.0s |
+| build_scenario_binary_seconds | 1.0s | 5.0s | 6.0s |
+| build_setup_seconds | 22.0s | 25.0s | 29.0s |
+| harness_job_seconds | 72.0s | 75.0s | 78.0s |
+| harness_setup_seconds | 10.0s | 10.0s | 11.0s |
+| harness_test_seconds | 51.0s | 53.0s | 53.0s |
+| longest_shard_seconds | 480.0s | 505.0s | 513.0s |
+| shard_spread_seconds | 267.0s | 332.0s | 346.0s |
 
 ## Reset cost per workflow run
 
 | Metric | p50 | p75 | p90 |
 | --- | ---: | ---: | ---: |
 | count | 164.0 | 164.0 | 164.0 |
-| duration_ms | 475189.0ms | 507850.0ms | 507850.0ms |
+| duration_ms | 415210.0ms | 462432.0ms | 486068.0ms |
 | list_calls | 2459.0 | 2459.0 | 2459.0 |
-| list_duration_ms | 463423.0ms | 496309.0ms | 496309.0ms |
+| list_duration_ms | 404252.0ms | 450914.0ms | 474589.0ms |
 | resources_found | 1614.0 | 1614.0 | 1614.0 |
 | delete_calls | 103.0 | 103.0 | 103.0 |
-| delete_duration_ms | 10080.0ms | 10268.0ms | 10268.0ms |
+| delete_duration_ms | 8984.0ms | 9985.0ms | 10082.0ms |
 | resources_deleted | 84.0 | 84.0 | 84.0 |
 
 ## Included runs
 
 | Run / Attempt | Attempt created | Queue-to-status | Build | Longest shard | Spread | Resets |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| [34026314755 / 1](https://github.com/Kong/kongctl/actions/runs/34026314755/attempts/1) | 2026-09-06T10:02:36Z | 535s | 55s | 359s | 180s | 164 |
+| [34007840146 / 1](https://github.com/Kong/kongctl/actions/runs/34007840146/attempts/1) | 2026-09-06T02:59:07Z | 539s | 64s | 357s | 65s | 164 |
+| [34006266279 / 1](https://github.com/Kong/kongctl/actions/runs/34006266279/attempts/1) | 2026-09-06T02:21:19Z | 1139s | 60s | 396s | 236s | 164 |
+| [34006212666 / 1](https://github.com/Kong/kongctl/actions/runs/34006212666/attempts/1) | 2026-09-06T02:20:06Z | 641s | 42s | 480s | 286s | 164 |
+| [34004626083 / 1](https://github.com/Kong/kongctl/actions/runs/34004626083/attempts/1) | 2026-09-06T01:43:24Z | 1102s | 44s | 392s | 205s | 164 |
+| [34004275715 / 1](https://github.com/Kong/kongctl/actions/runs/34004275715/attempts/1) | 2026-09-06T01:35:05Z | 1009s | 46s | 583s | 392s | 164 |
+| [34003980091 / 1](https://github.com/Kong/kongctl/actions/runs/34003980091/attempts/1) | 2026-09-06T01:28:27Z | 532s | 50s | 344s | 147s | 164 |
+| [34003060095 / 1](https://github.com/Kong/kongctl/actions/runs/34003060095/attempts/1) | 2026-09-06T01:07:11Z | 707s | 50s | 508s | 319s | 164 |
+| [34002577998 / 1](https://github.com/Kong/kongctl/actions/runs/34002577998/attempts/1) | 2026-09-06T00:56:12Z | 657s | 43s | 489s | 329s | 164 |
+| [34000248405 / 1](https://github.com/Kong/kongctl/actions/runs/34000248405/attempts/1) | 2026-09-06T00:02:43Z | 709s | 43s | 505s | 346s | 164 |
+| [33995527990 / 1](https://github.com/Kong/kongctl/actions/runs/33995527990/attempts/1) | 2026-09-05T22:18:22Z | 686s | 51s | 513s | 337s | 164 |
+| [33975197426 / 1](https://github.com/Kong/kongctl/actions/runs/33975197426/attempts/1) | 2026-09-05T15:34:06Z | 571s | 42s | 405s | 245s | 164 |
 | [33972692322 / 1](https://github.com/Kong/kongctl/actions/runs/33972692322/attempts/1) | 2026-09-05T14:44:15Z | 912s | 322s | 496s | 332s | 164 |
 | [33906754133 / 3](https://github.com/Kong/kongctl/actions/runs/33906754133/attempts/3) | 2026-09-04T19:07:59Z | 651s | 49s | 485s | 267s | 164 |
 
@@ -57,6 +69,66 @@ attempt; reruns are not independent samples.
 
 | Run | Organization | Admission delay | Selected | Execution |
 | --- | --- | ---: | ---: | ---: |
+| 34026314755 | `kongctl-acceptance` | 3s | 43 | 320s |
+| 34026314755 | `kongctl-acceptance-2` | 4s | 31 | 359s |
+| 34026314755 | `kongctl-acceptance-3` | 3s | 31 | 179s |
+| 34026314755 | `kongctl-acceptance-4` | 4s | 30 | 343s |
+| 34026314755 | `kongctl-acceptance-5` | 3s | 30 | 284s |
+| 34007840146 | `kongctl-acceptance` | 4s | 43 | 299s |
+| 34007840146 | `kongctl-acceptance-2` | 4s | 31 | 350s |
+| 34007840146 | `kongctl-acceptance-3` | 4s | 31 | 344s |
+| 34007840146 | `kongctl-acceptance-4` | 4s | 30 | 357s |
+| 34007840146 | `kongctl-acceptance-5` | 3s | 30 | 292s |
+| 34006266279 | `kongctl-acceptance` | 2s | 43 | 306s |
+| 34006266279 | `kongctl-acceptance-2` | 3s | 31 | 396s |
+| 34006266279 | `kongctl-acceptance-3` | 2s | 31 | 160s |
+| 34006266279 | `kongctl-acceptance-4` | 2s | 30 | 200s |
+| 34006266279 | `kongctl-acceptance-5` | 3s | 30 | 344s |
+| 34006212666 | `kongctl-acceptance` | 3s | 43 | 480s |
+| 34006212666 | `kongctl-acceptance-2` | 39s | 31 | 194s |
+| 34006212666 | `kongctl-acceptance-3` | 3s | 31 | 299s |
+| 34006212666 | `kongctl-acceptance-4` | 3s | 30 | 194s |
+| 34006212666 | `kongctl-acceptance-5` | 3s | 30 | 346s |
+| 34004626083 | `kongctl-acceptance` | 3s | 43 | 392s |
+| 34004626083 | `kongctl-acceptance-2` | 3s | 31 | 326s |
+| 34004626083 | `kongctl-acceptance-3` | 3s | 31 | 226s |
+| 34004626083 | `kongctl-acceptance-4` | 3s | 30 | 187s |
+| 34004626083 | `kongctl-acceptance-5` | 4s | 30 | 341s |
+| 34004275715 | `kongctl-acceptance` | 4s | 43 | 583s |
+| 34004275715 | `kongctl-acceptance-2` | 2s | 31 | 213s |
+| 34004275715 | `kongctl-acceptance-3` | 4s | 31 | 344s |
+| 34004275715 | `kongctl-acceptance-4` | 2s | 30 | 191s |
+| 34004275715 | `kongctl-acceptance-5` | 3s | 30 | 294s |
+| 34003980091 | `kongctl-acceptance` | 3s | 43 | 295s |
+| 34003980091 | `kongctl-acceptance-2` | 3s | 31 | 219s |
+| 34003980091 | `kongctl-acceptance-3` | 5s | 31 | 344s |
+| 34003980091 | `kongctl-acceptance-4` | 3s | 30 | 197s |
+| 34003980091 | `kongctl-acceptance-5` | 3s | 30 | 344s |
+| 34003060095 | `kongctl-acceptance` | 4s | 43 | 508s |
+| 34003060095 | `kongctl-acceptance-2` | 3s | 31 | 325s |
+| 34003060095 | `kongctl-acceptance-3` | 3s | 31 | 348s |
+| 34003060095 | `kongctl-acceptance-4` | 3s | 30 | 359s |
+| 34003060095 | `kongctl-acceptance-5` | 3s | 30 | 189s |
+| 34002577998 | `kongctl-acceptance` | 3s | 43 | 489s |
+| 34002577998 | `kongctl-acceptance-2` | 3s | 31 | 290s |
+| 34002577998 | `kongctl-acceptance-3` | 3s | 31 | 160s |
+| 34002577998 | `kongctl-acceptance-4` | 2s | 30 | 197s |
+| 34002577998 | `kongctl-acceptance-5` | 3s | 30 | 300s |
+| 34000248405 | `kongctl-acceptance` | 3s | 43 | 505s |
+| 34000248405 | `kongctl-acceptance-2` | 4s | 31 | 405s |
+| 34000248405 | `kongctl-acceptance-3` | 3s | 31 | 159s |
+| 34000248405 | `kongctl-acceptance-4` | 39s | 30 | 277s |
+| 34000248405 | `kongctl-acceptance-5` | 3s | 30 | 164s |
+| 33995527990 | `kongctl-acceptance` | 4s | 43 | 513s |
+| 33995527990 | `kongctl-acceptance-2` | 3s | 31 | 261s |
+| 33995527990 | `kongctl-acceptance-3` | 3s | 31 | 176s |
+| 33995527990 | `kongctl-acceptance-4` | 3s | 30 | 267s |
+| 33995527990 | `kongctl-acceptance-5` | 3s | 30 | 342s |
+| 33975197426 | `kongctl-acceptance` | 3s | 43 | 405s |
+| 33975197426 | `kongctl-acceptance-2` | 2s | 31 | 191s |
+| 33975197426 | `kongctl-acceptance-3` | 2s | 31 | 160s |
+| 33975197426 | `kongctl-acceptance-4` | 2s | 30 | 194s |
+| 33975197426 | `kongctl-acceptance-5` | 3s | 30 | 346s |
 | 33972692322 | `kongctl-acceptance` | 4s | 43 | 496s |
 | 33972692322 | `kongctl-acceptance-2` | 4s | 31 | 402s |
 | 33972692322 | `kongctl-acceptance-3` | 3s | 31 | 287s |
@@ -72,168 +144,168 @@ attempt; reruns are not independent samples.
 
 | Scenario | Samples | Median | p90 |
 | --- | ---: | ---: | ---: |
-| `portal/visibility/scenario.yaml` | 2 | 44.05s | 51.68s |
-| `dump/portal-owned/scenario.yaml` | 2 | 41.92s | 50.95s |
-| `all/scenario.yaml` | 2 | 28.80s | 33.86s |
-| `event-gateway/produce-policy/scenario.yaml` | 2 | 26.66s | 26.84s |
-| `event-gateway/plan/apply-workflow/scenario.yaml` | 2 | 25.80s | 32.53s |
-| `portal/teams/scenario.yaml` | 2 | 25.51s | 26.05s |
-| `portal/identity_providers/scenario.yaml` | 2 | 23.81s | 28.94s |
-| `event-gateway/plan/sync-workflow/scenario.yaml` | 2 | 22.76s | 43.19s |
-| `portal/auth-strategy-link/scenario.yaml` | 2 | 20.39s | 20.90s |
-| `ai-gateway/mcp-server/scenario.yaml` | 2 | 19.47s | 24.26s |
-| `portal/sync/scenario.yaml` | 2 | 19.31s | 36.91s |
-| `portal/api_docs_with_children/scenario.yaml` | 2 | 17.84s | 29.25s |
-| `portal/ip-allow-list/scenario.yaml` | 2 | 17.33s | 20.82s |
-| `apis/root-level-publication-visibility/scenario.yaml` | 2 | 17.24s | 17.45s |
-| `dump/organization-teams/scenario.yaml` | 2 | 16.67s | 17.03s |
-| `org/users/assignments/scenario.yaml` | 2 | 16.02s | 16.50s |
-| `portal/custom-domain/scenario.yaml` | 2 | 15.55s | 26.14s |
-| `apis/control-plane-implementation/scenario.yaml` | 2 | 15.54s | 18.28s |
-| `event-gateway/virtual-cluster/scenario.yaml` | 2 | 15.39s | 15.56s |
-| `apis/nested-child-lifecycle/scenario.yaml` | 2 | 15.34s | 28.97s |
-| `diff/command-coverage/scenario.yaml` | 2 | 15.33s | 18.07s |
-| `ai-gateway/agent/scenario.yaml` | 2 | 15.03s | 15.06s |
-| `event-gateway/backend-cluster/scenario.yaml` | 2 | 14.93s | 17.70s |
-| `event-gateway/consume-policy/scenario.yaml` | 2 | 14.32s | 27.67s |
-| `portal/external-sync/scenario.yaml` | 2 | 14.27s | 17.22s |
-| `org/system-accounts/assignments/scenario.yaml` | 2 | 14.17s | 14.35s |
-| `dump/filtered/scenario.yaml` | 2 | 13.92s | 16.29s |
-| `portal/email/scenario.yaml` | 2 | 13.79s | 14.05s |
-| `protected-resources/apis/scenario.yaml` | 2 | 13.65s | 14.52s |
-| `plan/apply-workflow/scenario.yaml` | 2 | 13.26s | 13.42s |
-| `yaml-tags/env/scenario.yaml` | 2 | 13.23s | 15.82s |
-| `ai-gateway/data-plane-certificate/scenario.yaml` | 2 | 13.04s | 13.25s |
-| `portal/default_application_auth_strategy/scenario.yaml` | 2 | 12.97s | 13.45s |
-| `declarative/rename-sync-delete/scenario.yaml` | 2 | 12.83s | 13.08s |
-| `control-plane/data-plane-certificate/scenario.yaml` | 2 | 12.81s | 13.19s |
-| `dcr-providers/workflow/scenario.yaml` | 2 | 12.80s | 21.12s |
-| `org/teams/roles/scenario.yaml` | 2 | 12.75s | 15.89s |
-| `ai-gateway/config-store/scenario.yaml` | 2 | 12.66s | 16.62s |
-| `ai-gateway/auth-strategy/scenario.yaml` | 2 | 12.64s | 15.45s |
-| `control-plane/serverless/scenario.yaml` | 2 | 12.59s | 12.70s |
-| `event-gateway/listener-policy/scenario.yaml` | 2 | 12.59s | 12.64s |
-| `ai-gateway/vault/scenario.yaml` | 2 | 12.56s | 12.77s |
-| `event-gateway/diff/scenario.yaml` | 2 | 12.02s | 14.84s |
-| `event-gateway/static-key/scenario.yaml` | 2 | 11.81s | 14.60s |
-| `org/users/plan/sync-workflow/scenario.yaml` | 2 | 11.77s | 11.89s |
-| `portal/auth_settings/scenario.yaml` | 2 | 11.54s | 13.92s |
-| `event-gateway/external-sync/scenario.yaml` | 2 | 11.43s | 19.46s |
-| `event-gateway/schema-registry/scenario.yaml` | 2 | 11.43s | 13.96s |
-| `org/users/sync/scenario.yaml` | 2 | 11.39s | 11.64s |
-| `ai-gateway/policy-matrix/scenario.yaml` | 2 | 11.32s | 13.34s |
-| `apis/comprehensive-fields/scenario.yaml` | 2 | 10.80s | 11.08s |
-| `event-gateway/cluster-policy/scenario.yaml` | 2 | 10.76s | 13.41s |
-| `portal/publication-auth-omitted-noop/scenario.yaml` | 2 | 10.69s | 10.90s |
-| `delete/declarative/scenario.yaml` | 2 | 10.51s | 12.61s |
-| `org/system-accounts/plan/sync-workflow/scenario.yaml` | 2 | 10.50s | 11.11s |
-| `ai-gateway/model/scenario.yaml` | 2 | 10.47s | 10.70s |
-| `portal/integrations/scenario.yaml` | 2 | 10.27s | 10.38s |
-| `external/ai-gateway-parent/scenario.yaml` | 2 | 10.13s | 11.00s |
-| `ai-gateway/consumer/scenario.yaml` | 2 | 10.10s | 16.78s |
-| `ai-gateway/consumer-group/scenario.yaml` | 2 | 10.05s | 18.99s |
-| `org/system-accounts/sync/scenario.yaml` | 2 | 9.98s | 10.17s |
-| `portal/audit-log-webhook/scenario.yaml` | 2 | 9.88s | 17.77s |
-| `event-gateway/listener/scenario.yaml` | 2 | 9.83s | 11.91s |
-| `event-gateway/dataplane-certificate/scenario.yaml` | 2 | 9.78s | 10.14s |
-| `protected-resources/portals/scenario.yaml` | 2 | 9.78s | 11.68s |
-| `portal/api_with_attributes/scenario.yaml` | 2 | 9.40s | 9.55s |
-| `ai-gateway/model-provider/scenario.yaml` | 2 | 9.15s | 15.02s |
-| `external/portal-publication/scenario.yaml` | 2 | 8.92s | 9.18s |
-| `ai-gateway/root/scenario.yaml` | 2 | 8.63s | 15.35s |
-| `portal/app-auth-strategy/scenario.yaml` | 2 | 8.63s | 10.73s |
-| `org/token/scenario.yaml` | 2 | 8.38s | 8.42s |
-| `deck/env-vars/scenario.yaml` | 2 | 8.30s | 8.71s |
-| `deck/basic/scenario.yaml` | 2 | 8.23s | 14.19s |
-| `org/users/plan/apply-workflow/scenario.yaml` | 2 | 8.04s | 8.52s |
-| `adopt/full/scenario.yaml` | 2 | 7.93s | 14.84s |
-| `org/system-accounts/plan/apply-workflow/scenario.yaml` | 2 | 7.92s | 8.35s |
-| `portal/snippets/scenario.yaml` | 2 | 7.82s | 9.48s |
-| `portal/edit/scenario.yaml` | 2 | 7.71s | 9.34s |
-| `control-plane/sync-groups/scenario.yaml` | 2 | 7.52s | 9.15s |
-| `portal/email-templates/scenario.yaml` | 2 | 7.50s | 13.16s |
-| `adopt/auth-strategy-adopt/scenario.yaml` | 2 | 7.39s | 8.31s |
-| `apis/region/scenario.yaml` | 2 | 7.32s | 10.58s |
-| `dump/ai-gateways/scenario.yaml` | 2 | 7.12s | 8.95s |
-| `portal/pages/scenario.yaml` | 2 | 7.06s | 12.06s |
-| `plan/sync-partial-scope/scenario.yaml` | 2 | 7.05s | 8.57s |
-| `deck/multi-file/scenario.yaml` | 2 | 6.89s | 8.30s |
-| `portal/page-frontmatter-conflict/scenario.yaml` | 2 | 6.82s | 12.68s |
-| `portal/customization/scenario.yaml` | 2 | 6.81s | 11.92s |
-| `adopt/event-gateway-adopt/scenario.yaml` | 2 | 6.80s | 7.55s |
-| `deck/idempotent/scenario.yaml` | 2 | 6.78s | 7.82s |
-| `event-gateway/dependency-order/scenario.yaml` | 2 | 6.75s | 7.98s |
-| `protected-resources/org/teams/scenario.yaml` | 2 | 6.70s | 6.73s |
-| `plan/remote-url-workflow/scenario.yaml` | 2 | 6.62s | 7.80s |
-| `apis/eventual-consistency-polp/scenario.yaml` | 2 | 6.60s | 6.66s |
-| `delete/plan-based/scenario.yaml` | 2 | 6.60s | 6.63s |
-| `portal/assets/scenario.yaml` | 2 | 6.49s | 12.49s |
-| `catalog/service/scenario.yaml` | 2 | 6.45s | 11.70s |
-| `portal/oidc-auth-strategy/scenario.yaml` | 2 | 6.34s | 7.83s |
-| `adopt/create-portal-adopt-dump-plan/scenario.yaml` | 2 | 6.28s | 8.51s |
-| `ai-gateway/runtime-tls/scenario.yaml` | 2 | 6.04s | 9.87s |
-| `portal/idp_team_group_mappings_readback/scenario.yaml` | 2 | 6.02s | 10.87s |
-| `external/api-parent/scenario.yaml` | 2 | 5.98s | 11.23s |
-| `org/teams/plan/apply-workflow/scenario.yaml` | 2 | 5.97s | 6.08s |
-| `org/teams/plan/sync-workflow/scenario.yaml` | 2 | 5.95s | 7.68s |
-| `deck/sync/scenario.yaml` | 2 | 5.92s | 11.89s |
-| `dump/dcr-provider/scenario.yaml` | 2 | 5.91s | 6.02s |
-| `control-plane/get/scenario.yaml` | 2 | 5.67s | 6.87s |
-| `portal/default_application_auth_strategy_ref_selection/scenario.yaml` | 2 | 5.64s | 6.42s |
-| `require-namespace/portal/scenario.yaml` | 2 | 5.58s | 9.74s |
-| `control-plane/delete-groups/scenario.yaml` | 2 | 5.50s | 6.65s |
-| `dump/control-planes/scenario.yaml` | 2 | 5.40s | 9.13s |
-| `org/users/get/scenario.yaml` | 2 | 5.39s | 5.56s |
-| `protected-resources/event-gateways/scenario.yaml` | 2 | 5.29s | 9.24s |
-| `yaml-tags/file/scenario.yaml` | 2 | 5.29s | 6.39s |
-| `event-gateway/tls-trust-bundle/scenario.yaml` | 2 | 5.25s | 11.01s |
-| `analytics/dashboard/scenario.yaml` | 2 | 5.24s | 9.65s |
-| `event-gateway/backend-cluster-pagination/scenario.yaml` | 2 | 5.20s | 5.79s |
-| `ai-gateway/model-matrix/scenario.yaml` | 2 | 5.19s | 10.47s |
-| `org/system-accounts/scenario.yaml` | 2 | 5.15s | 7.30s |
-| `external/api-impl/scenario.yaml` | 2 | 5.14s | 9.91s |
-| `org/teams/external-role/scenario.yaml` | 2 | 5.09s | 11.09s |
-| `apis/child-delete-namespace/scenario.yaml` | 2 | 5.06s | 9.22s |
-| `delete/dry-run/scenario.yaml` | 2 | 5.06s | 6.22s |
-| `apis/get-api-by-name-and-id/scenario.yaml` | 2 | 5.00s | 6.13s |
-| `org/teams/apply/scenario.yaml` | 2 | 4.99s | 6.18s |
-| `apis/versions-pagination/scenario.yaml` | 2 | 4.97s | 5.91s |
-| `external/portal-sync/scenario.yaml` | 2 | 4.97s | 6.09s |
-| `delete/partial-delete/scenario.yaml` | 2 | 4.87s | 8.48s |
-| `require-namespace/external/scenario.yaml` | 2 | 4.86s | 6.18s |
-| `ai-gateway/policy/scenario.yaml` | 2 | 4.74s | 5.80s |
-| `dump/analytics-dashboards/scenario.yaml` | 2 | 4.71s | 9.93s |
-| `event-gateway/topic-aliases/scenario.yaml` | 2 | 4.71s | 8.72s |
-| `control-plane/sync/scenario.yaml` | 2 | 4.55s | 5.61s |
-| `plan/sync-workflow/scenario.yaml` | 2 | 4.53s | 8.72s |
-| `org/get-org/scenario.yaml` | 2 | 4.37s | 4.40s |
-| `portal/snippets-pagination/scenario.yaml` | 2 | 4.32s | 5.24s |
-| `control-plane/groups/scenario.yaml` | 2 | 4.07s | 7.94s |
-| `event-gateway/dump/scenario.yaml` | 2 | 4.05s | 8.40s |
-| `protected-resources/control-planes/scenario.yaml` | 2 | 3.85s | 7.04s |
-| `event-gateway/control-planes/scenario.yaml` | 2 | 3.80s | 6.96s |
-| `adopt/team-create-adopt-dump/scenario.yaml` | 2 | 3.50s | 9.90s |
-| `control-plane/plan/apply-workflow/scenario.yaml` | 2 | 3.33s | 5.84s |
-| `namespace/defaults-sync/scenario.yaml` | 2 | 3.32s | 6.51s |
-| `control-plane/apply/scenario.yaml` | 2 | 3.26s | 5.40s |
-| `errors/declarative/scenario.yaml` | 2 | 3.19s | 5.39s |
-| `portal/team_group_mappings_no_idp/scenario.yaml` | 2 | 3.02s | 6.46s |
-| `org/teams/sync/scenario.yaml` | 2 | 3.01s | 6.33s |
-| `event-gateway/adopt/scenario.yaml` | 2 | 2.58s | 5.25s |
-| `org/teams/get/scenario.yaml` | 2 | 2.55s | 5.44s |
-| `delete/idempotent/scenario.yaml` | 2 | 2.03s | 4.46s |
-| `portal/email-domains/scenario.yaml` | 2 | 1.58s | 3.84s |
-| `explain/command-coverage/scenario.yaml` | 2 | 1.05s | 1.43s |
-| `scaffold/command-coverage/scenario.yaml` | 2 | 0.96s | 0.99s |
-| `analytics/dashboard-repro/scenario.yaml` | 2 | 0.90s | 1.31s |
-| `namespace/validation/scenario.yaml` | 2 | 0.86s | 0.89s |
-| `declarative/plan-mode-validation/scenario.yaml` | 2 | 0.56s | 0.56s |
-| `patch/command-coverage/scenario.yaml` | 2 | 0.44s | 0.45s |
-| `ai-gateway/maturity/scenario.yaml` | 2 | 0.34s | 0.45s |
-| `lint/command-coverage/scenario.yaml` | 2 | 0.23s | 0.34s |
-| `portal/identity_providers_duplicate_type/scenario.yaml` | 2 | 0.19s | 0.21s |
-| `portal/auth_settings_deprecated_fields/scenario.yaml` | 2 | 0.11s | 0.19s |
-| `smoke/version/scenario.yaml` | 2 | 0.05s | 0.06s |
-| `auth/get-me/scenario.yaml` | 2 | 0.00s | 0.00s |
-| `event-gateway/principal-metadata/scenario.yaml` | 2 | 0.00s | 0.00s |
-| `portal/applications/scenario.yaml` | 2 | 0.00s | 0.00s |
+| `portal/visibility/scenario.yaml` | 14 | 42.11s | 51.68s |
+| `dump/portal-owned/scenario.yaml` | 14 | 32.45s | 50.87s |
+| `portal/api_docs_with_children/scenario.yaml` | 14 | 30.21s | 35.43s |
+| `all/scenario.yaml` | 14 | 28.77s | 33.86s |
+| `event-gateway/produce-policy/scenario.yaml` | 14 | 26.12s | 28.33s |
+| `portal/teams/scenario.yaml` | 14 | 25.48s | 26.86s |
+| `event-gateway/plan/apply-workflow/scenario.yaml` | 14 | 21.15s | 32.47s |
+| `event-gateway/plan/sync-workflow/scenario.yaml` | 14 | 20.65s | 37.16s |
+| `portal/auth-strategy-link/scenario.yaml` | 14 | 20.07s | 21.23s |
+| `event-gateway/external-sync/scenario.yaml` | 14 | 20.01s | 24.07s |
+| `portal/identity_providers/scenario.yaml` | 14 | 20.00s | 29.18s |
+| `portal/audit-log-webhook/scenario.yaml` | 14 | 18.61s | 21.82s |
+| `portal/sync/scenario.yaml` | 14 | 17.82s | 32.14s |
+| `ai-gateway/consumer/scenario.yaml` | 14 | 16.84s | 20.31s |
+| `apis/root-level-publication-visibility/scenario.yaml` | 14 | 16.61s | 17.63s |
+| `dump/organization-teams/scenario.yaml` | 14 | 16.37s | 17.34s |
+| `portal/ip-allow-list/scenario.yaml` | 14 | 16.18s | 20.61s |
+| `org/users/assignments/scenario.yaml` | 14 | 15.73s | 17.12s |
+| `portal/custom-domain/scenario.yaml` | 14 | 15.55s | 23.25s |
+| `event-gateway/virtual-cluster/scenario.yaml` | 14 | 15.39s | 16.56s |
+| `ai-gateway/model-provider/scenario.yaml` | 14 | 15.38s | 18.46s |
+| `ai-gateway/mcp-server/scenario.yaml` | 14 | 15.22s | 23.76s |
+| `deck/basic/scenario.yaml` | 14 | 15.08s | 17.80s |
+| `apis/control-plane-implementation/scenario.yaml` | 14 | 14.96s | 18.38s |
+| `diff/command-coverage/scenario.yaml` | 14 | 14.70s | 17.95s |
+| `apis/nested-child-lifecycle/scenario.yaml` | 14 | 14.38s | 25.23s |
+| `event-gateway/backend-cluster/scenario.yaml` | 14 | 14.38s | 17.70s |
+| `ai-gateway/agent/scenario.yaml` | 14 | 14.19s | 15.50s |
+| `portal/email-templates/scenario.yaml` | 14 | 14.10s | 16.65s |
+| `org/system-accounts/assignments/scenario.yaml` | 14 | 13.93s | 14.96s |
+| `portal/email/scenario.yaml` | 14 | 13.64s | 14.52s |
+| `portal/external-sync/scenario.yaml` | 14 | 13.41s | 17.22s |
+| `dump/filtered/scenario.yaml` | 14 | 13.30s | 16.29s |
+| `portal/default_application_auth_strategy/scenario.yaml` | 14 | 12.97s | 13.79s |
+| `plan/apply-workflow/scenario.yaml` | 14 | 12.96s | 13.86s |
+| `yaml-tags/env/scenario.yaml` | 14 | 12.84s | 15.82s |
+| `control-plane/data-plane-certificate/scenario.yaml` | 14 | 12.74s | 13.83s |
+| `ai-gateway/data-plane-certificate/scenario.yaml` | 14 | 12.72s | 13.57s |
+| `event-gateway/consume-policy/scenario.yaml` | 14 | 12.72s | 23.82s |
+| `portal/pages/scenario.yaml` | 14 | 12.62s | 14.97s |
+| `control-plane/serverless/scenario.yaml` | 14 | 12.59s | 13.47s |
+| `declarative/rename-sync-delete/scenario.yaml` | 14 | 12.54s | 14.74s |
+| `ai-gateway/vault/scenario.yaml` | 14 | 12.49s | 13.35s |
+| `portal/customization/scenario.yaml` | 14 | 12.36s | 14.86s |
+| `event-gateway/listener-policy/scenario.yaml` | 14 | 12.22s | 13.14s |
+| `ai-gateway/auth-strategy/scenario.yaml` | 14 | 11.95s | 15.19s |
+| `external/api-parent/scenario.yaml` | 14 | 11.94s | 14.37s |
+| `dcr-providers/workflow/scenario.yaml` | 14 | 11.79s | 18.90s |
+| `apis/region/scenario.yaml` | 14 | 11.50s | 12.67s |
+| `org/users/sync/scenario.yaml` | 14 | 11.32s | 11.94s |
+| `org/users/plan/sync-workflow/scenario.yaml` | 14 | 11.22s | 12.05s |
+| `portal/idp_team_group_mappings_readback/scenario.yaml` | 14 | 11.10s | 12.85s |
+| `event-gateway/schema-registry/scenario.yaml` | 14 | 11.08s | 13.96s |
+| `portal/auth_settings/scenario.yaml` | 14 | 10.98s | 13.92s |
+| `apis/comprehensive-fields/scenario.yaml` | 14 | 10.75s | 11.62s |
+| `ai-gateway/config-store/scenario.yaml` | 14 | 10.71s | 15.92s |
+| `org/system-accounts/plan/sync-workflow/scenario.yaml` | 14 | 10.50s | 11.67s |
+| `ai-gateway/runtime-tls/scenario.yaml` | 14 | 10.49s | 12.10s |
+| `ai-gateway/model/scenario.yaml` | 14 | 10.47s | 11.37s |
+| `ai-gateway/policy-matrix/scenario.yaml` | 14 | 10.34s | 13.21s |
+| `portal/publication-auth-omitted-noop/scenario.yaml` | 14 | 10.29s | 11.85s |
+| `portal/integrations/scenario.yaml` | 14 | 10.17s | 11.01s |
+| `delete/declarative/scenario.yaml` | 14 | 10.04s | 12.61s |
+| `org/teams/roles/scenario.yaml` | 14 | 9.98s | 15.66s |
+| `org/system-accounts/sync/scenario.yaml` | 14 | 9.82s | 10.55s |
+| `apis/child-delete-namespace/scenario.yaml` | 14 | 9.78s | 11.43s |
+| `protected-resources/event-gateways/scenario.yaml` | 14 | 9.78s | 11.52s |
+| `dump/control-planes/scenario.yaml` | 14 | 9.68s | 11.30s |
+| `protected-resources/apis/scenario.yaml` | 14 | 9.56s | 14.45s |
+| `event-gateway/dataplane-certificate/scenario.yaml` | 14 | 9.51s | 10.67s |
+| `event-gateway/static-key/scenario.yaml` | 14 | 9.41s | 14.60s |
+| `portal/api_with_attributes/scenario.yaml` | 14 | 9.35s | 10.05s |
+| `event-gateway/diff/scenario.yaml` | 14 | 9.33s | 14.69s |
+| `event-gateway/listener/scenario.yaml` | 14 | 9.22s | 11.84s |
+| `event-gateway/topic-aliases/scenario.yaml` | 14 | 9.09s | 10.84s |
+| `protected-resources/portals/scenario.yaml` | 14 | 9.03s | 12.11s |
+| `ai-gateway/consumer-group/scenario.yaml` | 14 | 8.82s | 16.29s |
+| `external/portal-publication/scenario.yaml` | 14 | 8.73s | 9.73s |
+| `delete/partial-delete/scenario.yaml` | 14 | 8.68s | 10.22s |
+| `ai-gateway/root/scenario.yaml` | 14 | 8.63s | 13.69s |
+| `portal/app-auth-strategy/scenario.yaml` | 14 | 8.60s | 10.73s |
+| `event-gateway/cluster-policy/scenario.yaml` | 14 | 8.41s | 13.40s |
+| `org/token/scenario.yaml` | 14 | 8.33s | 8.68s |
+| `deck/env-vars/scenario.yaml` | 14 | 8.24s | 8.98s |
+| `event-gateway/control-planes/scenario.yaml` | 14 | 8.20s | 8.52s |
+| `org/users/plan/apply-workflow/scenario.yaml` | 14 | 7.97s | 9.08s |
+| `adopt/full/scenario.yaml` | 14 | 7.93s | 12.66s |
+| `org/system-accounts/plan/apply-workflow/scenario.yaml` | 14 | 7.92s | 8.54s |
+| `adopt/auth-strategy-adopt/scenario.yaml` | 14 | 7.55s | 8.50s |
+| `control-plane/sync-groups/scenario.yaml` | 14 | 7.52s | 9.15s |
+| `portal/team_group_mappings_no_idp/scenario.yaml` | 14 | 7.02s | 8.30s |
+| `external/ai-gateway-parent/scenario.yaml` | 14 | 6.66s | 11.06s |
+| `protected-resources/org/teams/scenario.yaml` | 14 | 6.66s | 7.37s |
+| `delete/plan-based/scenario.yaml` | 14 | 6.45s | 6.89s |
+| `plan/remote-url-workflow/scenario.yaml` | 14 | 6.43s | 7.73s |
+| `apis/eventual-consistency-polp/scenario.yaml` | 14 | 6.40s | 6.84s |
+| `event-gateway/dependency-order/scenario.yaml` | 14 | 6.35s | 7.98s |
+| `deck/idempotent/scenario.yaml` | 14 | 6.30s | 8.42s |
+| `portal/page-frontmatter-conflict/scenario.yaml` | 14 | 6.29s | 11.14s |
+| `adopt/create-portal-adopt-dump-plan/scenario.yaml` | 14 | 6.28s | 8.51s |
+| `portal/snippets/scenario.yaml` | 14 | 6.17s | 9.57s |
+| `control-plane/plan/apply-workflow/scenario.yaml` | 14 | 6.15s | 7.08s |
+| `catalog/service/scenario.yaml` | 14 | 5.99s | 10.64s |
+| `portal/edit/scenario.yaml` | 14 | 5.96s | 9.34s |
+| `org/teams/plan/apply-workflow/scenario.yaml` | 14 | 5.95s | 6.65s |
+| `org/teams/plan/sync-workflow/scenario.yaml` | 14 | 5.93s | 7.46s |
+| `adopt/team-create-adopt-dump/scenario.yaml` | 14 | 5.89s | 7.34s |
+| `portal/assets/scenario.yaml` | 14 | 5.89s | 10.74s |
+| `control-plane/apply/scenario.yaml` | 14 | 5.88s | 6.82s |
+| `adopt/event-gateway-adopt/scenario.yaml` | 14 | 5.82s | 8.24s |
+| `dump/dcr-provider/scenario.yaml` | 14 | 5.74s | 6.42s |
+| `org/teams/get/scenario.yaml` | 14 | 5.61s | 6.85s |
+| `event-gateway/adopt/scenario.yaml` | 14 | 5.57s | 6.58s |
+| `dump/ai-gateways/scenario.yaml` | 14 | 5.48s | 8.91s |
+| `plan/sync-partial-scope/scenario.yaml` | 14 | 5.37s | 8.57s |
+| `deck/sync/scenario.yaml` | 14 | 5.29s | 10.13s |
+| `org/teams/external-role/scenario.yaml` | 14 | 5.28s | 9.57s |
+| `org/users/get/scenario.yaml` | 14 | 5.27s | 6.04s |
+| `deck/multi-file/scenario.yaml` | 14 | 5.25s | 8.30s |
+| `analytics/dashboard/scenario.yaml` | 14 | 5.24s | 8.65s |
+| `require-namespace/portal/scenario.yaml` | 14 | 5.21s | 8.51s |
+| `control-plane/delete-groups/scenario.yaml` | 14 | 5.19s | 6.65s |
+| `portal/oidc-auth-strategy/scenario.yaml` | 14 | 5.18s | 7.96s |
+| `event-gateway/backend-cluster-pagination/scenario.yaml` | 14 | 5.15s | 5.79s |
+| `portal/default_application_auth_strategy_ref_selection/scenario.yaml` | 14 | 5.10s | 6.42s |
+| `apis/versions-pagination/scenario.yaml` | 14 | 4.97s | 5.91s |
+| `org/system-accounts/scenario.yaml` | 14 | 4.92s | 6.42s |
+| `ai-gateway/model-matrix/scenario.yaml` | 14 | 4.77s | 8.88s |
+| `external/portal-sync/scenario.yaml` | 14 | 4.71s | 6.08s |
+| `event-gateway/tls-trust-bundle/scenario.yaml` | 14 | 4.70s | 9.27s |
+| `external/api-impl/scenario.yaml` | 14 | 4.68s | 8.77s |
+| `control-plane/get/scenario.yaml` | 14 | 4.34s | 6.86s |
+| `ai-gateway/policy/scenario.yaml` | 14 | 4.33s | 5.76s |
+| `plan/sync-workflow/scenario.yaml` | 14 | 4.20s | 7.48s |
+| `org/get-org/scenario.yaml` | 14 | 4.15s | 4.81s |
+| `yaml-tags/file/scenario.yaml` | 14 | 4.12s | 6.48s |
+| `dump/analytics-dashboards/scenario.yaml` | 14 | 4.10s | 8.68s |
+| `apis/get-api-by-name-and-id/scenario.yaml` | 14 | 4.05s | 6.09s |
+| `portal/snippets-pagination/scenario.yaml` | 14 | 4.01s | 5.30s |
+| `delete/dry-run/scenario.yaml` | 14 | 3.81s | 6.15s |
+| `control-plane/groups/scenario.yaml` | 14 | 3.77s | 6.90s |
+| `org/teams/apply/scenario.yaml` | 14 | 3.72s | 6.19s |
+| `require-namespace/external/scenario.yaml` | 14 | 3.71s | 6.04s |
+| `event-gateway/dump/scenario.yaml` | 14 | 3.66s | 7.09s |
+| `control-plane/sync/scenario.yaml` | 14 | 3.61s | 5.80s |
+| `protected-resources/control-planes/scenario.yaml` | 14 | 3.34s | 6.41s |
+| `namespace/defaults-sync/scenario.yaml` | 14 | 3.15s | 5.89s |
+| `errors/declarative/scenario.yaml` | 14 | 3.08s | 4.78s |
+| `org/teams/sync/scenario.yaml` | 14 | 2.88s | 5.37s |
+| `delete/idempotent/scenario.yaml` | 14 | 1.85s | 4.12s |
+| `portal/email-domains/scenario.yaml` | 14 | 1.50s | 3.34s |
+| `explain/command-coverage/scenario.yaml` | 14 | 1.34s | 1.43s |
+| `analytics/dashboard-repro/scenario.yaml` | 14 | 1.03s | 1.31s |
+| `scaffold/command-coverage/scenario.yaml` | 14 | 0.98s | 1.00s |
+| `namespace/validation/scenario.yaml` | 14 | 0.91s | 1.06s |
+| `declarative/plan-mode-validation/scenario.yaml` | 14 | 0.57s | 0.59s |
+| `patch/command-coverage/scenario.yaml` | 14 | 0.46s | 0.47s |
+| `ai-gateway/maturity/scenario.yaml` | 14 | 0.42s | 0.45s |
+| `lint/command-coverage/scenario.yaml` | 14 | 0.34s | 0.35s |
+| `portal/auth_settings_deprecated_fields/scenario.yaml` | 14 | 0.19s | 0.19s |
+| `portal/identity_providers_duplicate_type/scenario.yaml` | 14 | 0.19s | 0.20s |
+| `smoke/version/scenario.yaml` | 14 | 0.06s | 0.07s |
+| `auth/get-me/scenario.yaml` | 14 | 0.00s | 0.00s |
+| `event-gateway/principal-metadata/scenario.yaml` | 14 | 0.00s | 0.00s |
+| `portal/applications/scenario.yaml` | 14 | 0.00s | 0.00s |
