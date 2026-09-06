@@ -40,10 +40,10 @@ The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for AI Gateway resources. Other executor families, loader
-scope/extraction, namespace participation, relationships, state-client wiring,
-and dump collection still have separate integration points. Registering a
-declaration does not complete those steps automatically.
+payload validation for AI Gateway and Event Gateway resources. Other executor
+families, loader scope/extraction, namespace participation, relationships,
+state-client wiring, and dump collection still have separate integration
+points. Registering a declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
 
@@ -240,18 +240,26 @@ through the current execution path, including parents created in the same
 plan. Use SDK label conversion helpers so user-label removal and managed
 labels survive updates.
 
-For AI Gateway resources, add one entry to
-[`registerAIGatewayExecutors`][ai-executors]. The typed base executor supplies
-its resource kind and payload contract. `crudResourceExecutor` exposes
-create/update/delete; `createDeleteResourceExecutor` leaves update unsupported.
+Add AI Gateway resources in [AI Gateway registration][ai-executors] and Event
+Gateway resources in [Event Gateway registration][egw-executors]. The typed
+base executor supplies its resource kind and payload contract.
+`crudResourceExecutor` exposes create/update/delete;
+`createDeleteResourceExecutor` leaves update unsupported.
 Registration rejects missing contracts, empty action sets, and duplicate kinds,
 including conflicts with the legacy payload inventory. No per-kind field,
 payload-list entry, or action-switch case is needed for these resources.
 
-AI Gateway children share reference preparation before supported operations.
-Consumer groups also synchronize membership after successful create/update.
-Keep exceptional ordering and failures in explicit wrappers; unsupported
-operations must not resolve references or perform API calls.
+AI Gateway children prepare references before every supported operation;
+consumer groups synchronize membership after successful create/update.
+Event Gateway children prepare writes only; deletes use routing IDs in the
+plan. Static keys omit update. Virtual-cluster create/update retain distinct
+gateway lookup rules. Preserve empty-ID versus unknown-ID predicates and
+parent/reference precedence during migration.
+
+Use `prepareResourceExecutor` for all actions, `prepareResourceWrites` for
+create/update, and `prepareResourceWrite` for action-specific preparation.
+Keep ordering and failures explicit; unsupported operations must not resolve
+references or perform API calls.
 
 Other families retain [legacy executor wiring][executor]: inspect
 `NewWithOptions`, the three resource action switches, and payload registration.
@@ -461,6 +469,7 @@ engine contract. Each refactoring migration should:
 [runtime-executors]:
   ../../internal/declarative/executor/resource_executors.go
 [ai-executors]: ../../internal/declarative/executor/ai_gateway_executors.go
+[egw-executors]: ../../internal/declarative/executor/event_gateway_executors.go
 [base-executor]: ../../internal/declarative/executor/base_executor.go
 [base-operations]: ../../internal/declarative/executor/base_operations.go
 [payloads]: ../../internal/declarative/executor/payload_contract.go

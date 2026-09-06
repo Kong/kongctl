@@ -58,7 +58,6 @@ type Executor struct {
 	]
 	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
 	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
-	eventGatewayControlPlaneExecutor       *BaseExecutor[kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest]
 	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
 	organizationTeamRoleExecutor           *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
 	organizationUserTeamMembershipExecutor *BaseExecutor[
@@ -72,31 +71,6 @@ type Executor struct {
 	]
 	organizationSystemAccountRoleExecutor    *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
 	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
-
-	// Event Gateway child resource executors
-	eventGatewayBackendClusterExecutor *BaseExecutor[
-		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest]
-	eventGatewayVirtualClusterExecutor *BaseExecutor[
-		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest]
-	eventGatewayListenerExecutor *BaseExecutor[
-		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest]
-	eventGatewayListenerPolicyExecutor *BaseExecutor[
-		kkComps.EventGatewayListenerPolicyCreate, kkComps.EventGatewayListenerPolicyUpdate]
-	eventGatewayClusterPolicyExecutor *BaseExecutor[
-		kkComps.EventGatewayClusterPolicyModify, kkComps.EventGatewayClusterPolicyModify]
-	eventGatewayProducePolicyExecutor *BaseExecutor[
-		kkComps.EventGatewayProducePolicyCreate, kkComps.EventGatewayProducePolicyUpdate]
-	eventGatewayConsumePolicyExecutor *BaseExecutor[
-		kkComps.EventGatewayConsumePolicyCreate, kkComps.EventGatewayConsumePolicyUpdate]
-	eventGatewayDataPlaneCertificateExecutor *BaseExecutor[
-		kkComps.CreateEventGatewayDataPlaneCertificateRequest,
-		kkComps.UpdateEventGatewayDataPlaneCertificateRequest]
-	eventGatewaySchemaRegistryExecutor *BaseExecutor[
-		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate]
-	eventGatewayStaticKeyExecutor *BaseExecutor[
-		kkComps.EventGatewayStaticKeyCreate, kkComps.EventGatewayStaticKeyCreate]
-	eventGatewayTLSTrustBundleExecutor *BaseExecutor[
-		kkComps.CreateTLSTrustBundleRequest, kkComps.UpdateTLSTrustBundleRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -248,13 +222,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client,
 		dryRun,
 	)
-	e.eventGatewayControlPlaneExecutor = NewManagedLabelBaseExecutor[
-		kkComps.CreateGatewayRequest, kkComps.UpdateGatewayRequest,
-	](
-		NewEventGatewayControlPlaneControlPlaneAdapter(client),
-		client,
-		dryRun,
-	)
+	e.registerEventGatewayControlPlaneExecutor()
 	e.organizationTeamExecutor = NewManagedLabelBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
 		NewOrganizationTeamAdapter(client),
 		client,
@@ -292,83 +260,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		dryRun,
 	)
 
-	// Initialize event gateway child resource executors
-	e.eventGatewayBackendClusterExecutor = NewBaseExecutor[
-		kkComps.CreateBackendClusterRequest, kkComps.UpdateBackendClusterRequest](
-		NewEventGatewayBackendClusterAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayVirtualClusterExecutor = NewBaseExecutor[
-		kkComps.CreateVirtualClusterRequest, kkComps.UpdateVirtualClusterRequest](
-		NewEventGatewayVirtualClusterAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayListenerExecutor = NewBaseExecutor[
-		kkComps.CreateEventGatewayListenerRequest, kkComps.UpdateEventGatewayListenerRequest](
-		NewEventGatewayListenerAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayListenerPolicyExecutor = NewBaseExecutor[
-		kkComps.EventGatewayListenerPolicyCreate, kkComps.EventGatewayListenerPolicyUpdate](
-		NewEventGatewayListenerPolicyAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayClusterPolicyExecutor = NewBaseExecutor[
-		kkComps.EventGatewayClusterPolicyModify, kkComps.EventGatewayClusterPolicyModify](
-		NewEventGatewayClusterPolicyAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayProducePolicyExecutor = NewBaseExecutor[
-		kkComps.EventGatewayProducePolicyCreate, kkComps.EventGatewayProducePolicyUpdate](
-		NewEventGatewayProducePolicyAdapter(client),
-		client,
-		dryRun,
-	)
-	e.eventGatewayConsumePolicyExecutor = NewBaseExecutor[
-		kkComps.EventGatewayConsumePolicyCreate, kkComps.EventGatewayConsumePolicyUpdate](
-		NewEventGatewayConsumePolicyAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayDataPlaneCertificateExecutor = NewBaseExecutor[
-		kkComps.CreateEventGatewayDataPlaneCertificateRequest,
-		kkComps.UpdateEventGatewayDataPlaneCertificateRequest](
-		NewEventGatewayDataPlaneCertificateAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewaySchemaRegistryExecutor = NewBaseExecutor[
-		kkComps.SchemaRegistryCreate, kkComps.SchemaRegistryUpdate](
-		NewEventGatewaySchemaRegistryAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayStaticKeyExecutor = NewBaseExecutor[
-		kkComps.EventGatewayStaticKeyCreate, kkComps.EventGatewayStaticKeyCreate](
-		NewEventGatewayStaticKeyAdapter(client),
-		client,
-		dryRun,
-	)
-
-	e.eventGatewayTLSTrustBundleExecutor = NewBaseExecutor[
-		kkComps.CreateTLSTrustBundleRequest, kkComps.UpdateTLSTrustBundleRequest](
-		NewEventGatewayTLSTrustBundleAdapter(client),
-		client,
-		dryRun,
-	)
+	e.registerEventGatewayChildExecutors()
 
 	// Initialize portal child resource executors
 	e.portalCustomizationExecutor = NewBaseSingletonExecutor[kkComps.PortalCustomization](
@@ -480,7 +372,6 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		e.dcrProviderExecutor,
 		e.catalogServiceExecutor,
 		e.dashboardExecutor,
-		e.eventGatewayControlPlaneExecutor,
 		e.organizationTeamExecutor,
 		e.organizationTeamRoleExecutor,
 		e.organizationUserTeamMembershipExecutor,
@@ -488,17 +379,6 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		e.organizationSystemAccountTeamMembershipExecutor,
 		e.organizationSystemAccountRoleExecutor,
 		e.controlPlaneDataPlaneCertificateExecutor,
-		e.eventGatewayBackendClusterExecutor,
-		e.eventGatewayVirtualClusterExecutor,
-		e.eventGatewayListenerExecutor,
-		e.eventGatewayListenerPolicyExecutor,
-		e.eventGatewayClusterPolicyExecutor,
-		e.eventGatewayProducePolicyExecutor,
-		e.eventGatewayConsumePolicyExecutor,
-		e.eventGatewayDataPlaneCertificateExecutor,
-		e.eventGatewaySchemaRegistryExecutor,
-		e.eventGatewayStaticKeyExecutor,
-		e.eventGatewayTLSTrustBundleExecutor,
 		e.portalCustomizationExecutor,
 		e.portalAuthSettingsExecutor,
 		e.portalIntegrationExecutor,
@@ -2895,59 +2775,6 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayControlPlane:
-		return e.eventGatewayControlPlaneExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayBackendCluster:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			// Update the reference with the resolved ID
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayBackendClusterExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayVirtualCluster:
-		// Resolve event gateway reference if needed.
-		// When the gateway was already created at plan time, its ID is in change.Parent.ID.
-		// When the gateway was being created in the same plan run, change.Parent is nil and
-		// the ID is stored in change.References["event_gateway_id"] after resolution below.
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok &&
-			unresolvedReferenceID(gatewayRef.ID) {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			// Update the reference with the resolved ID
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-
-		// Determine the effective gateway ID for backend cluster resolution.
-		// Prefer the resolved reference over change.Parent (which is nil when the gateway
-		// was not yet created at plan time).
-		effectiveGatewayID := ""
-		if change.Parent != nil {
-			effectiveGatewayID = change.Parent.ID
-		}
-		if ref, ok := change.References[planner.FieldEventGatewayID]; ok && ref.ID != "" {
-			effectiveGatewayID = ref.ID
-		}
-
-		// Resolve event gateway backend cluster reference if needed
-		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
-			unresolvedReferenceID(backendClusterRef.ID) {
-			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, effectiveGatewayID, backendClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
-			}
-			// Update the reference with the resolved ID
-			backendClusterRef.ID = backendClusterID
-			change.References[planner.FieldEventGatewayBackendClusterID] = backendClusterRef
-		}
-		return e.eventGatewayVirtualClusterExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Create(ctx, *change)
 	case planner.ResourceTypeOrganizationTeamRole:
@@ -2994,162 +2821,6 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.organizationSystemAccountRoleExecutor.Create(ctx, *change)
 
-	case planner.ResourceTypeEventGatewayListener:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			// Update the reference with the resolved ID
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayListenerExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayListenerPolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway listener reference if needed
-		if listenerRef, ok := change.References[planner.FieldEventGatewayListenerID]; ok && listenerRef.ID == "" {
-			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
-			}
-			listenerRef.ID = listenerID
-			change.References[planner.FieldEventGatewayListenerID] = listenerRef
-		}
-		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			unresolvedReferenceID(virtualClusterRef.ID) {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayListenerPolicyExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayDataPlaneCertificateExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewaySchemaRegistry:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewaySchemaRegistryExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayStaticKey:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayStaticKeyExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayTLSTrustBundle:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayTLSTrustBundleExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayClusterPolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayClusterPolicyExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayProducePolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		if err := e.syncResolvedEventGatewayProducePolicyConfigRefs(ctx, change); err != nil {
-			return "", err
-		}
-		return e.eventGatewayProducePolicyExecutor.Create(ctx, *change)
-	case planner.ResourceTypeEventGatewayConsumePolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayConsumePolicyExecutor.Create(ctx, *change)
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -3412,186 +3083,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiVersionExecutor.Update(ctx, *change)
 	// Note: api_publication and api_implementation don't support update
-	case planner.ResourceTypeEventGatewayControlPlane:
-		return e.eventGatewayControlPlaneExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayBackendCluster:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayBackendClusterExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayVirtualCluster:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway backend cluster reference if needed
-		if backendClusterRef, ok := change.References[planner.FieldEventGatewayBackendClusterID]; ok &&
-			unresolvedReferenceID(backendClusterRef.ID) {
-			backendClusterID, err := e.resolveEventGatewayBackendClusterRef(ctx, change.Parent.ID, backendClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway backend cluster reference: %w", err)
-			}
-			backendClusterRef.ID = backendClusterID
-			change.References[planner.FieldEventGatewayBackendClusterID] = backendClusterRef
-		}
-		return e.eventGatewayVirtualClusterExecutor.Update(ctx, *change)
 	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayListener:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayListenerExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayListenerPolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway listener reference if needed
-		if listenerRef, ok := change.References[planner.FieldEventGatewayListenerID]; ok && listenerRef.ID == "" {
-			listenerID, err := e.resolveEventGatewayListenerRef(ctx, change, listenerRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway listener reference: %w", err)
-			}
-			listenerRef.ID = listenerID
-			change.References[planner.FieldEventGatewayListenerID] = listenerRef
-		}
-		// Resolve event gateway virtual cluster reference if needed (for forward_to_virtual_cluster policies)
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			unresolvedReferenceID(virtualClusterRef.ID) {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayListenerPolicyExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayDataPlaneCertificateExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewaySchemaRegistry:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewaySchemaRegistryExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayTLSTrustBundle:
-		// Resolve event gateway reference if needed (typically should already be in Parent)
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		return e.eventGatewayTLSTrustBundleExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayClusterPolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayClusterPolicyExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayProducePolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		if err := e.syncResolvedEventGatewayProducePolicyConfigRefs(ctx, change); err != nil {
-			return "", err
-		}
-		return e.eventGatewayProducePolicyExecutor.Update(ctx, *change)
-	case planner.ResourceTypeEventGatewayConsumePolicy:
-		// Resolve event gateway reference if needed
-		if gatewayRef, ok := change.References[planner.FieldEventGatewayID]; ok && gatewayRef.ID == "" {
-			gatewayID, err := e.resolveEventGatewayRef(ctx, gatewayRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway reference: %w", err)
-			}
-			gatewayRef.ID = gatewayID
-			change.References[planner.FieldEventGatewayID] = gatewayRef
-		}
-		// Resolve event gateway virtual cluster reference if needed
-		if virtualClusterRef, ok := change.References[planner.FieldEventGatewayVirtualClusterID]; ok &&
-			virtualClusterRef.ID == "" {
-			gatewayID := change.References[planner.FieldEventGatewayID].ID
-			virtualClusterID, err := e.resolveEventGatewayVirtualClusterRef(ctx, gatewayID, virtualClusterRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve event gateway virtual cluster reference: %w", err)
-			}
-			virtualClusterRef.ID = virtualClusterID
-			change.References[planner.FieldEventGatewayVirtualClusterID] = virtualClusterRef
-		}
-		return e.eventGatewayConsumePolicyExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -3760,41 +3253,6 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.portalEmailTemplateExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
-	case planner.ResourceTypeEventGatewayControlPlane:
-		return e.eventGatewayControlPlaneExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayBackendCluster:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayBackendClusterExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayVirtualCluster:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayVirtualClusterExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayListener:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayListenerExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayListenerPolicy:
-		// Both gateway ID and listener ID should be in References for delete
-		return e.eventGatewayListenerPolicyExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayDataPlaneCertificate:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayDataPlaneCertificateExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewaySchemaRegistry:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewaySchemaRegistryExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayStaticKey:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayStaticKeyExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayTLSTrustBundle:
-		// No need to resolve event gateway reference for delete - parent ID should be in Parent field
-		return e.eventGatewayTLSTrustBundleExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayClusterPolicy:
-		// Both gateway ID and virtual cluster ID should be in References for delete
-		return e.eventGatewayClusterPolicyExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayProducePolicy:
-		// Both gateway ID and virtual cluster ID should be in References for delete
-		return e.eventGatewayProducePolicyExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeEventGatewayConsumePolicy:
-		// Both gateway ID and virtual cluster ID should be in References for delete
-		return e.eventGatewayConsumePolicyExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeOrganizationTeam:
 		return e.organizationTeamExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeOrganizationTeamRole:
