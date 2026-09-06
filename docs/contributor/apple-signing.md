@@ -120,16 +120,33 @@ not tests of those executables or the actual GitHub publication API.
 - If Apple is still processing a submission, investigate its status, then
   retry the failed verification jobs in the **original run**. Successful
   signing/build jobs need not be repeated. Receipts last seven days.
-- The `recovery_tag` input still accepts only already-published stable
-  releases. It now rechecks full macOS assets before proceeding, so it cannot
-  bypass notarization. Older unsigned releases cannot pass this new gate.
+- For a workflow bug fixed after a draft was created, merge the fix first,
+  then dispatch `Release` from `main` with `recovery_tag` set to the draft's
+  tag and `recovery_run_id` set to the original Release run ID. Leave
+  `build_mode` at `full`; recovery inputs take precedence over version bumps.
+  Recovery verifies that the original completed main run built that tag and
+  retains its Homebrew metadata artifact. It does not move the tag, rebuild,
+  re-sign, replace assets, or reuse old verification receipts. Fresh native
+  verification must pass before the draft is published and Homebrew finishes.
+- The original Homebrew artifact must still be available (seven-day
+  retention). An expired artifact or different source commit requires
+  maintainer investigation; do not guess another run ID.
+- For an already-published stable release, use `recovery_tag` alone. This
+  rechecks macOS assets and completed publication, without rebuilding bottles
+  or republishing the tap. Older unsigned releases cannot pass this gate.
 - A changed asset requires both native gates to run again. A missing/expired
   receipt also requires fresh verification. Do not reuse receipts across runs.
 - Do not start a normal new release or rerun every job merely to recover a
-  draft: version computation can select a new tag. Recovery after a failed
-  build, expired run, or partial Homebrew publication still needs maintainer
-  investigation; this implementation does not introduce a rebuild/resume
-  dispatcher.
+  draft: version computation can select a new tag. A rerun also retains the
+  original workflow revision, so it does not pick up a merged workflow fix.
+  Recovery after a failed build, expired artifact, or partial Homebrew
+  publication still needs maintainer investigation.
+
+Draft lookup uses the releases list API, followed by requests for the exact
+release ID. The tag endpoint only returns published releases. GitHub requires
+write access to see drafts, so configuration and native verification jobs
+have `contents: write`; their operations remain read-only. Checkout credentials
+are not persisted, and native verification has no Apple private credentials.
 
 Arbitrary-ref ad-hoc prereleases remain explicitly unsigned. Their workflow
 uses `goreleaser build`, not the notarization/release pipeline, and its notes

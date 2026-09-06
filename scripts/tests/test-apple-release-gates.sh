@@ -55,14 +55,34 @@ reject() {
     exit 1
   fi
 }
+# Reproduce the production failure: tag lookup cannot return a draft.
+reject gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+export TEST_DRAFT_ACCESS=read
+reject verify
+unset TEST_DRAFT_ACCESS
+export TEST_DUPLICATE_RELEASE=true
+reject verify
+unset TEST_DUPLICATE_RELEASE
 verify
 other_arch=amd64
 [[ "$arch" == amd64 ]] && other_arch=arm64
 # Mock the second job's receipt to isolate the publication policy test.
 cp "$test_dir/receipts/$arch.json" "$test_dir/receipts/$other_arch.json"
 publish
-grep -F -- '--draft=false --latest=false' "$TEST_PUBLICATION_LOG"
+grep -Fx 'PATCH repos/Kong/kongctl/releases/100 draft=false make_latest=false' "$TEST_PUBLICATION_LOG"
 rm "$TEST_PUBLICATION_LOG"
+
+# Draft recovery must verify again and can publish only matching receipts.
+export RELEASE_BUILD_MODE=draft-recovery
+verify
+publish
+rm "$TEST_PUBLICATION_LOG"
+export RELEASE_BUILD_MODE=full
+
+# Changing the release identity is rejected even with the same tag/assets.
+jq '.id += 1' "$test_dir/original.json" > "$TEST_RELEASE_JSON"
+reject publish
+cp "$test_dir/original.json" "$TEST_RELEASE_JSON"
 
 # Asset replacement, deletion and mismatched native receipts fail closed.
 jq '.assets[0].id += 100' "$test_dir/original.json" > "$TEST_RELEASE_JSON"
@@ -77,6 +97,8 @@ cp "$test_dir/receipts/$arch.json" "$test_dir/receipts/$other_arch.json"
 
 # A release cannot be published early or recovered as an unverified draft.
 jq '.draft = false' "$test_dir/original.json" > "$TEST_RELEASE_JSON"
+reject verify
+export RELEASE_BUILD_MODE=draft-recovery
 reject verify
 export RELEASE_BUILD_MODE=recovery
 verify

@@ -1,8 +1,50 @@
 #!/usr/bin/env bash
 # Offline GitHub API test double. Never makes network requests.
 set -euo pipefail
+if [[ "${1:-}" == api ]]; then
+  shift
+  method=GET
+  endpoint=
+  paginate=false
+  slurp=false
+  fields=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --method) method=$2; shift 2 ;;
+      --paginate) paginate=true; shift ;;
+      --slurp) slurp=true; shift ;;
+      -F|-f) fields+=("$2"); shift 2 ;;
+      repos/*) endpoint=$1; shift ;;
+      *) echo "Unexpected API argument: $1" >&2; exit 1 ;;
+    esac
+  done
+  prefix="repos/$GITHUB_REPOSITORY/releases"
+  release_id=$(jq -r .id "$TEST_RELEASE_JSON")
+  if [[ "$method" == GET && "$endpoint" == "$prefix?per_page=100" ]]; then
+    [[ "$paginate" == true && "$slurp" == true ]]
+    if [[ "${TEST_DRAFT_ACCESS:-write}" == read ]] && jq -e .draft "$TEST_RELEASE_JSON" > /dev/null; then
+      printf '[[]]\n'
+    elif [[ "${TEST_DUPLICATE_RELEASE:-false}" == true ]]; then
+      jq '[[., .]]' "$TEST_RELEASE_JSON"
+    else
+      # Include an empty first page to exercise paginated lookup.
+      jq '[[], [.]]' "$TEST_RELEASE_JSON"
+    fi
+  elif [[ "$method" == GET && "$endpoint" == "$prefix/$release_id" ]]; then
+    cat "$TEST_RELEASE_JSON"
+  elif [[ "$method" == GET && "$endpoint" == "$prefix/tags/$RELEASE_TAG" ]] &&
+       jq -e '.draft == false' "$TEST_RELEASE_JSON" > /dev/null; then
+    cat "$TEST_RELEASE_JSON"
+  elif [[ "$method" == PATCH && "$endpoint" == "$prefix/$release_id" &&
+          "${fields[*]}" == 'draft=false make_latest=false' ]]; then
+    printf 'PATCH %s %s\n' "$endpoint" "${fields[*]}" >> "$TEST_PUBLICATION_LOG"
+  else
+    echo 'gh: Not Found (HTTP 404)' >&2
+    exit 1
+  fi
+  exit
+fi
 case "$1 $2" in
-  'api repos/'*) cat "$TEST_RELEASE_JSON" ;;
   'release download')
     while [[ $# -gt 0 ]]; do
       if [[ "$1" == '--dir' ]]; then
@@ -12,9 +54,6 @@ case "$1 $2" in
       shift
     done
     exit 1
-    ;;
-  'release edit')
-    printf '%s\n' "$*" >> "$TEST_PUBLICATION_LOG"
     ;;
   *) echo "Unexpected gh fixture invocation: $*" >&2; exit 1 ;;
 esac
