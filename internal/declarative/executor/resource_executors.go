@@ -120,8 +120,8 @@ func (e *Executor) registerResourceExecutor(resource resourceExecutor) {
 	if resource.create == nil && resource.update == nil && resource.remove == nil {
 		panic("resource executor has no actions for " + resource.contract.ResourceType())
 	}
-	// This also rejects duplicate registrations, including a conflicting entry
-	// in the legacy payload inventory while other families are being migrated.
+	// Payload validation and action dispatch share the same registration.
+	// Payload registration also rejects duplicate resource kinds.
 	e.registerPayloadContracts(resource.contract)
 	e.resourceExecutors[resource.contract.ResourceType()] = resource
 }
