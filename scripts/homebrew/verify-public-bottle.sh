@@ -10,7 +10,7 @@ while IFS= read -r formula; do
     go|go@*) brew uninstall --formula --force --ignore-dependencies "$formula" ;;
   esac
 done < <(brew list --formula)
-brew tap-new kong/kongctl
+bash "$script_dir/init-tap.sh"
 tap_dir=$(brew --repository kong/kongctl)
 cp "$recipe" "$tap_dir/Formula/kongctl.rb"
 brew trust --tap kong/kongctl

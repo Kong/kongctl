@@ -29,7 +29,7 @@ esac
 if brew list --formula kongctl > /dev/null 2>&1 || brew tap | grep -Fxq kong/kongctl; then
   echo 'Expected a fresh runner without kongctl or the production tap' >&2; exit 1
 fi
-brew tap-new kong/kongctl
+bash "$script_dir/init-tap.sh"
 tap_dir=$(brew --repository kong/kongctl)
 ruby "$script_dir/render-formula.rb" "$version" "$assets/checksums.txt" \
   > "$tap_dir/Formula/kongctl.rb"
@@ -41,6 +41,7 @@ brew trust --tap kong/kongctl
 # All platforms still package the identical, official-URL formula recipe.
 cache_file=$(brew --cache --build-from-source --formula kong/kongctl/kongctl)
 [[ "$cache_file" == "$(brew --cache)/downloads/"* ]]
+mkdir -p "$(dirname "$cache_file")"
 cp "$assets/kongctl_${os}_$arch.zip" "$cache_file"
 brew install --formula --build-bottle kong/kongctl/kongctl
 

@@ -593,7 +593,7 @@ jobs:
         if: needs.config.outputs.build_mode == 'full'
         run: |
           set -euo pipefail
-          brew tap-new kong/kongctl
+          bash scripts/homebrew/init-tap.sh
           tap_dir=$(brew --repository kong/kongctl)
           mkdir -p "$tap_dir/Casks"
           cp dist/homebrew/Casks/kongctl.rb "$tap_dir/Casks/kongctl.rb"

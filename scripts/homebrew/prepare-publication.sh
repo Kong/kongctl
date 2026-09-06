@@ -7,7 +7,7 @@ directory=$(cd "$1" && pwd)
 version=$2
 ruby "$script_dir/validate-bottles.rb" "$directory" "$version"
 export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_DEVELOPER=1
-brew tap-new kong/kongctl
+bash "$script_dir/init-tap.sh"
 tap_dir=$(brew --repository kong/kongctl)
 cp "$directory/kongctl-arm64_sequoia.rb" "$tap_dir/Formula/kongctl.rb"
 git -C "$tap_dir" add Formula/kongctl.rb

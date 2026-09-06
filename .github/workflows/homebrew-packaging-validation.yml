@@ -1,0 +1,120 @@
+name: Homebrew packaging validation
+
+on:
+  workflow_dispatch:
+  # Temporary trusted rollout branch. Remove before merging.
+  push:
+    branches: [task/apple-notarization]
+    paths:
+      - .github/workflows/homebrew-packaging-validation.yml
+      - scripts/homebrew/**
+      - scripts/tests/test-homebrew-*.sh
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: homebrew-packaging-validation
+  cancel-in-progress: true
+
+jobs:
+  source:
+    if: github.repository == 'Kong/kongctl'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test renderer and metadata policy without secrets
+        run: |
+          bash scripts/tests/test-homebrew-formula.sh
+          bash scripts/tests/test-homebrew-bottles.sh
+      - name: Select verified artifacts with unchanged Go source/build recipe
+        id: select
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs=$(gh run list --repo Kong/kongctl --workflow apple-signing-validation.yml \
+            --branch "$GITHUB_REF_NAME" --limit 20 --json databaseId --jq '.[].databaseId')
+          for run in $runs; do
+            [[ "$run" =~ ^[0-9]+$ ]]
+            sha=$(gh api "repos/Kong/kongctl/actions/runs/$run" --jq .head_sha)
+            git merge-base --is-ancestor "$sha" HEAD || continue
+            git diff --quiet "$sha" HEAD -- '*.go' go.mod go.sum .goreleaser.apple-validation.yml || continue
+            approved=$(gh api "repos/Kong/kongctl/actions/runs/$run/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.name == "sign" and .conclusion == "success")] | length')
+            [[ "$approved" == 1 ]] || continue
+            artifacts=$(gh api "repos/Kong/kongctl/actions/runs/$run/artifacts" \
+              --jq '[.artifacts[] | select(.name == "apple-signed-validation" and .expired == false)] | length')
+            [[ "$artifacts" == 1 ]] || continue
+            echo "run=$run" >> "$GITHUB_OUTPUT"
+            echo "Reusing signed executables from $sha, run $run; Go source/build recipe unchanged"
+            exit 0
+          done
+          echo '::error::Run Apple signing validation first; no matching verified artifacts remain'
+          exit 1
+
+  package:
+    needs: source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          repository: Kong/kongctl
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.source.outputs.run }}
+          name: apple-signed-validation
+          path: signed
+      - name: Package upstream executables and verify local pouring
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: |
+          version=$(jq -er .version signed/metadata.json)
+          bash scripts/homebrew/package-bottle.sh signed "$version" bottles
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-validation-${{ matrix.os }}
+          path: bottles/
+          if-no-files-found: error
+          retention-days: 7
+
+  merge:
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: package-validation-*
+          path: bottles
+          merge-multiple: true
+      - name: Merge verified metadata without registry or tap publication
+        run: |
+          version=$(jq -er '.[] .formula.pkg_version' bottles/*.bottle.json | sort -u)
+          bash scripts/homebrew/prepare-publication.sh bottles "$version"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-validation-formula
+          path: bottles/kongctl.rb
+          if-no-files-found: error
+          retention-days: 7

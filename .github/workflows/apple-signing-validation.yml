@@ -14,8 +14,6 @@ on:
       - scripts/verify-apple-release.sh
       - scripts/publish-apple-release.sh
       - scripts/apple-release-snapshot.jq
-      - scripts/homebrew/**
-      - scripts/tests/test-homebrew-*.sh
       - scripts/tests/apple-signing/**
       - scripts/tests/test-*apple*.sh
 
