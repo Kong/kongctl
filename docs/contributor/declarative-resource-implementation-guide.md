@@ -1,2084 +1,463 @@
-# DECLARATIVE RESOURCE IMPLEMENTATION GUIDE
+# Declarative engine implementation guide
 
-## PURPOSE
-Technical guide for coding agents to implement new resources in kongctl's declarative configuration engine. Details exact code locations, patterns, and requirements.
+This is the primary implementation guide for agents adding resources,
+extending declarative features, or refactoring the engine. It defines the
+required behavior and integration points; linked code supplies current
+signatures and working implementations.
 
-Use the snippets as implementation patterns. Exact helper/function names can
-evolve, so confirm against current code before finalizing.
+Follow [repository guidance][agents] and the maintainer's task constraints.
+Use [declarative usage][usage] and the [resource reference][reference] for the
+user-facing contract. Imperative commands are separate scope.
 
-## REFACTOR BASELINE (PRs #411 AND #414)
+## Start here
 
-New resource implementations should follow these refactored patterns.
+1. Define the affected contract: accepted YAML, identity, supported operations,
+   parent scope, defaults, references, secrets, and observable API fields.
+2. Trace that contract through loading, planning, execution, and dump. For a
+   new resource, follow each implementation step below. For a field or engine
+   feature, identify every affected step rather than copying a whole resource.
+3. Choose existing code by lifecycle and API semantics. Check its tests and
+   known compatibility behavior before using it as a migration example.
+4. Establish the existing validation baseline. Keep refactoring separate from
+   changes to accepted manifests, API requests, or saved-plan behavior.
 
-- Parent resources should embed `BaseResource` instead of re-implementing
-  `ref`, `kongctl`, `konnectID`, `GetRef()`, `GetKonnectID()`,
-  `SetKonnectID()`, and base name matching helpers.
-- Child resource matching should prefer shared helpers such as
-  `tryMatchByField(...)` instead of custom reflection blocks.
-- Resources with `_external` support should use
-  `tryMatchByNameWithExternal(...)` and override `IsExternal()` where needed.
-- Every resource type must be registered in `init()` via
-  `registerResourceType(...)`. Registry registration now drives resource
-  iteration and aggregation operations, including `kongctl explain` and
-  `kongctl scaffold`.
-- `ResourceSet` operations such as `ForEachResource`, `AllResourcesByType`,
-  `ResourceCount`, `IsEmpty`, and `AppendAll` are registry-driven. Avoid adding
-  new manual switch/loop aggregations for resource types.
-- Loader duplicate checking uses a running `refIndex` map across all loaded
-  files. Ensure your new resource has `GetType()` and `GetRef()` implemented and
-  is wired into `ResourceSet`.
+### Engine map
 
-## IDENTIFIER CONSTANTS
+| Layer | Owns |
+| --- | --- |
+| [Resources][resources] | Typed declarations, identity, schema metadata |
+| [Loader][loader] | Sources, templates, tags, scope, decoding, validation |
+| [Planner][planner] | Observation, differences, references, dependencies |
+| [State client][state] | API access and normalized observed resources |
+| [Executor][executor] | Payload checks, reference hydration, API mutations |
+| [Dump][dump] | API-to-declarative conversion and export |
 
-Do not add new string literals for identifiers that are part of internal
-resource, plan, or view contracts.
+A resource declaration, SDK request, observed response, and planned change
+are different representations. Do not use resource serialization as an API
+request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
-- Declarative resource type identifiers are canonical in
-  `internal/declarative/resources/types.go`.
-- Planner and executor code should use the compatibility aliases in
-  `internal/declarative/planner/constants.go`, such as `ResourceTypeFoo`.
-- Plan field names belong in `internal/declarative/planner/constants.go`.
-  Use `Field*` constants for plan `Fields`, `References`, required fields, and
-  executor field access.
-- Resource dependencies use `resources.ResourceRef{Kind: ResourceTypeFoo}` or
-  another typed `resources.ResourceType` value, not a raw string.
-- Konnect view/tableview identifiers belong in
-  `internal/cmd/root/products/konnect/common`. Use `ViewParent*`, `ViewField*`,
-  and `ViewResource*` constants for tableview parent types, child loader fields,
-  detail contexts, and navigator resource selectors.
-- `kongctl view` detail renderers should label direct API response fields with
-  the API JSON field name, such as `created_at` or `display_name`. Use
-  `snake_case` for kongctl-derived fields, such as `value_count`. Avoid
-  title-cased friendly labels in detail renderers.
-- Leave user-facing help text, table headers, Cobra command aliases,
-  JSON/YAML tags, API payload keys, and external schema field names as literals
-  unless they are also used as one of the internal identifiers above.
+The [resource registry][registry] already drives iteration, aggregation,
+explain/scaffold, load-schema discovery, and dump-default metadata. The
+[root planner inventory][roots] drives root construction and dispatch.
+Loader scope/extraction, namespace participation, relationships, state-client
+wiring, executor routing, and dump collection still have separate integration
+points. Registering a type does not complete those steps automatically.
 
-## RESOURCE TYPES
+## 1. Define and register the resource
 
-### PARENT RESOURCES
-- Support full lifecycle: CREATE, UPDATE, DELETE
-- Have kongctl metadata (namespace, protection)
-- Can have nested child resources
-- Managed via labels: KONGCTL-NAMESPACE, KONGCTL-PROTECTED
-- Examples: Portal, API, ControlPlane, ApplicationAuthStrategy
+- Add the canonical `ResourceType` and storage in
+  [`ResourceSet`][resource-types]. Include nested parent fields only where the
+  manifest supports nested declarations.
+- Implement the [resource interfaces][interfaces]. Use `BaseResource` and
+  existing matching helpers where their behavior fits. Keep `ref`, remote ID,
+  and API moniker distinct; root identity is not universally name-only.
+- Register in the resource file's `init()` with `registerResourceType` and
+  `AutoExplain[...]`. External-capable resources use
+  `registerExternalResourceType`; see [references](#references-and-lookups).
+  Use slice-accessor variants when storage is behind a grouping object.
+- Add planner resource aliases and new `Field*` identifiers in
+  [planner constants][constants]. Use typed `ResourceRef.Kind` values and
+  constants for plan fields, references, required fields, and executor access.
+  Keep API keys and JSON/YAML tags literal unless also internal identifiers.
+- Implement validation, dependencies, and supported label access. Prefer
+  shared matching/normalization helpers over new reflection or type switches.
+  Registry-driven aggregation must not acquire another resource inventory.
+- For namespace-bearing declarations, inspect
+  [namespace participants][namespaces] and namespace accessors in
+  `ResourceSet`. Ordinary managed children inherit namespace and protection
+  from their parent; do not give them independent `kongctl` configuration.
+- Follow the [maturity policy](maturity.md). Resources default to GA.
+  Co-locate `WithMaturity` and narrower `WithOperationMaturity` overrides
+  with registration. Maturity is discovery metadata, not runtime gating or
+  plan, result, or telemetry data.
 
-### CHILD RESOURCES
-- Scoped to parent resource
-- NO kongctl metadata support
-- Typically do not expose `KONGCTL_*` labels in Konnect responses. Deletion/managed checks must rely on the
-  parent reference or namespace propagated through the plan instead of label lookups.
-- Identified by parent + moniker (slug, name, version, etc.)
-- Examples: PortalPage, APIDocument, APIVersion, PortalCustomization
+### Defaults and SDK shape
 
-### SINGLETON CHILD RESOURCES
-- Special case: always exist for parent, only UPDATE supported
-- No CREATE/DELETE operations
-- Example: PortalCustomization
+Required fields for a managed operation must be explicit in manifests.
+`SetDefaults()` may apply documented literal API defaults only. It must not
+derive required values from `ref`, `name`, or another supplied field. Existing
+name-from-ref fallbacks are compatibility behavior whose removal needs
+separate scope.
 
-### PSEUDO RESOURCES (TOOL-LOCAL CONFIG)
-- Some declarative keys (prefixed with `_`) represent **kongctl-owned configuration**, not Konnect resources.
-- Example: `control_planes[]. _deck` (deck integration). These are **not** part of the Konnect API surface.
-- Implementation pattern:
-  - Add a field on the parent resource struct (e.g., `ControlPlaneResource`) with `yaml:"_deck"`.
-  - Validate the pseudo-resource in the parent resource `Validate()` method.
-  - Emit a `PlannedChange` with `ResourceType` set to a pseudo-type (e.g., `_deck`)
-    and `ActionExternalTool`.
-  - Update plan summaries to include `by_external_tools`.
-  - Add dependencies to ensure external tool steps run in the correct order.
+Embed generated SDK types where the declarative shape matches, using inline
+JSON/YAML tags. Handle optional pointers, enum values, unions, and label
+conversions explicitly. A custom unmarshaller must preserve accepted fields
+and reject unsupported input; SDK unmarshallers can silently discard keys.
 
----
+## 2. Wire loading and discovery
 
-## IMPLEMENTATION CHECKLIST
+Inspect [loader parsing/extraction][loader] and
+[resource-set validation][load-validation].
+Wire nested extraction, parent selectors, ref generation where supported,
+resource validation, and cross-reference checks for the new shape. Preserve
+the running duplicate-ref index across files.
 
-### PLANNER-TO-EXECUTOR PAYLOAD CONTRACT
+The loader carries execution and placeholder-preserving representations.
+Keep defaults, extraction, and template handling consistent across both.
+Capture sync scope before extraction loses YAML key presence. Shape
+validation must run before resolving ordinary environment values so invalid
+input cannot disclose a secret in an error.
 
-Declarative resources and API request bodies are different representations.
-Resource serialization may contain `ref`, `kongctl`, nested resources, and
-root-level parent selectors. Do not use that serialization as an API payload.
+### Explain, scaffold, and load schema
 
-- `PlannedChange.Fields` contains fields intended for the action-specific API
-  request body plus explicitly registered executor-only fields.
-- `PlannedChange.Parent`, `References`, and resource identity contain API path
-  and relationship routing data.
-- Relationships marked `kongctl_parent_selector` never belong in `Fields`.
-  Relationships marked `api_foreign_key` remain eligible when the
-  action-specific request schema contains that field.
-- Create and update mappings are separate contracts, even when they currently
-  use similar SDK structures. The executor validates every planned payload
-  against the selected SDK request before executing any change.
-- Managed-label updates use the same `ManagedLabelOperations` hook during
-  preflight and execution. `current_labels` is internal plan context rather
-  than an API body field.
-- Mappers must report unsupported fields. Silently dropping a planner field is
-  a contract violation. Intentional executor-only transformations must be
-  recorded in the central payload contract rather than hidden in an adapter.
+Every resource must support `kongctl explain` and `kongctl scaffold`.
+Its [explain metadata][explain] also defines the
+[runtime load schema][load-schema],
+so it must describe accepted declarative YAML, including kongctl-only fields,
+parent selectors, nested children, and supported unions.
 
-Saved plans are not migrated between payload contracts. Kongctl accepts only
-the current plan version and rejects structurally incompatible plans before
-execution with guidance to regenerate the plan.
+- Prefer `AutoExplain[...]` with narrow hints. Include required fields and
+  useful commented optional fields in scaffolds. Review canonical resource
+  paths and supported nested paths.
+- `WithExplainSchemaBuilder` replaces the schema completely. Prefer deriving
+  SDK branches with `autoExplainConcreteNode` and applying small overlays.
+  Document unavoidable replacements and validate recursive parity for fields,
+  requiredness, object/array shapes, unions, and `additionalProperties`.
+  Name intentional differences so SDK drift is reviewable.
+- Objects are closed by default; maps remain open. Use `LoadOpaque` only for
+  a field whose custom unmarshaller intentionally accepts an opaque value.
+  It disables shape traversal for that field.
+- Use `ExplainNode.rejectLoadField` for recognized fields intentionally
+  rejected with migration or branch-specific guidance. Ordinary unknown
+  fields should remain unknown-field errors.
+- Schema diagnostics identify paths without including input values.
 
-### DECLARATIVE DEFAULTS
+### Sync scope
 
-Required API fields must be explicitly stated in the manifest. `SetDefaults()`
-must not derive a required field from `ref`, `name`, or another user-supplied
-field. Hidden cross-field defaults make incomplete manifests appear valid and
-can cause kongctl to differ from an equivalent direct API request.
+Sync deletion follows explicit manifest scope:
 
-Only documented, literal API defaults may be applied automatically. For
-example, a documented `enabled: true` default is eligible; copying `name` into
-`display_name` is not.
+| Input | Meaning |
+| --- | --- |
+| Omitted collection or singleton key | Ignore that scope |
+| Root collection `[]` | Desired count zero in selected namespaces |
+| Nested child collection `[]` or map collection `{}` | Zero for that parent |
+| Root-level empty child collection | Reject: no parent identifies scope |
+| Non-empty singleton object | Manage that singleton |
+| Singleton `null` | Reject; no implicit reset/delete |
+| Optional, delete-capable singleton `{}` | Zero for that parent |
 
-Some existing resources default `name` from `ref` for compatibility. Treat
-that as legacy behavior, not an implementation pattern. Removing those
-fallbacks requires separately scoped compatibility work; do not copy them into
-new or expanded declarative resources.
+Update [loader scope tables][load-scope] for root collections, root-level
+child selectors, and nested child keys. For delete-capable singletons,
+preserve scope while dropping the empty desired value during decoding.
+Do not apply that deletion meaning to update-only singletons.
 
-### WRITE-ONLY SECRET FIELDS
+Root dispatch applies `shouldPlanRoot`. Parent planners must apply
+`shouldPlanChild` before child observation and pruning. An external parent
+can have managed child scope while its own resource remains unmanaged.
 
-When an API accepts a field on create or update but does not return it, register
-the field and its supported operations in
-`internal/declarative/secrets/catalog.go`. Require an explicit `!secret`
-declaration for new manifests and keep the resolved value out of plan fields,
-changed-field details, logs, errors, dumps, and test artifacts.
+A directly constructed `ResourceSet` cannot distinguish an omitted collection
+from an explicit empty collection through its slices alone. Set `SyncScope`
+explicitly when exercising empty-collection sync behavior.
 
-`!secret` sources may be deferred `!env` or `!file` values, including within
-`parts` compositions. A file-backed secret must use the wrapper form:
+## 3. Implement observation
+
+Use [state-client configuration][state] and resource-specific state files to
+wire the API dependency, normalized response type, pagination, and supported
+operations. Check `ClientConfig`, `NewClient`, SDK helper interfaces, and the
+[CLI integration][cli] that supplies clients.
+
+Managed listing must filter by the intended namespace and normalize managed
+and user labels. External lookup uses unrestricted observation instead.
+Inspect [planning caches][cache] before adding reads: namespace fanout can
+share observations across a run. Preserve missing-client and error behavior
+during refactoring; a failed read must not become an empty successful result.
+
+Return errors with operation/resource context. Let callers report errors.
+Use existing structured HTTP logging context and useful debug metadata;
+do not add raw payload or secret values to diagnostics.
+
+## 4. Plan the lifecycle
+
+Choose identity and operation semantics before selecting a reusable strategy:
+
+- **Managed roots matched by name:** [auth strategies][auth-plan] and
+  [DCR providers][dcr-plan] use [`reconcileManagedRoots`][reconcile].
+  Their adapters fetch and normalize typed values; the reconciler owns
+  create/update/delete selection, protection transitions, error accumulation,
+  and sync pruning. Diffing and change construction remain resource-specific.
+  Its existing `FieldError` handling applies to ordinary updates; changing
+  protection-transition validation is separate compatibility work.
+- **Roots with other matching rules:** [dashboard planning][dashboard-plan]
+  demonstrates explicit-ID/name matching. Preserve identity precedence,
+  ambiguity handling, and matching scope.
+- **Parents with managed children:** [API planning][api-plan] and
+  [portal child planning][portal-children] demonstrate parent/child traversal.
+  Preserve child planning for new, existing, and external parents.
+- **Create/delete collections:** In the [planner package][planner-package],
+  `control_plane_data_plane_certificate_planner.go` demonstrates fingerprint
+  matching and replacement ordering. Do not manufacture an update operation
+  for an immutable resource.
+- **Singletons:** Portal customization uses an update-only API. Portal custom
+  domains are optional and delete-capable. Both appear in
+  [portal child planning][portal-children]; their empty-input behavior differs.
+- **Assignments and selectors:** [organization planning][organization-plan]
+  includes role/membership operations and broader organization scope.
+- **Tool-local configuration:** `control_planes[]._deck` is validated by its
+  parent and planned through [deck integration][deck-plan] with
+  `ActionExternalTool`, dependencies, and external-tool summary accounting.
+
+For a new root entry point, add one entry in
+[`rootPlanners()`][roots]. It supplies the type, planner, error label, and
+optional scope predicate. Preserve the inventory order: it affects planning
+dependencies and change IDs. Organization assignments use broader scope than
+the team root. Root dispatch supplies namespace error context and HTTP log
+components; add child orchestration to the owning parent planner.
+
+When comparing fields, distinguish omission, explicit empty values, and
+literal defaults. Normalize equivalent API representations. Compare only
+observable fields; [write-only secrets](#write-only-secrets) have separate
+selection rules. Preserve PATCH sparsity and any API-specific full-update
+requirements rather than applying one update policy universally.
+
+Use `PlannedChange.Parent` and `References` for routing and
+`DependsOn` for operation ordering. Children created with a new parent need
+its creation dependency and a resolvable parent reference. Preserve delete
+dependency ordering and API cascade semantics. Let the planner's dependency
+resolver produce execution order and groups.
+
+Preserve namespace and protection behavior, including inherited protection.
+Planner validation accumulates protection failures before execution.
+[Inherited protection planning][plan-protection] records protecting parents;
+[execution revalidation][execute-protection] checks remote protection again.
+Unprotecting and changing ordinary fields must follow the established
+transition rules, not a generic bypass.
+
+## 5. Map and execute API requests
+
+Choose the existing executor contract for supported operations:
+
+- [`BaseExecutor`][base-executor] handles CRUD-style operations.
+  Managed-label resources use `NewManagedLabelBaseExecutor` and
+  `ManagedLabelOperations`, including protection-only updates.
+- [`BaseCreateDeleteExecutor`][base-operations] handles create/delete APIs.
+- [`BaseSingletonExecutor`][base-operations] handles update-only singletons.
+
+Implement typed field mapping and API calls. Use `ExecutionContext` for
+namespace, protection, parent, and reference information. Resolve parent IDs
+through the current execution path, including parents created in the same
+plan. Use SDK label conversion helpers so user-label removal and managed
+labels survive updates.
+
+[Executor construction and routing][executor] still require explicit wiring.
+Inspect `NewWithOptions`, `createResource`, `updateResource`,
+`deleteResource`, and payload registration for supported actions and any
+resource-specific reference or post-operation work. Preserve created-ID
+tracking, execution groups, dry-run behavior, and current-state checks.
+
+### Payload and saved-plan contracts
+
+[`payload_contract.go`][payloads] validates the complete plan before mutations.
+Create and update are separate mappings even when their SDK types resemble
+one another.
+
+- `Fields` contains request-body fields plus explicitly registered internal
+  fields. `Parent`, `References`, and identity carry routing information.
+- `kongctl_parent_selector` relationships never belong in request bodies.
+  An `api_foreign_key` can belong in the action-specific SDK request.
+- Report unsupported mappings. Every intentionally consumed or transformed
+  internal field needs a central payload-contract disposition; silently
+  dropping a field is a contract violation.
+- Managed-label mapping runs in both preflight and execution.
+  `current_labels` is internal context, not an API body field.
+- Preserve [plan compatibility validation][plan-compatibility]. Saved plans
+  accept the current version and payload contract; incompatible plans must
+  receive regeneration guidance rather than silent migration.
+
+## References and lookups
+
+[`RelationshipDescriptor`][relationships] defines cross-resource YAML fields.
+Describe the target type or discriminator, scalar/list cardinality, result
+field, parent scope, and root-only placement. Distinguish API foreign keys
+from kongctl parent selectors. Metadata drives inference and explain; keep
+execution dependencies separate.
+
+Children implementing `ResourceWithParent` supply `GetParentRef`. Where the
+loader uses `ReferenceMapping`, keep `GetReferenceFieldMappings` aligned with
+the descriptors. Inspect identity resolution, planner reference resolution,
+and executor hydration for any remaining resource-specific dispatch.
+
+`!ref resource#field` defaults to `#id`. [Tag parsing][tags] produces a
+placeholder; the loader resolves locally available values, the
+[planner resolver][resolver] materializes unresolved references, and the
+executor hydrates them using remote state or earlier execution results.
+Preserve requested fields, list references, and nested/scoped paths.
+
+`!external` and `!lookup` are aliases. Their tag resolver validates syntax
+and emits an opaque placeholder without making Konnect calls.
+[Planner external lookup][external] resolves identity before managed matching.
+
+External-capable resource types must implement `ExternallyResolvableResource`,
+use external registration, declare selectors and parent scope, and supply
+exactly one unrestricted lookup adapter. Every relationship target needs
+external capability or a specific `WithExternalUnsupportedReason`.
+Registration supplies materialization; avoid per-type construction switches.
+Validate the `_external` block and expose it through `GetExternalBlock`.
+Override the base `IsExternal` behavior where needed so matching and lifecycle
+code recognize the resource as external.
+
+[The nested-tag allowlist][tag-registry] supports `!env` directly inside
+external/lookup mapping selectors, and `!env`/`!file` inside `!secret`.
+External selectors from environment values retain sensitivity metadata:
+cache keys use real selectors, while diagnostics redact them.
+For new compositions, define resolution phase, location, result type,
+both loader representations, disclosure, and saved-plan semantics. Do not
+infer support from compatible YAML shapes; control fields such as `var`,
+`extract`, and `path` need explicit support.
+
+## Write-only secrets
+
+Register accepted-but-unreturned fields and supported operations in the
+[secret catalog][secret-catalog]. New manifests must use explicit `!secret`.
+Sources can be deferred `!env` or `!file`, including `parts` compositions.
+A file-backed value uses the wrapper:
 
 ```yaml
 key: !secret {source: !file ./certs/runtime.key}
 ```
 
-Do not accept a bare `!file` on a reviewed write-only field: ordinary `!file`
-resolution is eager and could place the contents in a saved plan. The deferred
-secret-file resolver validates file scope, symlinks, and size while loading,
-then stores a path relative to the saved plan. Execution binds that path to the
-plan directory instead of trusting a boundary serialized in the plan. Preserve
-that phase and trust boundary when adding a resource or another secret source
-kind.
-
-Add tests for catalog matching, create and update selection, saved-plan
-execution, dump omission, and redaction at executor and HTTP logging
-boundaries. If the API requires a write-only value in a full update request,
-make the write-selection requirement explicit and return a value-free error
-when it is not selected.
-
-### LOGGING & DIAGNOSTICS
-- Always add verbose `slog` debug statements when introducing a new planner or executor path. Helpful patterns:
-  - Planner: log when you fetch existing resources, how many desired items you saw, and each change you enqueue.
-  - Executor/adapters: log before and after every SDK call (create/update/delete) and log input identifiers.
-- Logging is especially important for child resources because they often lack labels and rely on parent metadata.
-- The e2e harness captures `kongctl.log` per command when debug logging is enabled (i.e., `--log-level debug` or
-  `--log-level trace`), so these logs should be readable in CI artifacts.
-
-### DOCUMENTATION (REQUIRED)
-
-- Updating `docs/declarative-resource-reference.md` is a critical part of
-  adding a new resource type.
-- Add or update entries for both the parent resource and all supported child
-  resources, including field-level types and constraints.
-- Keep resource links current (`API Specification` and `Example` links), and
-  document declarative usage hints (`!ref`, `!file`) where applicable.
-
-### MATURITY (REQUIRED)
-
-- Follow the [capability maturity policy](maturity.md).
-- Declarative resources are GA unless their registration includes
-  `WithMaturity(...)`.
-- Attach non-GA metadata beside `registerResourceType(...)`, at the highest
-  appropriate resource or command ancestor.
-- Use `WithOperationMaturity(...)` only when an operation is less mature than
-  the resource default.
-- Do not duplicate inherited metadata or attempt to raise inherited maturity.
-- Promote a capability by changing or removing its co-located override. Do
-  not add a separate path-keyed maturity catalog.
-- Maturity metadata is discovery-only and must not be copied into declarative
-  configuration, plans, execution results, or telemetry.
-
-### EXPLAIN AND SCAFFOLD (REQUIRED)
-
-- Every registered resource must support `kongctl explain` and
-  `kongctl scaffold`.
-- Registration now requires explain metadata. The common case should use
-  `AutoExplain[...]`; only add a custom schema builder or extra field hints
-  when the declarative shape differs from the embedded SDK struct layout.
-- `kongctl explain` should remain aligned with the accepted declarative YAML
-  shape, including kongctl-only fields such as `ref`, `kongctl`, `_external`,
-  `_deck`, `!ref`, and `!file` behavior where applicable.
-- `kongctl scaffold` should produce a helpful YAML starter, not a minimal
-  stub. Prefer including required fields and commenting high-value optional
-  fields rather than omitting them entirely.
-- Child resources must work in both canonical and nested-path forms when the
-  declarative engine supports both, for example `api_version` and
-  `api.versions`.
-
-The explain registry also provides the runtime load schema. The loader renders
-a full-document, shape-oriented schema from every registered resource and
-validates processed YAML before decoding embedded SDK request structs. Objects
-are closed by default, map fields remain open, and union discriminators select
-the accepted branch fields. This prevents generated SDK unmarshallers from
-silently discarding unknown declarative keys.
-
-Custom explain builders must therefore describe the raw accepted declarative
-shape, not only the eventual SDK payload. When a field intentionally accepts an
-opaque value that is normalized by a custom unmarshaller, set `LoadOpaque` on
-its `ExplainFieldHint`. Use this narrowly: it disables shape traversal only for
-that field while retaining its explain and scaffold representation.
-
-`WithExplainSchemaBuilder` is a full schema replacement; it is not merged with
-the reflected declarative or SDK type. Prefer deriving concrete SDK request
-branches with `autoExplainConcreteNode` and applying small kongctl-specific
-overlays for `ref`, parent selectors, nested children, examples, and
-recommended fields. A full replacement must document why derivation is not
-possible and include recursive parity tests for SDK property names, required
-fields, object and array shapes, union branches, and `additionalProperties`.
-Intentional differences must be encoded as a named allowlist so an SDK update
-fails with an actionable drift test instead of silently changing load-time
-validation.
-
-When kongctl recognizes a field but intentionally rejects it, register the
-field with `ExplainNode.rejectLoadField` on the relevant object or union branch.
-This keeps the field out of explain and scaffold output while allowing the
-load-schema error formatter to return migration or branch-specific guidance.
-Do not use rejected-field metadata for typos, stale fields, or supported fields
-missing from explain; those must remain unknown-field errors or be added to the
-accepted schema.
-
-Load validation runs against the placeholder-preserving `!env` representation
-before environment values are resolved. Error formatting must identify the
-declarative path without including input values, because an invalid field may
-contain a secret.
-
-### DUMP DEFAULT OMISSION
-
-`kongctl dump declarative --skip-defaults` derives its runtime default index
-lazily from `default` tags on SDK fields reachable from `ResourceSet`. Adding a
-registered resource to `ResourceSet` and embedding its generated SDK request
-types therefore opts the resource and its nested children into default
-omission automatically. No separate production catalog is maintained or
-loaded. The entire reflection and YAML-walk path is bypassed when the flag is
-absent.
-
-Only literal API defaults are eligible. Do not add tags for kongctl-derived
-conveniences such as `SetDefaults` behavior or deriving `name` from `ref`.
-Those values are client behavior, not an API contract. Explicit YAML `null`
-values and fields without SDK default metadata are preserved.
-
-The reviewed catalog at
-`internal/declarative/resources/testdata/dump_defaults_inventory.yaml` is a
-golden test artifact, not a runtime data source. It makes SDK dependency
-changes reviewable by listing each registered resource, field path, type,
-value, and source. `TestDumpDefaultInventory` runs with the normal unit suite
-and fails when the SDK version, reachable resources, or default tags change.
-After reviewing such a diff, regenerate it with:
-
-```shell
-UPDATE_GOLDEN=1 go test ./internal/declarative/resources \
-  -run TestDumpDefaultInventory
-```
-
-If SDK metadata is missing or unsafe, add exactly one documented registration
-rule beside the resource's `registerResourceType` call:
-
-- `WithDumpDefaultOverride(path, value, reason)` supplies a reviewed literal
-  API default.
-- `WithDumpDefaultExclusion(path, reason)` keeps an SDK-tagged field in dumps.
-
-Rules for the same resource path are mutually exclusive; duplicate rules fail
-resource registration. Every rule requires a reason and appears in the golden
-inventory. Remove a rule when the SDK metadata becomes authoritative, then
-regenerate and review the inventory.
-
-### SYNC SCOPE (REQUIRED)
-
-`sync` uses explicit manifest scope. Do not treat omitted configuration as a
-delete signal.
-
-- Omitted root collections are ignored by sync.
-- Explicit empty root collections mean desired count zero. For example,
-  `foos: []` deletes managed foos in the selected namespace.
-- Child collections are scoped independently under each parent. A parent block
-  without a child key leaves that child collection alone.
-- Empty child collections must be nested under the parent. Root-level empty
-  child lists such as `foo_children: []` are rejected because they do not
-  identify which parent owns the desired zero count.
-- Map-shaped child collections follow the same rule with an empty object. For
-  example, `foo_templates: {}` means the parent should have no templates.
-- Singleton-shaped child sections are also scoped by key presence. Omit the key
-  to ignore the child. Provide a non-empty object or map to manage it. Reject
-  `null`; it is not a reset or delete signal.
-- For optional, delete-capable singleton children, support an explicit empty
-  object as desired count zero. For example, `custom_domain: {}` should scope
-  that child for the parent but produce no desired child resource, allowing
-  sync to delete an existing managed child. For update-only or always-present
-  singletons, do not document or implement `{}` as delete/reset unless the API
-  has explicit support for that behavior.
-
-When adding a resource, update the sync-scope plumbing:
-
-- Add the root collection key to `rootCollectionScopes` in
-  `internal/declarative/loader/sync_scope.go`.
-- For root-level child declarations, add the canonical root key and parent ref
-  key to `rootChildCollectionScopes`.
-- For nested child declarations, add the nested child key to the relevant
-  nested scope list, such as `apiChildCollectionScopes`,
-  `portalChildCollectionScopes`, or the new parent-specific equivalent.
-- For nested singleton children, add null-key rejection in the loader before
-  planning. Null is not a supported reset/delete semantic.
-- For optional, delete-capable nested singleton children, make empty-object
-  handling preserve sync scope while leaving the desired child absent. Scope is
-  captured before nested resource extraction; custom unmarshaling may need to
-  drop the empty raw key after scope capture instead of populating a zero-value
-  desired child.
-- If the resource has a new planner entry point, gate it in sync mode with
-  `shouldPlanRoot(...)`.
-- If a parent planner prunes child resources, gate each child planner with
-  `shouldPlanChild(...)`.
-- Update `docs/declarative.md`, `docs/declarative-resource-reference.md`, help
-  templates, examples, and e2e scenario fixtures so users can see the new
-  explicit empty-list behavior.
-
-Root planner gating pattern:
-
-```go
-if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeFoo) {
-    if err := namespacePlanner.fooPlanner.PlanChanges(
-        withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.fooPlanner), ""),
-        plannerCtx,
-        namespacePlan,
-    ); err != nil {
-        return nil, fmt.Errorf("failed to plan foo changes for namespace %s: %w", namespace, err)
-    }
-}
-```
-
-Child planner gating pattern:
-
-```go
-children := p.resources.GetFooChildrenForFoo(desiredFoo.Ref)
-if p.shouldPlanChild(
-    plan,
-    resources.ResourceTypeFoo,
-    desiredFoo.Ref,
-    resources.ResourceTypeFooChild,
-) && (len(children) > 0 || plan.Metadata.Mode == PlanModeSync) {
-    if err := p.planFooChildChanges(
-        ctx, plannerCtx, namespace, fooID, desiredFoo.Ref, children, plan,
-    ); err != nil {
-        return err
-    }
-}
-```
-
-Programmatic tests that construct `ResourceSet` directly cannot express
-"explicit empty list" through a nil/empty slice alone. Set
-`ResourceSet.SyncScope` in those tests when asserting sync-delete behavior for
-an empty collection. Loader tests should cover YAML key presence, omitted
-collections, nested empty child lists, root-level empty child rejection,
-singleton `null` rejection, and delete-capable singleton empty-object behavior.
-
-### PARENT RESOURCE
-
-#### 1. RESOURCE DEFINITION
-**Location**: `internal/declarative/resources/`
-**File**: `<resource_name>.go`
-
-```go
-package resources
-
-import (
-    "fmt"
-
-    kkComps "github.com/Kong/sdk-konnect-go/models/components"
-)
-
-func init() {
-    registerResourceType(
-        ResourceTypeFoo,
-        func(rs *ResourceSet) *[]FooResource { return &rs.Foos },
-        AutoExplain[FooResource](),
-    )
-}
-
-// FooResource represents a Foo in declarative configuration
-type FooResource struct {
-    BaseResource
-    kkComps.CreateFooRequest `yaml:",inline" json:",inline"` // Embed SDK type
-
-    // Child resources (optional, can also be root-level)
-    Children []FooChildResource `yaml:"children,omitempty" json:"children,omitempty"`
-
-    // Optional: only for resources that support external matching
-    External *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
-}
-
-// REQUIRED: Implement Resource interface
-func (f FooResource) GetType() ResourceType {
-    return ResourceTypeFoo  // Add to types.go
-}
-
-// GetMoniker returns identifier for matching (name, slug, etc.)
-func (f FooResource) GetMoniker() string {
-    return f.Name  // or f.Slug, depending on API
-}
-
-func (f FooResource) GetDependencies() []ResourceRef {
-    deps := []ResourceRef{}
-    // Add any cross-resource dependencies
-    if f.ParentRef != "" {
-        deps = append(deps, ResourceRef{Kind: "parent_type", Ref: f.ParentRef})
-    }
-    return deps
-}
-
-func (f FooResource) Validate() error {
-    if err := ValidateRef(f.Ref); err != nil {
-        return fmt.Errorf("invalid foo ref: %w", err)
-    }
-    // Validate required fields
-    if f.Name == "" {
-        return fmt.Errorf("name is required")
-    }
-    // Validate nested children
-    for i, child := range f.Children {
-        if err := child.Validate(); err != nil {
-            return fmt.Errorf("child[%d] validation failed: %w", i, err)
-        }
-    }
-    return nil
-}
-
-func (f *FooResource) SetDefaults() {
-    // Set default values
-    if f.Name == "" {
-        f.Name = f.Ref
-    }
-    // Set defaults for children
-    for i := range f.Children {
-        f.Children[i].SetDefaults()
-    }
-}
-
-// GetKonnectMonikerFilter returns filter for API lookup
-func (f FooResource) GetKonnectMonikerFilter() string {
-    return f.BaseResource.GetKonnectMonikerFilter(f.Name)
-}
-
-// TryMatchKonnectResource matches against Konnect API response.
-// Use tryMatchByNameWithExternal when resource supports _external.
-func (f *FooResource) TryMatchKonnectResource(konnectResource any) bool {
-    if f.IsExternal() {
-        id, ok := tryMatchByNameWithExternal(
-            f.Name,
-            konnectResource,
-            matchOptions{sdkType: "FooResponseSchema"},
-            f.External,
-        )
-        if ok {
-            f.SetKonnectID(id)
-        }
-        return ok
-    }
-    return f.TryMatchByName(
-        f.Name,
-        konnectResource,
-        matchOptions{sdkType: "FooResponseSchema"},
-    )
-}
-
-// REQUIRED FOR LABEL SUPPORT: Implement ResourceWithLabels
-func (f FooResource) GetLabels() map[string]string {
-    // Convert SDK labels to map[string]string
-    labels := make(map[string]string)
-    for k, v := range f.Labels {
-        if v != nil {
-            labels[k] = *v  // If SDK uses *string
-        }
-        // OR: labels[k] = v  // If SDK uses string
-    }
-    return labels
-}
-
-func (f *FooResource) SetLabels(labels map[string]string) {
-    f.Labels = labels // Adjust if SDK uses map[string]*string
-}
-
-// Optional when _external is supported
-func (f *FooResource) IsExternal() bool {
-    return f.External != nil && f.External.IsExternal()
-}
-```
-
-**ADD TO**: `internal/declarative/resources/types.go`
-```go
-const (
-    ResourceTypeFoo ResourceType = "foo"
-)
-```
-
-**ADD TO**: `internal/declarative/resources/types.go` ResourceSet struct:
-```go
-type ResourceSet struct {
-    Foos []FooResource `yaml:"foos,omitempty" json:"foos,omitempty"`
-    // ... existing resources
-}
-```
-
-**REQUIRED**: Register the resource type in
-`internal/declarative/resources/<resource_name>.go` using
-`registerResourceType(...)` in `init()`. If not registered, generic
-`ResourceSet` operations will not include the new type, and the resource will
-not participate in `kongctl explain` or `kongctl scaffold`.
-
-**ADD TO**: `internal/declarative/planner/constants.go`
-```go
-const (
-    ResourceTypeFoo = string(resources.ResourceTypeFoo)
-    FieldFooID      = "foo_id"
-)
-```
-
-Add any new plan field constants in the planner package before using them in
-`Fields`, `References`, `RequiredFields`, or executor adapters.
-
-#### 2. STATE CLIENT METHODS
-**Location**: `internal/declarative/state/client.go`
-
-Add API field to Client struct:
-```go
-type Client struct {
-    fooAPI helpers.FooAPI
-    // ... existing APIs
-}
-```
-
-Add normalized type:
-```go
-type Foo struct {
-    kkComps.FooResponseSchema  // Or ListFoosResponseFoo
-    NormalizedLabels map[string]string
-}
-```
-
-Implement CRUD methods:
-```go
-func (c *Client) ListManagedFoos(ctx context.Context, namespaces []string) ([]Foo, error) {
-    lister := func(ctx context.Context, pageSize, pageNumber int64) ([]Foo, *PageMeta, error) {
-        req := kkOps.ListFoosRequest{
-            PageSize:   &pageSize,
-            PageNumber: &pageNumber,
-        }
-
-        resp, err := c.fooAPI.ListFoos(ctx, req)
-        if err != nil {
-            return nil, nil, WrapAPIError(err, "list foos", nil)
-        }
-
-        var filteredFoos []Foo
-        for _, f := range resp.ListFoosResponse.Data {
-            // Normalize labels
-            normalized := normalizeLabels(f.Labels)  // Handle SDK label format
-
-            // Filtering is safe here because pagination completion still uses
-            // raw API totals from resp.ListFoosResponse.Meta.Page.Total.
-            if labels.IsManagedResource(normalized) {
-                if shouldIncludeNamespace(normalized[labels.NamespaceKey], namespaces) {
-                    foo := Foo{
-                        FooResponseSchema: f,
-                        NormalizedLabels:  normalized,
-                    }
-                    filteredFoos = append(filteredFoos, foo)
-                }
-            }
-        }
-
-        meta := &PageMeta{Total: resp.ListFoosResponse.Meta.Page.Total}
-        return filteredFoos, meta, nil
-    }
-
-    return PaginateAll(ctx, lister)
-}
-
-// Important: if you use PaginateAll with page-local filtering, always return
-// pagination metadata from the raw API response. If an endpoint does not
-// expose reliable raw totals, keep a manual loop instead of relying on
-// PaginateAll.
-
-func (c *Client) CreateFoo(ctx context.Context, foo kkComps.CreateFoo, namespace string) (*kkComps.FooResponse, error) {
-    resp, err := c.fooAPI.CreateFoo(ctx, foo)
-    if err != nil {
-        return nil, WrapAPIError(err, "create foo", &ErrorWrapperOptions{
-            ResourceType: string(resources.ResourceTypeFoo),
-            ResourceName: foo.Name,
-            Namespace:    namespace,
-            UseEnhanced:  true,
-        })
-    }
-
-    if err := ValidateResponse(resp.FooResponse, "create foo"); err != nil {
-        return nil, err
-    }
-
-    return resp.FooResponse, nil
-}
-
-func (c *Client) UpdateFoo(ctx context.Context, id string, foo kkComps.UpdateFoo, namespace string) (*kkComps.FooResponse, error) {
-    resp, err := c.fooAPI.UpdateFoo(ctx, id, foo)
-    if err != nil {
-        return nil, WrapAPIError(err, "update foo", &ErrorWrapperOptions{
-            ResourceType: string(resources.ResourceTypeFoo),
-            ResourceName: *foo.Name,  // Adjust based on SDK
-            Namespace:    namespace,
-            UseEnhanced:  true,
-        })
-    }
-
-    return resp.FooResponse, nil
-}
-
-func (c *Client) DeleteFoo(ctx context.Context, id string) error {
-    err := c.fooAPI.DeleteFoo(ctx, id)
-    if err != nil {
-        return WrapAPIError(err, "delete foo", nil)
-    }
-    return nil
-}
-```
-
-#### 3. PLANNER IMPLEMENTATION
-**Location**: `internal/declarative/planner/foo_planner.go`
-
-```go
-package planner
-
-import (
-    "context"
-    "github.com/kong/kongctl/internal/declarative/resources"
-    "github.com/kong/kongctl/internal/declarative/state"
-)
-
-type fooPlannerImpl struct {
-    planner   *Planner
-    resources *resources.ResourceSet
-}
-
-func newFooPlanner(planner *Planner, resourceSet *resources.ResourceSet) *fooPlannerImpl {
-    return &fooPlannerImpl{
-        planner:   planner,
-        resources: resourceSet,
-    }
-}
-
-func (f *fooPlannerImpl) GetDesiredFoos(namespace string) []resources.FooResource {
-    var result []resources.FooResource
-    for _, foo := range f.resources.Foos {
-        if foo.Kongctl == nil || foo.Kongctl.Namespace == nil {
-            continue
-        }
-        if *foo.Kongctl.Namespace == namespace {
-            result = append(result, foo)
-        }
-    }
-    return result
-}
-
-func (f *fooPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
-    namespace := plannerCtx.Namespace
-
-    // Plan parent foos
-    if err := f.planner.planFooChanges(ctx, plannerCtx, f.GetDesiredFoos(namespace), plan); err != nil {
-        return err
-    }
-
-    // Plan child resources if any
-    // if err := f.planner.planFooChildrenChanges(ctx, plannerCtx, ...); err != nil {
-    //     return err
-    // }
-
-    return nil
-}
-
-// In planner.go, add method:
-func (p *Planner) planFooChanges(
-    ctx context.Context, plannerCtx *Config, desired []resources.FooResource, plan *Plan,
-) error {
-    namespace := plannerCtx.Namespace
-
-    // 1. Fetch current foos
-    currentFoos, err := p.client.ListManagedFoos(ctx, []string{namespace})
-    if err != nil {
-        return err
-    }
-
-    // 2. Index by name (or other identifier)
-    currentByName := make(map[string]state.Foo)
-    for _, foo := range currentFoos {
-        currentByName[foo.Name] = foo
-    }
-
-    var protectionErrors []error
-    desiredNames := make(map[string]bool)
-
-    // 3. Process desired foos
-    for _, desiredFoo := range desired {
-        desiredNames[desiredFoo.Name] = true
-
-        current, exists := currentByName[desiredFoo.Name]
-
-        if !exists {
-            // CREATE
-            fooChangeID := p.planFooCreate(desiredFoo, plan)
-            // Plan children if nested
-            // p.planFooChildrenCreate(namespace, desiredFoo, fooChangeID, plan)
-        } else {
-            // UPDATE or protection change
-            isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-            shouldProtect := (desiredFoo.Kongctl != nil &&
-                             desiredFoo.Kongctl.Protected != nil &&
-                             *desiredFoo.Kongctl.Protected)
-
-            if isProtected != shouldProtect {
-                // Protection change
-                needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
-                protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
-
-                if err := p.validateProtectionWithChange(ResourceTypeFoo, desiredFoo.Name,
-                                                          protectionChange, ActionUpdate); err != nil {
-                    protectionErrors = append(protectionErrors, err)
-                } else {
-                    p.planFooProtectionChangeWithFields(current, desiredFoo,
-                                                        isProtected, shouldProtect, updateFields, plan)
-                }
-            } else {
-                // Regular update
-                needsUpdate, updateFields := p.shouldUpdateFoo(current, desiredFoo)
-                if needsUpdate {
-                    if err := p.validateProtection(ResourceTypeFoo, desiredFoo.Name, isProtected, ActionUpdate); err != nil {
-                        protectionErrors = append(protectionErrors, err)
-                    } else {
-                        p.planFooUpdateWithFields(current, desiredFoo, updateFields, plan)
-                    }
-                }
-            }
-
-            // Plan child resource changes
-            // p.planFooChildResourceChanges(ctx, plannerCtx, current, desiredFoo, plan)
-        }
-    }
-
-    // 4. SYNC MODE: Delete unmanaged.
-    // This block is safe only because GeneratePlan calls this planner when
-    // ResourceTypeFoo is in sync scope via shouldPlanRoot(...).
-    if plan.Metadata.Mode == PlanModeSync {
-        for name, current := range currentByName {
-            if !desiredNames[name] {
-                isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-                if err := p.validateProtection(ResourceTypeFoo, name, isProtected, ActionDelete); err != nil {
-                    protectionErrors = append(protectionErrors, err)
-                } else {
-                    p.planFooDelete(current, plan)
-                }
-            }
-        }
-    }
-
-    // 5. Fail fast if protected resources conflict
-    if len(protectionErrors) > 0 {
-        return fmt.Errorf("cannot generate plan due to protected resources: %v", protectionErrors)
-    }
-
-    return nil
-}
-
-func (p *Planner) shouldUpdateFoo(current state.Foo, desired resources.FooResource) (bool, map[string]any) {
-    updates := make(map[string]any)
-
-    // Compare fields that can be updated
-    if desired.Description != nil {
-        currentDesc := getString(current.Description)
-        if currentDesc != *desired.Description {
-            updates[FieldDescription] = *desired.Description
-        }
-    }
-
-    // Compare labels (only user labels)
-    // NOTE: CompareUserLabels returns TRUE when labels DIFFER (not when equal)
-    if desired.Labels != nil {
-        if labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
-            updates[FieldLabels] = desired.GetLabels()
-        }
-    }
-
-    // Add other field comparisons
-
-    return len(updates) > 0, updates
-}
-
-func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
-    protection := extractProtection(foo.Kongctl)
-    namespace := extractNamespace(foo.Kongctl)
-
-    config := CreateConfig{
-        ResourceType:   ResourceTypeFoo,
-        ResourceName:   foo.Name,
-        ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{FieldName},
-        FieldExtractor: func(_ any) map[string]any {
-            return extractFooFields(foo)
-        },
-        Namespace: namespace,
-        DependsOn: []string{},
-    }
-
-    change, err := p.genericPlanner.PlanCreate(context.Background(), config)
-    if err != nil {
-        // Handle error appropriately - this is example code
-        // In real implementation, return or log the error
-        return ""
-    }
-    change.Protection = protection
-
-    plan.AddChange(change)
-    return change.ID
-}
-
-func extractFooFields(resource any) map[string]any {
-    fields := make(map[string]any)
-    foo := resource.(resources.FooResource)
-
-    fields[FieldName] = foo.Name
-    if foo.Description != nil {
-        fields[FieldDescription] = *foo.Description
-    }
-
-    // Copy user labels (namespace/protection added during execution)
-    if len(foo.Labels) > 0 {
-        fields[FieldLabels] = foo.GetLabels()
-    }
-
-    return fields
-}
-
-func (p *Planner) planFooUpdateWithFields(
-    current state.Foo, desired resources.FooResource,
-    updateFields map[string]any, plan *Plan,
-) {
-    namespace := extractNamespace(desired.Kongctl)
-    protection := extractProtection(desired.Kongctl)
-
-    // Include current labels for removal support
-    updateFields[FieldCurrentLabels] = current.NormalizedLabels
-
-    config := UpdateConfig{
-        ResourceType:   ResourceTypeFoo,
-        ResourceName:   desired.Name,
-        ResourceRef:    desired.GetRef(),
-        ResourceID:     current.ID,
-        FieldExtractor: func(_ any) map[string]any {
-            return updateFields
-        },
-        Namespace: namespace,
-    }
-
-    change, err := p.genericPlanner.PlanUpdate(context.Background(), config)
-    if err != nil {
-        // Handle error appropriately - this is example code
-        // In real implementation, return the error
-        return
-    }
-    change.Protection = protection
-
-    plan.AddChange(change)
-}
-
-func (p *Planner) planFooDelete(foo state.Foo, plan *Plan) {
-    namespace := DefaultNamespace
-    if ns, ok := foo.NormalizedLabels[labels.NamespaceKey]; ok {
-        namespace = ns
-    }
-
-    config := DeleteConfig{
-        ResourceType: ResourceTypeFoo,
-        ResourceName: foo.Name,
-        ResourceRef:  foo.Name,
-        ResourceID:   foo.ID,
-        Namespace:    namespace,
-    }
-
-    change := p.genericPlanner.PlanDelete(context.Background(), config)
-    plan.AddChange(change)
-}
-```
-
-**ADD TO**: `internal/declarative/planner/planner.go`
-```go
-type Planner struct {
-    fooPlannerImpl *fooPlannerImpl
-    // ... existing planners
-}
-
-func NewPlanner(client *state.Client, resourceSet *resources.ResourceSet) *Planner {
-    p := &Planner{
-        client:    client,
-        resources: resourceSet,
-    }
-    p.fooPlannerImpl = newFooPlanner(p, resourceSet)
-    // ... initialize other planners
-    return p
-}
-
-func (p *Planner) GeneratePlan(...) {
-    // In namespace loop, add root planning behind sync scope gating:
-    if p.shouldPlanRoot(namespacePlan, resources.ResourceTypeFoo) {
-        if err := p.fooPlannerImpl.PlanChanges(ctx, plannerCtx, namespacePlan); err != nil {
-            return nil, err
-        }
-    }
-}
-```
-
-#### 4. EXECUTOR ADAPTER
-**Location**: `internal/declarative/executor/foo_adapter.go`
-
-```go
-package executor
-
-import (
-    "context"
-
-    "github.com/Kong/sdk-konnect-go/models/components"
-    "github.com/kong/kongctl/internal/declarative/common"
-    "github.com/kong/kongctl/internal/declarative/labels"
-    "github.com/kong/kongctl/internal/declarative/planner"
-    "github.com/kong/kongctl/internal/declarative/state"
-)
-
-type FooAdapter struct {
-    client *state.Client
-}
-
-func NewFooAdapter(client *state.Client) *FooAdapter {
-    return &FooAdapter{client: client}
-}
-
-func (a *FooAdapter) MapCreateFields(
-    _ context.Context, execCtx *ExecutionContext,
-    fields map[string]any, create *components.CreateFooRequest,
-) error {
-    namespace := execCtx.Namespace
-    protection := execCtx.Protection
-
-    // Map required fields
-    create.Name = common.ExtractResourceName(fields)
-
-    // Map optional fields
-    common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
-
-    // Handle labels
-    userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
-    labelsMap := labels.BuildCreateLabels(userLabels, namespace, protection)
-
-    // Convert to SDK format
-    if len(labelsMap) > 0 {
-        // If SDK uses map[string]*string:
-        create.Labels = labels.ConvertStringMapToPointerMap(labelsMap)
-        // If SDK uses map[string]string:
-        // create.Labels = labelsMap
-    }
-
-    return nil
-}
-
-func (a *FooAdapter) MapUpdateFields(
-    _ context.Context, _ *ExecutionContext,
-    fields map[string]any, update *components.UpdateFooRequest,
-    _ map[string]string,
-) error {
-    // Only include changed fields
-    for field, value := range fields {
-        switch field {
-        case planner.FieldName:
-            if name, ok := value.(string); ok {
-                update.Name = &name
-            }
-        case planner.FieldDescription:
-            if desc, ok := value.(string); ok {
-                update.Description = &desc
-            }
-        }
-    }
-
-    return nil
-}
-
-func (a *FooAdapter) MapUpdateLabels(
-    execCtx *ExecutionContext,
-    update *components.UpdateFooRequest,
-    desiredLabels map[string]string,
-    currentLabels map[string]string,
-) {
-    mapPointerUpdateLabels(
-        &update.Labels, execCtx, desiredLabels, currentLabels,
-    )
-}
-
-func (a *FooAdapter) Create(
-    ctx context.Context, req components.CreateFooRequest,
-    namespace string, _ *ExecutionContext,
-) (string, error) {
-    resp, err := a.client.CreateFoo(ctx, req, namespace)
-    if err != nil {
-        return "", err
-    }
-    return resp.ID, nil
-}
-
-func (a *FooAdapter) Update(
-    ctx context.Context, id string, req components.UpdateFooRequest,
-    namespace string, _ *ExecutionContext,
-) (string, error) {
-    resp, err := a.client.UpdateFoo(ctx, id, req, namespace)
-    if err != nil {
-        return "", err
-    }
-    return resp.ID, nil
-}
-
-func (a *FooAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
-    return a.client.DeleteFoo(ctx, id)
-}
-
-func (a *FooAdapter) ResourceType() string {
-    return planner.ResourceTypeFoo
-}
-
-func (a *FooAdapter) RequiredFields() []string {
-    return []string{planner.FieldName}
-}
-
-func (a *FooAdapter) SupportsUpdate() bool {
-    return true
-}
-```
-
-**ADD TO**: `internal/declarative/executor/executor.go`
-```go
-type Executor struct {
-    fooExecutor *BaseExecutor[
-        components.CreateFooRequest,
-        components.UpdateFooRequest,
-    ]
-    // ... existing executors
-}
-
-func New(client *state.Client, reporter ProgressReporter, dryRun bool) *Executor {
-    return &Executor{
-        fooExecutor: NewManagedLabelBaseExecutor[
-            components.CreateFooRequest,
-            components.UpdateFooRequest,
-        ](NewFooAdapter(client), client, dryRun),
-        // ... other executors
-    }
-}
-
-func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
-    switch change.ResourceType {
-    case planner.ResourceTypeFoo:
-        return e.executeFooChange(ctx, change)
-    // ... other cases
-    }
-}
-
-func (e *Executor) executeFooChange(ctx context.Context, change planner.PlannedChange) error {
-    switch change.Action {
-    case planner.ActionCreate:
-        _, err := e.fooExecutor.Create(ctx, change)
-        return err
-
-    case planner.ActionUpdate:
-        _, err := e.fooExecutor.Update(ctx, change)
-        return err
-
-    case planner.ActionDelete:
-        return e.fooExecutor.Delete(ctx, change)
-    }
-
-    return fmt.Errorf("unknown action: %s", change.Action)
-}
-```
-
----
-
-### CHILD RESOURCE
-
-#### 1. RESOURCE DEFINITION
-**Location**: `internal/declarative/resources/foo_child.go`
-
-```go
-func init() {
-    registerResourceType(
-        ResourceTypeFooChild,
-        func(rs *ResourceSet) *[]FooChildResource { return &rs.FooChildren },
-    )
-}
-
-type FooChildResource struct {
-    kkComps.CreateFooChildRequest `yaml:",inline" json:",inline"`
-    Ref    string `yaml:"ref" json:"ref"`
-    Foo    string `yaml:"foo,omitempty" json:"foo,omitempty"`  // Parent ref
-
-    // Nested children if hierarchical
-    Children []FooChildResource `yaml:"children,omitempty" json:"children,omitempty"`
-
-    konnectID string `yaml:"-" json:"-"`
-}
-
-func (f FooChildResource) GetType() ResourceType {
-    return ResourceTypeFooChild
-}
-
-func (f FooChildResource) GetRef() string {
-    return f.Ref
-}
-
-func (f FooChildResource) GetMoniker() string {
-    return f.Slug  // or f.Name, f.Version, etc.
-}
-
-func (f FooChildResource) GetDependencies() []ResourceRef {
-    deps := []ResourceRef{}
-    if f.Foo != "" {
-        deps = append(deps, ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo})
-    }
-    return deps
-}
-
-func (f FooChildResource) Validate() error {
-    if err := ValidateRef(f.Ref); err != nil {
-        return fmt.Errorf("invalid child ref: %w", err)
-    }
-
-    // Validate required fields
-    if f.Slug == "" {
-        return fmt.Errorf("slug is required")
-    }
-
-    // Validate nested children
-    // Children nested under parent automatically inherit the parent reference
-    // and should not redefine it (to avoid conflicts)
-    for i, child := range f.Children {
-        if child.Foo != "" {
-            return fmt.Errorf("child[%d] should not define foo (inherited from parent)", i)
-        }
-        if err := child.Validate(); err != nil {
-            return fmt.Errorf("child[%d] validation failed: %w", i, err)
-        }
-    }
-
-    return nil
-}
-
-func (f *FooChildResource) SetDefaults() {
-    // Set defaults
-    for i := range f.Children {
-        f.Children[i].SetDefaults()
-    }
-}
-
-func (f FooChildResource) GetKonnectID() string {
-    return f.konnectID
-}
-
-func (f FooChildResource) GetKonnectMonikerFilter() string {
-    return fmt.Sprintf("slug[eq]=%s", f.Slug)
-}
-
-func (f *FooChildResource) TryMatchKonnectResource(konnectResource any) bool {
-    if id := tryMatchByField(konnectResource, "Slug", f.Slug); id != "" {
-        f.konnectID = id
-        return true
-    }
-    return false
-}
-
-// REQUIRED: Implement ResourceWithParent
-func (f FooChildResource) GetParentRef() *ResourceRef {
-    if f.Foo != "" {
-        return &ResourceRef{Kind: ResourceTypeFoo, Ref: f.Foo}
-    }
-    return nil
-}
-
-// Custom JSON unmarshaling to reject kongctl metadata
-func (f *FooChildResource) UnmarshalJSON(data []byte) error {
-    var temp struct {
-        Ref      string                `json:"ref"`
-        Foo      string                `json:"foo,omitempty"`
-        Slug     string                `json:"slug"`
-        Content  string                `json:"content"`
-        Children []FooChildResource    `json:"children,omitempty"`
-        Kongctl  any                   `json:"kongctl,omitempty"`
-    }
-
-    if err := json.Unmarshal(data, &temp); err != nil {
-        return err
-    }
-
-    if temp.Kongctl != nil {
-        return fmt.Errorf("kongctl metadata not supported on child resources")
-    }
-
-    f.Ref = temp.Ref
-    f.Foo = temp.Foo
-    f.Slug = temp.Slug
-    f.Content = temp.Content
-    f.Children = temp.Children
-
-    return nil
-}
-```
-
-**ADD TO**: `internal/declarative/resources/types.go`
-```go
-const (
-    ResourceTypeFooChild ResourceType = "foo_child"
-)
-
-type ResourceSet struct {
-    FooChildren []FooChildResource `yaml:"foo_children,omitempty" json:"foo_children,omitempty"`
-    // ... existing resources
-}
-```
-
-**ADD TO PARENT**: `internal/declarative/resources/foo.go`
-```go
-type FooResource struct {
-    // ... existing fields
-    Children []FooChildResource `yaml:"children,omitempty" json:"children,omitempty"`
-}
-```
-
-#### 2. STATE CLIENT METHODS
-**ADD TO**: `internal/declarative/state/client.go`
-
-```go
-type FooChild struct {
-    ID      string
-    Slug    string
-    Content string
-    // ... other fields
-}
-
-func (c *Client) ListFooChildren(ctx context.Context, fooID string) ([]FooChild, error) {
-    resp, err := c.fooChildAPI.ListFooChildren(ctx, fooID)
-    if err != nil {
-        return nil, WrapAPIError(err, "list foo children", nil)
-    }
-
-    var children []FooChild
-    for _, child := range resp.Data {
-        children = append(children, FooChild{
-            ID:      child.ID,
-            Slug:    child.Slug,
-            Content: child.Content,
-        })
-    }
-
-    return children, nil
-}
-
-func (c *Client) GetFooChild(ctx context.Context, fooID, childID string) (*FooChild, error) {
-    resp, err := c.fooChildAPI.GetFooChild(ctx, fooID, childID)
-    if err != nil {
-        return nil, err
-    }
-
-    return &FooChild{
-        ID:      resp.ID,
-        Slug:    resp.Slug,
-        Content: resp.Content,
-    }, nil
-}
-
-func (c *Client) CreateFooChild(ctx context.Context, fooID string, child components.CreateFooChildRequest) (string, error) {
-    resp, err := c.fooChildAPI.CreateFooChild(ctx, fooID, child)
-    if err != nil {
-        return "", err
-    }
-    return resp.ID, nil
-}
-
-func (c *Client) UpdateFooChild(ctx context.Context, fooID, childID string, child components.UpdateFooChildRequest) error {
-    _, err := c.fooChildAPI.UpdateFooChild(ctx, fooID, childID, child)
-    return err
-}
-
-func (c *Client) DeleteFooChild(ctx context.Context, fooID, childID string) error {
-    return c.fooChildAPI.DeleteFooChild(ctx, fooID, childID)
-}
-```
-
-#### 3. PLANNER IMPLEMENTATION
-**ADD TO**: `internal/declarative/planner/foo_planner.go`
-
-```go
-func (f *fooPlannerImpl) GetDesiredFooChildren(namespace string) []resources.FooChildResource {
-    var result []resources.FooChildResource
-    for _, child := range f.resources.FooChildren {
-        // Child resources inherit namespace from parent
-        // Filter by parent's namespace
-        result = append(result, child)
-    }
-    return result
-}
-
-func (f *fooPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, plan *Plan) error {
-    namespace := plannerCtx.Namespace
-
-    // Plan parent foos
-    if err := f.planner.planFooChanges(ctx, plannerCtx, f.GetDesiredFoos(namespace), plan); err != nil {
-        return err
-    }
-
-    // Plan root-level child resources. The child planner must check
-    // shouldPlanChild(...) before listing or pruning existing children in sync.
-    if err := f.planner.planFooChildrenChanges(
-        ctx, plannerCtx, namespace, f.GetDesiredFooChildren(namespace), plan,
-    ); err != nil {
-        return err
-    }
-
-    return nil
-}
-
-// In planner.go:
-func (p *Planner) planFooChildrenChanges(
-    ctx context.Context, plannerCtx *Config, namespace string,
-    desired []resources.FooChildResource, plan *Plan,
-) error {
-    // Group by parent foo
-    childrenByFoo := make(map[string][]resources.FooChildResource)
-    for _, child := range desired {
-        childrenByFoo[child.Foo] = append(childrenByFoo[child.Foo], child)
-    }
-
-    // Get foo name to ID mapping
-    fooNameToID := p.buildFooNameToIDMap(namespace)
-
-    for fooName, children := range childrenByFoo {
-        fooID := fooNameToID[fooName]
-
-        if fooID != "" {
-            // Foo exists: full diff
-            if err := p.planFooChildChangesForExistingFoo(ctx, namespace, fooID, fooName, children, plan); err != nil {
-                return err
-            }
-        } else {
-            // Foo doesn't exist: plan creates only
-            p.planFooChildrenCreateForNewFoo(namespace, fooName, children, plan)
-        }
-    }
-
-    return nil
-}
-
-func (p *Planner) planFooChildChangesForExistingFoo(
-    ctx context.Context, namespace string, fooID string, fooRef string,
-    desired []resources.FooChildResource, plan *Plan,
-) error {
-    // 1. List current children
-    currentChildren, err := p.client.ListFooChildren(ctx, fooID)
-    if err != nil {
-        return err
-    }
-
-    // 2. Index by slug (or other identifier)
-    currentBySlug := make(map[string]state.FooChild)
-    for _, child := range currentChildren {
-        currentBySlug[child.Slug] = child
-    }
-
-    desiredSlugs := make(map[string]bool)
-
-    // 3. Compare desired vs current
-    for _, desiredChild := range desired {
-        desiredSlugs[desiredChild.Slug] = true
-
-        if current, exists := currentBySlug[desiredChild.Slug]; !exists {
-            // CREATE
-            p.planFooChildCreate(namespace, fooRef, fooID, desiredChild, []string{}, plan)
-        } else {
-            // CHECK UPDATE
-            fullChild, err := p.client.GetFooChild(ctx, fooID, current.ID)
-            if err != nil {
-                return err
-            }
-
-            if p.shouldUpdateFooChild(*fullChild, desiredChild) {
-                p.planFooChildUpdate(namespace, fooRef, fooID, current.ID, desiredChild, plan)
-            }
-        }
-    }
-
-    // 4. SYNC MODE: Delete unmanaged.
-    // The caller must reach this path only when shouldPlanChild(...) returned true
-    // for this parent ref and child resource type.
-    if plan.Metadata.Mode == PlanModeSync {
-        for slug, current := range currentBySlug {
-            if !desiredSlugs[slug] {
-                p.planFooChildDelete(fooRef, fooID, current.ID, slug, plan)
-            }
-        }
-    }
-
-    return nil
-}
-
-func (p *Planner) planFooChildrenCreateForNewFoo(
-    namespace string, fooRef string, children []resources.FooChildResource, plan *Plan,
-) {
-    for _, child := range children {
-        p.planFooChildCreate(namespace, fooRef, "", child, []string{}, plan)
-    }
-}
-
-func (p *Planner) planFooChildCreate(
-    namespace string, fooRef string, fooID string,
-    child resources.FooChildResource, dependsOn []string, plan *Plan,
-) {
-    fields := make(map[string]any)
-    fields[FieldSlug] = child.Slug
-    fields[FieldContent] = child.Content
-
-    change := &planner.PlannedChange{
-        ID:           fmt.Sprintf("change-%d", len(plan.Changes)+1),
-        ResourceType: ResourceTypeFooChild,
-        ResourceRef:  child.GetRef(),
-        Action:       planner.ActionCreate,
-        Fields:       fields,
-        Namespace:    namespace,
-        DependsOn:    dependsOn,
-    }
-
-    // Set parent reference
-    if fooID != "" {
-        change.Parent = &planner.ParentInfo{
-            Type: ResourceTypeFoo,
-            Ref:  fooRef,
-            ID:   fooID,
-        }
-    } else {
-        // Parent doesn't exist yet, add reference for runtime resolution
-        change.References = map[string]planner.ReferenceInfo{
-            FieldFooID: {
-                Ref: fooRef,
-                ID:  "",  // Will be resolved at execution
-                LookupFields: map[string]string{
-                    FieldName: fooRef,
-                },
-            },
-        }
-    }
-
-    plan.AddChange(*change)
-}
-
-func (p *Planner) shouldUpdateFooChild(current state.FooChild, desired resources.FooChildResource) bool {
-    if current.Content != desired.Content {
-        return true
-    }
-    // Compare other fields
-    return false
-}
-```
-
-**CHILD RESOURCES CREATED WITH PARENT**: Add to `planFooCreate`:
-```go
-func (p *Planner) planFooCreate(foo resources.FooResource, plan *Plan) string {
-    // Create the parent foo change (see full implementation earlier in guide)
-    protection := extractProtection(foo.Kongctl)
-    namespace := extractNamespace(foo.Kongctl)
-
-    config := CreateConfig{
-        ResourceType:   ResourceTypeFoo,
-        ResourceName:   foo.Name,
-        ResourceRef:    foo.GetRef(),
-        RequiredFields: []string{FieldName},
-        FieldExtractor: func(_ any) map[string]any {
-            return extractFooFields(foo)
-        },
-        Namespace: namespace,
-        DependsOn: []string{},
-    }
-
-    change, err := p.genericPlanner.PlanCreate(context.Background(), config)
-    if err != nil {
-        return ""
-    }
-    change.Protection = protection
-    plan.AddChange(change)
-
-    // Get the change ID of the just-added parent
-    fooChangeID := change.ID
-
-    // Plan nested children with dependency on parent
-    p.planFooChildrenCreateWithParent(namespace, foo.GetRef(), foo.Children, fooChangeID, plan)
-
-    return fooChangeID
-}
-
-func (p *Planner) planFooChildrenCreateWithParent(
-    namespace string, fooRef string, children []resources.FooChildResource,
-    parentChangeID string, plan *Plan,
-) {
-    for _, child := range children {
-        p.planFooChildCreate(namespace, fooRef, "", child, []string{parentChangeID}, plan)
-    }
-}
-```
-
-#### 4. EXECUTOR ADAPTER
-**Location**: `internal/declarative/executor/foo_child_adapter.go`
-
-```go
-type FooChildAdapter struct {
-    client *state.Client
-}
-
-func NewFooChildAdapter(client *state.Client) *FooChildAdapter {
-    return &FooChildAdapter{client: client}
-}
-
-func (a *FooChildAdapter) MapCreateFields(
-    _ context.Context, execCtx *ExecutionContext,
-    fields map[string]any, create *components.CreateFooChildRequest,
-) error {
-    slug, ok := fields[FieldSlug].(string)
-    if !ok {
-        return fmt.Errorf("slug is required")
-    }
-    create.Slug = slug
-
-    content, ok := fields[FieldContent].(string)
-    if !ok {
-        return fmt.Errorf("content is required")
-    }
-    create.Content = content
-
-    // Handle parent reference if hierarchical
-    if execCtx != nil && execCtx.PlannedChange != nil {
-        if parentRef, ok := execCtx.PlannedChange.References["parent_child_id"]; ok {
-            if parentRef.ID != "" {
-                create.ParentChildID = &parentRef.ID
-            }
-        }
-    }
-
-    return nil
-}
-
-func (a *FooChildAdapter) MapUpdateFields(
-    _ context.Context, execCtx *ExecutionContext,
-    fields map[string]any, update *components.UpdateFooChildRequest,
-    _ map[string]string,
-) error {
-    if slug, ok := fields[FieldSlug].(string); ok {
-        update.Slug = &slug
-    }
-
-    if content, ok := fields[FieldContent].(string); ok {
-        update.Content = &content
-    }
-
-    return nil
-}
-
-func (a *FooChildAdapter) Create(
-    ctx context.Context, req components.CreateFooChildRequest,
-    _ string, execCtx *ExecutionContext,
-) (string, error) {
-    fooID, err := a.getFooIDFromExecutionContext(execCtx)
-    if err != nil {
-        return "", err
-    }
-
-    return a.client.CreateFooChild(ctx, fooID, req)
-}
-
-func (a *FooChildAdapter) Update(
-    ctx context.Context, id string, req components.UpdateFooChildRequest,
-    _ string, execCtx *ExecutionContext,
-) (string, error) {
-    fooID, err := a.getFooIDFromExecutionContext(execCtx)
-    if err != nil {
-        return "", err
-    }
-
-    if err := a.client.UpdateFooChild(ctx, fooID, id, req); err != nil {
-        return "", err
-    }
-    return id, nil
-}
-
-func (a *FooChildAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-    fooID, err := a.getFooIDFromExecutionContext(execCtx)
-    if err != nil {
-        return err
-    }
-
-    return a.client.DeleteFooChild(ctx, fooID, id)
-}
-
-func (a *FooChildAdapter) ResourceType() string {
-    return planner.ResourceTypeFooChild
-}
-
-func (a *FooChildAdapter) RequiredFields() []string {
-    return []string{planner.FieldSlug, planner.FieldContent}
-}
-
-func (a *FooChildAdapter) SupportsUpdate() bool {
-    return true
-}
-
-func (a *FooChildAdapter) getFooIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-    if execCtx == nil || execCtx.PlannedChange == nil {
-        return "", fmt.Errorf("execution context required")
-    }
-
-    change := *execCtx.PlannedChange
-
-    // Priority 1: Check References (for new parent)
-    if fooRef, ok := change.References[planner.FieldFooID]; ok && fooRef.ID != "" {
-        return fooRef.ID, nil
-    }
-
-    // Priority 2: Check Parent field (for existing parent)
-    if change.Parent != nil && change.Parent.ID != "" {
-        return change.Parent.ID, nil
-    }
-
-    return "", fmt.Errorf("foo ID required for child operations")
-}
-```
-
-**ADD TO EXECUTOR**: `internal/declarative/executor/executor.go`
-```go
-type Executor struct {
-    fooChildAdapter *FooChildAdapter
-    // ... existing
-}
-
-func New(...) *Executor {
-    return &Executor{
-        fooChildAdapter: NewFooChildAdapter(client),
-        // ...
-    }
-}
-
-func (e *Executor) executeChange(ctx context.Context, change planner.PlannedChange) error {
-    switch change.ResourceType {
-    case planner.ResourceTypeFooChild:
-        return e.executeFooChildChange(ctx, change)
-    // ...
-    }
-}
-
-func (e *Executor) executeFooChildChange(ctx context.Context, change planner.PlannedChange) error {
-    execCtx := &ExecutionContext{
-        PlannedChange: &change,
-        Namespace:     change.Namespace,
-    }
-
-    switch change.Action {
-    case planner.ActionCreate:
-        var req components.CreateFooChildRequest
-        if err := e.fooChildAdapter.MapCreateFields(ctx, execCtx, change.Fields, &req); err != nil {
-            return err
-        }
-        id, err := e.fooChildAdapter.Create(ctx, req, change.Namespace, execCtx)
-        if err != nil {
-            return err
-        }
-        e.trackCreatedResource(change.ResourceRef, id)
-        return nil
-
-    case planner.ActionUpdate:
-        var req components.UpdateFooChildRequest
-        if err := e.fooChildAdapter.MapUpdateFields(ctx, execCtx, change.Fields, &req, nil); err != nil {
-            return err
-        }
-        _, err := e.fooChildAdapter.Update(ctx, change.ResourceID, req, change.Namespace, execCtx)
-        return err
-
-    case planner.ActionDelete:
-        return e.fooChildAdapter.Delete(ctx, change.ResourceID, execCtx)
-    }
-
-    return fmt.Errorf("unknown action: %s", change.Action)
-}
-```
-
----
-
-### SINGLETON CHILD RESOURCE
-
-**Pattern**: A singleton child has at most one logical child per parent, but
-there are two important API shapes:
-
-1. **Update-only/always-present**: The child always exists for every parent.
-   There are no create or delete operations, and the planner only emits
-   updates. Example: `PortalCustomization`.
-2. **Optional/delete-capable**: The child may be absent and the API supports
-   delete. The planner may create, update, or delete the child. In sync mode,
-   omitted config means ignored; an empty object such as `custom_domain: {}`
-   means the child is in scope with desired count zero.
-
-The example below is the update-only/always-present pattern.
-
-**Key Differences**:
-
-```go
-// In planner:
-func (p *Planner) planFooCustomizationChanges(...) error {
-    // NO LIST/COMPARE - always plan UPDATE
-
-    for _, desired := range desiredCustomizations {
-        fooID := fooNameToID[desired.Foo]
-
-        if fooID != "" {
-            // Foo exists: fetch current and compare
-            current, err := p.client.GetFooCustomization(ctx, fooID)
-            needsUpdate := p.shouldUpdateFooCustomization(current, desired)
-            if needsUpdate {
-                p.planFooCustomizationUpdate(namespace, desired, fooID, plan)
-            }
-        } else {
-            // Foo doesn't exist yet: plan update for later
-            p.planFooCustomizationUpdate(namespace, desired, "", plan)
-        }
-    }
-
-    // NO DELETE LOGIC - customization always exists
-
-    return nil
-}
-
-// State client: NO Create, NO Delete
-func (c *Client) GetFooCustomization(ctx context.Context, fooID string) (*FooCustomization, error) {
-    // Always returns result (never 404)
-}
-
-func (c *Client) UpdateFooCustomization(ctx context.Context, fooID string, customization components.UpdateFooCustomization) error {
-    // Only update method
-}
-
-// Adapter: NO Create, NO Delete
-func (a *FooCustomizationAdapter) Create(...) { panic("not supported") }
-func (a *FooCustomizationAdapter) Delete(...) { panic("not supported") }
-func (a *FooCustomizationAdapter) SupportsUpdate() bool { return true }
-```
-
-For optional/delete-capable singleton children, follow the normal child
-resource planner shape with one desired resource per parent. The planner must
-be gated with `shouldPlanChild(...)`; when the singleton key is in sync scope
-and the desired resource is absent because the user wrote `{}`, list/fetch the
-existing child and plan a DELETE if one exists. Do not infer delete/reset from
-`null`.
-
----
-
-## OPTIONAL: IMPERATIVE GET COMMAND IMPLEMENTATION
-
-This section is optional for declarative resource support work.
-
-- Declarative resource implementation does not require adding imperative `get`
-  commands.
-- Add imperative commands only when the scope explicitly includes CLI
-  imperative support for the new resource.
-- When imperative support is in scope, copy patterns from an existing sibling
-  resource under:
-  - `internal/cmd/root/verbs/get/`
-  - `internal/cmd/root/products/konnect/<resource>/`
-- Prefer adapting current in-repo patterns over writing new command scaffolding
-  from scratch.
-
----
-
-## KEY PATTERNS & CONVENTIONS
-
-### RESOURCE IDENTIFICATION
-- **Parent resources**: Identified by NAME (e.g., `api.Name`, `portal.Name`)
-- **Child resources**: Identified by PARENT + MONIKER (e.g., `slug`, `version`)
-- **Moniker types**: slug, name, version, username (varies by resource)
-
-### LABEL MANAGEMENT
-- **KONGCTL-NAMESPACE**: Applied to all parent resources
-- **KONGCTL-PROTECTED**: Applied when `kongctl.protected: true`
-- **User labels**: Preserved and compared separately from KONGCTL labels
-- **Label removal**: Empty string signals API to remove label
-
-### NAMESPACE HANDLING
-- **Parent resources**: Must have namespace (explicit, file default, or implicit "default")
-- **Child resources**: Inherit namespace from parent
-- **Planner**: Processes each namespace independently
-- **State client**: Filters by namespace when listing managed resources
-
-### PROTECTION VALIDATION
-- **Planner**: Collects all protection errors, fails fast before execution
-- **Executor**: Double-checks protection before delete/update
-- **Protection changes**: Allowed (can unprotect a resource)
-
-### REFERENCE RESOLUTION
-
-**Reference Syntax**: `!ref <resource-ref>#<field>`
-- Uses YAML custom tag `!ref` to create cross-resource references
-- Format: `!ref my-resource#id` or `!ref my-resource#name`
-- The `#field` suffix is optional; defaults to `#id` if omitted
-- Initial tag parsing happens in the loader before strict unmarshal
-
-**Resolution Phases**:
-- **Loader phase**: in-file references may resolve immediately when the target
-  value is already available in loaded declarative resources.
-- **Plan phase**: unresolved placeholders are converted into plan references.
-- **Execution phase**: plan references resolve to concrete IDs (including
-  resources created earlier in the same execution).
-
-**Example**:
-```yaml
-portals:
-  - ref: my-portal
-    name: My Portal
-    default_application_auth_strategy_id: !ref my-auth-strategy#id
-
-application_auth_strategies:
-  - ref: my-auth-strategy
-    name: My Auth Strategy
-```
-
-**How it works**:
-1. Tag parsing converts `!ref` to a placeholder using prefix `__REF__:`.
-2. Loader resolves what it can locally; unresolved placeholders remain.
-3. Planner materializes unresolved placeholders into change references.
-4. Executor resolves references to actual IDs before SDK calls.
-
-### EXTERNAL LOOKUP CONTRACTS
-
-`!external` and `!lookup` are exact aliases. The loader validates their scalar
-or mapping syntax and serializes an opaque placeholder; it never performs
-network access. The planner resolves the placeholder before managed identity
-matching and writes only the resulting ID into the resource and plan.
-
-Nested tag composition is controlled by an explicit allowlist in the tag
-resolver. Currently, only `!env` as a direct mapping selector value inside
-`!external` or `!lookup` is supported. The external resolver must resolve that
-child concretely in both loader passes, mark its selector field as sensitive,
-and carry the sensitivity marker in its opaque placeholder. Planner cache keys
-use the real selector while user-facing diagnostics use a redacted form.
-
-Do not add a nested combination based only on compatible YAML node shapes.
-Define its resolution phase, allowed locations and result type, behavior in
-both loader representations, diagnostic disclosure policy, and saved-plan
-semantics first. Tags in control fields such as `var`, `extract`, and `path`
-remain unsupported unless the allowlist and documentation explicitly say
-otherwise.
-
-Resource types that support `_external` or inline lookup targets must:
-
-1. Implement `ExternallyResolvableResource`.
-2. Use `registerExternalResourceType` (or its slice-accessor variant) so the
-   capability is enforced by the generic registration constraint.
-3. Register supported selectors and any parent resource type.
-4. Provide exactly one unrestricted planner lookup adapter. Managed-label
-   filtered list operations are not valid for external identity lookup.
-5. Add unit, integration, and E2E coverage for selector, ambiguity, missing
-   scope, caching, and unmanaged lifecycle behavior.
-
-Cross-resource YAML fields use static `RelationshipDescriptor` metadata. Mark
-API schema IDs as `api_foreign_key` and kongctl-added root parent fields as
-`kongctl_parent_selector`. Include the target type (or discriminator), scalar
-or list cardinality, result field, scope field, and root-only placement. This
-metadata drives planner inference and `kongctl explain`; do not add field-name
-switches to individual planners.
-
-Every relationship target must register either external resolution or a
-specific `WithExternalUnsupportedReason`. The relationship contract test
-enforces that disposition. Registry external registration supplies generic
-materialization, including scoped parent fields, so planner code must not add
-resource-type construction switches.
-
-Keep execution dependencies separate from relationship metadata. Dependencies
-control operation ordering, while relationship descriptors define the YAML
-field contract and supported reference forms.
-
-### FIELD COMPARISON
-- **Sparse updates**: Only include changed fields in update request
-- **Nil handling**: Distinguish between "not set" and "empty string"
-- **Normalization**: Normalize before comparison (e.g., JSON spec normalization)
-
-### DEPENDENCY MANAGEMENT
-- **Child → Parent**: Children depend on parents
-- **Reference → Referenced**: Resources with !ref depend on referenced resources
-- **Topological sort**: Ensures correct execution order
-
-### ERROR HANDLING
-- **State client**: Wrap errors with context (resource type, name, operation)
-- **Enhanced errors**: Use ErrorWrapperOptions for rich error messages
-- **Validation**: Validate early (resource definition, planning, execution)
-
-### SDK TYPE MAPPING
-- **Embed SDK types**: Use `yaml:",inline"` and `json:",inline"`
-- **Pointer fields**: SDK uses pointers for optional fields
-- **Label conversion**: Handle map[string]string ↔ map[string]*string
-- **Enum types**: Use SDK enum constants (e.g., `kkComps.PublishedStatusPublished`)
-
----
-
-## TESTING REQUIREMENTS
-
-### UNIT TESTS
-- Resource validation logic
-- Field comparison logic
-- Label building/conversion
-- Reference resolution
-
-### INTEGRATION TESTS
-**When required**:
-- New CLI commands/subcommands
-- Authentication flow changes
-- Configuration management changes
-- API client modifications
-
-**When unit tests sufficient**:
-- Pure functions and utilities
-- Configuration parsing
-- Input validation
-- String manipulation
-
----
-
-## COMMON MISTAKES TO AVOID
-
-1. **Forgetting to add resource to ResourceSet in types.go**
-2. **Forgetting to register the resource with `registerResourceType(...)` in `init()`**
-3. **Missing label normalization in state client**
-4. **Incorrect parent ID resolution in child adapters**
-5. **Not handling protection validation in planner**
-6. **Forgetting to add planner call in GeneratePlan loop**
-7. **Not converting SDK label types (map[string]*string)**
-8. **Missing field in extractFields function**
-9. **Not tracking created resources in executor**
-10. **Not updating `docs/declarative-resource-reference.md` for parent and child resources**
-11. **Forgetting explain/scaffold hints for declarative-only fields or unions**
-12. **Skipping E2E coverage for new explain/scaffold-facing behavior**
-13. **Assuming imperative `get` commands are required for declarative support changes**
-14. **Forgetting sync-scope wiring, which can make omitted config destructive**
-15. **Allowing singleton child `null` values to imply unsupported reset/delete behavior**
-
----
-
-## VERIFICATION CHECKLIST
-
-After implementing new resource:
-
-### Declarative Configuration
-- [ ] Resource definition in `resources/` with all interface methods
-- [ ] Resource type constant added to `types.go`
-- [ ] Planner resource type alias added to `planner/constants.go`
-- [ ] Plan field constants added to `planner/constants.go`
-- [ ] ResourceSet includes new resource array
-- [ ] Resource type registered via `registerResourceType(...)` in `init()`
-- [ ] Non-GA maturity attached to registration only when required
-- [ ] Operation maturity overrides are narrower than the resource default
-- [ ] Explain registration provided, usually via `AutoExplain[...]`
-- [ ] `kongctl explain` output reviewed for canonical and nested child paths
-- [ ] `kongctl scaffold` output reviewed for helpful commented YAML
-- [ ] State client has CRUD methods
-- [ ] State client has ListManaged method with namespace filtering
-- [ ] Planner implementation with CREATE/UPDATE/DELETE logic
-- [ ] Planner added to GeneratePlan loop and sync-gated with `shouldPlanRoot`
-- [ ] Sync scope loader tables updated for root, child, and nested child keys
-- [ ] Child pruning paths sync-gated with `shouldPlanChild`
-- [ ] Singleton child `null` values rejected when the key would otherwise look like managed scope
-- [ ] Executor adapter with MapCreateFields/MapUpdateFields
-- [ ] Executor adapter handles parent ID resolution (if child)
-- [ ] Executor change handler added to executeChange switch
-- [ ] Labels properly converted between SDK and internal formats
-- [ ] Write-only fields registered in the secret catalog with `!env` and
-      `!file` source, selection, dump-omission, and redaction coverage
-- [ ] Literal audit completed for resource types, plan fields, references, and
-      view identifiers
-- [ ] `docs/declarative-resource-reference.md` updated for new parent/child resources
-- [ ] `docs/declarative.md`, help templates, examples, and e2e fixtures updated
-      for sync omission, explicit empty-list, and nested child behavior
-
-### Imperative Get Command
-- [ ] Add only if imperative support is in scope for the change
-- [ ] Get command entry point in `verbs/get/`
-- [ ] Resource command in `products/konnect/<resource>/`
-- [ ] GET handler with list/get by ID/name
-- [ ] Child resource subcommands (if applicable)
-- [ ] View/tableview identifiers use `konnect/common` `ViewParent*`,
-      `ViewField*`, and `ViewResource*` constants
-- [ ] View detail labels use API JSON field names for direct fields and
-      `snake_case` names for kongctl-derived fields
-- [ ] Output formatting (JSON, YAML, table, detail)
-- [ ] Command added to get.go
-
-### Testing
-- [ ] Build succeeds: `make build`
-- [ ] Linter passes: `make lint`
-- [ ] Tests pass: `make test`
-- [ ] Integration tests (if applicable): `make test-integration`
-- [ ] E2E scenarios added or updated under `test/e2e/scenarios/`
-- [ ] Manual testing of declarative apply/plan/diff
-- [ ] Manual testing of `explain` and `scaffold`
-- [ ] Manual testing of get commands
-
----
-
-## EXAMPLE YAML CONFIGURATION
-
-### Parent Resource
-```yaml
-foos:
-  - ref: my-foo
-    kongctl:
-      namespace: production
-      protected: true
-    name: my-foo-name
-    description: This is my foo
-    labels:
-      environment: prod
-      team: platform
-    children:
-      - ref: child-1
-        slug: getting-started
-        content: "Welcome content"
-```
-
-### Child Resource (Root-Level)
-```yaml
-foo_children:
-  - ref: child-2
-    foo: my-foo  # Parent reference
-    slug: advanced-guide
-    content: "Advanced content"
-```
-
-### References
-```yaml
-foos:
-  - ref: foo-a
-    name: Foo A
-
-foo_children:
-  - ref: child-a
-    foo: foo-a
-    slug: page-1
-    parent_child_ref: !ref another-child#id  # Reference to sibling
-```
-
----
-
-END OF IMPLEMENTATION GUIDE
+A bare `!file` on a reviewed write-only field is invalid: ordinary file
+resolution is eager and could put contents in a saved plan.
+[Secret source loading][secret-loading] checks file scope, symlinks, and size
+and preserves deferred sources. Saved paths are relative to the plan;
+execution binds them to the actual plan directory, not a serialized boundary.
+
+[Planner write selection][secret-planning] and
+[executor secret handling][secret-execution] keep values out of plan fields,
+change details, diagnostics, dumps, and artifacts. Preserve supported sources,
+per-operation selection, and redaction at executor and HTTP boundaries.
+If a full-update API requires a secret, require explicit write selection and
+return a value-free error when it is missing.
+
+## 6. Export, document, and validate
+
+Wire supported root/child collection and API-to-declarative conversion in
+[dump][dump] and [child dump][dump-children]. Preserve valid reloadable YAML,
+parent relationships, user labels, and secret omission. Update the
+[resource reference][reference] for parent and child fields, constraints,
+API-specification/example links, and supported operations. Update
+[usage documentation][usage], help, and examples when behavior changes.
+Review explain/scaffold output for canonical and supported nested paths.
+Add imperative `get` or `view` support only when explicitly in scope;
+follow repository command and view-identifier conventions.
+
+### Dump defaults
+
+[`--skip-defaults`][dump-defaults] lazily derives defaults from SDK tags
+reachable through registered resources in `ResourceSet`. No separate runtime
+catalog is needed, and the walk is bypassed without the flag. Only literal API
+defaults qualify. Preserve explicit `null`, untagged fields, and client-derived
+conveniences.
+
+Missing/unsafe SDK metadata can use exactly one co-located rule per path:
+`WithDumpDefaultOverride(path, value, reason)` or
+`WithDumpDefaultExclusion(path, reason)`. Rules require reasons and are
+mutually exclusive. Remove an override when SDK metadata becomes authoritative.
+
+The [default inventory][dump-inventory] is a reviewed golden artifact, not
+runtime input. `TestDumpDefaultInventory` detects SDK/resource/default drift.
+Regenerate with `UPDATE_GOLDEN=1` only after reviewing the change and only
+when test-artifact edits are authorized; the command is in the
+[inventory test][dump-default-tests].
+
+### Validation and test constraints
+
+Use the existing suites as the baseline for refactoring. Select coverage for
+the actual lifecycle; a short implementation or passing suite does not prove
+that update, protection, and deletion branches were exercised. Keep
+test-facing entry points as delegating wrappers when necessary.
+
+Maintainer restrictions override test-edit and regeneration workflows.
+When tests are frozen, do not add or modify test packages, test files, mocks,
+fixtures, or goldens. Do not regenerate them to make a refactor pass. Record
+coverage gaps and baseline failures; additional tests require permission.
+
+For authorized new behavior, cover the affected contracts: load shape and
+omission/empty scope, identity and external lookup, diff/protection, payload
+mapping, dependencies, saved plans, and secret selection/redaction.
+Use integration flows and [E2E scenarios][e2e] for behavior crossing phases.
+Custom schema replacements need recursive parity checks with named exceptions;
+SDK defaults and relationships have existing conformance checks to inspect.
+
+Follow the repository's quality gates in order: modernization, formatting,
+CGO-disabled build, lint, unit tests, and applicable integration tests.
+With tests frozen, inspect `CGO_ENABLED=0 go fix -diff ./...`, apply only
+authorized production changes, and restrict formatting writes to those files.
+Use `make build` or `CGO_ENABLED=0 go build`; use the configured Go cache
+and temp directories. Run `make lint`, `make test`, and
+`make test-integration` as applicable. Identify baseline failures separately
+and verify the final diff contains only authorized files.
+
+Documentation-only edits require link/anchor and content checks; rerun code
+gates when code changes warrant them.
+
+## Keeping this guide authoritative
+
+Update this guide in the same change that alters an integration point or
+engine contract. Each refactoring migration should:
+
+- Replace obsolete instructions and links, including later checklists.
+- State which integration points became shared and which remain manual.
+- Keep each invariant in one section and link to it from related steps.
+- Prefer current implementations over copied CRUD templates. Keep snippets
+  short, valid, and limited to syntax that needs illustration.
+- Document implemented behavior here; keep proposed architecture, migration
+  history, and session-specific validation results in issues or PRs.
+- Check that an agent can trace a new resource or field from declaration
+  through load, plan, execution, and export without guessing omitted wiring.
+
+[agents]: ../../AGENTS.md
+[usage]: ../declarative.md
+[reference]: ../declarative-resource-reference.md
+[resources]: ../../internal/declarative/resources
+[resource-types]: ../../internal/declarative/resources/types.go
+[interfaces]: ../../internal/declarative/resources/interfaces.go
+[registry]: ../../internal/declarative/resources/registry.go
+[namespaces]: ../../internal/declarative/resources/namespace_participants.go
+[relationships]: ../../internal/declarative/resources/relationships.go
+[explain]: ../../internal/declarative/resources/explain.go
+[load-schema]: ../../internal/declarative/resources/load_schema.go
+[loader]: ../../internal/declarative/loader/loader.go
+[load-validation]: ../../internal/declarative/loader/validator.go
+[load-scope]: ../../internal/declarative/loader/sync_scope.go
+[planner]: ../../internal/declarative/planner/planner.go
+[roots]: ../../internal/declarative/planner/root_planners.go
+[constants]: ../../internal/declarative/planner/constants.go
+[reconcile]: ../../internal/declarative/planner/managed_root_reconciler.go
+[auth-plan]: ../../internal/declarative/planner/auth_strategy_planner.go
+[dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
+[dashboard-plan]: ../../internal/declarative/planner/dashboard_planner.go
+[api-plan]: ../../internal/declarative/planner/api_planner.go
+[portal-children]: ../../internal/declarative/planner/portal_child_planner.go
+[planner-package]: ../../internal/declarative/planner
+[organization-plan]:
+  ../../internal/declarative/planner/organization_team_planner.go
+[deck-plan]: ../../internal/declarative/planner/deck_requirements.go
+[plan-protection]:
+  ../../internal/declarative/planner/protection_inheritance.go
+[execute-protection]:
+  ../../internal/declarative/executor/protection_inheritance.go
+[cache]: ../../internal/declarative/planner/resource_cache.go
+[resolver]: ../../internal/declarative/planner/resolver.go
+[external]: ../../internal/declarative/planner/external_lookup.go
+[state]: ../../internal/declarative/state/client.go
+[cli]:
+  ../../internal/cmd/root/products/konnect/declarative/declarative.go
+[executor]: ../../internal/declarative/executor/executor.go
+[base-executor]: ../../internal/declarative/executor/base_executor.go
+[base-operations]: ../../internal/declarative/executor/base_operations.go
+[payloads]: ../../internal/declarative/executor/payload_contract.go
+[plan-compatibility]: ../../internal/declarative/planner/plan_compatibility.go
+[tags]: ../../internal/declarative/tags
+[tag-registry]: ../../internal/declarative/tags/resolver.go
+[secret-catalog]: ../../internal/declarative/secrets/catalog.go
+[secret-loading]: ../../internal/declarative/loader/secret_sources.go
+[secret-planning]: ../../internal/declarative/planner/secret_writes.go
+[secret-execution]: ../../internal/declarative/executor/secret_writes.go
+[dump]: ../../internal/cmd/root/verbs/dump/declarative.go
+[dump-children]: ../../internal/cmd/root/verbs/dump/declarative_children.go
+[dump-defaults]: ../../internal/declarative/resources/dump_defaults.go
+[dump-inventory]:
+  ../../internal/declarative/resources/testdata/dump_defaults_inventory.yaml
+[dump-default-tests]:
+  ../../internal/declarative/resources/dump_defaults_test.go
+[e2e]: ../../test/e2e/scenarios/README.md

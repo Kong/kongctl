@@ -69,18 +69,6 @@ type Planner struct {
 	// Generic planner for common operations
 	genericPlanner *GenericPlanner
 
-	// Resource-specific planners
-	portalPlanner                   PortalPlanner
-	controlPlanePlanner             ControlPlanePlanner
-	authStrategyPlanner             AuthStrategyPlanner
-	dcrProviderPlanner              DCRProviderPlanner
-	apiPlanner                      APIPlanner
-	catalogServicePlanner           CatalogServicePlanner
-	aiGatewayPlanner                AIGatewayPlanner
-	dashboardPlanner                DashboardPlanner
-	eventGatewayControlPlanePlanner EGWControlPlanePlanner
-	organizationTeamPlanner         OrganizationTeamPlanner
-
 	// ResourceSet containing all desired resources
 	resources *resources.ResourceSet
 
@@ -118,19 +106,6 @@ func NewPlanner(client *state.Client, logger *slog.Logger) *Planner {
 
 	// Initialize generic planner
 	p.genericPlanner = NewGenericPlanner(p)
-
-	// Initialize resource-specific planners
-	base := NewBasePlanner(p)
-	p.portalPlanner = NewPortalPlanner(base)
-	p.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, p.resources)
-	p.controlPlanePlanner = NewControlPlanePlanner(base)
-	p.authStrategyPlanner = NewAuthStrategyPlanner(base)
-	p.dcrProviderPlanner = NewDCRProviderPlanner(base)
-	p.catalogServicePlanner = NewCatalogServicePlanner(base)
-	p.aiGatewayPlanner = NewAIGatewayPlanner(base)
-	p.dashboardPlanner = NewDashboardPlanner(base)
-	p.apiPlanner = NewAPIPlanner(base)
-	p.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
 
 	return p
 }
@@ -230,20 +205,6 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Initialize generic planner for namespace-specific planner
 		namespacePlanner.genericPlanner = NewGenericPlanner(namespacePlanner)
 
-		// Create new sub-planners for this namespace to ensure they reference
-		// the namespace-specific resources, not the parent's empty lists
-		base := NewBasePlanner(namespacePlanner)
-		namespacePlanner.portalPlanner = NewPortalPlanner(base)
-		namespacePlanner.controlPlanePlanner = NewControlPlanePlanner(base)
-		namespacePlanner.authStrategyPlanner = NewAuthStrategyPlanner(base)
-		namespacePlanner.dcrProviderPlanner = NewDCRProviderPlanner(base)
-		namespacePlanner.catalogServicePlanner = NewCatalogServicePlanner(base)
-		namespacePlanner.aiGatewayPlanner = NewAIGatewayPlanner(base)
-		namespacePlanner.dashboardPlanner = NewDashboardPlanner(base)
-		namespacePlanner.apiPlanner = NewAPIPlanner(base)
-		namespacePlanner.eventGatewayControlPlanePlanner = NewEGWControlPlanePlanner(base, rs)
-		namespacePlanner.organizationTeamPlanner = NewOrganizationTeamPlanner(base)
-
 		// Store full ResourceSet for access by planners (enables both filtered views and global lookups)
 		namespacePlanner.resources = rs
 
@@ -281,114 +242,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Create planner context with namespace
 		plannerCtx := NewConfig(actualNamespace)
 
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDCRProvider) {
-			if err := namespacePlanner.dcrProviderPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dcrProviderPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan DCR provider changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeApplicationAuthStrategy) {
-			if err := namespacePlanner.authStrategyPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.authStrategyPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan auth strategy changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeControlPlane) {
-			if err := namespacePlanner.controlPlanePlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.controlPlanePlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan control plane changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypePortal) {
-			if err := namespacePlanner.portalPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.portalPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan portal changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeCatalogService) {
-			if err := namespacePlanner.catalogServicePlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.catalogServicePlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan catalog service changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAIGateway) {
-			if err := namespacePlanner.aiGatewayPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.aiGatewayPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan AI Gateway changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeDashboard) {
-			if err := namespacePlanner.dashboardPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.dashboardPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan dashboard changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		// Plan API changes (includes child resources)
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeAPI) {
-			if err := namespacePlanner.apiPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.apiPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan API changes for namespace %s: %w", namespace, err)
-			}
-		}
-
-		if namespacePlanner.shouldPlanRoot(namespacePlan, resources.ResourceTypeEventGatewayControlPlane) {
-			if err := namespacePlanner.eventGatewayControlPlanePlanner.PlanChanges(
-				withPlannerHTTPLogContext(
-					namespaceCtx,
-					opts,
-					plannerComponent(namespacePlanner.eventGatewayControlPlanePlanner),
-					"",
-				),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf(
-					"failed to plan Event Gateway Control Plane changes for namespace %s: %w",
-					namespace,
-					err,
-				)
-			}
-		}
-
-		if namespacePlanner.shouldPlanOrganization(namespacePlan) {
-			if err := namespacePlanner.organizationTeamPlanner.PlanChanges(
-				withPlannerHTTPLogContext(namespaceCtx, opts, plannerComponent(namespacePlanner.organizationTeamPlanner), ""),
-				plannerCtx,
-				namespacePlan,
-			); err != nil {
-				return nil, fmt.Errorf("failed to plan Team changes for namespace %s: %w", namespace, err)
-			}
+		if err := namespacePlanner.planRootChanges(namespaceCtx, opts, plannerCtx, namespacePlan); err != nil {
+			return nil, err
 		}
 
 		if err := namespacePlanner.applyInheritedProtection(namespaceCtx, namespacePlan); err != nil {
