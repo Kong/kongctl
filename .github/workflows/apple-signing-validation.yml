@@ -235,30 +235,3 @@ jobs:
           path: bottles/kongctl.rb
           if-no-files-found: error
           retention-days: 7
-
-  registry-access:
-    if: >-
-      github.repository == 'Kong/kongctl' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/task/apple-notarization')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Inspect package access without publishing or changing permissions
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if gh api 'orgs/Kong/packages/container/kongctl%2Fkongctl' \
-            --jq '{name, visibility, repository: .repository.full_name}'; then
-            echo 'Existing bottle package is visible to kongctl Actions'
-          else
-            echo '::warning::Confirm Kong/kongctl has Actions write access in the existing bottle package settings before release'
-          fi
-      - name: Test push authorization with a cancelled empty upload
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash scripts/homebrew/probe-registry-write.sh

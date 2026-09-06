@@ -32,9 +32,13 @@ if [[ "$status" != 202 ]]; then
   exit 1
 fi
 location=$(awk 'tolower($1) == "location:" {print $2}' "$work/headers" | tr -d '\r')
-case "$location" in
-  https://ghcr.io/v2/kong/kongctl/kongctl/blobs/uploads/*) upload_url=$location ;;
-  /v2/kong/kongctl/kongctl/blobs/uploads/*) upload_url="https://ghcr.io$location" ;;
-  *) echo '::error::Unexpected upload cancellation URL; refusing to follow it' >&2; exit 1 ;;
-esac
+[[ "$location" != /* ]] || location="https://ghcr.io$location"
+# GHCR returns singular /upload/ even though initiation uses /uploads/.
+# Keep cancellation confined to this package's returned upload-session URL.
+allowed='^https://ghcr\.io/v2/kong/kongctl/kongctl/blobs/uploads?/[[:xdigit:]-]+(\?[^[:space:]#]*)?$'
+if [[ ! "$location" =~ $allowed ]]; then
+  echo '::error::Unexpected upload cancellation URL; refusing to follow it' >&2
+  exit 1
+fi
+upload_url=$location
 echo 'kongctl Actions has bottle upload access; cancelling the empty test session'

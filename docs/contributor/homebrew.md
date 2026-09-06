@@ -64,6 +64,11 @@ recipe are unchanged. It records the producer SHA/run, re-verifies native
 signatures, and never receives signing credentials or publishes packages.
 This avoids recompilation/notarization for packaging-only test iterations.
 
+The separate registry-access validation tests package write permission by
+opening and cancelling an empty upload session. It publishes no bottle bytes
+or manifest and needs no Apple credentials. It can run independently of the
+longer signing workflow. Remove its temporary branch trigger before merging.
+
 Coordinate [kongctl #2078] and [tap #15]. Merge the tap PR first, then the
 upstream PR, without dispatching a release between them. The new tap publisher
 deliberately rejects old source-building release PRs. Existing installations

@@ -1,0 +1,38 @@
+name: Homebrew registry access validation
+
+on:
+  workflow_dispatch:
+  # Temporary trusted rollout branch. Remove before merging.
+  push:
+    branches: [task/apple-notarization]
+    paths:
+      - .github/workflows/homebrew-registry-validation.yml
+      - scripts/homebrew/probe-registry-write.sh
+      - scripts/tests/test-homebrew-registry-probe.sh
+
+permissions: {}
+
+concurrency:
+  group: homebrew-registry-validation
+  cancel-in-progress: false
+
+jobs:
+  registry-access:
+    if: >-
+      github.repository == 'Kong/kongctl' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/task/apple-notarization')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test safe cancellation without credentials
+        run: bash scripts/tests/test-homebrew-registry-probe.sh
+      - name: Test push authorization with a cancelled empty upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/homebrew/probe-registry-write.sh
