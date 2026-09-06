@@ -25,7 +25,12 @@ on:
           - full
           - smoke
       recovery_tag:
-        description: Existing stable release tag to verify and finish, for example v1.15.0
+        description: Existing stable release or signed draft tag to verify and finish
+        default: ""
+        required: false
+        type: string
+      recovery_run_id:
+        description: Original Release run ID (required only for signed draft recovery)
         default: ""
         required: false
         type: string
@@ -63,12 +68,15 @@ jobs:
     needs: ["pre_activation", "activation"]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # GitHub hides draft releases from read-only tokens.
+      contents: write
+      actions: read
     outputs:
       artifact_mode: ${{ steps.compute_config.outputs.artifact_mode }}
       build_mode: ${{ steps.compute_config.outputs.build_mode }}
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
+      recovery_run_id: ${{ steps.compute_config.outputs.recovery_run_id }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -87,6 +95,7 @@ jobs:
           script: |
             const releaseType = context.payload.inputs.release_type || "patch";
             const recoveryTag = (context.payload.inputs.recovery_tag || "").trim();
+            const recoveryRunId = (context.payload.inputs.recovery_run_id || "").trim();
             const requestedBuildMode = context.payload.inputs.build_mode || "full";
 
             // Parse stable semver tags only, e.g. v1.2.3
@@ -108,26 +117,17 @@ jobs:
                 return;
               }
 
-              let release;
-              try {
-                ({ data: release } = await github.rest.repos.getReleaseByTag({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  tag: recoveryTag,
-                }));
-              } catch (error) {
-                if (error.status === 404) {
-                  core.setFailed(`Release ${recoveryTag} does not exist.`);
-                  return;
-                }
-                throw error;
+              const matches = (await github.paginate(github.rest.repos.listReleases, {
+                owner: context.repo.owner, repo: context.repo.repo, per_page: 100,
+              })).filter(release => release.tag_name === recoveryTag);
+              if (matches.length !== 1) {
+                core.setFailed(`Expected exactly one accessible release for ${recoveryTag}.`);
+                return;
               }
+              const release = matches[0];
 
-              if (release.draft || release.prerelease || !release.published_at) {
-                core.setFailed(`Release ${recoveryTag} is not a published stable release.`);
-                if (release.draft) {
-                  core.error("For a pending signed draft, retry the failed verification jobs in the original run. Do not publish it manually.");
-                }
+              if (release.prerelease || (!release.draft && !release.published_at)) {
+                core.setFailed(`Release ${recoveryTag} is not stable.`);
                 return;
               }
 
@@ -166,11 +166,55 @@ jobs:
                 throw error;
               }
 
-              core.setOutput("build_mode", "recovery");
+              // Establish tag provenance before any verification or publication.
+              const tagCommit = (await exec.getExecOutput("git", [
+                "rev-list", "-n", "1", `refs/tags/${recoveryTag}`,
+              ])).stdout.trim();
+              await exec.exec("git", ["merge-base", "--is-ancestor", tagCommit, "HEAD"]);
+              if (release.draft) {
+                if (artifactMode !== "full" || !/^[1-9][0-9]*$/.test(recoveryRunId) ||
+                    !Number.isSafeInteger(Number(recoveryRunId))) {
+                  core.setFailed("Signed draft recovery requires full assets and recovery_run_id.");
+                  return;
+                }
+                const { data: run } = await github.rest.actions.getWorkflowRun({
+                  owner: context.repo.owner, repo: context.repo.repo, run_id: Number(recoveryRunId),
+                });
+                if (run.path !== ".github/workflows/release.lock.yml" ||
+                    run.event !== "workflow_dispatch" || run.head_branch !== "main" ||
+                    run.head_sha !== tagCommit || run.status !== "completed") {
+                  core.setFailed("Recovery source must be a completed main Release run for the existing tag commit.");
+                  return;
+                }
+                const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  run_id: Number(recoveryRunId), per_page: 100,
+                });
+                const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  run_id: Number(recoveryRunId), per_page: 100,
+                });
+                if (!jobs.some(job => job.name === "publish_release" && job.conclusion === "success") ||
+                    artifacts.filter(a => a.name === `homebrew-${recoveryTag}` && !a.expired).length !== 1) {
+                  core.setFailed("Recovery requires a successful original publisher and unexpired Homebrew metadata.");
+                  return;
+                }
+                core.setOutput("recovery_run_id", recoveryRunId);
+              } else if (recoveryRunId) {
+                core.setFailed("recovery_run_id is only supported for a signed draft.");
+                return;
+              }
+
+              core.setOutput("build_mode", release.draft ? "draft-recovery" : "recovery");
               core.setOutput("artifact_mode", artifactMode);
               core.setOutput("release_tag", recoveryTag);
               core.setOutput("release_version", releaseVersion);
               console.log(`✓ Recovering existing ${artifactMode} release ${recoveryTag}`);
+              return;
+            }
+
+            if (recoveryRunId) {
+              core.setFailed("recovery_run_id requires recovery_tag.");
               return;
             }
 
@@ -295,7 +339,7 @@ jobs:
           fi
 
       - name: Require the upstream-artifact tap protocol before creating a tag
-        if: steps.compute_config.outputs.build_mode == 'full'
+        if: steps.compute_config.outputs.artifact_mode == 'full'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -323,19 +367,19 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout repository
-        if: env.RELEASE_BUILD_MODE != 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
 
       - name: Reuse existing tag (recovery mode)
-        if: env.RELEASE_BUILD_MODE == 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'recovery' || env.RELEASE_BUILD_MODE == 'draft-recovery'
         run: |
           echo "Recovery mode will reuse $RELEASE_TAG"
 
       - name: Create and push tag
-        if: env.RELEASE_BUILD_MODE != 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         run: |
           set -euo pipefail
 
@@ -363,6 +407,7 @@ jobs:
     permissions:
       contents: write
       packages: write
+      actions: read
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
@@ -374,19 +419,19 @@ jobs:
         with:
           egress-policy: audit
       - name: Checkout repository
-        if: env.RELEASE_BUILD_MODE != 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Reuse existing release (recovery mode)
-        if: env.RELEASE_BUILD_MODE == 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'recovery' || env.RELEASE_BUILD_MODE == 'draft-recovery'
         run: |
           echo "Recovery mode will reuse release $RELEASE_TAG"
 
       - name: Configure private git reads for GoReleaser
-        if: env.RELEASE_BUILD_MODE != 'recovery'
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         env:
           GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
         run: |
@@ -469,8 +514,17 @@ jobs:
           mkdir -p dist/homebrew
           jq -e . <<<"$GORELEASER_METADATA" > dist/homebrew/goreleaser-metadata.json
 
+      - name: Recover original GoReleaser Homebrew metadata without rebuilding
+        if: env.RELEASE_BUILD_MODE == 'draft-recovery'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: homebrew-${{ needs.config.outputs.release_tag }}
+          path: dist/homebrew/
+          run-id: ${{ needs.config.outputs.recovery_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload generated Homebrew files
-        if: env.RELEASE_BUILD_MODE == 'full'
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'draft-recovery'
         uses: actions/upload-artifact@v7.0.1
         with:
           name: homebrew-${{ needs.config.outputs.release_tag }}
@@ -534,7 +588,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     permissions:
-      contents: read
+      # Draft downloads require write access, even though verification is read-only.
+      # No Apple private credentials or persisted checkout credentials are exposed.
+      contents: write
     steps:
       - name: Checkout trusted verification scripts
         if: needs.config.outputs.artifact_mode == 'full'
@@ -594,18 +650,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           name: homebrew-${{ needs.config.outputs.release_tag }}
           path: dist/homebrew
       - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
       - name: Test and style the generated cask
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         run: |
           set -euo pipefail
           bash scripts/homebrew/init-tap.sh
@@ -619,7 +675,7 @@ jobs:
           brew uninstall --cask kong/kongctl/kongctl
           cp "$tap_dir/Casks/kongctl.rb" dist/homebrew/Casks/kongctl.rb
       - name: Preserve independent direct-main cask publication
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
@@ -637,13 +693,13 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           persist-credentials: false
       - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
       - name: Download approved upstream executables
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
@@ -652,14 +708,14 @@ jobs:
           gh release download "$RELEASE_TAG" --repo Kong/kongctl --dir dist/upstream \
             --pattern checksums.txt --pattern 'kongctl_*.zip'
       - name: Package and pour without recompiling or signing again
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: bash scripts/homebrew/package-bottle.sh dist/upstream "$RELEASE_VERSION" dist/bottles
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           name: upstream-bottles-${{ needs.config.outputs.release_tag }}-${{ matrix.os }}
           path: dist/bottles/
@@ -678,24 +734,24 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           persist-credentials: false
       - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           pattern: upstream-bottles-${{ needs.config.outputs.release_tag }}-*
           path: dist/bottles
           merge-multiple: true
       - name: Validate and merge Homebrew metadata
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
         run: bash scripts/homebrew/prepare-publication.sh dist/bottles "$RELEASE_VERSION"
       - name: Publish new bottles or verify an identical completed upload
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
           HOMEBREW_GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -711,12 +767,12 @@ jobs:
           fi
           bash scripts/homebrew/check-public-bottles.sh dist/bottles "$RELEASE_VERSION"
       - name: Attest the final bottle bytes
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: dist/bottles/*.tar.gz
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           name: upstream-formula-${{ needs.config.outputs.release_tag }}
           path: dist/bottles/kongctl.rb
@@ -736,18 +792,18 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           persist-credentials: false
       - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           name: upstream-formula-${{ needs.config.outputs.release_tag }}
           path: dist/formula
       - name: Pour anonymously and compare with upstream release
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
@@ -761,16 +817,16 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         with:
           name: upstream-formula-${{ needs.config.outputs.release_tag }}
           path: dist/formula
       - name: Publish formula metadata through the tap's guarded PR merger
-        if: needs.config.outputs.build_mode == 'full'
+        if: needs.config.outputs.build_mode == 'full' || needs.config.outputs.build_mode == 'draft-recovery'
         env:
           GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
           RELEASE_VERSION: ${{ needs.config.outputs.release_version }}

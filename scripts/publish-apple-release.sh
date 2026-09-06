@@ -11,7 +11,8 @@ fi
 [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
 script_dir=$(cd "$(dirname "$0")" && pwd)
 cmp "$1/arm64.json" "$1/amd64.json"
-current=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" |
+release_id=$(jq -er '.id | select(type == "number" and . > 0)' "$1/arm64.json")
+current=$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" |
   jq -Se --arg tag "$RELEASE_TAG" -f "$script_dir/apple-release-snapshot.jq")
 expected=$(jq -Se . "$1/arm64.json")
 if [[ "$current" != "$expected" ]]; then
@@ -19,10 +20,10 @@ if [[ "$current" != "$expected" ]]; then
   exit 1
 fi
 case "$RELEASE_BUILD_MODE" in
-  full)
+  full|draft-recovery)
     jq -e '.draft == true' <<< "$current" > /dev/null
-    gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-      --draft=false --latest=false
+    gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+      -F draft=false -f make_latest=false > /dev/null
     ;;
   recovery)
     jq -e '.draft == false' <<< "$current" > /dev/null

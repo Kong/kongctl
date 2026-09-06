@@ -16,14 +16,15 @@ receipt_dir=$(cd "$receipt_dir" && pwd)
 script_dir=$(cd "$(dirname "$0")" && pwd)
 verify_dir=$(mktemp -d)
 trap 'rm -rf "$verify_dir"' EXIT
-endpoint="repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"
+release_id=$(bash "$script_dir/apple-release-id.sh")
+endpoint="repos/$GITHUB_REPOSITORY/releases/$release_id"
 snapshot() {
   gh api "$endpoint" | jq -Se --arg tag "$RELEASE_TAG" \
     -f "$script_dir/apple-release-snapshot.jq"
 }
 snapshot > "$verify_dir/before.json"
 case "$RELEASE_BUILD_MODE" in
-  full) jq -e '.draft == true' "$verify_dir/before.json" > /dev/null ;;
+  full|draft-recovery) jq -e '.draft == true' "$verify_dir/before.json" > /dev/null ;;
   recovery) jq -e '.draft == false' "$verify_dir/before.json" > /dev/null ;;
   *) echo 'Unexpected release mode' >&2; exit 1 ;;
 esac

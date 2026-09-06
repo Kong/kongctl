@@ -115,8 +115,12 @@ available and the previous formula remains on tap main.
   an explicitly reviewed bottle rebuild.
 - A matching open metadata PR is reused. A failed tap check leaves a visible
   PR and failed upstream release job, not a silently successful release.
-- The `recovery_tag` input verifies already-published stable releases; it is
-  not a bottle rebuild or general resume command.
+- `recovery_tag` alone verifies already-published stable releases; it is not
+  a bottle rebuild or general resume command. For a signed draft stopped
+  before publication, also supply the original `recovery_run_id`. This
+  recovers that run's generated cask metadata and finishes the normal bottle
+  and tap jobs after fresh native verification. It never recompiles or
+  replaces the upstream executables.
 - Legacy unsigned macOS releases cannot pass the new Apple verification gate.
   Do not replace their assets to work around that restriction.
 
