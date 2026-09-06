@@ -100,11 +100,18 @@ def generate(paths: list[Path], scenario_root: Path) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("observations", nargs="+", type=Path)
+    parser.add_argument("observations", nargs="*", type=Path)
+    parser.add_argument("--print-allocation-id", action="store_true",
+                        help="print the weighted allocation ID of --output without changing it")
     parser.add_argument("--scenario-root", type=Path, default=Path("test/e2e/scenarios"))
     parser.add_argument("--output", type=Path, default=Path("test/e2e/baselines/scenario-weights.json"))
     args = parser.parse_args()
     try:
+        if args.print_allocation_id:
+            print("weighted-v1:" + hashlib.sha256(args.output.read_bytes()).hexdigest())
+            return
+        if not args.observations:
+            parser.error("provide observation files or --print-allocation-id")
         weights = generate(args.observations, args.scenario_root)
         args.output.write_text(json.dumps(weights, indent=2, sort_keys=True) + "\n")
     except (ValueError, KeyError, OSError) as error:

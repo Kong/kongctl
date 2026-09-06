@@ -96,9 +96,18 @@ def collect_metrics(root: Path, environ: dict[str, str]) -> dict[str, Any]:
     manifest_values = parse_key_values(manifests[0])
     scenarios = parse_scenario_durations(run_logs[0])
     assigned = parse_manifest(manifests[0])
+    allocation = json.loads((manifests[0].parent / "scenario-allocation.json").read_text(encoding="utf-8"))
+    if not isinstance(allocation, dict):
+        raise ValueError("invalid scenario-allocation.json")
+    allocation_id = allocation.get("allocation_id", "")
+    expected = r"modulo-v1" if allocation.get("strategy") == "modulo" else r"weighted-v1:[0-9a-f]{64}"
+    if (allocation.get("schema_version") != 1 or allocation.get("strategy") not in ("modulo", "weighted")
+            or not isinstance(allocation_id, str) or not re.fullmatch(expected, allocation_id)):
+        raise ValueError("invalid scenario-allocation.json")
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "allocation_id": allocation_id,
         "run_id": int(environ.get("GITHUB_RUN_ID", "0")),
         "run_attempt": int(result_values.get("run_attempt", environ.get("GITHUB_RUN_ATTEMPT", "1"))),
         "org_name": result_values.get("org_name", environ.get("KONGCTL_E2E_MATRIX_ORG", "")),

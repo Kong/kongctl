@@ -80,7 +80,7 @@ func TestWeightedRepositoryPlan(t *testing.T) {
 			t.Fatal(err)
 		}
 		var current []string
-		for _, item := range report.Organizations[i].Current {
+		for _, item := range report.Organizations[i].Legacy {
 			current = append(current, item.Scenario)
 		}
 		for j := range selected {
@@ -89,12 +89,31 @@ func TestWeightedRepositoryPlan(t *testing.T) {
 		if !slices.Equal(current, selected) {
 			t.Fatalf("report for %s does not match actual selector", env)
 		}
+		active, allocation, err := selectScenariosForExecution(paths, cfg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var weighted []string
+		for _, item := range report.Organizations[i].Weighted {
+			weighted = append(weighted, item.Scenario)
+		}
+		for j := range active {
+			active[j] = normalizeScenarioPath(active[j])
+		}
+		if !slices.Equal(active, weighted) || allocation != report.Allocation {
+			t.Fatal("active weighted selection does not match comparison report")
+		}
 		seen := map[string]bool{}
 		var currentTotal, proposedTotal int64
 		for _, org := range report.Organizations {
-			currentTotal += org.CurrentMS
-			proposedTotal += org.ProposedMS
-			for _, item := range org.Proposed {
+			if i == 0 {
+				t.Logf("%s: modulo=%d scenarios/%.2fs, weighted=%d scenarios/%.2fs",
+					org.Environment, len(org.Legacy), float64(org.LegacyMS)/1000,
+					len(org.Weighted), float64(org.WeightedMS)/1000)
+			}
+			currentTotal += org.LegacyMS
+			proposedTotal += org.WeightedMS
+			for _, item := range org.Weighted {
 				if seen[item.Scenario] {
 					t.Fatalf("duplicate proposed scenario %s", item.Scenario)
 				}

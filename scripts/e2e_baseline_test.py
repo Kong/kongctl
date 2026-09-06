@@ -161,6 +161,51 @@ class E2EBaselineTest(unittest.TestCase):
             self.assertEqual([], MODULE.collect_runs("kong/kongctl", 1, 100))
             download.assert_not_called()
 
+    def test_allocation_compatibility_and_invalid_metadata(self) -> None:
+        self.assertEqual("modulo-v1", MODULE.metric_allocation({"schema_version": 1}))
+        for metric in ({"schema_version": 2}, {"schema_version": 99, "allocation_id": "modulo-v1"},
+                       {"schema_version": 2, "allocation_id": "weighted-v1:bad"}):
+            self.assertIsNone(MODULE.metric_allocation(metric))
+        weighted = "weighted-v1:" + "a" * 64
+        self.assertEqual(weighted, MODULE.metric_allocation({"schema_version": 2, "allocation_id": weighted}))
+
+    def test_wrong_allocation_is_excluded_before_attempt_lookup(self) -> None:
+        jobs = [{"name": MODULE.BUILD_JOB, "steps": [{"name": "Report Go cache status"}]}]
+        with patch.object(MODULE, "gh_json", side_effect=[
+            [{"databaseId": 1}], {"attempt": 1, "jobs": jobs},
+        ]) as api, patch.object(MODULE, "download_metrics", return_value=[{"schema_version": 1}]):
+            self.assertEqual([], MODULE.collect_runs("kong/kongctl", 1, 100, allocation_id="weighted-v1:" + "a" * 64))
+            self.assertEqual(2, api.call_count)
+
+    def test_saved_allocations_cannot_be_mixed(self) -> None:
+        weighted = "weighted-v1:" + "a" * 64
+        runs = [self.run_record(1, "2026-09-01T00:00:00Z")]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "observations.json"
+            MODULE.write_json(path, MODULE.observation_document("kong/kongctl", runs))
+            with self.assertRaisesRegex(ValueError, "allocation does not match"):
+                MODULE.load_observations(path, "kong/kongctl", allocation_id=weighted)
+            runs[0]["allocation_id"] = weighted
+            MODULE.write_json(path, MODULE.observation_document("kong/kongctl", runs, allocation_id=weighted))
+            self.assertEqual(runs, MODULE.load_observations(path, "kong/kongctl", allocation_id=weighted))
+            with self.assertRaisesRegex(ValueError, "allocation does not match"):
+                MODULE.load_observations(path, "kong/kongctl", allocation_id="weighted-v1:" + "b" * 64)
+            runs[0]["allocation_id"] = "modulo-v1"
+            MODULE.write_json(path, MODULE.observation_document("kong/kongctl", runs, allocation_id=weighted))
+            with self.assertRaisesRegex(ValueError, "mixed allocations"):
+                MODULE.load_observations(path, "kong/kongctl", allocation_id=weighted)
+
+    def test_mixed_shard_allocations_are_ineligible(self) -> None:
+        metrics = [
+            {"schema_version": 1, "konnect_environment": "com"},
+            {"schema_version": 2, "konnect_environment": "com", "allocation_id": "weighted-v1:" + "a" * 64},
+        ]
+        self.assertIsNone(MODULE.eligible_run({}, [], metrics))
+
+    def test_duplicate_shard_index_is_not_a_complete_attempt(self) -> None:
+        metric = {"run_attempt": 1, "shard_index": 0, "shard_total": 1}
+        self.assertEqual([], MODULE.select_complete_attempt([metric, metric], 1))
+
     @staticmethod
     def run_record(
         run_id: int,

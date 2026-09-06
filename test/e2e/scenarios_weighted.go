@@ -39,15 +39,15 @@ type weightedScenario struct {
 
 type weightedOrganization struct {
 	Environment string             `json:"environment"`
-	Current     []weightedScenario `json:"current"`
-	Proposed    []weightedScenario `json:"proposed"`
-	CurrentMS   int64              `json:"current_estimated_ms"`
-	ProposedMS  int64              `json:"proposed_estimated_ms"`
+	Legacy      []weightedScenario `json:"legacy"`
+	Weighted    []weightedScenario `json:"weighted"`
+	LegacyMS    int64              `json:"legacy_estimated_ms"`
+	WeightedMS  int64              `json:"weighted_estimated_ms"`
 }
 
 type weightedScenarioReport struct {
 	SchemaVersion int                    `json:"schema_version"`
-	Mode          string                 `json:"mode"`
+	Allocation    scenarioAllocation     `json:"allocation"`
 	Uniform       bool                   `json:"uniform_weights"`
 	Sources       []string               `json:"weight_sources"`
 	SourceSHA256  map[string]string      `json:"weight_source_sha256"`
@@ -66,15 +66,15 @@ func (w scenarioWeights) validate() error {
 	return nil
 }
 
-// planWeightedScenarios never selects scenarios for execution. Current retains
-// the existing selector's ordering; Proposed is a deterministic shadow plan.
+// Legacy retains the modulo selector's ordering. Weighted is the deterministic,
+// pin-aware plan consumed by the live allocator and the comparison report.
 func planWeightedScenarios(
 	scenarios []string,
 	environments []string,
 	assignments map[string]scenarioAssignment,
 	weights scenarioWeights,
 ) (weightedScenarioReport, error) {
-	report := weightedScenarioReport{SchemaVersion: 1, Mode: "report-only"}
+	report := weightedScenarioReport{SchemaVersion: 2}
 	if err := weights.validate(); err != nil {
 		return report, err
 	}
@@ -91,7 +91,7 @@ func planWeightedScenarios(
 		}
 		indices[env] = i
 		report.Organizations = append(report.Organizations, weightedOrganization{
-			Environment: env, Current: []weightedScenario{}, Proposed: []weightedScenario{},
+			Environment: env, Legacy: []weightedScenario{}, Weighted: []weightedScenario{},
 		})
 	}
 	items := make(map[string]weightedScenario, len(scenarios))
@@ -118,8 +118,8 @@ func planWeightedScenarios(
 				return report, fmt.Errorf("scenario %s pinned to unavailable environment %q", path, env)
 			}
 			org := &report.Organizations[index]
-			org.Proposed = append(org.Proposed, item)
-			org.ProposedMS += item.DurationMS
+			org.Weighted = append(org.Weighted, item)
+			org.WeightedMS += item.DurationMS
 		} else {
 			unpinned = append(unpinned, item)
 		}
@@ -136,17 +136,17 @@ func planWeightedScenarios(
 	for _, item := range unpinned {
 		index := 0
 		for i := range report.Organizations {
-			if report.Organizations[i].ProposedMS < report.Organizations[index].ProposedMS {
+			if report.Organizations[i].WeightedMS < report.Organizations[index].WeightedMS {
 				index = i
 			}
 		}
 		org := &report.Organizations[index]
-		org.Proposed = append(org.Proposed, item)
-		org.ProposedMS += item.DurationMS
+		org.Weighted = append(org.Weighted, item)
+		org.WeightedMS += item.DurationMS
 	}
 	for i := range report.Organizations {
 		org := &report.Organizations[i]
-		slices.SortFunc(org.Proposed, func(a, b weightedScenario) int { return strings.Compare(a.Scenario, b.Scenario) })
+		slices.SortFunc(org.Weighted, func(a, b weightedScenario) int { return strings.Compare(a.Scenario, b.Scenario) })
 		current, err := selectScenariosWithConfig(scenarios, scenarioSelectionConfig{
 			Shard:      scenarioShard{Enabled: true, Index: i, Total: len(environments)},
 			CurrentEnv: org.Environment, AllowedEnvs: environments, Assignments: assignments,
@@ -157,8 +157,8 @@ func planWeightedScenarios(
 		}
 		for _, path := range current {
 			item := items[normalizeScenarioPath(path)]
-			org.Current = append(org.Current, item)
-			org.CurrentMS += item.DurationMS
+			org.Legacy = append(org.Legacy, item)
+			org.LegacyMS += item.DurationMS
 		}
 	}
 	return report, nil
@@ -168,15 +168,18 @@ func writeWeightedScenarioReport(artifactsDir string, scenarios []string, cfg sc
 	if cfg.Filter != "" || !cfg.Shard.Enabled || !cfg.ValidateEnvs || artifactsDir == "" {
 		return nil
 	}
-	if cfg.Shard.Total != len(cfg.AllowedEnvs) || cfg.Shard.Index < 0 || cfg.Shard.Index >= cfg.Shard.Total ||
-		cfg.AllowedEnvs[cfg.Shard.Index] != cfg.CurrentEnv {
-		return fmt.Errorf("weighted report requires shard indices matching configured organization order")
+	if err := validateWeightedMatrix(cfg); err != nil {
+		return err
 	}
 	var weights scenarioWeights
 	if err := json.Unmarshal(scenarioWeightsJSON, &weights); err != nil {
 		return fmt.Errorf("parse scenario weights: %w", err)
 	}
 	report, err := planWeightedScenarios(scenarios, cfg.AllowedEnvs, cfg.Assignments, weights)
+	if err != nil {
+		return err
+	}
+	report.Allocation, err = scenarioAllocationForConfig(cfg)
 	if err != nil {
 		return err
 	}
@@ -191,19 +194,20 @@ func writeWeightedScenarioReport(artifactsDir string, scenarios []string, cfg sc
 		return err
 	}
 	var summary strings.Builder
-	summary.WriteString("### Weighted sharding predictions (report only)\n\n")
-	summary.WriteString("Live assignments are unchanged. Estimates exclude job overhead and are not measured savings.\n\n")
+	summary.WriteString("### Sharding comparison\n\n")
+	fmt.Fprintf(&summary, "Actual allocation: `%s`.\n\n", report.Allocation.ID)
+	summary.WriteString("Estimates exclude job overhead and are not measured savings.\n\n")
 	fmt.Fprintf(&summary, "Uniform fallback weights: %t.\n\n", report.Uniform)
-	summary.WriteString("| Organization | Current estimate (s) | Proposed estimate (s) |\n| --- | ---: | ---: |\n")
+	summary.WriteString("| Organization | Modulo estimate (s) | Weighted estimate (s) |\n| --- | ---: | ---: |\n")
 	currentMin, proposedMin := int64(math.MaxInt64), int64(math.MaxInt64)
 	var currentMax, proposedMax int64
 	for _, org := range report.Organizations {
 		fmt.Fprintf(&summary, "| %s | %.2f | %.2f |\n", org.Environment,
-			float64(org.CurrentMS)/1000, float64(org.ProposedMS)/1000)
-		currentMin, proposedMin = min(currentMin, org.CurrentMS), min(proposedMin, org.ProposedMS)
-		currentMax, proposedMax = max(currentMax, org.CurrentMS), max(proposedMax, org.ProposedMS)
+			float64(org.LegacyMS)/1000, float64(org.WeightedMS)/1000)
+		currentMin, proposedMin = min(currentMin, org.LegacyMS), min(proposedMin, org.WeightedMS)
+		currentMax, proposedMax = max(currentMax, org.LegacyMS), max(proposedMax, org.WeightedMS)
 	}
-	fmt.Fprintf(&summary, "\nEstimated longest shard: %.2fs → %.2fs; spread: %.2fs → %.2fs.\n",
+	fmt.Fprintf(&summary, "\nEstimated modulo → weighted longest shard: %.2fs → %.2fs; spread: %.2fs → %.2fs.\n",
 		float64(currentMax)/1000, float64(proposedMax)/1000,
 		float64(currentMax-currentMin)/1000, float64(proposedMax-proposedMin)/1000)
 	return os.WriteFile(filepath.Join(artifactsDir, "weighted-sharding-summary.md"), []byte(summary.String()), 0o600)

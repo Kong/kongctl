@@ -112,7 +112,6 @@ test:
 .PHONY: refresh-e2e-weights
 refresh-e2e-weights:
 	python3 scripts/e2e-weights.py \
-		test/e2e/baselines/stage0-2026-09-observations.json \
 		test/e2e/baselines/post-cache-2026-09-observations.json
 
 .PHONY: test-e2e-metrics
@@ -259,12 +258,14 @@ E2E_BASELINE_COUNT ?= 20
 E2E_BASELINE_SCAN ?= 100
 E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
 E2E_BASELINE_COHORT ?= cache-enabled
-E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/post-cache-2026-09-observations.json
-E2E_BASELINE_REPORT ?= test/e2e/baselines/post-cache-2026-09.md
+E2E_BASELINE_ALLOCATION ?= $(shell python3 scripts/e2e-weights.py --print-allocation-id)
+E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/weighted-v1-2026-09-observations.json
+E2E_BASELINE_REPORT ?= test/e2e/baselines/weighted-v1-2026-09.md
 
 .PHONY: collect-e2e-baseline
 collect-e2e-baseline:
 	@python3 scripts/e2e-baseline.py \
+		--allocation-id "$(E2E_BASELINE_ALLOCATION)" \
 		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \
 		--scan "$(E2E_BASELINE_SCAN)" \
@@ -278,6 +279,7 @@ collect-e2e-baseline:
 baseline-e2e-ci:
 	@mkdir -p "$(E2E_BASELINE_DIR)"
 	@python3 scripts/e2e-baseline.py \
+		--allocation-id "$(E2E_BASELINE_ALLOCATION)" \
 		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \
 		--scan "$(E2E_BASELINE_SCAN)" \

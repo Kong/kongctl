@@ -20,6 +20,7 @@ type scenarioAssignment struct {
 }
 
 type scenarioSelectionConfig struct {
+	Strategy     string
 	Filter       string
 	Shard        scenarioShard
 	CurrentEnv   string

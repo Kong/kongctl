@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import subprocess
 import sys
 import tempfile
@@ -22,6 +23,23 @@ REQUIRED_JOB = "Publish “E2E Required”"
 SCENARIO_JOB_PREFIX = "Run scenarios — "
 OBSERVATION_SCHEMA_VERSION = 2
 COHORTS = ("uncached", "cache-enabled")
+LEGACY_ALLOCATION = "modulo-v1"
+
+
+def valid_allocation(value: Any) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"modulo-v1|weighted-v1:[0-9a-f]{64}", value) is not None
+
+
+def metric_allocation(metric: dict[str, Any]) -> str | None:
+    if metric.get("schema_version", 1) not in (1, 2):
+        return None
+    # Only pre-activation metrics may omit allocation identity.
+    if metric.get("schema_version", 1) == 1 and "allocation_id" not in metric:
+        return LEGACY_ALLOCATION
+    value = metric.get("allocation_id")
+    return value if valid_allocation(value) else None
+
+
 RUN_REQUIRED_FIELDS = {
     "cohort",
     "original_created_at",
@@ -94,7 +112,7 @@ def select_complete_attempt(metrics: list[dict[str, Any]], run_attempt: int) -> 
     if len(totals) != 1:
         return []
     total = totals.pop()
-    if total <= 0 or indices != set(range(total)):
+    if total <= 0 or len(selected) != total or indices != set(range(total)):
         return []
     return sorted(selected, key=lambda metric: int(metric["shard_index"]))
 
@@ -164,6 +182,9 @@ def eligible_run(
 ) -> dict[str, Any] | None:
     if not metrics or any(metric.get("konnect_environment") != "com" for metric in metrics):
         return None
+    allocations = {metric_allocation(metric) for metric in metrics}
+    if len(allocations) != 1 or None in allocations:
+        return None
 
     build = named_job(jobs, BUILD_JOB)
     harness = named_job(jobs, HARNESS_JOB)
@@ -204,6 +225,7 @@ def eligible_run(
 
     return {
         "cohort": run_cohort(jobs),
+        "allocation_id": allocations.pop(),
         "original_created_at": run["original_created_at"],
         "head_sha": run["head_sha"],
         "harness_job_seconds": duration(harness),
@@ -247,6 +269,7 @@ def collect_runs(
     scan: int,
     excluded_run_ids: set[int] | None = None,
     cohort: str = "cache-enabled",
+    allocation_id: str = LEGACY_ALLOCATION,
 ) -> list[dict[str, Any]]:
     if count <= 0:
         return []
@@ -286,7 +309,7 @@ def collect_runs(
         if run_cohort(view["jobs"]) != cohort:
             continue
         metrics = download_metrics(repo, int(candidate["databaseId"]), run_attempt)
-        if not metrics:
+        if not metrics or any(metric_allocation(metric) != allocation_id for metric in metrics):
             continue
         attempt = gh_json(
             ["api", f"repos/{repo}/actions/runs/{candidate['databaseId']}/attempts/{run_attempt}"]
@@ -300,7 +323,7 @@ def collect_runs(
             "head_sha": attempt["head_sha"],
         }
         record = eligible_run(candidate, view["jobs"], metrics)
-        if record is not None:
+        if record is not None and record["allocation_id"] == allocation_id:
             selected.append(record)
         if len(selected) == count:
             break
@@ -334,7 +357,9 @@ def validate_run(run: Any, index: int) -> dict[str, Any]:
     return run
 
 
-def load_observations(path: Path, repo: str, cohort: str = "cache-enabled") -> list[dict[str, Any]]:
+def load_observations(
+    path: Path, repo: str, cohort: str = "cache-enabled", allocation_id: str = LEGACY_ALLOCATION,
+) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     try:
@@ -354,12 +379,16 @@ def load_observations(path: Path, repo: str, cohort: str = "cache-enabled") -> l
         )
     if document.get("cohort") != cohort:
         raise ValueError(f"observations {path} cohort does not match requested {cohort!r}")
+    if document.get("allocation_id", LEGACY_ALLOCATION) != allocation_id:
+        raise ValueError(f"observations {path} allocation does not match requested {allocation_id!r}")
     runs = document.get("runs")
     if not isinstance(runs, list):
         raise ValueError(f"observations {path} field runs must be an array")
     validated = [validate_run(run, index) for index, run in enumerate(runs)]
     if any(run["cohort"] != cohort for run in validated):
         raise ValueError(f"observations {path} contain mixed cohorts")
+    if any(run.get("allocation_id", LEGACY_ALLOCATION) != allocation_id for run in validated):
+        raise ValueError(f"observations {path} contain mixed allocations")
     return validated
 
 
@@ -377,12 +406,13 @@ def merge_runs(
 
 
 def observation_document(
-    repo: str, runs: list[dict[str, Any]], cohort: str = "cache-enabled"
+    repo: str, runs: list[dict[str, Any]], cohort: str = "cache-enabled", allocation_id: str = LEGACY_ALLOCATION,
 ) -> dict[str, Any]:
     return {
         "schema_version": OBSERVATION_SCHEMA_VERSION,
         "repository": repo,
         "cohort": cohort,
+        "allocation_id": allocation_id,
         "runs": runs,
     }
 
@@ -442,6 +472,7 @@ def markdown_report(
     target_count: int,
     cohort: str = "cache-enabled",
     frozen: bool = False,
+    allocation_id: str = LEGACY_ALLOCATION,
 ) -> str:
     status = "frozen preliminary" if frozen else ("complete" if len(runs) >= target_count else "collecting")
     lines = [
@@ -449,6 +480,7 @@ def markdown_report(
         "",
         f"Repository: `{repo}`",
         f"Cohort: `{cohort}`",
+        f"Allocation: `{allocation_id}`",
         "",
         f"Full successful runs: {len(runs)} of {target_count}",
         f"Status: **{status}**",
@@ -555,6 +587,8 @@ def main() -> int:
     parser.add_argument("--count", type=int, default=20)
     parser.add_argument("--scan", type=int, default=100)
     parser.add_argument("--cohort", choices=COHORTS, default="cache-enabled")
+    parser.add_argument("--allocation-id", default=LEGACY_ALLOCATION,
+                        help="modulo-v1 or weighted-v1:<snapshot SHA-256>; never pool allocations")
     parser.add_argument("--frozen", action="store_true", help="report saved observations without collecting")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
@@ -571,11 +605,13 @@ def main() -> int:
     args = parser.parse_args()
     if args.count < 1 or args.scan < 1:
         parser.error("--count and --scan must be positive")
+    if not valid_allocation(args.allocation_id):
+        parser.error("invalid --allocation-id; use modulo-v1 or weighted-v1:<64 lowercase hex characters>")
     if args.frozen and (args.observations is None or not args.observations.exists()):
         parser.error("--frozen requires an existing --observations file")
 
     try:
-        saved = load_observations(args.observations, args.repo, args.cohort) if args.observations else []
+        saved = load_observations(args.observations, args.repo, args.cohort, args.allocation_id) if args.observations else []
     except ValueError as error:
         parser.error(str(error))
     saved_run_ids = {int(run["run_id"]) for run in saved}
@@ -585,10 +621,11 @@ def main() -> int:
         args.scan,
         excluded_run_ids=saved_run_ids,
         cohort=args.cohort,
+        allocation_id=args.allocation_id,
     )
     runs = merge_runs(saved, collected)
     if args.observations is not None:
-        write_json(args.observations, observation_document(args.repo, runs, args.cohort))
+        write_json(args.observations, observation_document(args.repo, runs, args.cohort, args.allocation_id))
     if len(runs) < args.count and not args.frozen:
         message = (
             f"found {len(runs)} eligible full .com runs, need {args.count}; "
@@ -600,7 +637,7 @@ def main() -> int:
     summary = summarize(runs)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
-        markdown_report(args.repo, runs, summary, args.count, args.cohort, args.frozen), encoding="utf-8"
+        markdown_report(args.repo, runs, summary, args.count, args.cohort, args.frozen, args.allocation_id), encoding="utf-8"
     )
     if args.json_output is not None:
         write_json(
@@ -608,6 +645,7 @@ def main() -> int:
             {
                 "schema_version": OBSERVATION_SCHEMA_VERSION,
                 "cohort": args.cohort,
+                "allocation_id": args.allocation_id,
                 "summary": summary,
                 "target_run_count": args.count,
                 "runs": runs,
