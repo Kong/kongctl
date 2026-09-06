@@ -986,7 +986,7 @@ func (p *Planner) resolveCatalogServiceIdentities(
 // resolveAIGatewayIdentities resolves Konnect IDs for AI Gateway resources.
 func (p *Planner) resolveAIGatewayIdentities(ctx context.Context, gateways []resources.AIGatewayResource) error {
 	var (
-		managedByDisplayName map[string]*state.AIGateway
+		managedByName        map[string]*state.AIGateway
 		managedLoaded        bool
 		gatewayByID          map[string]*state.AIGateway
 		gatewayByDisplayName map[string][]*state.AIGateway
@@ -1004,14 +1004,14 @@ func (p *Planner) resolveAIGatewayIdentities(ctx context.Context, gateways []res
 			return err
 		}
 
-		managedByDisplayName = make(map[string]*state.AIGateway, len(currentGateways))
+		managedByName = make(map[string]*state.AIGateway, len(currentGateways))
 		for i := range currentGateways {
 			current := &currentGateways[i]
-			if current.DisplayName == "" {
+			if current.Name == "" {
 				continue
 			}
-			if _, exists := managedByDisplayName[current.DisplayName]; !exists {
-				managedByDisplayName[current.DisplayName] = current
+			if _, exists := managedByName[current.Name]; !exists {
+				managedByName[current.Name] = current
 			}
 		}
 
@@ -1078,7 +1078,7 @@ func (p *Planner) resolveAIGatewayIdentities(ctx context.Context, gateways []res
 			continue
 		}
 
-		if gateway.DisplayName == "" {
+		if gateway.Name == "" {
 			continue
 		}
 
@@ -1089,7 +1089,7 @@ func (p *Planner) resolveAIGatewayIdentities(ctx context.Context, gateways []res
 			return fmt.Errorf("failed to list managed AI Gateways: %w", err)
 		}
 
-		if current, ok := managedByDisplayName[gateway.DisplayName]; ok {
+		if current, ok := managedByName[gateway.Name]; ok {
 			gateway.TryMatchKonnectResource(current)
 		}
 	}

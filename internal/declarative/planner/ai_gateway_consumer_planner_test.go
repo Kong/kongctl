@@ -38,6 +38,48 @@ func TestAIGatewayConsumerPlannerCreatesChildForExistingGateway(t *testing.T) {
 	require.Equal(t, "api-key", change.Fields[FieldType])
 }
 
+func TestAIGatewayConsumerPlannerNameIsAuthoritative(t *testing.T) {
+	const existingID = "c3296957-12fb-4bdf-ae35-15b19a749592"
+	for _, tc := range []struct{ ref, id string }{
+		{ref: "support-user"},
+		{ref: existingID},
+		{ref: "cached-id", id: existingID},
+	} {
+		t.Run(tc.ref, func(t *testing.T) {
+			consumer := testAIGatewayConsumerResource(t, nil)
+			consumer.Name = "second-consumer"
+			consumer.Ref = tc.ref
+			consumer.SetKonnectID(tc.id)
+			current := testAIGatewayConsumer(nil)
+			current.ID = existingID
+			client := state.NewClient(state.ClientConfig{
+				AIGatewayAPI:          &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+				AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{consumers: []kkComps.AIGatewayConsumer{current}},
+			})
+			plan, err := NewPlanner(client, slog.Default()).GeneratePlan(
+				t.Context(), testAIGatewayConsumerResourceSet(consumer), Options{Mode: PlanModeApply},
+			)
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 1)
+			require.Equal(t, ActionCreate, plan.Changes[0].Action)
+			require.Equal(t, "second-consumer", plan.Changes[0].Fields[FieldName])
+			require.Equal(t, "gateway-id", plan.Changes[0].Parent.ID)
+
+			rs := testAIGatewayConsumerResourceSet(consumer)
+			rs.EnsureSyncScope().AddRoot(resources.ResourceTypeAIGateway)
+			rs.SyncScope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumer)
+			plan, err = NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 2)
+			actions := map[ActionType]string{}
+			for _, change := range plan.Changes {
+				actions[change.Action] = change.Fields[FieldName].(string)
+			}
+			require.Equal(t, map[ActionType]string{ActionCreate: "second-consumer", ActionDelete: "support-user"}, actions)
+		})
+	}
+}
+
 func TestAIGatewayConsumerPlannerUpdatesExistingConsumer(t *testing.T) {
 	consumer := testAIGatewayConsumerResource(t, nil)
 	consumer.DisplayName = "Support User Updated"

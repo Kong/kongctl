@@ -459,16 +459,21 @@ SNIs. Use
 
 The `ref` value is a local declarative identifier used by kongctl for
 references and planning. Use `name` as the stable Konnect API name for the AI
-Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
+Gateway. Managed AI Gateways match only by `name` within their namespace;
+neither `ref`, UUID refs, nor `display_name` provide a fallback match. Changing
+`name` declares a different gateway. In sync mode, the previous gateway is
+eligible for deletion if it is no longer declared in the selected scope.
+If `name` is omitted, kongctl defaults it from `ref`. Use
 `display_name` for the human-readable name shown in Konnect. AI Gateway Model
 Providers, Auth Strategies, Policies, Agents, Consumers, Consumer
 Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
-use their own required `name` field as the stable Konnect child name. Config
-Store names are immutable after creation. AI Gateway Data Plane Certificates
-use their required `title` field as the stable Konnect child name. Child entries
-inherit
-management scope from their parent resource and do not accept `kongctl`
-metadata.
+use their own required `name` field as the stable Konnect child name.
+AI Gateway Consumers match only by `name` within their parent gateway;
+UUID refs and cached IDs do not override a different declared consumer name.
+Config Store names are immutable after creation. AI Gateway Data Plane
+Certificates use their required `title` field as the stable Konnect child name.
+Child entries inherit management scope from their parent resource and do not
+accept `kongctl` metadata.
 
 For AI Gateway Policies, `display_name` must be explicitly provided in both
 nested and root-level declarations; kongctl does not infer it from `name` or

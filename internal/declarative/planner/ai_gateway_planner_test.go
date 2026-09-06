@@ -40,7 +40,7 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 	require.Equal(t, kkComps.CreateAIGatewayRequestDeploymentTypeManaged, change.Fields[FieldDeploymentType])
 }
 
-func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {
+func TestAIGatewayPlannerMatchesByNameWhenDisplayNameChanges(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{{
@@ -75,7 +75,7 @@ func TestAIGatewayPlannerMatchesByNameBeforeDisplayName(t *testing.T) {
 	require.Contains(t, change.ChangedFields, FieldDisplayName)
 }
 
-func TestAIGatewayPlannerIgnoresImmutableNameDrift(t *testing.T) {
+func TestAIGatewayPlannerCreatesForDifferentNameWithSameRefAndDisplayName(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{{
@@ -98,10 +98,12 @@ func TestAIGatewayPlannerIgnoresImmutableNameDrift(t *testing.T) {
 
 	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
-	require.Empty(t, plan.Changes)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionCreate, plan.Changes[0].Action)
+	require.Equal(t, "support-gateway", plan.Changes[0].Fields[FieldName])
 }
 
-func TestAIGatewayPlannerPreservesCurrentNameInPutWhenDesiredNameDrifts(t *testing.T) {
+func TestAIGatewayPlannerCreatesForDifferentNameWithSameRef(t *testing.T) {
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{{
@@ -125,9 +127,77 @@ func TestAIGatewayPlannerPreservesCurrentNameInPutWhenDesiredNameDrifts(t *testi
 	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
-	require.Equal(t, "current-gateway-name", plan.Changes[0].Fields[FieldName])
+	require.Equal(t, ActionCreate, plan.Changes[0].Action)
+	require.Equal(t, "desired-but-immutable-name", plan.Changes[0].Fields[FieldName])
 	require.Equal(t, "Updated Support Gateway", plan.Changes[0].Fields[FieldDisplayName])
 	require.NotContains(t, plan.Changes[0].ChangedFields, FieldName)
+}
+
+func TestAIGatewayPlannerNameIsAuthoritative(t *testing.T) {
+	const existingID = "c3296957-12fb-4bdf-ae35-15b19a749592"
+	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync, PlanModeDelete} {
+		for _, tc := range []struct{ ref, resolvedID string }{
+			{ref: "local-ref"},
+			{ref: "existing-name"},
+			{ref: existingID},
+			{ref: "cached-id", resolvedID: existingID},
+		} {
+			t.Run(string(mode)+"/"+tc.ref, func(t *testing.T) {
+				client := state.NewClient(state.ClientConfig{
+					AIGatewayAPI: &testAIGatewayAPI{
+						gateways: []kkComps.AIGateway{{
+							ID: existingID, Name: "existing-name", DisplayName: "Shared Display",
+							Labels: map[string]string{labels.NamespaceKey: "default"},
+						}},
+					},
+				})
+				desired := resources.AIGatewayResource{
+					BaseResource: resources.BaseResource{Ref: tc.ref},
+					CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+						Name: "new-name", DisplayName: "Shared Display",
+					},
+				}
+				// A cached ID must not override the declared name either.
+				desired.SetKonnectID(tc.resolvedID)
+				rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{desired}}
+				rs.EnsureSyncScope().AddRoot(resources.ResourceTypeAIGateway)
+				plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.NoError(t, err)
+				switch mode {
+				case PlanModeApply:
+					require.Len(t, plan.Changes, 1)
+					require.Equal(t, ActionCreate, plan.Changes[0].Action)
+				case PlanModeSync:
+					require.Len(t, plan.Changes, 2)
+					actions := map[ActionType]string{}
+					for _, change := range plan.Changes {
+						actions[change.Action] = change.Fields[FieldName].(string)
+					}
+					require.Equal(t, map[ActionType]string{ActionCreate: "new-name", ActionDelete: "existing-name"}, actions)
+				case PlanModeDelete:
+					require.Empty(t, plan.Changes)
+				}
+			})
+		}
+	}
+}
+
+func TestResolveAIGatewayIdentitiesUsesNameWhenDisplayNameChanges(t *testing.T) {
+	client := state.NewClient(state.ClientConfig{
+		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{{
+			ID: "gateway-id", Name: "support-gateway", DisplayName: "Old Display",
+			Labels: map[string]string{labels.NamespaceKey: "default"},
+		}}},
+	})
+	gateways := []resources.AIGatewayResource{{
+		BaseResource: resources.BaseResource{Ref: "local-ref"},
+		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+			Name: "support-gateway", DisplayName: "New Display",
+		},
+	}}
+	err := NewPlanner(client, slog.Default()).resolveAIGatewayIdentities(t.Context(), gateways)
+	require.NoError(t, err)
+	require.Equal(t, "gateway-id", gateways[0].GetKonnectID())
 }
 
 func TestAIGatewayPlannerDeleteUsesNameBeforeDisplayName(t *testing.T) {

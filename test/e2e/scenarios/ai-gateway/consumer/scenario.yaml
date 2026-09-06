@@ -317,6 +317,135 @@ steps:
               fields:
                 "@": "{{ .vars.credential_name }}"
 
+  - name: 002a-consumer-name-survives-ref-change
+    inputOverlayOps:
+      - file: config.yaml
+        match: "ai_gateways[?ref=='ai-gateway-consumer-e2e'].consumers[?ref=='support-agent'] | [0]"
+        set:
+          ref: support-agent-local-alias
+    commands:
+      - name: 000-plan-existing-consumer-by-name
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002b-consumer-name-does-not-fall-back
+    inputOverlayOps:
+      - file: config.yaml
+        match: "ai_gateways[?ref=='ai-gateway-consumer-e2e'].consumers[?ref=='support-agent'] | [0]"
+        set:
+          name: support-agent-second
+    commands:
+      # Keep the original ref and display_name: a new name is a new consumer.
+      - name: 000-plan-new-consumer-with-existing-ref-and-display-name
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secrets
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.consumer_ref }}"
+                fields.name: support-agent-second
+                fields.display_name: "{{ .vars.consumer_display_name }}"
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_credential'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                parent.ref: "{{ .vars.consumer_ref }}"
+
+  - name: 002b2-consumer-name-does-not-fall-back-to-uuid-ref
+    inputOverlayOpsFiles:
+      - overlays/consumer-uuid-ref.yaml
+    commands:
+      - name: 000-plan-new-consumer-with-existing-uuid-ref
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secrets
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: "changes[?resource_type=='ai_gateway_consumer'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: support-agent-second
+
+  - name: 002c-gateway-name-isolates-consumer-identity
+    inputOverlayOps:
+      - file: config.yaml
+        match: "ai_gateways[?ref=='ai-gateway-consumer-e2e'] | [0]"
+        set:
+          ref: ai-gateway-consumer-second-local-ref
+          name: ai-gateway-consumer-second
+    commands:
+      # Keep the display_name and namespace, and all child names unchanged.
+      # Issue #2093: the old gateway must not supply this gateway's consumers.
+      - name: 000-plan-new-gateway-and-consumers-with-shared-display-name
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+          - --write-secrets
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 4
+          - select: "changes[?resource_type=='ai_gateway'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                fields.name: ai-gateway-consumer-second
+                fields.display_name: "{{ .vars.gateway_name }}"
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.name: "{{ .vars.consumer_name }}"
+                references.ai_gateway_id.ref: ai-gateway-consumer-second-local-ref
+          - select: >-
+              changes[?resource_type=='ai_gateway_consumer_credential'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                parent.ref: "{{ .vars.consumer_ref }}"
+
   - name: 003-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update

@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// ExtractPageAfterCursor returns the cursor value from a paginated "next" link.
-// It tolerates raw URLs as well as plain query parameter snippets.
+// ExtractPageAfterCursor returns the cursor from a pagination token, next-page
+// URL, or query parameter snippet. Bare tokens are opaque and are not decoded.
 func ExtractPageAfterCursor(next *string) string {
 	if next == nil {
 		return ""
@@ -33,7 +33,10 @@ func ExtractPageAfterCursor(next *string) string {
 		}
 	}
 
-	return ""
+	if strings.Contains(value, "://") || strings.Contains(value, "?") {
+		return ""
+	}
+	return value
 }
 
 func extractPageAfterCursorSnippet(value string) (string, bool) {

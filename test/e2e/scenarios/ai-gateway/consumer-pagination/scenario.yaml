@@ -1,0 +1,118 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-consumers-across-pages-and-gateways
+    commands:
+      - name: 000-generate-consumers
+        exec:
+          - python3
+          - "{{ .workdir }}/generate_consumers.py"
+          - "{{ .workdir }}/config.yaml"
+        assertions:
+          - expect:
+              fields:
+                gateways: 2
+                consumers: 105
+      - name: 001-apply-consumers
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 107
+                failed: 0
+                status: success
+      - name: 002-list-all-primary-consumers
+        env:
+          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
+          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - consumer-pagination-primary
+          - --page-size
+          - "100"
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 104
+                "length([?name=='consumer-000'])": 1
+                "length([?name=='consumer-103'])": 1
+                "length([?labels.parent=='primary'])": 104
+      - name: 003-same-consumer-name-in-second-gateway
+        run:
+          - get
+          - ai-gateway
+          - consumers
+          - --gateway-name
+          - consumer-pagination-secondary
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 1
+                "[0].name": consumer-000
+                "[0].labels.parent": secondary
+      - name: 004-plan-apply-no-phantom-creates
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 005-plan-sync-no-phantom-creates
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 006-sync-no-conflicts
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+                failed: 0
+      - name: 007-cleanup-gateways
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success

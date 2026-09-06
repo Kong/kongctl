@@ -11,7 +11,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 type aiGatewayPlannerImpl struct {
@@ -62,7 +61,7 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 
-	currentByID, currentByName, currentByDisplayName := indexAIGateways(currentGateways)
+	currentByName := indexAIGateways(currentGateways)
 
 	if plan.Metadata.Mode == PlanModeDelete {
 		var protectionErrors []error
@@ -70,15 +69,7 @@ func (p *Planner) planAIGatewayChanges(
 			if desiredGateway.IsExternal() {
 				continue
 			}
-			current, exists, err := matchCurrentAIGateway(
-				desiredGateway,
-				currentByID,
-				currentByName,
-				currentByDisplayName,
-			)
-			if err != nil {
-				return err
-			}
+			current, exists := currentByName[desiredGateway.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
 					"ai_gateway %q not found in Konnect, skipping delete", desiredGateway.DisplayName,
@@ -113,10 +104,7 @@ func (p *Planner) planAIGatewayChanges(
 			continue
 		}
 
-		current, exists, err := matchCurrentAIGateway(desiredGateway, currentByID, currentByName, currentByDisplayName)
-		if err != nil {
-			return err
-		}
+		current, exists := currentByName[desiredGateway.Name]
 		gatewayID := ""
 		gatewayChangeID := ""
 		if !exists {
@@ -699,71 +687,14 @@ func (p *Planner) shouldUpdateAIGateway(
 	return len(updates) > 0, updates, changedFields
 }
 
-func indexAIGateways(
-	gateways []state.AIGateway,
-) (map[string]state.AIGateway, map[string]state.AIGateway, map[string][]state.AIGateway) {
-	byID := make(map[string]state.AIGateway)
-	byName := make(map[string]state.AIGateway)
-	byDisplayName := make(map[string][]state.AIGateway)
+func indexAIGateways(gateways []state.AIGateway) map[string]state.AIGateway {
+	byName := make(map[string]state.AIGateway, len(gateways))
 	for _, gateway := range gateways {
-		if gateway.ID != "" {
-			byID[gateway.ID] = gateway
-		}
 		if gateway.Name != "" {
 			byName[gateway.Name] = gateway
 		}
-		byDisplayName[gateway.DisplayName] = append(byDisplayName[gateway.DisplayName], gateway)
 	}
-	return byID, byName, byDisplayName
-}
-
-func matchCurrentAIGateway(
-	desired resources.AIGatewayResource,
-	currentByID map[string]state.AIGateway,
-	currentByName map[string]state.AIGateway,
-	currentByDisplayName map[string][]state.AIGateway,
-) (state.AIGateway, bool, error) {
-	if id := aiGatewayDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists, nil
-	}
-
-	if desired.Name != "" {
-		current, exists := currentByName[desired.Name]
-		if exists {
-			return current, true, nil
-		}
-	}
-
-	if desired.Ref != "" && desired.Ref != desired.Name {
-		current, exists := currentByName[desired.Ref]
-		if exists {
-			return current, true, nil
-		}
-	}
-
-	matches := currentByDisplayName[desired.DisplayName]
-	switch len(matches) {
-	case 0:
-		return state.AIGateway{}, false, nil
-	case 1:
-		return matches[0], true, nil
-	default:
-		return state.AIGateway{}, false, fmt.Errorf(
-			"multiple managed AI Gateways with display_name %q found in namespace; use a UUID ref or remove duplicates",
-			desired.DisplayName,
-		)
-	}
-}
-
-func aiGatewayDesiredID(desired resources.AIGatewayResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func aiGatewayIdentity(gateway state.AIGateway) string {
