@@ -45,32 +45,8 @@ type Executor struct {
 	concurrency int
 
 	// Legacy resource executors; migrated families use resourceExecutors.
-	portalExecutor       *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
-	controlPlaneExecutor *BaseExecutor[kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest]
-	apiExecutor          *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
-	authStrategyExecutor *BaseExecutor[
-		kkComps.CreateAppAuthStrategyRequest,
-		kkComps.UpdateAppAuthStrategyRequest,
-	]
-	dcrProviderExecutor *BaseExecutor[
-		kkComps.CreateDcrProviderRequest,
-		kkComps.UpdateDcrProviderRequest,
-	]
-	catalogServiceExecutor                 *BaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService]
-	dashboardExecutor                      *BaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest]
-	organizationTeamExecutor               *BaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam]
-	organizationTeamRoleExecutor           *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
-	organizationUserTeamMembershipExecutor *BaseExecutor[
-		state.OrganizationUserTeamMembership,
-		state.OrganizationUserTeamMembership,
-	]
-	organizationUserRoleExecutor                    *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
-	organizationSystemAccountTeamMembershipExecutor *BaseExecutor[
-		state.OrganizationSystemAccountTeamMembership,
-		state.OrganizationSystemAccountTeamMembership,
-	]
-	organizationSystemAccountRoleExecutor    *BaseExecutor[kkComps.AssignRole, kkComps.AssignRole]
-	controlPlaneDataPlaneCertificateExecutor *BaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest]
+	portalExecutor *BaseExecutor[kkComps.CreatePortal, kkComps.UpdatePortal]
+	apiExecutor    *BaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest]
 
 	// Portal child resource executors
 	portalCustomizationExecutor    *BaseSingletonExecutor[kkComps.PortalCustomization]
@@ -185,80 +161,20 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		client,
 		dryRun,
 	)
-	e.controlPlaneExecutor = NewManagedLabelBaseExecutor[
-		kkComps.CreateControlPlaneRequest, kkComps.UpdateControlPlaneRequest,
-	](
-		NewControlPlaneAdapter(client),
-		client,
-		dryRun,
-	)
+	e.registerControlPlaneExecutor()
 	e.apiExecutor = NewManagedLabelBaseExecutor[kkComps.CreateAPIRequest, kkComps.UpdateAPIRequest](
 		NewAPIAdapter(client),
 		client,
 		dryRun,
 	)
-	e.authStrategyExecutor = NewManagedLabelBaseExecutor[
-		kkComps.CreateAppAuthStrategyRequest, kkComps.UpdateAppAuthStrategyRequest,
-	](
-		NewAuthStrategyAdapter(client),
-		client,
-		dryRun,
-	)
-	e.dcrProviderExecutor = NewManagedLabelBaseExecutor[
-		kkComps.CreateDcrProviderRequest, kkComps.UpdateDcrProviderRequest,
-	](
-		NewDCRProviderAdapter(client),
-		client,
-		dryRun,
-	)
-	e.catalogServiceExecutor = NewManagedLabelBaseExecutor[kkComps.CreateCatalogService, kkComps.UpdateCatalogService](
-		NewCatalogServiceAdapter(client),
-		client,
-		dryRun,
-	)
+	e.registerAuthStrategyExecutor()
+	e.registerDCRProviderExecutor()
+	e.registerCatalogServiceExecutor()
 	e.registerAIGatewayExecutors()
-	e.dashboardExecutor = NewManagedLabelBaseExecutor[kkComps.DashboardUpdateRequest, kkComps.DashboardUpdateRequest](
-		NewDashboardAdapter(client),
-		client,
-		dryRun,
-	)
+	e.registerDashboardExecutor()
 	e.registerEventGatewayControlPlaneExecutor()
-	e.organizationTeamExecutor = NewManagedLabelBaseExecutor[kkComps.CreateTeam, kkComps.UpdateTeam](
-		NewOrganizationTeamAdapter(client),
-		client,
-		dryRun,
-	)
-	e.organizationTeamRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
-		NewOrganizationTeamRoleAdapter(client),
-		client,
-		dryRun,
-	)
-	e.organizationUserTeamMembershipExecutor = NewBaseExecutor[
-		state.OrganizationUserTeamMembership, state.OrganizationUserTeamMembership](
-		NewOrganizationUserTeamMembershipAdapter(client),
-		client,
-		dryRun,
-	)
-	e.organizationUserRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
-		NewOrganizationUserRoleAdapter(client),
-		client,
-		dryRun,
-	)
-	e.organizationSystemAccountTeamMembershipExecutor = NewBaseExecutor[
-		state.OrganizationSystemAccountTeamMembership, state.OrganizationSystemAccountTeamMembership](
-		NewOrganizationSystemAccountTeamMembershipAdapter(client),
-		client,
-		dryRun,
-	)
-	e.organizationSystemAccountRoleExecutor = NewBaseExecutor[kkComps.AssignRole, kkComps.AssignRole](
-		NewOrganizationSystemAccountRoleAdapter(client),
-		client,
-		dryRun,
-	)
-	e.controlPlaneDataPlaneCertificateExecutor = NewBaseCreateDeleteExecutor[kkComps.DataPlaneClientCertificateRequest](
-		NewControlPlaneDataPlaneCertificateAdapter(client),
-		dryRun,
-	)
+	e.registerOrganizationExecutors()
+	e.registerControlPlaneDataPlaneCertificateExecutor()
 
 	e.registerEventGatewayChildExecutors()
 
@@ -366,19 +282,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 
 	e.registerPayloadContracts(
 		e.portalExecutor,
-		e.controlPlaneExecutor,
 		e.apiExecutor,
-		e.authStrategyExecutor,
-		e.dcrProviderExecutor,
-		e.catalogServiceExecutor,
-		e.dashboardExecutor,
-		e.organizationTeamExecutor,
-		e.organizationTeamRoleExecutor,
-		e.organizationUserTeamMembershipExecutor,
-		e.organizationUserRoleExecutor,
-		e.organizationSystemAccountTeamMembershipExecutor,
-		e.organizationSystemAccountRoleExecutor,
-		e.controlPlaneDataPlaneCertificateExecutor,
 		e.portalCustomizationExecutor,
 		e.portalAuthSettingsExecutor,
 		e.portalIntegrationExecutor,
@@ -2491,34 +2395,9 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalExecutor.Create(ctx, *change)
-	case planner.ResourceTypeControlPlane:
-		id, err := e.controlPlaneExecutor.Create(ctx, *change)
-		if err != nil {
-			return "", err
-		}
-		if err := e.syncControlPlaneGroupMembers(ctx, change, id); err != nil {
-			return "", err
-		}
-		return id, nil
-	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
-		if controlPlaneRef, ok := change.References[planner.FieldControlPlaneID]; ok && controlPlaneRef.ID == "" {
-			controlPlaneID, err := e.resolveControlPlaneRef(ctx, controlPlaneRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve control plane reference: %w", err)
-			}
-			controlPlaneRef.ID = controlPlaneID
-			change.References[planner.FieldControlPlaneID] = controlPlaneRef
-		}
-		return e.controlPlaneDataPlaneCertificateExecutor.Create(ctx, *change)
 	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Create(ctx, *change)
-	case planner.ResourceTypeCatalogService:
-		return e.catalogServiceExecutor.Create(ctx, *change)
-	case planner.ResourceTypeDashboard:
-		return e.dashboardExecutor.Create(ctx, *change)
-	case planner.ResourceTypeDCRProvider:
-		return e.dcrProviderExecutor.Create(ctx, *change)
 	case planner.ResourceTypeAPIVersion:
 		// First resolve API reference if needed
 		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
@@ -2596,11 +2475,6 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldParentDocumentID] = parentRef
 		}
 		return e.apiDocumentExecutor.Create(ctx, *change)
-	case planner.ResourceTypeApplicationAuthStrategy:
-		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
-			return "", err
-		}
-		return e.authStrategyExecutor.Create(ctx, *change)
 	case planner.ResourceTypePortalCustomization:
 		// Portal customization is a singleton resource - always exists, so we update instead
 		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
@@ -2775,52 +2649,6 @@ func (e *Executor) createResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldPortalID] = portalRef
 		}
 		return e.portalEmailTemplateExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationTeam:
-		return e.organizationTeamExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationTeamRole:
-		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
-			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
-			}
-			teamRef.ID = teamID
-			change.References[planner.FieldTeamID] = teamRef
-		}
-		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
-			return "", err
-		}
-		return e.organizationTeamRoleExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationUserTeamMembership:
-		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
-			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
-			}
-			teamRef.ID = teamID
-			change.References[planner.FieldTeamID] = teamRef
-		}
-		return e.organizationUserTeamMembershipExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationUserRole:
-		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
-			return "", err
-		}
-		return e.organizationUserRoleExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationSystemAccountTeamMembership:
-		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
-			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
-			if err != nil {
-				return "", fmt.Errorf("failed to resolve organization team reference: %w", err)
-			}
-			teamRef.ID = teamID
-			change.References[planner.FieldTeamID] = teamRef
-		}
-		return e.organizationSystemAccountTeamMembershipExecutor.Create(ctx, *change)
-	case planner.ResourceTypeOrganizationSystemAccountRole:
-		if err := e.resolveRoleEntityRef(ctx, change); err != nil {
-			return "", err
-		}
-		return e.organizationSystemAccountRoleExecutor.Create(ctx, *change)
-
 	default:
 		return "", fmt.Errorf("create operation not yet implemented for %s", change.ResourceType)
 	}
@@ -2837,21 +2665,8 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 			return "", err
 		}
 		return e.portalExecutor.Update(ctx, *change)
-	case planner.ResourceTypeControlPlane:
-		id, err := e.controlPlaneExecutor.Update(ctx, *change)
-		if err != nil {
-			return "", err
-		}
-		if err := e.syncControlPlaneGroupMembers(ctx, change, id); err != nil {
-			return "", err
-		}
-		return id, nil
 	case planner.FieldAPI:
 		return e.apiExecutor.Update(ctx, *change)
-	case planner.ResourceTypeCatalogService:
-		return e.catalogServiceExecutor.Update(ctx, *change)
-	case planner.ResourceTypeDashboard:
-		return e.dashboardExecutor.Update(ctx, *change)
 	case planner.ResourceTypeAPIDocument:
 		// First resolve API reference if needed
 		if apiRef, ok := change.References[planner.FieldAPIID]; ok && apiRef.ID == "" {
@@ -2907,13 +2722,6 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		// Use Create method which handles PUT (both create and update)
 		return e.apiPublicationExecutor.Create(ctx, *change)
-	case planner.ResourceTypeApplicationAuthStrategy:
-		if err := e.syncResolvedDCRProviderID(ctx, change); err != nil {
-			return "", err
-		}
-		return e.authStrategyExecutor.Update(ctx, *change)
-	case planner.ResourceTypeDCRProvider:
-		return e.dcrProviderExecutor.Update(ctx, *change)
 	case planner.ResourceTypePortalCustomization:
 		portalID, err := e.resolvePortalRef(ctx, change.References[planner.FieldPortalID])
 		if err != nil {
@@ -3083,8 +2891,6 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.apiVersionExecutor.Update(ctx, *change)
 	// Note: api_publication and api_implementation don't support update
-	case planner.ResourceTypeOrganizationTeam:
-		return e.organizationTeamExecutor.Update(ctx, *change)
 	default:
 		return "", fmt.Errorf("update operation not yet implemented for %s", change.ResourceType)
 	}
@@ -3099,20 +2905,9 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	case planner.ResourceTypePortal:
 		// No references to resolve for portal
 		return e.portalExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeControlPlane:
-		if err := e.detachControlPlaneGroupMembers(ctx, change); err != nil {
-			return fmt.Errorf("failed to detach control plane group members: %w", err)
-		}
-		return e.controlPlaneExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeControlPlaneDataPlaneCertificate:
-		return e.controlPlaneDataPlaneCertificateExecutor.Delete(ctx, *change)
 	case planner.FieldAPI:
 		// No references to resolve for api
 		return e.apiExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeCatalogService:
-		return e.catalogServiceExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeDashboard:
-		return e.dashboardExecutor.Delete(ctx, *change)
 	case planner.ResourceTypeAPIVersion:
 		// No references to resolve for api_version delete
 		return e.apiVersionExecutor.Delete(ctx, *change)
@@ -3134,10 +2929,6 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 			change.References[planner.FieldAPIID] = apiRef
 		}
 		return e.apiDocumentExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeApplicationAuthStrategy:
-		return e.authStrategyExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeDCRProvider:
-		return e.dcrProviderExecutor.Delete(ctx, *change)
 	case planner.ResourceTypePortalCustomDomain:
 		// No references to resolve for portal_custom_domain
 		return e.portalDomainExecutor.Delete(ctx, *change)
@@ -3253,26 +3044,6 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 		}
 		return e.portalEmailTemplateExecutor.Delete(ctx, *change)
 	// Note: portal_customization is a singleton resource and cannot be deleted
-	case planner.ResourceTypeOrganizationTeam:
-		return e.organizationTeamExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeOrganizationTeamRole:
-		if teamRef, ok := change.References[planner.FieldTeamID]; ok && teamRef.ID == "" {
-			teamID, err := e.resolveOrganizationTeamRef(ctx, teamRef)
-			if err != nil {
-				return fmt.Errorf("failed to resolve organization team reference: %w", err)
-			}
-			teamRef.ID = teamID
-			change.References[planner.FieldTeamID] = teamRef
-		}
-		return e.organizationTeamRoleExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeOrganizationUserTeamMembership:
-		return e.organizationUserTeamMembershipExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeOrganizationUserRole:
-		return e.organizationUserRoleExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeOrganizationSystemAccountTeamMembership:
-		return e.organizationSystemAccountTeamMembershipExecutor.Delete(ctx, *change)
-	case planner.ResourceTypeOrganizationSystemAccountRole:
-		return e.organizationSystemAccountRoleExecutor.Delete(ctx, *change)
 	default:
 		return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
 	}

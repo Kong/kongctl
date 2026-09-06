@@ -92,6 +92,27 @@ func prepareResourceWrite(
 	}
 }
 
+// afterResourceWrite runs follow-up work only after a successful write and
+// reports success only when both steps complete.
+func afterResourceWrite(
+	write resourceWrite,
+	after func(context.Context, *planner.PlannedChange, string) error,
+) resourceWrite {
+	if write == nil {
+		return nil
+	}
+	return func(ctx context.Context, change *planner.PlannedChange) (string, error) {
+		id, err := write(ctx, change)
+		if err != nil {
+			return "", err
+		}
+		if err := after(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
+	}
+}
+
 func (e *Executor) registerResourceExecutor(resource resourceExecutor) {
 	if resource.contract == nil || resource.contract.ResourceType() == "" {
 		panic("resource executor requires a payload contract and resource type")

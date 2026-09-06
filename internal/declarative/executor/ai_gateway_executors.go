@@ -1,11 +1,5 @@
 package executor
 
-import (
-	"context"
-
-	"github.com/kong/kongctl/internal/declarative/planner"
-)
-
 // registerAIGatewayExecutors is the runtime inventory for AI Gateway resources.
 // Each entry supplies construction, supported actions, and payload validation.
 func (e *Executor) registerAIGatewayExecutors() {
@@ -39,8 +33,8 @@ func (e *Executor) registerAIGatewayExecutors() {
 	consumerGroup := crudResourceExecutor(
 		NewBaseExecutor(NewAIGatewayConsumerGroupAdapter(client), client, dryRun),
 	)
-	consumerGroup.create = e.withAIGatewayConsumerGroupConsumers(consumerGroup.create)
-	consumerGroup.update = e.withAIGatewayConsumerGroupConsumers(consumerGroup.update)
+	consumerGroup.create = afterResourceWrite(consumerGroup.create, e.syncAIGatewayConsumerGroupConsumers)
+	consumerGroup.update = afterResourceWrite(consumerGroup.update, e.syncAIGatewayConsumerGroupConsumers)
 	registerChild(consumerGroup)
 
 	registerChild(crudResourceExecutor(
@@ -70,17 +64,4 @@ func (e *Executor) registerAIGatewayExecutors() {
 	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewAIGatewaySNIAdapter(client), client, dryRun),
 	))
-}
-
-func (e *Executor) withAIGatewayConsumerGroupConsumers(write resourceWrite) resourceWrite {
-	return func(ctx context.Context, change *planner.PlannedChange) (string, error) {
-		id, err := write(ctx, change)
-		if err != nil {
-			return "", err
-		}
-		if err := e.syncAIGatewayConsumerGroupConsumers(ctx, change, id); err != nil {
-			return "", err
-		}
-		return id, nil
-	}
 }
