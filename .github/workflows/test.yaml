@@ -91,6 +91,12 @@ jobs:
       - name: test installer
         run: |
           make test-installer
+      - name: Test release metadata and signing failure gates without secrets
+        run: |
+          bash scripts/tests/test-homebrew-formula.sh
+          bash scripts/tests/test-prepare-apple-signing.sh
+          bash scripts/tests/test-verify-apple-binary.sh
+          bash scripts/tests/test-apple-release-gates.sh
       - name: test
         run: |
           go test -race -count=1 ./...

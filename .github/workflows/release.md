@@ -572,273 +572,197 @@ jobs:
           RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
         run: bash scripts/publish-apple-release.sh receipts
 
-  publish_homebrew:
+  publish_cask:
     needs: ["config", "publish_release", "approve_release"]
     runs-on: ubuntu-latest
     permissions:
-      actions: read
       contents: read
-    env:
-      RELEASE_ARTIFACT_MODE: ${{ needs.config.outputs.artifact_mode }}
-      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
-      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
-      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
-        with:
-          egress-policy: audit
-      - name: Checkout repository
-        if: env.RELEASE_BUILD_MODE == 'full'
-        uses: actions/checkout@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
         with:
           persist-credentials: false
-
-      - name: Reuse existing Homebrew publication (recovery mode)
-        if: env.RELEASE_BUILD_MODE == 'recovery' && env.RELEASE_ARTIFACT_MODE == 'full'
-        run: |
-          echo "Recovery mode will verify the existing Homebrew publication for $RELEASE_TAG"
-
-      - name: Skip Homebrew publication (smoke mode)
-        if: env.RELEASE_ARTIFACT_MODE == 'smoke'
-        run: |
-          echo "Smoke mode does not publish Homebrew files"
-
-      - name: Download generated Homebrew files
-        if: env.RELEASE_BUILD_MODE == 'full'
-        uses: actions/download-artifact@v8.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.config.outputs.build_mode == 'full'
         with:
           name: homebrew-${{ needs.config.outputs.release_tag }}
           path: dist/homebrew
-
-      - name: Set up Homebrew
-        if: env.RELEASE_BUILD_MODE == 'full'
-        uses: Homebrew/actions/setup-homebrew@cced187498280712e078aaba62dc13a3e9cd80bf
-
-      - name: Fetch Homebrew tap
-        if: env.RELEASE_BUILD_MODE == 'full'
-        env:
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+        if: needs.config.outputs.build_mode == 'full'
+      - name: Test and style the generated cask
+        if: needs.config.outputs.build_mode == 'full'
         run: |
           set -euo pipefail
-          tap_path="$(brew --repository)/Library/Taps/kong/homebrew-kongctl"
-          rm -rf "$tap_path"
-          mkdir -p "$(dirname "$tap_path")"
-          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
-          git clone --depth 1 \
-            "${tap_url}/kong/homebrew-kongctl.git" \
-            "$tap_path"
-          echo "HOMEBREW_KONGCTL_TAP=$tap_path" >> "$GITHUB_ENV"
-
-      - name: Update Homebrew packages
-        if: env.RELEASE_BUILD_MODE == 'full'
-        run: |
-          set -euo pipefail
-
-          generated_cask=dist/homebrew/Casks/kongctl.rb
-          metadata_file=dist/homebrew/goreleaser-metadata.json
-          if [[ ! -f "$generated_cask" || ! -f "$metadata_file" ]]; then
-            echo "::error::Homebrew artifact is missing generated release data"
-            exit 1
-          fi
-
-          metadata_version=$(jq -r '.version' "$metadata_file")
-          metadata_commit=$(jq -r '.commit[0:8]' "$metadata_file")
-          metadata_date=$(jq -r '.date' "$metadata_file")
-          if [[ "$metadata_version" != "$RELEASE_VERSION" ]]; then
-            echo "::error::GoReleaser metadata version $metadata_version" \
-              "does not match $RELEASE_VERSION"
-            exit 1
-          fi
-
-          mkdir -p "$HOMEBREW_KONGCTL_TAP/Casks"
-          cp "$generated_cask" "$HOMEBREW_KONGCTL_TAP/Casks/kongctl.rb"
-          ./scripts/update-homebrew-formula.sh \
-            "$HOMEBREW_KONGCTL_TAP/Formula/kongctl.rb" \
-            "$metadata_version" \
-            "$metadata_commit" \
-            "$metadata_date"
-
-      - name: Fix Homebrew tap style
-        if: env.RELEASE_BUILD_MODE == 'full'
-        run: ./scripts/fix-homebrew-tap.sh "$HOMEBREW_KONGCTL_TAP"
-
-      - name: Validate Homebrew packages
-        if: env.RELEASE_BUILD_MODE == 'full'
-        run: |
-          set -euo pipefail
-          brew audit --new --formula kong/kongctl/kongctl
+          brew tap-new kong/kongctl
+          tap_dir=$(brew --repository kong/kongctl)
+          mkdir -p "$tap_dir/Casks"
+          cp dist/homebrew/Casks/kongctl.rb "$tap_dir/Casks/kongctl.rb"
+          brew style --fix "$tap_dir/Casks/kongctl.rb"
+          brew trust --tap kong/kongctl
           brew install --cask kong/kongctl/kongctl
           kongctl version --full
           brew uninstall --cask kong/kongctl/kongctl
-          brew install --formula --build-from-source kong/kongctl/kongctl
-          brew test kong/kongctl/kongctl
-          kongctl version --full
-
-      - name: Publish Homebrew cask
-        if: env.RELEASE_BUILD_MODE == 'full'
+          cp "$tap_dir/Casks/kongctl.rb" dist/homebrew/Casks/kongctl.rb
+      - name: Preserve independent direct-main cask publication
+        if: needs.config.outputs.build_mode == 'full'
         env:
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+        run: bash scripts/homebrew/publish-tap.sh cask dist/homebrew/Casks/kongctl.rb "$RELEASE_VERSION"
+
+  package_bottles:
+    needs: ["config", "approve_release"]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+        if: needs.config.outputs.build_mode == 'full'
+      - name: Download approved upstream executables
+        if: needs.config.outputs.build_mode == 'full'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+        run: |
+          mkdir -p dist/upstream
+          gh release download "$RELEASE_TAG" --repo Kong/kongctl --dir dist/upstream \
+            --pattern checksums.txt --pattern 'kongctl_*.zip'
+      - name: Package and pour without recompiling or signing again
+        if: needs.config.outputs.build_mode == 'full'
+        env:
+          RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: bash scripts/homebrew/package-bottle.sh dist/upstream "$RELEASE_VERSION" dist/bottles
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          name: upstream-bottles-${{ needs.config.outputs.release_tag }}-${{ matrix.os }}
+          path: dist/bottles/
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
+  publish_bottles:
+    needs: ["config", "package_bottles"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+        if: needs.config.outputs.build_mode == 'full'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          pattern: upstream-bottles-${{ needs.config.outputs.release_tag }}-*
+          path: dist/bottles
+          merge-multiple: true
+      - name: Validate and merge Homebrew metadata
+        if: needs.config.outputs.build_mode == 'full'
+        env:
+          RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+        run: bash scripts/homebrew/prepare-publication.sh dist/bottles "$RELEASE_VERSION"
+      - name: Publish new bottles or verify an identical completed upload
+        if: needs.config.outputs.build_mode == 'full'
+        env:
+          RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+          HOMEBREW_GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_GITHUB_PACKAGES_USER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-          cd "$HOMEBREW_KONGCTL_TAP"
-          git config user.name "kongctl Release Bot"
-          git config user.email "kongctl@konghq.com"
-          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
-          git remote set-url origin \
-            "${tap_url}/kong/homebrew-kongctl.git"
-
-          if git diff --quiet -- Casks/kongctl.rb; then
-            echo "The Homebrew cask already publishes kongctl $RELEASE_VERSION"
+          if bash scripts/homebrew/check-public-bottles.sh dist/bottles "$RELEASE_VERSION"; then
+            echo "Identical bottles are already public; reusing them"
           else
-            git add Casks/kongctl.rb
-            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION} cask"
-            git push origin HEAD:main
+            status=$?
+            [[ "$status" == 3 ]] || exit "$status"
+            (cd dist/bottles && brew pr-upload --upload-only)
           fi
+          bash scripts/homebrew/check-public-bottles.sh dist/bottles "$RELEASE_VERSION"
+      - name: Attest the final bottle bytes
+        if: needs.config.outputs.build_mode == 'full'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/bottles/*.tar.gz
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          name: upstream-formula-${{ needs.config.outputs.release_tag }}
+          path: dist/bottles/kongctl.rb
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
 
-      - name: Open Homebrew formula pull request
-        id: homebrew_pr
-        if: env.RELEASE_BUILD_MODE == 'full'
+  verify_published_bottles:
+    needs: ["config", "publish_bottles"]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          persist-credentials: false
+      - uses: Homebrew/actions/setup-homebrew@3cdb78d0f62ad29dd32de765782654f4eedea607 # 2026.08.31.1
+        if: needs.config.outputs.build_mode == 'full'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          name: upstream-formula-${{ needs.config.outputs.release_tag }}
+          path: dist/formula
+      - name: Pour anonymously and compare with upstream release
+        if: needs.config.outputs.build_mode == 'full'
+        env:
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+        run: bash scripts/homebrew/verify-public-bottle.sh dist/formula/kongctl.rb
+
+  publish_homebrew:
+    needs: ["config", "verify_published_bottles"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.config.outputs.build_mode == 'full'
+        with:
+          name: upstream-formula-${{ needs.config.outputs.release_tag }}
+          path: dist/formula
+      - name: Publish formula metadata through the tap's guarded PR merger
+        if: needs.config.outputs.build_mode == 'full'
         env:
           GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          cd "$HOMEBREW_KONGCTL_TAP"
-          git config user.name "kongctl Release Bot"
-          git config user.email "kongctl@konghq.com"
-          tap_url="https://x-access-token:${TAP_GITHUB_TOKEN}@github.com"
-          git remote set-url origin \
-            "${tap_url}/kong/homebrew-kongctl.git"
-
-          if git diff --quiet -- Formula/kongctl.rb; then
-            echo "The Homebrew formula already publishes kongctl $RELEASE_VERSION"
-            echo "number=" >> "$GITHUB_OUTPUT"
-            echo "head_sha=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          branch="release/kongctl-${RELEASE_VERSION}"
-          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null 2>&1; then
-            git fetch origin "$branch"
-            if ! git diff --quiet FETCH_HEAD -- Formula/kongctl.rb; then
-              echo "::error::Existing $branch does not match this release"
-              exit 1
-            fi
-
-            pr_number=$(gh pr list \
-              --repo Kong/homebrew-kongctl \
-              --head "$branch" \
-              --state open \
-              --json number \
-              --jq '.[0].number // empty')
-            if [[ -z "$pr_number" ]]; then
-              echo "::error::Existing $branch has no open pull request"
-              exit 1
-            fi
-          else
-            git switch --create "$branch"
-            git add Formula/kongctl.rb
-            git commit -m "homebrew: publish kongctl ${RELEASE_VERSION} formula"
-            git push --set-upstream origin "$branch"
-
-            pr_body="Publish the formula for kongctl ${RELEASE_VERSION}. "
-            pr_body+="Homebrew CI builds native bottles before the automated "
-            pr_body+="brew pr-pull workflow publishes this change. The cask "
-            pr_body+="continues to use its existing direct publication path."
-            pr_url=$(gh pr create \
-              --repo Kong/homebrew-kongctl \
-              --base main \
-              --head "$branch" \
-              --title "homebrew: publish kongctl ${RELEASE_VERSION}" \
-              --body "$pr_body")
-            pr_number=${pr_url##*/}
-          fi
-
-          head_sha=$(gh pr view "$pr_number" \
-            --repo Kong/homebrew-kongctl \
-            --json headRefOid \
-            --jq '.headRefOid')
-          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
-          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
-          echo "Homebrew formula PR: https://github.com/Kong/homebrew-kongctl/pull/$pr_number"
-
-      - name: Wait for Homebrew bottle builds
-        if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
-        env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.homebrew_pr.outputs.number }}
-        run: |
-          set -euo pipefail
-
-          for attempt in {1..30}; do
-            bottle_check_count=$(gh pr view "$PR_NUMBER" \
-              --repo Kong/homebrew-kongctl \
-              --json statusCheckRollup \
-              --jq '[.statusCheckRollup[] | select(.name | startswith("test-bot ("))] | length')
-            if (( bottle_check_count >= 3 )); then
-              break
-            fi
-            if (( attempt == 30 )); then
-              echo "::error::Native bottle checks did not start for Homebrew PR $PR_NUMBER"
-              exit 1
-            fi
-            sleep 10
-          done
-
-          gh pr checks "$PR_NUMBER" \
-            --repo Kong/homebrew-kongctl \
-            --watch \
-            --fail-fast \
-            --interval 15
-
-      - name: Publish Homebrew formula and bottles
-        if: env.RELEASE_BUILD_MODE == 'full' && steps.homebrew_pr.outputs.number != ''
-        env:
-          GH_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-          HEAD_SHA: ${{ steps.homebrew_pr.outputs.head_sha }}
-          PR_NUMBER: ${{ steps.homebrew_pr.outputs.number }}
-        run: |
-          set -euo pipefail
-
-          gh workflow run publish.yml \
-            --repo Kong/homebrew-kongctl \
-            --ref main \
-            --field pull_request="$PR_NUMBER" \
-            --field head_sha="$HEAD_SHA"
-
-          for attempt in {1..160}; do
-            pr_state=$(gh pr view "$PR_NUMBER" \
-              --repo Kong/homebrew-kongctl \
-              --json state,mergedAt \
-              --jq 'if .mergedAt then "merged" else (.state | ascii_downcase) end')
-            case "$pr_state" in
-              merged|closed)
-                published_formula=$(gh api \
-                  "repos/Kong/homebrew-kongctl/contents/Formula/kongctl.rb?ref=main" \
-                  --jq '.content' | base64 --decode)
-                if grep -Fq \
-                  "url \"https://github.com/Kong/kongctl/archive/refs/tags/v${RELEASE_VERSION}.tar.gz\"" \
-                  <<< "$published_formula" && \
-                    grep -Fqx "  bottle do" <<< "$published_formula"; then
-                  echo "Homebrew PR $PR_NUMBER published with bottles"
-                  git -C "$HOMEBREW_KONGCTL_TAP" push origin \
-                    --delete "release/kongctl-${RELEASE_VERSION}" || \
-                    echo "::warning::Unable to delete the published Homebrew release branch"
-                  exit 0
-                fi
-                echo "::error::Homebrew PR $PR_NUMBER closed without publishing the formula"
-                exit 1
-                ;;
-            esac
-            sleep 15
-          done
-
-          echo "::error::Timed out waiting for Homebrew PR $PR_NUMBER to publish"
-          exit 1
+          RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+        run: bash scripts/homebrew/publish-tap.sh formula dist/formula/kongctl.rb "$RELEASE_VERSION"
 
   release_complete:
-    needs: ["config", "publish_release", "publish_homebrew"]
+    needs: ["config", "publish_release", "publish_cask", "publish_homebrew"]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -924,8 +848,7 @@ jobs:
 
             gh api repos/Kong/homebrew-kongctl/contents/Formula/kongctl.rb \
               --jq .content | base64 --decode > "$verification_dir/kongctl-formula.rb"
-            source_url="  url \"https://github.com/Kong/kongctl/archive/refs/tags/v${RELEASE_VERSION}.tar.gz\""
-            if ! grep -Fqx "$source_url" "$verification_dir/kongctl-formula.rb"; then
+            if ! grep -Fqx "  version \"$RELEASE_VERSION\"" "$verification_dir/kongctl-formula.rb"; then
               echo "::error::Homebrew formula is not at $RELEASE_VERSION"
               exit 1
             fi
@@ -939,6 +862,10 @@ jobs:
                 kongctl_darwin_*.zip|kongctl_linux_*.zip)
                   if ! grep -Fq "sha256 \"$checksum\"" "$verification_dir/kongctl.rb"; then
                     echo "::error::Homebrew cask is missing the checksum for $archive"
+                    exit 1
+                  fi
+                  if ! grep -Fq "sha256 \"$checksum\"" "$verification_dir/kongctl-formula.rb"; then
+                    echo "::error::Homebrew formula is missing the upstream checksum for $archive"
                     exit 1
                   fi
                   ;;
