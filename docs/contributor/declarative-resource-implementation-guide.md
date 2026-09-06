@@ -36,12 +36,14 @@ A resource declaration, SDK request, observed response, and planned change
 are different representations. Do not use resource serialization as an API
 request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
-The [resource registry][registry] already drives iteration, aggregation,
+The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
-Loader scope/extraction, namespace participation, relationships, state-client
-wiring, executor routing, and dump collection still have separate integration
-points. Registering a type does not complete those steps automatically.
+[Runtime executor registration][runtime-executors] supplies action routing and
+payload validation for AI Gateway resources. Other executor families, loader
+scope/extraction, namespace participation, relationships, state-client wiring,
+and dump collection still have separate integration points. Registering a
+declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
 
@@ -238,11 +240,24 @@ through the current execution path, including parents created in the same
 plan. Use SDK label conversion helpers so user-label removal and managed
 labels survive updates.
 
-[Executor construction and routing][executor] still require explicit wiring.
-Inspect `NewWithOptions`, `createResource`, `updateResource`,
-`deleteResource`, and payload registration for supported actions and any
-resource-specific reference or post-operation work. Preserve created-ID
-tracking, execution groups, dry-run behavior, and current-state checks.
+For AI Gateway resources, add one entry to
+[`registerAIGatewayExecutors`][ai-executors]. The typed base executor supplies
+its resource kind and payload contract. `crudResourceExecutor` exposes
+create/update/delete; `createDeleteResourceExecutor` leaves update unsupported.
+Registration rejects missing contracts, empty action sets, and duplicate kinds,
+including conflicts with the legacy payload inventory. No per-kind field,
+payload-list entry, or action-switch case is needed for these resources.
+
+AI Gateway children share reference preparation before supported operations.
+Consumer groups also synchronize membership after successful create/update.
+Keep exceptional ordering and failures in explicit wrappers; unsupported
+operations must not resolve references or perform API calls.
+
+Other families retain [legacy executor wiring][executor]: inspect
+`NewWithOptions`, the three resource action switches, and payload registration.
+When migrating a family, remove its entries from every superseded inventory.
+Preserve created-ID tracking, execution groups, dry-run behavior,
+current-state checks, and action-specific reference/post-operation work.
 
 ### Payload and saved-plan contracts
 
@@ -443,6 +458,9 @@ engine contract. Each refactoring migration should:
 [cli]:
   ../../internal/cmd/root/products/konnect/declarative/declarative.go
 [executor]: ../../internal/declarative/executor/executor.go
+[runtime-executors]:
+  ../../internal/declarative/executor/resource_executors.go
+[ai-executors]: ../../internal/declarative/executor/ai_gateway_executors.go
 [base-executor]: ../../internal/declarative/executor/base_executor.go
 [base-operations]: ../../internal/declarative/executor/base_operations.go
 [payloads]: ../../internal/declarative/executor/payload_contract.go
