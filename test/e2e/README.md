@@ -687,6 +687,21 @@ prediction. The snapshot records sample counts and source paths/SHA-256 hashes
 and is embedded in the scenario test binary; selection never queries GitHub.
 Refresh is explicit, not part of builds or baseline collection.
 
+Predictions do not learn from each run: unchanged manifests, organizations,
+and weights produce the same proposed assignments. Collect observations first,
+then refresh and review the snapshot when newer timing data warrants it.
+Malformed observation records are rejected before replacing the snapshot.
+
+The build job runs the weighted scheduler tests using its already compiled
+test binary and kongctl executable. This offline check covers the full
+repository corpus, pin preservation, coverage, and identical full-pool reports
+across matrix organizations; it never executes scenarios or contacts Konnect.
+Run it locally with:
+
+```sh
+CGO_ENABLED=0 go test -tags=e2e ./test/e2e -run '^TestWeighted' -v
+```
+
 Each shard's workflow summary compares current and proposed estimated totals,
 longest-shard time, and spread. Its `e2e-artifacts-*` artifact contains:
 

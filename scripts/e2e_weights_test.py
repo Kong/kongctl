@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -99,6 +101,38 @@ class E2EWeightsTest(unittest.TestCase):
             MODULE.generate([path], self.scenarios)
         with self.assertRaisesRegex(ValueError, "no scenarios"):
             MODULE.generate([path], self.root / "missing")
+
+    def test_malformed_records_rejected(self):
+        for field, value in (("run_id", True), ("run_id", 0), ("run_attempt", "1"),
+                             ("scenario_durations", None), ("scenario_durations", [{}])):
+            with self.subTest(field=field, value=value):
+                runs = self.runs()
+                runs[0][field] = value
+                path = self.observations("observations.json", runs)
+                with self.assertRaises(ValueError):
+                    MODULE.generate([path], self.scenarios)
+
+    def test_out_of_range_duration_rejected(self):
+        runs = self.runs()
+        runs[0]["scenario_durations"][0]["duration_seconds"] = 10**400
+        path = self.observations("observations.json", runs)
+        with self.assertRaisesRegex(ValueError, "millisecond range"):
+            MODULE.generate([path], self.scenarios)
+
+    def test_cli_preserves_snapshot_when_input_is_invalid(self):
+        path = self.observations("observations.json", [])
+        path.write_text("null")
+        output = self.root / "weights.json"
+        output.write_text("preserved snapshot\n")
+        result = subprocess.run(
+            [sys.executable, str(Path(MODULE.__file__)), str(path),
+             "--scenario-root", str(self.scenarios), "--output", str(output)],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(2, result.returncode)
+        self.assertIn("unsupported observations", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual("preserved snapshot\n", output.read_text())
 
 
 if __name__ == "__main__":
