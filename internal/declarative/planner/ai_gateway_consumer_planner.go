@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayConsumerChanges(
@@ -49,15 +48,12 @@ func (p *Planner) planAIGatewayConsumerChanges(
 		return fmt.Errorf("failed to list AI Gateway Consumers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayConsumers(currentConsumers)
+	currentByName := indexAIGatewayConsumers(currentConsumers)
 	desiredKeys := make(map[string]bool)
 
 	for _, desiredConsumer := range desired {
-		current, exists := matchCurrentAIGatewayConsumer(desiredConsumer, currentByID, currentByName)
+		current, exists := currentByName[desiredConsumer.Name]
 		desiredKeys[desiredConsumer.Name] = true
-		if id := aiGatewayConsumerDesiredID(desiredConsumer); id != "" {
-			desiredKeys[id] = true
-		}
 
 		if !exists {
 			dependsOn := aiGatewayConsumerPolicyCreateDependencies(
@@ -168,7 +164,7 @@ func (p *Planner) planAIGatewayConsumerChanges(
 		for _, current := range currentConsumers {
 			consumerID := resources.AIGatewayConsumerID(current.AIGatewayConsumer)
 			consumerName := resources.AIGatewayConsumerName(current.AIGatewayConsumer)
-			if desiredKeys[consumerID] || desiredKeys[consumerName] {
+			if desiredKeys[consumerName] {
 				continue
 			}
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -345,43 +341,14 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 	return true, updateFields, changedFields, nil
 }
 
-func indexAIGatewayConsumers(
-	consumers []state.AIGatewayConsumer,
-) (map[string]state.AIGatewayConsumer, map[string]state.AIGatewayConsumer) {
-	byID := make(map[string]state.AIGatewayConsumer)
-	byName := make(map[string]state.AIGatewayConsumer)
+func indexAIGatewayConsumers(consumers []state.AIGatewayConsumer) map[string]state.AIGatewayConsumer {
+	byName := make(map[string]state.AIGatewayConsumer, len(consumers))
 	for _, consumer := range consumers {
-		if id := resources.AIGatewayConsumerID(consumer.AIGatewayConsumer); id != "" {
-			byID[id] = consumer
-		}
 		if name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer); name != "" {
 			byName[name] = consumer
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayConsumer(
-	desired resources.AIGatewayConsumerResource,
-	currentByID map[string]state.AIGatewayConsumer,
-	currentByName map[string]state.AIGatewayConsumer,
-) (state.AIGatewayConsumer, bool) {
-	if id := aiGatewayConsumerDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayConsumerDesiredID(desired resources.AIGatewayConsumerResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func aiGatewayConsumerPolicyCreateDependencies(

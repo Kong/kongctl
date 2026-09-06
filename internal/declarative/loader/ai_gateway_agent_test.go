@@ -11,6 +11,7 @@ import (
 const aiGatewayAgentYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: mask-sensitive-data
@@ -89,6 +90,7 @@ ai_gateway_agents:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     agents:
       - ref: booking-agent

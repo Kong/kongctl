@@ -11,6 +11,7 @@ import (
 const aiGatewayDataPlaneCertificateYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     data_plane_certificates:
       - ref: support-data-plane-cert
@@ -54,6 +55,7 @@ ai_gateway_data_plane_certificates:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     data_plane_certificates:
       - ref: support-data-plane-cert

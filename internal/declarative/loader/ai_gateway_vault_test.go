@@ -11,6 +11,7 @@ import (
 const aiGatewayVaultYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     vaults:
       - ref: support-env
@@ -55,6 +56,7 @@ ai_gateway_vaults:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     vaults:
       - ref: support-env

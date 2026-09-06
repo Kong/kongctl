@@ -11,6 +11,7 @@ import (
 const aiGatewayConsumerGroupYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: mask-sensitive-data
@@ -77,6 +78,7 @@ ai_gateway_consumer_groups:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     consumer_groups:
       - ref: premium-support-users

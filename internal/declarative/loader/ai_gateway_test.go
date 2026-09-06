@@ -1,10 +1,47 @@
 package loader
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoaderRequiresExplicitAIGatewayName(t *testing.T) {
+	for _, nameField := range []string{"", "    name: \"\"\n"} {
+		t.Run(nameField, func(t *testing.T) {
+			input := "ai_gateways:\n  - ref: local-ref\n" + nameField + "    display_name: Gateway Label\n"
+			_, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+			require.ErrorContains(t, err, "name is required for AI Gateway local-ref")
+		})
+	}
+}
+
+func TestLoaderAIGatewayUniquenessUsesName(t *testing.T) {
+	for _, tc := range []struct{ name, displayName, wantError string }{
+		{name: "second-gateway", displayName: "Shared Display"},
+		{name: "first-gateway", displayName: "Different Display", wantError: "duplicate ai_gateway name"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := fmt.Sprintf(`
+ai_gateways:
+  - ref: first-local-ref
+    name: first-gateway
+    display_name: Shared Display
+  - ref: second-local-ref
+    name: %s
+    display_name: %s
+`, tc.name, tc.displayName)
+			rs, err := New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, input), Type: SourceTypeFile}}, false)
+			if tc.wantError != "" {
+				require.ErrorContains(t, err, tc.wantError)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, rs.AIGateways, 2)
+		})
+	}
+}
 
 func TestLoaderPreservesAIGatewayDeploymentType(t *testing.T) {
 	input := `

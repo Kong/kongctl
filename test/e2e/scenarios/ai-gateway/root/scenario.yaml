@@ -60,6 +60,10 @@ steps:
             expect:
               fields:
                 "@": true
+          - select: "contains(required, 'name')"
+            expect:
+              fields:
+                "@": true
       - name: 001-scaffold-ai-gateway
         run:
           - scaffold

@@ -4,6 +4,7 @@ _defaults:
 
 ai_gateways:
   - ref: ai-gateway-consumer-e2e
+    name: ai-gateway-consumer-e2e
     display_name: "AI Gateway Consumer E2E"
     description: "AI Gateway Consumer e2e"
     proxy_urls:

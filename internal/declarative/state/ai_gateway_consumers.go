@@ -18,6 +18,7 @@ func (c *Client) ListAIGatewayConsumers(ctx context.Context, gatewayID string) (
 
 	var allData []kkComps.AIGatewayConsumer
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -38,7 +39,10 @@ func (c *Client) ListAIGatewayConsumers(ctx context.Context, gatewayID string) (
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayConsumersResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayConsumersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

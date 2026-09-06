@@ -1,0 +1,6 @@
+ops:
+  - file: config.yaml
+    match: "ai_gateways[?ref=='ai-gateway-consumer-e2e'].consumers[?ref=='support-agent'] | [0]"
+    set:
+      ref: "{{ .vars.consumer_id }}"
+      name: support-agent-second

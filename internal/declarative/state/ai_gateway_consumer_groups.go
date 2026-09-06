@@ -19,6 +19,7 @@ func (c *Client) ListAIGatewayConsumerGroups(ctx context.Context, gatewayID stri
 
 	var allData []kkComps.AIGatewayConsumerGroup
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -39,7 +40,10 @@ func (c *Client) ListAIGatewayConsumerGroups(ctx context.Context, gatewayID stri
 
 		allData = append(allData, resp.ListAIGatewayConsumerGroupsResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayConsumerGroupsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayConsumerGroupsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -194,6 +198,7 @@ func (c *Client) ListAIGatewayConsumersInConsumerGroup(
 
 	var allData []kkComps.AIGatewayConsumer
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -214,7 +219,10 @@ func (c *Client) ListAIGatewayConsumersInConsumerGroup(
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayConsumersResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayConsumersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

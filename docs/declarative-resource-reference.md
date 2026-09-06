@@ -459,16 +459,33 @@ SNIs. Use
 
 The `ref` value is a local declarative identifier used by kongctl for
 references and planning. Use `name` as the stable Konnect API name for the AI
-Gateway. If `name` is omitted, kongctl defaults it from `ref`. Use
-`display_name` for the human-readable name shown in Konnect. AI Gateway Model
+Gateway. Managed AI Gateways match only by `name` within their namespace;
+neither `ref`, UUID refs, nor `display_name` provide a fallback match. Changing
+`name` declares a different gateway. In sync mode, the previous gateway is
+eligible for deletion if it is no longer declared in the selected scope.
+Managed AI Gateways require an explicit `name`; kongctl does not derive it
+from `ref`. Use `display_name` for the human-readable name shown in Konnect.
+AI Gateway Model
 Providers, Auth Strategies, Policies, Agents, Consumers, Consumer
 Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
-use their own required `name` field as the stable Konnect child name. Config
-Store names are immutable after creation. AI Gateway Data Plane Certificates
-use their required `title` field as the stable Konnect child name. Child entries
-inherit
-management scope from their parent resource and do not accept `kongctl`
-metadata.
+use their own required `name` field as the stable Konnect child name.
+AI Gateway Consumers match only by `name` within their parent gateway;
+UUID refs and cached IDs do not override a different declared consumer name.
+Config Store names are immutable after creation. AI Gateway Data Plane
+Certificates use their required `title` field as the stable Konnect child name.
+Child entries inherit management scope from their parent resource and do not
+accept `kongctl` metadata.
+
+When upgrading configurations that relied on UUID refs or display-name
+matching, explicitly set each gateway and consumer `name` to its existing API
+name before applying or syncing. A local `ref` can remain unchanged. Review the
+plan for unexpected CREATE or DELETE actions before executing it.
+
+Changing a consumer `name` declares a new consumer, not a rename. In sync mode,
+deleting the old consumer also removes its credentials; existing API keys for
+that consumer stop authenticating. Credentials for the new consumer must be
+configured explicitly. To change only its visible label while retaining its
+identity and credentials, update `display_name` and keep `name` unchanged.
 
 For AI Gateway Policies, `display_name` must be explicitly provided in both
 nested and root-level declarations; kongctl does not infer it from `name` or

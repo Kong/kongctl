@@ -11,6 +11,7 @@ import (
 const aiGatewayPolicyYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: mask-sensitive-data
@@ -52,6 +53,7 @@ func TestLoaderRejectsAIGatewayPolicyWithoutDisplayName(t *testing.T) {
 			input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: post-function
@@ -86,6 +88,7 @@ ai_gateway_policies:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: mask-sensitive-data

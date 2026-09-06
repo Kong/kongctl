@@ -817,7 +817,7 @@ func (l *Loader) validateAIGateways(
 	gateways []resources.AIGatewayResource,
 	rs *resources.ResourceSet,
 ) error {
-	displayNamesByNamespace := make(map[string]string)
+	namesByNamespace := make(map[string]string)
 
 	for i := range gateways {
 		gateway := &gateways[i]
@@ -837,17 +837,17 @@ func (l *Loader) validateAIGateways(
 			continue
 		}
 		namespace := resources.GetNamespace(gateway.Kongctl)
-		nameKey := namespace + "\x00" + gateway.DisplayName
-		if existingRef, exists := displayNamesByNamespace[nameKey]; exists {
+		nameKey := namespace + "\x00" + gateway.Name
+		if existingRef, exists := namesByNamespace[nameKey]; exists {
 			return fmt.Errorf(
-				"duplicate ai_gateway display_name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
-				gateway.DisplayName,
+				"duplicate ai_gateway name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				gateway.Name,
 				namespace,
 				gateway.GetRef(),
 				existingRef,
 			)
 		}
-		displayNamesByNamespace[nameKey] = gateway.GetRef()
+		namesByNamespace[nameKey] = gateway.GetRef()
 	}
 
 	return nil
