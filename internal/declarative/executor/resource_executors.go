@@ -92,6 +92,27 @@ func prepareResourceWrite(
 	}
 }
 
+// afterResourceWrite runs follow-up work only after a successful write and
+// reports success only when both steps complete.
+func afterResourceWrite(
+	write resourceWrite,
+	after func(context.Context, *planner.PlannedChange, string) error,
+) resourceWrite {
+	if write == nil {
+		return nil
+	}
+	return func(ctx context.Context, change *planner.PlannedChange) (string, error) {
+		id, err := write(ctx, change)
+		if err != nil {
+			return "", err
+		}
+		if err := after(ctx, change, id); err != nil {
+			return "", err
+		}
+		return id, nil
+	}
+}
+
 func (e *Executor) registerResourceExecutor(resource resourceExecutor) {
 	if resource.contract == nil || resource.contract.ResourceType() == "" {
 		panic("resource executor requires a payload contract and resource type")
@@ -99,8 +120,8 @@ func (e *Executor) registerResourceExecutor(resource resourceExecutor) {
 	if resource.create == nil && resource.update == nil && resource.remove == nil {
 		panic("resource executor has no actions for " + resource.contract.ResourceType())
 	}
-	// This also rejects duplicate registrations, including a conflicting entry
-	// in the legacy payload inventory while other families are being migrated.
+	// Payload validation and action dispatch share the same registration.
+	// Payload registration also rejects duplicate resource kinds.
 	e.registerPayloadContracts(resource.contract)
 	e.resourceExecutors[resource.contract.ResourceType()] = resource
 }
