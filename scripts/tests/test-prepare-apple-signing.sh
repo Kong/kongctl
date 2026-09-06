@@ -31,7 +31,8 @@ for name in APPLE_NOTARY_API_PRIVATE_KEY APPLE_NOTARY_API_ISSUER_ID \
     echo "Accepted missing $name" >&2
     exit 1
   fi
-  grep -Fx "::error::Missing $name" "$test_dir/output"
+  # Assert expected errors without replaying them as GitHub Actions annotations.
+  grep -Fqx "::error::Missing $name" "$test_dir/output"
 done
 if APPLE_NOTARY_API_PRIVATE_KEY=invalid \
   bash "$repo_root/scripts/prepare-apple-signing.sh" > "$test_dir/output" 2>&1; then
