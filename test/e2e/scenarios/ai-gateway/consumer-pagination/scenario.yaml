@@ -114,5 +114,6 @@ steps:
           - select: summary
             expect:
               fields:
+                applied: 2
                 failed: 0
                 status: success

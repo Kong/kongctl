@@ -81,7 +81,7 @@ func requireAIGatewaySerializedPayload(t *testing.T, payload map[string]any) {
 	require.Equal(t, "https", proxyURL["protocol"])
 }
 
-func TestAIGatewayResourceSetDefaultsUsesRefOnlyWhenNameOmitted(t *testing.T) {
+func TestAIGatewayResourceRequiresExplicitName(t *testing.T) {
 	t.Parallel()
 
 	resource := AIGatewayResource{
@@ -99,8 +99,8 @@ func TestAIGatewayResourceSetDefaultsUsesRefOnlyWhenNameOmitted(t *testing.T) {
 	resource = AIGatewayResource{BaseResource: BaseResource{Ref: "local-ref"}}
 	resource.SetDefaults()
 
-	require.Equal(t, "local-ref", resource.Name)
-	require.Equal(t, "local-ref", resource.DisplayName)
+	require.Empty(t, resource.Name)
+	require.ErrorContains(t, resource.Validate(), "name is required")
 }
 
 func TestAIGatewayResourceAllowsExternalWithoutDisplayName(t *testing.T) {

@@ -11,6 +11,7 @@ import (
 const aiGatewayConsumerYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     policies:
       - ref: mask-sensitive-data
@@ -56,6 +57,7 @@ func TestLoaderExtractsNestedAIGatewayConsumerCredentials(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     consumers:
       - ref: support-user
@@ -103,6 +105,7 @@ ai_gateway_consumers:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     consumers:
       - ref: support-user
@@ -135,6 +138,7 @@ ai_gateway_consumer_credentials:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     consumers:
       - ref: support-user

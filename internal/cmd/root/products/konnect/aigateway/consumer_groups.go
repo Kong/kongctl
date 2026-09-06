@@ -317,6 +317,7 @@ func fetchAIGatewayConsumerGroups(
 ) ([]kkComps.AIGatewayConsumerGroup, error) {
 	requestPageSize := common.ResolveRequestPageSize(cfg)
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	var allData []kkComps.AIGatewayConsumerGroup
 
 	for {
@@ -343,7 +344,10 @@ func fetchAIGatewayConsumerGroups(
 		}
 
 		allData = append(allData, res.ListAIGatewayConsumerGroupsResponse.Data...)
-		nextCursor := pagination.ExtractPageAfterCursor(res.ListAIGatewayConsumerGroupsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(res.ListAIGatewayConsumerGroupsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

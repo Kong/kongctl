@@ -4,5 +4,6 @@ _defaults:
 
 ai_gateways:
   - ref: ai-gateway-config-store-e2e
+    name: ai-gateway-config-store-e2e
     display_name: AI Gateway Config Store E2E
     config_stores: []

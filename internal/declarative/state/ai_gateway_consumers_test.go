@@ -116,3 +116,31 @@ func TestListAIGatewayConsumerCredentialsFollowsBareCursor(t *testing.T) {
 	require.Equal(t, 2, calls)
 	require.Len(t, credentials, 2)
 }
+
+func TestListAIGatewayConsumersRejectsCursorCycles(t *testing.T) {
+	for _, sequence := range [][]string{{"first", "first"}, {"first", "second", "first"}} {
+		t.Run(sequence[1], func(t *testing.T) {
+			calls := 0
+			client := NewClient(ClientConfig{AIGatewayConsumersAPI: &paginatedAIGatewayConsumersAPI{
+				list: func(req kkOps.ListAiGatewayConsumersRequest) (*kkOps.ListAiGatewayConsumersResponse, error) {
+					require.Less(t, calls, len(sequence), "pagination must terminate")
+					if calls > 0 {
+						require.Equal(t, sequence[calls-1], *req.PageAfter)
+					}
+					next := sequence[calls]
+					calls++
+					return &kkOps.ListAiGatewayConsumersResponse{
+						ListAIGatewayConsumersResponse: &kkComps.ListAIGatewayConsumersResponse{
+							Data: []kkComps.AIGatewayConsumer{{ID: "consumer-id"}},
+							Meta: kkComps.CursorMeta{Page: kkComps.CursorMetaPage{Next: &next}},
+						},
+					}, nil
+				},
+			}})
+			consumers, err := client.ListAIGatewayConsumers(t.Context(), "gateway-id")
+			require.ErrorContains(t, err, "previously seen cursor")
+			require.Nil(t, consumers, "never return incomplete live state")
+			require.Equal(t, len(sequence), calls)
+		})
+	}
+}

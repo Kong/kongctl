@@ -176,9 +176,44 @@ func TestAIGatewayPlannerNameIsAuthoritative(t *testing.T) {
 					require.Equal(t, map[ActionType]string{ActionCreate: "new-name", ActionDelete: "existing-name"}, actions)
 				case PlanModeDelete:
 					require.Empty(t, plan.Changes)
+					require.Len(t, plan.Warnings, 1)
+					require.Contains(t, plan.Warnings[0].Message, "new-name")
+					require.NotContains(t, plan.Warnings[0].Message, "Shared Display")
 				}
 			})
 		}
+	}
+}
+
+func TestAIGatewayPlannerDeleteMatchesName(t *testing.T) {
+	for _, protected := range []bool{false, true} {
+		t.Run(map[bool]string{false: "delete", true: "protected"}[protected], func(t *testing.T) {
+			gatewayLabels := map[string]string{labels.NamespaceKey: "default"}
+			if protected {
+				gatewayLabels[labels.ProtectedKey] = labels.TrueValue
+			}
+			client := state.NewClient(state.ClientConfig{AIGatewayAPI: &testAIGatewayAPI{
+				gateways: []kkComps.AIGateway{{
+					ID: "gateway-id", Name: "existing-name", DisplayName: "Live Label", Labels: gatewayLabels,
+				}},
+			}})
+			rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{{
+				BaseResource: resources.BaseResource{Ref: "different-local-ref"},
+				CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+					Name: "existing-name", DisplayName: "Desired Label",
+				},
+			}}}
+			plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeDelete})
+			if protected {
+				require.ErrorContains(t, err, "existing-name")
+				require.NotContains(t, err.Error(), "Desired Label")
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 1)
+			require.Equal(t, ActionDelete, plan.Changes[0].Action)
+			require.Equal(t, "gateway-id", plan.Changes[0].ResourceID)
+		})
 	}
 }
 

@@ -72,14 +72,14 @@ func (p *Planner) planAIGatewayChanges(
 			current, exists := currentByName[desiredGateway.Name]
 			if !exists {
 				plan.AddWarning("", fmt.Sprintf(
-					"ai_gateway %q not found in Konnect, skipping delete", desiredGateway.DisplayName,
+					"ai_gateway %q not found in Konnect, skipping delete", desiredGateway.Name,
 				))
 				continue
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
 			if err := p.validateProtection(
-				ResourceTypeAIGateway, desiredGateway.DisplayName, isProtected, ActionDelete,
+				ResourceTypeAIGateway, desiredGateway.Name, isProtected, ActionDelete,
 			); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
@@ -123,7 +123,7 @@ func (p *Planner) planAIGatewayChanges(
 				protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
 				if err := p.validateProtectionWithChange(
 					ResourceTypeAIGateway,
-					desiredGateway.DisplayName,
+					desiredGateway.Name,
 					isProtected,
 					ActionUpdate,
 					protectionChange,
@@ -136,7 +136,7 @@ func (p *Planner) planAIGatewayChanges(
 			} else if needsUpdate {
 				if err := p.validateProtection(
 					ResourceTypeAIGateway,
-					desiredGateway.DisplayName,
+					desiredGateway.Name,
 					isProtected,
 					ActionUpdate,
 				); err != nil {
@@ -388,7 +388,7 @@ func (p *Planner) planAIGatewayChanges(
 			}
 
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGateway, current.DisplayName, isProtected, ActionDelete); err != nil {
+			if err := p.validateProtection(ResourceTypeAIGateway, current.Name, isProtected, ActionDelete); err != nil {
 				protectionErrors = append(protectionErrors, err)
 			} else {
 				p.planAIGatewayDelete(current, plan)

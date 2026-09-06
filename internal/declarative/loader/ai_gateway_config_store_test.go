@@ -12,6 +12,7 @@ func TestLoaderExtractsNestedAIGatewayConfigStores(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -52,6 +53,7 @@ ai_gateway_config_stores:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -80,6 +82,7 @@ func TestLoaderRejectsInvalidAIGatewayConfigStoreDisplayName(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -98,6 +101,7 @@ func TestLoaderAcceptsVaultConfigStoreReference(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -125,6 +129,7 @@ func TestLoaderExtractsNestedAIGatewayConfigStoreSecrets(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -152,6 +157,7 @@ func TestLoaderAcceptsRootAIGatewayConfigStoreSecret(t *testing.T) {
 	rs, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
 ai_gateway_config_stores:
   - ref: support-store
@@ -175,6 +181,7 @@ func TestLoaderRejectsDuplicateAIGatewayConfigStoreSecretRefsAcrossStores(t *tes
 	_, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: primary-store
@@ -220,6 +227,7 @@ func TestLoaderAIGatewayConfigStoreSecretSyncScope(t *testing.T) {
 		rs, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -237,6 +245,7 @@ ai_gateways:
 		rs, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -262,6 +271,7 @@ func TestLoaderRejectsLiteralAIGatewayConfigStoreSecretWithoutEchoingValue(t *te
 	_, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-store
@@ -279,6 +289,7 @@ func TestLoaderAcceptsDumpedAIGatewayConfigStoreSecretWithoutValue(t *testing.T)
 	rs, err := New().LoadFile(writeLoaderTestFile(t, `
 ai_gateways:
   - ref: support-gateway-id
+    name: support-gateway-id
     display_name: Support Gateway
     config_stores:
       - ref: support-store-id

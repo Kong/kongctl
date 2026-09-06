@@ -13,6 +13,7 @@ import (
 const aiGatewayModelYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     models:
       - ref: support-gpt
@@ -56,6 +57,7 @@ func TestLoaderAcceptsDottedAIGatewayModelRef(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     models:
       - ref: gpt-5.4
@@ -100,6 +102,7 @@ ai_gateway_models:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     models:
       - ref: support-gpt

@@ -22,6 +22,7 @@ func (c *Client) ListAIGatewayConsumerCredentials(
 
 	var allData []kkComps.AIGatewayConsumerCredential
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -43,7 +44,10 @@ func (c *Client) ListAIGatewayConsumerCredentials(
 
 		allData = append(allData, resp.ListAIGatewayConsumerCredentialsResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayConsumerCredentialsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayConsumerCredentialsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

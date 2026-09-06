@@ -615,6 +615,7 @@ Config Store ID:
 ```yaml
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     config_stores:
       - ref: support-config-store

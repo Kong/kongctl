@@ -375,6 +375,7 @@ func fetchAIGatewayConsumerCredentials(
 ) ([]kkComps.AIGatewayConsumerCredential, error) {
 	requestPageSize := common.ResolveRequestPageSize(cfg)
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	var allData []kkComps.AIGatewayConsumerCredential
 
 	for {
@@ -402,7 +403,10 @@ func fetchAIGatewayConsumerCredentials(
 		}
 
 		allData = append(allData, res.ListAIGatewayConsumerCredentialsResponse.Data...)
-		nextCursor := pagination.ExtractPageAfterCursor(res.ListAIGatewayConsumerCredentialsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(res.ListAIGatewayConsumerCredentialsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

@@ -57,6 +57,7 @@ func TestAIGatewayMCPServerPlannerCreatesIssue1499NestedServers(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: poc-default-ai-gateway
+    name: poc-default-ai-gateway
     display_name: POC Default AI Gateway
     mcp_servers:
       - ref: poc-mcp-conversion

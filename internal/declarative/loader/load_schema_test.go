@@ -22,6 +22,7 @@ func TestDeclarativeLoadSchemaRejectsUnknownFieldsAtFullPaths(t *testing.T) {
 			yaml: `
 ai_gateways:
   - ref: example-gateway
+    name: example-gateway
     display_name: Example Gateway
     consumers:
       - ref: eason

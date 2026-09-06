@@ -1,9 +1,32 @@
 package pagination
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 )
+
+// CursorTracker detects repeated cursors within one list operation, including
+// cycles involving multiple pages. Its zero value is ready to use.
+type CursorTracker struct {
+	seen map[string]struct{}
+}
+
+// Next extracts a next-page cursor and rejects previously seen cursors.
+func (t *CursorTracker) Next(next *string) (string, error) {
+	cursor := ExtractPageAfterCursor(next)
+	if cursor == "" {
+		return "", nil
+	}
+	if _, exists := t.seen[cursor]; exists {
+		return "", errors.New("pagination returned a previously seen cursor")
+	}
+	if t.seen == nil {
+		t.seen = make(map[string]struct{})
+	}
+	t.seen[cursor] = struct{}{}
+	return cursor, nil
+}
 
 // ExtractPageAfterCursor returns the cursor from a pagination token, next-page
 // URL, or query parameter snippet. Bare tokens are opaque and are not decoded.

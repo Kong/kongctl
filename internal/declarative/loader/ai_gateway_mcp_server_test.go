@@ -12,6 +12,7 @@ import (
 const aiGatewayMCPServerYAML = `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-tools
@@ -50,6 +51,7 @@ func TestLoaderExtractsIssue1499NestedAIGatewayMCPServers(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: poc-default-ai-gateway
+    name: poc-default-ai-gateway
     display_name: POC Default AI Gateway
     auth_strategies:
       - ref: poc-key-auth
@@ -173,6 +175,7 @@ func TestLoaderRejectsUpstreamMCPServerLevelAccess(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-upstream
@@ -196,6 +199,7 @@ func TestLoaderRejectsPassthroughToolWithoutAccess(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-passthrough
@@ -219,6 +223,7 @@ func TestLoaderRejectsMCPRouteWithoutMatcher(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-passthrough
@@ -263,6 +268,7 @@ func TestLoaderRejectsAIGatewayMCPListenerWithoutSources(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-listener
@@ -301,6 +307,7 @@ ai_gateway_mcp_servers:
 	duplicates := `
 ai_gateways:
   - ref: support-gateway
+    name: support-gateway
     display_name: Support Gateway
     mcp_servers:
       - ref: support-tools

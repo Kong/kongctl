@@ -93,6 +93,7 @@ func TestLoaderFlattensAIGatewayProviders(t *testing.T) {
 	err := os.WriteFile(path, []byte(`
 ai_gateways:
   - ref: customer-support-gateway
+    name: customer-support-gateway
     display_name: Customer Support Gateway
     model_providers:
       - ref: openai-provider
@@ -124,6 +125,7 @@ func TestLoaderRejectsLegacyAIGatewayModelProviderAuthFields(t *testing.T) {
 	input := `
 ai_gateways:
   - ref: customer-support-gateway
+    name: customer-support-gateway
     display_name: Customer Support Gateway
     model_providers:
       - ref: openai-provider
@@ -157,6 +159,7 @@ func TestLoaderRejectsLegacyNestedAIGatewayProviders(t *testing.T) {
 	err := os.WriteFile(path, []byte(`
 ai_gateways:
   - ref: customer-support-gateway
+    name: customer-support-gateway
     display_name: Customer Support Gateway
     providers:
       - ref: openai-provider
@@ -181,6 +184,7 @@ func TestLoaderRejectsLegacyRootAIGatewayProviders(t *testing.T) {
 	err := os.WriteFile(path, []byte(`
 ai_gateways:
   - ref: customer-support-gateway
+    name: customer-support-gateway
     display_name: Customer Support Gateway
 ai_gateway_providers:
   - ref: openai-provider
@@ -205,6 +209,7 @@ func TestLoaderFlattensAIGatewayAuthStrategies(t *testing.T) {
 	err := os.WriteFile(path, []byte(`
 ai_gateways:
   - ref: customer-support-gateway
+    name: customer-support-gateway
     display_name: Customer Support Gateway
     auth_strategies:
       - ref: support-key-auth

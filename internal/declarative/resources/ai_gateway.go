@@ -355,9 +355,6 @@ func (a AIGatewayResource) Validate() error {
 
 // SetDefaults applies default values to AI Gateway resource.
 func (a *AIGatewayResource) SetDefaults() {
-	if a.Name == "" {
-		a.Name = a.Ref
-	}
 	if a.DisplayName == "" {
 		a.DisplayName = a.Name
 	}
@@ -430,7 +427,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainResourceRefField(),
 		explainKongctlField(),
 		explainExternalField(),
-		explainField("name", explainStringNode("my-ai-gateway"), false, true),
+		explainField("name", explainStringNode("my-ai-gateway"), true, true),
 		explainField("display_name", explainStringNode("My AI Gateway"), true, true),
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
 		explainField("deployment_type", explainStringNode("hybrid"), false, false),

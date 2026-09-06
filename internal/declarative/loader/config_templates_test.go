@@ -200,6 +200,7 @@ _templates:
 
 ai_gateways:
   - ref: shared-gateway
+    name: shared-gateway
     display_name: Shared Gateway
     policies:
       - _extends: standard-oidc-policy
