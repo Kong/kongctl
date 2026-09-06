@@ -40,6 +40,10 @@ if [[ ! "$location" =~ $allowed ]]; then
   # Describe structure only; an upload URL may contain a credential-like ID.
   case "$location" in
     https://ghcr.io/v2/kong/kongctl/kongctl/blobs/*)
+      shape=${location#https://ghcr.io/v2/kong/kongctl/kongctl/blobs/}
+      # Only punctuation remains; never log the session identifier or query.
+      shape=$(printf '%s' "${shape%%\?*}" | sed -E 's/[[:alnum:]]+/X/g')
+      echo "::notice::Redacted upload path shape: $shape" >&2
       echo '::error::Unexpected upload-session path shape on the expected GHCR package' >&2 ;;
     *) echo '::error::Unexpected upload cancellation host/package; refusing to follow it' >&2 ;;
   esac
