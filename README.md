@@ -80,12 +80,17 @@ Install the prebuilt cask on macOS or Linux:
 brew install --cask kong/kongctl/kongctl
 ```
 
-Alternatively, install the source-built formula. Homebrew installs Go as a
-build dependency when it builds the formula:
+Alternatively, install the formula. Homebrew uses a prebuilt bottle when one
+is available for your platform, or installs the upstream release binary from
+its ZIP archive. Neither path requires Go:
 
 ```shell
 brew install --formula kong/kongctl/kongctl
 ```
+
+If switching from the cask to the formula, first run
+`brew uninstall --cask kong/kongctl/kongctl`. Both install the same `kongctl`
+command and cannot be installed together.
 
 ### Manual download
 
