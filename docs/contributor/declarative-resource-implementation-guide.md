@@ -37,12 +37,13 @@ are different representations. Do not use resource serialization as an API
 request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
-explain/scaffold, load-schema discovery, and dump-default metadata. The
+explain/scaffold, load-schema discovery, namespace participation,
+ordinary collection scope, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Loader scope/extraction,
-namespace participation, relationships, pre-execution validation, state-client
-wiring, and dump collection still have separate integration points.
+payload validation for SDK resource operations. Nested extraction, specialized
+scope, namespace inheritance/filtering, relationships, pre-execution
+validation, state-client wiring, and dump collection remain separate steps.
 Registering a declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
@@ -64,14 +65,34 @@ Registering a declaration does not complete those steps automatically.
 - Implement validation, dependencies, and supported label access. Prefer
   shared matching/normalization helpers over new reflection or type switches.
   Registry-driven aggregation must not acquire another resource inventory.
-- For namespace-bearing declarations, inspect
-  [namespace participants][namespaces] and namespace accessors in
-  `ResourceSet`. Ordinary managed children inherit namespace and protection
-  from their parent; do not give them independent `kongctl` configuration.
+- Namespace-bearing declarations add `WithNamespace` beside registration;
+  see [namespace capabilities](#namespace-capabilities). Ordinary managed
+  children inherit namespace and protection from their parent; do not give
+  them independent `kongctl` configuration.
 - Follow the [maturity policy](maturity.md). Resources default to GA.
   Co-locate `WithMaturity` and narrower `WithOperationMaturity` overrides
   with registration. Maturity is discovery metadata, not runtime gating or
   plan, result, or telemetry data.
+
+### Namespace capabilities
+
+[`WithNamespace`][namespaces] supplies a typed `NamespaceParticipant` accessor
+using the resource's registered slice. Return the actual `Kongctl` field's
+address, `ref`, diagnostic label, external state, and protected support.
+Keep traversal order stable: defaulting and validation use it for diagnostics.
+Each order must be unique; leave gaps when adding participants.
+
+Supply supplemental grouped locations when values exist there before nested
+extraction; dashboard and organization team registrations demonstrate this.
+`ForEachNamespaceParticipant` visits flattened then grouped values per kind.
+`NamespaceValues` reads post-extraction values for loader validation without
+revisiting those groups. Organization users/system accounts use
+`registerNamespaceSelector`: they carry namespace without protection and do
+not enter the ordinary resource registry.
+
+Defaulting, namespace enforcement, and planner discovery share participation
+but retain their different external-resource policies. Namespace accessors and
+parent filtering in `ResourceSet` still require explicit integration.
 
 ### Defaults and SDK shape
 
@@ -138,10 +159,31 @@ Sync deletion follows explicit manifest scope:
 | Singleton `null` | Reject; no implicit reset/delete |
 | Optional, delete-capable singleton `{}` | Zero for that parent |
 
-Update [loader scope tables][load-scope] for root collections, root-level
-child selectors, and nested child keys. For delete-capable singletons,
-preserve scope while dropping the empty desired value during decoding.
-Do not apply that deletion meaning to update-only singletons.
+Co-locate [scope capabilities][scope-capabilities] with registration:
+
+- `WithRootSyncScope()` handles ordinary root collections.
+- `WithChildSyncScope(ownerType)` handles ordinary child collections whose
+  sync owner matches `GetParentRef()` and a root-only parent relationship.
+
+The shared [declaration structure][declaration-structure] supplies root and
+nested YAML keys for scope and explain. Relationship descriptors supply the
+parent selector. Do not duplicate these facts in loader or planner inventories.
+Scope descriptors are derived and checked once, on first use after resource
+initialization. `SyncCollections` returns copies, including nested keys.
+The loader captures key presence; planner fallback infers scope only from
+populated slices and retains any explicit `SyncScope`.
+
+All eight ordinary roots use the capability. API versions, publications,
+implementations, documents, and control-plane data-plane certificates are
+the migrated child examples. Grouped dashboard/organization roots and other
+child families retain [loader scope handling][load-scope] and
+[planner scope handling][plan-scope]. Structural containment alone does not
+define ownership: portal team roles, for example, are scoped to the portal.
+Review parent-scope validation and external-parent support for new owners.
+
+Keep specialized empty-input diagnostics at their existing phase. For
+delete-capable singletons, preserve scope while dropping the empty desired
+value during decoding. Do not apply that meaning to update-only singletons.
 
 Root dispatch applies `shouldPlanRoot`. Parent planners must apply
 `shouldPlanChild` before child observation and pruning. An external parent
@@ -460,12 +502,16 @@ engine contract. Each refactoring migration should:
 [interfaces]: ../../internal/declarative/resources/interfaces.go
 [registry]: ../../internal/declarative/resources/registry.go
 [namespaces]: ../../internal/declarative/resources/namespace_participants.go
+[scope-capabilities]: ../../internal/declarative/resources/sync_capabilities.go
+[declaration-structure]:
+  ../../internal/declarative/resources/declaration_structure.go
 [relationships]: ../../internal/declarative/resources/relationships.go
 [explain]: ../../internal/declarative/resources/explain.go
 [load-schema]: ../../internal/declarative/resources/load_schema.go
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
 [load-scope]: ../../internal/declarative/loader/sync_scope.go
+[plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
 [roots]: ../../internal/declarative/planner/root_planners.go
 [constants]: ../../internal/declarative/planner/constants.go

@@ -12,6 +12,10 @@ func init() {
 		ResourceTypeCatalogService,
 		func(rs *ResourceSet) *[]CatalogServiceResource { return &rs.CatalogServices },
 		AutoExplain[CatalogServiceResource](),
+		WithNamespace(30, func(r *CatalogServiceResource) NamespaceParticipant {
+			return NamespaceParticipant{Ref: r.Ref, Label: "catalog_service", SupportsProtected: true, Meta: &r.Kongctl}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

@@ -1,128 +1,138 @@
 package resources
 
-// NamespaceParticipant is a namespace-bearing declarative parent resource. It is
-// the single source of truth for which resources carry kongctl namespace
-// metadata, shared by loader defaulting, namespace validation, and planner
-// namespace discovery. Callers keep their own handling of external resources,
-// which is intentionally not uniform across those paths.
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"reflect"
+	"slices"
+)
+
+// NamespaceParticipant is a namespace-bearing declarative parent resource.
+// Resource registrations supply these values; callers retain their own
+// defaulting, validation, and external-resource policies.
 type NamespaceParticipant struct {
 	Type ResourceType
 	Ref  string
 	// External reports whether the resource is declared as an external reference.
-	// Callers decide what that means: the loader rejects kongctl metadata on
-	// external resources, the validator skips them, and the planner maps them to
-	// the external namespace.
 	External bool
-	// SupportsProtected reports whether kongctl.protected defaulting applies.
-	// Organization users and system accounts only carry a namespace.
+	// SupportsProtected excludes namespace-only organization selectors.
 	SupportsProtected bool
-	// Label is the human-facing name used in loader defaulting error messages.
+	// Label is the human-facing name used in loader defaulting errors.
 	Label string
-	// Meta addresses the resource's Kongctl field so callers can read the current
-	// metadata and assign defaults in place.
+	// Meta addresses the resource's Kongctl field for in-place defaulting.
 	Meta **KongctlMeta
 }
 
-// ForEachNamespaceParticipant visits every namespace-bearing resource in rs and
-// returns early if fn returns an error. Both the nested (Analytics.Dashboards,
-// Organization.Teams) and the flattened (Dashboards, OrganizationTeams)
-// locations are visited so the iterator is correct both before and after
-// extractNestedResources runs; only one side is populated at a given stage.
-//
-// The visit order matches the namespace validator's violation order so error
-// messages are unchanged.
+type namespaceRegistration struct {
+	kind        ResourceType
+	order       int
+	visit       func(*ResourceSet, func(NamespaceParticipant) error) error
+	visitNested func(*ResourceSet, func(NamespaceParticipant) error) error
+}
+
+var namespaceRegistrations []namespaceRegistration
+
+// WithNamespace registers typed metadata access alongside the resource's
+// existing slice accessor. Order preserves namespace diagnostic traversal.
+// Additional sources are grouping locations visited before nested extraction.
+func WithNamespace[R any](
+	order int,
+	participant func(*R) NamespaceParticipant,
+	nested ...func(*ResourceSet) []R,
+) ResourceRegistrationOption {
+	return func(ops *resourceOps) error {
+		if ops.namespace != nil {
+			return fmt.Errorf("namespace capability is already registered")
+		}
+		if participant == nil || ops.explain.typ != reflect.TypeFor[R]() {
+			return fmt.Errorf("namespace accessor must match the registered resource type")
+		}
+		ops.namespace = &namespaceRegistration{
+			order: order,
+			visit: func(rs *ResourceSet, fn func(NamespaceParticipant) error) error {
+				var err error
+				ops.forEach(rs, func(resource Resource) bool {
+					err = fn(participant(any(resource).(*R)))
+					return err == nil
+				})
+				return err
+			},
+			visitNested: func(rs *ResourceSet, fn func(NamespaceParticipant) error) error {
+				for _, source := range nested {
+					if err := visitNamespaceSlice(source(rs), participant, fn); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+		}
+		return nil
+	}
+}
+
+// Organization selectors do not implement Resource and must not enter the
+// declaration registry merely to participate in namespace processing.
+func registerNamespaceSelector[R any](
+	kind ResourceType,
+	order int,
+	source func(*ResourceSet) []R,
+	participant func(*R) NamespaceParticipant,
+) {
+	registerNamespaceParticipant(kind, namespaceRegistration{
+		order: order,
+		visit: func(rs *ResourceSet, fn func(NamespaceParticipant) error) error {
+			return visitNamespaceSlice(source(rs), participant, fn)
+		},
+	})
+}
+
+func visitNamespaceSlice[R any](
+	values []R,
+	participant func(*R) NamespaceParticipant,
+	fn func(NamespaceParticipant) error,
+) error {
+	for i := range values {
+		if err := fn(participant(&values[i])); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func registerNamespaceParticipant(kind ResourceType, registration namespaceRegistration) {
+	if kind == "" || registration.order <= 0 || registration.visit == nil {
+		panic("namespace registration requires a resource type, positive order, and visitor")
+	}
+	for _, existing := range namespaceRegistrations {
+		if existing.kind == kind || existing.order == registration.order {
+			panic("duplicate namespace resource type or traversal order: " + string(kind))
+		}
+	}
+	registration.kind = kind
+	namespaceRegistrations = append(namespaceRegistrations, registration)
+	slices.SortFunc(namespaceRegistrations, func(a, b namespaceRegistration) int {
+		return cmp.Compare(a.order, b.order)
+	})
+}
+
+// ForEachNamespaceParticipant visits namespace-bearing resources in diagnostic
+// order and stops on error. Both flattened and nested grouping locations are
+// visited, preserving behavior before and after nested extraction.
 func (rs *ResourceSet) ForEachNamespaceParticipant(fn func(NamespaceParticipant) error) error {
 	if rs == nil {
 		return nil
 	}
-
-	for i := range rs.Portals {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypePortal, Ref: rs.Portals[i].Ref, External: rs.Portals[i].IsExternal(),
-			SupportsProtected: true, Label: "portal", Meta: &rs.Portals[i].Kongctl,
-		}); err != nil {
+	for _, registration := range namespaceRegistrations {
+		visit := func(participant NamespaceParticipant) error {
+			participant.Type = registration.kind
+			return fn(participant)
+		}
+		if err := registration.visit(rs, visit); err != nil {
 			return err
 		}
-	}
-	for i := range rs.APIs {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeAPI, Ref: rs.APIs[i].Ref, External: rs.APIs[i].IsExternal(),
-			SupportsProtected: true, Label: "api", Meta: &rs.APIs[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	for i := range rs.CatalogServices {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeCatalogService, Ref: rs.CatalogServices[i].Ref,
-			SupportsProtected: true, Label: "catalog_service", Meta: &rs.CatalogServices[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	for i := range rs.AIGateways {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeAIGateway, Ref: rs.AIGateways[i].Ref, External: rs.AIGateways[i].IsExternal(),
-			SupportsProtected: true, Label: "ai_gateway", Meta: &rs.AIGateways[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	if err := rs.forEachDashboardParticipant(fn); err != nil {
-		return err
-	}
-	for i := range rs.EventGatewayControlPlanes {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeEventGatewayControlPlane, Ref: rs.EventGatewayControlPlanes[i].Ref,
-			External: rs.EventGatewayControlPlanes[i].IsExternal(), SupportsProtected: true,
-			Label: SchemaFieldEventGateway, Meta: &rs.EventGatewayControlPlanes[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	for i := range rs.ApplicationAuthStrategies {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeApplicationAuthStrategy, Ref: rs.ApplicationAuthStrategies[i].Ref,
-			External:          rs.ApplicationAuthStrategies[i].IsExternal(),
-			SupportsProtected: true, Label: "application_auth_strategy",
-			Meta: &rs.ApplicationAuthStrategies[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	for i := range rs.DCRProviders {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeDCRProvider, Ref: rs.DCRProviders[i].Ref,
-			SupportsProtected: true, Label: "dcr_provider", Meta: &rs.DCRProviders[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	for i := range rs.ControlPlanes {
-		if err := fn(NamespaceParticipant{
-			Type: ResourceTypeControlPlane, Ref: rs.ControlPlanes[i].Ref, External: rs.ControlPlanes[i].IsExternal(),
-			SupportsProtected: true, Label: "control_plane", Meta: &rs.ControlPlanes[i].Kongctl,
-		}); err != nil {
-			return err
-		}
-	}
-	if err := rs.forEachOrganizationTeamParticipant(fn); err != nil {
-		return err
-	}
-	if rs.Organization != nil {
-		for i := range rs.Organization.Users {
-			if err := fn(NamespaceParticipant{
-				Type: ResourceTypeOrganizationUser, Ref: rs.Organization.Users[i].Ref,
-				Label: "organization user", Meta: &rs.Organization.Users[i].Kongctl,
-			}); err != nil {
-				return err
-			}
-		}
-		for i := range rs.Organization.SystemAccounts {
-			if err := fn(NamespaceParticipant{
-				Type: ResourceTypeOrganizationSystemAccount, Ref: rs.Organization.SystemAccounts[i].Ref,
-				Label: "organization system account", Meta: &rs.Organization.SystemAccounts[i].Kongctl,
-			}); err != nil {
+		if registration.visitNested != nil {
+			if err := registration.visitNested(rs, visit); err != nil {
 				return err
 			}
 		}
@@ -130,46 +140,21 @@ func (rs *ResourceSet) ForEachNamespaceParticipant(fn func(NamespaceParticipant)
 	return nil
 }
 
-func (rs *ResourceSet) forEachDashboardParticipant(fn func(NamespaceParticipant) error) error {
-	dashboard := func(d *DashboardResource) error {
-		return fn(NamespaceParticipant{
-			Type: ResourceTypeDashboard, Ref: d.Ref,
-			SupportsProtected: true, Label: "dashboard", Meta: &d.Kongctl,
+// NamespaceValues returns present kongctl.namespace values after extraction.
+// It reads flattened resources and organization selectors, without revisiting
+// grouping locations or applying the planner's external-namespace policy.
+func (rs *ResourceSet) NamespaceValues() []string {
+	if rs == nil {
+		return nil
+	}
+	namespaces := make(map[string]struct{})
+	for _, registration := range namespaceRegistrations {
+		_ = registration.visit(rs, func(participant NamespaceParticipant) error {
+			if meta := *participant.Meta; meta != nil && meta.Namespace != nil {
+				namespaces[*meta.Namespace] = struct{}{}
+			}
+			return nil
 		})
 	}
-	for i := range rs.Dashboards {
-		if err := dashboard(&rs.Dashboards[i]); err != nil {
-			return err
-		}
-	}
-	if rs.Analytics != nil {
-		for i := range rs.Analytics.Dashboards {
-			if err := dashboard(&rs.Analytics.Dashboards[i]); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (rs *ResourceSet) forEachOrganizationTeamParticipant(fn func(NamespaceParticipant) error) error {
-	team := func(t *OrganizationTeamResource) error {
-		return fn(NamespaceParticipant{
-			Type: ResourceTypeOrganizationTeam, Ref: t.Ref, External: t.IsExternal(),
-			SupportsProtected: true, Label: string(ResourceTypeTeam), Meta: &t.Kongctl,
-		})
-	}
-	for i := range rs.OrganizationTeams {
-		if err := team(&rs.OrganizationTeams[i]); err != nil {
-			return err
-		}
-	}
-	if rs.Organization != nil {
-		for i := range rs.Organization.Teams {
-			if err := team(&rs.Organization.Teams[i]); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return slices.Collect(maps.Keys(namespaces))
 }

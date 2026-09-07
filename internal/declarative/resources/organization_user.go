@@ -5,6 +5,18 @@ import (
 )
 
 func init() {
+	registerNamespaceSelector(
+		ResourceTypeOrganizationUser, 110,
+		func(rs *ResourceSet) []OrganizationUserResource {
+			if rs.Organization == nil {
+				return nil
+			}
+			return rs.Organization.Users
+		},
+		func(r *OrganizationUserResource) NamespaceParticipant {
+			return NamespaceParticipant{Ref: r.Ref, Label: "organization user", Meta: &r.Kongctl}
+		},
+	)
 	registerResourceType(
 		ResourceTypeOrganizationUserTeamMembership,
 		func(rs *ResourceSet) *[]OrganizationUserTeamMembershipResource {
@@ -25,7 +37,7 @@ func init() {
 
 // OrganizationUserResource selects an existing Konnect user and declares user-bound assignments.
 type OrganizationUserResource struct {
-	Ref     string                                   `yaml:"ref"               json:"ref"`
+	Ref     string                                   `yaml:"ref" json:"ref"`
 	Email   string                                   `yaml:"email,omitempty"   json:"email,omitempty"`
 	ID      string                                   `yaml:"id,omitempty"      json:"id,omitempty"`
 	Kongctl *KongctlMeta                             `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -69,7 +81,7 @@ func (u *OrganizationUserResource) SetKonnectID(id string) {
 
 // OrganizationUserTeamMembershipResource represents an organization user's team assignment.
 type OrganizationUserTeamMembershipResource struct {
-	Ref  string `yaml:"ref"  json:"ref"`
+	Ref  string `yaml:"ref" json:"ref"`
 	User string `yaml:"user,omitempty" json:"user,omitempty"`
 	Team string `yaml:"team" json:"team"`
 }

@@ -5,6 +5,18 @@ import (
 )
 
 func init() {
+	registerNamespaceSelector(
+		ResourceTypeOrganizationSystemAccount, 120,
+		func(rs *ResourceSet) []OrganizationSystemAccountResource {
+			if rs.Organization == nil {
+				return nil
+			}
+			return rs.Organization.SystemAccounts
+		},
+		func(r *OrganizationSystemAccountResource) NamespaceParticipant {
+			return NamespaceParticipant{Ref: r.Ref, Label: "organization system account", Meta: &r.Kongctl}
+		},
+	)
 	registerResourceType(
 		ResourceTypeOrganizationSystemAccountTeamMembership,
 		func(rs *ResourceSet) *[]OrganizationSystemAccountTeamMembershipResource {
@@ -27,7 +39,7 @@ func init() {
 
 // OrganizationSystemAccountResource selects an existing Konnect system account and declares assignments.
 type OrganizationSystemAccountResource struct {
-	Ref     string                                            `yaml:"ref"               json:"ref"`
+	Ref     string                                            `yaml:"ref" json:"ref"`
 	Name    string                                            `yaml:"name,omitempty"    json:"name,omitempty"`
 	ID      string                                            `yaml:"id,omitempty"      json:"id,omitempty"`
 	Kongctl *KongctlMeta                                      `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -71,7 +83,7 @@ func (s *OrganizationSystemAccountResource) SetKonnectID(id string) {
 
 // OrganizationSystemAccountTeamMembershipResource represents a system account's team assignment.
 type OrganizationSystemAccountTeamMembershipResource struct {
-	Ref           string `yaml:"ref"  json:"ref"`
+	Ref           string `yaml:"ref" json:"ref"`
 	SystemAccount string `yaml:"system_account,omitempty" json:"system_account,omitempty"`
 	Team          string `yaml:"team" json:"team"`
 }

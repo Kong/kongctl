@@ -69,7 +69,7 @@ type ExplainDoc struct {
 	ResourceType              ResourceType      `json:"resource_type"               yaml:"resource_type"`
 	CanonicalAlias            string            `json:"canonical_alias"             yaml:"canonical_alias"`
 	Aliases                   []string          `json:"aliases,omitempty"           yaml:"aliases,omitempty"`
-	ResourceClass             string            `json:"resource_class"              yaml:"resource_class"`
+	ResourceClass             string            `json:"resource_class" yaml:"resource_class"`
 	RootKey                   string            `json:"root_key,omitempty"          yaml:"root_key,omitempty"`
 	SupportsRoot              bool              `json:"supports_root"               yaml:"supports_root"`
 	SupportsNestedDeclaration bool              `json:"supports_nested_declaration" yaml:"supports_nested_declaration"`
@@ -147,7 +147,7 @@ type JSONSchema struct {
 	Description   string                  `json:"description,omitempty" yaml:"description,omitempty"`
 	Type          any                     `json:"type,omitempty" yaml:"type,omitempty"`
 	Properties    map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Required      []string                `json:"required,omitempty" yaml:"required,omitempty"`
+	Required      []string                `json:"required,omitempty"    yaml:"required,omitempty"`
 	Items         *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
 	Additional    any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 	OneOf         []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
@@ -185,7 +185,7 @@ type ExplainRelationship struct {
 	Target              ResourceType            `json:"target,omitempty" yaml:"target,omitempty"`
 	Targets             []ResourceType          `json:"targets,omitempty" yaml:"targets,omitempty"`
 	TargetDiscriminator string                  `json:"target_discriminator,omitempty" yaml:"target_discriminator,omitempty"` //nolint:lll
-	Kind                RelationshipKind        `json:"kind" yaml:"kind"`
+	Kind                RelationshipKind        `json:"kind"                  yaml:"kind"`
 	Cardinality         RelationshipCardinality `json:"cardinality" yaml:"cardinality"`
 	ResultField         RelationshipResultField `json:"result_field" yaml:"result_field"`
 	AcceptedTags        []string                `json:"accepted_tags,omitempty" yaml:"accepted_tags,omitempty"`
@@ -1296,7 +1296,7 @@ func autoExplainValueNode(
 			child := recursiveExplainNode(typ)
 			child.Nullable = child.Nullable || nullable
 			node = child
-		} else if resourceType, ok := explainRegisteredResourceType(typ); ok {
+		} else if resourceType, ok := registeredResourceType(typ); ok {
 			if doc, ok := explainDocByType(resourceType); ok {
 				child := doc.Schema.clone()
 				child.Nullable = child.Nullable || nullable
@@ -2380,67 +2380,18 @@ func organizationAssignmentParentRelations(target ResourceType) []ExplainRelatio
 }
 
 func explainNestedRelations(parentType ResourceType, parent reflect.Type) []ExplainRelation {
-	parent = derefExplainType(parent)
 	var relations []ExplainRelation
-	for field := range parent.Fields() {
-		if !field.IsExported() {
-			continue
-		}
-		name, _, _, skip := explainFieldName(field, "yaml")
-		if skip || name == "" {
-			continue
-		}
-		childType, ok := explainRegisteredResourceType(field.Type)
-		if !ok {
-			continue
-		}
+	for _, field := range nestedResourceFields(parent) {
 		relations = append(relations, ExplainRelation{
 			ParentAlias:   string(parentType),
 			ParentType:    string(parentType),
-			FieldName:     name,
-			FieldArray:    derefExplainType(field.Type).Kind() == reflect.Slice,
-			ChildAlias:    string(childType),
+			FieldName:     field.name,
+			FieldArray:    field.array,
+			ChildAlias:    string(field.resourceType),
 			ParentRootKey: resourceSetRootKey(parent),
 		})
 	}
 	return relations
-}
-
-func explainRegisteredResourceType(typ reflect.Type) (ResourceType, bool) {
-	typ = derefExplainType(typ)
-	if typ.Kind() == reflect.Slice {
-		typ = derefExplainType(typ.Elem())
-	}
-	for rt, ops := range registry {
-		if ops.explain.typ == typ {
-			return rt, true
-		}
-	}
-	return "", false
-}
-
-func resourceSetRootKey(resourceType reflect.Type) string {
-	resourceType = derefExplainType(resourceType)
-	rsType := reflect.TypeFor[ResourceSet]()
-	for field := range rsType.Fields() {
-		fieldType := derefExplainType(field.Type)
-		if fieldType.Kind() != reflect.Slice {
-			continue
-		}
-		if derefExplainType(fieldType.Elem()) != resourceType {
-			continue
-		}
-		tag := field.Tag.Get("yaml")
-		if tag == "" || tag == "-" {
-			return ""
-		}
-		name := strings.Split(tag, ",")[0]
-		if name == "-" {
-			return ""
-		}
-		return name
-	}
-	return ""
 }
 
 func explainFieldName(field reflect.StructField, tagName string) (name string, inline bool, omitempty bool, skip bool) {

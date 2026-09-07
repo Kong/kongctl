@@ -17,6 +17,14 @@ func init() {
 			WithExplainRecommendedFields("ref", "name", "definition"),
 			WithExplainSchemaBuilder(dashboardExplainNode),
 		),
+		WithNamespace(50, func(r *DashboardResource) NamespaceParticipant {
+			return NamespaceParticipant{Ref: r.Ref, Label: "dashboard", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []DashboardResource {
+			if rs.Analytics == nil {
+				return nil
+			}
+			return rs.Analytics.Dashboards
+		}),
 	)
 }
 

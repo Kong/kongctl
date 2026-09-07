@@ -25,6 +25,8 @@ type resourceOps struct {
 	forEach                   func(rs *ResourceSet, fn func(Resource) bool) bool
 	count                     func(rs *ResourceSet) int
 	explain                   ExplainRegistration
+	namespace                 *namespaceRegistration
+	syncScope                 *syncScopeRegistration
 	dumpDefaultRules          map[string]dumpDefaultRule
 	maturity                  *maturity.Metadata
 	operationMaturity         map[Operation]maturity.Metadata
@@ -100,7 +102,11 @@ func registerExternalResourceType[R any, RPtr interface {
 	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, getSlicePtr, explain, options...)
 	ops := registry[rt]
 	if ops.externalUnsupportedReason != "" {
-		panic("register resource type " + string(rt) + ": external capability and unsupported reason are mutually exclusive")
+		panic(
+			"register resource type " + string(
+				rt,
+			) + ": external capability and unsupported reason are mutually exclusive",
+		)
 	}
 	ops.external = &external
 	ops.materializeExternal = externalMaterializer[R, RPtr](rt, getSlicePtr, external)
@@ -120,7 +126,11 @@ func registerExternalResourceTypeWithSliceAccessors[R any, RPtr interface {
 	registerResourceTypeWithSliceAccessors[R, RPtr](rt, getSlicePtr, ensureSlicePtr, explain, options...)
 	ops := registry[rt]
 	if ops.externalUnsupportedReason != "" {
-		panic("register resource type " + string(rt) + ": external capability and unsupported reason are mutually exclusive")
+		panic(
+			"register resource type " + string(
+				rt,
+			) + ": external capability and unsupported reason are mutually exclusive",
+		)
 	}
 	ops.external = &external
 	ops.materializeExternal = externalMaterializer[R, RPtr](rt, ensureSlicePtr, external)
@@ -144,7 +154,12 @@ func externalMaterializer[R any, RPtr interface {
 		}
 		if existing, ok := rs.GetResourceByRef(ref); ok {
 			if existing.GetType() != rt {
-				return nil, fmt.Errorf("external ref %q is already used by %s, expected %s", ref, existing.GetType(), rt)
+				return nil, fmt.Errorf(
+					"external ref %q is already used by %s, expected %s",
+					ref,
+					existing.GetType(),
+					rt,
+				)
 			}
 			if existing.GetKonnectID() != "" && existing.GetKonnectID() != id {
 				return nil, fmt.Errorf(
@@ -168,7 +183,11 @@ func externalMaterializer[R any, RPtr interface {
 		}
 		if external.ParentType != "" {
 			if external.ParentFieldPath == "" {
-				return nil, fmt.Errorf("external %s registration has parent type %s without parent field", rt, external.ParentType)
+				return nil, fmt.Errorf(
+					"external %s registration has parent type %s without parent field",
+					rt,
+					external.ParentType,
+				)
 			}
 			if strings.TrimSpace(parentRef) == "" {
 				return nil, fmt.Errorf("cannot materialize external %s without %s parent ref", rt, external.ParentType)
@@ -315,6 +334,9 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 		if err := option(&ops); err != nil {
 			panic("register resource type " + string(rt) + ": " + err.Error())
 		}
+	}
+	if ops.namespace != nil {
+		registerNamespaceParticipant(rt, *ops.namespace)
 	}
 	registry[rt] = ops
 }

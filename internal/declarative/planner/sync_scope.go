@@ -49,36 +49,10 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	}
 
 	scope := rs.EnsureSyncScope()
-	addRootIfPresent(scope, resources.ResourceTypePortal, len(rs.Portals))
-	addRootIfPresent(scope, resources.ResourceTypeApplicationAuthStrategy, len(rs.ApplicationAuthStrategies))
-	addRootIfPresent(scope, resources.ResourceTypeDCRProvider, len(rs.DCRProviders))
-	addRootIfPresent(scope, resources.ResourceTypeControlPlane, len(rs.ControlPlanes))
-	addRootIfPresent(scope, resources.ResourceTypeCatalogService, len(rs.CatalogServices))
-	addRootIfPresent(scope, resources.ResourceTypeAIGateway, len(rs.AIGateways))
+	rs.InferRegisteredSyncScope(scope)
 	addRootIfPresent(scope, resources.ResourceTypeDashboard, len(rs.Dashboards))
-	addRootIfPresent(scope, resources.ResourceTypeAPI, len(rs.APIs))
-	addRootIfPresent(scope, resources.ResourceTypeEventGatewayControlPlane, len(rs.EventGatewayControlPlanes))
 	addRootIfPresent(scope, resources.ResourceTypeOrganizationTeam, len(rs.OrganizationTeams))
 
-	for _, cert := range rs.ControlPlaneDataPlaneCertificates {
-		scope.AddChild(
-			resources.ResourceTypeControlPlane,
-			cert.ControlPlane,
-			resources.ResourceTypeControlPlaneDataPlaneCertificate,
-		)
-	}
-	for _, version := range rs.APIVersions {
-		scope.AddChild(resources.ResourceTypeAPI, version.API, resources.ResourceTypeAPIVersion)
-	}
-	for _, publication := range rs.APIPublications {
-		scope.AddChild(resources.ResourceTypeAPI, publication.API, resources.ResourceTypeAPIPublication)
-	}
-	for _, implementation := range rs.APIImplementations {
-		scope.AddChild(resources.ResourceTypeAPI, implementation.API, resources.ResourceTypeAPIImplementation)
-	}
-	for _, document := range rs.APIDocuments {
-		scope.AddChild(resources.ResourceTypeAPI, document.API, resources.ResourceTypeAPIDocument)
-	}
 	addPortalChildScopes(scope, rs)
 	addAIGatewayChildScopes(scope, rs)
 	addEventGatewayChildScopes(scope, rs)

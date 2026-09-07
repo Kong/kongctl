@@ -13,6 +13,20 @@ func init() {
 		func(rs *ResourceSet) *[]OrganizationTeamResource { return &rs.OrganizationTeams },
 		AutoExplain[OrganizationTeamResource](),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
+		WithNamespace(100, func(r *OrganizationTeamResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             string(ResourceTypeTeam),
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}, func(rs *ResourceSet) []OrganizationTeamResource {
+			if rs.Organization == nil {
+				return nil
+			}
+			return rs.Organization.Teams
+		}),
 	)
 }
 

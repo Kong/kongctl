@@ -28,6 +28,7 @@ func init() {
 				Notes: []string{"Set the whole spec with `spec: !file ...` instead of populating content directly."},
 			}),
 		),
+		WithChildSyncScope(ResourceTypeAPI),
 	)
 }
 

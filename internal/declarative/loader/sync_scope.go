@@ -7,27 +7,11 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type rootCollectionScope struct {
-	key          string
-	resourceType resources.ResourceType
-}
-
 type childCollectionScope struct {
 	key          string
 	resourceType resources.ResourceType
 	parentKey    string
 	parentType   resources.ResourceType
-}
-
-var rootCollectionScopes = []rootCollectionScope{
-	{key: "portals", resourceType: resources.ResourceTypePortal},
-	{key: "application_auth_strategies", resourceType: resources.ResourceTypeApplicationAuthStrategy},
-	{key: "dcr_providers", resourceType: resources.ResourceTypeDCRProvider},
-	{key: "control_planes", resourceType: resources.ResourceTypeControlPlane},
-	{key: "catalog_services", resourceType: resources.ResourceTypeCatalogService},
-	{key: "ai_gateways", resourceType: resources.ResourceTypeAIGateway},
-	{key: "apis", resourceType: resources.ResourceTypeAPI},
-	{key: "event_gateways", resourceType: resources.ResourceTypeEventGatewayControlPlane},
 }
 
 var rootChildCollectionScopes = []childCollectionScope{
@@ -126,36 +110,6 @@ var rootChildCollectionScopes = []childCollectionScope{
 		resourceType: resources.ResourceTypeAIGatewaySNI,
 		parentKey:    resources.SchemaFieldAIGateway,
 		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "control_plane_data_plane_certificates",
-		resourceType: resources.ResourceTypeControlPlaneDataPlaneCertificate,
-		parentKey:    "control_plane",
-		parentType:   resources.ResourceTypeControlPlane,
-	},
-	{
-		key:          "api_versions",
-		resourceType: resources.ResourceTypeAPIVersion,
-		parentKey:    "api",
-		parentType:   resources.ResourceTypeAPI,
-	},
-	{
-		key:          "api_publications",
-		resourceType: resources.ResourceTypeAPIPublication,
-		parentKey:    "api",
-		parentType:   resources.ResourceTypeAPI,
-	},
-	{
-		key:          "api_implementations",
-		resourceType: resources.ResourceTypeAPIImplementation,
-		parentKey:    "api",
-		parentType:   resources.ResourceTypeAPI,
-	},
-	{
-		key:          "api_documents",
-		resourceType: resources.ResourceTypeAPIDocument,
-		parentKey:    "api",
-		parentType:   resources.ResourceTypeAPI,
 	},
 	{
 		key:          "portal_customizations",
@@ -370,17 +324,6 @@ var rootChildParentDescriptions = map[resources.ResourceType]string{
 	resources.ResourceTypeAIGatewaySNI:                  "each resource must declare an ai_gateway parent",
 }
 
-var apiChildCollectionScopes = []childCollectionScope{
-	{key: "versions", resourceType: resources.ResourceTypeAPIVersion, parentType: resources.ResourceTypeAPI},
-	{key: "publications", resourceType: resources.ResourceTypeAPIPublication, parentType: resources.ResourceTypeAPI},
-	{
-		key:          "implementations",
-		resourceType: resources.ResourceTypeAPIImplementation,
-		parentType:   resources.ResourceTypeAPI,
-	},
-	{key: "documents", resourceType: resources.ResourceTypeAPIDocument, parentType: resources.ResourceTypeAPI},
-}
-
 var portalChildCollectionScopes = []childCollectionScope{
 	{
 		key:          "customization",
@@ -570,9 +513,12 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	}
 
 	scope := rs.EnsureSyncScope()
-	for _, entry := range rootCollectionScopes {
-		if _, ok := raw[entry.key]; ok {
-			scope.AddRoot(entry.resourceType)
+	collections := resources.SyncCollections()
+	for _, collection := range collections {
+		if collection.ParentType == "" {
+			if _, ok := raw[collection.RootKey]; ok {
+				scope.AddRoot(collection.ResourceType)
+			}
 		}
 	}
 
@@ -582,7 +528,9 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		}
 	}
 
-	captureNestedCollectionScopes(scope, raw, "apis", resources.ResourceTypeAPI, apiChildCollectionScopes)
+	if err := captureRegisteredChildScopes(scope, raw, collections); err != nil {
+		return err
+	}
 	captureNestedCollectionScopes(
 		scope,
 		raw,
@@ -592,19 +540,6 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	)
 	captureNestedAIGatewayConsumerCredentialScopes(scope, raw)
 	captureNestedAIGatewayConfigStoreSecretScopes(scope, raw)
-	captureNestedCollectionScopes(
-		scope,
-		raw,
-		"control_planes",
-		resources.ResourceTypeControlPlane,
-		[]childCollectionScope{
-			{
-				key:          "data_plane_certificates",
-				resourceType: resources.ResourceTypeControlPlaneDataPlaneCertificate,
-				parentType:   resources.ResourceTypeControlPlane,
-			},
-		},
-	)
 	captureNestedCollectionScopes(
 		scope,
 		raw,
@@ -619,6 +554,35 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	captureOrganizationScope(scope, raw)
 	captureAnalyticsScope(scope, raw)
 
+	return nil
+}
+
+func captureRegisteredChildScopes(
+	scope *resources.SyncScope,
+	raw map[string]any,
+	collections []resources.SyncCollection,
+) error {
+	for _, collection := range collections {
+		if collection.ParentType == "" {
+			continue
+		}
+		entry := childCollectionScope{
+			key:          collection.RootKey,
+			resourceType: collection.ResourceType,
+			parentKey:    collection.ParentKey,
+			parentType:   collection.ParentType,
+		}
+		if err := captureRootChildScope(scope, raw, entry); err != nil {
+			return err
+		}
+		var nested []childCollectionScope
+		for _, key := range collection.NestedKeys {
+			child := entry
+			child.key = key
+			nested = append(nested, child)
+		}
+		captureNestedCollectionScopes(scope, raw, collection.ParentRootKey, collection.ParentType, nested)
+	}
 	return nil
 }
 

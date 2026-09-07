@@ -23,6 +23,16 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayExplainNode),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName, "display_name"}},
+		WithNamespace(40, func(r *AIGatewayResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "ai_gateway",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

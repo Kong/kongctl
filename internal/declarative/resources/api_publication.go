@@ -13,6 +13,7 @@ func init() {
 		ResourceTypeAPIPublication,
 		func(rs *ResourceSet) *[]APIPublicationResource { return &rs.APIPublications },
 		AutoExplain[APIPublicationResource](),
+		WithChildSyncScope(ResourceTypeAPI),
 	)
 }
 
