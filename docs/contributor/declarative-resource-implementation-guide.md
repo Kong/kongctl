@@ -168,6 +168,8 @@ Co-locate [scope capabilities][scope-capabilities] with registration:
 The shared [declaration structure][declaration-structure] supplies root and
 nested YAML keys for scope and explain. Relationship descriptors supply the
 parent selector. Do not duplicate these facts in loader or planner inventories.
+Scope descriptors are derived and checked once, on first use after resource
+initialization. `SyncCollections` returns copies, including nested keys.
 The loader captures key presence; planner fallback infers scope only from
 populated slices and retains any explicit `SyncScope`.
 

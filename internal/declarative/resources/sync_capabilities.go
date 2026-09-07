@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"sync"
 )
 
 type syncScopeRegistration struct {
@@ -53,10 +54,22 @@ func withSyncScope(parentType ResourceType) ResourceRegistrationOption {
 	}
 }
 
-// SyncCollections derives locations from the same struct metadata as explain
-// and parent selectors from relationship descriptors. Scope semantics remain
-// opt-in: structural containment alone does not imply sync ownership.
+// Defer derivation until every resource's init function has registered its
+// metadata. Cross-resource validation must not depend on registration order.
+var cachedSyncCollections = sync.OnceValue(computeSyncCollections)
+
+// SyncCollections returns a copy of the collection metadata, including nested
+// keys. Locations and parent selectors are derived once from the declaration
+// structure and relationships; callers cannot mutate the cached descriptors.
 func SyncCollections() []SyncCollection {
+	collections := slices.Clone(cachedSyncCollections())
+	for i := range collections {
+		collections[i].NestedKeys = slices.Clone(collections[i].NestedKeys)
+	}
+	return collections
+}
+
+func computeSyncCollections() []SyncCollection {
 	var collections []SyncCollection
 	kinds := RegisteredTypes()
 	slices.Sort(kinds)
