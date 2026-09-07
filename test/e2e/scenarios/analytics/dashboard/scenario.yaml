@@ -4,6 +4,7 @@ log-level: debug
 
 vars:
   namespace: dashboard-test
+  overwriteNamespace: dashboard-test-overwrite
   dashboardRef: api-summary-dashboard
   dashboardName: API Summary Dashboard
   uiDashboardName: UI GitOps Dashboard
@@ -215,13 +216,69 @@ steps:
                 name: "{{ .vars.uiDashboardName }}"
                 namespace: "{{ .vars.namespace }}"
 
-      - name: 002-dump-dashboard
+      - name: 002-reject-namespace-overwrite-without-flag
+        run:
+          - adopt
+          - analytics
+          - dashboard
+          - "{{ .vars.uiDashboardID }}"
+          - --namespace
+          - "{{ .vars.overwriteNamespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+
+      - name: 003-verify-namespace-unchanged
+        run:
+          - get
+          - analytics
+          - dashboards
+        assertions:
+          - select: "[?id=='{{ .vars.uiDashboardID }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.uiDashboardName }}"
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+                labels.team: platform
+                definition.tiles: []
+
+      - name: 004-overwrite-dashboard-namespace
+        run:
+          - adopt
+          - analytics
+          - dashboard
+          - "{{ .vars.uiDashboardID }}"
+          - --namespace
+          - "{{ .vars.overwriteNamespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                resource_type: dashboard
+                name: "{{ .vars.uiDashboardName }}"
+                namespace: "{{ .vars.overwriteNamespace }}"
+
+      - name: 005-verify-namespace-overwritten
+        run:
+          - get
+          - analytics
+          - dashboards
+        assertions:
+          - select: "[?id=='{{ .vars.uiDashboardID }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.uiDashboardName }}"
+                labels."KONGCTL-namespace": "{{ .vars.overwriteNamespace }}"
+                labels.team: platform
+                definition.tiles: []
+
+      - name: 006-dump-dashboard
         run:
           - dump
           - declarative
           - "--resources=analytics.dashboards"
           - --default-namespace
-          - "{{ .vars.namespace }}"
+          - "{{ .vars.overwriteNamespace }}"
         outputFormat: none
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump-dashboard.yaml"
@@ -235,9 +292,9 @@ steps:
           - select: "_defaults.kongctl"
             expect:
               fields:
-                namespace: "{{ .vars.namespace }}"
+                namespace: "{{ .vars.overwriteNamespace }}"
 
-      - name: 003-plan-from-dump
+      - name: 007-plan-from-dump
         outputFormat: disable
         run:
           - plan
@@ -251,20 +308,22 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 007-cleanup-adopted-dashboard
-    inputOverlayDirs:
-      - overlays/005-sync-delete
-    commands:
-      - name: 000-sync-delete-adopted-dashboard
+      - name: 008-delete-adopted-dashboard
         outputFormat: json
         run:
-          - sync
+          - delete
           - -f
-          - "{{ .workdir }}/config.yaml"
+          - "{{ .workdir }}/dump-dashboard.yaml"
           - --auto-approve
         assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
           - select: summary
             expect:
               fields:
+                applied: 1
                 failed: 0
                 status: success
