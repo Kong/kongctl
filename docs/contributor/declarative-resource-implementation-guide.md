@@ -36,12 +36,14 @@ A resource declaration, SDK request, observed response, and planned change
 are different representations. Do not use resource serialization as an API
 request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
-The [resource registry][registry] already drives iteration, aggregation,
+The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
-Loader scope/extraction, namespace participation, relationships, state-client
-wiring, executor routing, and dump collection still have separate integration
-points. Registering a type does not complete those steps automatically.
+[Runtime executor registration][runtime-executors] supplies action routing and
+payload validation for SDK resource operations. Loader scope/extraction,
+namespace participation, relationships, pre-execution validation, state-client
+wiring, and dump collection still have separate integration points.
+Registering a declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
 
@@ -238,11 +240,56 @@ through the current execution path, including parents created in the same
 plan. Use SDK label conversion helpers so user-label removal and managed
 labels survive updates.
 
-[Executor construction and routing][executor] still require explicit wiring.
-Inspect `NewWithOptions`, `createResource`, `updateResource`,
-`deleteResource`, and payload registration for supported actions and any
-resource-specific reference or post-operation work. Preserve created-ID
-tracking, execution groups, dry-run behavior, and current-state checks.
+Add resources in their family's runtime registration:
+
+| Family | Registration |
+| --- | --- |
+| AI Gateway | [AI Gateway][ai-executors] |
+| Event Gateway | [Event Gateway][egw-executors] |
+| Control planes and certificates | [Control planes][cp-executors] |
+| Organization teams and assignments | [Organization][org-executors] |
+| Auth, DCR, catalog, dashboards | [Managed roots][managed-execs] |
+| Portals and children | [Portals][portal-execs] |
+| APIs and children | [APIs][api-execs] |
+
+The typed base executor supplies its resource kind and payload contract.
+`crudResourceExecutor` exposes create/update/delete;
+`createDeleteResourceExecutor` leaves update unsupported.
+Registration rejects missing contracts, empty action sets, and duplicate kinds.
+No per-kind executor field, payload-list entry, or action-switch case is needed.
+Use an explicit `resourceExecutor` for custom actions such as the update-only
+portal team-group mapping executor. Keep unsupported actions nil.
+
+AI Gateway children prepare references before every supported operation;
+consumer groups synchronize membership after successful create/update.
+Event Gateway children prepare writes only; deletes use routing IDs in the
+plan. Static keys omit update. Virtual-cluster create/update retain distinct
+gateway lookup rules. Preserve empty-ID versus unknown-ID predicates and
+parent/reference precedence during migration.
+
+Control-plane groups synchronize membership after writes and detach members
+before delete. Organization assignments omit update; team-role deletion
+resolves the team but does not re-resolve the role entity.
+
+Portal singleton dispatch retains legacy create-to-update aliases; its
+`BaseSingletonExecutor` payload contract still accepts only update plans.
+API publication create/update both use the create operation and
+`upsertPayloadContract`; its PUT semantics apply to both actions. Keep action
+aliases and payload validation coupled in the same registration.
+
+Use `prepareResourceExecutor` for all actions, `prepareResourceWrites` for
+create/update, and `prepareResourceWrite` for action-specific preparation.
+Use `afterResourceWrite` for work following a successful write.
+Keep ordering and failures explicit; unsupported operations must not resolve
+references or perform API calls.
+
+[`NewWithOptions`][executor] calls registration entry points in a fixed order.
+Add one call there for a new family; existing families extend their own file.
+Preserve created-ID tracking, execution groups, dry-run behavior,
+current-state checks, and action-specific reference/post-operation work.
+Registration does not define ID requirements or inherited protection. Review
+`validateChangePreExecution` and [inherited protection][exec-protection] when
+adding a lifecycle, especially resources without their own remote ID.
 
 ### Payload and saved-plan contracts
 
@@ -443,6 +490,16 @@ engine contract. Each refactoring migration should:
 [cli]:
   ../../internal/cmd/root/products/konnect/declarative/declarative.go
 [executor]: ../../internal/declarative/executor/executor.go
+[runtime-executors]:
+  ../../internal/declarative/executor/resource_executors.go
+[ai-executors]: ../../internal/declarative/executor/ai_gateway_executors.go
+[egw-executors]: ../../internal/declarative/executor/event_gateway_executors.go
+[cp-executors]: ../../internal/declarative/executor/control_plane_executors.go
+[org-executors]: ../../internal/declarative/executor/organization_executors.go
+[managed-execs]: ../../internal/declarative/executor/managed_root_executors.go
+[portal-execs]: ../../internal/declarative/executor/portal_executors.go
+[api-execs]: ../../internal/declarative/executor/api_executors.go
+[exec-protection]: ../../internal/declarative/executor/protection_inheritance.go
 [base-executor]: ../../internal/declarative/executor/base_executor.go
 [base-operations]: ../../internal/declarative/executor/base_operations.go
 [payloads]: ../../internal/declarative/executor/payload_contract.go
