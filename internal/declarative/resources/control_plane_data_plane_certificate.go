@@ -25,6 +25,7 @@ func init() {
 			}),
 			WithExplainRecommendedFields("ref", "control_plane", "cert"),
 		),
+		WithChildSyncScope(ResourceTypeControlPlane),
 	)
 }
 

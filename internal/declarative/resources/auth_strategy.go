@@ -18,6 +18,16 @@ func init() {
 			WithExplainSchemaBuilder(applicationAuthStrategyExplainNode),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName, "display_name"}},
+		WithNamespace(70, func(r *ApplicationAuthStrategyResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "application_auth_strategy",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

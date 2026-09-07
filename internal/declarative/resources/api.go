@@ -16,6 +16,16 @@ func init() {
 			WithExplainSchemaBuilder(apiExplainNode),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
+		WithNamespace(20, func(r *APIResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "api",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

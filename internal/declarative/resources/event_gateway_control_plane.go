@@ -14,6 +14,16 @@ func init() {
 			WithExplainAliases("egw"),
 		),
 		ExternalResolutionRegistration{AllowAnyStringSelector: true},
+		WithNamespace(60, func(r *EventGatewayControlPlaneResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             SchemaFieldEventGateway,
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

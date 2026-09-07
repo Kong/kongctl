@@ -23,6 +23,7 @@ func init() {
 		AutoExplain[APIImplementationResource](
 			WithExplainSchemaBuilder(apiImplementationExplainNode),
 		),
+		WithChildSyncScope(ResourceTypeAPI),
 	)
 }
 

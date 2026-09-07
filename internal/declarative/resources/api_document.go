@@ -25,6 +25,7 @@ func init() {
 			}),
 		),
 		WithExternalUnsupportedReason("scoped API document lookup is planned for API domain enablement"),
+		WithChildSyncScope(ResourceTypeAPI),
 	)
 }
 

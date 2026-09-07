@@ -13,6 +13,16 @@ func init() {
 		func(rs *ResourceSet) *[]ControlPlaneResource { return &rs.ControlPlanes },
 		AutoExplain[ControlPlaneResource](),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
+		WithNamespace(90, func(r *ControlPlaneResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "control_plane",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

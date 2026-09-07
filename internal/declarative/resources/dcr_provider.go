@@ -13,13 +13,20 @@ func init() {
 		ResourceTypeDCRProvider,
 		func(rs *ResourceSet) *[]DCRProviderResource { return &rs.DCRProviders },
 		AutoExplain[DCRProviderResource](
-			WithExplainFieldHint("dcr_config.initial_client_secret", secretExplainFieldHint("DCR_INITIAL_CLIENT_SECRET")),
+			WithExplainFieldHint(
+				"dcr_config.initial_client_secret",
+				secretExplainFieldHint("DCR_INITIAL_CLIENT_SECRET"),
+			),
 			WithExplainFieldHint("dcr_config.dcr_token", secretExplainFieldHint("DCR_TOKEN")),
 			WithExplainFieldHint("dcr_config.api_key", secretExplainFieldHint("DCR_API_KEY")),
 		),
 		WithExternalUnsupportedReason(
 			"DCR provider lookup is deferred until write-only configuration can be separated from identity",
 		),
+		WithNamespace(80, func(r *DCRProviderResource) NamespaceParticipant {
+			return NamespaceParticipant{Ref: r.Ref, Label: "dcr_provider", SupportsProtected: true, Meta: &r.Kongctl}
+		}),
+		WithRootSyncScope(),
 	)
 }
 

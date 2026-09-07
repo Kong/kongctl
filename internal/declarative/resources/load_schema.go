@@ -194,7 +194,7 @@ func reflectLoadSchema(typ reflect.Type, stack []reflect.Type) *JSONSchema {
 	typ = derefExplainType(typ)
 
 	if typ.Kind() == reflect.Struct {
-		if resourceType, ok := explainRegisteredResourceType(typ); ok {
+		if resourceType, ok := registeredResourceType(typ); ok {
 			return loadSchemaResourceRef(resourceType, false)
 		}
 	}

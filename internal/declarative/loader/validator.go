@@ -1950,80 +1950,9 @@ func (l *Loader) toPascalCase(s string) string {
 // validateNamespaces validates all namespace values in the resource set
 func (l *Loader) validateNamespaces(rs *resources.ResourceSet) error {
 	nsValidator := validator.NewNamespaceValidator()
-	namespaces := make(map[string]bool)
-	addNamespace := func(meta *resources.KongctlMeta) {
-		if meta != nil && meta.Namespace != nil {
-			namespaces[*meta.Namespace] = true
-		}
-	}
-
-	// Collect all unique namespaces from parent resources
-	// Portals
-	for _, portal := range rs.Portals {
-		addNamespace(portal.Kongctl)
-	}
-
-	// APIs
-	for _, api := range rs.APIs {
-		addNamespace(api.Kongctl)
-	}
-
-	// Application Auth Strategies
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		addNamespace(strategy.Kongctl)
-	}
-
-	// DCR Providers
-	for _, provider := range rs.DCRProviders {
-		addNamespace(provider.Kongctl)
-	}
-
-	// Control Planes
-	for _, cp := range rs.ControlPlanes {
-		addNamespace(cp.Kongctl)
-	}
-
-	// Catalog Services
-	for _, service := range rs.CatalogServices {
-		addNamespace(service.Kongctl)
-	}
-
-	// AI Gateways
-	for _, gateway := range rs.AIGateways {
-		addNamespace(gateway.Kongctl)
-	}
-
-	// Dashboards
-	for _, dashboard := range rs.Dashboards {
-		addNamespace(dashboard.Kongctl)
-	}
-
-	// Event Gateway Control Planes
-	for _, cp := range rs.EventGatewayControlPlanes {
-		addNamespace(cp.Kongctl)
-	}
-
-	// Organization resources
-	for _, team := range rs.OrganizationTeams {
-		addNamespace(team.Kongctl)
-	}
-	if rs.Organization != nil {
-		for _, user := range rs.Organization.Users {
-			addNamespace(user.Kongctl)
-		}
-		for _, systemAccount := range rs.Organization.SystemAccounts {
-			addNamespace(systemAccount.Kongctl)
-		}
-	}
-
-	// Convert to slice for validation
-	namespaceList := make([]string, 0, len(namespaces))
-	for ns := range namespaces {
-		namespaceList = append(namespaceList, ns)
-	}
 
 	// Validate all namespaces
-	if err := nsValidator.ValidateNamespaces(namespaceList); err != nil {
+	if err := nsValidator.ValidateNamespaces(rs.NamespaceValues()); err != nil {
 		return fmt.Errorf("namespace validation failed: %w", err)
 	}
 

@@ -15,6 +15,16 @@ func init() {
 		func(rs *ResourceSet) *[]PortalResource { return &rs.Portals },
 		AutoExplain[PortalResource](),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
+		WithNamespace(10, func(r *PortalResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "portal",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+				External:          r.IsExternal(),
+			}
+		}),
+		WithRootSyncScope(),
 	)
 }
 
