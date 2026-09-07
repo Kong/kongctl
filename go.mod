@@ -15,7 +15,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/glamour v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.8
-	github.com/daveshanley/vacuum v0.30.0
+	github.com/daveshanley/vacuum v0.30.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/itchyny/gojq v0.12.19
@@ -92,7 +92,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/oasdiff/yaml v0.1.1 // indirect
 	github.com/oasdiff/yaml3 v0.0.14 // indirect
-	github.com/pb33f/doctor v0.0.79 // indirect
+	github.com/pb33f/doctor v0.0.80 // indirect
 	github.com/pb33f/jsonpath v0.8.3 // indirect
 	github.com/pb33f/libasyncapi v0.0.2 // indirect
 	github.com/pb33f/libopenapi v0.38.7 // indirect
