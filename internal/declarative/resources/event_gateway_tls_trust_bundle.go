@@ -14,6 +14,7 @@ func init() {
 			return &rs.EventGatewayTLSTrustBundles
 		},
 		AutoExplain[EventGatewayTLSTrustBundleResource](),
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 

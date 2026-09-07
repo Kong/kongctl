@@ -15,6 +15,7 @@ func init() {
 			return &rs.EventGatewayDataPlaneCertificates
 		},
 		AutoExplain[EventGatewayDataPlaneCertificateResource](),
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 

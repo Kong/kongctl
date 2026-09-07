@@ -27,10 +27,20 @@ func init() {
 				"ai_gateway_certificates", "ai-gateway-certificate", "ai-gateway-certificates",
 				"ai_gateway.certificates", "aigw-certificate", "aigw-certificates",
 			),
-			WithExplainRecommendedFields(SchemaFieldRef, SchemaFieldAIGateway, SchemaFieldName, SchemaFieldCert, SchemaFieldKey),
+			WithExplainRecommendedFields(
+				SchemaFieldRef,
+				SchemaFieldAIGateway,
+				SchemaFieldName,
+				SchemaFieldCert,
+				SchemaFieldKey,
+			),
 			WithExplainSchemaBuilder(aiGatewayCertificateExplainNode),
 		),
 		WithExternalUnsupportedReason("AI Gateway certificate lookup requires gateway-scoped name materialization"),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(140, "each resource must declare an ai_gateway parent"),
+		),
 	)
 	registerResourceType(
 		ResourceTypeAIGatewayCACertificate,
@@ -43,6 +53,10 @@ func init() {
 			WithExplainRecommendedFields(SchemaFieldRef, SchemaFieldAIGateway, SchemaFieldName, SchemaFieldCert),
 			WithExplainSchemaBuilder(aiGatewayCACertificateExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(150, "each resource must declare an ai_gateway parent"),
+		),
 	)
 	registerResourceType(
 		ResourceTypeAIGatewaySNI,
@@ -53,9 +67,18 @@ func init() {
 				"ai_gateway.snis", "aigw-sni", "aigw-snis",
 			),
 			WithExplainRecommendedFields(
-				SchemaFieldRef, SchemaFieldAIGateway, SchemaFieldName, SchemaFieldDisplayName, "hostname", SchemaFieldCertificate,
+				SchemaFieldRef,
+				SchemaFieldAIGateway,
+				SchemaFieldName,
+				SchemaFieldDisplayName,
+				"hostname",
+				SchemaFieldCertificate,
 			),
 			WithExplainSchemaBuilder(aiGatewaySNIExplainNode),
+		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(160, "each resource must declare an ai_gateway parent"),
 		),
 	)
 }

@@ -31,6 +31,10 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayProviderExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(10, "each Model Provider must declare an ai_gateway parent"),
+		),
 	)
 }
 

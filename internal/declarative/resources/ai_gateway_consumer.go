@@ -43,6 +43,10 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayConsumerExplainNode),
 		),
 		WithExternalUnsupportedReason("scoped AI Gateway consumer lookup is planned for domain enablement"),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(50, "each Consumer must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -362,7 +366,12 @@ func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			false,
 		),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

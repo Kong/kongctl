@@ -16,6 +16,7 @@ func init() {
 		AutoExplain[EventGatewaySchemaRegistryResource](
 			WithExplainSchemaBuilder(eventGatewaySchemaRegistryExplainNode),
 		),
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 

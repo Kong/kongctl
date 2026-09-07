@@ -44,6 +44,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayAgentExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(40, "each Agent must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -394,13 +398,23 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 					false,
 				),
 				explainField("proxy", aiGatewayProxyExplainNode(), false, false),
-				explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "1048576"}, false, false),
+				explainField(
+					"max_request_body_size",
+					&ExplainNode{Kind: explainKindInteger, Literal: "1048576"},
+					false,
+					false,
+				),
 				explainField(
 					"logging",
 					explainObject(
 						explainField("payloads", explainBoolNode("true"), false, false),
 						explainField("statistics", explainBoolNode("true"), false, false),
-						explainField("max_payload_size", &ExplainNode{Kind: explainKindInteger, Literal: "524288"}, false, false),
+						explainField(
+							"max_payload_size",
+							&ExplainNode{Kind: explainKindInteger, Literal: "524288"},
+							false,
+							false,
+						),
 					),
 					false,
 					false,
@@ -415,7 +429,12 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			true,
 		),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

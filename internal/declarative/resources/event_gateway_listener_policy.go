@@ -15,6 +15,10 @@ func init() {
 		AutoExplain[EventGatewayListenerPolicyResource](
 			WithExplainSchemaBuilder(eventGatewayListenerPolicyExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeEventGatewayListener,
+			WithNestedScopeWithin(ResourceTypeEventGatewayControlPlane),
+		),
 	)
 }
 

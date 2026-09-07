@@ -38,7 +38,7 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-ordinary collection scope, and dump-default metadata. The
+collection scope, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. Nested extraction, specialized
@@ -162,21 +162,32 @@ Sync deletion follows explicit manifest scope:
 Co-locate [scope capabilities][scope-capabilities] with registration:
 
 - `WithRootSyncScope()` handles ordinary root collections.
-- `WithChildSyncScope(ownerType)` handles ordinary child collections whose
+- `WithChildSyncScope(ownerType, options...)` handles child collections whose
   sync owner matches `GetParentRef()` and a root-only parent relationship.
+  Owners may themselves be children; nested paths follow that ownership chain.
 
 The shared [declaration structure][declaration-structure] supplies root and
 nested YAML keys for scope and explain. Relationship descriptors supply the
 parent selector. Do not duplicate these facts in loader or planner inventories.
 Scope descriptors are derived and checked once, on first use after resource
-initialization. `SyncCollections` returns copies, including nested keys.
+initialization. `SyncCollections` returns copies, including every nested path.
 The loader captures key presence; planner fallback infers scope only from
 populated slices and retains any explicit `SyncScope`.
 
-All eight ordinary roots use the capability. API versions, publications,
-implementations, documents, and control-plane data-plane certificates are
-the migrated child examples. Grouped dashboard/organization roots and other
-child families retain [loader scope handling][load-scope] and
+Child options preserve compatibility policies beside registration:
+
+- `WithEmptyRootCollectionError(order, message)` retains AI Gateway's
+  loader-stage rejection of empty root child collections. Error orders must
+  be positive and unique. Other families retain planner-stage validation.
+- `WithNestedScopeWithin(rootType)` limits nested capture to that root's
+  declaration paths. Event Gateway policies retain capture under
+  `event_gateways`, while AI credentials/secrets also capture scope under
+  root-declared consumers/config stores. Root-level policy declarations and
+  planner inference still use their immediate owner.
+
+All eight ordinary roots and all API, control-plane certificate, AI Gateway,
+and Event Gateway children use registration. Portal children and grouped
+dashboard/organization scope retain [loader scope handling][load-scope] and
 [planner scope handling][plan-scope]. Structural containment alone does not
 define ownership: portal team roles, for example, are scoped to the portal.
 Review parent-scope validation and external-parent support for new owners.
