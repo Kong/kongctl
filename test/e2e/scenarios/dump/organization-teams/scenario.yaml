@@ -11,11 +11,13 @@ test:
     Organization teams dump E2E requires one existing Konnect user via
     KONGCTL_E2E_ORG_USER_EMAIL_1; the user is a lookup selector (not a managed
     resource) and is added as a member of the alpha team to exercise
-    collectOrganizationUsersFromTeamMemberships in the dump code path.
+    user collection in the dump code path. A temporary system account is added
+    to the alpha team to verify system account dump and round-trip coverage.
 
 vars:
   teamAlphaName: e2e-dump-org-team-alpha
   teamBetaName: e2e-dump-org-team-beta
+  systemAccountName: e2e-dump-org-system-account
 
 steps:
   - name: 000-reset-org
@@ -23,7 +25,18 @@ steps:
     commands:
       - resetOrg: true
 
-  - name: 001-sync-bootstrap
+  - name: 001-create-system-account
+    skipInputs: true
+    commands:
+      - name: 000-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: System account for organization teams dump E2E coverage
+
+  - name: 002-sync-bootstrap
     commands:
       - name: 000-sync-bootstrap
         outputFormat: json
@@ -40,16 +53,16 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 5
-                by_action.CREATE: 5
+                total_changes: 6
+                by_action.CREATE: 6
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 6
                 failed: 0
                 status: success
 
-  - name: 002-dump-and-round-trip
+  - name: 003-dump-and-round-trip
     skipInputs: true
     commands:
       - name: 000-dump-org-teams
@@ -98,6 +111,25 @@ steps:
               fields:
                 "length(@)": 1
 
+          - name: org-system-accounts-present
+            select: organization."system-accounts"
+            expect:
+              fields:
+                "length(@)": 1
+          - name: system-account-membership-present
+            select: organization."system-accounts"[0]
+            expect:
+              fields:
+                name: "{{ .vars.systemAccountName }}"
+                "length(teams)": 1
+          - name: system-account-alpha-team-reference
+            select: >-
+              organization."system-accounts"[0].teams[0].team ==
+              (organization.teams[?name=='{{ .vars.teamAlphaName }}'].ref | [0])
+            expect:
+              fields:
+                "@": true
+
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
@@ -115,7 +147,16 @@ steps:
       - name: 002-reset-before-round-trip
         resetOrg: true
 
-      - name: 003-sync-dumped-config
+      # Reset deletes system accounts; recreate the name-based lookup target.
+      - name: 003-recreate-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: System account for organization teams dump E2E coverage
+
+      - name: 004-sync-dumped-config
         outputFormat: json
         run:
           - sync
@@ -130,11 +171,11 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
+                applied: 6
                 failed: 0
                 status: success
 
-      - name: 004-get-teams
+      - name: 005-get-teams
         run:
           - get
           - org
@@ -151,7 +192,7 @@ steps:
               fields:
                 name: "{{ .vars.teamBetaName }}"
 
-      - name: 005-get-alpha-team-roles
+      - name: 006-get-alpha-team-roles
         run:
           - get
           - org
@@ -170,7 +211,7 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
-      - name: 006-dump-verify-user-membership
+      - name: 007-dump-verify-memberships
         run:
           - dump
           - declarative
@@ -190,7 +231,26 @@ steps:
               fields:
                 "length(@)": 1
 
-  - name: 003-reset-cleanup
+          - name: org-system-accounts-present-after-roundtrip
+            select: organization."system-accounts"
+            expect:
+              fields:
+                "length(@)": 1
+          - name: system-account-membership-present-after-roundtrip
+            select: organization."system-accounts"[0]
+            expect:
+              fields:
+                name: "{{ .vars.systemAccountName }}"
+                "length(teams)": 1
+          - name: system-account-alpha-team-reference-after-roundtrip
+            select: >-
+              organization."system-accounts"[0].teams[0].team ==
+              (organization.teams[?name=='{{ .vars.teamAlphaName }}'].ref | [0])
+            expect:
+              fields:
+                "@": true
+
+  - name: 004-reset-cleanup
     skipInputs: true
     commands:
       - resetOrg: true
