@@ -5,6 +5,12 @@ import (
 )
 
 func init() {
+	registerSyncSelector(
+		ResourceTypeOrganizationSystemAccount,
+		SchemaFieldSystemAccount,
+		(*ResourceSet).organizationSystemAccounts,
+		(*SyncScope).MarkOrganizationSystemAccountsScoped,
+	)
 	registerNamespaceSelector(
 		ResourceTypeOrganizationSystemAccount, 120,
 		func(rs *ResourceSet) []OrganizationSystemAccountResource {
@@ -25,6 +31,7 @@ func init() {
 		AutoExplain[OrganizationSystemAccountTeamMembershipResource](
 			WithExplainRecommendedFields(SchemaFieldSystemAccount),
 		),
+		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationSystemAccount),
 	)
 	registerResourceType(
 		ResourceTypeOrganizationSystemAccountRole,
@@ -34,6 +41,7 @@ func init() {
 		AutoExplain[OrganizationSystemAccountRoleResource](
 			WithExplainRecommendedFields(SchemaFieldSystemAccount),
 		),
+		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationSystemAccount),
 	)
 }
 

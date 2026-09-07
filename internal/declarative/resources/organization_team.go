@@ -27,6 +27,7 @@ func init() {
 			}
 			return rs.Organization.Teams
 		}),
+		WithRootSyncScope(),
 	)
 }
 

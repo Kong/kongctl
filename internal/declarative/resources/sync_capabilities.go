@@ -10,10 +10,14 @@ import (
 )
 
 type syncScopeRegistration struct {
-	parentType       ResourceType
-	emptyRootOrder   int
-	emptyRootMessage string
-	nestedWithinRoot ResourceType
+	parentType         ResourceType
+	emptyRootOrder     int
+	emptyRootMessage   string
+	nestedWithinRoot   ResourceType
+	parentRef          func(Resource) string
+	coScopes           []ResourceType
+	selectorAssignment bool
+	captureNested      nestedSyncScopeCapture
 }
 
 // SyncCollection describes an opted-in collection's sync ownership and YAML
@@ -21,11 +25,13 @@ type syncScopeRegistration struct {
 type SyncCollection struct {
 	ResourceType     ResourceType
 	RootKey          string
+	RootPath         []string
 	ParentType       ResourceType
 	ParentKey        string
 	NestedPaths      [][]string
 	EmptyRootMessage string
 	emptyRootOrder   int
+	nestedNullKeys   []string
 }
 
 // ChildSyncScopeOption configures explicit child-scope compatibility policies.
@@ -62,23 +68,59 @@ func WithNestedScopeWithin(rootType ResourceType) ChildSyncScopeOption {
 }
 
 // WithRootSyncScope opts a root collection into shared loader scope capture
-// and planner inference. Grouped roots retain their dedicated scope handling.
+// and planner inference, including collections inside declaration groupings.
 func WithRootSyncScope() ResourceRegistrationOption {
 	return withSyncScope("")
 }
 
 // WithChildSyncScope opts a child collection into shared scope handling.
 // Its sync owner must match GetParentRef and a root-only parent relationship.
-// Owners may themselves be children. Singleton, grouping, and indirect
-// ownership retain dedicated handling.
+// Owners may themselves be children. Specialized root policies handle coupled
+// collections and singleton semantics; WithChildSyncScopeFrom overrides ownership.
 func WithChildSyncScope(parentType ResourceType, options ...ChildSyncScopeOption) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
-		if parentType == "" || !reflect.PointerTo(ops.explain.typ).Implements(reflect.TypeFor[ResourceWithParent]()) {
-			return fmt.Errorf("child sync scope requires an owner and ResourceWithParent")
+		if !reflect.PointerTo(ops.explain.typ).Implements(reflect.TypeFor[ResourceWithParent]()) {
+			return fmt.Errorf("child sync scope requires ResourceWithParent")
+		}
+		return withChildSyncScope(parentType, func(resource Resource) string {
+			if parent := resource.(ResourceWithParent).GetParentRef(); parent != nil {
+				return parent.Ref
+			}
+			return ""
+		}, options)(ops)
+	}
+}
+
+// WithChildSyncScopeFrom supplies typed sync ownership when it differs from
+// GetParentRef or the declaration does not implement ResourceWithParent.
+func WithChildSyncScopeFrom[R any](
+	parentType ResourceType,
+	parentRef func(*R) string,
+	options ...ChildSyncScopeOption,
+) ResourceRegistrationOption {
+	return func(ops *resourceOps) error {
+		if parentRef == nil || ops.explain.typ != reflect.TypeFor[R]() {
+			return fmt.Errorf("sync owner accessor must match the registered resource type")
+		}
+		return withChildSyncScope(parentType, func(resource Resource) string {
+			return parentRef(any(resource).(*R))
+		}, options)(ops)
+	}
+}
+
+func withChildSyncScope(
+	parentType ResourceType,
+	parentRef func(Resource) string,
+	options []ChildSyncScopeOption,
+) ResourceRegistrationOption {
+	return func(ops *resourceOps) error {
+		if parentType == "" {
+			return fmt.Errorf("child sync scope requires an owner")
 		}
 		if err := withSyncScope(parentType)(ops); err != nil {
 			return err
 		}
+		ops.syncScope.parentRef = parentRef
 		for _, option := range options {
 			if err := option(ops.syncScope); err != nil {
 				return err
@@ -88,13 +130,26 @@ func WithChildSyncScope(parentType ResourceType, options ...ChildSyncScopeOption
 	}
 }
 
+// WithNestedCoScope also scopes a related kind under the same owner during
+// nested capture and populated-slice inference. Root child declarations retain
+// their own scope: portal_teams alone must not capture portal_team_roles.
+func WithNestedCoScope(kind ResourceType) ChildSyncScopeOption {
+	return func(scope *syncScopeRegistration) error {
+		if kind == "" || slices.Contains(scope.coScopes, kind) {
+			return fmt.Errorf("nested co-scope requires a unique resource type")
+		}
+		scope.coScopes = append(scope.coScopes, kind)
+		return nil
+	}
+}
+
 func withSyncScope(parentType ResourceType) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
 		if ops.syncScope != nil {
 			return fmt.Errorf("sync scope capability is already registered")
 		}
-		if resourceSetRootKey(ops.explain.typ) == "" {
-			return fmt.Errorf("sync scope capability requires a root-level YAML collection")
+		if len(resourceSetDeclarationPath(ops.explain.typ)) == 0 {
+			return fmt.Errorf("sync scope capability requires a YAML declaration collection")
 		}
 		ops.syncScope = &syncScopeRegistration{parentType: parentType}
 		return nil
@@ -111,6 +166,8 @@ var cachedSyncCollections = sync.OnceValue(computeSyncCollections)
 func SyncCollections() []SyncCollection {
 	collections := slices.Clone(cachedSyncCollections())
 	for i := range collections {
+		collections[i].RootPath = slices.Clone(collections[i].RootPath)
+		collections[i].nestedNullKeys = slices.Clone(collections[i].nestedNullKeys)
 		collections[i].NestedPaths = slices.Clone(collections[i].NestedPaths)
 		for j := range collections[i].NestedPaths {
 			collections[i].NestedPaths[j] = slices.Clone(collections[i].NestedPaths[j])
@@ -138,16 +195,47 @@ func computeSyncCollections() []SyncCollection {
 		collection := SyncCollection{
 			ResourceType:     kind,
 			RootKey:          resourceSetRootKey(ops.explain.typ),
+			RootPath:         resourceSetDeclarationPath(ops.explain.typ),
 			ParentType:       ops.syncScope.parentType,
 			EmptyRootMessage: ops.syncScope.emptyRootMessage,
 			emptyRootOrder:   ops.syncScope.emptyRootOrder,
 		}
-		if collection.ParentType != "" {
+		if ops.syncScope.selectorAssignment {
+			selector, ok := syncSelectors[collection.ParentType]
+			if !ok {
+				panic("sync assignment requires a registered selector: " + string(kind))
+			}
+			collection.ParentKey = selector.parentKey
+			found := false
+			for field := range ops.explain.typ.Fields() {
+				name, _, _, skip := explainFieldName(field, "yaml")
+				if !skip && name == collection.ParentKey && field.Type.Kind() == reflect.String {
+					found = true
+					break
+				}
+			}
+			if !found {
+				panic("sync assignment requires its selector's string parent field: " + string(kind))
+			}
+		} else if collection.ParentType != "" {
 			parent, ok := registry[collection.ParentType]
 			if !ok || parent.syncScope == nil {
 				panic("sync collection requires a registered owner: " + string(kind))
 			}
 			collection.ParentKey = syncParentKey(kind, collection.ParentType)
+			if parent.syncScope.captureNested != nil {
+				for _, field := range nestedSyncResourceFields(parent.explain.typ) {
+					if field.resourceType == kind && !field.array {
+						collection.nestedNullKeys = append(collection.nestedNullKeys, field.name)
+					}
+				}
+			}
+		}
+		for _, related := range ops.syncScope.coScopes {
+			other, ok := registry[related]
+			if !ok || other.syncScope == nil || other.syncScope.parentType != collection.ParentType {
+				panic("nested co-scope requires the same registered owner: " + string(kind))
+			}
 		}
 		byType[kind] = collection
 	}
@@ -158,14 +246,16 @@ func computeSyncCollections() []SyncCollection {
 		if !ok {
 			continue
 		}
-		collection.NestedPaths = syncDeclarationPaths(kind, byType, make(map[ResourceType]bool))[1:]
+		if !registry[kind].syncScope.selectorAssignment {
+			collection.NestedPaths = syncDeclarationPaths(kind, byType, make(map[ResourceType]bool))[1:]
+		}
 		if rootType := registry[kind].syncScope.nestedWithinRoot; rootType != "" {
 			root, ok := byType[rootType]
 			if !ok || root.ParentType != "" {
 				panic("nested sync scope requires a registered root: " + string(kind))
 			}
 			collection.NestedPaths = slices.DeleteFunc(collection.NestedPaths, func(path []string) bool {
-				return path[0] != root.RootKey
+				return len(path) <= len(root.RootPath) || !slices.Equal(path[:len(root.RootPath)], root.RootPath)
 			})
 			if len(collection.NestedPaths) == 0 {
 				panic("nested sync scope root is not an ancestor: " + string(kind))
@@ -219,13 +309,14 @@ func syncDeclarationPaths(
 	defer delete(visiting, kind)
 
 	collection := collections[kind]
-	paths := [][]string{{collection.RootKey}}
+	paths := [][]string{slices.Clone(collection.RootPath)}
 	if collection.ParentType == "" {
 		return paths
 	}
 	parentPaths := syncDeclarationPaths(collection.ParentType, collections, visiting)
-	for _, field := range nestedResourceFields(registry[collection.ParentType].explain.typ) {
-		if field.resourceType != kind || !field.array {
+	parent := registry[collection.ParentType]
+	for _, field := range nestedSyncResourceFields(parent.explain.typ) {
+		if field.resourceType != kind || (!field.array && parent.syncScope.captureNested == nil) {
 			continue
 		}
 		for _, parentPath := range parentPaths {
@@ -242,19 +333,33 @@ func (rs *ResourceSet) InferRegisteredSyncScope(scope *SyncScope) {
 	if rs == nil || scope == nil {
 		return
 	}
+	for _, selector := range syncSelectors {
+		if selector.populated(rs) {
+			selector.mark(scope)
+		}
+	}
 	for kind, ops := range registry {
-		if ops.syncScope == nil {
+		registration := ops.syncScope
+		if registration == nil {
 			continue
 		}
-		if ops.syncScope.parentType == "" {
+		if registration.selectorAssignment {
+			if ops.count(rs) > 0 {
+				syncSelectors[registration.parentType].mark(scope)
+			}
+			continue
+		}
+		if registration.parentType == "" {
 			if ops.count(rs) > 0 {
 				scope.AddRoot(kind)
 			}
 			continue
 		}
 		ops.forEach(rs, func(resource Resource) bool {
-			if parent := resource.(ResourceWithParent).GetParentRef(); parent != nil {
-				scope.AddChild(ops.syncScope.parentType, parent.Ref, kind)
+			parentRef := registration.parentRef(resource)
+			scope.AddChild(registration.parentType, parentRef, kind)
+			for _, related := range registration.coScopes {
+				scope.AddChild(registration.parentType, parentRef, related)
 			}
 			return true
 		})

@@ -10,6 +10,7 @@ func init() {
 		ResourceTypePortalAssetLogo,
 		func(rs *ResourceSet) *[]PortalAssetLogoResource { return &rs.PortalAssetLogos },
 		AutoExplain[PortalAssetLogoResource](),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

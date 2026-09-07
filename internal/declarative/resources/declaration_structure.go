@@ -72,3 +72,57 @@ func resourceSetRootKey(resourceType reflect.Type) string {
 	}
 	return ""
 }
+
+// resourceSetDeclarationPath includes grouping objects, but stops at resource
+// collections: structural children are not additional root declarations.
+func resourceSetDeclarationPath(resourceType reflect.Type) []string {
+	visiting := make(map[reflect.Type]bool)
+	var find func(reflect.Type) []string
+	find = func(container reflect.Type) []string {
+		container = derefExplainType(container)
+		if visiting[container] {
+			return nil
+		}
+		visiting[container] = true
+		defer delete(visiting, container)
+		for field := range container.Fields() {
+			name, _, _, skip := explainFieldName(field, "yaml")
+			if !field.IsExported() || skip || name == "" {
+				continue
+			}
+			typ := derefExplainType(field.Type)
+			if typ.Kind() == reflect.Slice {
+				if derefExplainType(typ.Elem()) == resourceType {
+					return []string{name}
+				}
+				continue
+			}
+			if typ.Kind() == reflect.Struct {
+				if _, registered := registeredResourceType(typ); !registered {
+					if path := find(typ); path != nil {
+						return append([]string{name}, path...)
+					}
+				}
+			}
+		}
+		return nil
+	}
+	return find(reflect.TypeFor[ResourceSet]())
+}
+
+// Maps are a collection shape for scope capture, while explain has its own
+// path handling for maps and keeps using nestedResourceFields.
+func nestedSyncResourceFields(parent reflect.Type) []nestedResourceField {
+	fields := nestedResourceFields(parent)
+	for field := range derefExplainType(parent).Fields() {
+		name, _, _, skip := explainFieldName(field, "yaml")
+		typ := derefExplainType(field.Type)
+		if !field.IsExported() || skip || name == "" || typ.Kind() != reflect.Map {
+			continue
+		}
+		if kind, ok := registeredResourceType(typ.Elem()); ok {
+			fields = append(fields, nestedResourceField{name: name, resourceType: kind})
+		}
+	}
+	return fields
+}

@@ -41,8 +41,8 @@ explain/scaffold, load-schema discovery, namespace participation,
 collection scope, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Nested extraction, specialized
-scope, namespace inheritance/filtering, relationships, pre-execution
+payload validation for SDK resource operations. Nested extraction,
+namespace inheritance/filtering, relationships, pre-execution
 validation, state-client wiring, and dump collection remain separate steps.
 Registering a declaration does not complete those steps automatically.
 
@@ -161,18 +161,24 @@ Sync deletion follows explicit manifest scope:
 
 Co-locate [scope capabilities][scope-capabilities] with registration:
 
-- `WithRootSyncScope()` handles ordinary root collections.
+- `WithRootSyncScope()` handles root collections, including grouped
+  `organization.teams` and `analytics.dashboards` declarations.
 - `WithChildSyncScope(ownerType, options...)` handles child collections whose
   sync owner matches `GetParentRef()` and a root-only parent relationship.
   Owners may themselves be children; nested paths follow that ownership chain.
+- `WithChildSyncScopeFrom(ownerType, accessor, options...)` supplies a typed
+  owner accessor when the sync owner differs from `GetParentRef()` or that
+  interface is absent. Portal team roles use their portal as sync owner while
+  retaining the team as their structural parent.
 
 The shared [declaration structure][declaration-structure] supplies root and
 nested YAML keys for scope and explain. Relationship descriptors supply the
 parent selector. Do not duplicate these facts in loader or planner inventories.
-Scope descriptors are derived and checked once, on first use after resource
-initialization. `SyncCollections` returns copies, including every nested path.
-The loader captures key presence; planner fallback infers scope only from
-populated slices and retains any explicit `SyncScope`.
+Scope descriptors are derived and checked once, after resource initialization.
+`SyncCollections` returns copies, including root and nested paths. The loader
+decodes key presence and delegates to [resource scope capture][scope-capture].
+Planner fallback infers scope from populated slices and retains any explicit
+`SyncScope`; neither path needs another resource inventory.
 
 Child options preserve compatibility policies beside registration:
 
@@ -184,13 +190,27 @@ Child options preserve compatibility policies beside registration:
   `event_gateways`, while AI credentials/secrets also capture scope under
   root-declared consumers/config stores. Root-level policy declarations and
   planner inference still use their immediate owner.
+- `WithNestedCoScope(kind)` adds a related kind during nested presence capture
+  and fallback inference. Portal teams also scope portal team roles. Root
+  `portal_teams` presence alone does not capture role scope in the loader.
 
-All eight ordinary roots and all API, control-plane certificate, AI Gateway,
-and Event Gateway children use registration. Portal children and grouped
-dashboard/organization scope retain [loader scope handling][load-scope] and
-[planner scope handling][plan-scope]. Structural containment alone does not
-define ownership: portal team roles, for example, are scoped to the portal.
-Review parent-scope validation and external-parent support for new owners.
+All ten roots and 53 child kinds register scope. Exceptional shapes retain
+explicit policies:
+
+- `WithNestedSyncScopeCapture` attaches a root's presence policy. The
+  [Portal policy][portal-scope] derives direct child and singleton/map keys
+  from declarations, including shared schema diagnostics. It preserves
+  per-portal null checking, asset handling, and portal-owned team group
+  mappings. New shapes must preserve those diagnostics and scope boundaries.
+- Organization users/system accounts use `registerSyncSelector` beside their
+  declarations, with a typed source and group marker. Their assignments use
+  `WithSelectorAssignmentSyncScope`. Loader presence captures flat assignment
+  parent keys and explicit selector groups; fallback inference marks populated
+  selector groups instead of inventing per-parent child scope. These selectors
+  do not enter the ordinary resource lifecycle.
+
+Review [parent-scope validation][plan-scope] and external-parent support for
+new owners. Structural containment alone does not define sync ownership.
 
 Keep specialized empty-input diagnostics at their existing phase. For
 delete-capable singletons, preserve scope while dropping the empty desired
@@ -514,6 +534,8 @@ engine contract. Each refactoring migration should:
 [registry]: ../../internal/declarative/resources/registry.go
 [namespaces]: ../../internal/declarative/resources/namespace_participants.go
 [scope-capabilities]: ../../internal/declarative/resources/sync_capabilities.go
+[scope-capture]: ../../internal/declarative/resources/sync_capture.go
+[portal-scope]: ../../internal/declarative/resources/portal_sync_scope.go
 [declaration-structure]:
   ../../internal/declarative/resources/declaration_structure.go
 [relationships]: ../../internal/declarative/resources/relationships.go
@@ -521,7 +543,6 @@ engine contract. Each refactoring migration should:
 [load-schema]: ../../internal/declarative/resources/load_schema.go
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
-[load-scope]: ../../internal/declarative/loader/sync_scope.go
 [plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
 [roots]: ../../internal/declarative/planner/root_planners.go

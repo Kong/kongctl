@@ -18,6 +18,7 @@ func init() {
 		ResourceTypePortalIntegration,
 		func(rs *ResourceSet) *[]PortalIntegrationResource { return &rs.PortalIntegrations },
 		AutoExplain[PortalIntegrationResource](),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

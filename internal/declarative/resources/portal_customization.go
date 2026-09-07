@@ -11,6 +11,7 @@ func init() {
 		ResourceTypePortalCustomization,
 		func(rs *ResourceSet) *[]PortalCustomizationResource { return &rs.PortalCustomizations },
 		AutoExplain[PortalCustomizationResource](),
+		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalCustomizationResource) string { return r.Portal }),
 	)
 }
 

@@ -25,6 +25,7 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		WithNestedSyncScopeCapture(capturePortalNestedSyncScope),
 	)
 }
 

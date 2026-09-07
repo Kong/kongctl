@@ -13,6 +13,7 @@ func init() {
 		ResourceTypePortalIPAllowList,
 		func(rs *ResourceSet) *[]PortalIPAllowListResource { return &rs.PortalIPAllowLists },
 		AutoExplain[PortalIPAllowListResource](),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

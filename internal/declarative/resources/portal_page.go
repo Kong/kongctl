@@ -14,11 +14,13 @@ func init() {
 		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
 		AutoExplain[PortalPageResource](),
 		WithExternalUnsupportedReason("scoped portal page lookup is planned for Portal domain enablement"),
+		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalPageResource) string { return r.Portal }),
 	)
 	registerResourceType(
 		ResourceTypePortalSnippet,
 		func(rs *ResourceSet) *[]PortalSnippetResource { return &rs.PortalSnippets },
 		AutoExplain[PortalSnippetResource](),
+		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalSnippetResource) string { return r.Portal }),
 	)
 }
 

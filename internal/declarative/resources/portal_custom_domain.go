@@ -15,6 +15,7 @@ func init() {
 		AutoExplain[PortalCustomDomainResource](
 			WithExplainSchemaBuilder(portalCustomDomainExplainNode),
 		),
+		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalCustomDomainResource) string { return r.Portal }),
 	)
 }
 

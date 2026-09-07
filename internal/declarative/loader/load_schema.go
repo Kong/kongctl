@@ -185,7 +185,7 @@ func portalSingletonNullSchemaError(path string) string {
 	if !strings.HasPrefix(path, portalPrefix) {
 		return ""
 	}
-	for key := range portalSingletonChildKeys {
+	for _, key := range resources.PortalSingletonScopeKeys() {
 		if strings.HasSuffix(path, "."+key) {
 			return fmt.Sprintf(
 				"portal child singleton %q cannot be null; omit the key to ignore it or provide an object to manage it",
