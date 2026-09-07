@@ -81,6 +81,17 @@ organization:
       description: "Backend team for diff coverage"
       labels:
         department: engineering
+      roles:
+        - ref: diff-team-api-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: APIs
+          entity_region: us
+        - ref: diff-team-portal-viewer
+          role_name: Viewer
+          entity_id: "*"
+          entity_type_name: Portals
+          entity_region: us
 
 ai_gateways:
   - ref: diff-ai-gateway
