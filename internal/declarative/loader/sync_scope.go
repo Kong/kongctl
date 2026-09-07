@@ -8,109 +8,14 @@ import (
 )
 
 type childCollectionScope struct {
-	key          string
-	resourceType resources.ResourceType
-	parentKey    string
-	parentType   resources.ResourceType
+	key              string
+	resourceType     resources.ResourceType
+	parentKey        string
+	parentType       resources.ResourceType
+	emptyRootMessage string
 }
 
 var rootChildCollectionScopes = []childCollectionScope{
-	{
-		key:          "ai_gateway_model_providers",
-		resourceType: resources.ResourceTypeAIGatewayProvider,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_auth_strategies",
-		resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_policies",
-		resourceType: resources.ResourceTypeAIGatewayPolicy,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_agents",
-		resourceType: resources.ResourceTypeAIGatewayAgent,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_consumers",
-		resourceType: resources.ResourceTypeAIGatewayConsumer,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_consumer_groups",
-		resourceType: resources.ResourceTypeAIGatewayConsumerGroup,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_consumer_credentials",
-		resourceType: resources.ResourceTypeAIGatewayConsumerCredential,
-		parentKey:    resources.SchemaFieldAIGatewayConsumer,
-		parentType:   resources.ResourceTypeAIGatewayConsumer,
-	},
-	{
-		key:          "ai_gateway_models",
-		resourceType: resources.ResourceTypeAIGatewayModel,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_mcp_servers",
-		resourceType: resources.ResourceTypeAIGatewayMCPServer,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_config_stores",
-		resourceType: resources.ResourceTypeAIGatewayConfigStore,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_config_store_secrets",
-		resourceType: resources.ResourceTypeAIGatewayConfigStoreSecret,
-		parentKey:    resources.SchemaFieldAIGatewayConfigStore,
-		parentType:   resources.ResourceTypeAIGatewayConfigStore,
-	},
-	{
-		key:          "ai_gateway_vaults",
-		resourceType: resources.ResourceTypeAIGatewayVault,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_data_plane_certificates",
-		resourceType: resources.ResourceTypeAIGatewayDataPlaneCertificate,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_certificates",
-		resourceType: resources.ResourceTypeAIGatewayCertificate,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_ca_certificates",
-		resourceType: resources.ResourceTypeAIGatewayCACertificate,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ai_gateway_snis",
-		resourceType: resources.ResourceTypeAIGatewaySNI,
-		parentKey:    resources.SchemaFieldAIGateway,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
 	{
 		key:          "portal_customizations",
 		resourceType: resources.ResourceTypePortalCustomization,
@@ -208,72 +113,6 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentType:   resources.ResourceTypePortal,
 	},
 	{
-		key:          "event_gateway_backend_clusters",
-		resourceType: resources.ResourceTypeEventGatewayBackendCluster,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_virtual_clusters",
-		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_listeners",
-		resourceType: resources.ResourceTypeEventGatewayListener,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_data_plane_certificates",
-		resourceType: resources.ResourceTypeEventGatewayDataPlaneCertificate,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_schema_registries",
-		resourceType: resources.ResourceTypeEventGatewaySchemaRegistry,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_static_keys",
-		resourceType: resources.ResourceTypeEventGatewayStaticKey,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_tls_trust_bundles",
-		resourceType: resources.ResourceTypeEventGatewayTLSTrustBundle,
-		parentKey:    "event_gateway",
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "event_gateway_listener_policies",
-		resourceType: resources.ResourceTypeEventGatewayListenerPolicy,
-		parentKey:    "listener",
-		parentType:   resources.ResourceTypeEventGatewayListener,
-	},
-	{
-		key:          "event_gateway_virtual_cluster_cluster_policies",
-		resourceType: resources.ResourceTypeEventGatewayClusterPolicy,
-		parentKey:    "virtual_cluster",
-		parentType:   resources.ResourceTypeEventGatewayVirtualCluster,
-	},
-	{
-		key:          "event_gateway_virtual_cluster_produce_policies",
-		resourceType: resources.ResourceTypeEventGatewayProducePolicy,
-		parentKey:    "virtual_cluster",
-		parentType:   resources.ResourceTypeEventGatewayVirtualCluster,
-	},
-	{
-		key:          "event_gateway_virtual_cluster_consume_policies",
-		resourceType: resources.ResourceTypeEventGatewayConsumePolicy,
-		parentKey:    "virtual_cluster",
-		parentType:   resources.ResourceTypeEventGatewayVirtualCluster,
-	},
-	{
 		key:          "organization_team_roles",
 		resourceType: resources.ResourceTypeOrganizationTeamRole,
 		parentKey:    "team",
@@ -303,25 +142,6 @@ var rootChildCollectionScopes = []childCollectionScope{
 		parentKey:    resources.SchemaFieldSystemAccount,
 		parentType:   resources.ResourceTypeOrganizationSystemAccount,
 	},
-}
-
-var rootChildParentDescriptions = map[resources.ResourceType]string{
-	resources.ResourceTypeAIGatewayProvider:             "each Model Provider must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayAuthStrategy:         "each Auth Strategy must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayPolicy:               "each policy must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayAgent:                "each Agent must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayConsumer:             "each Consumer must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayConsumerGroup:        "each Consumer Group must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayConsumerCredential:   "each Credential must declare an ai_gateway_consumer parent",
-	resources.ResourceTypeAIGatewayModel:                "each model must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayMCPServer:            "each MCP Server must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayConfigStore:          "each Config Store must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayConfigStoreSecret:    "each secret must declare an ai_gateway_config_store parent",
-	resources.ResourceTypeAIGatewayVault:                "each Vault must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayDataPlaneCertificate: "each data plane certificate must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayCertificate:          "each resource must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewayCACertificate:        "each resource must declare an ai_gateway parent",
-	resources.ResourceTypeAIGatewaySNI:                  "each resource must declare an ai_gateway parent",
 }
 
 var portalChildCollectionScopes = []childCollectionScope{
@@ -390,117 +210,6 @@ var portalSingletonChildKeys = map[string]struct{}{
 	"audit_log_webhook": {},
 }
 
-var aiGatewayChildCollectionScopes = []childCollectionScope{
-	{
-		key:          "model_providers",
-		resourceType: resources.ResourceTypeAIGatewayProvider,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          resources.SchemaFieldAuthStrategies,
-		resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "policies",
-		resourceType: resources.ResourceTypeAIGatewayPolicy,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "agents",
-		resourceType: resources.ResourceTypeAIGatewayAgent,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "consumers",
-		resourceType: resources.ResourceTypeAIGatewayConsumer,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "consumer_groups",
-		resourceType: resources.ResourceTypeAIGatewayConsumerGroup,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "models",
-		resourceType: resources.ResourceTypeAIGatewayModel,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "mcp_servers",
-		resourceType: resources.ResourceTypeAIGatewayMCPServer,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "config_stores",
-		resourceType: resources.ResourceTypeAIGatewayConfigStore,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "vaults",
-		resourceType: resources.ResourceTypeAIGatewayVault,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "data_plane_certificates",
-		resourceType: resources.ResourceTypeAIGatewayDataPlaneCertificate,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "certificates",
-		resourceType: resources.ResourceTypeAIGatewayCertificate,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "ca_certificates",
-		resourceType: resources.ResourceTypeAIGatewayCACertificate,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-	{
-		key:          "snis",
-		resourceType: resources.ResourceTypeAIGatewaySNI,
-		parentType:   resources.ResourceTypeAIGateway,
-	},
-}
-
-var eventGatewayChildCollectionScopes = []childCollectionScope{
-	{
-		key:          "backend_clusters",
-		resourceType: resources.ResourceTypeEventGatewayBackendCluster,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "virtual_clusters",
-		resourceType: resources.ResourceTypeEventGatewayVirtualCluster,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "listeners",
-		resourceType: resources.ResourceTypeEventGatewayListener,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "data_plane_certificates",
-		resourceType: resources.ResourceTypeEventGatewayDataPlaneCertificate,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "schema_registries",
-		resourceType: resources.ResourceTypeEventGatewaySchemaRegistry,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "static_keys",
-		resourceType: resources.ResourceTypeEventGatewayStaticKey,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-	{
-		key:          "tls_trust_bundles",
-		resourceType: resources.ResourceTypeEventGatewayTLSTrustBundle,
-		parentType:   resources.ResourceTypeEventGatewayControlPlane,
-	},
-}
-
 func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 	var raw map[string]any
 	// Called after strict parsing succeeds; use a relaxed pass only to inspect
@@ -522,32 +231,15 @@ func captureSyncScope(content []byte, rs *resources.ResourceSet) error {
 		}
 	}
 
+	if err := captureRegisteredChildScopes(scope, raw, collections); err != nil {
+		return err
+	}
 	for _, entry := range rootChildCollectionScopes {
 		if err := captureRootChildScope(scope, raw, entry); err != nil {
 			return err
 		}
 	}
 
-	if err := captureRegisteredChildScopes(scope, raw, collections); err != nil {
-		return err
-	}
-	captureNestedCollectionScopes(
-		scope,
-		raw,
-		"ai_gateways",
-		resources.ResourceTypeAIGateway,
-		aiGatewayChildCollectionScopes,
-	)
-	captureNestedAIGatewayConsumerCredentialScopes(scope, raw)
-	captureNestedAIGatewayConfigStoreSecretScopes(scope, raw)
-	captureNestedCollectionScopes(
-		scope,
-		raw,
-		"event_gateways",
-		resources.ResourceTypeEventGatewayControlPlane,
-		eventGatewayChildCollectionScopes,
-	)
-	captureNestedEventGatewayScopes(scope, raw)
 	if err := captureNestedPortalScopes(scope, raw); err != nil {
 		return err
 	}
@@ -567,21 +259,20 @@ func captureRegisteredChildScopes(
 			continue
 		}
 		entry := childCollectionScope{
-			key:          collection.RootKey,
-			resourceType: collection.ResourceType,
-			parentKey:    collection.ParentKey,
-			parentType:   collection.ParentType,
+			key:              collection.RootKey,
+			resourceType:     collection.ResourceType,
+			parentKey:        collection.ParentKey,
+			parentType:       collection.ParentType,
+			emptyRootMessage: collection.EmptyRootMessage,
 		}
 		if err := captureRootChildScope(scope, raw, entry); err != nil {
 			return err
 		}
-		var nested []childCollectionScope
-		for _, key := range collection.NestedKeys {
-			child := entry
-			child.key = key
-			nested = append(nested, child)
+	}
+	for _, collection := range collections {
+		for _, path := range collection.NestedPaths {
+			captureNestedCollectionPath(scope, raw, path, collection.ParentType, collection.ResourceType)
 		}
-		captureNestedCollectionScopes(scope, raw, collection.ParentRootKey, collection.ParentType, nested)
 	}
 	return nil
 }
@@ -593,8 +284,8 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 	}
 	items, ok := asSlice(value)
 	if !ok || len(items) == 0 {
-		if description, found := rootChildParentDescriptions[entry.resourceType]; found {
-			return fmt.Errorf("%s cannot be empty because %s", entry.key, description)
+		if entry.emptyRootMessage != "" {
+			return fmt.Errorf("%s cannot be empty because %s", entry.key, entry.emptyRootMessage)
 		}
 		scope.AddRootChildCollection(entry.resourceType)
 		return nil
@@ -611,110 +302,27 @@ func captureRootChildScope(scope *resources.SyncScope, raw map[string]any, entry
 	return nil
 }
 
-func captureNestedCollectionScopes(
+func captureNestedCollectionPath(
 	scope *resources.SyncScope,
 	raw map[string]any,
-	rootKey string,
-	parentType resources.ResourceType,
-	childScopes []childCollectionScope,
+	path []string,
+	parentType, resourceType resources.ResourceType,
 ) {
-	items, ok := asSlice(raw[rootKey])
+	if len(path) == 1 {
+		if parentRef := stringValue(raw[resources.SchemaFieldRef]); parentRef != "" {
+			if _, ok := raw[path[0]]; ok {
+				scope.AddChild(parentType, parentRef, resourceType)
+			}
+		}
+		return
+	}
+	items, ok := asSlice(raw[path[0]])
 	if !ok {
 		return
 	}
 	for _, item := range items {
-		parent, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		parentRef := stringValue(parent[resources.SchemaFieldRef])
-		if parentRef == "" {
-			continue
-		}
-		for _, child := range childScopes {
-			if _, ok := parent[child.key]; ok {
-				scope.AddChild(parentType, parentRef, child.resourceType)
-			}
-		}
-	}
-}
-
-func captureNestedAIGatewayConsumerCredentialScopes(scope *resources.SyncScope, raw map[string]any) {
-	captureCredentialsUnderConsumers(scope, raw["ai_gateway_consumers"])
-
-	gateways, ok := asSlice(raw["ai_gateways"])
-	if !ok {
-		return
-	}
-	for _, item := range gateways {
-		gateway, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		captureCredentialsUnderConsumers(scope, gateway["consumers"])
-	}
-}
-
-func captureNestedAIGatewayConfigStoreSecretScopes(scope *resources.SyncScope, raw map[string]any) {
-	captureSecretsUnderConfigStores(scope, raw["ai_gateway_config_stores"])
-
-	gateways, ok := asSlice(raw["ai_gateways"])
-	if !ok {
-		return
-	}
-	for _, item := range gateways {
-		gateway, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		captureSecretsUnderConfigStores(scope, gateway["config_stores"])
-	}
-}
-
-func captureSecretsUnderConfigStores(scope *resources.SyncScope, value any) {
-	stores, ok := asSlice(value)
-	if !ok {
-		return
-	}
-	for _, item := range stores {
-		store, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		storeRef := stringValue(store[resources.SchemaFieldRef])
-		if storeRef == "" {
-			continue
-		}
-		if _, ok := store["secrets"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeAIGatewayConfigStore,
-				storeRef,
-				resources.ResourceTypeAIGatewayConfigStoreSecret,
-			)
-		}
-	}
-}
-
-func captureCredentialsUnderConsumers(scope *resources.SyncScope, value any) {
-	consumers, ok := asSlice(value)
-	if !ok {
-		return
-	}
-	for _, item := range consumers {
-		consumer, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		consumerRef := stringValue(consumer[resources.SchemaFieldRef])
-		if consumerRef == "" {
-			continue
-		}
-		if _, ok := consumer["credentials"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeAIGatewayConsumer,
-				consumerRef,
-				resources.ResourceTypeAIGatewayConsumerCredential,
-			)
+		if parent, ok := asMap(item); ok {
+			captureNestedCollectionPath(scope, parent, path[1:], parentType, resourceType)
 		}
 	}
 }
@@ -820,83 +428,6 @@ func portalTeamsIncludeGroupMappings(value any) bool {
 		}
 	}
 	return false
-}
-
-func captureNestedEventGatewayScopes(scope *resources.SyncScope, raw map[string]any) {
-	gateways, ok := asSlice(raw["event_gateways"])
-	if !ok {
-		return
-	}
-	for _, item := range gateways {
-		gateway, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		captureVirtualClusterPolicyScopes(scope, gateway["virtual_clusters"])
-		captureListenerPolicyScopes(scope, gateway["listeners"])
-	}
-}
-
-func captureVirtualClusterPolicyScopes(scope *resources.SyncScope, value any) {
-	virtualClusters, ok := asSlice(value)
-	if !ok {
-		return
-	}
-	for _, item := range virtualClusters {
-		vc, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		ref := stringValue(vc[resources.SchemaFieldRef])
-		if ref == "" {
-			continue
-		}
-		if _, ok := vc["cluster_policies"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeEventGatewayVirtualCluster,
-				ref,
-				resources.ResourceTypeEventGatewayClusterPolicy,
-			)
-		}
-		if _, ok := vc["produce_policies"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeEventGatewayVirtualCluster,
-				ref,
-				resources.ResourceTypeEventGatewayProducePolicy,
-			)
-		}
-		if _, ok := vc["consume_policies"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeEventGatewayVirtualCluster,
-				ref,
-				resources.ResourceTypeEventGatewayConsumePolicy,
-			)
-		}
-	}
-}
-
-func captureListenerPolicyScopes(scope *resources.SyncScope, value any) {
-	listeners, ok := asSlice(value)
-	if !ok {
-		return
-	}
-	for _, item := range listeners {
-		listener, ok := asMap(item)
-		if !ok {
-			continue
-		}
-		ref := stringValue(listener[resources.SchemaFieldRef])
-		if ref == "" {
-			continue
-		}
-		if _, ok := listener["policies"]; ok {
-			scope.AddChild(
-				resources.ResourceTypeEventGatewayListener,
-				ref,
-				resources.ResourceTypeEventGatewayListenerPolicy,
-			)
-		}
-	}
 }
 
 func captureOrganizationScope(scope *resources.SyncScope, raw map[string]any) {

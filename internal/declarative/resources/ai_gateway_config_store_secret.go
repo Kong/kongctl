@@ -33,6 +33,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConfigStoreSecretExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGatewayConfigStore,
+			WithEmptyRootCollectionError(110, "each secret must declare an ai_gateway_config_store parent"),
+		),
 	)
 }
 

@@ -41,6 +41,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerGroupExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(60, "each Consumer Group must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -126,13 +130,15 @@ func (a *AIGatewayConsumerGroupResource) TryMatchKonnectResource(konnectResource
 	if name == "" {
 		return false
 	}
-	if id := AIGatewayConsumerGroupID(konnectResource); id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
+	if id := AIGatewayConsumerGroupID(konnectResource); id != "" &&
+		(util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
 		if a.Ref == id || a.GetKonnectID() == id {
 			a.SetKonnectID(id)
 			return true
 		}
 	}
-	if id := AIGatewayConsumerGroupID(konnectResource); id != "" && AIGatewayConsumerGroupName(konnectResource) == name {
+	if id := AIGatewayConsumerGroupID(konnectResource); id != "" &&
+		AIGatewayConsumerGroupName(konnectResource) == name {
 		a.SetKonnectID(id)
 		return true
 	}
@@ -405,7 +411,12 @@ func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 			false,
 			true,
 		),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

@@ -24,6 +24,10 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "type", "name", "display_name"),
 			WithExplainSchemaBuilder(aiGatewayModelExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -614,7 +618,12 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			explainField("allow_auth_override", explainBoolNode("false"), false, false),
 		)), true, true),
 		explainField("policies", explainArrayOf(explainStringNode("policy-name")), false, false),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

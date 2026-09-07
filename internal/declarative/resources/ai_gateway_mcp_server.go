@@ -50,6 +50,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayMCPServerExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(90, "each MCP Server must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -116,11 +120,17 @@ func (a AIGatewayMCPServerResource) Validate() error {
 	switch a.MCPServerType() {
 	case "conversion-only":
 		if len(a.AIGatewayMCPServerConversionOnly.Tools) == 0 {
-			return fmt.Errorf("tools must contain at least one entry for conversion-only AI Gateway MCP Server %s", a.Ref)
+			return fmt.Errorf(
+				"tools must contain at least one entry for conversion-only AI Gateway MCP Server %s",
+				a.Ref,
+			)
 		}
 	case "conversion-listener":
 		if len(a.AIGatewayMCPServerConversionListener.Tools) == 0 {
-			return fmt.Errorf("tools must contain at least one entry for conversion-listener AI Gateway MCP Server %s", a.Ref)
+			return fmt.Errorf(
+				"tools must contain at least one entry for conversion-listener AI Gateway MCP Server %s",
+				a.Ref,
+			)
 		}
 	}
 	return nil
@@ -471,7 +481,12 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("config", aiGatewayMCPServerConfigExplainNode(), true, true),
 		explainField("policies", explainArrayOf(explainStringNode("policy-name")), false, false),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},
@@ -590,9 +605,19 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 			false,
 		),
 		explainField("metadata", explainObject(
-			explainField("discovery_endpoint", explainStringNode("/.well-known/oauth-protected-resource"), false, false),
+			explainField(
+				"discovery_endpoint",
+				explainStringNode("/.well-known/oauth-protected-resource"),
+				false,
+				false,
+			),
 			explainField("endpoint", explainStringNode("https://mcp.example.com"), false, false),
-			explainField("authorization_servers", explainArrayOf(explainStringNode("https://idp.example.com")), false, false),
+			explainField(
+				"authorization_servers",
+				explainArrayOf(explainStringNode("https://idp.example.com")),
+				false,
+				false,
+			),
 			explainField("resource", explainStringNode("https://mcp.example.com"), false, false),
 			explainField("scopes_supported", explainArrayOf(explainStringNode("mcp:read")), false, false),
 		), false, false),

@@ -41,6 +41,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayVaultExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(120, "each Vault must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -392,7 +396,12 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-env"), true, true),
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

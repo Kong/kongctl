@@ -43,6 +43,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerCredentialExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGatewayConsumer,
+			WithEmptyRootCollectionError(70, "each Credential must declare an ai_gateway_consumer parent"),
+		),
 	)
 }
 
@@ -344,7 +348,12 @@ func aiGatewayConsumerCredentialExplainNode(_ ExplainBuildContext) (*ExplainNode
 		explainField("display_name", explainStringNode("Support User API Key"), true, true),
 		explainField("api_key", explainSecretEnvNode("AI_GATEWAY_CONSUMER_API_KEY"), false, false),
 		explainField(aiGatewayConsumerCredentialFieldTTL, &ExplainNode{Kind: "integer", Literal: "0"}, false, true),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

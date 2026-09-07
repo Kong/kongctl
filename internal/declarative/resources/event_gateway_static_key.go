@@ -12,6 +12,7 @@ func init() {
 		ResourceTypeEventGatewayStaticKey,
 		func(rs *ResourceSet) *[]EventGatewayStaticKeyResource { return &rs.EventGatewayStaticKeys },
 		AutoExplain[EventGatewayStaticKeyResource](),
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 

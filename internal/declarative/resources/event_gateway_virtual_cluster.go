@@ -19,6 +19,7 @@ func init() {
 			ParentFieldPath:        SchemaFieldEventGateway,
 			AllowAnyStringSelector: true,
 		},
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 

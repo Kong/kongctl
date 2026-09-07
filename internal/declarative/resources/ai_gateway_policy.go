@@ -42,6 +42,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayPolicyExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(30, "each policy must declare an ai_gateway parent"),
+		),
 	)
 }
 
@@ -382,7 +386,12 @@ func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Kind:       explainKindObject,
 			Additional: &ExplainNode{},
 		}, true, true),
-		explainField("labels", &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")}, false, false),
+		explainField(
+			"labels",
+			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
+			false,
+			false,
+		),
 		explainField(
 			"managed_by",
 			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},

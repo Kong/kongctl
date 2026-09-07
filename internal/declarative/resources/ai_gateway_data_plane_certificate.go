@@ -45,6 +45,10 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayDataPlaneCertificateExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(130, "each data plane certificate must declare an ai_gateway parent"),
+		),
 	)
 }
 

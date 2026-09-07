@@ -33,6 +33,10 @@ func init() {
 			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
 		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
+		WithChildSyncScope(
+			ResourceTypeAIGateway,
+			WithEmptyRootCollectionError(20, "each Auth Strategy must declare an ai_gateway parent"),
+		),
 	)
 }
 

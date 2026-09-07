@@ -17,6 +17,10 @@ func init() {
 		AutoExplain[EventGatewayProducePolicyResource](
 			WithExplainSchemaBuilder(eventGatewayProducePolicyExplainNode),
 		),
+		WithChildSyncScope(
+			ResourceTypeEventGatewayVirtualCluster,
+			WithNestedScopeWithin(ResourceTypeEventGatewayControlPlane),
+		),
 	)
 }
 

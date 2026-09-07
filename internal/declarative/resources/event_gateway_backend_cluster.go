@@ -14,6 +14,7 @@ func init() {
 		AutoExplain[EventGatewayBackendClusterResource](
 			WithExplainSchemaBuilder(eventGatewayBackendClusterExplainNode),
 		),
+		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
 
