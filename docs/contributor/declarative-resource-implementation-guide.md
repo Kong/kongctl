@@ -38,11 +38,12 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, and dump-default metadata. The
+collection scope, AI Gateway child loading, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Nested extraction,
-namespace inheritance/filtering, relationships, pre-execution
+payload validation for SDK resource operations. Other families' nested
+extraction and load validation, namespace inheritance/filtering,
+relationships, pre-execution
 validation, state-client wiring, and dump collection remain separate steps.
 Registering a declaration does not complete those steps automatically.
 
@@ -120,6 +121,32 @@ Keep defaults, extraction, and template handling consistent across both.
 Capture sync scope before extraction loses YAML key presence. Shape
 validation must run before resolving ordinary environment values so invalid
 input cannot disclose a secret in an error.
+
+### Child loading capabilities
+
+All 16 AI Gateway child kinds register extraction and load validation beside
+their declarations. Direct children use
+[`registerAIGatewayChildResource`][ai-child-load]; credentials and secrets use
+[`registerChildResourceType`][child-load] with their existing validation rules.
+Both reuse the registered root slice for appending and validation. Supply the
+typed nested collection and parent setter; do not add loader type inventories
+for this family. Direct children validate moniker uniqueness per gateway;
+data-plane certificates retain `title` diagnostics.
+
+Extraction order is per immediate parent; validation order is per family,
+including grandchildren. Both must be positive and unique within their group.
+They are independent of scope-capture order. Registration rejects conflicts.
+
+The loader still owns phase sequencing. `ExtractRegisteredChildren` copies
+children, overwrites their parent selector, appends after existing root values,
+and clears nested fields. Recursion is explicit: Config Stores extract secrets
+before appending the store, ahead of secrets from root-declared stores. Secret
+defaults still run before source indexing; consumer credentials are extracted
+later. Preserve these phases in both loader representations.
+
+`ValidateRegisteredChildren` stops at the family's first error. Other families,
+root validation, cross-references, and namespaces retain their existing loader
+paths. Migrating another family requires its own compatibility assessment.
 
 ### Explain, scaffold, and load schema
 
@@ -543,6 +570,8 @@ engine contract. Each refactoring migration should:
 [load-schema]: ../../internal/declarative/resources/load_schema.go
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
+[child-load]: ../../internal/declarative/resources/child_load.go
+[ai-child-load]: ../../internal/declarative/resources/ai_gateway_child_load.go
 [plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
 [roots]: ../../internal/declarative/planner/root_planners.go

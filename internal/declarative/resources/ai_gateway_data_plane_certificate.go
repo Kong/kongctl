@@ -16,7 +16,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayDataPlaneCertificate,
 		func(rs *ResourceSet) *[]AIGatewayDataPlaneCertificateResource {
 			return &rs.AIGatewayDataPlaneCertificates
@@ -45,6 +45,15 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayDataPlaneCertificateExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayDataPlaneCertificateResource]{
+			extractOrder:  110,
+			validateOrder: 130,
+			nested: func(gateway *AIGatewayResource) *[]AIGatewayDataPlaneCertificateResource {
+				return &gateway.DataPlaneCertificates
+			},
+			setParent:   func(child *AIGatewayDataPlaneCertificateResource, ref string) { child.AIGateway = ref },
+			uniqueField: "title",
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(130, "each data plane certificate must declare an ai_gateway parent"),

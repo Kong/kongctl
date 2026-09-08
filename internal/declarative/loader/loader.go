@@ -759,116 +759,11 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	}
 
 	for i := range rs.AIGateways {
-		gateway := &rs.AIGateways[i]
-		for j := range gateway.Providers {
-			provider := gateway.Providers[j]
-			provider.AIGateway = gateway.Ref
-			rs.AIGatewayProviders = append(rs.AIGatewayProviders, provider)
-		}
-		gateway.Providers = nil
-
-		for j := range gateway.Policies {
-			policy := gateway.Policies[j]
-			policy.AIGateway = gateway.Ref
-			rs.AIGatewayPolicies = append(rs.AIGatewayPolicies, policy)
-		}
-		gateway.Policies = nil
-
-		for j := range gateway.AuthStrategies {
-			provider := gateway.AuthStrategies[j]
-			provider.AIGateway = gateway.Ref
-			rs.AIGatewayAuthStrategies = append(rs.AIGatewayAuthStrategies, provider)
-		}
-		gateway.AuthStrategies = nil
-
-		for j := range gateway.Agents {
-			agent := gateway.Agents[j]
-			agent.AIGateway = gateway.Ref
-			rs.AIGatewayAgents = append(rs.AIGatewayAgents, agent)
-		}
-		gateway.Agents = nil
-
-		for j := range gateway.Consumers {
-			consumer := gateway.Consumers[j]
-			consumer.AIGateway = gateway.Ref
-			rs.AIGatewayConsumers = append(rs.AIGatewayConsumers, consumer)
-		}
-		gateway.Consumers = nil
-
-		for j := range gateway.ConsumerGroups {
-			group := gateway.ConsumerGroups[j]
-			group.AIGateway = gateway.Ref
-			rs.AIGatewayConsumerGroups = append(rs.AIGatewayConsumerGroups, group)
-		}
-		gateway.ConsumerGroups = nil
-
-		for j := range gateway.Models {
-			model := gateway.Models[j]
-			model.AIGateway = gateway.Ref
-			rs.AIGatewayModels = append(rs.AIGatewayModels, model)
-		}
-		gateway.Models = nil
-
-		for j := range gateway.MCPServers {
-			server := gateway.MCPServers[j]
-			server.AIGateway = gateway.Ref
-			rs.AIGatewayMCPServers = append(rs.AIGatewayMCPServers, server)
-		}
-		gateway.MCPServers = nil
-
-		for j := range gateway.ConfigStores {
-			store := gateway.ConfigStores[j]
-			store.AIGateway = gateway.Ref
-			for k := range store.Secrets {
-				secret := store.Secrets[k]
-				secret.AIGatewayConfigStore = store.Ref
-				rs.AIGatewayConfigStoreSecrets = append(rs.AIGatewayConfigStoreSecrets, secret)
-			}
-			store.Secrets = nil
-			rs.AIGatewayConfigStores = append(rs.AIGatewayConfigStores, store)
-		}
-		gateway.ConfigStores = nil
-
-		for j := range gateway.Vaults {
-			vault := gateway.Vaults[j]
-			vault.AIGateway = gateway.Ref
-			rs.AIGatewayVaults = append(rs.AIGatewayVaults, vault)
-		}
-		gateway.Vaults = nil
-
-		for _, cert := range gateway.DataPlaneCertificates {
-			cert.AIGateway = gateway.Ref
-			rs.AIGatewayDataPlaneCertificates = append(rs.AIGatewayDataPlaneCertificates, cert)
-		}
-		gateway.DataPlaneCertificates = nil
-
-		for _, cert := range gateway.Certificates {
-			cert.AIGateway = gateway.Ref
-			rs.AIGatewayCertificates = append(rs.AIGatewayCertificates, cert)
-		}
-		gateway.Certificates = nil
-
-		for _, cert := range gateway.CACertificates {
-			cert.AIGateway = gateway.Ref
-			rs.AIGatewayCACertificates = append(rs.AIGatewayCACertificates, cert)
-		}
-		gateway.CACertificates = nil
-
-		for _, sni := range gateway.SNIs {
-			sni.AIGateway = gateway.Ref
-			rs.AIGatewaySNIs = append(rs.AIGatewaySNIs, sni)
-		}
-		gateway.SNIs = nil
+		rs.ExtractRegisteredChildren(&rs.AIGateways[i])
 	}
 
 	for i := range rs.AIGatewayConfigStores {
-		store := &rs.AIGatewayConfigStores[i]
-		for j := range store.Secrets {
-			secret := store.Secrets[j]
-			secret.AIGatewayConfigStore = store.Ref
-			rs.AIGatewayConfigStoreSecrets = append(rs.AIGatewayConfigStoreSecrets, secret)
-		}
-		store.Secrets = nil
+		rs.ExtractRegisteredChildren(&rs.AIGatewayConfigStores[i])
 	}
 
 	// Secret sources are collected before the ResourceSet-wide defaults pass, so
@@ -1090,13 +985,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	}
 
 	for i := range rs.AIGatewayConsumers {
-		consumer := &rs.AIGatewayConsumers[i]
-		for j := range consumer.Credentials {
-			credential := consumer.Credentials[j]
-			credential.AIGatewayConsumer = consumer.Ref
-			rs.AIGatewayConsumerCredentials = append(rs.AIGatewayConsumerCredentials, credential)
-		}
-		consumer.Credentials = nil
+		rs.ExtractRegisteredChildren(&rs.AIGatewayConsumers[i])
 	}
 }
 

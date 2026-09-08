@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayConsumer,
 		func(rs *ResourceSet) *[]AIGatewayConsumerResource { return &rs.AIGatewayConsumers },
 		AutoExplain[AIGatewayConsumerResource](
@@ -42,6 +42,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayConsumerResource]{
+			extractOrder:  50,
+			validateOrder: 50,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConsumerResource { return &gateway.Consumers },
+			setParent:     func(child *AIGatewayConsumerResource, ref string) { child.AIGateway = ref },
+		},
 		WithExternalUnsupportedReason("scoped AI Gateway consumer lookup is planned for domain enablement"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,

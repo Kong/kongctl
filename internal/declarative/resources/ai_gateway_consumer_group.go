@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayConsumerGroup,
 		func(rs *ResourceSet) *[]AIGatewayConsumerGroupResource { return &rs.AIGatewayConsumerGroups },
 		AutoExplain[AIGatewayConsumerGroupResource](
@@ -41,6 +41,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerGroupExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayConsumerGroupResource]{
+			extractOrder:  60,
+			validateOrder: 70,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConsumerGroupResource { return &gateway.ConsumerGroups },
+			setParent:     func(child *AIGatewayConsumerGroupResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(60, "each Consumer Group must declare an ai_gateway parent"),

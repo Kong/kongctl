@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayModel,
 		func(rs *ResourceSet) *[]AIGatewayModelResource { return &rs.AIGatewayModels },
 		AutoExplain[AIGatewayModelResource](
@@ -24,6 +24,12 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "type", "name", "display_name"),
 			WithExplainSchemaBuilder(aiGatewayModelExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayModelResource]{
+			extractOrder:  70,
+			validateOrder: 80,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayModelResource { return &gateway.Models },
+			setParent:     func(child *AIGatewayModelResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),

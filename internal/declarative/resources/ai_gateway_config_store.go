@@ -11,7 +11,7 @@ import (
 var aiGatewayConfigStoreDisplayNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._~-]*$`)
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayConfigStore,
 		func(rs *ResourceSet) *[]AIGatewayConfigStoreResource { return &rs.AIGatewayConfigStores },
 		AutoExplain[AIGatewayConfigStoreResource](
@@ -25,6 +25,16 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, SchemaFieldName, SchemaFieldDisplayName),
 			WithExplainSchemaBuilder(aiGatewayConfigStoreExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayConfigStoreResource]{
+			extractOrder:  90,
+			validateOrder: 100,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConfigStoreResource { return &gateway.ConfigStores },
+			setParent:     func(child *AIGatewayConfigStoreResource, ref string) { child.AIGateway = ref },
+			// Preserve nested secrets ahead of secrets from root-declared stores.
+			beforeAppend: func(rs *ResourceSet, store *AIGatewayConfigStoreResource) {
+				rs.ExtractRegisteredChildren(store)
+			},
+		},
 		WithExternalUnsupportedReason("scoped AI Gateway config store lookup is planned for domain enablement"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
