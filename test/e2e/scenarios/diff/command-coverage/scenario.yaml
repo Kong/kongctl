@@ -28,6 +28,7 @@ vars:
   dcrProviderUpdatedIssuer: "https://e2ediffissuer-updated.example.com/oauth2/default"
   teamRef: diff-backend-team
   teamName: diff-backend-team-name
+  newTeamRoleRef: diff-team-api-admin
   teamUpdatedDesc: "Backend team for diff coverage (updated)"
   aiGatewayRef: diff-ai-gateway
   aiGatewayName: diff-ai-gateway-name
@@ -60,12 +61,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 11
-                by_action.CREATE: 11
+                total_changes: 13
+                by_action.CREATE: 13
           - select: "summary"
             expect:
               fields:
-                applied: 11
+                applied: 13
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='portal' &&
@@ -106,6 +107,32 @@ steps:
             expect:
               fields:
                 action: CREATE
+          - select: "plan.changes[?resource_type=='organization_team_role']"
+            expect:
+              fields:
+                "length(@)": 2
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='diff-team-api-viewer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              plan.changes[?resource_type=='organization_team_role' &&
+                            resource_ref=='diff-team-portal-viewer'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
 
       - name: 001-get-portals
         run: ["get", "portals"]
@@ -175,8 +202,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 9
-                by_action.CREATE: 1
+                total_changes: 10
+                by_action.CREATE: 2
                 by_action.UPDATE: 8
           - expect:
               fields:
@@ -244,6 +271,17 @@ steps:
               fields:
                 action: UPDATE
                 "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       resource_ref=='{{ .vars.newTeamRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
 
       - name: 001-diff-delete-mode
         run:
@@ -262,8 +300,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 7
-                by_action.DELETE: 7
+                total_changes: 8
+                by_action.DELETE: 8
           - expect:
               fields:
                 "length(changes[?action=='CREATE'])": 0
@@ -310,6 +348,17 @@ steps:
             expect:
               fields:
                 action: DELETE
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       action=='DELETE' && fields.entity_type_name=='APIs'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
 
       - name: 002-diff-plan-sync-mode
         run:
@@ -329,10 +378,10 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 11
-                by_action.CREATE: 1
+                total_changes: 13
+                by_action.CREATE: 2
                 by_action.UPDATE: 8
-                by_action.DELETE: 2
+                by_action.DELETE: 3
           - select: >-
               changes[?resource_type=='ai_gateway' &&
                        resource_ref=='{{ .vars.aiGatewayRef }}'] | [0]
@@ -412,6 +461,28 @@ steps:
               fields:
                 action: UPDATE
                 "not_null(changed_fields.description.new, fields.description)": "{{ .vars.teamUpdatedDesc }}"
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       resource_ref=='{{ .vars.newTeamRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       action=='DELETE' && fields.entity_type_name=='Portals'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
 
       - name: 003-diff-plan-file
         run:
@@ -424,7 +495,7 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 11
+                total_changes: 13
           - select: >-
               changes[?resource_ref=='{{ .vars.newAPIRef }}'] | [0]
             expect:
@@ -437,6 +508,28 @@ steps:
             expect:
               fields:
                 action: DELETE
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       resource_ref=='{{ .vars.newTeamRoleRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.role_name: Admin
+                fields.entity_id: "*"
+                fields.entity_type_name: APIs
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       action=='DELETE' && fields.entity_type_name=='Portals'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                fields.role_name: Viewer
+                fields.entity_id: "*"
+                fields.entity_type_name: Portals
+                fields.entity_region: us
+                namespace: "{{ .vars.namespace }}"
 
       - name: 004-get-portals
         run: ["get", "portals"]
@@ -483,8 +576,8 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 8
-                by_action.DELETE: 8
+                total_changes: 10
+                by_action.DELETE: 10
           - select: summary
             expect:
               fields:
