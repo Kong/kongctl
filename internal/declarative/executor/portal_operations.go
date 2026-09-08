@@ -84,7 +84,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	// First, validate protection status at execution time
-	portalName := getResourceName(change.Fields)
+	portalName := common.ExtractResourceName(change.Fields)
 	portal, err := e.client.GetPortalByName(ctx, portalName)
 	if err != nil {
 		return "", decerrors.FormatResourceError("fetch", planner.ResourceTypePortal, portalName, change.Namespace, err)
@@ -213,7 +213,7 @@ func (e *Executor) updatePortal(ctx context.Context, change planner.PlannedChang
 // deletePortal handles DELETE operations for portals
 func (e *Executor) deletePortal(ctx context.Context, change planner.PlannedChange) error {
 	// First, validate protection status at execution time
-	portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
+	portal, err := e.client.GetPortalByName(ctx, common.ExtractResourceName(change.Fields))
 	if err != nil {
 		return fmt.Errorf("failed to fetch portal for protection check: %w", err)
 	}

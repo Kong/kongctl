@@ -39,7 +39,7 @@ func (e *Executor) validateInheritedProtection(ctx context.Context, change plann
 		change.ResourceType,
 		change.ProtectingParent.ResourceName,
 		change.ProtectingParent.ResourceType,
-		actionToVerb(change.Action),
+		common.ActionToVerb(change.Action),
 	)
 }
 

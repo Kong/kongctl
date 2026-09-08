@@ -56,7 +56,7 @@ func (e *Executor) createAPI(ctx context.Context, change planner.PlannedChange) 
 // deleteAPI handles DELETE operations for APIs
 func (e *Executor) deleteAPI(ctx context.Context, change planner.PlannedChange) error {
 	// First, validate protection status at execution time
-	api, err := e.client.GetAPIByName(ctx, getResourceName(change.Fields))
+	api, err := e.client.GetAPIByName(ctx, common.ExtractResourceName(change.Fields))
 	if err != nil {
 		return fmt.Errorf("failed to fetch API for protection check: %w", err)
 	}

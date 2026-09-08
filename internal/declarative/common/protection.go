@@ -15,7 +15,7 @@ func ValidateResourceProtection(
 	if isProtected && !isProtectionChange &&
 		(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
 		return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s",
-			resourceName, resourceType, actionToVerb(change.Action))
+			resourceName, resourceType, ActionToVerb(change.Action))
 	}
 	return nil
 }
@@ -44,11 +44,11 @@ func GetProtectionStatus(normalizedLabels map[string]string) bool {
 // FormatProtectionError creates a standardized error message for protection violations
 func FormatProtectionError(resourceType, resourceName, action string) error {
 	return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s",
-		resourceName, resourceType, actionToStringVerb(action))
+		resourceName, resourceType, ActionToVerb(planner.ActionType(action)))
 }
 
-// actionToVerb converts an ActionType to a past-tense verb for error messages
-func actionToVerb(action planner.ActionType) string {
+// ActionToVerb converts an ActionType to a past-tense verb for error messages
+func ActionToVerb(action planner.ActionType) string {
 	switch action {
 	case planner.ActionCreate:
 		return "created"
@@ -60,21 +60,5 @@ func actionToVerb(action planner.ActionType) string {
 		return "executed"
 	default:
 		return string(action)
-	}
-}
-
-// actionToStringVerb converts a string action to a past-tense verb for error messages
-func actionToStringVerb(action string) string {
-	switch action {
-	case "create":
-		return "created"
-	case "update":
-		return "updated"
-	case "delete":
-		return "deleted"
-	case "external_tool":
-		return "executed"
-	default:
-		return action
 	}
 }

@@ -95,7 +95,7 @@ func validateParentScopes(scope *resources.SyncScope) error {
 			continue
 		}
 		guidance := "add the parent resource collection or move the child collection under that parent"
-		if syncParentTypeSupportsExternal(child.ParentType) {
+		if _, supported := resources.ExternalResolutionFor(child.ParentType); supported {
 			guidance += "; if the parent is managed elsewhere, declare it with _external in the parent " +
 				"collection and nest the child collection there"
 		}
@@ -112,21 +112,6 @@ func validateParentScopes(scope *resources.SyncScope) error {
 
 func syncRootParentType(rt resources.ResourceType) bool {
 	// This switch intentionally handles only resource types that can own nested sync scope.
-	//nolint:exhaustive
-	switch rt {
-	case resources.ResourceTypeAPI,
-		resources.ResourceTypePortal,
-		resources.ResourceTypeControlPlane,
-		resources.ResourceTypeAIGateway,
-		resources.ResourceTypeEventGatewayControlPlane,
-		resources.ResourceTypeOrganizationTeam:
-		return true
-	default:
-		return false
-	}
-}
-
-func syncParentTypeSupportsExternal(rt resources.ResourceType) bool {
 	//nolint:exhaustive
 	switch rt {
 	case resources.ResourceTypeAPI,
