@@ -57,7 +57,7 @@ jobs:
       github.event.pull_request.draft == true &&
       github.event.pull_request.user.type == 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository)
-    uses: Kong/ksai-public/.github/workflows/ksai.yml@v3.40.7
+    uses: Kong/ksai-public/.github/workflows/ksai.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
     permissions:
       contents: write      # checked out by every command, and pushed by one that changes code
       issues: write        # every command answers with a comment, and reacts to the one that asked
@@ -85,6 +85,7 @@ jobs:
       job_timeout_minutes: "35"
       require_plan_approval: "true"
       client_id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+      anthropic_base_url: ${{ vars.KSAI_ANTHROPIC_BASE_URL }}
     secrets:
       ksai_private_key: ${{ secrets.API_OPS_APP_SECRET }}
 
@@ -104,7 +105,7 @@ jobs:
       (github.event_name == 'pull_request' &&
       contains(fromJSON('["opened", "ready_for_review"]'), github.event.action) &&
       github.event.pull_request.head.repo.full_name == github.repository)
-    uses: Kong/ksai-public/.github/workflows/ksai-request.yml@v3.40.7
+    uses: Kong/ksai-public/.github/workflows/ksai-request.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
     permissions:
       actions: write # dispatch this workflow onto the default branch
       contents: read # download the actions this call runs, which live in a private repository
@@ -130,8 +131,12 @@ jobs:
       (github.event_name == 'pull_request_review' &&
       github.event.sender.type != 'Bot' &&
       github.event.review.state != 'commented'))
-    uses: Kong/ksai-public/.github/workflows/ksai-hold.yml@v3.40.7
+    uses: Kong/ksai-public/.github/workflows/ksai-hold.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
     permissions:
       contents: read       # download the action this call runs, which lives in a private repository
       pull-requests: write # dismiss an approval from somebody who contributed to the pull request
       statuses: write      # report the check the ruleset makes required
+    with:
+      # The App this repository runs KSAI as, which is what `client_id` above names. A pull request
+      # carrying no commit that App published is reported green rather than held.
+      app_login: kong-api-ops
