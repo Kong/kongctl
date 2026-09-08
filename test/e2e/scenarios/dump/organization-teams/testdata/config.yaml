@@ -29,3 +29,9 @@ organization:
       teams:
         - ref: dump-user-1-alpha-team
           team: dump-org-team-alpha
+  system-accounts:
+    - ref: dump-system-account
+      name: e2e-dump-org-system-account
+      teams:
+        - ref: dump-system-account-alpha-team
+          team: dump-org-team-alpha
