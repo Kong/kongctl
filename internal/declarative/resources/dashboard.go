@@ -25,6 +25,7 @@ func init() {
 			}
 			return rs.Analytics.Dashboards
 		}),
+		WithRootSyncScope(),
 	)
 }
 

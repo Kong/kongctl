@@ -44,17 +44,12 @@ func ensurePlanningSyncScope(rs *resources.ResourceSet) {
 	if rs == nil || rs.SyncScope != nil {
 		return
 	}
-	if rs.IsEmpty() && !hasOrganizationAssignmentSelectors(rs) {
+	if rs.IsEmpty() && !rs.HasSyncScopeSelectors() {
 		return
 	}
 
 	scope := rs.EnsureSyncScope()
 	rs.InferRegisteredSyncScope(scope)
-	addRootIfPresent(scope, resources.ResourceTypeDashboard, len(rs.Dashboards))
-	addRootIfPresent(scope, resources.ResourceTypeOrganizationTeam, len(rs.OrganizationTeams))
-
-	addPortalChildScopes(scope, rs)
-	addOrganizationChildScopes(scope, rs)
 }
 
 func excludeExternalOnlyControlPlaneSyncScope(rs *resources.ResourceSet) {
@@ -67,85 +62,6 @@ func excludeExternalOnlyControlPlaneSyncScope(rs *resources.ResourceSet) {
 		}
 	}
 	rs.SyncScope.RemoveRoot(resources.ResourceTypeControlPlane)
-}
-
-func hasOrganizationAssignmentSelectors(rs *resources.ResourceSet) bool {
-	return rs != nil && rs.Organization != nil &&
-		(len(rs.Organization.Users) > 0 || len(rs.Organization.SystemAccounts) > 0)
-}
-
-func addRootIfPresent(scope *resources.SyncScope, rt resources.ResourceType, count int) {
-	if count > 0 {
-		scope.AddRoot(rt)
-	}
-}
-
-func addPortalChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
-	for _, child := range rs.PortalCustomizations {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalCustomization)
-	}
-	for _, child := range rs.PortalAuthSettings {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuthSettings)
-	}
-	for _, child := range rs.PortalIPAllowLists {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIPAllowList)
-	}
-	for _, child := range rs.PortalIntegrations {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIntegration)
-	}
-	for _, child := range rs.PortalIdentityProviders {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalIdentityProvider)
-	}
-	for _, child := range rs.PortalTeamGroupMappings {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamGroupMapping)
-	}
-	for _, child := range rs.PortalCustomDomains {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalCustomDomain)
-	}
-	for _, child := range rs.PortalPages {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalPage)
-	}
-	for _, child := range rs.PortalSnippets {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalSnippet)
-	}
-	for _, child := range rs.PortalTeams {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeam)
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamRole)
-	}
-	for _, child := range rs.PortalTeamRoles {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalTeamRole)
-	}
-	for _, child := range rs.PortalAssetLogos {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAssetLogo)
-	}
-	for _, child := range rs.PortalAssetFavicons {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAssetFavicon)
-	}
-	for _, child := range rs.PortalEmailConfigs {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalEmailConfig)
-	}
-	for _, child := range rs.PortalEmailTemplates {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalEmailTemplate)
-	}
-	for _, child := range rs.PortalAuditLogWebhooks {
-		scope.AddChild(resources.ResourceTypePortal, child.Portal, resources.ResourceTypePortalAuditLogWebhook)
-	}
-}
-
-func addOrganizationChildScopes(scope *resources.SyncScope, rs *resources.ResourceSet) {
-	for _, role := range rs.OrganizationTeamRoles {
-		scope.AddChild(resources.ResourceTypeOrganizationTeam, role.Team, resources.ResourceTypeOrganizationTeamRole)
-	}
-	if (rs.Organization != nil && len(rs.Organization.Users) > 0) ||
-		len(rs.OrganizationUserTeamMemberships) > 0 ||
-		len(rs.OrganizationUserRoles) > 0 {
-		scope.MarkOrganizationUsersScoped()
-	}
-	if (rs.Organization != nil && len(rs.Organization.SystemAccounts) > 0) ||
-		len(rs.OrganizationSystemAccountTeamMemberships) > 0 ||
-		len(rs.OrganizationSystemAccountRoles) > 0 {
-		scope.MarkOrganizationSystemAccountsScoped()
-	}
 }
 
 func validateSyncScope(scope *resources.SyncScope) error {

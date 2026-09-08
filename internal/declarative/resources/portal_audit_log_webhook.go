@@ -19,6 +19,7 @@ func init() {
 				ExplainFieldHint{RefKind: string(ResourceTypeAuditLogWebhookDestination)},
 			),
 		),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

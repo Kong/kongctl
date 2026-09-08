@@ -11,6 +11,7 @@ func init() {
 		ResourceTypePortalTeamRole,
 		func(rs *ResourceSet) *[]PortalTeamRoleResource { return &rs.PortalTeamRoles },
 		AutoExplain[PortalTeamRoleResource](),
+		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalTeamRoleResource) string { return r.Portal }),
 	)
 }
 

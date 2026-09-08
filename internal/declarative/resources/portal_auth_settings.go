@@ -14,6 +14,7 @@ func init() {
 		AutoExplain[PortalAuthSettingsResource](
 			WithExplainSchemaBuilder(portalAuthSettingsExplainNode),
 		),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

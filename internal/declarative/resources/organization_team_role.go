@@ -13,6 +13,7 @@ func init() {
 		AutoExplain[OrganizationTeamRoleResource](
 			WithExplainRecommendedFields("team"),
 		),
+		WithChildSyncScope(ResourceTypeOrganizationTeam),
 	)
 }
 

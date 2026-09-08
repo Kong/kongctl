@@ -13,6 +13,7 @@ func init() {
 		ResourceTypePortalEmailConfig,
 		func(rs *ResourceSet) *[]PortalEmailConfigResource { return &rs.PortalEmailConfigs },
 		AutoExplain[PortalEmailConfigResource](),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 

@@ -10,6 +10,7 @@ func init() {
 		ResourceTypePortalTeamGroupMapping,
 		func(rs *ResourceSet) *[]PortalTeamGroupMappingResource { return &rs.PortalTeamGroupMappings },
 		AutoExplain[PortalTeamGroupMappingResource](),
+		WithChildSyncScope(ResourceTypePortal),
 	)
 }
 
