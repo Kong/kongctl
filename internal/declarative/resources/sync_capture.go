@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -154,7 +155,11 @@ func (s *SyncScope) captureRootChild(raw map[string]any, collection SyncCollecti
 	items, ok := value.([]any)
 	if !ok || len(items) == 0 {
 		if collection.EmptyRootMessage != "" {
-			return fmt.Errorf("%s cannot be empty because %s", collection.RootKey, collection.EmptyRootMessage)
+			return fmt.Errorf(
+				"%s cannot be empty because %s",
+				strings.Join(collection.RootPath, "."),
+				collection.EmptyRootMessage,
+			)
 		}
 		s.AddRootChildCollection(collection.ResourceType)
 		return nil
