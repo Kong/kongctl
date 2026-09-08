@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/config"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -93,7 +94,7 @@ func TestResolveNonTextOutput(t *testing.T) {
 		require.EqualError(
 			t,
 			err,
-			"--text-layout and --text-id-format are only supported with --output text",
+			"--text-layout, --text-id-format, and --no-trunc are only supported with --output text",
 		)
 	})
 }
@@ -101,10 +102,48 @@ func TestResolveNonTextOutput(t *testing.T) {
 func configuredCommand(t *testing.T, profile map[string]any) (*cobra.Command, config.Hook) {
 	t.Helper()
 	mainConfig := viper.New()
+	utilviper.ConfigureEnvVars(mainConfig, "KONGCTL")
 	mainConfig.Set("default", profile)
 	cfg := config.BuildProfiledConfig("default", "config.yaml", mainConfig)
 	cmd := &cobra.Command{Use: "kongctl"}
 	AddFlags(cmd.PersistentFlags())
 	require.NoError(t, BindFlags(cfg, cmd.PersistentFlags()))
 	return cmd, cfg
+}
+
+func TestNoTruncPrecedence(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		profile bool
+		env     string
+		flag    string
+		want    bool
+	}{
+		{name: "default"},
+		{name: "profile", profile: true, want: true},
+		{name: "environment enables", env: "true", want: true},
+		{name: "environment overrides profile", profile: true, env: "false"},
+		{name: "flag disables", profile: true, env: "true", flag: "false"},
+		{name: "flag enables", env: "false", flag: "true", want: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("KONGCTL_DEFAULT_TEXT_NO_TRUNC", tt.env)
+			command, cfg := configuredCommand(t, map[string]any{"text": map[string]any{"no-trunc": tt.profile}})
+			if tt.flag != "" {
+				require.NoError(t, command.ParseFlags([]string{"--no-trunc=" + tt.flag}))
+			}
+			settings, err := Resolve(command, cfg, "text")
+			require.NoError(t, err)
+			require.Equal(t, tt.want, settings.NoTrunc)
+			for _, format := range []string{"json", "yaml"} {
+				settings, err := Resolve(command, cfg, format)
+				if tt.flag != "" {
+					require.ErrorContains(t, err, "only supported with --output text")
+				} else {
+					require.NoError(t, err)
+					require.False(t, settings.NoTrunc)
+				}
+			}
+		})
+	}
 }
