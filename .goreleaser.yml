@@ -82,8 +82,12 @@ homebrew_casks:
       email: rspurgeon@users.noreply.github.com
     homepage: "https://github.com/kong/kongctl"
     description: Developer CLI for Kong
+    custom_block: |
+      disable! date: "2027-02-08",
+               because: "has been replaced by the Homebrew formula",
+               replacement_formula: "kong/kongctl/kongctl"
     caveats: |
-      The kongctl Homebrew cask installation will be deprecated on February 8, 2027.
+      The kongctl Homebrew cask is deprecated and will be disabled on February 8, 2027.
       Switch to the Homebrew formula by running:
 
         brew uninstall --cask kong/kongctl/kongctl
