@@ -310,7 +310,9 @@ Choose the existing executor contract for supported operations:
 Implement typed field mapping and API calls. Use `ExecutionContext` for
 namespace, protection, parent, and reference information. Resolve parent IDs
 through the current execution path, including parents created in the same
-plan. Use SDK label conversion helpers so user-label removal and managed
+plan. API child adapters read the prepared references from `ExecutionContext`;
+their [runtime registration][api-execs] supplies reference preparation.
+Use SDK label conversion helpers so user-label removal and managed
 labels survive updates.
 
 Add resources in their family's runtime registration:

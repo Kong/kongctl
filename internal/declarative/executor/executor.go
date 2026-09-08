@@ -109,13 +109,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.concurrency = DefaultMaxConcurrency
 	// If user has overridden MaxConcurrency, use it. Ensure it's within allowed bounds.
 	if opts.MaxConcurrency > 0 {
-		if opts.MaxConcurrency > MaxConcurrency {
-			e.concurrency = MaxConcurrency
-		} else if opts.MaxConcurrency < MinConcurrency {
-			e.concurrency = MinConcurrency
-		} else {
-			e.concurrency = opts.MaxConcurrency
-		}
+		e.concurrency = min(max(opts.MaxConcurrency, MinConcurrency), MaxConcurrency)
 	}
 
 	// Initialize resource executors
@@ -397,7 +391,8 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	}
 
 	resourceName := change.ResourceRef
-	if resolvedName := getResourceName(change.Fields); resolvedName != "" && !tags.IsEnvPlaceholder(resolvedName) {
+	if resolvedName := common.ExtractResourceName(change.Fields); resolvedName != "" &&
+		!tags.IsEnvPlaceholder(resolvedName) {
 		resourceName = resolvedName
 	}
 
@@ -448,7 +443,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		return err
 	}
 
-	if resolvedName := getResourceName(change.Fields); resolvedName != "" {
+	if resolvedName := common.ExtractResourceName(change.Fields); resolvedName != "" {
 		resourceName = resolvedName
 	}
 
@@ -811,7 +806,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 		switch change.ResourceType {
 		case planner.ResourceTypePortal:
 			if e.client != nil {
-				portal, err := e.client.GetPortalByName(ctx, getResourceName(change.Fields))
+				portal, err := e.client.GetPortalByName(ctx, common.ExtractResourceName(change.Fields))
 				if err != nil {
 					return fmt.Errorf("failed to fetch portal: %w", err)
 				}
@@ -833,7 +828,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 			}
 		case planner.FieldAPI:
 			if e.client != nil {
-				api, err := e.client.GetAPIByName(ctx, getResourceName(change.Fields))
+				api, err := e.client.GetAPIByName(ctx, common.ExtractResourceName(change.Fields))
 				if err != nil {
 					return fmt.Errorf("failed to fetch API: %w", err)
 				}
@@ -865,7 +860,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				if isProtected && !isProtectionChange &&
 					(change.Action == planner.ActionUpdate || change.Action == planner.ActionDelete) {
 					return fmt.Errorf("resource is protected and cannot be %s",
-						actionToVerb(change.Action))
+						common.ActionToVerb(change.Action))
 				}
 			}
 		}
@@ -2237,100 +2232,4 @@ func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedCh
 	}
 
 	return fmt.Errorf("delete operation not yet implemented for %s", change.ResourceType)
-}
-
-// Helper functions
-
-// getResourceName is deprecated, use common.ExtractResourceName instead
-// Kept for backward compatibility with existing code
-func getResourceName(fields map[string]any) string {
-	return common.ExtractResourceName(fields)
-}
-
-// actionToVerb is deprecated, use common utilities instead
-// Kept for backward compatibility with existing code
-func actionToVerb(action planner.ActionType) string {
-	switch action {
-	case planner.ActionCreate:
-		return "created"
-	case planner.ActionUpdate:
-		return "updated"
-	case planner.ActionDelete:
-		return "deleted"
-	case planner.ActionExternalTool:
-		return "executed"
-	default:
-		return string(action)
-	}
-}
-
-// getParentAPIID resolves the parent API ID for child resources
-//
-//nolint:unused // kept for backward compatibility, will be removed in Phase 2 cleanup
-func (e *Executor) getParentAPIID(ctx context.Context, change planner.PlannedChange) (string, error) {
-	// Add debug logging
-	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
-	logger.Debug(
-		"getParentAPIID called",
-		slog.String("change_id", change.ID),
-		slog.String("resource_type", change.ResourceType),
-		slog.String("resource_ref", change.ResourceRef),
-		slog.Any("parent", change.Parent),
-	)
-
-	if change.Parent == nil {
-		return "", fmt.Errorf("parent API reference required")
-	}
-
-	// Log parent details
-	logger.Debug(
-		"Parent details",
-		slog.String("parent_ref", change.Parent.Ref),
-		slog.String("parent_id", change.Parent.ID),
-		slog.Bool("parent_id_empty", change.Parent.ID == ""),
-		slog.Int("parent_id_length", len(change.Parent.ID)),
-	)
-
-	// Use the parent ID if it was already resolved
-	if change.Parent.ID != "" {
-		logger.Debug("Using resolved parent ID", slog.String("parent_id", change.Parent.ID))
-		return change.Parent.ID, nil
-	}
-
-	// Check if parent was created in this execution
-	logger.Debug("Checking dependencies", slog.Int("dep_count", len(change.DependsOn)))
-	e.mu.Lock()
-	var parentFromCreated string
-	for _, dep := range change.DependsOn {
-		if resourceID, ok := e.createdResources[dep]; ok {
-			parentFromCreated = resourceID
-			break
-		}
-	}
-	e.mu.Unlock()
-	if parentFromCreated != "" {
-		logger.Debug(
-			"Found parent in created resources",
-			slog.String("resource_id", parentFromCreated),
-		)
-		return parentFromCreated, nil
-	}
-
-	// Otherwise look up by name
-	logger.Debug("Falling back to API lookup by name", slog.String("api_ref", change.Parent.Ref))
-	parentAPI, err := e.client.GetAPIByName(ctx, change.Parent.Ref)
-	if err != nil {
-		return "", fmt.Errorf("failed to get parent API: %w", err)
-	}
-	if parentAPI == nil {
-		return "", fmt.Errorf("parent API not found: %s", change.Parent.Ref)
-	}
-
-	logger.Debug(
-		"Found parent API by name",
-		slog.String("api_name", parentAPI.Name),
-		slog.String("api_id", parentAPI.ID),
-	)
-
-	return parentAPI.ID, nil
 }

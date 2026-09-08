@@ -1951,7 +1951,7 @@ func renderScaffoldOneOfObject(
 			continue
 		}
 		branchComment := comment || i > 0
-		renderScaffoldOneOfOptionLabel(write, depth, branch, branchComment)
+		renderScaffoldOneOfOptionLabel(write, depth, branch)
 		for _, field := range fields {
 			required := field.Required || field.Recommended
 			renderScaffoldField(write, depth, field, omit, branchComment || !required)
@@ -1981,14 +1981,10 @@ func scaffoldRenderableBranchFields(
 	return fields
 }
 
-func renderScaffoldOneOfOptionLabel(write scaffoldWriter, depth int, branch *ExplainNode, comment bool) {
+func renderScaffoldOneOfOptionLabel(write scaffoldWriter, depth int, branch *ExplainNode) {
 	indent := strings.Repeat("  ", depth)
 	if label := scaffoldOneOfOptionLabel(branch); label != "" {
 		write(indent + "# oneOf option: " + label)
-		return
-	}
-	if comment {
-		write(indent + "# oneOf option")
 		return
 	}
 	write(indent + "# oneOf option")
