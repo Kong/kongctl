@@ -19,7 +19,7 @@ var (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayCertificate,
 		func(rs *ResourceSet) *[]AIGatewayCertificateResource { return &rs.AIGatewayCertificates },
 		AutoExplain[AIGatewayCertificateResource](
@@ -36,13 +36,19 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayCertificateExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayCertificateResource]{
+			extractOrder:  120,
+			validateOrder: 140,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayCertificateResource { return &gateway.Certificates },
+			setParent:     func(child *AIGatewayCertificateResource, ref string) { child.AIGateway = ref },
+		},
 		WithExternalUnsupportedReason("AI Gateway certificate lookup requires gateway-scoped name materialization"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(140, "each resource must declare an ai_gateway parent"),
 		),
 	)
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayCACertificate,
 		func(rs *ResourceSet) *[]AIGatewayCACertificateResource { return &rs.AIGatewayCACertificates },
 		AutoExplain[AIGatewayCACertificateResource](
@@ -53,12 +59,18 @@ func init() {
 			WithExplainRecommendedFields(SchemaFieldRef, SchemaFieldAIGateway, SchemaFieldName, SchemaFieldCert),
 			WithExplainSchemaBuilder(aiGatewayCACertificateExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayCACertificateResource]{
+			extractOrder:  130,
+			validateOrder: 150,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayCACertificateResource { return &gateway.CACertificates },
+			setParent:     func(child *AIGatewayCACertificateResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(150, "each resource must declare an ai_gateway parent"),
 		),
 	)
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewaySNI,
 		func(rs *ResourceSet) *[]AIGatewaySNIResource { return &rs.AIGatewaySNIs },
 		AutoExplain[AIGatewaySNIResource](
@@ -76,6 +88,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewaySNIExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewaySNIResource]{
+			extractOrder:  140,
+			validateOrder: 160,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewaySNIResource { return &gateway.SNIs },
+			setParent:     func(child *AIGatewaySNIResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(160, "each resource must declare an ai_gateway parent"),

@@ -22,7 +22,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayAgent,
 		func(rs *ResourceSet) *[]AIGatewayAgentResource { return &rs.AIGatewayAgents },
 		AutoExplain[AIGatewayAgentResource](
@@ -44,6 +44,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayAgentExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayAgentResource]{
+			extractOrder:  40,
+			validateOrder: 40,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayAgentResource { return &gateway.Agents },
+			setParent:     func(child *AIGatewayAgentResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(40, "each Agent must declare an ai_gateway parent"),

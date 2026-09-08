@@ -12,7 +12,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAIGatewayConfigStoreSecret,
 		func(rs *ResourceSet) *[]AIGatewayConfigStoreSecretResource {
 			return &rs.AIGatewayConfigStoreSecrets
@@ -33,6 +33,16 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConfigStoreSecretExplainNode),
 		),
+		childLoad[AIGatewayConfigStoreSecretResource, AIGatewayConfigStoreResource]{
+			family:        ResourceTypeAIGateway,
+			extractOrder:  10,
+			validateOrder: 110,
+			nested: func(parent *AIGatewayConfigStoreResource) *[]AIGatewayConfigStoreSecretResource {
+				return &parent.Secrets
+			},
+			setParent: func(child *AIGatewayConfigStoreSecretResource, ref string) { child.AIGatewayConfigStore = ref },
+			validate:  validateAIGatewayConfigStoreSecrets,
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGatewayConfigStore,
 			WithEmptyRootCollectionError(110, "each secret must declare an ai_gateway_config_store parent"),
@@ -169,4 +179,57 @@ func aiGatewayConfigStoreSecretInlineExplainNode() *ExplainNode {
 		return explainObject()
 	}
 	return node
+}
+
+func validateAIGatewayConfigStoreSecrets(rs *ResourceSet, children []AIGatewayConfigStoreSecretResource) error {
+	keysByStore := make(map[string]string)
+	refs := make(map[string]struct{})
+	for i := range children {
+		secret := &children[i]
+		if err := secret.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_config_store_secret %q: %w", secret.GetRef(), err)
+		}
+		if _, exists := refs[secret.GetRef()]; exists {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as %s)",
+				secret.GetRef(),
+				ResourceTypeAIGatewayConfigStoreSecret,
+			)
+		}
+		refs[secret.GetRef()] = struct{}{}
+		if existing, found := rs.GetResourceByRef(secret.GetRef()); found &&
+			existing.GetType() != ResourceTypeAIGatewayConfigStoreSecret {
+			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", secret.GetRef(), existing.GetType())
+		}
+		storeRef := NormalizeResourceRef(secret.AIGatewayConfigStore)
+		store, found := rs.GetResourceByRef(storeRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_config_store_secret %q references unknown ai_gateway_config_store %q",
+				secret.GetRef(),
+				secret.AIGatewayConfigStore,
+			)
+		}
+		if store.GetType() != ResourceTypeAIGatewayConfigStore {
+			return fmt.Errorf(
+				"ai_gateway_config_store_secret %q references %q which is %s, not ai_gateway_config_store",
+				secret.GetRef(),
+				secret.AIGatewayConfigStore,
+				store.GetType(),
+			)
+		}
+		key := storeRef + "\x00" + secret.Key
+		if existingRef, exists := keysByStore[key]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_config_store_secret key %q for ai_gateway_config_store %q "+
+					"(ref: %s conflicts with ref: %s)",
+				secret.Key,
+				storeRef,
+				secret.GetRef(),
+				existingRef,
+			)
+		}
+		keysByStore[key] = secret.GetRef()
+	}
+	return nil
 }

@@ -27,6 +27,7 @@ type resourceOps struct {
 	explain                   ExplainRegistration
 	namespace                 *namespaceRegistration
 	syncScope                 *syncScopeRegistration
+	load                      *childLoadRegistration
 	dumpDefaultRules          map[string]dumpDefaultRule
 	maturity                  *maturity.Metadata
 	operationMaturity         map[Operation]maturity.Metadata
@@ -337,6 +338,9 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 	}
 	if ops.namespace != nil {
 		registerNamespaceParticipant(rt, *ops.namespace)
+	}
+	if ops.load != nil {
+		registerChildLoader(rt, *ops.load)
 	}
 	registry[rt] = ops
 }

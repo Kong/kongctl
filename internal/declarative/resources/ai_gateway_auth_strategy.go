@@ -19,7 +19,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayAuthStrategy,
 		func(rs *ResourceSet) *[]AIGatewayAuthStrategyResource { return &rs.AIGatewayAuthStrategies },
 		AutoExplain[AIGatewayAuthStrategyResource](
@@ -32,6 +32,12 @@ func init() {
 			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
 			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayAuthStrategyResource]{
+			extractOrder:  30,
+			validateOrder: 20,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayAuthStrategyResource { return &gateway.AuthStrategies },
+			setParent:     func(child *AIGatewayAuthStrategyResource, ref string) { child.AIGateway = ref },
+		},
 		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,

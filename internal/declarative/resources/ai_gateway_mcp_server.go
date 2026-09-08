@@ -28,7 +28,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayMCPServer,
 		func(rs *ResourceSet) *[]AIGatewayMCPServerResource { return &rs.AIGatewayMCPServers },
 		AutoExplain[AIGatewayMCPServerResource](
@@ -50,6 +50,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayMCPServerExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayMCPServerResource]{
+			extractOrder:  80,
+			validateOrder: 90,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayMCPServerResource { return &gateway.MCPServers },
+			setParent:     func(child *AIGatewayMCPServerResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(90, "each MCP Server must declare an ai_gateway parent"),

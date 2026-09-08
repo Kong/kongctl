@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerAIGatewayChildResource(
 		ResourceTypeAIGatewayPolicy,
 		func(rs *ResourceSet) *[]AIGatewayPolicyResource { return &rs.AIGatewayPolicies },
 		AutoExplain[AIGatewayPolicyResource](
@@ -42,6 +42,12 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayPolicyExplainNode),
 		),
+		aiGatewayChildLoad[AIGatewayPolicyResource]{
+			extractOrder:  20,
+			validateOrder: 30,
+			nested:        func(gateway *AIGatewayResource) *[]AIGatewayPolicyResource { return &gateway.Policies },
+			setParent:     func(child *AIGatewayPolicyResource, ref string) { child.AIGateway = ref },
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(30, "each policy must declare an ai_gateway parent"),

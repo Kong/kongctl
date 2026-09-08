@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAIGatewayConsumerCredential,
 		func(rs *ResourceSet) *[]AIGatewayConsumerCredentialResource {
 			return &rs.AIGatewayConsumerCredentials
@@ -43,6 +43,16 @@ func init() {
 			),
 			WithExplainSchemaBuilder(aiGatewayConsumerCredentialExplainNode),
 		),
+		childLoad[AIGatewayConsumerCredentialResource, AIGatewayConsumerResource]{
+			family:        ResourceTypeAIGateway,
+			extractOrder:  10,
+			validateOrder: 60,
+			nested: func(parent *AIGatewayConsumerResource) *[]AIGatewayConsumerCredentialResource {
+				return &parent.Credentials
+			},
+			setParent: func(child *AIGatewayConsumerCredentialResource, ref string) { child.AIGatewayConsumer = ref },
+			validate:  validateAIGatewayConsumerCredentials,
+		},
 		WithChildSyncScope(
 			ResourceTypeAIGatewayConsumer,
 			WithEmptyRootCollectionError(70, "each Credential must declare an ai_gateway_consumer parent"),
@@ -361,4 +371,55 @@ func aiGatewayConsumerCredentialExplainNode(_ ExplainBuildContext) (*ExplainNode
 			false,
 		),
 	), nil
+}
+
+func validateAIGatewayConsumerCredentials(rs *ResourceSet, children []AIGatewayConsumerCredentialResource) error {
+	namesByConsumer := make(map[string]string)
+
+	for i := range children {
+		credential := &children[i]
+
+		if err := credential.Validate(); err != nil {
+			return fmt.Errorf("invalid ai_gateway_consumer_credential %q: %w", credential.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(credential.GetRef()); found {
+			if existing.GetType() != ResourceTypeAIGatewayConsumerCredential {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					credential.GetRef(), existing.GetType())
+			}
+		}
+
+		consumerRef := NormalizeResourceRef(credential.AIGatewayConsumer)
+		consumer, found := rs.GetResourceByRef(consumerRef)
+		if !found {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references unknown ai_gateway_consumer %q",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+			)
+		}
+		if consumer.GetType() != ResourceTypeAIGatewayConsumer {
+			return fmt.Errorf(
+				"ai_gateway_consumer_credential %q references %q which is %s, not ai_gateway_consumer",
+				credential.GetRef(),
+				credential.AIGatewayConsumer,
+				consumer.GetType(),
+			)
+		}
+
+		nameKey := consumerRef + "\x00" + credential.Name
+		if existingRef, exists := namesByConsumer[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway_consumer_credential name %q for ai_gateway_consumer %q (ref: %s conflicts with ref: %s)",
+				credential.Name,
+				consumerRef,
+				credential.GetRef(),
+				existingRef,
+			)
+		}
+		namesByConsumer[nameKey] = credential.GetRef()
+	}
+
+	return nil
 }
