@@ -19,7 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/segmentio/cli"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // meshResource is one document read from the input, carrying only the fields
