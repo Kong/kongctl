@@ -129,6 +129,48 @@ class ReplayTest(unittest.TestCase):
             with self.subTest(data=data), self.assertRaises(ValueError):
                 MODULE.check_safe(data)
 
+    def test_generated_hostnames_are_sanitized_across_labels_and_regions(self):
+        for host in ["org-123.us.cp.konghq.com", "extra.org-123.eu.tp.konghq.com",
+                     "ORG-123.AP-SOUTHEAST-2.CP.KONGHQ.COM"]:
+            with self.subTest(host=host):
+                value = MODULE.Sanitizer().normalize("https://" + host + ":443/path")
+                region, kind = host.lower().split(".")[-4:-2]
+                self.assertEqual(f"https://replay.{region}.{kind}.konghq.com:443/path", value)
+                MODULE.check_safe(value)
+                with self.assertRaisesRegex(ValueError, "unsanitized Kong hostname"):
+                    MODULE.check_safe(host)
+        for host in ["org-123.unknown.konghq.com", "replay.org.us.cp.konghq.com"]:
+            with self.subTest(host=host), self.assertRaisesRegex(ValueError, "unsanitized Kong hostname"):
+                MODULE.check_safe(host)
+        for host in MODULE.HOSTS:
+            MODULE.check_safe(host)
+
+    def test_tls_timeout_is_set_before_handshake(self):
+        handler = MODULE.ProxyHandler.__new__(MODULE.ProxyHandler)
+        handler.path = "us.api.konghq.com:443"
+        handler.connection = MagicMock()
+        handler.server = MagicMock()
+        handler.send_response = MagicMock()
+        handler.end_headers = MagicMock()
+
+        def stalled_handshake(connection, **kwargs):
+            connection.settimeout.assert_called_once_with(90)
+            raise TimeoutError()
+
+        handler.server.tls.wrap_socket.side_effect = stalled_handshake
+        handler.do_CONNECT()
+        handler.server.engine.fail.assert_called_once_with("TLS tunnel failed")
+
+    def test_error_response_on_disconnected_socket_is_quiet_but_fatal(self):
+        handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)
+        handler.server = MagicMock()
+        handler.server.engine = MODULE.Replay({"interactions": []})
+        with patch.object(MODULE.http.server.BaseHTTPRequestHandler, "send_error", side_effect=BrokenPipeError):
+            handler.send_error(400)
+        self.assertTrue(handler.close_connection)
+        with self.assertRaisesRegex(ValueError, "HTTP protocol rejected"):
+            handler.server.engine.verify()
+
     def test_environment_does_not_inherit_credentials_or_skip_switches(self):
         with patch.dict(os.environ, {"KONGCTL_DEFAULT_KONNECT_PAT": "real-secret",
                                     "KONGCTL_E2E_SKIP_STEPS": "*", "NO_PROXY": "*", "GH_TOKEN": "secret"}):
@@ -168,6 +210,15 @@ class ReplayTest(unittest.TestCase):
                                    "run_url": "https://github.com/Kong/kongctl/actions/runs/123"},
                         "interactions": [interaction()]}
             MODULE.validate_cassette(cassette, root)
+            for path in ["/x#frag", "/x#", "/x?q=1", "/x?", "//other/x", "/x\ny"]:
+                invalid = copy.deepcopy(cassette)
+                invalid["interactions"][0]["request"]["path"] = path
+                with self.subTest(path=path), self.assertRaises(ValueError):
+                    MODULE.validate_cassette(invalid, root)
+            invalid = copy.deepcopy(cassette)
+            invalid["interactions"][0]["request"]["query"].reverse()
+            with self.assertRaisesRegex(ValueError, "canonical matching form"):
+                MODULE.validate_cassette(invalid, root)
             bootstrap = copy.deepcopy(cassette)
             bootstrap["source"]["kind"] = "bootstrap"
             with self.assertRaisesRegex(ValueError, "must be a live recording"):

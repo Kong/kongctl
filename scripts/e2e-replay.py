@@ -34,6 +34,8 @@ LIMIT = 8 * 1024 * 1024
 UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 SENSITIVE_KEY = re.compile(r"password|secret|token|authorization|cookie|private.?key", re.I)
 SENSITIVE_VALUE = re.compile(r"kpat_|spat_|Bearer\s|-----BEGIN|[\w.+-]+@[\w.-]+\.[a-z]{2,}", re.I)
+KONG_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)*konghq\.com\b", re.I)
+GENERATED_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)+([a-z0-9-]+)\.(cp|tp)\.konghq\.com\b", re.I)
 
 
 def canonical(value):
@@ -106,8 +108,13 @@ def check_safe(value):
     elif isinstance(value, list):
         for item in value:
             check_safe(item)
-    elif isinstance(value, str) and SENSITIVE_VALUE.search(value):
-        raise ValueError("sensitive value: refusing to publish cassette")
+    elif isinstance(value, str):
+        if SENSITIVE_VALUE.search(value):
+            raise ValueError("sensitive value: refusing to publish cassette")
+        for match in KONG_HOST.finditer(value):
+            host = match.group().lower()
+            if host not in HOSTS and not re.fullmatch(r"replay\.[a-z0-9-]+\.(cp|tp)\.konghq\.com", host):
+                raise ValueError("unsanitized Kong hostname: refusing to publish cassette")
 
 
 class Sanitizer:
@@ -128,8 +135,7 @@ class Sanitizer:
                     self.ids[key] = f"00000000-0000-4000-8000-{len(self.ids) + 1:012d}"
                 return self.ids[key]
             value = UUID.sub(replace, value)
-            return re.sub(r"https://[a-z0-9]+\.(us|eu|au)\.(cp|tp)\.konghq\.com",
-                          r"https://replay.\1.\2.konghq.com", value)
+            return GENERATED_HOST.sub(lambda match: f"replay.{match[1].lower()}.{match[2].lower()}.konghq.com", value)
         return value
 
 
@@ -179,6 +185,13 @@ def validate_cassette(cassette, directory):
             for pair in request["query"]
         ):
             raise ValueError("invalid request query")
+        normalized = request_key(request["endpoint"], request["method"], request["path"],
+                                 canonical(request["body"]).encode() if request["body"] is not None else b"")
+        if normalized["path"] != request["path"] or "?" in request["path"] or "#" in request["path"]:
+            raise ValueError("invalid request path")
+        normalized["query"] = sorted(request["query"])
+        if canonical(normalized) != canonical(request):
+            raise ValueError("request is not in canonical matching form")
         if not isinstance(response, dict) or set(response) != {"status", "body"} or type(response["status"]) is not int:
             raise ValueError("invalid response fields")
         if not 200 <= response["status"] < 500 or response["status"] == 429 or 300 <= response["status"] < 400:
@@ -254,7 +267,10 @@ class QuietHandler(http.server.BaseHTTPRequestHandler):
 
     def send_error(self, code, message=None, explain=None):
         self.server.engine.fail("HTTP protocol rejected a request")
-        super().send_error(code, "replay request rejected", "See replay diagnostics")
+        try:
+            super().send_error(code, "replay request rejected", "See replay diagnostics")
+        except OSError:
+            self.close_connection = True
 
 
 class ProxyHandler(QuietHandler):
@@ -268,8 +284,8 @@ class ProxyHandler(QuietHandler):
         self.end_headers()
         self.close_connection = True
         try:
+            self.connection.settimeout(90)
             with self.server.tls.wrap_socket(self.connection, server_side=True) as connection:
-                connection.settimeout(90)
                 InnerHandler(connection, self.client_address, self.server, tunnel_host=host)
         except (OSError, ValueError):
             self.server.engine.fail("TLS tunnel failed")
@@ -411,7 +427,6 @@ def main():
         env = clean_environment(private, args.binary.resolve())
         reset_env = {**env, "KONGCTL_E2E_KONNECT_PAT": token or DUMMY_PAT, "KONGCTL_E2E_RESET": "1"}
         started = time.monotonic()
-        scenario_elapsed = 0.0
         try:
             if token:
                 subprocess.run([str(args.reset_binary.resolve()), "--stage", "before-replay-record"],
