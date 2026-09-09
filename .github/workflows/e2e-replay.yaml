@@ -1,0 +1,138 @@
+name: E2E replay experiment
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/e2e-replay.yaml'
+      - 'scripts/e2e-replay.py'
+      - 'scripts/e2e_replay_test.py'
+      - 'scripts/e2e-replay-isolated.sh'
+      - 'test/e2e/scenarios/control-plane/get/**'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Reviewed cassette replay or live recording
+        type: choice
+        default: replay
+        options: [replay, record]
+
+permissions:
+  contents: read
+
+env:
+  DO_NOT_TRACK: '1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test matcher, sanitization, TLS and stale-cassette checks
+        run: python3 -m unittest discover -s scripts -p e2e_replay_test.py
+      - name: Build experiment binaries
+        run: make build-e2e-replay
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: replay-binaries
+          path: |
+            kongctl
+            .e2e-artifacts/replay-bin/e2e.test
+            .e2e-artifacts/replay-bin/reset-org
+          include-hidden-files: true
+          retention-days: 2
+
+  record:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'record'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    # EXACTLY the same group as e2e.yaml's acceptance-3 shard. Do not prefix
+    # with workflow name: recording must serialize with ordinary live runs.
+    concurrency:
+      group: konnect-e2e-kongctl-acceptance-3
+      queue: max
+      cancel-in-progress: false
+    environment: kongctl-acceptance-3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: replay-binaries
+      - name: Record one scenario with before/after live reset
+        env:
+          KONGCTL_E2E_MATRIX_ORG: kongctl-acceptance-3
+          KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
+        run: |
+          chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test .e2e-artifacts/replay-bin/reset-org
+          python3 scripts/e2e-replay.py record \
+            --test-binary .e2e-artifacts/replay-bin/e2e.test \
+            --reset-binary .e2e-artifacts/replay-bin/reset-org \
+            --output-dir .e2e-artifacts/replay-candidate
+      # Never upload raw harness logs or temporary TLS keys. Only a successful,
+      # sanitized candidate is published; this does not update tracked files.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: replay-candidate
+          path: .e2e-artifacts/replay-candidate/*.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 10
+
+  replay:
+    needs: [build, record]
+    if: >-
+      always() && needs.build.result == 'success' &&
+      (needs.record.result == 'skipped' || needs.record.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No Konnect environment, PAT, organization lock or real network access.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: replay-binaries
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: inputs.mode == 'record'
+        with:
+          name: replay-candidate
+          path: .e2e-artifacts/replay-candidate
+      - name: Replay three times with only loopback networking
+        env:
+          REPLAY_MODE: ${{ inputs.mode || 'replay' }}
+        run: |
+          chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test
+          case "$REPLAY_MODE" in
+            record)
+              args=(--cassette .e2e-artifacts/replay-candidate/candidate-cassette.json) ;;
+            replay)
+              args=(--cassette test/e2e/scenarios/control-plane/get/replay/cassette.json) ;;
+            *) exit 1 ;;
+          esac
+          for attempt in 1 2 3; do
+            bash scripts/e2e-replay-isolated.sh "${args[@]}" \
+              --output-dir ".e2e-artifacts/replay-results/${attempt}"
+          done
+      - name: Summarize experiment
+        run: |
+          echo '## One-scenario replay experiment' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Ordinary PR and main scenario validation remains fully live.' >> "$GITHUB_STEP_SUMMARY"
+          for summary in .e2e-artifacts/replay-results/*/summary.json; do
+            jq -c . "$summary" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: replay-results
+          path: .e2e-artifacts/replay-results
+          include-hidden-files: true
+          retention-days: 10

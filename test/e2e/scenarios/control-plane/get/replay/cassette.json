@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "scenario": "control-plane/get",
+  "inputs_sha256": "sha256:e90ebdf2de091d66b5338921078ccbfd40e08714c0af4e28ef1e70187e1adbfd",
+  "source": {
+    "kind": "recorded",
+    "commit": "1dc62a36ab90b261b7437f84394cba2f44b718e5",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/34377519108"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v2/control-planes",
+        "query": [],
+        "body": {
+          "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+          "description": "Test Control Plane for get E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "name": "kongctl-e2e-get-cp"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-get-cp",
+          "description": "Test Control Plane for get E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-09T16:40:07.223Z",
+          "updated_at": "2026-09-09T16:40:07.223Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-get-cp",
+              "description": "Test Control Plane for get E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-09T16:40:07.223Z",
+              "updated_at": "2026-09-09T16:40:07.223Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-get-cp",
+              "description": "Test Control Plane for get E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-09T16:40:07.223Z",
+              "updated_at": "2026-09-09T16:40:07.223Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-e2e-get-cp"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-get-cp",
+              "description": "Test Control Plane for get E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-09T16:40:07.223Z",
+              "updated_at": "2026-09-09T16:40:07.223Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-get-cp",
+          "description": "Test Control Plane for get E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-09T16:40:07.223Z",
+          "updated_at": "2026-09-09T16:40:07.223Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "nonexistent-cp-name"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": []
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-e2e-get-cp"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-get-cp",
+              "description": "Test Control Plane for get E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-09T16:40:07.223Z",
+              "updated_at": "2026-09-09T16:40:07.223Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-get-cp",
+              "description": "Test Control Plane for get E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-09T16:40:07.223Z",
+              "updated_at": "2026-09-09T16:40:07.223Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-get-cp",
+          "description": "Test Control Plane for get E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-09T16:40:07.223Z",
+          "updated_at": "2026-09-09T16:40:07.223Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null
+      }
+    }
+  ]
+}
