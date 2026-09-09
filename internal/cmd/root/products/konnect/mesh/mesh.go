@@ -110,6 +110,11 @@ func NewMeshCmd(
 			return runDumpResources(helper, profile)
 		}
 		if verb == verbs.Create {
+			// Resources come from -f, so a positional argument here is either
+			// a mistyped subcommand or a misunderstanding of the command.
+			if len(args) > 0 {
+				return cmd.UnknownSubcommandError(cmdObj, args[0])
+			}
 			// Read the flag rather than binding a variable: one process can
 			// hold a mesh command per verb, and a shared variable would leak
 			// between them.
@@ -151,6 +156,10 @@ func NewMeshCmd(
 
 	if verb == verbs.Get {
 		baseCmd.AddCommand(newGetResourceTypesCmd(verb, addParentFlags, parentPreRun))
+	}
+	if verb == verbs.Create {
+		baseCmd.AddCommand(newDataplaneTokenCmd(parentPreRun))
+		baseCmd.AddCommand(newZoneTokenCmd(parentPreRun))
 	}
 
 	return baseCmd, nil
