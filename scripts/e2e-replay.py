@@ -41,6 +41,9 @@ def canonical(value):
 
 
 def parse_json(data):
+    def reject_constant(_):
+        raise ValueError("non-finite JSON number")
+
     def unique(pairs):
         result = {}
         for key, value in pairs:
@@ -49,8 +52,7 @@ def parse_json(data):
             result[key] = value
         return result
 
-    return json.loads(data, object_pairs_hook=unique,
-                      parse_constant=lambda _: (_ for _ in ()).throw(ValueError("non-finite JSON number")))
+    return json.loads(data, object_pairs_hook=unique, parse_constant=reject_constant)
 
 
 def scenario_digest(directory):
@@ -74,8 +76,14 @@ def check_eligibility(directory):
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
-    if re.search(r"(?m)^\s*(?:-\s*)?(exec|create|delete|resetOrgRegions|env|requiredEnvVars|assignedEnvironment):", definition):
+    unsupported = (
+        "exec|create|delete|resetOrgRegions|env|requiredEnvVars|assignedEnvironment|"
+        "inputOverlayDirs|inputOverlayOpsFiles|inputOverlayOps|stdinFile|stdoutFile|workdir"
+    )
+    if re.search(r"(?m)^\s*(?:-\s*)?(" + unsupported + r"):", definition):
         raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
+    if not re.search(r"(?m)^baseInputsPath: testdata\s*$", definition):
+        raise ValueError("prototype requires scenario-local testdata inputs")
     for path in directory.rglob("*"):
         if path.relative_to(directory).parts[0] == "replay":
             continue
@@ -84,7 +92,7 @@ def check_eligibility(directory):
         if not path.is_file():
             continue
         content = path.read_text(encoding="utf-8")
-        if any(marker in content for marker in ("../", "repo_dir", "https://", "http://")):
+        if any(marker in content for marker in ("../", "repo_dir", "https://", "http://", "!file", "!env")):
             raise ValueError("scenario gained an external input; replay dependency review is required")
 
 
@@ -136,24 +144,22 @@ def request_key(endpoint, method, target, data):
             "query": [list(pair) for pair in sorted(parse_qsl(url.query, keep_blank_values=True))], "body": body}
 
 
-def validate_cassette(cassette, directory, allow_bootstrap=False):
+def validate_cassette(cassette, directory):
     check_eligibility(directory)
     if not isinstance(cassette, dict) or set(cassette) != {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}:
         raise ValueError("invalid cassette fields")
-    if cassette["schema_version"] != 1 or cassette["scenario"] != SCENARIO:
+    if type(cassette["schema_version"]) is not int or cassette["schema_version"] != 1 or cassette["scenario"] != SCENARIO:
         raise ValueError("unsupported cassette schema or scenario")
     if cassette["inputs_sha256"] != scenario_digest(directory):
         raise ValueError(f"stale cassette: {SCENARIO}; re-record and review, or remove replay eligibility")
     source = cassette["source"]
-    if not isinstance(source, dict) or not re.fullmatch(r"[0-9a-f]{40}", source.get("commit", "")):
+    if not isinstance(source, dict) or not isinstance(source.get("commit"), str) or not re.fullmatch(r"[0-9a-f]{40}", source["commit"]):
         raise ValueError("cassette must identify its recorded commit")
     if set(source) != {"kind", "commit", "run_url"}:
         raise ValueError("invalid provenance fields")
-    if source.get("kind") not in {"recorded", "bootstrap"}:
-        raise ValueError("cassette must distinguish live recording from bootstrap fixture")
-    if source["kind"] == "bootstrap" and not allow_bootstrap:
-        raise ValueError("bootstrap is not a live recording; use --allow-bootstrap only for transport evaluation")
-    if not re.fullmatch(r"https://github.com/[Kk]ong/kongctl/actions/runs/[0-9]+", source.get("run_url", "")):
+    if source.get("kind") != "recorded":
+        raise ValueError("cassette must be a live recording, not a bootstrap fixture")
+    if not isinstance(source.get("run_url"), str) or not re.fullmatch(r"https://github.com/[Kk]ong/kongctl/actions/runs/[0-9]+", source["run_url"]):
         raise ValueError("cassette must identify its successful live source run")
     interactions = cassette["interactions"]
     if not isinstance(interactions, list) or not 0 < len(interactions) <= 10000:
@@ -164,7 +170,7 @@ def validate_cassette(cassette, directory, allow_bootstrap=False):
         request, response = item["request"], item["response"]
         if not isinstance(request, dict) or set(request) != {"endpoint", "method", "path", "query", "body"}:
             raise ValueError("invalid request fields")
-        if request["endpoint"] not in HOSTS.values() or request["method"] not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+        if request["endpoint"] not in HOSTS.values() or request["method"] not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
             raise ValueError("unsupported endpoint or HTTP method")
         if not isinstance(request["path"], str) or not request["path"].startswith("/"):
             raise ValueError("invalid request path")
@@ -221,6 +227,8 @@ class Replay:
                 if len(content) > LIMIT:
                     raise ValueError("response exceeds recording limit")
                 response = {"status": raw.status, "body": parse_json(content) if content else None}
+                if content and response["body"] is None:
+                    raise ValueError("explicit JSON null responses are unsupported")
             finally:
                 connection.close()
             item = self.sanitizer.normalize({"request": request, "response": response})
@@ -367,7 +375,6 @@ def main():
     parser.add_argument("--test-binary", type=Path, default=ROOT / "e2e.test")
     parser.add_argument("--reset-binary", type=Path, default=ROOT / "reset-org.test")
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".e2e-artifacts/replay")
-    parser.add_argument("--allow-bootstrap", action="store_true", help="explicitly allow the unverified transport fixture")
     parser.add_argument("--require-isolated", action="store_true", help="require a Linux loopback-only network namespace")
     args = parser.parse_args()
     directory = ROOT / "test/e2e/scenarios" / SCENARIO
@@ -378,7 +385,7 @@ def main():
     cassette = None
     if args.mode != "record":
         cassette = parse_json(args.cassette.read_bytes())
-        validate_cassette(cassette, directory, args.allow_bootstrap)
+        validate_cassette(cassette, directory)
         if args.mode == "check":
             print(f"Cassette inputs and schema valid: {SCENARIO}")
             return

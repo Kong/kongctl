@@ -23,6 +23,15 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_recording_workflow_shares_live_org_lock(self):
+        live = (MODULE.ROOT / ".github/workflows/e2e.yaml").read_text()
+        experiment = (MODULE.ROOT / ".github/workflows/e2e-replay.yaml").read_text()
+        self.assertIn("group: konnect-e2e-${{ matrix.org_name }}", live)
+        self.assertIn("group: konnect-e2e-kongctl-acceptance-3", experiment)
+        self.assertIn("environment: kongctl-acceptance-3", experiment)
+        self.assertIn("cancel-in-progress: false", experiment)
+        self.assertIn("queue: max", experiment)
+
     def test_recording_forwards_with_private_pat_but_only_saves_sanitized_data(self):
         response = MagicMock(status=201)
         real_id = "aabbccdd-1234-4567-8901-aabbccddeeff"
@@ -53,8 +62,7 @@ class ReplayTest(unittest.TestCase):
         directory = MODULE.ROOT / "test/e2e/scenarios" / MODULE.SCENARIO
         for path in sorted((directory / "replay").glob("*.json")):
             with self.subTest(path=path):
-                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory,
-                                        allow_bootstrap=path.name == "bootstrap.json")
+                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory)
 
     def test_external_dependencies_require_explicit_review(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -134,7 +142,7 @@ class ReplayTest(unittest.TestCase):
     def test_input_digest_covers_add_change_delete_but_not_cassette(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "scenario.yaml").write_text("steps: []")
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []")
             first = MODULE.scenario_digest(root)
             (root / "input.yaml").write_text("a: 1")
             second = MODULE.scenario_digest(root)
@@ -153,7 +161,7 @@ class ReplayTest(unittest.TestCase):
     def test_cassette_schema_and_staleness(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "scenario.yaml").write_text("steps: []")
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []")
             cassette = {"schema_version": 1, "scenario": MODULE.SCENARIO,
                         "inputs_sha256": MODULE.scenario_digest(root),
                         "source": {"kind": "recorded", "commit": "a" * 40,
@@ -162,7 +170,7 @@ class ReplayTest(unittest.TestCase):
             MODULE.validate_cassette(cassette, root)
             bootstrap = copy.deepcopy(cassette)
             bootstrap["source"]["kind"] = "bootstrap"
-            with self.assertRaisesRegex(ValueError, "not a live recording"):
+            with self.assertRaisesRegex(ValueError, "must be a live recording"):
                 MODULE.validate_cassette(bootstrap, root)
             for key, value in [("schema_version", 2), ("interactions", []), ("inputs_sha256", "stale")]:
                 invalid = {**cassette, key: value}
@@ -173,7 +181,7 @@ class ReplayTest(unittest.TestCase):
                 invalid["interactions"][0]["response"]["status"] = status
                 with self.subTest(status=status), self.assertRaises(ValueError):
                     MODULE.validate_cassette(invalid, root)
-            (root / "scenario.yaml").write_text("steps: [changed]")
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: [changed]")
             with self.assertRaisesRegex(ValueError, "stale cassette"):
                 MODULE.validate_cassette(cassette, root)
 

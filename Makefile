@@ -125,12 +125,10 @@ build-e2e-replay: build
 	CGO_ENABLED=0 go build -tags=e2e -o .e2e-artifacts/replay-bin/reset-org ./test/e2e/harness/cmd/reset-org
 
 check-e2e-replay:
-	python3 scripts/e2e-replay.py check --allow-bootstrap \
-		--cassette test/e2e/scenarios/control-plane/get/replay/bootstrap.json
+	python3 scripts/e2e-replay.py check
 
 test-e2e-replay: build-e2e-replay
-	python3 scripts/e2e-replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test \
-		--allow-bootstrap --cassette test/e2e/scenarios/control-plane/get/replay/bootstrap.json
+	python3 scripts/e2e-replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test
 
 .PHONY: test-integration
 test-integration:

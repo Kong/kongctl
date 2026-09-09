@@ -8,23 +8,32 @@ Both still execute the entire scenario against live Konnect. The separate
 
 ## Current evidence and limitation
 
-`bootstrap.json` is a manually reconstructed **transport fixture**, not a
-recorded HTTP cassette. Its request sequence and response shape were informed
-by the successful live run linked in `source`. That run's debug artifacts did
-not retain full HTTP bodies. Inventing a recording provenance would be wrong.
-The fixture uses synthetic IDs, timestamps and control-plane hostnames.
+`cassette.json` is a sanitized live HTTP recording from
+[run 34377519108](https://github.com/Kong/kongctl/actions/runs/34377519108).
+The recorder acquired the existing acceptance-3 lock, reset the organization,
+ran the unchanged scenario successfully, and completed its final reset. Its
+candidate then passed three replay executions in a loopback-only namespace.
 
-It exercises the unchanged scenario: declarative create, list, name/ID lookup,
-not-found behavior, Helm output, and declarative delete. It proves that the
-existing CLI and scenario can execute through trusted local TLS without
-product-code changes. It does **not** establish parity with a real recording,
-recording sanitizer completeness, or a measured live-to-replay speedup.
+The eleven interactions cover declarative create, list, name/ID lookup,
+not-found behavior, Helm output, and declarative delete. IDs and generated
+control-plane hostnames are sanitized; request fields remain strict.
+The bootstrap transport fixture used during initial development has been
+removed in favor of this genuine recording.
 
-Before expanding eligibility or replacing any PR live validation, create and
-review a real cassette using the manual workflow below. The initial candidate
-must also pass the workflow's three isolated replay executions.
+| Measurement | Seconds |
+| --- | ---: |
+| Live scenario through recorder, excluding before/after reset | 5.770 |
+| Replay scenario, executions 1 / 2 / 3 | 1.567 / 1.471 / 1.480 |
+| Live wrapper including TLS setup and before/after reset | 13.161 |
+| Replay wrapper, executions 1 / 2 / 3 | 2.107 / 2.142 / 2.034 |
 
-## Local transport evaluation
+The replay scenario median is about 74% lower than this one recorded live
+execution. This is an initial feasibility result, not a statistically robust
+speedup or an estimate for the full suite. Recording itself adds proxy and
+upstream-connection overhead. CI build/download/queue costs are outside these
+measurements. No ordinary PR scenario has been switched away from live APIs.
+
+## Local replay
 
 Requirements: Go, Python 3, OpenSSL and the repository's normal build tools.
 
@@ -34,8 +43,8 @@ make check-e2e-replay
 make test-e2e-replay
 ```
 
-The last command explicitly opts into the bootstrap fixture. It builds once
-and runs the existing scenario test binary, not a replacement mock CLI.
+The last command uses the reviewed live cassette. It builds once and runs
+the existing scenario test binary, not a replacement mock CLI.
 No personal Konnect credentials or profiles are inherited by the subprocess.
 
 Local execution restricts the proxy to two known Konnect destinations but is
@@ -43,8 +52,7 @@ not an OS network sandbox. On Linux, after building, use the CI-equivalent
 network isolation (requires sudo and util-linux):
 
 ```sh
-bash scripts/e2e-replay-isolated.sh --allow-bootstrap \
-  --cassette test/e2e/scenarios/control-plane/get/replay/bootstrap.json
+bash scripts/e2e-replay-isolated.sh
 ```
 
 This creates a fresh network namespace with only loopback, drops root and all
@@ -55,7 +63,7 @@ restricted development environments where namespace creation is prohibited.
 
 ## Recording a real cassette
 
-Once GitHub makes the manual workflow available on the default branch:
+Dispatch the registered workflow against a trusted repository branch:
 
 ```sh
 gh workflow run e2e-replay.yaml --repo Kong/kongctl \
@@ -121,8 +129,8 @@ dependency model, not just a new hash.
 
 `make test-e2e-metrics` validates every cassette in this directory regardless
 of live/replay routing. This runs in ordinary CI. A stale fixture fails with
-instructions to re-record/review. Bootstrap updates must remain labeled as
-such; do not change only the fingerprint without reviewing expectations.
+instructions to re-record/review. Do not change only the fingerprint without
+reviewing expectations. Bootstrap fixtures are not accepted as recordings.
 
 Source-code changes do not invalidate the fingerprint: exercising changed
 kongctl against unchanged expectations is the purpose of replay.
@@ -154,7 +162,8 @@ CRUD semantics or a simulated database.
 The fixture currently has eleven interactions, all in the regional control
 plane API. Keep the initial experiment this narrow. Before expansion:
 
-1. Obtain the first real recording and establish repeated live/replay parity.
+1. Repeat recording/review when this scenario changes and assess maintenance
+   effort before expanding eligibility to another scenario.
 2. Compare `scenario_seconds` (excludes certificate setup and live resets) and
    `elapsed_seconds` (includes wrapper/setup/reset costs) in summaries. Report
    replay match failures and cassette maintenance effort as well as speed.
