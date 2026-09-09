@@ -84,7 +84,7 @@ func runGetResources(helper cmd.Helper, args []string) error {
 		return err
 	}
 
-	rows := buildRows(descriptor, items, time.Now())
+	rows := buildRows(items, time.Now())
 	headers := headersFor(descriptor)
 
 	tableRows := make([]table.Row, 0, len(rows))
