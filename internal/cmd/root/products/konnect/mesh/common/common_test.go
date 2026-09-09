@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -84,17 +85,30 @@ func TestResolveControlPlaneAPIURLWithoutSelection(t *testing.T) {
 	}
 }
 
+// A name cannot be turned into an identifier from configuration alone, so this
+// reports the sentinel rather than an error about the name. Callers that can
+// reach Konnect check for the sentinel and resolve the name themselves.
 func TestResolveControlPlaneAPIURLWithUnresolvedName(t *testing.T) {
 	cfg := stubConfig(map[string]string{
 		ControlPlaneNameConfigPath: "my-mesh-cp",
 	})
 
 	_, err := ResolveControlPlaneAPIURL(cfg)
-	if err == nil {
-		t.Fatal("expected an error when only a name is configured")
+	if !errors.Is(err, ErrNoControlPlaneSelected) {
+		t.Errorf("expected ErrNoControlPlaneSelected, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "my-mesh-cp") {
-		t.Errorf("expected error %q to name the control plane", err.Error())
+}
+
+func TestResolveControlPlaneAPIURLWithNothingSelected(t *testing.T) {
+	_, err := ResolveControlPlaneAPIURL(stubConfig(map[string]string{}))
+	if !errors.Is(err, ErrNoControlPlaneSelected) {
+		t.Errorf("expected ErrNoControlPlaneSelected, got %v", err)
+	}
+	// The message has to name every way a control plane can be given.
+	for _, flag := range []string{ControlPlaneIDFlagName, ControlPlaneNameFlagName, ControlPlaneURLFlagName} {
+		if !strings.Contains(err.Error(), flag) {
+			t.Errorf("error should mention --%s, got %q", flag, err)
+		}
 	}
 }
 

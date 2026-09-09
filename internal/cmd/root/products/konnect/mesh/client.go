@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
@@ -89,7 +90,7 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		return nil, 0, err
 	}
 
-	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
+	baseURL, err := resolveBaseURL(helper, cfg)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -169,4 +170,32 @@ func buildAPIError(statusCode int, body []byte) error {
 		return fmt.Errorf("control plane request failed with status %d: %s", statusCode, detail)
 	}
 	return fmt.Errorf("control plane request failed with status %d", statusCode)
+}
+
+// resolveBaseURL determines which control plane a command addresses.
+//
+// meshcommon resolves an explicit URL or an identifier from configuration
+// alone. A name needs a Konnect call to become an identifier, which cannot
+// live there, so it is resolved here and the identifier written back to
+// configuration — leaving the composition itself in one place.
+func resolveBaseURL(helper cmd.Helper, cfg config.Hook) (string, error) {
+	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
+	if err == nil {
+		return baseURL, nil
+	}
+
+	name := strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneNameConfigPath))
+	if name == "" {
+		// Nothing identifies a control plane, so report that rather than the
+		// failure to resolve a name that was never given.
+		return "", err
+	}
+
+	controlPlaneID, resolveErr := resolveControlPlaneIDByName(helper, name)
+	if resolveErr != nil {
+		return "", resolveErr
+	}
+
+	cfg.SetString(meshcommon.ControlPlaneIDConfigPath, controlPlaneID)
+	return meshcommon.ResolveControlPlaneAPIURL(cfg)
 }
