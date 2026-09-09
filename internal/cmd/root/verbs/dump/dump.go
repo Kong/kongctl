@@ -108,6 +108,12 @@ func NewDumpCmd() (*cobra.Command, error) {
 	dumpCommand.AddCommand(newTFImportCmd())
 	dumpCommand.AddCommand(newDeclarativeCmd())
 
+	meshCmd, err := newMeshCmd()
+	if err != nil {
+		return nil, err
+	}
+	dumpCommand.AddCommand(meshCmd)
+
 	return dumpCommand, nil
 }
 

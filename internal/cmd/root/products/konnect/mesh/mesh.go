@@ -2,6 +2,7 @@ package mesh
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
@@ -16,6 +17,9 @@ const CommandName = meshcommon.CommandName
 
 // FilenameFlagName names the -f flag that supplies resources to create.
 const FilenameFlagName = "filename"
+
+// ProfileFlagName names the flag selecting which types an export covers.
+const ProfileFlagName = "profile"
 
 var (
 	meshUse = CommandName
@@ -79,6 +83,10 @@ func NewMeshCmd(
 		baseCmd.Flags().StringSliceP(FilenameFlagName, "f", nil,
 			"Files, directories, URLs, or - for stdin, holding the mesh resources to apply. Repeatable.")
 	}
+	if verb == verbs.Dump {
+		baseCmd.Flags().String(ProfileFlagName, ProfileFederation,
+			fmt.Sprintf("Which resource types to export. One of: %s.", strings.Join(Profiles, ", ")))
+	}
 
 	// Resource types come from the control plane at runtime, so they cannot be
 	// registered as subcommands without a network call at startup. Arbitrary
@@ -93,6 +101,13 @@ func NewMeshCmd(
 		helper := cmd.BuildHelper(cmdObj, args)
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
+		}
+		if verb == verbs.Dump {
+			profile, err := cmdObj.Flags().GetString(ProfileFlagName)
+			if err != nil {
+				return err
+			}
+			return runDumpResources(helper, profile)
 		}
 		if verb == verbs.Create {
 			// Read the flag rather than binding a variable: one process can
@@ -130,7 +145,7 @@ func NewMeshCmd(
 		}
 		return cmd.RequireSubcommand(cmdObj, args)
 	}
-	if verb != verbs.Create && verb != verbs.Delete {
+	if verb != verbs.Create && verb != verbs.Delete && verb != verbs.Dump {
 		cmd.MarkRequiresSubcommand(baseCmd)
 	}
 
