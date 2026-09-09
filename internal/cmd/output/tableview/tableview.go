@@ -2404,7 +2404,7 @@ func RenderForFormat(
 			streams.Out,
 			headers,
 			matrix,
-			columnoutput.RenderOptions{MinimumWidths: minimumWidths},
+			columnoutput.RenderOptions{MinimumWidths: minimumWidths, NoTrunc: textSettings.NoTrunc},
 		)
 	case cmdCommon.JSON, cmdCommon.YAML:
 		if printer != nil {

@@ -587,6 +587,21 @@ func TestSelectLayoutColumns(t *testing.T) {
 		require.Equal(t, compactRows, rows)
 	})
 
+	t.Run("no trunc preserves column selection", func(t *testing.T) {
+		for _, layout := range []textoutput.Layout{textoutput.LayoutCompact, textoutput.LayoutAuto, textoutput.LayoutWide} {
+			for _, width := range []int{10, 27, 39, 200} {
+				for _, tty := range []bool{false, true} {
+					settings := textoutput.Settings{Layout: layout, IDFormat: textoutput.IDFormatCompact}
+					headers, rows := selectLayoutColumns(compactHeaders, compactRows, sources, settings, width, tty)
+					settings.NoTrunc = true
+					fullHeaders, fullRows := selectLayoutColumns(compactHeaders, compactRows, sources, settings, width, tty)
+					require.Equal(t, headers, fullHeaders)
+					require.Equal(t, rows, fullRows)
+				}
+			}
+		}
+	})
+
 	t.Run("non tty auto falls back to compact", func(t *testing.T) {
 		headers, _ := selectLayoutColumns(
 			compactHeaders,
@@ -726,6 +741,67 @@ func TestRenderForFormatStructuredOutputRemainsRaw(t *testing.T) {
 	err := RenderForFormat(nil, false, cmdCommon.JSON, printer, streams, raw, raw, "")
 	require.NoError(t, err)
 	require.Equal(t, []any{raw}, printer.printed)
+}
+
+func TestRenderForFormatNoTrunc(t *testing.T) {
+	name := "kong-mesh-default-egress-84bc8497c7-q6z-" + strings.Repeat("suffix", 20)
+	uuid := "12345678-1234-1234-1234-123456789012"
+	record := struct {
+		Name        string `json:"name"`
+		ID          string `json:"id"`
+		Description string `json:"description"`
+	}{name, uuid, "Mesh dataplane"}
+	for _, layout := range []string{"compact", "auto", "wide"} {
+		for _, idFormat := range []string{"compact", "full"} {
+			for _, custom := range []string{"", "NAME=.name,ID=.id", "NAME=.name[:8],ID=.id[:8]"} {
+				t.Run(layout+"/"+idFormat+"/"+custom, func(t *testing.T) {
+					mainConfig := viper.New()
+					mainConfig.Set("default", map[string]any{
+						"text": map[string]any{"layout": layout, "id-format": idFormat},
+					})
+					cfg := configpkg.BuildProfiledConfig("default", "config.yaml", mainConfig)
+					command := &cobra.Command{Use: "get"}
+					textoutput.AddFlags(command.Flags())
+					require.NoError(t, textoutput.BindFlags(cfg, command.Flags()))
+					require.NoError(t, command.ParseFlags([]string{"--no-trunc"}))
+					columnoutput.AddFlags(command.Flags())
+					if custom != "" {
+						require.NoError(t, command.Flags().Set(columnoutput.FlagName, custom))
+					}
+					command.SetContext(context.WithValue(t.Context(), configpkg.ConfigKey, cfg))
+					helper := cmd.BuildHelper(command, nil)
+					streams, _, output, _ := iostreams.NewTestIOStreams()
+					require.NoError(t, RenderForFormat(helper, false, cmdCommon.TEXT, nil, streams, record, record, ""))
+					if strings.Contains(custom, "[:8]") {
+						require.Equal(t, "NAME      ID\nkong-mes  12345678\n", output.String())
+					} else {
+						require.Contains(t, output.String(), name)
+						if custom != "" || idFormat == "full" {
+							require.NotContains(t, output.String(), "…")
+							require.Contains(t, output.String(), uuid)
+						} else {
+							require.Contains(t, output.String(), "1234…")
+							require.NotContains(t, output.String(), uuid)
+						}
+					}
+					if custom == "" {
+						require.Equal(t, layout == "wide", strings.Contains(output.String(), "DESCRIPTION"))
+					}
+					for _, format := range []cmdCommon.OutputFormat{cmdCommon.JSON, cmdCommon.YAML} {
+						// Profile settings are ignored by structured output.
+						structuredCmd := &cobra.Command{Use: "get"}
+						mainConfig.Set("default.text.no-trunc", true)
+						structuredCfg := configpkg.BuildProfiledConfig("default", "config.yaml", mainConfig)
+						structuredCmd.SetContext(context.WithValue(t.Context(), configpkg.ConfigKey, structuredCfg))
+						printer := &stubPrinter{}
+						require.NoError(t, RenderForFormat(cmd.BuildHelper(structuredCmd, nil), false,
+							format, printer, streams, record, record, ""))
+						require.Equal(t, []any{record}, printer.printed)
+					}
+				})
+			}
+		}
+	}
 }
 
 func TestRenderForFormat_ExplicitDefaultDescriptionIsTruncated(t *testing.T) {

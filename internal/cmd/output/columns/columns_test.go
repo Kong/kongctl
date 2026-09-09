@@ -113,7 +113,24 @@ func TestCalculateWidthsConfiguredMinimumCannotLowerLegacyFloor(t *testing.T) {
 		[]string{"NAME", "DESCRIPTION"},
 		[][]string{{"payments", "Payment service"}},
 		1,
-		[]int{1, 1},
+		RenderOptions{MinimumWidths: []int{1, 1}},
 	)
 	require.Equal(t, []int{3, 3}, widths)
+}
+
+func TestRenderNoTrunc(t *testing.T) {
+	for _, value := range []string{strings.Repeat("name", 40), strings.Repeat("界e\u0301", 50)} {
+		for _, width := range []int{1, 30, 120, 300} {
+			var out bytes.Buffer
+			headers := []string{"NAME", "END"}
+			rows := [][]string{{value, "last"}, {"short", "next"}}
+			require.NoError(t, RenderWithOptions(&out, headers, rows, width, RenderOptions{NoTrunc: true}))
+			lines := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
+			require.Equal(t, value+"  last", lines[1])
+			require.Equal(t, "short"+strings.Repeat(" ", runewidth.StringWidth(value)-5+2)+"next", lines[2])
+			var redirected bytes.Buffer
+			require.NoError(t, RenderAutoWidthWithOptions(&redirected, headers, rows, RenderOptions{NoTrunc: true}))
+			require.Equal(t, out.String(), redirected.String())
+		}
+	}
 }

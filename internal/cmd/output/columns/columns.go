@@ -37,6 +37,9 @@ type RenderOptions struct {
 	// MinimumWidths prevents selected columns from shrinking below the
 	// corresponding display width. Missing entries use the legacy minimum.
 	MinimumWidths []int
+
+	// NoTrunc preserves natural cell widths regardless of terminal width.
+	NoTrunc bool
 }
 
 type pathStep struct {
@@ -470,7 +473,7 @@ func RenderWithOptions(
 	if availableWidth <= 0 {
 		availableWidth = 120
 	}
-	widths := calculateWidths(headers, rows, availableWidth, options.MinimumWidths)
+	widths := calculateWidths(headers, rows, availableWidth, options)
 	if err := writeRow(out, headers, widths); err != nil {
 		return err
 	}
@@ -482,18 +485,25 @@ func RenderWithOptions(
 	return nil
 }
 
-func calculateWidths(headers []string, rows [][]string, available int, configuredMinimums []int) []int {
+func calculateWidths(headers []string, rows [][]string, available int, options RenderOptions) []int {
 	widths := make([]int, len(headers))
 	minimums := make([]int, len(headers))
 	for i, header := range headers {
-		widths[i] = min(MaxColumnWidth, max(1, runewidth.StringWidth(singleLine(header))))
+		widths[i] = max(1, runewidth.StringWidth(singleLine(header)))
 		minimums[i] = min(widths[i], 3)
 	}
 	for _, row := range rows {
 		for i := 0; i < len(headers) && i < len(row); i++ {
-			widths[i] = min(MaxColumnWidth, max(widths[i], runewidth.StringWidth(singleLine(row[i]))))
+			widths[i] = max(widths[i], runewidth.StringWidth(singleLine(row[i])))
 		}
 	}
+	if options.NoTrunc {
+		return widths
+	}
+	for i := range widths {
+		widths[i] = min(MaxColumnWidth, widths[i])
+	}
+	configuredMinimums := options.MinimumWidths
 	for i := range minimums {
 		if i >= len(configuredMinimums) || configuredMinimums[i] <= 0 {
 			continue

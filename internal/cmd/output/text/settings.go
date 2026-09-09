@@ -15,6 +15,8 @@ const (
 	LayoutConfigPath   = "text.layout"
 	IDFormatFlagName   = "text-id-format"
 	IDFormatConfigPath = "text.id-format"
+	NoTruncFlagName    = "no-trunc"
+	NoTruncConfigPath  = "text.no-trunc"
 	DefaultLayout      = LayoutCompact
 	DefaultIDFormat    = IDFormatCompact
 )
@@ -37,11 +39,18 @@ const (
 type Settings struct {
 	Layout   Layout
 	IDFormat IDFormat
+	NoTrunc  bool
 }
 
 func AddFlags(flags *pflag.FlagSet) {
 	if flags == nil {
 		return
+	}
+	if flags.Lookup(NoTruncFlagName) == nil {
+		flags.Bool(NoTruncFlagName, false, fmt.Sprintf(`Preserve full cell widths in static text tables beyond terminal width.
+Does not change column selection, UUID formatting, or explicit string slices.
+- Config path: [ %s ]
+- Default    : [ false ]`, NoTruncConfigPath))
 	}
 	if flags.Lookup(LayoutFlagName) == nil {
 		flags.String(LayoutFlagName, "", fmt.Sprintf(`Configure static text-table column selection.
@@ -67,6 +76,7 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 	}{
 		{LayoutFlagName, LayoutConfigPath},
 		{IDFormatFlagName, IDFormatConfigPath},
+		{NoTruncFlagName, NoTruncConfigPath},
 	}
 	for _, binding := range bindings {
 		if flag := flags.Lookup(binding.flag); flag != nil {
@@ -83,9 +93,10 @@ func Resolve(cmd *cobra.Command, cfg config.Hook, outputFormat string) (Settings
 	if outputFormat != cmdcommon.TEXT.String() {
 		if explicitlyConfigured(cmd) {
 			return settings, fmt.Errorf(
-				"--%s and --%s are only supported with --%s text",
+				"--%s, --%s, and --%s are only supported with --%s text",
 				LayoutFlagName,
 				IDFormatFlagName,
+				NoTruncFlagName,
 				cmdcommon.OutputFlagName,
 			)
 		}
@@ -96,6 +107,7 @@ func Resolve(cmd *cobra.Command, cfg config.Hook, outputFormat string) (Settings
 		return settings, nil
 	}
 
+	settings.NoTrunc = cfg.GetBool(NoTruncConfigPath)
 	layout := strings.ToLower(strings.TrimSpace(cfg.GetString(LayoutConfigPath)))
 	if layout != "" {
 		settings.Layout = Layout(layout)
@@ -130,5 +142,6 @@ func explicitlyConfigured(cmd *cobra.Command) bool {
 	}
 	root := cmd.Root()
 	return cmdcommon.CommandTreeFlagChanged(root, LayoutFlagName) ||
-		cmdcommon.CommandTreeFlagChanged(root, IDFormatFlagName)
+		cmdcommon.CommandTreeFlagChanged(root, IDFormatFlagName) ||
+		cmdcommon.CommandTreeFlagChanged(root, NoTruncFlagName)
 }

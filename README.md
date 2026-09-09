@@ -259,20 +259,21 @@ characters of an ID. Missing and `null` values render as blank cells; arrays and
 objects render as compact JSON. Custom columns are available only with
 `--output text` and cannot be combined with `--jq`.
 
-Text cells are limited to 40 display characters and shrink further to fit the
-terminal. JSON and YAML output remain complete and are not affected by text
-column selection.
+By default, text cells are limited to 40 display characters and shrink further
+to fit the terminal. Use `--no-trunc` to preserve full cell widths. JSON and YAML
+output remain complete and are not affected by text column selection.
 
 ### Text table layout and IDs
 
-Static text tables use a compact layout and abbreviated UUIDs by default. Both
-behaviors can be configured for each profile:
+Static text tables use a compact layout, abbreviated UUIDs, and truncated cells
+by default. These behaviors can be configured for each profile:
 
 ```yaml
 default:
   text:
     layout: auto
     id-format: full
+    no-trunc: true
 ```
 
 `text.layout` accepts the following values:
@@ -291,8 +292,26 @@ in semantic ID columns, such as `ID`, `OWNER UUID`, and `RESOURCE IDENTIFIER`.
 Other columns shrink first, so a table may exceed the terminal width rather
 than truncate a UUID.
 
-Override profile settings for one command with `--text-layout` and
-`--text-id-format`:
+`text.no-trunc: true` (or `--no-trunc`) sizes each selected column to its longest
+rendered value, including its header. It disables both the 40-character cap and
+shrinking to terminal width, including for piped or redirected output. The
+terminal may wrap wide tables. Column selection remains unchanged for compact,
+auto, and wide layouts.
+
+For example, retain complete Mesh dataplane names in a normal text table:
+
+```shell
+kongctl get mesh dataplanes --no-trunc
+kongctl get mesh dataplanes --no-trunc --columns 'MESH=.mesh,NAME=.name'
+```
+
+UUID abbreviation is independent: use `--text-id-format full --no-trunc` to
+preserve both UUIDs and long names in built-in columns. Explicit `--columns`
+already bypasses UUID formatting; slices such as `.name[:8]` still apply with
+`--no-trunc`.
+
+Override profile settings for one command with `--text-layout`,
+`--text-id-format`, and `--no-trunc` (or `--no-trunc=false`):
 
 ```shell
 kongctl get apis --output text --text-layout wide --text-id-format full
@@ -303,11 +322,13 @@ The equivalent environment variables follow the normal profile convention:
 ```shell
 KONGCTL_DEFAULT_TEXT_LAYOUT=auto \
 KONGCTL_DEFAULT_TEXT_ID_FORMAT=full \
+KONGCTL_DEFAULT_TEXT_NO_TRUNC=true \
 kongctl get apis
 ```
 
-Explicit `--columns` definitions take precedence over both text settings, then
-command-line text flags take precedence over profile or environment values.
+Explicit `--columns` definitions override layout and ID formatting, while
+`--no-trunc` still controls cell widths. Command-line text flags take precedence
+over environment values, which take precedence over profile settings.
 JSON and YAML ignore profile text settings. Explicit text-formatting flags
 cannot be combined with JSON or YAML output.
 
