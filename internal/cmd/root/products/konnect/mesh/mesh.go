@@ -14,6 +14,9 @@ import (
 
 const CommandName = meshcommon.CommandName
 
+// FilenameFlagName names the -f flag that supplies resources to create.
+const FilenameFlagName = "filename"
+
 var (
 	meshUse = CommandName
 
@@ -72,6 +75,10 @@ func NewMeshCmd(
 		addParentFlags(verb, baseCmd)
 	}
 	meshcommon.AddControlPlaneFlags(baseCmd.PersistentFlags())
+	if verb == verbs.Create {
+		baseCmd.Flags().StringSliceP(FilenameFlagName, "f", nil,
+			"Files, directories, URLs, or - for stdin, holding the mesh resources to apply. Repeatable.")
+	}
 
 	// Resource types come from the control plane at runtime, so they cannot be
 	// registered as subcommands without a network call at startup. Arbitrary
@@ -86,6 +93,25 @@ func NewMeshCmd(
 		helper := cmd.BuildHelper(cmdObj, args)
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
+		}
+		if verb == verbs.Create {
+			// Read the flag rather than binding a variable: one process can
+			// hold a mesh command per verb, and a shared variable would leak
+			// between them.
+			filenames, err := cmdObj.Flags().GetStringSlice(FilenameFlagName)
+			if err != nil {
+				return err
+			}
+			return runCreateResources(helper, filenames)
+		}
+		if verb == verbs.Delete {
+			if len(args) != 2 {
+				return &cmd.ConfigurationError{
+					Err: fmt.Errorf("expected a resource type and a name, for example 'delete mesh %s <name>'",
+						"meshtrafficpermission"),
+				}
+			}
+			return runDeleteResources(helper, args)
 		}
 		if verb == verbs.Get && len(args) > 0 {
 			// A near miss of a real subcommand is a mistyped subcommand, not a
@@ -104,7 +130,9 @@ func NewMeshCmd(
 		}
 		return cmd.RequireSubcommand(cmdObj, args)
 	}
-	cmd.MarkRequiresSubcommand(baseCmd)
+	if verb != verbs.Create && verb != verbs.Delete {
+		cmd.MarkRequiresSubcommand(baseCmd)
+	}
 
 	if verb == verbs.Get {
 		baseCmd.AddCommand(newGetResourceTypesCmd(verb, addParentFlags, parentPreRun))
