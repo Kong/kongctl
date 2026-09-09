@@ -55,7 +55,10 @@ func cellsFor(d ResourceDescriptor, row resourceRow) []string {
 }
 
 // buildRows projects control plane items into rows.
-func buildRows(d ResourceDescriptor, items []map[string]any, now time.Time) []resourceRow {
+//
+// Every column is filled whatever the resource type; which of them are printed
+// is decided by headersFor and cellsFor, so no descriptor is needed here.
+func buildRows(items []map[string]any, now time.Time) []resourceRow {
 	rows := make([]resourceRow, 0, len(items))
 	for _, item := range items {
 		rows = append(rows, resourceRow{
