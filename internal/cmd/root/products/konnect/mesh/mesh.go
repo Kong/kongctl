@@ -141,6 +141,7 @@ func NewMeshCmd(
 
 	if verb == verbs.Get {
 		baseCmd.AddCommand(newGetResourceTypesCmd(verb, addParentFlags, parentPreRun))
+		baseCmd.AddCommand(newGetControlPlanesCmd(verb, addParentFlags, parentPreRun))
 	}
 	if verb == verbs.Create {
 		baseCmd.AddCommand(newDataplaneTokenCmd(parentPreRun))

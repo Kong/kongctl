@@ -38,9 +38,9 @@ var (
 	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
 )
 
-// controlPlaneAPIPathFormat fronts a Konnect hosted Kong Mesh control plane's
-// own API. The control plane identifier travels in the path, so callers do not
-// send a separate tenant header.
+// ControlPlanesPath lists the Konnect hosted Kong Mesh control planes, and
+// each control plane's own API hangs off its entry there. The control plane
+// identifier travels in the path, so callers send no separate tenant header.
 //
 // The leading segment selects the Kong Mesh API line, and one Konnect control
 // plane serves more than one: /v1/mesh/control-planes/{id}/api reaches a 2.14
@@ -48,12 +48,13 @@ var (
 // These are distinct control planes behind a single Konnect identifier, and the
 // /api segment exists only on the v1 line. kongctl supports Kong Mesh 3 only,
 // so it composes the v3 form.
-const controlPlaneAPIPathFormat = "/v3/mesh/control-planes/%s"
+const ControlPlanesPath = "/v3/mesh/control-planes"
 
 // ControlPlaneAPIPath returns the Konnect path prefix for a hosted Kong Mesh
-// control plane API.
+// control plane API. A control plane's own API hangs directly off its entry in
+// the control plane collection.
 func ControlPlaneAPIPath(controlPlaneID string) string {
-	return fmt.Sprintf(controlPlaneAPIPathFormat, controlPlaneID)
+	return ControlPlanesPath + "/" + controlPlaneID
 }
 
 // ResolveControlPlaneAPIURL returns the base URL of the Kong Mesh control plane
@@ -75,7 +76,7 @@ func ResolveControlPlaneAPIURL(cfg config.Hook) (string, error) {
 
 	controlPlaneID := strings.TrimSpace(cfg.GetString(ControlPlaneIDConfigPath))
 	if controlPlaneID == "" {
-		return "", missingControlPlaneError(cfg)
+		return "", ErrNoControlPlaneSelected
 	}
 
 	konnectBaseURL, err := konnectcommon.ResolveBaseURL(cfg)
@@ -86,22 +87,17 @@ func ResolveControlPlaneAPIURL(cfg config.Hook) (string, error) {
 	return strings.TrimRight(konnectBaseURL, "/") + ControlPlaneAPIPath(controlPlaneID), nil
 }
 
-// missingControlPlaneError explains which inputs identify a control plane,
-// naming the control plane by name when one was given but not yet resolved.
-func missingControlPlaneError(cfg config.Hook) error {
-	if name := strings.TrimSpace(cfg.GetString(ControlPlaneNameConfigPath)); name != "" {
-		return fmt.Errorf(
-			"control plane %q has not been resolved to an identifier; provide --%s instead",
-			name, ControlPlaneIDFlagName,
-		)
-	}
-	return fmt.Errorf(
-		"no Kong Mesh control plane selected; provide --%s for a Konnect hosted control plane, "+
-			"or --%s for a self managed one",
-		ControlPlaneIDFlagName,
-		ControlPlaneURLFlagName,
-	)
-}
+// ErrNoControlPlaneSelected reports that nothing identified a control plane.
+//
+// A name is not resolvable from configuration alone, so callers that can reach
+// Konnect check for this and try the name before surfacing it.
+var ErrNoControlPlaneSelected = fmt.Errorf(
+	"no Kong Mesh control plane selected; provide --%s or --%s for a Konnect hosted control plane, "+
+		"or --%s for a self managed one",
+	ControlPlaneIDFlagName,
+	ControlPlaneNameFlagName,
+	ControlPlaneURLFlagName,
+)
 
 // ResolveMesh returns the mesh that mesh scoped requests apply to.
 func ResolveMesh(cfg config.Hook) string {
