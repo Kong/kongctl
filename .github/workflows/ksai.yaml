@@ -82,8 +82,8 @@ jobs:
       attempt: ${{ inputs.attempt }}
       stall: ${{ inputs.stall }}
       prev_remaining: ${{ inputs.prev_remaining }}
-      job_timeout_minutes: "35"
-      require_plan_approval: "true"
+      job_timeout_minutes: 35
+      require_plan_approval: true
       client_id: ${{ vars.API_OPS_APP_CLIENT_ID }}
       anthropic_base_url: ${{ vars.KSAI_ANTHROPIC_BASE_URL }}
     secrets:
