@@ -118,6 +118,20 @@ refresh-e2e-weights:
 test-e2e-metrics:
 	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'
 
+# Explicit experiment only: normal test-e2e and PR/main routing remain live.
+.PHONY: build-e2e-replay test-e2e-replay check-e2e-replay
+build-e2e-replay: build
+	CGO_ENABLED=0 go test -c -tags=e2e -o .e2e-artifacts/replay-bin/e2e.test ./test/e2e
+	CGO_ENABLED=0 go build -tags=e2e -o .e2e-artifacts/replay-bin/reset-org ./test/e2e/harness/cmd/reset-org
+
+check-e2e-replay:
+	python3 scripts/e2e-replay.py check --allow-bootstrap \
+		--cassette test/e2e/scenarios/control-plane/get/replay/bootstrap.json
+
+test-e2e-replay: build-e2e-replay
+	python3 scripts/e2e-replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test \
+		--allow-bootstrap --cassette test/e2e/scenarios/control-plane/get/replay/bootstrap.json
+
 .PHONY: test-integration
 test-integration:
 	go test -v -count=1 -tags=integration \
