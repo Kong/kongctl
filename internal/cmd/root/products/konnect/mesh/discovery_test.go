@@ -115,7 +115,7 @@ func TestDescriptorPaths(t *testing.T) {
 	}
 }
 
-func TestBuildDiscoveryError(t *testing.T) {
+func TestBuildAPIError(t *testing.T) {
 	tests := []struct {
 		name       string
 		statusCode int
@@ -135,7 +135,23 @@ func TestBuildDiscoveryError(t *testing.T) {
 		{
 			name:       "not found names the version requirement",
 			statusCode: http.StatusNotFound,
-			wantSubstr: "2.13",
+			wantSubstr: "3.0",
+		},
+		{
+			// The control plane's own wording is preferred over anything
+			// kongctl would invent for the status code.
+			name:       "AIP-193 envelope is quoted rather than the status",
+			statusCode: http.StatusMethodNotAllowed,
+			body: `{"type":"/std-errors","status":405,"title":"Method not allowed",` +
+				`"detail":"Not allowed on global CP","instance":"abc","details":"Not allowed on global CP"}`,
+			wantSubstr: "Not allowed on global CP",
+		},
+		{
+			name:       "envelope validation feedback names the field",
+			statusCode: http.StatusBadRequest,
+			body: `{"status":400,"title":"Invalid parameters","detail":"validation failed",` +
+				`"invalid_parameters":[{"field":"spec.targetRef","reason":"must be set","source":"body"}]}`,
+			wantSubstr: "spec.targetRef",
 		},
 		{
 			name:       "other statuses surface the body",
@@ -152,7 +168,7 @@ func TestBuildDiscoveryError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := buildDiscoveryError(tc.statusCode, []byte(tc.body))
+			err := buildAPIError(tc.statusCode, []byte(tc.body))
 			if err == nil {
 				t.Fatal("expected an error")
 			}

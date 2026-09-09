@@ -20,6 +20,11 @@ const (
 	MeshFlagName      = "mesh"
 	MeshFlagShorthand = "m"
 
+	// AllMeshesFlagName lists a mesh scoped type across every mesh. Kuma
+	// registers mesh scoped list endpoints at both /meshes/{mesh}/{path} and
+	// /{path}, and the second lists across all meshes.
+	AllMeshesFlagName = "all-meshes"
+
 	// DefaultMesh matches the default kumactl applies to mesh scoped
 	// resources, so that commands carrying no --mesh behave the same way.
 	DefaultMesh = "default"
@@ -30,12 +35,20 @@ var (
 	ControlPlaneNameConfigPath = "konnect.mesh.control-plane.name"
 	ControlPlaneURLConfigPath  = "konnect.mesh.control-plane.url"
 	MeshConfigPath             = "konnect.mesh.mesh"
+	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
 )
 
 // controlPlaneAPIPathFormat fronts a Konnect hosted Kong Mesh control plane's
 // own API. The control plane identifier travels in the path, so callers do not
 // send a separate tenant header.
-const controlPlaneAPIPathFormat = "/v1/mesh/control-planes/%s/api"
+//
+// The leading segment selects the Kong Mesh API line, and one Konnect control
+// plane serves more than one: /v1/mesh/control-planes/{id}/api reaches a 2.14
+// control plane, while /v3/mesh/control-planes/{id} reaches a Kong Mesh 3 one.
+// These are distinct control planes behind a single Konnect identifier, and the
+// /api segment exists only on the v1 line. kongctl supports Kong Mesh 3 only,
+// so it composes the v3 form.
+const controlPlaneAPIPathFormat = "/v3/mesh/control-planes/%s"
 
 // ControlPlaneAPIPath returns the Konnect path prefix for a hosted Kong Mesh
 // control plane API.
@@ -117,6 +130,10 @@ func AddControlPlaneFlags(flags *pflag.FlagSet) {
 	flags.StringP(MeshFlagName, MeshFlagShorthand, DefaultMesh,
 		fmt.Sprintf(`Mesh that mesh scoped resources belong to.
 - Config path: [ %s ]`, MeshConfigPath))
+
+	flags.Bool(AllMeshesFlagName, false,
+		fmt.Sprintf(`List mesh scoped resources across every mesh instead of one. Ignored for global types.
+- Config path: [ %s ]`, AllMeshesConfigPath))
 }
 
 // BindFlags associates the control plane selection flags with their
@@ -131,6 +148,7 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{ControlPlaneNameFlagName, ControlPlaneNameConfigPath},
 		{ControlPlaneURLFlagName, ControlPlaneURLConfigPath},
 		{MeshFlagName, MeshConfigPath},
+		{AllMeshesFlagName, AllMeshesConfigPath},
 	}
 
 	for _, b := range bindings {
