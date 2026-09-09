@@ -34,7 +34,7 @@ ai_gateway_models:
     ai_gateway: rename-sync-gateway
     type: model
     name: rename-sync-model-renamed
-    display_name: Rename Sync Model Renamed
+    display_name: Rename Sync Model Original
     config:
       route: {}
       model: {}
