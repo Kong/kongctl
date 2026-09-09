@@ -260,9 +260,21 @@ operations. Check `ClientConfig`, `NewClient`, SDK helper interfaces, and the
 
 Managed listing must filter by the intended namespace and normalize managed
 and user labels. External lookup uses unrestricted observation instead.
-Inspect [planning caches][cache] before adding reads: namespace fanout can
-share observations across a run. Preserve missing-client and error behavior
-during refactoring; a failed read must not become an empty successful result.
+Inspect [planning caches][cache] before adding reads. Portals and APIs use
+[`observationCache[T]`][observation-cache]: a typed fetch function and namespace
+accessor supply resource-specific behavior; the cache owns namespace queries,
+reuse, and filtering. Compatible managed-root observations should use this
+boundary. Initialize their typed cache in `newPlanningResourceCache` and keep
+planner listing methods as thin adapters. The other eight root families and
+Portal child caches still use their existing implementations.
+
+Namespace planners share observations within a run; `GeneratePlan` resets the
+cache on every invocation. Preserve request counts and order, wildcard reuse,
+fanout behavior, result order, and nil/empty slices. An empty namespace query
+returns an empty result without fetching. Successful empty observations are
+cached; failed reads are not. A nil cache preserves uncached reads, including
+returning the full wildcard result during fanout. Keep missing-client behavior
+and error propagation unchanged. Observation does not choose lifecycle actions.
 
 Return errors with operation/resource context. Let callers report errors.
 Use existing structured HTTP logging context and useful debug metadata;
@@ -593,6 +605,7 @@ engine contract. Each refactoring migration should:
 [execute-protection]:
   ../../internal/declarative/executor/protection_inheritance.go
 [cache]: ../../internal/declarative/planner/resource_cache.go
+[observation-cache]: ../../internal/declarative/planner/observation_cache.go
 [resolver]: ../../internal/declarative/planner/resolver.go
 [external]: ../../internal/declarative/planner/external_lookup.go
 [state]: ../../internal/declarative/state/client.go
