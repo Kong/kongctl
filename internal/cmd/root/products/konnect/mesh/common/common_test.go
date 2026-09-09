@@ -27,7 +27,7 @@ func TestResolveControlPlaneAPIURLFromControlPlaneID(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	want := "https://us.api.konghq.com/v1/mesh/control-planes/5bf706d9-1e96-4a3a-bee4-cbf806d1dc1a/api"
+	want := "https://us.api.konghq.com/v3/mesh/control-planes/5bf706d9-1e96-4a3a-bee4-cbf806d1dc1a"
 	if got != want {
 		t.Errorf("expected %q, got %q", want, got)
 	}
@@ -46,7 +46,7 @@ func TestResolveControlPlaneAPIURLTrimsTrailingSlashOnBaseURL(t *testing.T) {
 	if strings.Contains(got, "//v1") {
 		t.Errorf("expected no doubled slash in %q", got)
 	}
-	if got != "https://eu.api.konghq.com/v1/mesh/control-planes/cp-1/api" {
+	if got != "https://eu.api.konghq.com/v3/mesh/control-planes/cp-1" {
 		t.Errorf("unexpected URL: %s", got)
 	}
 }
@@ -110,7 +110,7 @@ func TestResolveMesh(t *testing.T) {
 }
 
 func TestControlPlaneAPIPath(t *testing.T) {
-	if got := ControlPlaneAPIPath("cp-1"); got != "/v1/mesh/control-planes/cp-1/api" {
+	if got := ControlPlaneAPIPath("cp-1"); got != "/v3/mesh/control-planes/cp-1" {
 		t.Errorf("unexpected path: %s", got)
 	}
 }
