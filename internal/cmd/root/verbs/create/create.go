@@ -104,6 +104,12 @@ Setting this value overrides tokens obtained from the login command.
 
 	cmd.AddCommand(c)
 
+	meshCmd, err := NewDirectMeshCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(meshCmd)
+
 	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {
 		return nil, err

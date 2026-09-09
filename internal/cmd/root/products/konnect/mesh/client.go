@@ -1,9 +1,11 @@
 package mesh
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -59,28 +61,42 @@ func (e apiError) Error() string {
 
 // fetch performs a GET against the selected control plane and returns the
 // response body.
-//
-// Every mesh read goes through here so that control plane resolution,
-// credentials, and error rendering behave identically across commands.
 func fetch(helper cmd.Helper, path string) ([]byte, error) {
+	body, _, err := send(helper, http.MethodGet, path, nil)
+	return body, err
+}
+
+// sendForStatus performs a request and returns only the response status, for
+// callers that distinguish a created resource from a replaced one.
+func sendForStatus(helper cmd.Helper, method, path string, body []byte) (int, error) {
+	_, status, err := send(helper, method, path, body)
+	return status, err
+}
+
+// send performs a request against the selected control plane and returns the
+// response body.
+//
+// Every mesh call goes through here so that control plane resolution,
+// credentials, and error rendering behave identically across commands.
+func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, error) {
 	cfg, err := helper.GetConfig()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	logger, err := helper.GetLogger()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
 	if err != nil {
-		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
+		return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
 	}
 
 	ctx := helper.GetContext()
@@ -88,30 +104,40 @@ func fetch(helper cmd.Helper, path string) ([]byte, error) {
 		ctx = context.Background()
 	}
 	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
-		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
+		return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+	}
+
+	var (
+		payload io.Reader
+		headers map[string]string
+	)
+	if body != nil {
+		payload = bytes.NewReader(body)
+		headers = map[string]string{"Content-Type": "application/json"}
 	}
 
 	result, err := apiutil.RequestWithTokenSource(
 		ctx,
 		httpclient.NewLoggingHTTPClient(logger),
-		http.MethodGet,
+		method,
 		baseURL,
 		path,
 		tokenSource,
-		nil,
-		nil,
+		headers,
+		payload,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	logger.Debug("mesh control plane call completed", "path", path, "status_code", result.StatusCode)
+	logger.Debug("mesh control plane call completed",
+		"method", method, "path", path, "status_code", result.StatusCode)
 
 	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
-		return nil, buildAPIError(result.StatusCode, result.Body)
+		return nil, result.StatusCode, buildAPIError(result.StatusCode, result.Body)
 	}
 
-	return result.Body, nil
+	return result.Body, result.StatusCode, nil
 }
 
 // buildAPIError turns a failed response into an actionable error, using the
