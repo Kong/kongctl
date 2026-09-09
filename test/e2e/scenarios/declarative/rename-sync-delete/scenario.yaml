@@ -41,6 +41,26 @@ steps:
     inputOverlayDirs:
       - overlays/002-renamed
     commands:
+      - name: plan-model-name-only-change
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: "changes[?resource_type=='ai_gateway_model']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "changes[?resource_type=='ai_gateway_model'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: rename-sync-model
+                fields.name: rename-sync-model-renamed
+                fields.display_name: Rename Sync Model Original
       - name: 000-apply
         outputFormat: json
         run:
@@ -55,6 +75,30 @@ steps:
                 applied: 3
                 failed: 0
                 status: success
+      - name: get-models-after-name-only-change
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - rename-sync-gateway
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?name=='rename-sync-model-original'] | [0]"
+            expect:
+              fields:
+                name: rename-sync-model-original
+                display_name: Rename Sync Model Original
+          - select: "[?name=='rename-sync-model-renamed'] | [0]"
+            expect:
+              fields:
+                name: rename-sync-model-renamed
+                display_name: Rename Sync Model Original
 
   - name: 003-plan-sync-deletes-stale-entities
     inputOverlayDirs:
@@ -130,7 +174,7 @@ steps:
             expect:
               fields:
                 name: rename-sync-model-renamed
-                display_name: Rename Sync Model Renamed
+                display_name: Rename Sync Model Original
 
   - name: 004-reset-org
     skipInputs: true
