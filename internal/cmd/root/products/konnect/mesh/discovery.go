@@ -1,17 +1,12 @@
 package mesh
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
-	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
-	"github.com/kong/kongctl/internal/konnect/apiutil"
-	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
 
 // discoveryPath is the control plane endpoint that describes every resource
@@ -123,59 +118,11 @@ func (d ResourceDescriptor) ItemPath(mesh, name string) string {
 // Results are sorted by the control plane, which returns them alphabetically by
 // type name; callers relying on a specific order should sort explicitly.
 func Discover(helper cmd.Helper) ([]ResourceDescriptor, error) {
-	cfg, err := helper.GetConfig()
+	body, err := fetch(helper, discoveryPath)
 	if err != nil {
 		return nil, err
 	}
-
-	logger, err := helper.GetLogger()
-	if err != nil {
-		return nil, err
-	}
-
-	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
-	if err != nil {
-		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
-	}
-
-	ctx := helper.GetContext()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
-		return nil, fmt.Errorf("resolve Konnect access token: %w", err)
-	}
-
-	result, err := apiutil.RequestWithTokenSource(
-		ctx,
-		httpclient.NewLoggingHTTPClient(logger),
-		http.MethodGet,
-		baseURL,
-		discoveryPath,
-		tokenSource,
-		nil,
-		nil,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	logger.Debug(
-		"mesh resource discovery call completed",
-		"path", discoveryPath,
-		"status_code", result.StatusCode,
-	)
-
-	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {
-		return nil, buildDiscoveryError(result.StatusCode, result.Body)
-	}
-
-	return decodeDiscoveryResponse(result.Body)
+	return decodeDiscoveryResponse(body)
 }
 
 // decodeDiscoveryResponse parses a control plane discovery payload, dropping
@@ -194,26 +141,4 @@ func decodeDiscoveryResponse(body []byte) ([]ResourceDescriptor, error) {
 		descriptors = append(descriptors, descriptor)
 	}
 	return descriptors, nil
-}
-
-// buildDiscoveryError turns a failed discovery response into an actionable
-// error, calling out the causes an operator can address.
-func buildDiscoveryError(statusCode int, body []byte) error {
-	detail := strings.TrimSpace(string(body))
-
-	switch statusCode {
-	case http.StatusUnauthorized, http.StatusForbidden:
-		return fmt.Errorf(
-			"not authorized to read the Kong Mesh control plane (status %d); "+
-				"check that the credential grants access to this control plane", statusCode)
-	case http.StatusNotFound:
-		return fmt.Errorf(
-			"control plane API not found (status %d); "+
-				"check the control plane selection, and that it is running Kong Mesh 2.13 or later", statusCode)
-	}
-
-	if detail == "" {
-		return fmt.Errorf("mesh resource discovery failed with status %d", statusCode)
-	}
-	return fmt.Errorf("mesh resource discovery failed with status %d: %s", statusCode, detail)
 }
