@@ -43,6 +43,7 @@ SENSITIVE_KEY = re.compile(r"password|secret|token|authorization|cookie|private.
 SENSITIVE_VALUE = re.compile(r"kpat_|spat_|Bearer\s|-----BEGIN|[\w.+-]+@[\w.-]+\.[a-z]{2,}", re.I)
 KONG_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)*konghq\.com\b", re.I)
 GENERATED_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)+([a-z0-9-]+)\.(cp|tp)\.konghq\.com\b", re.I)
+CONTENT_TYPES = {None, "application/json", "application/problem+json"}
 
 
 def canonical(value):
@@ -249,7 +250,7 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
     fixtures = fixture_strings(directory)
     if not isinstance(cassette, dict) or set(cassette) != {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}:
         raise ValueError("invalid cassette fields")
-    if type(cassette["schema_version"]) is not int or cassette["schema_version"] != 1 or cassette["scenario"] != scenario:
+    if type(cassette["schema_version"]) is not int or cassette["schema_version"] not in (1, 2) or cassette["scenario"] != scenario:
         raise ValueError("unsupported cassette schema or scenario")
     if cassette["inputs_sha256"] != scenario_digest(directory):
         raise ValueError(f"stale cassette: {scenario}; re-record and review, or remove replay eligibility")
@@ -287,8 +288,15 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
         normalized["query"] = sorted(request["query"])
         if canonical(normalized) != canonical(request):
             raise ValueError("request is not in canonical matching form")
-        if not isinstance(response, dict) or set(response) != {"status", "body"} or type(response["status"]) is not int:
+        response_fields = {"status", "body"} | ({"content_type"} if cassette["schema_version"] == 2 else set())
+        if not isinstance(response, dict) or set(response) != response_fields or type(response["status"]) is not int:
             raise ValueError("invalid response fields")
+        if cassette["schema_version"] == 2:
+            content_type = response["content_type"]
+            if content_type is not None and not isinstance(content_type, str):
+                raise ValueError("invalid response content type")
+            if content_type not in CONTENT_TYPES or (response["body"] is not None and content_type is None):
+                raise ValueError("unsupported response content type")
         if not 200 <= response["status"] < 500 or response["status"] == 429 or 300 <= response["status"] < 400:
             raise ValueError("redirects and transient failures are not supported in cassettes")
         check_safe(item, fixtures)
@@ -335,7 +343,13 @@ class Replay:
                 content = raw.read(LIMIT + 1)
                 if len(content) > LIMIT:
                     raise ValueError("response exceeds recording limit")
-                response = {"status": raw.status, "body": parse_json(content) if content else None}
+                content_type = raw.getheader("Content-Type")
+                if content_type is not None:
+                    content_type = content_type.split(";", 1)[0].strip().lower()
+                if content_type not in CONTENT_TYPES or (content and content_type is None):
+                    raise ValueError("unsupported upstream response content type")
+                response = {"status": raw.status, "body": parse_json(content) if content else None,
+                            "content_type": content_type}
                 if content and response["body"] is None:
                     raise ValueError("explicit JSON null responses are unsupported")
             finally:
@@ -411,7 +425,9 @@ class InnerHandler(QuietHandler):
             response = self.server.engine.exchange(self.tunnel_host, self.command, self.path, data)
             body = canonical(response["body"]).encode() if response["body"] is not None else b""
             self.send_response(response["status"])
-            self.send_header("Content-Type", "application/json")
+            content_type = response.get("content_type", "application/json")
+            if content_type is not None:
+                self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -486,10 +502,18 @@ def failure_summary(engine, output, directory):
     commands = [{"name": name, "exit": int(code)}
                 for name, code in re.findall(r"command ([a-zA-Z0-9_-]+) failed \(exit=(\d+)\)", output)
                 if name in names]
-    errors = [{"method": item["request"]["method"], "path": item["request"]["path"],
-               "response": item["response"]} for item in engine.interactions
-              if item["response"]["status"] >= 400]
-    summary = {"commands": commands[:5], "http_errors": errors[-5:], "interactions": engine.position}
+    errors = []
+    for item in engine.interactions:
+        if item["response"]["status"] < 400:
+            continue
+        response = item["response"]
+        if len(canonical(response)) > 2048:
+            response = {"status": response["status"], "body_omitted": True}
+        errors.append({"method": item["request"]["method"], "path": item["request"]["path"],
+                       "response": response})
+    summary = {"commands": commands[:5], "http_errors": errors[-5:], "interactions": engine.position,
+               "last_exchanges": [{"method": item["request"]["method"], "path": item["request"]["path"],
+                                   "status": item["response"]["status"]} for item in engine.interactions[-5:]]}
     check_safe(summary, engine.fixtures)
     return canonical(summary)
 
@@ -564,7 +588,7 @@ def main():
                                env=reset_env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
         elapsed = time.monotonic() - started
     if token:
-        candidate = {"schema_version": 1, "scenario": args.scenario, "inputs_sha256": scenario_digest(directory),
+        candidate = {"schema_version": 2, "scenario": args.scenario, "inputs_sha256": scenario_digest(directory),
                      "source": {"kind": "recorded", "commit": os.environ.get("GITHUB_SHA", ""),
                                 "run_url": "https://github.com/Kong/kongctl/actions/runs/" + os.environ.get("GITHUB_RUN_ID", "")},
                      "interactions": engine.interactions}

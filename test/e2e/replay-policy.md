@@ -66,6 +66,15 @@ the isolated replay job passes. Commit it under the scenario's
 `replay/cassette.json` and add its directory to the sorted policy list. The
 recorder never commits or overwrites reviewed cassettes automatically.
 
+New recordings use cassette schema v2, which also preserves an allowlisted
+response media type (`application/json` or `application/problem+json`; absent
+is allowed only for an empty body). This is significant: the SDK uses the
+problem media type to classify expected 404s as typed not-found errors.
+Existing v1 Control Plane cassettes retain their original JSON response
+behavior. Arbitrary response headers, cookies, and authorization are never
+recorded. A failed scenario publishes no candidate; diagnostics contain only
+local command names and bounded, already-sanitized HTTP error exchanges.
+
 Scenario-local overlays and workdir-local generated plan files are supported.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario

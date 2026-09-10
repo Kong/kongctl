@@ -48,6 +48,7 @@ class ReplayTest(unittest.TestCase):
 
     def test_recording_forwards_with_private_pat_but_only_saves_sanitized_data(self):
         response = MagicMock(status=201)
+        response.getheader.return_value = "application/json"
         real_id = "aabbccdd-1234-4567-8901-aabbccddeeff"
         response.read.return_value = json.dumps({"id": real_id}).encode()
         connection = MagicMock()
@@ -63,6 +64,7 @@ class ReplayTest(unittest.TestCase):
 
     def test_recording_rejects_echoed_credentials(self):
         response = MagicMock(status=200)
+        response.getheader.return_value = "application/json"
         response.read.return_value = b'{"message":"private-credential"}'
         connection = MagicMock()
         connection.getresponse.return_value = response
@@ -275,6 +277,16 @@ class ReplayTest(unittest.TestCase):
                                    "run_url": "https://github.com/Kong/kongctl/actions/runs/123"},
                         "interactions": [interaction()]}
             MODULE.validate_cassette(cassette, root)
+            typed = copy.deepcopy(cassette)
+            typed["schema_version"] = 2
+            typed["interactions"][0]["response"] = {
+                "status": 404, "body": {"status": 404}, "content_type": "application/problem+json"}
+            MODULE.validate_cassette(typed, root)
+            for content_type in [None, "text/html", "application/json\r\nSet-Cookie: private", []]:
+                invalid = copy.deepcopy(typed)
+                invalid["interactions"][0]["response"]["content_type"] = content_type
+                with self.subTest(content_type=content_type), self.assertRaises(ValueError):
+                    MODULE.validate_cassette(invalid, root)
             for path in ["/x#frag", "/x#", "/x?q=1", "/x?", "//other/x", "/x\ny"]:
                 invalid = copy.deepcopy(cassette)
                 invalid["interactions"][0]["request"]["path"] = path
@@ -312,6 +324,24 @@ class ReplayTest(unittest.TestCase):
                 response = client.getresponse()
                 self.assertEqual(200, response.status)
                 self.assertEqual({"data": []}, json.loads(response.read()))
+                client.close()
+                engine.verify()
+
+    def test_problem_json_content_type_survives_the_https_proxy(self):
+        expected = interaction()
+        expected["response"] = {"status": 404, "body": {"status": 404, "title": "Not Found"},
+                                "content_type": "application/problem+json"}
+        engine = MODULE.Replay({"interactions": [expected]})
+        with tempfile.TemporaryDirectory() as directory:
+            with MODULE.Server(engine, Path(directory)) as server:
+                context = ssl.create_default_context(cafile=str(server.certificate))
+                client = http.client.HTTPSConnection("127.0.0.1", server.httpd.server_port, context=context)
+                client.set_tunnel("us.api.konghq.com", 443)
+                client.request("GET", "/v2/control-planes?a=1&b=2")
+                response = client.getresponse()
+                self.assertEqual("application/problem+json", response.getheader("Content-Type"))
+                self.assertEqual(404, response.status)
+                response.read()
                 client.close()
                 engine.verify()
 
