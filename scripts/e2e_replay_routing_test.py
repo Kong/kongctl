@@ -18,6 +18,9 @@ class RoutingTest(unittest.TestCase):
         replay_job = suite.split("  e2e-replay:", 1)[1].split("  e2e:", 1)[0]
         self.assertIn("github.event_name == 'pull_request'", replay_job)
         self.assertIn("needs.e2e-build.outputs.replay_mode == 'pr'", replay_job)
+        self.assertIn("ref: ${{ github.sha }}", replay_job)
+        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_job)
+        self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
         self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
         self.assertIn("github.event.label.name == 'e2e:force-live'", status)
         self.assertIn("- labeled", status)
