@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).with_name("e2e-baseline.py")
+SCRIPT = Path(__file__).with_name("e2e_baseline.py")
 SPEC = importlib.util.spec_from_file_location("e2e_baseline", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)

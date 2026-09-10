@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("e2e-metrics.py")
+SCRIPT = Path(__file__).with_name("e2e_metrics.py")
 SPEC = importlib.util.spec_from_file_location("e2e_metrics", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)

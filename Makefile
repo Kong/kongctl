@@ -111,7 +111,7 @@ test:
 
 .PHONY: refresh-e2e-weights
 refresh-e2e-weights:
-	python3 scripts/e2e-weights.py \
+	python3 scripts/e2e_weights.py \
 		test/e2e/baselines/post-cache-2026-09-observations.json
 
 .PHONY: test-e2e-metrics
@@ -125,10 +125,10 @@ build-e2e-replay: build
 	CGO_ENABLED=0 go build -tags=e2e -o .e2e-artifacts/replay-bin/reset-org ./test/e2e/harness/cmd/reset-org
 
 check-e2e-replay:
-	python3 scripts/e2e-replay.py check
+	python3 scripts/e2e_replay.py check
 
 test-e2e-replay: build-e2e-replay
-	python3 scripts/e2e-replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test
+	python3 scripts/e2e_replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test
 
 .PHONY: test-integration
 test-integration:
@@ -256,7 +256,7 @@ E2E_CI_DIAGNOSE_FLAGS ?=
 
 .PHONY: diagnose-e2e-ci
 diagnose-e2e-ci:
-	@python3 scripts/e2e-ci-diagnose.py \
+	@python3 scripts/e2e_ci_diagnose.py \
 		$(if $(RUN),--run "$(RUN)") \
 		$(if $(PR),--pr "$(PR)") \
 		$(if $(WORKFLOW),--workflow "$(WORKFLOW)") \
@@ -270,13 +270,13 @@ E2E_BASELINE_COUNT ?= 20
 E2E_BASELINE_SCAN ?= 100
 E2E_BASELINE_DIR ?= .e2e-artifacts/baseline
 E2E_BASELINE_COHORT ?= cache-enabled
-E2E_BASELINE_ALLOCATION ?= $(shell python3 scripts/e2e-weights.py --print-allocation-id)
+E2E_BASELINE_ALLOCATION ?= $(shell python3 scripts/e2e_weights.py --print-allocation-id)
 E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/weighted-v1-2026-09-observations.json
 E2E_BASELINE_REPORT ?= test/e2e/baselines/weighted-v1-2026-09.md
 
 .PHONY: collect-e2e-baseline
 collect-e2e-baseline:
-	@python3 scripts/e2e-baseline.py \
+	@python3 scripts/e2e_baseline.py \
 		--allocation-id "$(E2E_BASELINE_ALLOCATION)" \
 		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \
@@ -290,7 +290,7 @@ collect-e2e-baseline:
 .PHONY: baseline-e2e-ci
 baseline-e2e-ci:
 	@mkdir -p "$(E2E_BASELINE_DIR)"
-	@python3 scripts/e2e-baseline.py \
+	@python3 scripts/e2e_baseline.py \
 		--allocation-id "$(E2E_BASELINE_ALLOCATION)" \
 		--cohort "$(E2E_BASELINE_COHORT)" \
 		--count "$(E2E_BASELINE_COUNT)" \

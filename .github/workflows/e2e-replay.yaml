@@ -79,7 +79,7 @@ jobs:
           REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test .e2e-artifacts/replay-bin/reset-org
-          python3 scripts/e2e-replay.py record \
+          python3 scripts/e2e_replay.py record \
             --scenario "$REPLAY_SCENARIO" \
             --test-binary .e2e-artifacts/replay-bin/e2e.test \
             --reset-binary .e2e-artifacts/replay-bin/reset-org \

@@ -15,8 +15,8 @@ on:
       - .goreleaser.yml
       - .github/workflows/e2e.yaml
       - .github/workflows/e2e-main-debounce.yaml
-      - scripts/e2e-replay*
-      - scripts/e2e_replay*
+      - scripts/e2e_replay*.py
+      - scripts/e2e-replay-isolated.sh
 
 permissions:
   actions: write

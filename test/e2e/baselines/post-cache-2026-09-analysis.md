@@ -11,7 +11,7 @@ the local worktree. The frozen uncached baseline contains seven runs. The
 20-run post-cache target remains incomplete. No workflow or scenario behavior
 was changed during this assessment.
 
-Collection used `scripts/e2e-baseline.py` with `--count 20 --scan 150`, the
+Collection used `scripts/e2e_baseline.py` with `--count 20 --scan 150`, the
 `cache-enabled` cohort, cumulative observations, and `--allow-partial`.
 Percentiles below use the collector's nearest-rank method. Latency is measured
 from the selected attempt's creation time through required-status completion.

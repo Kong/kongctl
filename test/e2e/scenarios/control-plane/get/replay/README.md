@@ -109,8 +109,8 @@ live assertions passed: a request-construction regression can pass incomplete
 assertions. Check it and replay locally with:
 
 ```sh
-python3 scripts/e2e-replay.py check
-python3 scripts/e2e-replay.py replay \
+python3 scripts/e2e_replay.py check
+python3 scripts/e2e_replay.py replay \
   --test-binary .e2e-artifacts/replay-bin/e2e.test
 ```
 

@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import subprocess
 
-SPEC = importlib.util.spec_from_file_location("replay", Path(__file__).with_name("e2e-replay.py"))
+SPEC = importlib.util.spec_from_file_location("replay", Path(__file__).with_name("e2e_replay.py"))
 REPLAY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(REPLAY)
 

@@ -9,7 +9,7 @@ import sys
 import tempfile
 import unittest
 
-SPEC = importlib.util.spec_from_file_location("routing", Path(__file__).with_name("e2e-replay-routing.py"))
+SPEC = importlib.util.spec_from_file_location("routing", Path(__file__).with_name("e2e_replay_routing.py"))
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
@@ -18,12 +18,12 @@ class RoutingTest(unittest.TestCase):
     def test_verifier_code_can_be_separate_from_scenario_checkout(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for name in ("e2e-replay-routing.py", "e2e-replay.py"):
+            for name in ("e2e_replay_routing.py", "e2e_replay.py"):
                 shutil.copyfile(Path(__file__).with_name(name), root / name)
             plan = root / "routing.json"
             plan.write_text(json.dumps(MODULE.make_plan(MODULE.REPLAY.ROOT, "live")))
             subprocess.run([
-                sys.executable, str(root / "e2e-replay-routing.py"), "verify",
+                sys.executable, str(root / "e2e_replay_routing.py"), "verify",
                 "--root", str(MODULE.REPLAY.ROOT), "--mode", "live",
                 "--plan", str(plan), "--results", str(root / "results"),
             ], cwd=root, env={**os.environ, "GITHUB_RUN_ID": "123"}, check=True)

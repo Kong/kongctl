@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 
-SPEC = importlib.util.spec_from_file_location("e2e_weights", Path(__file__).with_name("e2e-weights.py"))
+SPEC = importlib.util.spec_from_file_location("e2e_weights", Path(__file__).with_name("e2e_weights.py"))
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)

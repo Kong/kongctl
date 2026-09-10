@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 
-SPEC = importlib.util.spec_from_file_location("e2e_replay", Path(__file__).with_name("e2e-replay.py"))
+SPEC = importlib.util.spec_from_file_location("e2e_replay", Path(__file__).with_name("e2e_replay.py"))
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 

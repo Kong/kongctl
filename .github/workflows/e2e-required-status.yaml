@@ -56,7 +56,7 @@ jobs:
               pull_number: pr.number,
               per_page: 100,
             });
-            const e2ePattern = /^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal\/.*|test\/e2e\/.*|Makefile|\.goreleaser\.yml|\.github\/workflows\/e2e\.yaml|\.github\/workflows\/e2e-main-debounce\.yaml|scripts\/e2e[-_]replay.*)$/;
+            const e2ePattern = /^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal\/.*|test\/e2e\/.*|Makefile|\.goreleaser\.yml|\.github\/workflows\/e2e\.yaml|\.github\/workflows\/e2e-main-debounce\.yaml|scripts\/e2e_replay.*\.py|scripts\/e2e-replay-isolated\.sh)$/;
             const required = files.some((file) => e2ePattern.test(file.filename));
             const forkPullRequest = pr.head.repo.full_name !== pr.base.repo.full_name;
             const state = required ? 'pending' : 'success';
