@@ -7,25 +7,29 @@ import (
 )
 
 // childLoad pairs typed nested extraction with resource-set validation.
-// The registered storage accessor is reused for both operations.
+// Exceptional sources supply extract instead of nested/setParent/beforeAppend.
+// Kinds without loader validation must record why that phase is omitted.
 type childLoad[R, P any] struct {
-	family        ResourceType
-	extractOrder  int
-	validateOrder int
-	nested        func(*P) *[]R
-	setParent     func(*R, string)
-	beforeAppend  func(*ResourceSet, *R)
-	validate      func(*ResourceSet, []R) error
+	family                  ResourceType
+	extractOrder            int
+	validateOrder           int
+	nested                  func(*P) *[]R
+	setParent               func(*R, string)
+	beforeAppend            func(*ResourceSet, *R)
+	validate                func(*ResourceSet, []R) error
+	extract                 func(*ResourceSet, *P, *[]R)
+	validationOmittedReason string
 }
 
 type childLoadRegistration struct {
-	kind          ResourceType
-	parent        ResourceType
-	family        ResourceType
-	extractOrder  int
-	validateOrder int
-	extract       func(*ResourceSet, Resource)
-	validate      func(*ResourceSet) error
+	kind                    ResourceType
+	parent                  ResourceType
+	family                  ResourceType
+	extractOrder            int
+	validateOrder           int
+	extract                 func(*ResourceSet, Resource)
+	validate                func(*ResourceSet) error
+	validationOmittedReason string
 }
 
 var (
@@ -35,7 +39,7 @@ var (
 
 func registerChildResourceType[R, P any, RPtr interface {
 	*R
-	ResourceWithParent
+	Resource
 }, PPtr interface {
 	*P
 	Resource
@@ -46,19 +50,30 @@ func registerChildResourceType[R, P any, RPtr interface {
 	load childLoad[R, P],
 	options ...ResourceRegistrationOption,
 ) {
-	if load.nested == nil || load.setParent == nil || load.validate == nil {
-		panic("register resource type " + string(rt) + ": child loader requires extraction and validation")
+	if load.extract != nil {
+		if load.nested != nil || load.setParent != nil || load.beforeAppend != nil {
+			panic("register resource type " + string(rt) + ": custom extraction cannot also supply slice extraction")
+		}
+	} else if load.nested == nil || load.setParent == nil {
+		panic("register resource type " + string(rt) + ": child loader requires extraction")
 	}
 	capability := ResourceRegistrationOption(func(ops *resourceOps) error {
 		if ops.load != nil {
 			return fmt.Errorf("child loader is already registered")
 		}
-		ops.load = &childLoadRegistration{
-			parent:        PPtr(new(P)).GetType(),
-			family:        load.family,
-			extractOrder:  load.extractOrder,
-			validateOrder: load.validateOrder,
-			extract: func(rs *ResourceSet, parent Resource) {
+		registration := &childLoadRegistration{
+			parent:                  PPtr(new(P)).GetType(),
+			family:                  load.family,
+			extractOrder:            load.extractOrder,
+			validateOrder:           load.validateOrder,
+			validationOmittedReason: load.validationOmittedReason,
+		}
+		if load.extract != nil {
+			registration.extract = func(rs *ResourceSet, parent Resource) {
+				load.extract(rs, any(parent).(*P), storage(rs))
+			}
+		} else {
+			registration.extract = func(rs *ResourceSet, parent Resource) {
 				nested := load.nested(any(parent).(*P))
 				for _, child := range *nested {
 					load.setParent(&child, parent.GetRef())
@@ -69,11 +84,14 @@ func registerChildResourceType[R, P any, RPtr interface {
 					*destination = append(*destination, child)
 				}
 				*nested = nil
-			},
-			validate: func(rs *ResourceSet) error {
-				return load.validate(rs, *storage(rs))
-			},
+			}
 		}
+		if load.validate != nil {
+			registration.validate = func(rs *ResourceSet) error {
+				return load.validate(rs, *storage(rs))
+			}
+		}
+		ops.load = registration
 		return nil
 	})
 	registerResourceType[R, RPtr](rt, storage, explain, append(options, capability)...)
@@ -81,17 +99,28 @@ func registerChildResourceType[R, P any, RPtr interface {
 
 func registerChildLoader(kind ResourceType, registration childLoadRegistration) {
 	if registration.parent == "" || registration.family == "" ||
-		registration.extractOrder <= 0 || registration.validateOrder <= 0 {
-		panic("child loader requires parent, validation family, and positive traversal orders: " + string(kind))
+		registration.extractOrder <= 0 || registration.extract == nil {
+		panic("child loader requires parent, family, and positive extraction order: " + string(kind))
+	}
+	if registration.validate == nil {
+		if registration.validationOmittedReason == "" || registration.validateOrder != 0 {
+			panic(
+				"child loader without validation requires an omission reason and no validation order: " + string(kind),
+			)
+		}
+	} else if registration.validateOrder <= 0 || registration.validationOmittedReason != "" {
+		panic("child validation requires a positive order and no omission reason: " + string(kind))
 	}
 	for _, existing := range childExtractors[registration.parent] {
 		if existing.kind == kind || existing.extractOrder == registration.extractOrder {
 			panic("duplicate child loader resource type or extraction order: " + string(kind))
 		}
 	}
-	for _, existing := range childValidators[registration.family] {
-		if existing.kind == kind || existing.validateOrder == registration.validateOrder {
-			panic("duplicate child loader resource type or validation order: " + string(kind))
+	if registration.validate != nil {
+		for _, existing := range childValidators[registration.family] {
+			if existing.kind == kind || existing.validateOrder == registration.validateOrder {
+				panic("duplicate child loader resource type or validation order: " + string(kind))
+			}
 		}
 	}
 	registration.kind = kind
@@ -99,10 +128,12 @@ func registerChildLoader(kind ResourceType, registration childLoadRegistration) 
 	slices.SortFunc(childExtractors[registration.parent], func(a, b childLoadRegistration) int {
 		return cmp.Compare(a.extractOrder, b.extractOrder)
 	})
-	childValidators[registration.family] = append(childValidators[registration.family], registration)
-	slices.SortFunc(childValidators[registration.family], func(a, b childLoadRegistration) int {
-		return cmp.Compare(a.validateOrder, b.validateOrder)
-	})
+	if registration.validate != nil {
+		childValidators[registration.family] = append(childValidators[registration.family], registration)
+		slices.SortFunc(childValidators[registration.family], func(a, b childLoadRegistration) int {
+			return cmp.Compare(a.validateOrder, b.validateOrder)
+		})
+	}
 }
 
 // ExtractRegisteredChildren appends a parent's registered nested collections
@@ -129,7 +160,7 @@ func (rs *ResourceSet) ValidateRegisteredChildren(family ResourceType) error {
 // ValidateRegisteredResource runs the load validation for one registered kind.
 func (rs *ResourceSet) ValidateRegisteredResource(kind ResourceType) error {
 	load := registry[kind].load
-	if load == nil {
+	if load == nil || load.validate == nil {
 		return fmt.Errorf("resource type %s has no registered load validation", kind)
 	}
 	return load.validate(rs)

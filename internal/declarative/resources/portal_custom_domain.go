@@ -9,12 +9,22 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalCustomDomain,
 		func(rs *ResourceSet) *[]PortalCustomDomainResource { return &rs.PortalCustomDomains },
 		AutoExplain[PortalCustomDomainResource](
 			WithExplainSchemaBuilder(portalCustomDomainExplainNode),
 		),
+		childLoad[PortalCustomDomainResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  60,
+			validateOrder: 90,
+			validate:      validatePortalChildRefs[PortalCustomDomainResource],
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalCustomDomainResource { return &p.CustomDomain },
+				func(r *PortalCustomDomainResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalCustomDomainResource) string { return r.Portal }),
 	)
 }

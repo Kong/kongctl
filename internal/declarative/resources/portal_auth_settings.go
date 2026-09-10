@@ -8,12 +8,22 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalAuthSettings,
 		func(rs *ResourceSet) *[]PortalAuthSettingsResource { return &rs.PortalAuthSettings },
 		AutoExplain[PortalAuthSettingsResource](
 			WithExplainSchemaBuilder(portalAuthSettingsExplainNode),
 		),
+		childLoad[PortalAuthSettingsResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  20,
+			validateOrder: 40,
+			validate:      validatePortalAuthSettingsChildren,
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalAuthSettingsResource { return &p.AuthSettings },
+				func(r *PortalAuthSettingsResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -130,4 +140,55 @@ func (a *PortalAuthSettingsResource) UnmarshalJSON(data []byte) error {
 	a.PortalAuthenticationSettingsUpdateRequest = temp.PortalAuthenticationSettingsUpdateRequest
 
 	return nil
+}
+
+func validatePortalAuthSettingsChildren(_ *ResourceSet, children []PortalAuthSettingsResource) error {
+	for i := range children {
+		settings := &children[i]
+		if err := settings.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_auth_settings %q: %w", settings.GetRef(), err)
+		}
+		if settings.Portal == "" {
+			return fmt.Errorf("portal_auth_settings %q must specify portal", settings.GetRef())
+		}
+		if deprecatedField := deprecatedPortalAuthSettingsField(settings); deprecatedField != "" {
+			return fmt.Errorf(
+				"portal_auth_settings %q %s",
+				settings.GetRef(),
+				PortalAuthSettingsDeprecatedFieldMessage(deprecatedField),
+			)
+		}
+		for j := i + 1; j < len(children); j++ {
+			if children[j].GetRef() == settings.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref %s (already defined as portal_auth_settings)",
+					settings.GetRef(),
+				)
+			}
+		}
+	}
+	return nil
+}
+
+func deprecatedPortalAuthSettingsField(settings *PortalAuthSettingsResource) string {
+	switch {
+	case settings.OidcAuthEnabled != nil:
+		return "oidc_auth_enabled"
+	case settings.SamlAuthEnabled != nil:
+		return "saml_auth_enabled"
+	case settings.OidcTeamMappingEnabled != nil:
+		return "oidc_team_mapping_enabled"
+	case settings.OidcIssuer != nil:
+		return "oidc_issuer"
+	case settings.OidcClientID != nil:
+		return "oidc_client_id"
+	case settings.OidcClientSecret != nil:
+		return "oidc_client_secret"
+	case settings.OidcScopes != nil:
+		return "oidc_scopes"
+	case settings.OidcClaimMappings != nil:
+		return "oidc_claim_mappings"
+	default:
+		return ""
+	}
 }

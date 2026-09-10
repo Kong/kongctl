@@ -7,10 +7,20 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalCustomization,
 		func(rs *ResourceSet) *[]PortalCustomizationResource { return &rs.PortalCustomizations },
 		AutoExplain[PortalCustomizationResource](),
+		childLoad[PortalCustomizationResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  10,
+			validateOrder: 30,
+			validate:      validatePortalChildRefs[PortalCustomizationResource],
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalCustomizationResource { return &p.Customization },
+				func(r *PortalCustomizationResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalCustomizationResource) string { return r.Portal }),
 	)
 }

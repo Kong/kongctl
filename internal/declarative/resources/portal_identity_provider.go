@@ -8,12 +8,20 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalIdentityProvider,
 		func(rs *ResourceSet) *[]PortalIdentityProviderResource { return &rs.PortalIdentityProviders },
 		AutoExplain[PortalIdentityProviderResource](
 			WithExplainSchemaBuilder(portalIdentityProviderExplainNode),
 		),
+		childLoad[PortalIdentityProviderResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  50,
+			validateOrder: 70,
+			validate:      validatePortalIdentityProviderChildren,
+			nested:        func(p *PortalResource) *[]PortalIdentityProviderResource { return &p.IdentityProviders },
+			setParent:     func(r *PortalIdentityProviderResource, ref string) { r.Portal = ref },
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -220,5 +228,39 @@ func (p *PortalIdentityProviderResource) UnmarshalJSON(data []byte) error {
 		p.Config = &config
 	}
 
+	return nil
+}
+
+func validatePortalIdentityProviderChildren(_ *ResourceSet, children []PortalIdentityProviderResource) error {
+	portalProviderRefs := make(map[string]bool)
+	portalProviderTypes := make(map[string]map[kkComps.IdentityProviderType]string)
+	for i := range children {
+		provider := &children[i]
+		if err := provider.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_identity_provider %q: %w", provider.GetRef(), err)
+		}
+		if provider.Portal == "" {
+			return fmt.Errorf("portal_identity_provider %q must specify portal", provider.GetRef())
+		}
+		if portalProviderRefs[provider.GetRef()] {
+			return fmt.Errorf("duplicate ref %s (already defined as portal_identity_provider)", provider.GetRef())
+		}
+		portalProviderRefs[provider.GetRef()] = true
+
+		if _, ok := portalProviderTypes[provider.Portal]; !ok {
+			portalProviderTypes[provider.Portal] = make(map[kkComps.IdentityProviderType]string)
+		}
+		providerType := *provider.Type
+		if existingRef, ok := portalProviderTypes[provider.Portal][providerType]; ok {
+			return fmt.Errorf(
+				"multiple portal_identity_provider entries target portal %q and type %q (%s and %s)",
+				provider.Portal,
+				string(providerType),
+				existingRef,
+				provider.GetRef(),
+			)
+		}
+		portalProviderTypes[provider.Portal][providerType] = provider.GetRef()
+	}
 	return nil
 }

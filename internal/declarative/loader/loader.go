@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strings"
 
-	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"sigs.k8s.io/yaml"
@@ -651,30 +650,6 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 	}
 }
 
-// extractPortalPages recursively extracts and flattens nested portal pages
-func (l *Loader) extractPortalPages(
-	allPages *[]resources.PortalPageResource,
-	page resources.PortalPageResource,
-	portalRef string,
-	parentPageRef string,
-) {
-	// Set portal and parent references
-	page.Portal = portalRef
-	page.ParentPageRef = parentPageRef
-
-	// Process children before clearing them
-	children := page.Children
-	page.Children = nil // Clear children from the page before appending
-
-	// Append current page
-	*allPages = append(*allPages, page)
-
-	// Recursively process children
-	for _, child := range children {
-		l.extractPortalPages(allPages, child, portalRef, page.Ref)
-	}
-}
-
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	// Extract analytics nested resources.
@@ -817,127 +792,8 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	}
 	rs.APIDocuments = flattenedDocs
 
-	// Extract nested Portal child resources
 	for i := range rs.Portals {
-		portal := &rs.Portals[i]
-
-		// Extract customization (single resource)
-		if portal.Customization != nil {
-			customization := *portal.Customization
-			customization.Portal = portal.Ref // Set parent reference
-			rs.PortalCustomizations = append(rs.PortalCustomizations, customization)
-		}
-
-		// Extract auth settings (single resource)
-		if portal.AuthSettings != nil {
-			authSettings := *portal.AuthSettings
-			authSettings.Portal = portal.Ref
-			rs.PortalAuthSettings = append(rs.PortalAuthSettings, authSettings)
-		}
-
-		// Extract IP allow list (single resource)
-		if portal.IPAllowList != nil {
-			allowList := *portal.IPAllowList
-			allowList.Portal = portal.Ref
-			rs.PortalIPAllowLists = append(rs.PortalIPAllowLists, allowList)
-		}
-
-		// Extract integrations configuration (single resource)
-		if portal.Integrations != nil {
-			integration := *portal.Integrations
-			integration.Portal = portal.Ref
-			rs.PortalIntegrations = append(rs.PortalIntegrations, integration)
-		}
-
-		// Extract auth strategies
-		for j := range portal.IdentityProviders {
-			provider := portal.IdentityProviders[j]
-			provider.Portal = portal.Ref
-			rs.PortalIdentityProviders = append(rs.PortalIdentityProviders, provider)
-		}
-
-		// Extract custom domain (single resource)
-		if portal.CustomDomain != nil {
-			customDomain := *portal.CustomDomain
-			customDomain.Portal = portal.Ref // Set parent reference
-
-			rs.PortalCustomDomains = append(rs.PortalCustomDomains, customDomain)
-		}
-
-		// Extract pages (with recursive flattening)
-		for j := range portal.Pages {
-			page := portal.Pages[j]
-			page.Portal = portal.Ref // Set parent reference
-			l.extractPortalPages(&rs.PortalPages, page, portal.Ref, "")
-		}
-
-		// Extract snippets
-		for j := range portal.Snippets {
-			snippet := portal.Snippets[j]
-			snippet.Portal = portal.Ref // Set parent reference
-			rs.PortalSnippets = append(rs.PortalSnippets, snippet)
-		}
-
-		// Extract teams
-		for j := range portal.Teams {
-			team := portal.Teams[j]
-			team.Portal = portal.Ref // Set parent reference
-			for k := range team.Roles {
-				role := team.Roles[k]
-				role.Portal = portal.Ref
-				role.Team = team.Ref
-				rs.PortalTeamRoles = append(rs.PortalTeamRoles, role)
-			}
-			for k := range team.GroupMappings {
-				mapping := team.GroupMappings[k]
-				mapping.Portal = portal.Ref
-				mapping.Team = team.Ref
-				rs.PortalTeamGroupMappings = append(rs.PortalTeamGroupMappings, mapping)
-			}
-			team.Roles = nil
-			team.GroupMappings = nil
-			rs.PortalTeams = append(rs.PortalTeams, team)
-		}
-
-		// Extract email config (singleton)
-		if portal.EmailConfig != nil {
-			cfg := *portal.EmailConfig
-			cfg.Portal = portal.Ref
-			rs.PortalEmailConfigs = append(rs.PortalEmailConfigs, cfg)
-		}
-
-		// Extract audit-log webhook (singleton)
-		if portal.AuditLogWebhook != nil {
-			webhook := *portal.AuditLogWebhook
-			webhook.Portal = portal.Ref
-			rs.PortalAuditLogWebhooks = append(rs.PortalAuditLogWebhooks, webhook)
-		}
-
-		// Extract email templates (map keyed by template name)
-		for key, tpl := range portal.EmailTemplates {
-			if tpl.Name == "" {
-				tpl.Name = kkComps.EmailTemplateName(key)
-			}
-			if tpl.Ref == "" {
-				tpl.Ref = key
-			}
-			tpl.Portal = portal.Ref
-			rs.PortalEmailTemplates = append(rs.PortalEmailTemplates, tpl)
-		}
-
-		// Clear nested resources from Portal
-		portal.Customization = nil
-		portal.AuthSettings = nil
-		portal.IPAllowList = nil
-		portal.Integrations = nil
-		portal.IdentityProviders = nil
-		portal.CustomDomain = nil
-		portal.Pages = nil
-		portal.Snippets = nil
-		portal.Teams = nil
-		portal.EmailConfig = nil
-		portal.AuditLogWebhook = nil
-		portal.EmailTemplates = nil
+		rs.ExtractRegisteredChildren(&rs.Portals[i])
 	}
 
 	// Extract nested Event Gateway child resources so that deferred !env

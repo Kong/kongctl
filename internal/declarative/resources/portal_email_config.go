@@ -9,10 +9,20 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalEmailConfig,
 		func(rs *ResourceSet) *[]PortalEmailConfigResource { return &rs.PortalEmailConfigs },
 		AutoExplain[PortalEmailConfigResource](),
+		childLoad[PortalEmailConfigResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  100,
+			validateOrder: 100,
+			validate:      validatePortalEmailConfigChildren,
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalEmailConfigResource { return &p.EmailConfig },
+				func(r *PortalEmailConfigResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -136,5 +146,37 @@ func (c *PortalEmailConfigResource) UnmarshalJSON(data []byte) error {
 		c.ReplyToEmailSet = true
 	}
 
+	return nil
+}
+
+func validatePortalEmailConfigChildren(_ *ResourceSet, children []PortalEmailConfigResource) error {
+	portalConfigRefs := make(map[string]bool)
+	portalToConfigRef := make(map[string]string)
+	for i := range children {
+		cfg := &children[i]
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_email_config %q: %w", cfg.GetRef(), err)
+		}
+		for j := i + 1; j < len(children); j++ {
+			if children[j].GetRef() == cfg.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_config)", cfg.GetRef())
+			}
+		}
+		if cfg.Portal == "" {
+			return fmt.Errorf("portal_email_config %q must specify portal", cfg.GetRef())
+		}
+		if portalConfigRefs[cfg.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_config)", cfg.GetRef())
+		}
+		portalConfigRefs[cfg.GetRef()] = true
+
+		if existingRef, ok := portalToConfigRef[cfg.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_email_config entries target portal %q (%s and %s)",
+				cfg.Portal, existingRef, cfg.GetRef(),
+			)
+		}
+		portalToConfigRef[cfg.Portal] = cfg.GetRef()
+	}
 	return nil
 }

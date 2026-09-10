@@ -9,20 +9,35 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalPage,
 		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
 		AutoExplain[PortalPageResource](),
+		childLoad[PortalPageResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  70,
+			validateOrder: 10,
+			validate:      validatePortalChildRefs[PortalPageResource],
+			extract:       extractPortalPageChildren,
+		},
 		WithExternalUnsupportedReason("scoped portal page lookup is planned for Portal domain enablement"),
 		WithNamespaceFrom(func(rs *ResourceSet, r *PortalPageResource) *PortalResource {
 			return rs.GetPortalByRef(r.Portal)
 		}),
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalPageResource) string { return r.Portal }),
 	)
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalSnippet,
 		func(rs *ResourceSet) *[]PortalSnippetResource { return &rs.PortalSnippets },
 		AutoExplain[PortalSnippetResource](),
+		childLoad[PortalSnippetResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  80,
+			validateOrder: 20,
+			validate:      validatePortalChildRefs[PortalSnippetResource],
+			nested:        func(p *PortalResource) *[]PortalSnippetResource { return &p.Snippets },
+			setParent:     func(r *PortalSnippetResource, ref string) { r.Portal = ref },
+		},
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalSnippetResource) string { return r.Portal }),
 	)
 }
@@ -305,4 +320,35 @@ func (s *PortalSnippetResource) TryMatchKonnectResource(konnectResource any) boo
 		return true
 	}
 	return false
+}
+
+func extractPortalPageChildren(_ *ResourceSet, portal *PortalResource, destination *[]PortalPageResource) {
+	for _, page := range portal.Pages {
+		extractPortalPages(destination, page, portal.Ref, "")
+	}
+	portal.Pages = nil
+}
+
+// extractPortalPages recursively extracts and flattens nested portal pages
+func extractPortalPages(
+	allPages *[]PortalPageResource,
+	page PortalPageResource,
+	portalRef string,
+	parentPageRef string,
+) {
+	// Set portal and parent references
+	page.Portal = portalRef
+	page.ParentPageRef = parentPageRef
+
+	// Process children before clearing them
+	children := page.Children
+	page.Children = nil // Clear children from the page before appending
+
+	// Append current page
+	*allPages = append(*allPages, page)
+
+	// Recursively process children
+	for _, child := range children {
+		extractPortalPages(allPages, child, portalRef, page.Ref)
+	}
 }

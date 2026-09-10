@@ -7,10 +7,16 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalTeamRole,
 		func(rs *ResourceSet) *[]PortalTeamRoleResource { return &rs.PortalTeamRoles },
 		AutoExplain[PortalTeamRoleResource](),
+		childLoad[PortalTeamRoleResource, PortalTeamResource]{
+			family:                  ResourceTypePortal,
+			extractOrder:            10,
+			validationOmittedReason: "Portal team roles are not validated by the loader",
+			extract:                 extractPortalTeamRoleChildren,
+		},
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalTeamRoleResource) string { return r.Portal }),
 	)
 }
@@ -218,4 +224,13 @@ func (r *PortalTeamRoleResource) UnmarshalJSON(data []byte) error {
 	r.EntityRegion = temp.EntityRegion
 
 	return nil
+}
+
+func extractPortalTeamRoleChildren(_ *ResourceSet, team *PortalTeamResource, destination *[]PortalTeamRoleResource) {
+	for _, child := range team.Roles {
+		child.Portal = team.Portal
+		child.Team = team.Ref
+		*destination = append(*destination, child)
+	}
+	team.Roles = nil
 }
