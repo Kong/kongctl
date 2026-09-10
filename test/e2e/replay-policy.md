@@ -5,6 +5,16 @@ cassette on disk alone does not enable a scenario. Every enabled scenario
 must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
+The initial enabled subset is `control-plane/get`, `control-plane/apply`,
+`control-plane/plan/apply-workflow`, and `control-plane/sync`.
+
+| Scenario | Successful recording and three isolated replays |
+| --- | --- |
+| get | [34377519108](https://github.com/Kong/kongctl/actions/runs/34377519108) |
+| apply | [34427742802](https://github.com/Kong/kongctl/actions/runs/34427742802) |
+| plan/apply-workflow | [34428189915](https://github.com/Kong/kongctl/actions/runs/34428189915) |
+| sync | [34428188131](https://github.com/Kong/kongctl/actions/runs/34428188131) |
+
 ## Routing
 
 Same-repository PRs targeting `.com` run the enabled subset through a local

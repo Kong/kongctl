@@ -696,7 +696,9 @@ jobs:
   e2e-replay:
     name: Replay Control Plane scenarios
     needs: [e2e-needed, e2e-build, e2e-harness]
-    if: needs.e2e-build.outputs.replay_count != '0' && needs.e2e-build.outputs.replay_mode == 'pr'
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.e2e-build.outputs.replay_count != '0' && needs.e2e-build.outputs.replay_mode == 'pr'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # No environment, credentials or org lock. The enclosing workflow queue
@@ -1082,6 +1084,7 @@ jobs:
           path: .downloaded-replay
 
       - name: Verify offline replay coverage
+        if: github.event_name == 'pull_request'
         env:
           REPLAY_MODE: ${{ needs.e2e-build.outputs.replay_mode }}
           REPLAY_RESULT: ${{ needs.e2e-replay.result }}
@@ -1139,7 +1142,12 @@ jobs:
           # The preceding check validates this partition against the complete
           # inventory and independently verifies every replay result. Live
           # manifests/results must cover exactly the remaining scenarios.
-          jq -r '.live[]' e2e-routing.json | sort > "${expected}"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            jq -r '.live[]' e2e-routing.json | sort > "${expected}"
+          else
+            find test/e2e/scenarios -name scenario.yaml -type f | \
+              sed 's#^test/e2e/scenarios/##' | sort > "${expected}"
+          fi
 
           mapfile -t manifests < <(find .downloaded-artifacts -name assigned-scenarios.txt -type f | sort)
           if [ "${#manifests[@]}" -eq 0 ]; then

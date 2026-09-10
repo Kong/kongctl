@@ -94,6 +94,14 @@ def main():
         "commit": commit, "run_id": os.environ["GITHUB_RUN_ID"],
         "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]), "scenarios": summaries,
     })
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+            output.write("## Offline replay results\n\n")
+            output.write("| Scenario | Scenario seconds | Wrapper seconds | Interactions |\n")
+            output.write("| --- | ---: | ---: | ---: |\n")
+            for summary in summaries:
+                output.write(f"| {summary['scenario']} | {summary['scenario_seconds']} | "
+                             f"{summary['elapsed_seconds']} | {summary['interactions']} |\n")
 
 
 if __name__ == "__main__":
