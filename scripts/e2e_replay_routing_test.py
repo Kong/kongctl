@@ -38,8 +38,11 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("ref: ${{ github.sha }}", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
-        self.assertIn("python3 .e2e-verifier-tools/scripts/e2e-replay-routing.py verify", suite)
-        self.assertIn('--root "$GITHUB_WORKSPACE"', suite)
+        replay_verifier = suite.split("  e2e-replay-verify:", 1)[1].split("  e2e-verify:", 1)[0]
+        self.assertIn("github.event_name == 'pull_request'", replay_verifier)
+        self.assertIn("ref: ${{ github.sha }}", replay_verifier)
+        self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_verifier)
+        self.assertIn("REPLAY_VERIFY_RESULT: ${{ needs.e2e-replay-verify.result }}", suite)
         self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
         self.assertIn("github.event.label.name == 'e2e:force-live'", status)
         self.assertIn("- labeled", status)
