@@ -78,6 +78,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: trustBundleID
+          responsePath: "[?name=='{{ .vars.trustBundleName }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -88,6 +91,36 @@ steps:
               fields:
                 name: "{{ .vars.trustBundleName }}"
                 description: "Default TLS Trust Bundle description"
+      - name: 004-get-tls-trust-bundle-by-name
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - "{{ .vars.trustBundleName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.trustBundleName }}"
+      - name: 005-get-tls-trust-bundle-by-id
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - "{{ .vars.trustBundleID }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.trustBundleName }}"
   - name: 002-plan-apply-update
     # TLS trust bundles support UPDATE – changing description triggers UPDATE.
     inputOverlayDirs:
