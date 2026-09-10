@@ -27,7 +27,9 @@ LEGACY_ALLOCATION = "modulo-v1"
 
 
 def valid_allocation(value: Any) -> bool:
-    return isinstance(value, str) and re.fullmatch(r"modulo-v1|weighted-v1:[0-9a-f]{64}", value) is not None
+    return isinstance(value, str) and re.fullmatch(
+        r"(modulo-v1|weighted-v1:[0-9a-f]{64})(:pr-replay:[0-9a-f]{64})?", value,
+    ) is not None
 
 
 def metric_allocation(metric: dict[str, Any]) -> str | None:
@@ -588,7 +590,7 @@ def main() -> int:
     parser.add_argument("--scan", type=int, default=100)
     parser.add_argument("--cohort", choices=COHORTS, default="cache-enabled")
     parser.add_argument("--allocation-id", default=LEGACY_ALLOCATION,
-                        help="modulo-v1 or weighted-v1:<snapshot SHA-256>; never pool allocations")
+                        help="modulo-v1 or weighted-v1:<snapshot SHA-256>, optionally :pr-replay:<membership SHA-256>; never pool allocations")
     parser.add_argument("--frozen", action="store_true", help="report saved observations without collecting")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
@@ -606,7 +608,7 @@ def main() -> int:
     if args.count < 1 or args.scan < 1:
         parser.error("--count and --scan must be positive")
     if not valid_allocation(args.allocation_id):
-        parser.error("invalid --allocation-id; use modulo-v1 or weighted-v1:<64 lowercase hex characters>")
+        parser.error("invalid --allocation-id; expected modulo-v1 or weighted-v1:<SHA-256>, optionally :pr-replay:<SHA-256>")
     if args.frozen and (args.observations is None or not args.observations.exists()):
         parser.error("--frozen requires an existing --observations file")
 
