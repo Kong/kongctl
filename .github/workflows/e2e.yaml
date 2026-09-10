@@ -475,7 +475,7 @@ jobs:
             printf '%s' \
               '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*' \
               '|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml' \
-              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e_replay.*\.py|scripts/e2e-replay-isolated\.sh)$'
+              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e_replay.*\.(py|txt)|scripts/e2e-replay-isolated\.sh)$'
           )"
 
           if grep -Eq "${e2e_pattern}" "${changed_files}"; then

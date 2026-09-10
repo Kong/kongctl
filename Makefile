@@ -134,7 +134,7 @@ test-e2e-replay: build-e2e-replay
 setup-e2e-replay: .e2e-artifacts/replay-python/yaml/__init__.py
 
 .e2e-artifacts/replay-python/yaml/__init__.py: scripts/e2e_replay_requirements.txt
-	python3 -m pip install --disable-pip-version-check --upgrade \
+	python3 -m pip install --disable-pip-version-check --only-binary=:all: --upgrade \
 		--target .e2e-artifacts/replay-python -r scripts/e2e_replay_requirements.txt
 
 .PHONY: test-integration

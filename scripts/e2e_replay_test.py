@@ -27,6 +27,7 @@ class ReplayTest(unittest.TestCase):
         for scenario in MODULE.SCENARIOS:
             with self.subTest(scenario=scenario):
                 MODULE.check_eligibility(MODULE.ROOT / "test/e2e/scenarios" / scenario)
+                MODULE.fixture_strings(MODULE.ROOT / "test/e2e/scenarios" / scenario)
 
     def test_recording_workflow_shares_live_org_lock(self):
         live = (MODULE.ROOT / ".github/workflows/e2e.yaml").read_text()
@@ -118,9 +119,11 @@ class ReplayTest(unittest.TestCase):
             root = Path(directory)
             (root / "testdata").mkdir()
             (root / "testdata/spec.yaml").write_text(
-                'openapi: "3.0.0"\ninfo:\n  contact:\n    email: public@example.com\n')
+                'openapi: "3.0.0"\ninfo:\n  contact:\n    email: public@example.com\n'
+                'example: 2026-09-10T12:00:00Z\n')
             fixtures = MODULE.fixture_strings(root)
-            wire = '{"info":{"contact":{"email":"public@example.com"}},"openapi":"3.0.0"}'
+            wire = ('{"info":{"contact":{"email":"public@example.com"}},"openapi":"3.0.0",'
+                    '"example":"2026-09-10T12:00:00Z"}')
             MODULE.check_safe({"content": wire}, fixtures)
             self.assertEqual(wire, MODULE.Sanitizer(fixtures).normalize(wire))
             with self.assertRaises(ValueError):

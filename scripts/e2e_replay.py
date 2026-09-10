@@ -150,8 +150,13 @@ def fixture_strings(directory):
         strings.add(content)
         if re.search(r'(?m)^openapi:|^swagger:', content):
             import yaml
+            class FixtureLoader(yaml.SafeLoader):
+                pass
+            # sigs.k8s.io/yaml leaves timestamp scalars as strings for JSON.
+            # PyYAML otherwise creates datetime objects before serialization.
+            FixtureLoader.add_constructor("tag:yaml.org,2002:timestamp", FixtureLoader.construct_scalar)
             try:
-                spec = yaml.safe_load(content)
+                spec = yaml.load(content, Loader=FixtureLoader)
                 specs.add(canonical(spec))
             except (yaml.YAMLError, TypeError, ValueError):
                 raise ValueError("public OpenAPI fixture must be valid JSON-compatible YAML") from None
