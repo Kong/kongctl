@@ -4,6 +4,7 @@
     "control-plane/apply",
     "control-plane/get",
     "control-plane/plan/apply-workflow",
-    "control-plane/sync"
+    "control-plane/sync",
+    "portal/sync"
   ]
 }

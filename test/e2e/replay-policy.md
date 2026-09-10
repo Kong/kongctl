@@ -1,24 +1,28 @@
-# PR Control Plane replay
+# PR scenario replay
 
 `replay-scenarios.json` is the explicit list of replay-enabled scenarios. A
 cassette on disk alone does not enable a scenario. Every enabled scenario
 must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
-The initial enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, and `control-plane/sync`.
+The enabled subset is `control-plane/get`, `control-plane/apply`,
+`control-plane/plan/apply-workflow`, `control-plane/sync`, and `portal/sync`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
 | get | [34377519108][get] |
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
-| sync | [34428188131][sync] |
+| sync | [Recording][sync], [isolated phases][sync-replay] |
+| portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
-[sync]: https://github.com/Kong/kongctl/actions/runs/34428188131
+[sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
+[sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
+[portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
+[portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 
 ## Routing
 
@@ -66,14 +70,103 @@ the isolated replay job passes. Commit it under the scenario's
 `replay/cassette.json` and add its directory to the sorted policy list. The
 recorder never commits or overwrites reviewed cassettes automatically.
 
+New recordings use cassette schema v2, which also preserves an allowlisted
+response media type (`application/json` or `application/problem+json`; absent
+is allowed only for an empty body). This is significant: the SDK uses the
+problem media type to classify expected 404s as typed not-found errors.
+Remaining v1 Control Plane cassettes retain their original JSON response
+behavior. Arbitrary response headers, cookies, and authorization are never
+recorded. A failed scenario publishes no candidate; diagnostics contain only
+local command names and bounded, already-sanitized HTTP error exchanges.
+
+V2 cassettes may explicitly annotate `parallel_phases`: disjoint, one-based
+interaction ranges of 2–64 exchanges. Outside those ranges, order stays strict.
+Inside a range every method, path, query, and body must still match exactly,
+once. Generated UUID references depend on their recorded creation. Repeated
+targets keep their stream order, except distinct successful creates with
+distinct generated IDs. Ancestor reads cannot cross updates or deletes.
+Additional `after` dependencies can constrain ordering but cannot remove these
+mandatory dependencies. Never annotate a whole scenario as unordered.
+
+The Portal candidate annotations separate initial inventory, initial creation,
+individual read-only planning/dump commands, and final cleanup. Publication
+removal and API deletion remain barriers; reads from later scenario states
+cannot satisfy earlier requests. An annotation is a reviewed assertion about
+independent operations, not a general simulation of Konnect state.
+
+Control Plane sync annotates only exchanges 4–6: creating the new control
+plane is independent of looking up/deleting the old one, but the old lookup
+must precede its deletion. All inventory and final-cleanup requests retain
+strict order. Its v2 cassette passed three isolated replays; the original
+strict-order flake was also reproduced using the unchanged main replay engine.
+
+To iterate on an existing candidate without resetting a live organization:
+
+```sh
+gh workflow run e2e-replay.yaml --repo Kong/kongctl \
+  --ref YOUR_REVIEWED_BRANCH -f mode=replay -f scenario=portal/sync \
+  -f source_run=34517553668
+```
+
+Only candidate JSON is downloaded from the source run; executables are built
+from the selected branch. Optional `replay/parallel-phases.json` annotations
+are bound to the exact source cassette SHA-256. A different recording requires
+new review, not reuse of old positional assumptions. All three isolated
+replays must pass before promoting `validated-cassette.json` from the result
+artifact. Recording never applies annotations from another run.
+
+Large validated v2 cassettes can be stored as ordered JSON chunks, each at
+most 400,000 bytes, below the repository's per-file limit:
+
+```sh
+python3 scripts/e2e_replay.py pack --scenario portal/sync \
+  --cassette PATH_TO_VALIDATED_CASSETTE --output-dir NEW_DIRECTORY
+```
+
+The new directory contains `cassette.json` and `interactions/*.json`. Promote
+both together. Chunk names are SHA-256 digests checked on every load; chunks
+are local, bounded, and cannot be symlinks. Packing verifies an exact round
+trip: all recorded requests, responses, ordering and provenance are unchanged.
+It is only a storage format, not a sanitizer or approval mechanism. Run the
+packed cassette through isolated replay as part of PR validation too.
+
 Scenario-local overlays and workdir-local generated plan files are supported.
-Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed;
-external inputs, arbitrary environment overrides and custom creation commands
-remain unsupported. Every input/overlay/assertion file is fingerprinted.
+Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
+Plain scalar `!file` references may resolve to existing files inside scenario
+`testdata`, including references from overlays copied onto that tree. Remote
+files, parent traversal, symlinks, arbitrary environment overrides and custom
+creation commands remain unsupported. Every input/overlay/assertion file is
+fingerprinted, including document and OpenAPI content.
+
+Public document/spec strings containing example credentials or email addresses
+are preserved only when they match a fingerprinted input file: exact text for
+documents, or the complete parsed OpenAPI object when kongctl serializes a YAML
+spec as JSON. This does not exempt substrings, changed fields, sensitive JSON
+field names outside an opaque public spec, or the recording credential itself.
+Literal URLs in these payloads are data, not permission to fetch them; replay
+still has loopback-only networking.
+
+The secret-scan baseline lists only reviewed integrity hashes and the exact
+existing public example value repeated in the Portal fixture. It does not
+exclude cassette directories or weaken the recorder's sensitive-data checks.
+
+`make setup-e2e-replay` installs the pinned test-only YAML parser into ignored
+`.e2e-artifacts/replay-python`. Build/check/metrics Make targets include this
+setup; CI performs it before network isolation. No kongctl dependency changes.
+Dependency installation belongs to job setup, not scenario execution savings.
+
+`portal/sync` is enabled after its complete live scenario and three isolated
+replays passed (293 HTTP interactions each), followed by three isolated
+replays of the packed cassette. No scenario assertions were
+removed to obtain a successful recording. The isolated wrappers took
+3.68–4.26 seconds across both validations, compared with 18.82 seconds for the
+same-source normal live scenario and a 22.72-second historical median.
+Recording's own 47.37-second
+scenario duration includes proxy overhead and is not the live baseline.
 
 Group scenarios have exhibited nondeterministic independent request ordering
-and must stay live until explicit bounded unordered interactions are designed
-and validated. Serverless additionally uses a harness creation command. The
+and stay live pending reviewed phase annotations and isolated validation.
+Serverless additionally uses a harness creation command. The
 certificate scenario needs a reviewed public-PEM and environment-input policy.
 Product maturity alone is not sufficient to enable these scenarios.
 
@@ -90,3 +183,11 @@ before/after resets are useful feasibility evidence, not a direct estimate of
 normal shard savings. Shared shard setup/reset remains while any live work
 uses that shard. Measure the longest shard and total workflow duration,
 including replay startup/download overhead, before claiming a net speedup.
+
+The PR replay job summary compares each scenario's wrapper duration with its
+historical live median and sample count from
+`baselines/weighted-v1-2026-09-observations.json`. Missing history is shown as
+`n/a`, not zero. This frozen September 6–9 baseline includes normal scenario
+resets. The percentages describe execution work, not a causal estimate of PR
+completion time. Keep collecting reduced-live allocation cohorts separately
+to evaluate the longest remaining shard and queue/admission delays.

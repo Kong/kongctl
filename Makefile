@@ -115,20 +115,27 @@ refresh-e2e-weights:
 		test/e2e/baselines/post-cache-2026-09-observations.json
 
 .PHONY: test-e2e-metrics
-test-e2e-metrics:
+test-e2e-metrics: setup-e2e-replay
 	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'
 
 # Local recording/replay tools; CI PR eligibility lives in replay-scenarios.json.
 .PHONY: build-e2e-replay test-e2e-replay check-e2e-replay
-build-e2e-replay: build
+build-e2e-replay: setup-e2e-replay build
 	CGO_ENABLED=0 go test -c -tags=e2e -o .e2e-artifacts/replay-bin/e2e.test ./test/e2e
 	CGO_ENABLED=0 go build -tags=e2e -o .e2e-artifacts/replay-bin/reset-org ./test/e2e/harness/cmd/reset-org
 
-check-e2e-replay:
+check-e2e-replay: setup-e2e-replay
 	python3 scripts/e2e_replay.py check
 
 test-e2e-replay: build-e2e-replay
 	python3 scripts/e2e_replay.py replay --test-binary .e2e-artifacts/replay-bin/e2e.test
+
+.PHONY: setup-e2e-replay
+setup-e2e-replay: .e2e-artifacts/replay-python/yaml/__init__.py
+
+.e2e-artifacts/replay-python/yaml/__init__.py: scripts/e2e_replay_requirements.txt
+	python3 -m pip install --disable-pip-version-check --only-binary=:all: --upgrade \
+		--target .e2e-artifacts/replay-python -r scripts/e2e_replay_requirements.txt
 
 .PHONY: test-integration
 test-integration:

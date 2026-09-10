@@ -475,7 +475,7 @@ jobs:
             printf '%s' \
               '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*' \
               '|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml' \
-              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e_replay.*\.py|scripts/e2e-replay-isolated\.sh)$'
+              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e_replay.*\.(py|txt)|scripts/e2e-replay-isolated\.sh)$'
           )"
 
           if grep -Eq "${e2e_pattern}" "${changed_files}"; then
@@ -682,6 +682,7 @@ jobs:
         run: |
           mode=live
           if [ "$PR_REPLAY" = true ]; then mode='pr'; fi
+          if [ "$mode" = pr ]; then make setup-e2e-replay; fi
           python3 scripts/e2e_replay_routing.py plan --mode "$mode"
           echo "replay_mode=$mode" >> "$GITHUB_OUTPUT"
           cat e2e-routing.json >> "$GITHUB_STEP_SUMMARY"
@@ -694,7 +695,7 @@ jobs:
           overwrite: true
 
   e2e-replay:
-    name: Replay Control Plane scenarios
+    name: Replay approved scenarios
     needs: [e2e-needed, e2e-build, e2e-harness]
     if: >-
       github.event_name == 'pull_request' &&
@@ -718,8 +719,10 @@ jobs:
           name: e2e-routing-${{ github.run_id }}
       - name: Run offline replay
         run: |
+          make setup-e2e-replay
           chmod +x kongctl e2e.test
-          python3 scripts/e2e_replay_routing.py run --mode pr
+          python3 scripts/e2e_replay_routing.py run --mode pr \
+            --baseline test/e2e/baselines/weighted-v1-2026-09-observations.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-replay-results-${{ github.run_id }}-${{ github.run_attempt }}
@@ -1071,6 +1074,7 @@ jobs:
             echo '::error::Required replay job did not succeed.'
             exit 1
           fi
+          if [ "$REPLAY_MODE" = pr ]; then make setup-e2e-replay; fi
           python3 scripts/e2e_replay_routing.py verify --mode "$REPLAY_MODE" --results .downloaded-replay
           echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)" >> "$GITHUB_STEP_SUMMARY"
 
