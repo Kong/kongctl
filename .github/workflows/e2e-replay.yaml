@@ -41,7 +41,9 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test matcher, sanitization, TLS and stale-cassette checks
-        run: python3 -m unittest discover -s scripts -p e2e_replay_test.py
+        run: |
+          make setup-e2e-replay
+          python3 -m unittest discover -s scripts -p e2e_replay_test.py
       - name: Build experiment binaries
         run: make build-e2e-replay
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -79,6 +81,7 @@ jobs:
           KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
           REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
+          make setup-e2e-replay
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test .e2e-artifacts/replay-bin/reset-org
           python3 scripts/e2e_replay.py record \
             --scenario "$REPLAY_SCENARIO" \
@@ -120,6 +123,7 @@ jobs:
           REPLAY_MODE: ${{ inputs.mode || 'replay' }}
           REPLAY_SCENARIO: ${{ inputs.scenario || 'control-plane/get' }}
         run: |
+          make setup-e2e-replay
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test
           case "$REPLAY_MODE" in
             record)

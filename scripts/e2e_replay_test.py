@@ -58,7 +58,7 @@ class ReplayTest(unittest.TestCase):
         connection = MagicMock()
         connection.getresponse.return_value = response
         with patch.object(MODULE.http.client, "HTTPSConnection", return_value=connection):
-            engine = MODULE.Replay(token="private-credential")
+            engine = MODULE.Replay(token="private-credential", fixtures=frozenset(["private-credential"]))
             with self.assertRaisesRegex(ValueError, "credential echoed"):
                 engine.exchange("us.api.konghq.com", "GET", "/v2/control-planes", b"")
         self.assertEqual([], engine.interactions)
@@ -112,6 +112,19 @@ class ReplayTest(unittest.TestCase):
         for value in [public + "extra", "author@example.com", {"token": public}]:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 MODULE.check_safe(value, fixtures)
+
+    def test_yaml_spec_serialized_as_json_remains_a_public_fixture(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "testdata").mkdir()
+            (root / "testdata/spec.yaml").write_text(
+                'openapi: "3.0.0"\ninfo:\n  contact:\n    email: public@example.com\n')
+            fixtures = MODULE.fixture_strings(root)
+            wire = '{"info":{"contact":{"email":"public@example.com"}},"openapi":"3.0.0"}'
+            MODULE.check_safe({"content": wire}, fixtures)
+            self.assertEqual(wire, MODULE.Sanitizer(fixtures).normalize(wire))
+            with self.assertRaises(ValueError):
+                MODULE.check_safe({"content": wire.replace("public@", "private@")}, fixtures)
 
     def test_matches_query_order_and_json_structurally(self):
         engine = MODULE.Replay({"interactions": [interaction("POST", b'{"a":1,"b":2}') ]})

@@ -26,6 +26,9 @@ from urllib.parse import parse_qsl, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+# CI installs the pinned parser here before entering network isolation. Local
+# users can install the same requirements in their active Python environment.
+sys.path.insert(0, str(ROOT / ".e2e-artifacts/replay-python"))
 SCENARIO = "control-plane/get"
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
@@ -139,25 +142,61 @@ def fixture_strings(directory):
     These files are fingerprinted with the scenario. Preserve exact payloads
     containing example credentials/emails; never exempt a modified payload.
     """
-    return frozenset(path.read_text(encoding="utf-8") for path in (directory / "testdata").rglob("*")
-                     if path.is_file() and path.suffix in (".md", ".yaml", ".json"))
+    strings, specs = set(), set()
+    for path in (directory / "testdata").rglob("*"):
+        if not path.is_file() or path.suffix not in (".md", ".yaml", ".json"):
+            continue
+        content = path.read_text(encoding="utf-8")
+        strings.add(content)
+        if re.search(r'(?m)^openapi:|^swagger:', content):
+            import yaml
+            try:
+                spec = yaml.safe_load(content)
+                specs.add(canonical(spec))
+            except (yaml.YAMLError, TypeError, ValueError):
+                raise ValueError("public OpenAPI fixture must be valid JSON-compatible YAML") from None
+        elif path.suffix == ".json":
+            spec = parse_json(content)
+            if isinstance(spec, dict) and ("openapi" in spec or "swagger" in spec):
+                specs.add(canonical(spec))
+    return PublicFixtures(strings, specs)
 
 
-def check_safe(value, fixtures=frozenset()):
+class PublicFixtures:
+    """Exact whole strings or whole OpenAPI objects; never individual fields."""
+
+    def __init__(self, strings, specs):
+        self.strings, self.specs = strings, specs
+
+    def __contains__(self, value):
+        if value in self.strings:
+            return True
+        if self.specs and value.lstrip().startswith("{"):
+            try:
+                return canonical(parse_json(value)) in self.specs
+            except ValueError:
+                pass
+        return False
+
+
+def check_safe(value, fixtures=frozenset(), location="exchange"):
     """Fail closed on sensitive fields; never persist arbitrary HTTP headers."""
     if isinstance(value, dict):
         for key, item in value.items():
             if SENSITIVE_KEY.search(key):
-                raise ValueError("sensitive field: cassette requires explicit sanitizer review")
-            check_safe(item, fixtures)
+                raise ValueError(f"sensitive field at {location}: cassette requires explicit sanitizer review")
+            # Only known structural names enter diagnostics, never arbitrary
+            # upstream keys, values, hashes or raw HTTP payloads.
+            field = key if key in {"request", "response", "body", "content", "spec", "description", "data"} else "field"
+            check_safe(item, fixtures, location + "." + field)
     elif isinstance(value, list):
         for item in value:
-            check_safe(item, fixtures)
+            check_safe(item, fixtures, location + "[]")
     elif isinstance(value, str):
         if value in fixtures:
             return
         if SENSITIVE_VALUE.search(value):
-            raise ValueError("sensitive value: refusing to publish cassette")
+            raise ValueError(f"sensitive value at {location}: refusing to publish cassette")
         for match in KONG_HOST.finditer(value):
             host = match.group().lower()
             if host not in HOSTS and not re.fullmatch(r"replay\.[a-z0-9-]+\.(cp|tp)\.konghq\.com", host):

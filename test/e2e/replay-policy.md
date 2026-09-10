@@ -1,4 +1,4 @@
-# PR Control Plane replay
+# PR scenario replay
 
 `replay-scenarios.json` is the explicit list of replay-enabled scenarios. A
 cassette on disk alone does not enable a scenario. Every enabled scenario
@@ -67,9 +67,30 @@ the isolated replay job passes. Commit it under the scenario's
 recorder never commits or overwrites reviewed cassettes automatically.
 
 Scenario-local overlays and workdir-local generated plan files are supported.
-Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed;
-external inputs, arbitrary environment overrides and custom creation commands
-remain unsupported. Every input/overlay/assertion file is fingerprinted.
+Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
+Plain scalar `!file` references may resolve to existing files inside scenario
+`testdata`, including references from overlays copied onto that tree. Remote
+files, parent traversal, symlinks, arbitrary environment overrides and custom
+creation commands remain unsupported. Every input/overlay/assertion file is
+fingerprinted, including document and OpenAPI content.
+
+Public document/spec strings containing example credentials or email addresses
+are preserved only when they match a fingerprinted input file: exact text for
+documents, or the complete parsed OpenAPI object when kongctl serializes a YAML
+spec as JSON. This does not exempt substrings, changed fields, sensitive JSON
+field names outside an opaque public spec, or the recording credential itself.
+Literal URLs in these payloads are data, not permission to fetch them; replay
+still has loopback-only networking.
+
+`make setup-e2e-replay` installs the pinned test-only YAML parser into ignored
+`.e2e-artifacts/replay-python`. Build/check/metrics Make targets include this
+setup; CI performs it before network isolation. No kongctl dependency changes.
+Dependency installation belongs to job setup, not scenario execution savings.
+
+`portal/sync` is a recording candidate, not yet an enabled PR replay scenario.
+Promote its cassette and policy membership only after the complete live scenario
+and three isolated replays pass. No scenario assertions are removed to obtain
+a successful recording.
 
 Group scenarios have exhibited nondeterministic independent request ordering
 and must stay live until explicit bounded unordered interactions are designed
@@ -90,3 +111,11 @@ before/after resets are useful feasibility evidence, not a direct estimate of
 normal shard savings. Shared shard setup/reset remains while any live work
 uses that shard. Measure the longest shard and total workflow duration,
 including replay startup/download overhead, before claiming a net speedup.
+
+The PR replay job summary compares each scenario's wrapper duration with its
+historical live median and sample count from
+`baselines/weighted-v1-2026-09-observations.json`. Missing history is shown as
+`n/a`, not zero. This frozen September 6–9 baseline includes normal scenario
+resets. The percentages describe execution work, not a causal estimate of PR
+completion time. Keep collecting reduced-live allocation cohorts separately
+to evaluate the longest remaining shard and queue/admission delays.

@@ -682,6 +682,7 @@ jobs:
         run: |
           mode=live
           if [ "$PR_REPLAY" = true ]; then mode='pr'; fi
+          if [ "$mode" = pr ]; then make setup-e2e-replay; fi
           python3 scripts/e2e_replay_routing.py plan --mode "$mode"
           echo "replay_mode=$mode" >> "$GITHUB_OUTPUT"
           cat e2e-routing.json >> "$GITHUB_STEP_SUMMARY"
@@ -718,6 +719,7 @@ jobs:
           name: e2e-routing-${{ github.run_id }}
       - name: Run offline replay
         run: |
+          make setup-e2e-replay
           chmod +x kongctl e2e.test
           python3 scripts/e2e_replay_routing.py run --mode pr \
             --baseline test/e2e/baselines/weighted-v1-2026-09-observations.json
@@ -1072,6 +1074,7 @@ jobs:
             echo '::error::Required replay job did not succeed.'
             exit 1
           fi
+          if [ "$REPLAY_MODE" = pr ]; then make setup-e2e-replay; fi
           python3 scripts/e2e_replay_routing.py verify --mode "$REPLAY_MODE" --results .downloaded-replay
           echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)" >> "$GITHUB_STEP_SUMMARY"
 
