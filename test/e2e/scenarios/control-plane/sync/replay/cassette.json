@@ -1,11 +1,11 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "scenario": "control-plane/sync",
   "inputs_sha256": "sha256:8debabc66b7a05d49531839a02b331e039b9d6a3e6d6106370fe4683e9283a80",
   "source": {
     "kind": "recorded",
-    "commit": "20c21fc1241d25de11f671becbedd1ac62ef9742",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/34428188131"
+    "commit": "a7637f06317a0bdb4d192f80456abb225e12efae",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/34520312018"
   },
   "interactions": [
     {
@@ -36,7 +36,8 @@
             }
           },
           "data": []
-        }
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -71,9 +72,10 @@
             "cloud_gateway": false,
             "proxy_urls": []
           },
-          "created_at": "2026-09-10T02:12:14.337Z",
-          "updated_at": "2026-09-10T02:12:14.337Z"
-        }
+          "created_at": "2026-09-10T19:30:07.279Z",
+          "updated_at": "2026-09-10T19:30:07.279Z"
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -119,11 +121,12 @@
                 "cloud_gateway": false,
                 "proxy_urls": []
               },
-              "created_at": "2026-09-10T02:12:14.337Z",
-              "updated_at": "2026-09-10T02:12:14.337Z"
+              "created_at": "2026-09-10T19:30:07.279Z",
+              "updated_at": "2026-09-10T19:30:07.279Z"
             }
           ]
-        }
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -151,9 +154,10 @@
             "cloud_gateway": false,
             "proxy_urls": []
           },
-          "created_at": "2026-09-10T02:12:14.337Z",
-          "updated_at": "2026-09-10T02:12:14.337Z"
-        }
+          "created_at": "2026-09-10T19:30:07.279Z",
+          "updated_at": "2026-09-10T19:30:07.279Z"
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -188,9 +192,10 @@
             "cloud_gateway": false,
             "proxy_urls": []
           },
-          "created_at": "2026-09-10T02:12:15.543Z",
-          "updated_at": "2026-09-10T02:12:15.543Z"
-        }
+          "created_at": "2026-09-10T19:30:07.919Z",
+          "updated_at": "2026-09-10T19:30:07.919Z"
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -203,7 +208,8 @@
       },
       "response": {
         "status": 204,
-        "body": null
+        "body": null,
+        "content_type": null
       }
     },
     {
@@ -249,11 +255,12 @@
                 "cloud_gateway": false,
                 "proxy_urls": []
               },
-              "created_at": "2026-09-10T02:12:15.543Z",
-              "updated_at": "2026-09-10T02:12:15.543Z"
+              "created_at": "2026-09-10T19:30:07.919Z",
+              "updated_at": "2026-09-10T19:30:07.919Z"
             }
           ]
-        }
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -299,11 +306,12 @@
                 "cloud_gateway": false,
                 "proxy_urls": []
               },
-              "created_at": "2026-09-10T02:12:15.543Z",
-              "updated_at": "2026-09-10T02:12:15.543Z"
+              "created_at": "2026-09-10T19:30:07.919Z",
+              "updated_at": "2026-09-10T19:30:07.919Z"
             }
           ]
-        }
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -331,9 +339,10 @@
             "cloud_gateway": false,
             "proxy_urls": []
           },
-          "created_at": "2026-09-10T02:12:15.543Z",
-          "updated_at": "2026-09-10T02:12:15.543Z"
-        }
+          "created_at": "2026-09-10T19:30:07.919Z",
+          "updated_at": "2026-09-10T19:30:07.919Z"
+        },
+        "content_type": "application/json"
       }
     },
     {
@@ -346,8 +355,16 @@
       },
       "response": {
         "status": 204,
-        "body": null
+        "body": null,
+        "content_type": null
       }
+    }
+  ],
+  "parallel_phases": [
+    {
+      "start": 4,
+      "end": 6,
+      "after": {}
     }
   ]
 }

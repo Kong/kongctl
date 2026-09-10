@@ -525,6 +525,10 @@ class QuietHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass  # Never put request bodies, paths or credentials in server logs.
 
+    def log_error(self, *_):
+        # BaseHTTPRequestHandler otherwise swallows partial-request timeouts.
+        self.server.engine.fail("HTTP protocol error")
+
     def send_error(self, code, message=None, explain=None):
         self.server.engine.fail("HTTP protocol rejected a request")
         try:

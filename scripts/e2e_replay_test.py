@@ -358,6 +358,17 @@ class ReplayTest(unittest.TestCase):
             with self.assertRaises(ConnectionResetError):
                 handler.handle_one_request()
 
+    def test_partial_http_timeout_remains_fatal_even_after_all_exchanges(self):
+        handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)
+        handler.rfile = MagicMock()
+        handler.rfile.peek.return_value = b"G"
+        handler.rfile.readline.side_effect = TimeoutError()
+        handler.server = MagicMock()
+        handler.server.engine = MODULE.Replay({"interactions": []})
+        handler.handle_one_request()
+        with self.assertRaisesRegex(ValueError, "HTTP protocol error"):
+            handler.server.engine.verify()
+
     def test_error_response_on_disconnected_socket_is_quiet_but_fatal(self):
         handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)
         handler.server = MagicMock()

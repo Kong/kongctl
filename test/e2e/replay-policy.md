@@ -13,15 +13,16 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | get | [34377519108][get] |
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
-| sync | [34428188131][sync] |
+| sync | [Recording][sync], [isolated phases][sync-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
-[sync]: https://github.com/Kong/kongctl/actions/runs/34428188131
+[sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
+[sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
-[portal-replay]: https://github.com/Kong/kongctl/actions/runs/34520309423
+[portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 
 ## Routing
 
@@ -73,7 +74,7 @@ New recordings use cassette schema v2, which also preserves an allowlisted
 response media type (`application/json` or `application/problem+json`; absent
 is allowed only for an empty body). This is significant: the SDK uses the
 problem media type to classify expected 404s as typed not-found errors.
-Existing v1 Control Plane cassettes retain their original JSON response
+Remaining v1 Control Plane cassettes retain their original JSON response
 behavior. Arbitrary response headers, cookies, and authorization are never
 recorded. A failed scenario publishes no candidate; diagnostics contain only
 local command names and bounded, already-sanitized HTTP error exchanges.
@@ -92,6 +93,12 @@ individual read-only planning/dump commands, and final cleanup. Publication
 removal and API deletion remain barriers; reads from later scenario states
 cannot satisfy earlier requests. An annotation is a reviewed assertion about
 independent operations, not a general simulation of Konnect state.
+
+Control Plane sync annotates only exchanges 4–6: creating the new control
+plane is independent of looking up/deleting the old one, but the old lookup
+must precede its deletion. All inventory and final-cleanup requests retain
+strict order. Its v2 cassette passed three isolated replays; the original
+strict-order flake was also reproduced using the unchanged main replay engine.
 
 To iterate on an existing candidate without resetting a live organization:
 
@@ -149,10 +156,12 @@ setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
 
 `portal/sync` is enabled after its complete live scenario and three isolated
-replays passed (293 HTTP interactions each). No scenario assertions were
+replays passed (293 HTTP interactions each), followed by three isolated
+replays of the packed cassette. No scenario assertions were
 removed to obtain a successful recording. The isolated wrappers took
-3.70–4.26 seconds, compared with 18.82 seconds for the same-source normal live
-scenario and a 22.72-second historical median. Recording's own 47.37-second
+3.68–4.26 seconds across both validations, compared with 18.82 seconds for the
+same-source normal live scenario and a 22.72-second historical median.
+Recording's own 47.37-second
 scenario duration includes proxy overhead and is not the live baseline.
 
 Group scenarios have exhibited nondeterministic independent request ordering
