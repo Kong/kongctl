@@ -1,7 +1,11 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -11,6 +15,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RoutingTest(unittest.TestCase):
+    def test_verifier_code_can_be_separate_from_scenario_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in ("e2e-replay-routing.py", "e2e-replay.py"):
+                shutil.copyfile(Path(__file__).with_name(name), root / name)
+            plan = root / "routing.json"
+            plan.write_text(json.dumps(MODULE.make_plan(MODULE.REPLAY.ROOT, "live")))
+            subprocess.run([
+                sys.executable, str(root / "e2e-replay-routing.py"), "verify",
+                "--root", str(MODULE.REPLAY.ROOT), "--mode", "live",
+                "--plan", str(plan), "--results", str(root / "results"),
+            ], cwd=root, env={**os.environ, "GITHUB_RUN_ID": "123"}, check=True)
+
     def test_workflows_guard_replay_and_force_live_status(self):
         workflows = MODULE.REPLAY.ROOT / ".github/workflows"
         suite = (workflows / "e2e.yaml").read_text()
