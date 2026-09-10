@@ -475,7 +475,7 @@ jobs:
             printf '%s' \
               '^(go\.mod|go\.sum|main\.go|[^/]+\.go|internal/.*|test/e2e/.*' \
               '|Makefile|\.goreleaser\.yml|\.github/workflows/e2e\.yaml' \
-              '|\.github/workflows/e2e-main-debounce\.yaml)$'
+              '|\.github/workflows/e2e-main-debounce\.yaml|scripts/e2e[-_]replay.*)$'
           )"
 
           if grep -Eq "${e2e_pattern}" "${changed_files}"; then
@@ -578,6 +578,9 @@ jobs:
     if: needs.e2e-needed.outputs.run_shards == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      replay_count: ${{ steps.routing.outputs.replay_count }}
+      replay_mode: ${{ steps.routing.outputs.replay_mode }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -667,6 +670,59 @@ jobs:
           path: |
             ${{ github.workspace }}/kongctl
             ${{ github.workspace }}/e2e.test
+
+      - name: Select whole-scenario PR replay routing
+        id: routing
+        env:
+          PR_REPLAY: >-
+            ${{ github.event_name == 'pull_request' &&
+                github.event.pull_request.head.repo.full_name == github.repository &&
+                needs.e2e-needed.outputs.konnect_environment == 'com' &&
+                !contains(github.event.pull_request.labels.*.name, 'e2e:force-live') }}
+        run: |
+          mode=live
+          if [ "$PR_REPLAY" = true ]; then mode='pr'; fi
+          python3 scripts/e2e-replay-routing.py plan --mode "$mode"
+          echo "replay_mode=$mode" >> "$GITHUB_OUTPUT"
+          cat e2e-routing.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload routing plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-routing-${{ github.run_id }}
+          path: e2e-routing.json
+          overwrite: true
+
+  e2e-replay:
+    name: Replay Control Plane scenarios
+    needs: [e2e-needed, e2e-build, e2e-harness]
+    if: needs.e2e-build.outputs.replay_count != '0' && needs.e2e-build.outputs.replay_mode == 'pr'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No environment, credentials or org lock. The enclosing workflow queue
+    # stays unchanged; the actual CLI/proxy run with only loopback networking.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
+          ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-binaries-${{ github.run_id }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-routing-${{ github.run_id }}
+      - name: Run offline replay
+        run: |
+          chmod +x kongctl e2e.test
+          python3 scripts/e2e-replay-routing.py run --mode pr
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-replay-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .e2e-artifacts/pr-replay
+          include-hidden-files: true
+          retention-days: 10
 
   e2e:
     name: Run scenarios — ${{ matrix.org_name }}
@@ -850,8 +906,15 @@ jobs:
       #   run: |
       #     echo "Skipping E2E (no 'run-e2e' label)." && exit 0
 
+      - name: Download routing plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-routing-${{ github.run_id }}
+
       - name: Run assigned Konnect scenarios
         id: scenarios
+        env:
+          KONGCTL_E2E_REPLAY_PLAN: ${{ github.workspace }}/e2e-routing.json
         run: |
           set -euo pipefail
 
@@ -978,6 +1041,8 @@ jobs:
     needs:
       - e2e-needed
       - e2e
+      - e2e-build
+      - e2e-replay
     if: ${{ always() && !cancelled() && needs.e2e-needed.outputs.run_shards == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1003,6 +1068,31 @@ jobs:
           run-id: ${{ github.run_id }}
           pattern: e2e-artifacts-${{ github.run_id }}-*
           path: ${{ github.workspace }}/.downloaded-artifacts
+
+      - name: Download routing plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: e2e-routing-${{ github.run_id }}
+
+      - name: Download replay results
+        if: needs.e2e-build.outputs.replay_count != '0'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: e2e-replay-results-${{ github.run_id }}-*
+          path: .downloaded-replay
+
+      - name: Verify offline replay coverage
+        env:
+          REPLAY_MODE: ${{ needs.e2e-build.outputs.replay_mode }}
+          REPLAY_RESULT: ${{ needs.e2e-replay.result }}
+          REPLAY_COUNT: ${{ needs.e2e-build.outputs.replay_count }}
+        run: |
+          if [ "$REPLAY_COUNT" != 0 ] && [ "$REPLAY_RESULT" != success ]; then
+            echo '::error::Required replay job did not succeed.'
+            exit 1
+          fi
+          python3 scripts/e2e-replay-routing.py verify --mode "$REPLAY_MODE" --results .downloaded-replay
+          echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify scenario coverage and results
         shell: bash
@@ -1046,8 +1136,10 @@ jobs:
             exit 1
           }
 
-          find test/e2e/scenarios -name scenario.yaml -type f | \
-            sed 's#^test/e2e/scenarios/##' | sort > "${expected}"
+          # The preceding check validates this partition against the complete
+          # inventory and independently verifies every replay result. Live
+          # manifests/results must cover exactly the remaining scenarios.
+          jq -r '.live[]' e2e-routing.json | sort > "${expected}"
 
           mapfile -t manifests < <(find .downloaded-artifacts -name assigned-scenarios.txt -type f | sort)
           if [ "${#manifests[@]}" -eq 0 ]; then

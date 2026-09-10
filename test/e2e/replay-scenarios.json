@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    "control-plane/apply",
+    "control-plane/get"
+  ]
+}

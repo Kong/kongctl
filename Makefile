@@ -118,7 +118,7 @@ refresh-e2e-weights:
 test-e2e-metrics:
 	python3 -m unittest discover -s scripts -p 'e2e_*_test.py'
 
-# Explicit experiment only: normal test-e2e and PR/main routing remain live.
+# Local recording/replay tools; CI PR eligibility lives in replay-scenarios.json.
 .PHONY: build-e2e-replay test-e2e-replay check-e2e-replay
 build-e2e-replay: build
 	CGO_ENABLED=0 go test -c -tags=e2e -o .e2e-artifacts/replay-bin/e2e.test ./test/e2e

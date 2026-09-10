@@ -1,13 +1,6 @@
 name: E2E replay experiment
 
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/e2e-replay.yaml'
-      - 'scripts/e2e-replay.py'
-      - 'scripts/e2e_replay_test.py'
-      - 'scripts/e2e-replay-isolated.sh'
-      - 'test/e2e/scenarios/control-plane/**'
   workflow_dispatch:
     inputs:
       mode:
@@ -141,7 +134,7 @@ jobs:
       - name: Summarize experiment
         run: |
           echo '## One-scenario replay experiment' >> "$GITHUB_STEP_SUMMARY"
-          echo 'Ordinary PR and main scenario validation remains fully live.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Manual cassette validation; ordinary PR routing uses replay-scenarios.json. Main stays live.' >> "$GITHUB_STEP_SUMMARY"
           for summary in .e2e-artifacts/replay-results/*/summary.json; do
             jq -c . "$summary" >> "$GITHUB_STEP_SUMMARY"
           done

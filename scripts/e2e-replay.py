@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Experimental, explicit record/replay of one unchanged Konnect E2E scenario.
+"""Explicit record/replay of unchanged Konnect E2E scenarios.
 
-No production code or ordinary E2E routing depends on this module. The HTTP
-engine is resource-independent; eligibility is intentionally a one-scenario
-allowlist until recording fidelity and maintenance cost have been measured.
+No production code depends on this module. The HTTP engine is resource-independent;
+PR eligibility is an explicit reviewed subset in test/e2e/replay-scenarios.json.
 """
 
 from __future__ import annotations
@@ -79,7 +78,7 @@ def scenario_digest(directory):
 
 
 def check_eligibility(directory):
-    # A deliberately conservative boundary for the single prototype scenario.
+    # A deliberately conservative boundary for the reviewed local-input scenarios.
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")

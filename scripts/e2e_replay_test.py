@@ -64,10 +64,12 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual([], engine.interactions)
 
     def test_repository_cassettes_are_current_even_without_replay_routing(self):
-        directory = MODULE.ROOT / "test/e2e/scenarios" / MODULE.SCENARIO
-        for path in sorted((directory / "replay").glob("*.json")):
+        root = MODULE.ROOT / "test/e2e/scenarios"
+        for path in sorted(root.glob("control-plane/**/replay/cassette.json")):
+            directory = path.parent.parent
             with self.subTest(path=path):
-                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory)
+                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory,
+                                        directory.relative_to(root).as_posix())
 
     def test_external_dependencies_require_explicit_review(self):
         with tempfile.TemporaryDirectory() as directory:
