@@ -168,11 +168,7 @@ func (a AIGatewayConsumerCredentialResource) CreateRequest() kkComps.CreateAIGat
 }
 
 func (a AIGatewayConsumerCredentialResource) PayloadMap() (map[string]any, error) {
-	payload, err := marshalObjectToMap(a.CreateRequest(), "AI Gateway Consumer Credential payload")
-	if err != nil {
-		return nil, err
-	}
-	return payload, nil
+	return marshalObjectToMap(a.CreateRequest(), "AI Gateway Consumer Credential payload")
 }
 
 func (a AIGatewayConsumerCredentialResource) MutablePayloadMap() (map[string]any, error) {

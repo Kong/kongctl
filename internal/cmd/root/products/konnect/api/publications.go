@@ -307,21 +307,12 @@ func publicationDetailView(publication *kkComps.APIPublicationListItem) string {
 		return ""
 	}
 
-	visibility := valueNA
-	if publication.GetVisibility() != "" {
-		visibility = string(publication.GetVisibility())
-	}
-
-	authStrategies := valueNA
-	if ids := publication.GetAuthStrategyIds(); len(ids) > 0 {
-		authStrategies = strings.Join(ids, ", ")
-	}
-
+	record := publicationToRecord(*publication)
 	fields := map[string]string{
-		"auth_strategy_ids": authStrategies,
-		"created_at":        publication.GetCreatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
-		"visibility":        visibility,
-		"updated_at":        publication.GetUpdatedAt().In(time.Local).Format("2006-01-02 15:04:05"),
+		"auth_strategy_ids": record.AuthStrategyIDs,
+		"created_at":        record.LocalCreatedTime,
+		"visibility":        record.Visibility,
+		"updated_at":        record.LocalUpdatedTime,
 	}
 
 	keys := slices.Sorted(maps.Keys(fields))
