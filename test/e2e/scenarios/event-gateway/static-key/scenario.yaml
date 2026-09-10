@@ -79,6 +79,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: staticKeyID
+          responsePath: "[?name=='{{ .vars.staticKeyName }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -96,6 +99,23 @@ steps:
           - event-gateway
           - static-keys
           - "{{ .vars.staticKeyName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.staticKeyName }}"
+                description: "Default Static Key description"
+                "contains(keys(@), 'value')": false
+      - name: 005-verify-create-by-id
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - "{{ .vars.staticKeyID }}"
           - --gateway-name
           - "{{ .vars.egwName }}"
           - -o

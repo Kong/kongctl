@@ -76,6 +76,9 @@ steps:
           - "{{ .vars.egwName }}"
           - -o
           - json
+        recordVar:
+          name: dataplaneCertID
+          responsePath: "[?name=='{{ .vars.dataplaneCertName }}'] | [0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -86,6 +89,36 @@ steps:
               fields:
                 name: default-dataplane-certificate-name
                 description: "Default Dataplane Certificate description"
+      - name: 004-get-data-plane-certificate-by-name
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - "{{ .vars.dataplaneCertName }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.dataplaneCertName }}"
+      - name: 005-get-data-plane-certificate-by-id
+        run:
+          - get
+          - event-gateway
+          - data-plane-certificates
+          - "{{ .vars.dataplaneCertID }}"
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: name
+            expect:
+              fields:
+                "@": "{{ .vars.dataplaneCertName }}"
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -204,6 +237,7 @@ steps:
             expect:
               fields:
                 "@": 0
+
   - name: 004-root-level-data-plane-certificate
     inputOverlayDirs:
       - overlays/003-root-level-declaration
@@ -321,4 +355,3 @@ steps:
             expect:
               fields:
                 "@": 0
-
