@@ -10,7 +10,6 @@ organization:
         labels:
           department: "engineering"
           tier: "core"
-          focus: "platform"
           specialty: "cloud-native"
         kongctl:
           namespace: teams-sync-e2e

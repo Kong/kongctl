@@ -105,7 +105,9 @@ steps:
               fields:
                 name: "Platform Team"
                 description: "Updated: Cloud platform engineering and DevOps infrastructure team"
+                labels.focus: null
                 labels.specialty: "cloud-native"
+                labels."KONGCTL-namespace": "teams-sync-e2e"
           - select: "[?name=='Security Team'] | [0]"
             expect:
               fields:
