@@ -26,6 +26,8 @@ type resourceOps struct {
 	count                     func(rs *ResourceSet) int
 	explain                   ExplainRegistration
 	namespace                 *namespaceRegistration
+	matchesNamespace          func(*ResourceSet, Resource, string) bool
+	namespaceOwner            ResourceType
 	syncScope                 *syncScopeRegistration
 	load                      *childLoadRegistration
 	dumpDefaultRules          map[string]dumpDefaultRule

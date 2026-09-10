@@ -14,6 +14,9 @@ func init() {
 		func(rs *ResourceSet) *[]PortalPageResource { return &rs.PortalPages },
 		AutoExplain[PortalPageResource](),
 		WithExternalUnsupportedReason("scoped portal page lookup is planned for Portal domain enablement"),
+		WithNamespaceFrom(func(rs *ResourceSet, r *PortalPageResource) *PortalResource {
+			return rs.GetPortalByRef(r.Portal)
+		}),
 		WithChildSyncScopeFrom(ResourceTypePortal, func(r *PortalPageResource) string { return r.Portal }),
 	)
 	registerResourceType(

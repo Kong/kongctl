@@ -34,7 +34,8 @@ type namespaceRegistration struct {
 var namespaceRegistrations []namespaceRegistration
 
 // WithNamespace registers typed metadata access alongside the resource's
-// existing slice accessor. Order preserves namespace diagnostic traversal.
+// existing slice accessor and supplies its desired namespace selection policy.
+// Order preserves namespace diagnostic traversal.
 // Additional sources are grouping locations visited before nested extraction.
 func WithNamespace[R any](
 	order int,
@@ -42,11 +43,15 @@ func WithNamespace[R any](
 	nested ...func(*ResourceSet) []R,
 ) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
-		if ops.namespace != nil {
+		if ops.namespace != nil || ops.matchesNamespace != nil {
 			return fmt.Errorf("namespace capability is already registered")
 		}
 		if participant == nil || ops.explain.typ != reflect.TypeFor[R]() {
 			return fmt.Errorf("namespace accessor must match the registered resource type")
+		}
+		ops.matchesNamespace = func(_ *ResourceSet, resource Resource, namespace string) bool {
+			value := participant(any(resource).(*R))
+			return resourceNamespaceMatches(value.External, *value.Meta, namespace)
 		}
 		ops.namespace = &namespaceRegistration{
 			order: order,
