@@ -260,13 +260,13 @@ operations. Check `ClientConfig`, `NewClient`, SDK helper interfaces, and the
 
 Managed listing must filter by the intended namespace and normalize managed
 and user labels. External lookup uses unrestricted observation instead.
-Inspect [planning caches][cache] before adding reads. Portals and APIs use
-[`observationCache[T]`][observation-cache]: a typed fetch function and namespace
-accessor supply resource-specific behavior; the cache owns namespace queries,
-reuse, and filtering. Compatible managed-root observations should use this
-boundary. Initialize their typed cache in `newPlanningResourceCache` and keep
-planner listing methods as thin adapters. The other eight root families and
-Portal child caches still use their existing implementations.
+Inspect [planning caches][cache] before adding reads. All ten managed-root
+families use [`observationCache[T]`][observation-cache]: a typed fetch function
+and namespace accessor supply resource-specific behavior; the cache owns
+namespace queries, reuse, and filtering. Compatible managed-root observations
+should use this boundary. Initialize their typed cache in
+`newPlanningResourceCache` and keep planner listing methods as thin adapters.
+Portal child caches remain separate and keyed by portal ID.
 
 Namespace planners share observations within a run; `GeneratePlan` resets the
 cache on every invocation. Preserve request counts and order, wildcard reuse,
