@@ -23,6 +23,14 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_failure_diagnostics_never_include_raw_cli_output(self):
+        engine = MODULE.Replay({"interactions": []})
+        directory = MODULE.ROOT / "test/e2e/scenarios/portal/sync"
+        summary = MODULE.failure_summary(engine, "command 000-sync failed (exit=1): kpat_PRIVATE\n"
+                                         "stderr: password=PRIVATE", directory)
+        self.assertNotIn("PRIVATE", summary)
+        self.assertEqual([{"name": "000-sync", "exit": 1}], json.loads(summary)["commands"])
+
     def test_supported_scenarios_have_local_dependencies(self):
         for scenario in MODULE.SCENARIOS:
             with self.subTest(scenario=scenario):

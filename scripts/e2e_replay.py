@@ -479,6 +479,21 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
+def failure_summary(engine, output, directory):
+    """Only local command names and already-sanitized exchanges leave CI."""
+    names = set(re.findall(r"(?m)^\s*- name: ([a-zA-Z0-9_-]+)\s*$",
+                           (directory / "scenario.yaml").read_text()))
+    commands = [{"name": name, "exit": int(code)}
+                for name, code in re.findall(r"command ([a-zA-Z0-9_-]+) failed \(exit=(\d+)\)", output)
+                if name in names]
+    errors = [{"method": item["request"]["method"], "path": item["request"]["path"],
+               "response": item["response"]} for item in engine.interactions
+              if item["response"]["status"] >= 400]
+    summary = {"commands": commands[:5], "http_errors": errors[-5:], "interactions": engine.position}
+    check_safe(summary, engine.fixtures)
+    return canonical(summary)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("check", "replay", "record"))
@@ -541,7 +556,8 @@ def main():
             # A skipped test must never become a passing replay/recording.
             output = result.stdout.decode(errors="replace")
             if result.returncode or f"--- PASS: Test_Scenarios/test/e2e/scenarios/{args.scenario}/scenario.yaml" not in output:
-                raise ValueError("scenario did not pass; candidate not published (raw live logs are not uploaded)")
+                raise ValueError("scenario did not pass; candidate not published; sanitized diagnostics: "
+                                 + failure_summary(engine, output, directory))
         finally:
             if token:
                 subprocess.run([str(args.reset_binary.resolve()), "--stage", "after-replay-record"],
