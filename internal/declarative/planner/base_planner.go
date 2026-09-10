@@ -115,56 +115,6 @@ func (b *BasePlanner) GetDesiredAPIDocuments(namespace string) []resources.APIDo
 	return b.planner.resources.GetAPIDocumentsByNamespace(namespace)
 }
 
-// GetDesiredPortalCustomizations returns desired portal customization resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalCustomizations(namespace string) []resources.PortalCustomizationResource {
-	return b.planner.resources.GetPortalCustomizationsByNamespace(namespace)
-}
-
-// GetDesiredPortalAuthSettings returns desired portal auth settings resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalAuthSettings(namespace string) []resources.PortalAuthSettingsResource {
-	return b.planner.resources.GetPortalAuthSettingsByNamespace(namespace)
-}
-
-// GetDesiredPortalIPAllowLists returns desired portal IP allow list resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalIPAllowLists(namespace string) []resources.PortalIPAllowListResource {
-	return b.planner.resources.GetPortalIPAllowListsByNamespace(namespace)
-}
-
-// GetDesiredPortalIntegrations returns desired portal integration resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalIntegrations(namespace string) []resources.PortalIntegrationResource {
-	return b.planner.resources.GetPortalIntegrationsByNamespace(namespace)
-}
-
-// GetDesiredPortalIdentityProviders returns desired portal identity provider resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalIdentityProviders(namespace string) []resources.PortalIdentityProviderResource {
-	return b.planner.resources.GetPortalIdentityProvidersByNamespace(namespace)
-}
-
-// GetDesiredPortalCustomDomains returns desired portal custom domain resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalCustomDomains(namespace string) []resources.PortalCustomDomainResource {
-	return b.planner.resources.GetPortalCustomDomainsByNamespace(namespace)
-}
-
-// GetDesiredPortalEmailConfigs returns desired portal email config resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalEmailConfigs(namespace string) []resources.PortalEmailConfigResource {
-	return b.planner.resources.GetPortalEmailConfigsByNamespace(namespace)
-}
-
-// GetDesiredPortalAuditLogWebhooks returns desired portal audit-log webhook resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalAuditLogWebhooks(namespace string) []resources.PortalAuditLogWebhookResource {
-	return b.planner.resources.GetPortalAuditLogWebhooksByNamespace(namespace)
-}
-
-// GetDesiredPortalPages returns desired portal page resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalPages(namespace string) []resources.PortalPageResource {
-	return b.planner.resources.GetPortalPagesByNamespace(namespace)
-}
-
-// GetDesiredPortalSnippets returns desired portal snippet resources from the specified namespace
-func (b *BasePlanner) GetDesiredPortalSnippets(namespace string) []resources.PortalSnippetResource {
-	return b.planner.resources.GetPortalSnippetsByNamespace(namespace)
-}
-
 // GetDesiredEventGatewayControlPlanes returns desired EGW CP resources from the specified namespace
 func (b *BasePlanner) GetDesiredEventGatewayControlPlanes(
 	namespace string,

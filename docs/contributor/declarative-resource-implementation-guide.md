@@ -42,9 +42,9 @@ collection scope, AI Gateway child loading, and dump-default metadata. The
 [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. Other families' nested
-extraction and load validation, namespace inheritance/filtering,
-relationships, pre-execution
-validation, state-client wiring, and dump collection remain separate steps.
+extraction and load validation, specialized namespace selection, relationships,
+pre-execution validation, state-client wiring, and dump collection remain
+separate steps.
 Registering a declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
@@ -92,8 +92,25 @@ revisiting those groups. Organization users/system accounts use
 not enter the ordinary resource registry.
 
 Defaulting, namespace enforcement, and planner discovery share participation
-but retain their different external-resource policies. Namespace accessors and
-parent filtering in `ResourceSet` still require explicit integration.
+but retain their different external-resource policies. `WithNamespace` also
+supplies [desired-resource namespace selection][selection] for
+managed roots, using their registered flattened collection.
+
+Use `GetResourcesByNamespace[APIResource](rs, namespace)` to select typed
+resources. It returns shallow copies in source order, with nil for no matches;
+supplemental grouping locations are excluded. External roots belong to
+`NamespaceExternal`; other roots use their declared or default namespace.
+Existing root namespace getters delegate to this shared policy.
+
+API children and Portal pages use `WithNamespaceFrom` beside registration.
+Supply a typed owner lookup, as in [API versions][api-version]. The child
+inherits the owner's registered selection policy. Preserve exact reference
+matching and first-match behavior; missing owners exclude the child. Namespace
+ownership need not match structural parenthood or sync ownership.
+
+Organization assignment selection retains its specialized rules. Resources
+already selected within a parent collection do not need an additional
+namespace getter; avoid adding unused accessors or planner wrappers.
 
 ### Defaults and SDK shape
 
@@ -574,6 +591,8 @@ engine contract. Each refactoring migration should:
 [interfaces]: ../../internal/declarative/resources/interfaces.go
 [registry]: ../../internal/declarative/resources/registry.go
 [namespaces]: ../../internal/declarative/resources/namespace_participants.go
+[selection]: ../../internal/declarative/resources/namespace_selection.go
+[api-version]: ../../internal/declarative/resources/api_version.go
 [scope-capabilities]: ../../internal/declarative/resources/sync_capabilities.go
 [scope-capture]: ../../internal/declarative/resources/sync_capture.go
 [portal-scope]: ../../internal/declarative/resources/portal_sync_scope.go

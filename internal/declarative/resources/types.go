@@ -604,696 +604,72 @@ func (rs *ResourceSet) GetDCRProviderByRef(ref string) *DCRProviderResource {
 
 // GetPortalsByNamespace returns all portal resources from the specified namespace
 func (rs *ResourceSet) GetPortalsByNamespace(namespace string) []PortalResource {
-	var filtered []PortalResource
-	for _, portal := range rs.Portals {
-		if portal.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, portal)
-			}
-			continue
-		}
-		if GetNamespace(portal.Kongctl) == namespace {
-			filtered = append(filtered, portal)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[PortalResource](rs, namespace)
 }
 
 // GetControlPlanesByNamespace returns all control plane resources from the specified namespace
 func (rs *ResourceSet) GetControlPlanesByNamespace(namespace string) []ControlPlaneResource {
-	var filtered []ControlPlaneResource
-	for _, cp := range rs.ControlPlanes {
-		if cp.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, cp)
-			}
-			continue
-		}
-		if GetNamespace(cp.Kongctl) == namespace {
-			filtered = append(filtered, cp)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[ControlPlaneResource](rs, namespace)
 }
 
 // GetCatalogServicesByNamespace returns all catalog service resources from the specified namespace
 func (rs *ResourceSet) GetCatalogServicesByNamespace(namespace string) []CatalogServiceResource {
-	var filtered []CatalogServiceResource
-	for _, svc := range rs.CatalogServices {
-		if GetNamespace(svc.Kongctl) == namespace {
-			filtered = append(filtered, svc)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[CatalogServiceResource](rs, namespace)
 }
 
 // GetAIGatewaysByNamespace returns all AI Gateway resources from the specified namespace.
 func (rs *ResourceSet) GetAIGatewaysByNamespace(namespace string) []AIGatewayResource {
-	var filtered []AIGatewayResource
-	for _, gateway := range rs.AIGateways {
-		if gateway.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, gateway)
-			}
-			continue
-		}
-		if GetNamespace(gateway.Kongctl) == namespace {
-			filtered = append(filtered, gateway)
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayProvidersByNamespace returns all AI Gateway Model Provider resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayProvidersByNamespace(namespace string) []AIGatewayProviderResource {
-	gatewayByRef := make(map[string]AIGatewayResource)
-	for _, gateway := range rs.GetAIGatewaysByNamespace(namespace) {
-		gatewayByRef[gateway.Ref] = gateway
-	}
-
-	var filtered []AIGatewayProviderResource
-	for _, provider := range rs.AIGatewayProviders {
-		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
-			filtered = append(filtered, provider)
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayAuthStrategiesByNamespace returns AI Gateway Auth Strategy resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayAuthStrategiesByNamespace(
-	namespace string,
-) []AIGatewayAuthStrategyResource {
-	gatewayByRef := make(map[string]AIGatewayResource)
-	for _, gateway := range rs.GetAIGatewaysByNamespace(namespace) {
-		gatewayByRef[gateway.Ref] = gateway
-	}
-
-	var filtered []AIGatewayAuthStrategyResource
-	for _, provider := range rs.AIGatewayAuthStrategies {
-		if _, ok := gatewayByRef[NormalizeResourceRef(provider.AIGateway)]; ok {
-			filtered = append(filtered, provider)
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayPoliciesByNamespace returns AI Gateway policy resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayPoliciesByNamespace(namespace string) []AIGatewayPolicyResource {
-	var filtered []AIGatewayPolicyResource
-	for _, policy := range rs.AIGatewayPolicies {
-		if gateway := rs.GetAIGatewayByRef(policy.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, policy)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, policy)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayAgentsByNamespace returns AI Gateway Agent resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayAgentsByNamespace(namespace string) []AIGatewayAgentResource {
-	var filtered []AIGatewayAgentResource
-	for _, agent := range rs.AIGatewayAgents {
-		if gateway := rs.GetAIGatewayByRef(agent.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, agent)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, agent)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayConsumersByNamespace returns AI Gateway Consumer resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayConsumersByNamespace(namespace string) []AIGatewayConsumerResource {
-	var filtered []AIGatewayConsumerResource
-	for _, consumer := range rs.AIGatewayConsumers {
-		if gateway := rs.GetAIGatewayByRef(consumer.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, consumer)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, consumer)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayConsumerGroupsByNamespace returns AI Gateway Consumer Group resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayConsumerGroupsByNamespace(namespace string) []AIGatewayConsumerGroupResource {
-	var filtered []AIGatewayConsumerGroupResource
-	for _, group := range rs.AIGatewayConsumerGroups {
-		if gateway := rs.GetAIGatewayByRef(group.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, group)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, group)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayConsumerCredentialsByNamespace returns AI Gateway Consumer Credential
-// resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayConsumerCredentialsByNamespace(
-	namespace string,
-) []AIGatewayConsumerCredentialResource {
-	var filtered []AIGatewayConsumerCredentialResource
-	for _, credential := range rs.AIGatewayConsumerCredentials {
-		if consumer := rs.GetAIGatewayConsumerByRef(credential.AIGatewayConsumer); consumer != nil {
-			if gateway := rs.GetAIGatewayByRef(consumer.AIGateway); gateway != nil {
-				if gateway.IsExternal() {
-					if namespace == NamespaceExternal {
-						filtered = append(filtered, credential)
-					}
-					continue
-				}
-				if GetNamespace(gateway.Kongctl) == namespace {
-					filtered = append(filtered, credential)
-				}
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayModelsByNamespace returns AI Gateway model resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayModelsByNamespace(namespace string) []AIGatewayModelResource {
-	var filtered []AIGatewayModelResource
-	for _, model := range rs.AIGatewayModels {
-		if gateway := rs.GetAIGatewayByRef(model.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, model)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, model)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayMCPServersByNamespace returns AI Gateway MCP Server resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayMCPServersByNamespace(namespace string) []AIGatewayMCPServerResource {
-	var filtered []AIGatewayMCPServerResource
-	for _, server := range rs.AIGatewayMCPServers {
-		if gateway := rs.GetAIGatewayByRef(server.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, server)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, server)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayVaultsByNamespace returns AI Gateway Vault resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayVaultsByNamespace(namespace string) []AIGatewayVaultResource {
-	var filtered []AIGatewayVaultResource
-	for _, vault := range rs.AIGatewayVaults {
-		if gateway := rs.GetAIGatewayByRef(vault.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, vault)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, vault)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayConfigStoresByNamespace returns AI Gateway Config Stores from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayConfigStoresByNamespace(namespace string) []AIGatewayConfigStoreResource {
-	var filtered []AIGatewayConfigStoreResource
-	for _, store := range rs.AIGatewayConfigStores {
-		if gateway := rs.GetAIGatewayByRef(store.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, store)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, store)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetAIGatewayDataPlaneCertificatesByNamespace returns AI Gateway data plane certificate
-// resources from the specified namespace.
-func (rs *ResourceSet) GetAIGatewayDataPlaneCertificatesByNamespace(
-	namespace string,
-) []AIGatewayDataPlaneCertificateResource {
-	var filtered []AIGatewayDataPlaneCertificateResource
-	for _, cert := range rs.AIGatewayDataPlaneCertificates {
-		if gateway := rs.GetAIGatewayByRef(cert.AIGateway); gateway != nil {
-			if gateway.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, cert)
-				}
-				continue
-			}
-			if GetNamespace(gateway.Kongctl) == namespace {
-				filtered = append(filtered, cert)
-			}
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[AIGatewayResource](rs, namespace)
 }
 
 // GetAPIsByNamespace returns all API resources from the specified namespace
 func (rs *ResourceSet) GetAPIsByNamespace(namespace string) []APIResource {
-	var filtered []APIResource
-	for _, api := range rs.APIs {
-		if api.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, api)
-			}
-			continue
-		}
-		if GetNamespace(api.Kongctl) == namespace {
-			filtered = append(filtered, api)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[APIResource](rs, namespace)
 }
 
 // GetDashboardsByNamespace returns all dashboard resources from the specified namespace.
 func (rs *ResourceSet) GetDashboardsByNamespace(namespace string) []DashboardResource {
-	var filtered []DashboardResource
-	for _, dashboard := range rs.Dashboards {
-		if GetNamespace(dashboard.Kongctl) == namespace {
-			filtered = append(filtered, dashboard)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[DashboardResource](rs, namespace)
 }
 
 // GetAuthStrategiesByNamespace returns all auth strategy resources from the specified namespace
 func (rs *ResourceSet) GetAuthStrategiesByNamespace(namespace string) []ApplicationAuthStrategyResource {
-	var filtered []ApplicationAuthStrategyResource
-	for _, strategy := range rs.ApplicationAuthStrategies {
-		if strategy.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, strategy)
-			}
-			continue
-		}
-		if GetNamespace(strategy.Kongctl) == namespace {
-			filtered = append(filtered, strategy)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[ApplicationAuthStrategyResource](rs, namespace)
 }
 
 // GetDCRProvidersByNamespace returns all DCR provider resources from the specified namespace
 func (rs *ResourceSet) GetDCRProvidersByNamespace(namespace string) []DCRProviderResource {
-	var filtered []DCRProviderResource
-	for _, provider := range rs.DCRProviders {
-		if GetNamespace(provider.Kongctl) == namespace {
-			filtered = append(filtered, provider)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[DCRProviderResource](rs, namespace)
 }
 
 // GetAPIVersionsByNamespace returns all API version resources from the specified namespace
 func (rs *ResourceSet) GetAPIVersionsByNamespace(namespace string) []APIVersionResource {
-	var filtered []APIVersionResource
-	for _, version := range rs.APIVersions {
-		// Check if parent API is in the namespace
-		api := rs.GetAPIByRef(version.API)
-		if api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
-			filtered = append(filtered, version)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[APIVersionResource](rs, namespace)
 }
 
 // GetAPIPublicationsByNamespace returns all API publication resources from the specified namespace
 func (rs *ResourceSet) GetAPIPublicationsByNamespace(namespace string) []APIPublicationResource {
-	var filtered []APIPublicationResource
-	for _, pub := range rs.APIPublications {
-		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(pub.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
-			filtered = append(filtered, pub)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[APIPublicationResource](rs, namespace)
 }
 
 // GetAPIImplementationsByNamespace returns all API implementation resources from the specified namespace
 func (rs *ResourceSet) GetAPIImplementationsByNamespace(namespace string) []APIImplementationResource {
-	var filtered []APIImplementationResource
-	for _, impl := range rs.APIImplementations {
-		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(impl.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
-			filtered = append(filtered, impl)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[APIImplementationResource](rs, namespace)
 }
 
 // GetAPIDocumentsByNamespace returns all API document resources from the specified namespace
 func (rs *ResourceSet) GetAPIDocumentsByNamespace(namespace string) []APIDocumentResource {
-	var filtered []APIDocumentResource
-	for _, doc := range rs.APIDocuments {
-		// Check if parent API is in the namespace
-		if api := rs.GetAPIByRef(doc.API); api != nil && resourceNamespaceMatches(api.IsExternal(), api.Kongctl, namespace) {
-			filtered = append(filtered, doc)
-		}
-	}
-	return filtered
-}
-
-func resourceNamespaceMatches(external bool, meta *KongctlMeta, namespace string) bool {
-	if external {
-		return namespace == NamespaceExternal
-	}
-	return GetNamespace(meta) == namespace
-}
-
-// GetPortalCustomizationsByNamespace returns all portal customization resources from the specified namespace
-func (rs *ResourceSet) GetPortalCustomizationsByNamespace(namespace string) []PortalCustomizationResource {
-	var filtered []PortalCustomizationResource
-	for _, custom := range rs.PortalCustomizations {
-		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(custom.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, custom)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, custom)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalAuthSettingsByNamespace returns all portal auth settings resources from the specified namespace
-func (rs *ResourceSet) GetPortalAuthSettingsByNamespace(namespace string) []PortalAuthSettingsResource {
-	var filtered []PortalAuthSettingsResource
-	for _, settings := range rs.PortalAuthSettings {
-		if portal := rs.GetPortalByRef(settings.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, settings)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, settings)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalIPAllowListsByNamespace returns all portal IP allow-list resources from the specified namespace.
-func (rs *ResourceSet) GetPortalIPAllowListsByNamespace(namespace string) []PortalIPAllowListResource {
-	var filtered []PortalIPAllowListResource
-	for _, allowList := range rs.PortalIPAllowLists {
-		if portal := rs.GetPortalByRef(allowList.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, allowList)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, allowList)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalIntegrationsByNamespace returns all portal integration resources from the specified namespace
-func (rs *ResourceSet) GetPortalIntegrationsByNamespace(namespace string) []PortalIntegrationResource {
-	var filtered []PortalIntegrationResource
-	for _, integration := range rs.PortalIntegrations {
-		if portal := rs.GetPortalByRef(integration.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, integration)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, integration)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalIdentityProvidersByNamespace returns all portal identity provider resources from the specified namespace
-func (rs *ResourceSet) GetPortalIdentityProvidersByNamespace(namespace string) []PortalIdentityProviderResource {
-	var filtered []PortalIdentityProviderResource
-	for _, provider := range rs.PortalIdentityProviders {
-		if portal := rs.GetPortalByRef(provider.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, provider)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, provider)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalTeamGroupMappingsByNamespace returns portal team group mappings from the specified namespace.
-func (rs *ResourceSet) GetPortalTeamGroupMappingsByNamespace(namespace string) []PortalTeamGroupMappingResource {
-	var filtered []PortalTeamGroupMappingResource
-	for _, mapping := range rs.PortalTeamGroupMappings {
-		if portal := rs.GetPortalByRef(mapping.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, mapping)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, mapping)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalCustomDomainsByNamespace returns all portal custom domain resources from the specified namespace
-func (rs *ResourceSet) GetPortalCustomDomainsByNamespace(namespace string) []PortalCustomDomainResource {
-	var filtered []PortalCustomDomainResource
-	for _, domain := range rs.PortalCustomDomains {
-		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(domain.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, domain)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, domain)
-			}
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[APIDocumentResource](rs, namespace)
 }
 
 // GetPortalPagesByNamespace returns all portal page resources from the specified namespace
 func (rs *ResourceSet) GetPortalPagesByNamespace(namespace string) []PortalPageResource {
-	var filtered []PortalPageResource
-	for _, page := range rs.PortalPages {
-		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(page.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, page)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, page)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalSnippetsByNamespace returns all portal snippet resources from the specified namespace
-func (rs *ResourceSet) GetPortalSnippetsByNamespace(namespace string) []PortalSnippetResource {
-	var filtered []PortalSnippetResource
-	for _, snippet := range rs.PortalSnippets {
-		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(snippet.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, snippet)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, snippet)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalEmailConfigsByNamespace returns all portal email config resources from the specified namespace
-func (rs *ResourceSet) GetPortalEmailConfigsByNamespace(namespace string) []PortalEmailConfigResource {
-	var filtered []PortalEmailConfigResource
-	for _, cfg := range rs.PortalEmailConfigs {
-		if portal := rs.GetPortalByRef(cfg.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, cfg)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, cfg)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalAuditLogWebhooksByNamespace returns all portal audit-log webhook resources from the specified namespace
-func (rs *ResourceSet) GetPortalAuditLogWebhooksByNamespace(namespace string) []PortalAuditLogWebhookResource {
-	var filtered []PortalAuditLogWebhookResource
-	for _, webhook := range rs.PortalAuditLogWebhooks {
-		if portal := rs.GetPortalByRef(webhook.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, webhook)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, webhook)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalEmailTemplatesByNamespace returns all portal email template resources from the specified namespace
-func (rs *ResourceSet) GetPortalEmailTemplatesByNamespace(namespace string) []PortalEmailTemplateResource {
-	var filtered []PortalEmailTemplateResource
-	for _, tpl := range rs.PortalEmailTemplates {
-		if portal := rs.GetPortalByRef(tpl.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, tpl)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, tpl)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalTeamsByNamespace returns all portal team resources from the specified namespace
-func (rs *ResourceSet) GetPortalTeamsByNamespace(namespace string) []PortalTeamResource {
-	var filtered []PortalTeamResource
-	for _, team := range rs.PortalTeams {
-		// Check if parent portal is in the namespace
-		if portal := rs.GetPortalByRef(team.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, team)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, team)
-			}
-		}
-	}
-	return filtered
-}
-
-// GetPortalTeamRolesByNamespace returns all portal team role resources from the specified namespace
-func (rs *ResourceSet) GetPortalTeamRolesByNamespace(namespace string) []PortalTeamRoleResource {
-	var filtered []PortalTeamRoleResource
-	for _, role := range rs.PortalTeamRoles {
-		if portal := rs.GetPortalByRef(role.Portal); portal != nil {
-			if portal.IsExternal() {
-				if namespace == NamespaceExternal {
-					filtered = append(filtered, role)
-				}
-				continue
-			}
-			if GetNamespace(portal.Kongctl) == namespace {
-				filtered = append(filtered, role)
-			}
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[PortalPageResource](rs, namespace)
 }
 
 // GetEventGatewayControlPlanesByNamespace returns all EGW CP resources from the specified namespace
 func (rs *ResourceSet) GetEventGatewayControlPlanesByNamespace(namespace string) []EventGatewayControlPlaneResource {
-	var filtered []EventGatewayControlPlaneResource
-	for _, cp := range rs.EventGatewayControlPlanes {
-		if cp.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, cp)
-			}
-			continue
-		}
-		if GetNamespace(cp.Kongctl) == namespace {
-			filtered = append(filtered, cp)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[EventGatewayControlPlaneResource](rs, namespace)
 }
 
 // GetBackendClusterByRef returns a backend cluster resource by its ref from any namespace
@@ -1335,19 +711,7 @@ func (rs *ResourceSet) GetVirtualClusterByRef(ref string) *EventGatewayVirtualCl
 
 // GetOrganizationTeamsByNamespace returns all organization_team resources from the specified namespace
 func (rs *ResourceSet) GetOrganizationTeamsByNamespace(namespace string) []OrganizationTeamResource {
-	var filtered []OrganizationTeamResource
-	for _, team := range rs.OrganizationTeams {
-		if team.IsExternal() {
-			if namespace == NamespaceExternal {
-				filtered = append(filtered, team)
-			}
-			continue
-		}
-		if GetNamespace(team.Kongctl) == namespace {
-			filtered = append(filtered, team)
-		}
-	}
-	return filtered
+	return GetResourcesByNamespace[OrganizationTeamResource](rs, namespace)
 }
 
 // GetOrganizationTeamRolesByNamespace returns all organization_team_role resources from the specified namespace.

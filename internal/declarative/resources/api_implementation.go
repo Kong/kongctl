@@ -23,6 +23,9 @@ func init() {
 		AutoExplain[APIImplementationResource](
 			WithExplainSchemaBuilder(apiImplementationExplainNode),
 		),
+		WithNamespaceFrom(func(rs *ResourceSet, r *APIImplementationResource) *APIResource {
+			return rs.GetAPIByRef(r.API)
+		}),
 		WithChildSyncScope(ResourceTypeAPI),
 	)
 }

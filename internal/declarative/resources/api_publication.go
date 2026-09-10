@@ -13,6 +13,9 @@ func init() {
 		ResourceTypeAPIPublication,
 		func(rs *ResourceSet) *[]APIPublicationResource { return &rs.APIPublications },
 		AutoExplain[APIPublicationResource](),
+		WithNamespaceFrom(func(rs *ResourceSet, r *APIPublicationResource) *APIResource {
+			return rs.GetAPIByRef(r.API)
+		}),
 		WithChildSyncScope(ResourceTypeAPI),
 	)
 }

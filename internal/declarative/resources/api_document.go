@@ -25,6 +25,9 @@ func init() {
 			}),
 		),
 		WithExternalUnsupportedReason("scoped API document lookup is planned for API domain enablement"),
+		WithNamespaceFrom(func(rs *ResourceSet, r *APIDocumentResource) *APIResource {
+			return rs.GetAPIByRef(r.API)
+		}),
 		WithChildSyncScope(ResourceTypeAPI),
 	)
 }
