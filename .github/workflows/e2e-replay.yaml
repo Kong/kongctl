@@ -21,9 +21,14 @@ on:
           - control-plane/sync
           - control-plane/sync-groups
           - portal/sync
+      source_run:
+        description: Optional prior recording run ID to validate its candidate without another live recording
+        type: string
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 env:
   DO_NOT_TRACK: '1'
@@ -41,7 +46,13 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Test matcher, sanitization, TLS and stale-cassette checks
+        env:
+          SOURCE_RUN: ${{ inputs.source_run }}
+          REPLAY_MODE: ${{ inputs.mode }}
         run: |
+          if [ -n "$SOURCE_RUN" ]; then
+            [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] && [ "$REPLAY_MODE" = replay ]
+          fi
           make setup-e2e-replay
           python3 -m unittest discover -s scripts -p e2e_replay_test.py
       - name: Build experiment binaries
@@ -119,10 +130,19 @@ jobs:
         with:
           name: replay-candidate
           path: .e2e-artifacts/replay-candidate
+      - name: Download previously recorded candidate as data
+        if: inputs.mode == 'replay' && inputs.source_run != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: replay-candidate
+          path: .e2e-artifacts/replay-candidate
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
       - name: Replay three times with only loopback networking
         env:
           REPLAY_MODE: ${{ inputs.mode || 'replay' }}
           REPLAY_SCENARIO: ${{ inputs.scenario || 'control-plane/get' }}
+          SOURCE_RUN: ${{ inputs.source_run }}
         run: |
           make setup-e2e-replay
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test
@@ -133,6 +153,11 @@ jobs:
               args=(--cassette "test/e2e/scenarios/$REPLAY_SCENARIO/replay/cassette.json") ;;
             *) exit 1 ;;
           esac
+          if [ -n "$SOURCE_RUN" ]; then
+            args=(--cassette .e2e-artifacts/replay-candidate/candidate-cassette.json)
+            ordering="test/e2e/scenarios/$REPLAY_SCENARIO/replay/parallel-phases.json"
+            if [ -f "$ordering" ]; then args+=(--parallel-phases "$ordering"); fi
+          fi
           for attempt in 1 2 3; do
             bash scripts/e2e-replay-isolated.sh --scenario "$REPLAY_SCENARIO" "${args[@]}" \
               --output-dir ".e2e-artifacts/replay-results/${attempt}"

@@ -248,7 +248,10 @@ def request_key(endpoint, method, target, data):
 def validate_cassette(cassette, directory, scenario=SCENARIO):
     check_eligibility(directory)
     fixtures = fixture_strings(directory)
-    if not isinstance(cassette, dict) or set(cassette) != {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}:
+    fields = {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}
+    if isinstance(cassette, dict) and cassette.get("schema_version") == 2 and "parallel_phases" in cassette:
+        fields.add("parallel_phases")
+    if not isinstance(cassette, dict) or set(cassette) != fields:
         raise ValueError("invalid cassette fields")
     if type(cassette["schema_version"]) is not int or cassette["schema_version"] not in (1, 2) or cassette["scenario"] != scenario:
         raise ValueError("unsupported cassette schema or scenario")
@@ -301,6 +304,78 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
             raise ValueError("redirects and transient failures are not supported in cassettes")
         check_safe(item, fixtures)
         canonical(item)
+    parallel_phases(cassette)
+
+
+def parallel_phases(cassette):
+    """Compile reviewed, bounded phases with mandatory causal dependencies.
+
+    A phase is not a bag of responses: identical targets retain their stream
+    order, new IDs cannot be observed before creation, and ancestor reads
+    cannot cross updates/deletes. Additional dependencies can only constrain.
+    """
+    phases = cassette.get("parallel_phases", [])
+    if not isinstance(phases, list):
+        raise ValueError("parallel phases must be a list")
+    interactions, compiled, previous_end = cassette["interactions"], {}, 0
+    for phase in phases:
+        if not isinstance(phase, dict) or set(phase) != {"start", "end", "after"}:
+            raise ValueError("invalid parallel phase fields")
+        start, end, after = phase["start"], phase["end"], phase["after"]
+        if (type(start) is not int or type(end) is not int or not previous_end < start < end <= len(interactions)
+                or end - start >= 64 or not isinstance(after, dict)):
+            raise ValueError("parallel phases must be ordered, disjoint ranges of 2–64 exchanges")
+        indices = range(start - 1, end)
+        dependencies = {i: set() for i in indices}
+        owners = {}
+        for i in indices:
+            item = interactions[i]
+            body = item["response"]["body"]
+            if item["request"]["method"] == "POST" and isinstance(body, dict) and isinstance(body.get("id"), str):
+                identifier = body["id"]
+                if UUID.fullmatch(identifier):
+                    if identifier in owners:
+                        raise ValueError("parallel phase contains ambiguous created IDs")
+                    owners[identifier] = i
+        for i in indices:
+            item, request = interactions[i], interactions[i]["request"]
+            for identifier in UUID.findall(canonical(item)):
+                owner = owners.get(identifier)
+                if owner is not None and owner != i:
+                    if owner > i:
+                        raise ValueError("parallel phase observes an ID before its recorded creation")
+                    dependencies[i].add(owner)
+            for j in range(start - 1, i):
+                earlier = interactions[j]["request"]
+                if earlier["endpoint"] != request["endpoint"]:
+                    continue
+                same_target = earlier["path"] == request["path"]
+                earlier_body, current_body = interactions[j]["response"]["body"], item["response"]["body"]
+                independent_creates = (earlier["method"] == request["method"] == "POST"
+                                       and interactions[j]["response"]["status"] == item["response"]["status"] == 201
+                                       and isinstance(earlier_body, dict) and isinstance(current_body, dict)
+                                       and isinstance(earlier_body.get("id"), str) and isinstance(current_body.get("id"), str)
+                                       and owners.get(earlier_body["id"]) == j and owners.get(current_body["id"]) == i
+                                       and canonical(earlier) != canonical(request))
+                ancestor = (earlier["path"].startswith(request["path"].rstrip("/") + "/")
+                            or request["path"].startswith(earlier["path"].rstrip("/") + "/"))
+                changes_observation = ("GET" in {earlier["method"], request["method"]}
+                                       and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
+                if (same_target and not independent_creates) or (ancestor and changes_observation):
+                    dependencies[i].add(j)
+        for index, parents in after.items():
+            if not isinstance(index, str) or not index.isdecimal() or str(int(index)) != index:
+                raise ValueError("parallel dependency index must be a canonical decimal string")
+            i = int(index) - 1
+            if (i not in dependencies or not isinstance(parents, list)
+                    or any(type(p) is not int or not start <= p < i + 1 for p in parents)
+                    or len(parents) != len(set(parents))):
+                raise ValueError("parallel dependencies must refer to earlier exchanges in the phase")
+            dependencies[i].update(p - 1 for p in parents)
+        for i in indices:
+            compiled[i] = dependencies
+        previous_end = end
+    return compiled
 
 
 class Replay:
@@ -308,6 +383,8 @@ class Replay:
         self.interactions = cassette["interactions"] if cassette else []
         self.token = token
         self.position = 0
+        self.completed = set()
+        self.phases = parallel_phases(cassette) if cassette else {}
         self.errors = []
         self.lock = threading.Lock()
         self.fixtures = fixtures
@@ -325,9 +402,15 @@ class Replay:
             if self.token is None:
                 if self.position >= len(self.interactions):
                     raise ValueError("unexpected extra request")
-                item = self.interactions[self.position]
-                if canonical(request) != canonical(item["request"]):
+                phase = self.phases.get(self.position)
+                candidates = ([i for i, parents in phase.items() if i not in self.completed and parents <= self.completed]
+                              if phase else [self.position])
+                matches = [i for i in candidates if canonical(request) == canonical(self.interactions[i]["request"])]
+                if len(matches) != 1:
                     raise ValueError(f"request mismatch at interaction {self.position + 1} (method/path/query/body)")
+                index = matches[0]
+                item = self.interactions[index]
+                self.completed.add(index)
                 self.position += 1
                 return item["response"]
 
@@ -366,12 +449,15 @@ class Replay:
 
     def verify(self):
         if self.errors:
-            raise ValueError("; ".join(self.errors[:5]))
+            raise ValueError("; ".join(self.errors[:5]) + f"; consumed {self.position}/{len(self.interactions)} exchanges")
         if self.position != len(self.interactions):
             raise ValueError(f"{len(self.interactions) - self.position} required interactions unused")
 
 
 class QuietHandler(http.server.BaseHTTPRequestHandler):
+    # Headers and body are separate writes; avoid loopback delayed-ACK waits.
+    disable_nagle_algorithm = True
+
     def log_message(self, *_):
         pass  # Never put request bodies, paths or credentials in server logs.
 
@@ -395,10 +481,19 @@ class ProxyHandler(QuietHandler):
         self.close_connection = True
         try:
             self.connection.settimeout(90)
-            with self.server.tls.wrap_socket(self.connection, server_side=True) as connection:
+            connection = self.server.tls.wrap_socket(self.connection, server_side=True)
+        except (ConnectionResetError, ssl.SSLEOFError):
+            # Go may cancel surplus pooled dials before sending any HTTP
+            # request. Required/extra exchanges are checked at the HTTP layer.
+            return
+        except (OSError, ValueError) as error:
+            self.server.engine.fail(f"TLS tunnel failed ({type(error).__name__})")
+            return
+        try:
+            with connection:
                 InnerHandler(connection, self.client_address, self.server, tunnel_host=host)
-        except (OSError, ValueError):
-            self.server.engine.fail("TLS tunnel failed")
+        except (OSError, ValueError) as error:
+            self.server.engine.fail(f"TLS tunnel failed ({type(error).__name__})")
 
     def do_GET(self):
         self.server.engine.fail("only HTTPS CONNECT is supported")
@@ -523,6 +618,7 @@ def main():
     parser.add_argument("mode", choices=("check", "replay", "record"))
     parser.add_argument("--scenario", choices=SCENARIOS, default=SCENARIO)
     parser.add_argument("--cassette", type=Path)
+    parser.add_argument("--parallel-phases", type=Path, help="reviewed phase annotation bound to an exact candidate hash")
     parser.add_argument("--binary", type=Path, default=ROOT / "kongctl")
     parser.add_argument("--test-binary", type=Path, default=ROOT / "e2e.test")
     parser.add_argument("--reset-binary", type=Path, default=ROOT / "reset-org.test")
@@ -537,13 +633,23 @@ def main():
         raise ValueError("recording requires live networking, not replay isolation")
     cassette = None
     if args.mode != "record":
-        cassette = parse_json(args.cassette.read_bytes())
+        data = args.cassette.read_bytes()
+        cassette = parse_json(data)
+        if args.parallel_phases:
+            annotation = parse_json(args.parallel_phases.read_bytes())
+            if (set(annotation) != {"cassette_sha256", "parallel_phases"}
+                    or annotation["cassette_sha256"] != hashlib.sha256(data).hexdigest()
+                    or "parallel_phases" in cassette or cassette.get("schema_version") != 2):
+                raise ValueError("parallel annotation does not match an unannotated v2 candidate")
+            cassette["parallel_phases"] = annotation["parallel_phases"]
         validate_cassette(cassette, directory, args.scenario)
         if args.mode == "check":
             print(f"Cassette inputs and schema valid: {args.scenario}")
             return
     token = None
     if args.mode == "record":
+        if args.parallel_phases:
+            raise ValueError("recording cannot apply ordering assumptions from a different recording")
         check_eligibility(directory)
         # Recording is deliberately CI-only: manual trusted workflow + the
         # existing acceptance-3 environment and exact live shard lock.
@@ -601,6 +707,8 @@ def main():
                "network_isolated": args.require_isolated,
                "source_kind": "recorded" if token else cassette["source"]["kind"]}
     write_json(args.output_dir / "summary.json", summary)
+    if args.parallel_phases:
+        write_json(args.output_dir / "validated-cassette.json", cassette)
     print(json.dumps(summary))
 
 

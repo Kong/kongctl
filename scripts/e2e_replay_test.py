@@ -23,6 +23,49 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_parallel_phase_preserves_ids_bodies_and_barriers(self):
+        identifier = "00000000-0000-4000-8000-000000000001"
+        def exchange(method, path, body=None, response=None):
+            return {"request": MODULE.request_key("regional", method, path,
+                                                  json.dumps(body).encode() if body else b""),
+                    "response": {"status": 201 if method == "POST" else 200, "body": response}}
+        items = [exchange("POST", "/parents", {"name": "a"}, {"id": identifier}),
+                 exchange("POST", "/parents", {"name": "b"}, {"id": "00000000-0000-4000-8000-000000000002"}),
+                 exchange("POST", "/parents/" + identifier + "/children", {"name": "child"}),
+                 exchange("GET", "/parents")]
+        cassette = {"interactions": items, "parallel_phases": [{"start": 1, "end": 3, "after": {}}]}
+        engine = MODULE.Replay(cassette)
+        def send(item):
+            request = item["request"]
+            return engine.exchange("us.api.konghq.com", request["method"], request["path"],
+                                   json.dumps(request["body"]).encode() if request["body"] else b"")
+        with self.assertRaises(ValueError):
+            send(items[2])  # No child before its parent exists.
+        changed = copy.deepcopy(items[1])
+        changed["request"]["body"]["name"] = "different"
+        with self.assertRaises(ValueError):
+            send(changed)
+        send(items[1])  # Independent parent creates can reverse.
+        send(items[0])
+        with self.assertRaises(ValueError):
+            send(items[3])  # No crossing into the next phase.
+        send(items[2])
+        send(items[3])
+        engine.verify()
+
+    def test_parallel_phase_keeps_observations_before_mutations(self):
+        items = [interaction(), interaction("DELETE"), interaction("POST", b'{"name":"new"}')]
+        cassette = {"interactions": items, "parallel_phases": [{"start": 1, "end": 3, "after": {}}]}
+        phase = MODULE.parallel_phases(cassette)[0]
+        self.assertIn(0, phase[1])
+        for invalid in [
+            [{"start": 1, "end": 3, "after": {"1": [2]}}],
+            [{"start": True, "end": 3, "after": {}}],
+            [{"start": 1, "end": 3, "after": {}}, {"start": 2, "end": 3, "after": {}}],
+        ]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                MODULE.parallel_phases({**cassette, "parallel_phases": invalid})
+
     def test_failure_diagnostics_never_include_raw_cli_output(self):
         engine = MODULE.Replay({"interactions": []})
         directory = MODULE.ROOT / "test/e2e/scenarios/portal/sync"
@@ -226,7 +269,19 @@ class ReplayTest(unittest.TestCase):
 
         handler.server.tls.wrap_socket.side_effect = stalled_handshake
         handler.do_CONNECT()
-        handler.server.engine.fail.assert_called_once_with("TLS tunnel failed")
+        handler.server.engine.fail.assert_called_once_with("TLS tunnel failed (TimeoutError)")
+
+    def test_cancelled_idle_tls_dial_is_not_an_api_exchange(self):
+        for error in (ConnectionResetError(), ssl.SSLEOFError()):
+            handler = MODULE.ProxyHandler.__new__(MODULE.ProxyHandler)
+            handler.path = "us.api.konghq.com:443"
+            handler.connection = MagicMock()
+            handler.server = MagicMock()
+            handler.send_response = MagicMock()
+            handler.end_headers = MagicMock()
+            handler.server.tls.wrap_socket.side_effect = error
+            handler.do_CONNECT()
+            handler.server.engine.fail.assert_not_called()
 
     def test_error_response_on_disconnected_socket_is_quiet_but_fatal(self):
         handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)

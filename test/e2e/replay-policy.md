@@ -75,6 +75,36 @@ behavior. Arbitrary response headers, cookies, and authorization are never
 recorded. A failed scenario publishes no candidate; diagnostics contain only
 local command names and bounded, already-sanitized HTTP error exchanges.
 
+V2 cassettes may explicitly annotate `parallel_phases`: disjoint, one-based
+interaction ranges of 2–64 exchanges. Outside those ranges, order stays strict.
+Inside a range every method, path, query, and body must still match exactly,
+once. Generated UUID references depend on their recorded creation. Repeated
+targets keep their stream order, except distinct successful creates with
+distinct generated IDs. Ancestor reads cannot cross updates or deletes.
+Additional `after` dependencies can constrain ordering but cannot remove these
+mandatory dependencies. Never annotate a whole scenario as unordered.
+
+The Portal candidate annotations separate initial inventory, initial creation,
+individual read-only planning/dump commands, and final cleanup. Publication
+removal and API deletion remain barriers; reads from later scenario states
+cannot satisfy earlier requests. An annotation is a reviewed assertion about
+independent operations, not a general simulation of Konnect state.
+
+To iterate on an existing candidate without resetting a live organization:
+
+```sh
+gh workflow run e2e-replay.yaml --repo Kong/kongctl \
+  --ref YOUR_REVIEWED_BRANCH -f mode=replay -f scenario=portal/sync \
+  -f source_run=34517553668
+```
+
+Only candidate JSON is downloaded from the source run; executables are built
+from the selected branch. Optional `replay/parallel-phases.json` annotations
+are bound to the exact source cassette SHA-256. A different recording requires
+new review, not reuse of old positional assumptions. All three isolated
+replays must pass before promoting `validated-cassette.json` from the result
+artifact. Recording never applies annotations from another run.
+
 Scenario-local overlays and workdir-local generated plan files are supported.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
