@@ -2,9 +2,10 @@
 
 Related: [#2058](https://github.com/Kong/kongctl/issues/2058).
 
-This directory does **not** enable replay in ordinary PR or main E2E runs.
-Both still execute the entire scenario against live Konnect. The separate
-`E2E replay experiment` workflow exercises only `control-plane/get`.
+This cassette is enabled for ordinary same-repository `.com` PR runs through
+`test/e2e/replay-scenarios.json`. Main remains fully live. See
+[PR replay policy](../../../../replay-policy.md) for routing and force-live rules.
+The separate `E2E replay experiment` workflow records and validates candidates.
 
 ## Current evidence and limitation
 
@@ -31,7 +32,7 @@ The replay scenario median is about 74% lower than this one recorded live
 execution. This is an initial feasibility result, not a statistically robust
 speedup or an estimate for the full suite. Recording itself adds proxy and
 upstream-connection overhead. CI build/download/queue costs are outside these
-measurements. No ordinary PR scenario has been switched away from live APIs.
+measurements. These measurements predate ordinary PR replay routing.
 
 ## Local replay
 
@@ -67,7 +68,7 @@ Dispatch the registered workflow against a trusted repository branch:
 
 ```sh
 gh workflow run e2e-replay.yaml --repo Kong/kongctl \
-  --ref YOUR_REVIEWED_BRANCH -f mode=record
+  --ref YOUR_REVIEWED_BRANCH -f mode=record -f scenario=control-plane/get
 ```
 
 Only dispatch trusted repository code. The recording job has access to the
@@ -108,8 +109,8 @@ live assertions passed: a request-construction regression can pass incomplete
 assertions. Check it and replay locally with:
 
 ```sh
-python3 scripts/e2e-replay.py check
-python3 scripts/e2e-replay.py replay \
+python3 scripts/e2e_replay.py check
+python3 scripts/e2e_replay.py replay \
   --test-binary .e2e-artifacts/replay-bin/e2e.test
 ```
 
@@ -159,17 +160,11 @@ Replay cannot forward externally. Record mode uses a separate, explicit
 upstream exchange path. The cassette engine knows HTTP, not control-plane
 CRUD semantics or a simulated database.
 
-The fixture currently has eleven interactions, all in the regional control
-plane API. Keep the initial experiment this narrow. Before expansion:
-
-1. Repeat recording/review when this scenario changes and assess maintenance
-   effort before expanding eligibility to another scenario.
-2. Compare `scenario_seconds` (excludes certificate setup and live resets) and
-   `elapsed_seconds` (includes wrapper/setup/reset costs) in summaries. Report
-   replay match failures and cassette maintenance effort as well as speed.
-3. Add explicit area/eligibility metadata and a deterministic manifest router.
-4. Integrate separate PR live/replay jobs with complete coverage verification.
-5. Add the agent's live-area selection with all-live fallback and overrides.
+The cassette currently has eleven interactions, all in the regional control
+plane API. PR routing is deterministic, with no agent or changed-code mapping.
+Compare `scenario_seconds` (excludes certificate setup and live resets) and
+`elapsed_seconds` (includes wrapper/setup/reset costs) in summaries. Report
+replay match failures and cassette maintenance effort as well as speed.
 
 Do not add unordered interaction groups until an actual eligible scenario
 needs them. Do not add resource-specific emulation handlers. Do not change

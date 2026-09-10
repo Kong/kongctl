@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).with_name("e2e-metrics.py")
+SCRIPT = Path(__file__).with_name("e2e_metrics.py")
 SPEC = importlib.util.spec_from_file_location("e2e_metrics", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -113,6 +113,14 @@ class E2EMetricsTest(unittest.TestCase):
             path.write_text(json.dumps({"schema_version": 1, "strategy": "modulo", "allocation_id": "modulo-v1"}))
             metrics = MODULE.collect_metrics(root, {"KONGCTL_E2E_SHARD_STRATEGY": "weighted"})
             self.assertEqual("modulo-v1", metrics["allocation_id"])
+            for strategy, prefix in [("modulo", "modulo-v1"), ("weighted", "weighted-v1:" + "a" * 64)]:
+                replay_id = prefix + ":pr-replay:" + "b" * 64
+                path.write_text(json.dumps({"schema_version": 1, "strategy": strategy, "allocation_id": replay_id}))
+                self.assertEqual(replay_id, MODULE.collect_metrics(root, {})["allocation_id"])
+                path.write_text(json.dumps({"schema_version": 1, "strategy": strategy,
+                                            "allocation_id": prefix + ":pr-replay:invalid"}))
+                with self.assertRaises(ValueError):
+                    MODULE.collect_metrics(root, {})
 
 
 if __name__ == "__main__":

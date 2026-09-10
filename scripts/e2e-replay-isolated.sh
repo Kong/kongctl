@@ -14,5 +14,5 @@ ip link set lo up
 # Drop root and every capability before running any repository Python/Go code.
 exec setpriv --reuid "$replay_uid" --regid "$replay_gid" --clear-groups \
   --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs \
-  python3 scripts/e2e-replay.py replay --require-isolated \
+  python3 scripts/e2e_replay.py replay --require-isolated \
     --test-binary .e2e-artifacts/replay-bin/e2e.test "$@"

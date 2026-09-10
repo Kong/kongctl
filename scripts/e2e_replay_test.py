@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 
-SPEC = importlib.util.spec_from_file_location("e2e_replay", Path(__file__).with_name("e2e-replay.py"))
+SPEC = importlib.util.spec_from_file_location("e2e_replay", Path(__file__).with_name("e2e_replay.py"))
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
@@ -23,6 +23,11 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_supported_scenarios_have_local_dependencies(self):
+        for scenario in MODULE.SCENARIOS:
+            with self.subTest(scenario=scenario):
+                MODULE.check_eligibility(MODULE.ROOT / "test/e2e/scenarios" / scenario)
+
     def test_recording_workflow_shares_live_org_lock(self):
         live = (MODULE.ROOT / ".github/workflows/e2e.yaml").read_text()
         experiment = (MODULE.ROOT / ".github/workflows/e2e-replay.yaml").read_text()
@@ -59,10 +64,12 @@ class ReplayTest(unittest.TestCase):
         self.assertEqual([], engine.interactions)
 
     def test_repository_cassettes_are_current_even_without_replay_routing(self):
-        directory = MODULE.ROOT / "test/e2e/scenarios" / MODULE.SCENARIO
-        for path in sorted((directory / "replay").glob("*.json")):
+        root = MODULE.ROOT / "test/e2e/scenarios"
+        for path in sorted(root.glob("control-plane/**/replay/cassette.json")):
+            directory = path.parent.parent
             with self.subTest(path=path):
-                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory)
+                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory,
+                                        directory.relative_to(root).as_posix())
 
     def test_external_dependencies_require_explicit_review(self):
         with tempfile.TemporaryDirectory() as directory:

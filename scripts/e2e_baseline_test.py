@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).with_name("e2e-baseline.py")
+SCRIPT = Path(__file__).with_name("e2e_baseline.py")
 SPEC = importlib.util.spec_from_file_location("e2e_baseline", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -168,6 +168,20 @@ class E2EBaselineTest(unittest.TestCase):
             self.assertIsNone(MODULE.metric_allocation(metric))
         weighted = "weighted-v1:" + "a" * 64
         self.assertEqual(weighted, MODULE.metric_allocation({"schema_version": 2, "allocation_id": weighted}))
+        replay = weighted + ":pr-replay:" + "b" * 64
+        self.assertEqual(replay, MODULE.metric_allocation({"schema_version": 2, "allocation_id": replay}))
+        self.assertIsNone(MODULE.metric_allocation({"schema_version": 2, "allocation_id": weighted + ":pr-replay:bad"}))
+
+    def test_replay_subset_is_not_pooled_with_full_live_allocation(self) -> None:
+        weighted = "weighted-v1:" + "a" * 64
+        jobs = [{"name": MODULE.BUILD_JOB, "steps": [{"name": "Report Go cache status"}]}]
+        with patch.object(MODULE, "gh_json", side_effect=[
+            [{"databaseId": 1}], {"attempt": 1, "jobs": jobs},
+        ]) as api, patch.object(MODULE, "download_metrics", return_value=[{
+            "schema_version": 2, "allocation_id": weighted + ":pr-replay:" + "b" * 64,
+        }]):
+            self.assertEqual([], MODULE.collect_runs("kong/kongctl", 1, 100, allocation_id=weighted))
+            self.assertEqual(2, api.call_count)
 
     def test_wrong_allocation_is_excluded_before_attempt_lookup(self) -> None:
         jobs = [{"name": MODULE.BUILD_JOB, "steps": [{"name": "Report Go cache status"}]}]

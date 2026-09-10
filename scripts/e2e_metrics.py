@@ -101,6 +101,7 @@ def collect_metrics(root: Path, environ: dict[str, str]) -> dict[str, Any]:
         raise ValueError("invalid scenario-allocation.json")
     allocation_id = allocation.get("allocation_id", "")
     expected = r"modulo-v1" if allocation.get("strategy") == "modulo" else r"weighted-v1:[0-9a-f]{64}"
+    expected += r"(:pr-replay:[0-9a-f]{64})?"
     if (allocation.get("schema_version") != 1 or allocation.get("strategy") not in ("modulo", "weighted")
             or not isinstance(allocation_id, str) or not re.fullmatch(expected, allocation_id)):
         raise ValueError("invalid scenario-allocation.json")

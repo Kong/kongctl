@@ -20,6 +20,7 @@ type scenarioAssignment struct {
 }
 
 type scenarioSelectionConfig struct {
+	ReplaySuffix string
 	Strategy     string
 	Filter       string
 	Shard        scenarioShard

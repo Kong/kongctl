@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "scenario": "control-plane/plan/apply-workflow",
+  "inputs_sha256": "sha256:04702b49741bcc0f643e33e092140d0389deda26fee1872e98b8375a24b45cc6",
+  "source": {
+    "kind": "recorded",
+    "commit": "20c21fc1241d25de11f671becbedd1ac62ef9742",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/34428189915"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v2/control-planes",
+        "query": [],
+        "body": {
+          "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+          "description": "Initial description for control plane plan apply workflow",
+          "labels": {
+            "KONGCTL-namespace": "cp-plan-apply"
+          },
+          "name": "kongctl-cp-plan-apply"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-cp-plan-apply",
+          "description": "Initial description for control plane plan apply workflow",
+          "labels": {
+            "KONGCTL-namespace": "cp-plan-apply"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:11:47.053Z",
+          "updated_at": "2026-09-10T02:11:47.053Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-cp-plan-apply"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Initial description for control plane plan apply workflow",
+              "labels": {
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:47.053Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Initial description for control plane plan apply workflow",
+              "labels": {
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:47.053Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Initial description for control plane plan apply workflow",
+              "labels": {
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:47.053Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": {
+          "description": "Updated description for control plane plan apply workflow",
+          "labels": {
+            "KONGCTL-namespace": "cp-plan-apply",
+            "env": "e2e",
+            "owner": "kongctl-test"
+          },
+          "name": "kongctl-cp-plan-apply"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-cp-plan-apply",
+          "description": "Updated description for control plane plan apply workflow",
+          "labels": {
+            "KONGCTL-namespace": "cp-plan-apply",
+            "env": "e2e",
+            "owner": "kongctl-test"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:11:47.053Z",
+          "updated_at": "2026-09-10T02:11:48.788Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-cp-plan-apply"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Updated description for control plane plan apply workflow",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:48.788Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Updated description for control plane plan apply workflow",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:48.788Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-cp-plan-apply",
+              "description": "Updated description for control plane plan apply workflow",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "cp-plan-apply"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:11:47.053Z",
+              "updated_at": "2026-09-10T02:11:48.788Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-cp-plan-apply",
+          "description": "Updated description for control plane plan apply workflow",
+          "labels": {
+            "env": "e2e",
+            "owner": "kongctl-test",
+            "KONGCTL-namespace": "cp-plan-apply"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:11:47.053Z",
+          "updated_at": "2026-09-10T02:11:48.788Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null
+      }
+    }
+  ]
+}

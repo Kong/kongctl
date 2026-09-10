@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Experimental, explicit record/replay of one unchanged Konnect E2E scenario.
+"""Explicit record/replay of unchanged Konnect E2E scenarios.
 
-No production code or ordinary E2E routing depends on this module. The HTTP
-engine is resource-independent; eligibility is intentionally a one-scenario
-allowlist until recording fidelity and maintenance cost have been measured.
+No production code depends on this module. The HTTP engine is resource-independent;
+PR eligibility is an explicit reviewed subset in test/e2e/replay-scenarios.json.
 """
 
 from __future__ import annotations
@@ -28,6 +27,11 @@ from urllib.parse import parse_qsl, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIO = "control-plane/get"
+SCENARIOS = (
+    "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
+    "control-plane/groups", "control-plane/plan/apply-workflow",
+    "control-plane/sync", "control-plane/sync-groups",
+)
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
 LIMIT = 8 * 1024 * 1024
@@ -74,18 +78,31 @@ def scenario_digest(directory):
 
 
 def check_eligibility(directory):
-    # A deliberately conservative boundary for the single prototype scenario.
+    # A deliberately conservative boundary for the reviewed local-input scenarios.
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
+    definition = definition.replace("env:\n  KONGCTL_LOG_LEVEL: info\n", "")
     unsupported = (
         "exec|create|delete|resetOrgRegions|env|requiredEnvVars|assignedEnvironment|"
-        "inputOverlayDirs|inputOverlayOpsFiles|inputOverlayOps|stdinFile|stdoutFile|workdir"
+        "inputOverlayOpsFiles|inputOverlayOps|stdinFile|workdir"
     )
     if re.search(r"(?m)^\s*(?:-\s*)?(" + unsupported + r"):", definition):
         raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
     if not re.search(r"(?m)^baseInputsPath: testdata\s*$", definition):
         raise ValueError("prototype requires scenario-local testdata inputs")
+    for match in re.finditer(r"(?m)^\s*stdoutFile:\s*(.+)$", definition):
+        if not re.fullmatch(r'"\{\{ \.workdir \}\}/[a-zA-Z0-9_-]+\.(json|yaml)"', match[1]):
+            raise ValueError("replay requires workdir-local stdout files")
+    for match in re.finditer(r"(?m)^( +)inputOverlayDirs:\n((?:\1  - [^\n]+\n)+)", definition):
+        for line in match[2].splitlines():
+            relative = line.strip().removeprefix("- ")
+            if not re.fullmatch(r"overlays/[a-zA-Z0-9_-]+", relative) or not (directory / relative).is_dir():
+                raise ValueError("replay requires scenario-local overlay directories")
+    if len(re.findall(r"(?m)^\s*inputOverlayDirs:", definition)) != len(list(re.finditer(
+        r"(?m)^( +)inputOverlayDirs:\n((?:\1  - [^\n]+\n)+)", definition
+    ))):
+        raise ValueError("unsupported overlay declaration")
     for path in directory.rglob("*"):
         if path.relative_to(directory).parts[0] == "replay":
             continue
@@ -150,14 +167,14 @@ def request_key(endpoint, method, target, data):
             "query": [list(pair) for pair in sorted(parse_qsl(url.query, keep_blank_values=True))], "body": body}
 
 
-def validate_cassette(cassette, directory):
+def validate_cassette(cassette, directory, scenario=SCENARIO):
     check_eligibility(directory)
     if not isinstance(cassette, dict) or set(cassette) != {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}:
         raise ValueError("invalid cassette fields")
-    if type(cassette["schema_version"]) is not int or cassette["schema_version"] != 1 or cassette["scenario"] != SCENARIO:
+    if type(cassette["schema_version"]) is not int or cassette["schema_version"] != 1 or cassette["scenario"] != scenario:
         raise ValueError("unsupported cassette schema or scenario")
     if cassette["inputs_sha256"] != scenario_digest(directory):
-        raise ValueError(f"stale cassette: {SCENARIO}; re-record and review, or remove replay eligibility")
+        raise ValueError(f"stale cassette: {scenario}; re-record and review, or remove replay eligibility")
     source = cassette["source"]
     if not isinstance(source, dict) or not isinstance(source.get("commit"), str) or not re.fullmatch(r"[0-9a-f]{40}", source["commit"]):
         raise ValueError("cassette must identify its recorded commit")
@@ -362,14 +379,14 @@ class Server:
         self.thread.join()
 
 
-def clean_environment(directory, binary):
+def clean_environment(directory, binary, scenario=SCENARIO):
     # Do not inherit profiles, credentials, proxy bypasses, filters, skip flags,
     # shard configuration, debug capture switches or user CLI settings.
     env = {key: os.environ[key] for key in ("PATH", "TMPDIR", "SYSTEMROOT") if key in os.environ}
     env.update({
         "DO_NOT_TRACK": "1", "XDG_CONFIG_HOME": str(directory / "config"),
         "KONGCTL_E2E_BIN": str(binary), "KONGCTL_E2E_ARTIFACTS_DIR": str(directory / "artifacts"),
-        "KONGCTL_E2E_SCENARIO": SCENARIO, "KONGCTL_E2E_KONNECT_ENV": "com",
+        "KONGCTL_E2E_SCENARIO": scenario, "KONGCTL_E2E_KONNECT_ENV": "com",
         "KONGCTL_E2E_KONNECT_BASE_URL": "https://us.api.konghq.com",
         "KONGCTL_E2E_KONNECT_BASE_AUTH_URL": "https://global.api.konghq.com",
         "KONGCTL_E2E_KONNECT_PAT": DUMMY_PAT, "KONGCTL_E2E_RESET": "0",
@@ -386,14 +403,16 @@ def write_json(path, value):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("check", "replay", "record"))
-    parser.add_argument("--cassette", type=Path, default=ROOT / "test/e2e/scenarios" / SCENARIO / "replay/cassette.json")
+    parser.add_argument("--scenario", choices=SCENARIOS, default=SCENARIO)
+    parser.add_argument("--cassette", type=Path)
     parser.add_argument("--binary", type=Path, default=ROOT / "kongctl")
     parser.add_argument("--test-binary", type=Path, default=ROOT / "e2e.test")
     parser.add_argument("--reset-binary", type=Path, default=ROOT / "reset-org.test")
     parser.add_argument("--output-dir", type=Path, default=ROOT / ".e2e-artifacts/replay")
     parser.add_argument("--require-isolated", action="store_true", help="require a Linux loopback-only network namespace")
     args = parser.parse_args()
-    directory = ROOT / "test/e2e/scenarios" / SCENARIO
+    directory = ROOT / "test/e2e/scenarios" / args.scenario
+    args.cassette = args.cassette or directory / "replay/cassette.json"
     if args.require_isolated and (sys.platform != "linux" or {name for _, name in socket.if_nameindex()} != {"lo"}):
         raise ValueError("replay requires a network namespace containing only loopback")
     if args.mode == "record" and args.require_isolated:
@@ -401,9 +420,9 @@ def main():
     cassette = None
     if args.mode != "record":
         cassette = parse_json(args.cassette.read_bytes())
-        validate_cassette(cassette, directory)
+        validate_cassette(cassette, directory, args.scenario)
         if args.mode == "check":
-            print(f"Cassette inputs and schema valid: {SCENARIO}")
+            print(f"Cassette inputs and schema valid: {args.scenario}")
             return
     token = None
     if args.mode == "record":
@@ -424,7 +443,7 @@ def main():
     engine = Replay(cassette, token)
     with tempfile.TemporaryDirectory(prefix="kongctl-replay-") as temporary:
         private = Path(temporary)
-        env = clean_environment(private, args.binary.resolve())
+        env = clean_environment(private, args.binary.resolve(), args.scenario)
         reset_env = {**env, "KONGCTL_E2E_KONNECT_PAT": token or DUMMY_PAT, "KONGCTL_E2E_RESET": "1"}
         started = time.monotonic()
         try:
@@ -442,7 +461,7 @@ def main():
             engine.verify()
             # A skipped test must never become a passing replay/recording.
             output = result.stdout.decode(errors="replace")
-            if result.returncode or f"--- PASS: Test_Scenarios/test/e2e/scenarios/{SCENARIO}/scenario.yaml" not in output:
+            if result.returncode or f"--- PASS: Test_Scenarios/test/e2e/scenarios/{args.scenario}/scenario.yaml" not in output:
                 raise ValueError("scenario did not pass; candidate not published (raw live logs are not uploaded)")
         finally:
             if token:
@@ -450,14 +469,14 @@ def main():
                                env=reset_env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=600)
         elapsed = time.monotonic() - started
     if token:
-        candidate = {"schema_version": 1, "scenario": SCENARIO, "inputs_sha256": scenario_digest(directory),
+        candidate = {"schema_version": 1, "scenario": args.scenario, "inputs_sha256": scenario_digest(directory),
                      "source": {"kind": "recorded", "commit": os.environ.get("GITHUB_SHA", ""),
                                 "run_url": "https://github.com/Kong/kongctl/actions/runs/" + os.environ.get("GITHUB_RUN_ID", "")},
                      "interactions": engine.interactions}
-        validate_cassette(candidate, directory)
+        validate_cassette(candidate, directory, args.scenario)
         # Never overwrite the reviewed cassette, even when recording succeeded.
         write_json(args.output_dir / "candidate-cassette.json", candidate)
-    summary = {"mode": args.mode, "scenario": SCENARIO, "interactions": engine.position,
+    summary = {"mode": args.mode, "scenario": args.scenario, "interactions": engine.position,
                "elapsed_seconds": round(elapsed, 3), "status": "pass",
                "scenario_seconds": round(scenario_elapsed, 3),
                "network_isolated": args.require_isolated,

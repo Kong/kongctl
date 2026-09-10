@@ -649,7 +649,7 @@ below the original 20-run target, rather than filling that target with cached
 runs. Regenerate their report offline with:
 
 ```sh
-python3 scripts/e2e-baseline.py --cohort uncached --frozen \
+python3 scripts/e2e_baseline.py --cohort uncached --frozen \
   --observations test/e2e/baselines/stage0-2026-09-observations.json \
   --output test/e2e/baselines/stage0-2026-09.md
 ```
@@ -726,7 +726,7 @@ make collect-e2e-baseline E2E_BASELINE_ALLOCATION=modulo-v1 \
 For an exact snapshot identity without changing weights:
 
 ```sh
-python3 scripts/e2e-weights.py --print-allocation-id
+python3 scripts/e2e_weights.py --print-allocation-id
 ```
 
 The build job runs the weighted scheduler tests using its already compiled

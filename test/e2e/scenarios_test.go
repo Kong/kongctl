@@ -53,6 +53,13 @@ func Test_Scenarios(t *testing.T) {
 			t.Fatalf("invalid e2e shard configuration: %v", err)
 		}
 	}
+	if filt != "" && os.Getenv("KONGCTL_E2E_REPLAY_PLAN") != "" {
+		t.Fatal("a scenario filter cannot be combined with PR replay routing")
+	}
+	scenarios, replayAllocationSuffix, err := liveScenarioInventory(scenarios, os.Getenv("KONGCTL_E2E_REPLAY_PLAN"))
+	if err != nil {
+		t.Fatalf("route live scenarios: %v", err)
+	}
 
 	assignments, err := loadScenarioAssignments(scenarios)
 	if err != nil {
@@ -69,6 +76,7 @@ func Test_Scenarios(t *testing.T) {
 	)
 
 	selectionConfig := scenarioSelectionConfig{
+		ReplaySuffix: replayAllocationSuffix,
 		Strategy:     os.Getenv("KONGCTL_E2E_SHARD_STRATEGY"),
 		Filter:       filt,
 		Shard:        shard,

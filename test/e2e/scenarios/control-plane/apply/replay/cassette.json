@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "scenario": "control-plane/apply",
+  "inputs_sha256": "sha256:199b887619b94d75176dab144fba1df51e20ca32a45f4b0f6b4eeb18472a1d0c",
+  "source": {
+    "kind": "recorded",
+    "commit": "20c21fc1241d25de11f671becbedd1ac62ef9742",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/34427742802"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v2/control-planes",
+        "query": [],
+        "body": {
+          "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+          "description": "Test Control Plane for E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "name": "kongctl-e2e-cp"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-cp",
+          "description": "Test Control Plane for E2E testing via kongctl",
+          "labels": {
+            "KONGCTL-namespace": "default"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:05:40.535Z",
+          "updated_at": "2026-09-10T02:05:40.535Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-e2e-cp"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Test Control Plane for E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:40.535Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Test Control Plane for E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:40.535Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Test Control Plane for E2E testing via kongctl",
+              "labels": {
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:40.535Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": {
+          "description": "Updated description for E2E apply test",
+          "labels": {
+            "KONGCTL-namespace": "default",
+            "env": "e2e",
+            "owner": "kongctl-test"
+          },
+          "name": "kongctl-e2e-cp"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-cp",
+          "description": "Updated description for E2E apply test",
+          "labels": {
+            "KONGCTL-namespace": "default",
+            "env": "e2e",
+            "owner": "kongctl-test"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:05:40.535Z",
+          "updated_at": "2026-09-10T02:05:41.995Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "filter[name][eq]",
+            "kongctl-e2e-cp"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Updated description for E2E apply test",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:41.995Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Updated description for E2E apply test",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:41.995Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "kongctl-e2e-cp",
+              "description": "Updated description for E2E apply test",
+              "labels": {
+                "env": "e2e",
+                "owner": "kongctl-test",
+                "KONGCTL-namespace": "default"
+              },
+              "config": {
+                "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+                "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+                "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+                "auth_type": "pinned_client_certs",
+                "cloud_gateway": false,
+                "proxy_urls": []
+              },
+              "created_at": "2026-09-10T02:05:40.535Z",
+              "updated_at": "2026-09-10T02:05:41.995Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "kongctl-e2e-cp",
+          "description": "Updated description for E2E apply test",
+          "labels": {
+            "env": "e2e",
+            "owner": "kongctl-test",
+            "KONGCTL-namespace": "default"
+          },
+          "config": {
+            "control_plane_endpoint": "https://replay.us.cp.konghq.com",
+            "telemetry_endpoint": "https://replay.us.tp.konghq.com",
+            "cluster_type": "CLUSTER_TYPE_CONTROL_PLANE",
+            "auth_type": "pinned_client_certs",
+            "cloud_gateway": false,
+            "proxy_urls": []
+          },
+          "created_at": "2026-09-10T02:05:40.535Z",
+          "updated_at": "2026-09-10T02:05:41.995Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v2/control-planes/00000000-0000-4000-8000-000000000001",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null
+      }
+    }
+  ]
+}

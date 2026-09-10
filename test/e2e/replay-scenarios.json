@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    "control-plane/apply",
+    "control-plane/get",
+    "control-plane/plan/apply-workflow",
+    "control-plane/sync"
+  ]
+}

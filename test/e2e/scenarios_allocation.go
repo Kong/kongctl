@@ -23,6 +23,8 @@ type scenarioAllocation struct {
 
 func scenarioAllocationForConfig(cfg scenarioSelectionConfig) (scenarioAllocation, error) {
 	allocation := scenarioAllocation{SchemaVersion: 1, Strategy: allocationModulo, ID: allocationModuloID}
+	// Keep reduced live populations out of historical all-live cohorts.
+	allocation.ID += cfg.ReplaySuffix
 	if cfg.Filter != "" || !cfg.Shard.Enabled || !cfg.ValidateEnvs {
 		return allocation, nil
 	}
@@ -31,7 +33,7 @@ func scenarioAllocationForConfig(cfg scenarioSelectionConfig) (scenarioAllocatio
 		return allocation, nil
 	case "", allocationWeighted:
 		allocation.Strategy = allocationWeighted
-		allocation.ID = fmt.Sprintf("weighted-v1:%x", sha256.Sum256(scenarioWeightsJSON))
+		allocation.ID = fmt.Sprintf("weighted-v1:%x", sha256.Sum256(scenarioWeightsJSON)) + cfg.ReplaySuffix
 		return allocation, nil
 	default:
 		return allocation, fmt.Errorf("invalid KONGCTL_E2E_SHARD_STRATEGY %q: use weighted or modulo", cfg.Strategy)
