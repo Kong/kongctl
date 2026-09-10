@@ -107,6 +107,9 @@ Supply a typed owner lookup, as in [API versions][api-version]. The child
 inherits the owner's registered selection policy. Preserve exact reference
 matching and first-match behavior; missing owners exclude the child. Namespace
 ownership need not match structural parenthood or sync ownership.
+The registry contract checks that every namespace-owner chain reaches a
+registered namespace root without cycles. Call the generic selector only for
+kinds with selection; using an unsupported kind is a programming error.
 
 Organization assignment selection retains its specialized rules. Resources
 already selected within a parent collection do not need an additional

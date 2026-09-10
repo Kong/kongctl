@@ -27,6 +27,7 @@ type resourceOps struct {
 	explain                   ExplainRegistration
 	namespace                 *namespaceRegistration
 	matchesNamespace          func(*ResourceSet, Resource, string) bool
+	namespaceOwner            ResourceType
 	syncScope                 *syncScopeRegistration
 	load                      *childLoadRegistration
 	dumpDefaultRules          map[string]dumpDefaultRule

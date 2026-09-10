@@ -288,6 +288,36 @@ func TestRegisteredTypesContainsKnownTypes(t *testing.T) {
 	assert.False(t, typeSet[ResourceType("unknown_type")])
 }
 
+func TestNamespaceSelectionRegistrationContract(t *testing.T) {
+	for _, kind := range RegisteredTypes() {
+		t.Run(string(kind), func(t *testing.T) {
+			ops := registry[kind]
+			if ops.namespace != nil {
+				require.NotNil(t, ops.matchesNamespace, "namespace roots must supply selection")
+			}
+			if ops.matchesNamespace == nil {
+				require.Empty(t, ops.namespaceOwner, "namespace ownership requires selection")
+				return
+			}
+
+			seen := make(map[ResourceType]bool)
+			for current := kind; ; {
+				require.NotContains(t, seen, current, "namespace ownership must not contain cycles")
+				seen[current] = true
+				require.Contains(t, registry, current, "namespace owners must be registered")
+				currentOps := registry[current]
+				require.NotNil(t, currentOps.matchesNamespace, "namespace owners must supply selection: %s", current)
+				if currentOps.namespaceOwner == "" {
+					require.NotNil(t, currentOps.namespace, "namespace ownership must terminate at a namespace root")
+					break
+				}
+				require.Nil(t, currentOps.namespace, "namespace roots must not also inherit selection")
+				current = currentOps.namespaceOwner
+			}
+		})
+	}
+}
+
 // extractRefs is a test helper that collects refs from a slice of Resources.
 func extractRefs(resources []Resource) []string {
 	refs := make([]string, len(resources))

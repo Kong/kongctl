@@ -39,13 +39,15 @@ func WithNamespaceFrom[R, P any, PPtr interface {
 		if owner == nil || ops.explain.typ != reflect.TypeFor[R]() {
 			return fmt.Errorf("namespace owner accessor must match the registered resource type")
 		}
+		// Record the dependency without requiring the owner to register first.
+		ownerKind := PPtr(new(P)).GetType()
+		ops.namespaceOwner = ownerKind
 		ops.matchesNamespace = func(rs *ResourceSet, resource Resource, namespace string) bool {
 			parent := owner(rs, any(resource).(*R))
 			if parent == nil {
 				return false
 			}
-			parentResource := PPtr(parent)
-			return namespaceMatcher(parentResource.GetType())(rs, parentResource, namespace)
+			return namespaceMatcher(ownerKind)(rs, PPtr(parent), namespace)
 		}
 		return nil
 	}
