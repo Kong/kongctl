@@ -5,8 +5,8 @@ cassette on disk alone does not enable a scenario. Every enabled scenario
 must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
-The initial enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, and `control-plane/sync`.
+The enabled subset is `control-plane/get`, `control-plane/apply`,
+`control-plane/plan/apply-workflow`, `control-plane/sync`, and `portal/sync`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -14,11 +14,14 @@ The initial enabled subset is `control-plane/get`, `control-plane/apply`,
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [34428188131][sync] |
+| portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/34428188131
+[portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
+[portal-replay]: https://github.com/Kong/kongctl/actions/runs/34520309423
 
 ## Routing
 
@@ -105,6 +108,21 @@ new review, not reuse of old positional assumptions. All three isolated
 replays must pass before promoting `validated-cassette.json` from the result
 artifact. Recording never applies annotations from another run.
 
+Large validated v2 cassettes can be stored as ordered JSON chunks, each at
+most 400,000 bytes, below the repository's per-file limit:
+
+```sh
+python3 scripts/e2e_replay.py pack --scenario portal/sync \
+  --cassette PATH_TO_VALIDATED_CASSETTE --output-dir NEW_DIRECTORY
+```
+
+The new directory contains `cassette.json` and `interactions/*.json`. Promote
+both together. Chunk names are SHA-256 digests checked on every load; chunks
+are local, bounded, and cannot be symlinks. Packing verifies an exact round
+trip: all recorded requests, responses, ordering and provenance are unchanged.
+It is only a storage format, not a sanitizer or approval mechanism. Run the
+packed cassette through isolated replay as part of PR validation too.
+
 Scenario-local overlays and workdir-local generated plan files are supported.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
@@ -121,19 +139,25 @@ field names outside an opaque public spec, or the recording credential itself.
 Literal URLs in these payloads are data, not permission to fetch them; replay
 still has loopback-only networking.
 
+The secret-scan baseline lists only reviewed integrity hashes and the exact
+existing public example value repeated in the Portal fixture. It does not
+exclude cassette directories or weaken the recorder's sensitive-data checks.
+
 `make setup-e2e-replay` installs the pinned test-only YAML parser into ignored
 `.e2e-artifacts/replay-python`. Build/check/metrics Make targets include this
 setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
 
-`portal/sync` is a recording candidate, not yet an enabled PR replay scenario.
-Promote its cassette and policy membership only after the complete live scenario
-and three isolated replays pass. No scenario assertions are removed to obtain
-a successful recording.
+`portal/sync` is enabled after its complete live scenario and three isolated
+replays passed (293 HTTP interactions each). No scenario assertions were
+removed to obtain a successful recording. The isolated wrappers took
+3.70–4.26 seconds, compared with 18.82 seconds for the same-source normal live
+scenario and a 22.72-second historical median. Recording's own 47.37-second
+scenario duration includes proxy overhead and is not the live baseline.
 
 Group scenarios have exhibited nondeterministic independent request ordering
-and must stay live until explicit bounded unordered interactions are designed
-and validated. Serverless additionally uses a harness creation command. The
+and stay live pending reviewed phase annotations and isolated validation.
+Serverless additionally uses a harness creation command. The
 certificate scenario needs a reviewed public-PEM and environment-input policy.
 Product maturity alone is not sufficient to enable these scenarios.
 

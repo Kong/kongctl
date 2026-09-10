@@ -23,6 +23,41 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_chunked_cassette_round_trip_and_tamper_detection(self):
+        cassette = {"schema_version": 2, "interactions": [interaction(body=None)] * 3}
+        cassette["interactions"][0]["response"]["body"] = "x" * 180000
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "packed"
+            MODULE.pack_cassette(cassette, directory)
+            path = directory / "cassette.json"
+            self.assertEqual(MODULE.load_cassette(path), cassette)
+            manifest = json.loads(path.read_text())
+            self.assertGreater(len(manifest["interaction_chunks"]), 1)
+            with self.assertRaises(FileExistsError):
+                MODULE.pack_cassette(cassette, directory)
+            chunk = next((directory / "interactions").iterdir())
+            chunk.write_text("[]\n")
+            with self.assertRaisesRegex(ValueError, "digest mismatch"):
+                MODULE.load_cassette(path)
+            manifest["interaction_chunks"] = ["../outside"]
+            path.write_text(json.dumps(manifest))
+            with self.assertRaisesRegex(ValueError, "invalid cassette chunk digest"):
+                MODULE.load_cassette(path)
+
+    def test_chunked_cassette_rejects_symlinks_and_oversized_interactions(self):
+        cassette = {"schema_version": 2, "interactions": [interaction()]}
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "packed"
+            MODULE.pack_cassette(cassette, directory)
+            chunks = directory / "interactions"
+            chunks.rename(directory / "elsewhere")
+            chunks.symlink_to(directory / "elsewhere", target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                MODULE.load_cassette(directory / "cassette.json")
+            cassette["interactions"][0]["response"]["body"] = "x" * 400000
+            with self.assertRaisesRegex(ValueError, "single interaction"):
+                MODULE.pack_cassette(cassette, Path(temporary) / "oversized")
+
     def test_parallel_phase_preserves_ids_bodies_and_barriers(self):
         identifier = "00000000-0000-4000-8000-000000000001"
         def exchange(method, path, body=None, response=None):
@@ -122,7 +157,7 @@ class ReplayTest(unittest.TestCase):
         for path in sorted(root.glob("**/replay/cassette.json")):
             directory = path.parent.parent
             with self.subTest(path=path):
-                MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory,
+                MODULE.validate_cassette(MODULE.load_cassette(path), directory,
                                         directory.relative_to(root).as_posix())
 
     def test_external_dependencies_require_explicit_review(self):
@@ -235,7 +270,8 @@ class ReplayTest(unittest.TestCase):
 
     def test_sensitive_content_cannot_be_published(self):
         for data in [{"client_secret": "x"}, {"a": [{"password": "x"}]},
-                     {"value": "kpat_abc"}, {"email": "person@example.com"}, {"value": "-----BEGIN PRIVATE KEY"}]:
+                     {"value": "kpat_abc"}, {"email": "person@example.com"},
+                     {"value": "-----BEGIN PRIVATE KEY"}]:  # pragma: allowlist secret (rejection test, no key)
             with self.subTest(data=data), self.assertRaises(ValueError):
                 MODULE.check_safe(data)
 
@@ -282,6 +318,45 @@ class ReplayTest(unittest.TestCase):
             handler.server.tls.wrap_socket.side_effect = error
             handler.do_CONNECT()
             handler.server.engine.fail.assert_not_called()
+
+    def test_cancelled_tls_dial_does_not_satisfy_a_required_request(self):
+        handler = MODULE.ProxyHandler.__new__(MODULE.ProxyHandler)
+        handler.path = "us.api.konghq.com:443"
+        handler.connection = MagicMock()
+        handler.server = MagicMock()
+        handler.server.engine = MODULE.Replay({"interactions": [interaction()]})
+        handler.send_response = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.server.tls.wrap_socket.side_effect = ssl.SSLEOFError()
+        handler.do_CONNECT()
+        with self.assertRaisesRegex(ValueError, "required interactions unused"):
+            handler.server.engine.verify()
+
+    def test_other_tls_errors_remain_fatal(self):
+        handler = MODULE.ProxyHandler.__new__(MODULE.ProxyHandler)
+        handler.path = "us.api.konghq.com:443"
+        handler.connection = MagicMock()
+        handler.server = MagicMock()
+        handler.server.engine = MODULE.Replay({"interactions": []})
+        handler.send_response = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.server.tls.wrap_socket.side_effect = ssl.SSLError("certificate failure")
+        handler.do_CONNECT()
+        with self.assertRaisesRegex(ValueError, "TLS tunnel failed"):
+            handler.server.engine.verify()
+
+    def test_reset_between_requests_is_idle_but_partial_request_is_not(self):
+        handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)
+        handler.rfile = MagicMock()
+        handler.rfile.peek.side_effect = ConnectionResetError()
+        handler.handle_one_request()
+        self.assertTrue(handler.close_connection)
+        handler.rfile.peek.side_effect = None
+        handler.rfile.peek.return_value = b"G"
+        with patch.object(MODULE.http.server.BaseHTTPRequestHandler, "handle_one_request",
+                          side_effect=ConnectionResetError()):
+            with self.assertRaises(ConnectionResetError):
+                handler.handle_one_request()
 
     def test_error_response_on_disconnected_socket_is_quiet_but_fatal(self):
         handler = MODULE.InnerHandler.__new__(MODULE.InnerHandler)

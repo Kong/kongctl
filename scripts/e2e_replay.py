@@ -81,6 +81,69 @@ def scenario_digest(directory):
     return "sha256:" + digest.hexdigest()
 
 
+def load_cassette(path):
+    """Expand optional hash-addressed chunks before normal cassette validation."""
+    cassette = parse_json(path.read_bytes())
+    if not isinstance(cassette, dict) or "interaction_chunks" not in cassette:
+        return cassette
+    chunks = cassette.pop("interaction_chunks")
+    if (cassette.get("schema_version") != 2 or "interactions" in cassette
+            or not isinstance(chunks, list) or not 0 < len(chunks) <= 100):
+        raise ValueError("invalid cassette interaction chunks")
+    directory = path.parent / "interactions"
+    if directory.is_symlink():
+        raise ValueError("symlinked cassette chunks are unsupported")
+    interactions = []
+    for digest in chunks:
+        if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
+            raise ValueError("invalid cassette chunk digest")
+        chunk = directory / (digest + ".json")
+        if chunk.is_symlink() or chunk.stat().st_size > 400000:
+            raise ValueError("symlinked or oversized cassette chunk")
+        data = chunk.read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest:
+            raise ValueError("cassette chunk digest mismatch")
+        items = parse_json(data)
+        if not isinstance(items, list) or not items:
+            raise ValueError("cassette chunk requires a nonempty interaction list")
+        interactions.extend(items)
+        if len(interactions) > 10000:
+            raise ValueError("too many cassette interactions")
+    return {**cassette, "interactions": interactions}
+
+
+def pack_cassette(cassette, directory):
+    """Lossless storage only; never change requests, responses, or their order."""
+    if cassette["schema_version"] != 2:
+        raise ValueError("packing requires a v2 cassette")
+    chunks, items = [], []
+    def encoded(values):
+        return (json.dumps(values, indent=2, ensure_ascii=True, allow_nan=False) + "\n").encode()
+    for item in cassette["interactions"]:
+        if len(encoded([item])) > 400000:
+            raise ValueError("single interaction exceeds the repository storage limit")
+        if items and len(encoded([*items, item])) > 400000:
+            chunks.append(encoded(items))
+            items = []
+        items.append(item)
+    if items:
+        chunks.append(encoded(items))
+    if not chunks or len(chunks) > 100:
+        raise ValueError("unsupported cassette chunk count")
+    # A new directory avoids partial replacement or stale leftover chunks.
+    directory.mkdir(parents=True, exist_ok=False)
+    (directory / "interactions").mkdir()
+    hashes = []
+    for data in chunks:
+        digest = hashlib.sha256(data).hexdigest()
+        (directory / "interactions" / (digest + ".json")).write_bytes(data)
+        hashes.append(digest)
+    manifest = {key: value for key, value in cassette.items() if key != "interactions"}
+    write_json(directory / "cassette.json", {**manifest, "interaction_chunks": hashes})
+    if load_cassette(directory / "cassette.json") != cassette:
+        raise ValueError("packed cassette failed lossless round-trip verification")
+
+
 def check_eligibility(directory):
     # A deliberately conservative boundary for the reviewed local-input scenarios.
     # New external dependencies, custom commands or org pins require explicit
@@ -331,7 +394,8 @@ def parallel_phases(cassette):
         for i in indices:
             item = interactions[i]
             body = item["response"]["body"]
-            if item["request"]["method"] == "POST" and isinstance(body, dict) and isinstance(body.get("id"), str):
+            if (item["request"]["method"] == "POST" and item["response"]["status"] == 201
+                    and isinstance(body, dict) and isinstance(body.get("id"), str)):
                 identifier = body["id"]
                 if UUID.fullmatch(identifier):
                     if identifier in owners:
@@ -507,6 +571,18 @@ class InnerHandler(QuietHandler):
         self.tunnel_host = tunnel_host
         super().__init__(*args)
 
+    def handle_one_request(self):
+        # Closing a pooled connection between requests is not an API failure.
+        # Once any HTTP byte arrives, all parsing/IO errors remain fatal.
+        try:
+            if not self.rfile.peek(1):
+                self.close_connection = True
+                return
+        except (ConnectionResetError, ssl.SSLEOFError):
+            self.close_connection = True
+            return
+        super().handle_one_request()
+
     def exchange(self):
         try:
             if self.headers.get("Host") not in {self.tunnel_host, self.tunnel_host + ":443"}:
@@ -615,7 +691,7 @@ def failure_summary(engine, output, directory):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("check", "replay", "record"))
+    parser.add_argument("mode", choices=("check", "replay", "record", "pack"))
     parser.add_argument("--scenario", choices=SCENARIOS, default=SCENARIO)
     parser.add_argument("--cassette", type=Path)
     parser.add_argument("--parallel-phases", type=Path, help="reviewed phase annotation bound to an exact candidate hash")
@@ -634,7 +710,7 @@ def main():
     cassette = None
     if args.mode != "record":
         data = args.cassette.read_bytes()
-        cassette = parse_json(data)
+        cassette = load_cassette(args.cassette)
         if args.parallel_phases:
             annotation = parse_json(args.parallel_phases.read_bytes())
             if (set(annotation) != {"cassette_sha256", "parallel_phases"}
@@ -643,6 +719,10 @@ def main():
                 raise ValueError("parallel annotation does not match an unannotated v2 candidate")
             cassette["parallel_phases"] = annotation["parallel_phases"]
         validate_cassette(cassette, directory, args.scenario)
+        if args.mode == "pack":
+            pack_cassette(cassette, args.output_dir)
+            print(f"Losslessly packed cassette: {args.output_dir}")
+            return
         if args.mode == "check":
             print(f"Cassette inputs and schema valid: {args.scenario}")
             return

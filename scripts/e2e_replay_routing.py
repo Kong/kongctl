@@ -29,7 +29,7 @@ def make_plan(root, mode):
     selected = enabled_scenarios(root) if mode == "pr" else []
     for scenario in selected:
         cassette_dir = directory / scenario
-        REPLAY.validate_cassette(REPLAY.parse_json((cassette_dir / "replay/cassette.json").read_bytes()),
+        REPLAY.validate_cassette(REPLAY.load_cassette(cassette_dir / "replay/cassette.json"),
                                 cassette_dir, scenario)
     replay = [s + "/scenario.yaml" for s in selected]
     if not set(replay) <= set(inventory):
