@@ -5,6 +5,7 @@ import argparse
 import importlib.util
 import os
 from pathlib import Path
+import statistics
 import subprocess
 
 SPEC = importlib.util.spec_from_file_location("replay", Path(__file__).with_name("e2e_replay.py"))
@@ -60,6 +61,28 @@ def verify_results(plan, result_directory, commit, run_id):
             raise ValueError("replay did not pass in network isolation")
 
 
+def performance_report(baseline, summaries):
+    """Compare execution work, not parallel workflow wall-clock duration."""
+    lines = ["## Replay execution comparison", "",
+             "Historical live timings include scenario resets. Replay timings include proxy setup.", "",
+             "| Scenario | Live samples | Live median seconds | Replay seconds | Reduction |",
+             "| --- | ---: | ---: | ---: | ---: |"]
+    for summary in summaries:
+        name = summary["scenario"]
+        samples = [s["duration_seconds"] for run in baseline["runs"] for s in run["scenario_durations"]
+                   if s["scenario"] == name + "/scenario.yaml" and s["result"] == "pass"]
+        replay = summary["elapsed_seconds"]
+        if samples:
+            live = statistics.median(samples)
+            reduction = f"{(1 - replay / live) * 100:.1f}%" if live > 0 else "n/a"
+            lines.append(f"| {name} | {len(samples)} | {live:.3f} | {replay:.3f} | {reduction} |")
+        else:
+            lines.append(f"| {name} | 0 | n/a | {replay:.3f} | n/a |")
+    lines.extend(["", "This is an observational comparison with a frozen live baseline, not a workflow speedup.",
+                  "Live shards run in parallel; shared shard resets and job setup remain.", ""])
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("plan", "run", "verify"))
@@ -68,6 +91,7 @@ def main():
                         help="scenario data checkout; never used to load executable code")
     parser.add_argument("--plan", type=Path, default=Path("e2e-routing.json"))
     parser.add_argument("--results", type=Path, default=Path(".e2e-artifacts/pr-replay"))
+    parser.add_argument("--baseline", type=Path, help="optional frozen live observations for the run summary")
     args = parser.parse_args()
     if args.command == "plan":
         plan = make_plan(args.root, args.mode)
@@ -103,6 +127,9 @@ def main():
             for summary in summaries:
                 output.write(f"| {summary['scenario']} | {summary['scenario_seconds']} | "
                              f"{summary['elapsed_seconds']} | {summary['interactions']} |\n")
+            if args.baseline:
+                output.write("\n" + performance_report(REPLAY.parse_json(args.baseline.read_bytes()), summaries))
+                output.write(f"\nBaseline: `{args.baseline.as_posix()}`\n")
 
 
 if __name__ == "__main__":

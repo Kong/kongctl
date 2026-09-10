@@ -30,7 +30,7 @@ SCENARIO = "control-plane/get"
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
-    "control-plane/sync", "control-plane/sync-groups",
+    "control-plane/sync", "control-plane/sync-groups", "portal/sync",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -111,21 +111,51 @@ def check_eligibility(directory):
         if not path.is_file():
             continue
         content = path.read_text(encoding="utf-8")
-        if any(marker in content for marker in ("../", "repo_dir", "https://", "http://", "!file", "!env")):
+        if any(marker in content for marker in ("../", "repo_dir", "!env", "!include", "!<", "%TAG")):
             raise ValueError("scenario gained an external input; replay dependency review is required")
+        # Only plain scalar local !file references are supported. Overlays are
+        # copied onto testdata, so references resolve in that merged tree.
+        references = list(re.finditer(r"!file[ \t]+([a-zA-Z0-9_./-]+)(?:#[a-zA-Z0-9_.-]+)?[ \t]*(?:\n|$)", content))
+        if content.count("!file") != len(references):
+            raise ValueError("replay requires plain scenario-local !file references")
+        for reference in references:
+            relative = Path(reference[1])
+            if relative.is_absolute() or ".." in relative.parts:
+                raise ValueError("replay requires scenario-local !file references")
+            parts = path.relative_to(directory).parts
+            source = path.parent
+            if parts[0] == "overlays":
+                source = directory / "testdata" / Path(*parts[2:-1])
+            target = source / relative
+            if not target.is_file() or not target.resolve().is_relative_to((directory / "testdata").resolve()):
+                raise ValueError("replay !file target must exist within scenario testdata")
+        if path.name == "scenario.yaml" and any(marker in content for marker in ("https://", "http://")):
+            raise ValueError("scenario gained an external command input")
 
 
-def check_safe(value):
+def fixture_strings(directory):
+    """Known public document/spec bytes, not arbitrary response substrings.
+
+    These files are fingerprinted with the scenario. Preserve exact payloads
+    containing example credentials/emails; never exempt a modified payload.
+    """
+    return frozenset(path.read_text(encoding="utf-8") for path in (directory / "testdata").rglob("*")
+                     if path.is_file() and path.suffix in (".md", ".yaml", ".json"))
+
+
+def check_safe(value, fixtures=frozenset()):
     """Fail closed on sensitive fields; never persist arbitrary HTTP headers."""
     if isinstance(value, dict):
         for key, item in value.items():
             if SENSITIVE_KEY.search(key):
                 raise ValueError("sensitive field: cassette requires explicit sanitizer review")
-            check_safe(item)
+            check_safe(item, fixtures)
     elif isinstance(value, list):
         for item in value:
-            check_safe(item)
+            check_safe(item, fixtures)
     elif isinstance(value, str):
+        if value in fixtures:
+            return
         if SENSITIVE_VALUE.search(value):
             raise ValueError("sensitive value: refusing to publish cassette")
         for match in KONG_HOST.finditer(value):
@@ -137,8 +167,9 @@ def check_safe(value):
 class Sanitizer:
     """Recording-only normalization. Replay requests are NOT wildcard-normalized."""
 
-    def __init__(self):
+    def __init__(self, fixtures=frozenset()):
         self.ids = {}
+        self.fixtures = fixtures
 
     def normalize(self, value):
         if isinstance(value, dict):
@@ -146,6 +177,8 @@ class Sanitizer:
         if isinstance(value, list):
             return [self.normalize(item) for item in value]
         if isinstance(value, str):
+            if value in self.fixtures:
+                return value
             def replace(match):
                 key = match.group().lower()
                 if key not in self.ids:
@@ -169,6 +202,7 @@ def request_key(endpoint, method, target, data):
 
 def validate_cassette(cassette, directory, scenario=SCENARIO):
     check_eligibility(directory)
+    fixtures = fixture_strings(directory)
     if not isinstance(cassette, dict) or set(cassette) != {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}:
         raise ValueError("invalid cassette fields")
     if type(cassette["schema_version"]) is not int or cassette["schema_version"] != 1 or cassette["scenario"] != scenario:
@@ -213,18 +247,19 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
             raise ValueError("invalid response fields")
         if not 200 <= response["status"] < 500 or response["status"] == 429 or 300 <= response["status"] < 400:
             raise ValueError("redirects and transient failures are not supported in cassettes")
-        check_safe(item)
+        check_safe(item, fixtures)
         canonical(item)
 
 
 class Replay:
-    def __init__(self, cassette=None, token=None):
+    def __init__(self, cassette=None, token=None, fixtures=frozenset()):
         self.interactions = cassette["interactions"] if cassette else []
         self.token = token
         self.position = 0
         self.errors = []
         self.lock = threading.Lock()
-        self.sanitizer = Sanitizer()
+        self.fixtures = fixtures
+        self.sanitizer = Sanitizer(fixtures)
 
     def fail(self, message):
         with self.lock:
@@ -264,7 +299,7 @@ class Replay:
             item = self.sanitizer.normalize({"request": request, "response": response})
             if self.token in canonical(item):
                 raise ValueError("credential echoed in response; refusing recording")
-            check_safe(item)
+            check_safe(item, self.fixtures)
             self.interactions.append(item)
             self.position += 1
             # Live CLI sees the real IDs, so its subsequent requests remain
@@ -440,7 +475,7 @@ def main():
         if not binary.is_file():
             raise ValueError(f"missing executable: {binary}; run make build-e2e-replay")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    engine = Replay(cassette, token)
+    engine = Replay(cassette, token, fixture_strings(directory))
     with tempfile.TemporaryDirectory(prefix="kongctl-replay-") as temporary:
         private = Path(temporary)
         env = clean_environment(private, args.binary.resolve(), args.scenario)

@@ -65,7 +65,7 @@ class ReplayTest(unittest.TestCase):
 
     def test_repository_cassettes_are_current_even_without_replay_routing(self):
         root = MODULE.ROOT / "test/e2e/scenarios"
-        for path in sorted(root.glob("control-plane/**/replay/cassette.json")):
+        for path in sorted(root.glob("**/replay/cassette.json")):
             directory = path.parent.parent
             with self.subTest(path=path):
                 MODULE.validate_cassette(MODULE.parse_json(path.read_bytes()), directory,
@@ -78,6 +78,40 @@ class ReplayTest(unittest.TestCase):
                 (root / "scenario.yaml").write_text(content)
                 with self.subTest(content=content), self.assertRaises(ValueError):
                     MODULE.check_eligibility(root)
+
+    def test_local_file_inputs_are_bounded_and_fingerprinted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []\n")
+            inputs = root / "testdata"
+            inputs.mkdir()
+            document = inputs / "doc.md"
+            document.write_text("Public docs link: https://example.com\n")
+            manifest = inputs / "portal.yaml"
+            manifest.write_text("content: !file ./doc.md\n")
+            MODULE.check_eligibility(root)
+            before = MODULE.scenario_digest(root)
+            document.write_text("Changed document\n")
+            self.assertNotEqual(before, MODULE.scenario_digest(root))
+            for value in ["../doc.md", "/etc/passwd", "https://example.com/doc.md",
+                          "missing.md", '"doc.md"', "\n  path: doc.md"]:
+                manifest.write_text("content: !file " + value + "\n")
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    MODULE.check_eligibility(root)
+            manifest.write_text("content: !file doc.md\n")
+            document.unlink()
+            document.symlink_to(root / "scenario.yaml")
+            with self.assertRaises(ValueError):
+                MODULE.check_eligibility(root)
+
+    def test_public_fixture_exemption_is_exact_and_preserves_literal_ids(self):
+        public = "Example: Bearer EXAMPLE, author@example.com, aabbccdd-1234-4567-8901-aabbccddeeff\n"
+        fixtures = frozenset([public])
+        MODULE.check_safe({"content": public}, fixtures)
+        self.assertEqual(public, MODULE.Sanitizer(fixtures).normalize(public))
+        for value in [public + "extra", "author@example.com", {"token": public}]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                MODULE.check_safe(value, fixtures)
 
     def test_matches_query_order_and_json_structurally(self):
         engine = MODULE.Replay({"interactions": [interaction("POST", b'{"a":1,"b":2}') ]})

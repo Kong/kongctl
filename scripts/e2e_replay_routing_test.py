@@ -15,6 +15,18 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RoutingTest(unittest.TestCase):
+    def test_performance_comparison_uses_live_median_and_wrapper_time(self):
+        baseline = {"runs": [{"scenario_durations": [
+            {"scenario": "portal/sync/scenario.yaml", "result": "pass", "duration_seconds": duration}
+        ]} for duration in [20, 10, 30]]}
+        report = MODULE.performance_report(baseline, [
+            {"scenario": "portal/sync", "elapsed_seconds": 5, "scenario_seconds": 4},
+            {"scenario": "new/scenario", "elapsed_seconds": 2},
+        ])
+        self.assertIn("| portal/sync | 3 | 20.000 | 5.000 | 75.0% |", report)
+        self.assertIn("| new/scenario | 0 | n/a | 2.000 | n/a |", report)
+        self.assertIn("not a workflow speedup", report)
+
     def test_verifier_code_can_be_separate_from_scenario_checkout(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
