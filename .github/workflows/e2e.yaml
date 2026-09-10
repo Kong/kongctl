@@ -1084,6 +1084,18 @@ jobs:
           pattern: e2e-replay-results-${{ github.run_id }}-*
           path: .downloaded-replay
 
+      - name: Checkout workflow-pinned replay verifier
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .e2e-verifier-tools
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /scripts/e2e-replay-routing.py
+            /scripts/e2e-replay.py
+
       - name: Verify offline replay coverage
         if: github.event_name == 'pull_request'
         env:
@@ -1095,7 +1107,8 @@ jobs:
             echo '::error::Required replay job did not succeed.'
             exit 1
           fi
-          python3 scripts/e2e-replay-routing.py verify --mode "$REPLAY_MODE" --results .downloaded-replay
+          python3 .e2e-verifier-tools/scripts/e2e-replay-routing.py verify \
+            --root "$GITHUB_WORKSPACE" --mode "$REPLAY_MODE" --results .downloaded-replay
           echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify scenario coverage and results

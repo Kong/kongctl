@@ -21,6 +21,8 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("ref: ${{ github.sha }}", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_ref", replay_job)
         self.assertNotIn("needs.e2e-needed.outputs.checkout_repository", replay_job)
+        self.assertIn("python3 .e2e-verifier-tools/scripts/e2e-replay-routing.py verify", suite)
+        self.assertIn('--root "$GITHUB_WORKSPACE"', suite)
         self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
         self.assertIn("github.event.label.name == 'e2e:force-live'", status)
         self.assertIn("- labeled", status)

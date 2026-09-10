@@ -64,11 +64,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("plan", "run", "verify"))
     parser.add_argument("--mode", choices=("pr", "live"), default="live")
+    parser.add_argument("--root", type=Path, default=REPLAY.ROOT,
+                        help="scenario data checkout; never used to load executable code")
     parser.add_argument("--plan", type=Path, default=Path("e2e-routing.json"))
     parser.add_argument("--results", type=Path, default=Path(".e2e-artifacts/pr-replay"))
     args = parser.parse_args()
     if args.command == "plan":
-        plan = make_plan(REPLAY.ROOT, args.mode)
+        plan = make_plan(args.root, args.mode)
         REPLAY.write_json(args.plan, plan)
         print(f"Live: {len(plan['live'])}; replay: {len(plan['replay'])}; mode: {plan['mode']}")
         if os.environ.get("GITHUB_OUTPUT"):
@@ -76,9 +78,9 @@ def main():
                 output.write(f"replay_count={len(plan['replay'])}\n")
         return
     plan = REPLAY.parse_json(args.plan.read_bytes())
-    if plan != make_plan(REPLAY.ROOT, args.mode):
+    if plan != make_plan(args.root, args.mode):
         raise ValueError("routing plan differs from checked-out scenario inventory")
-    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    commit = subprocess.check_output(["git", "-C", str(args.root), "rev-parse", "HEAD"], text=True).strip()
     if args.command == "verify":
         verify_results(plan, args.results, commit, os.environ["GITHUB_RUN_ID"])
         return
