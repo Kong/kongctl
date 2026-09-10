@@ -7,7 +7,7 @@ on:
       - 'scripts/e2e-replay.py'
       - 'scripts/e2e_replay_test.py'
       - 'scripts/e2e-replay-isolated.sh'
-      - 'test/e2e/scenarios/control-plane/get/**'
+      - 'test/e2e/scenarios/control-plane/**'
   workflow_dispatch:
     inputs:
       mode:
@@ -15,6 +15,18 @@ on:
         type: choice
         default: replay
         options: [replay, record]
+      scenario:
+        description: Complete scenario to record or replay
+        type: choice
+        default: control-plane/get
+        options:
+          - control-plane/get
+          - control-plane/apply
+          - control-plane/delete-groups
+          - control-plane/groups
+          - control-plane/plan/apply-workflow
+          - control-plane/sync
+          - control-plane/sync-groups
 
 permissions:
   contents: read
@@ -71,9 +83,11 @@ jobs:
         env:
           KONGCTL_E2E_MATRIX_ORG: kongctl-acceptance-3
           KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
+          REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test .e2e-artifacts/replay-bin/reset-org
           python3 scripts/e2e-replay.py record \
+            --scenario "$REPLAY_SCENARIO" \
             --test-binary .e2e-artifacts/replay-bin/e2e.test \
             --reset-binary .e2e-artifacts/replay-bin/reset-org \
             --output-dir .e2e-artifacts/replay-candidate
@@ -110,17 +124,18 @@ jobs:
       - name: Replay three times with only loopback networking
         env:
           REPLAY_MODE: ${{ inputs.mode || 'replay' }}
+          REPLAY_SCENARIO: ${{ inputs.scenario || 'control-plane/get' }}
         run: |
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test
           case "$REPLAY_MODE" in
             record)
               args=(--cassette .e2e-artifacts/replay-candidate/candidate-cassette.json) ;;
             replay)
-              args=(--cassette test/e2e/scenarios/control-plane/get/replay/cassette.json) ;;
+              args=(--cassette "test/e2e/scenarios/$REPLAY_SCENARIO/replay/cassette.json") ;;
             *) exit 1 ;;
           esac
           for attempt in 1 2 3; do
-            bash scripts/e2e-replay-isolated.sh "${args[@]}" \
+            bash scripts/e2e-replay-isolated.sh --scenario "$REPLAY_SCENARIO" "${args[@]}" \
               --output-dir ".e2e-artifacts/replay-results/${attempt}"
           done
       - name: Summarize experiment

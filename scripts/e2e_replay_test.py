@@ -23,6 +23,11 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_supported_scenarios_have_local_dependencies(self):
+        for scenario in MODULE.SCENARIOS:
+            with self.subTest(scenario=scenario):
+                MODULE.check_eligibility(MODULE.ROOT / "test/e2e/scenarios" / scenario)
+
     def test_recording_workflow_shares_live_org_lock(self):
         live = (MODULE.ROOT / ".github/workflows/e2e.yaml").read_text()
         experiment = (MODULE.ROOT / ".github/workflows/e2e-replay.yaml").read_text()
