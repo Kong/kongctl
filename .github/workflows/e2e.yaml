@@ -1435,11 +1435,13 @@ jobs:
     needs:
       - e2e-needed
       - e2e-verify
+      - e2e-build
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: read
       statuses: write
     outputs:
       state: ${{ steps.report.outputs.state }}
@@ -1461,6 +1463,7 @@ jobs:
           E2E_SUPERSEDED: ${{ needs.e2e-needed.outputs.superseded }}
           E2E_TRUSTED_REQUIRED: ${{ needs.e2e-needed.outputs.trusted_e2e_required }}
           E2E_VERIFY_RESULT: ${{ needs.e2e-verify.result }}
+          E2E_REPLAY_MODE: ${{ needs.e2e-build.outputs.replay_mode }}
           TRUSTED_DISPATCH: ${{ github.event_name == 'workflow_dispatch' && inputs.trusted_pr_number != '' && 'true' || 'false' }}
           TRUSTED_PR_NUMBER: ${{ needs.e2e-needed.outputs.trusted_pr_number || inputs.trusted_pr_number }}
           STATUS_SHA: >-
@@ -1493,6 +1496,20 @@ jobs:
             const pullRequest = context.payload.pull_request;
             const forkPullRequest = eventName === 'pull_request' &&
               pullRequest?.head?.repo?.full_name !== pullRequest?.base?.repo?.full_name;
+
+            // A force-live label can arrive after this run passed admission.
+            // Never let an older replay result overwrite its pending status.
+            if (eventName === 'pull_request' && !forkPullRequest &&
+                process.env.E2E_REPLAY_MODE === 'pr') {
+              const {data: currentPR} = await github.rest.pulls.get({
+                owner: context.repo.owner, repo: context.repo.repo,
+                pull_number: pullRequest.number,
+              });
+              if (currentPR.labels.some(label => label.name === 'e2e:force-live')) {
+                core.info('Force-live requested after admission; leaving status to the live run.');
+                return;
+              }
+            }
 
             let state = 'success';
             let description = 'E2E not required for this change.';

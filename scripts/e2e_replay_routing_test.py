@@ -11,6 +11,18 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RoutingTest(unittest.TestCase):
+    def test_workflows_guard_replay_and_force_live_status(self):
+        workflows = MODULE.REPLAY.ROOT / ".github/workflows"
+        suite = (workflows / "e2e.yaml").read_text()
+        status = (workflows / "e2e-required-status.yaml").read_text()
+        replay_job = suite.split("  e2e-replay:", 1)[1].split("  e2e:", 1)[0]
+        self.assertIn("github.event_name == 'pull_request'", replay_job)
+        self.assertIn("needs.e2e-build.outputs.replay_mode == 'pr'", replay_job)
+        self.assertIn("currentPR.labels.some(label => label.name === 'e2e:force-live')", suite)
+        self.assertIn("github.event.label.name == 'e2e:force-live'", status)
+        self.assertIn("- labeled", status)
+        self.assertIn("- unlabeled", status)
+
     def test_main_is_all_live_and_pr_is_an_exact_partition(self):
         live = MODULE.make_plan(MODULE.REPLAY.ROOT, "live")
         pr = MODULE.make_plan(MODULE.REPLAY.ROOT, "pr")

@@ -10,10 +10,15 @@ The initial enabled subset is `control-plane/get`, `control-plane/apply`,
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
-| get | [34377519108](https://github.com/Kong/kongctl/actions/runs/34377519108) |
-| apply | [34427742802](https://github.com/Kong/kongctl/actions/runs/34427742802) |
-| plan/apply-workflow | [34428189915](https://github.com/Kong/kongctl/actions/runs/34428189915) |
-| sync | [34428188131](https://github.com/Kong/kongctl/actions/runs/34428188131) |
+| get | [34377519108][get] |
+| apply | [34427742802][apply] |
+| plan/apply-workflow | [34428189915][plan] |
+| sync | [34428188131][sync] |
+
+[get]: https://github.com/Kong/kongctl/actions/runs/34377519108
+[apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
+[plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
+[sync]: https://github.com/Kong/kongctl/actions/runs/34428188131
 
 ## Routing
 
@@ -25,6 +30,8 @@ Main's debounced runs, merge queues, manual runs, trusted fork runs and `.tech`
 runs stay fully live. Add the `e2e:force-live` PR label to request an all-live
 run. Adding/removing the label triggers the existing PR workflow. Maintain
 the label with the same permissions as other workflow-control labels.
+The required status returns to pending on that label change; an already
+running replay cannot overwrite it after force-live has been requested.
 
 `e2e.yaml` builds once and publishes a deterministic `e2e-routing.json` plan.
 The live harness validates that the plan partitions the complete inventory
