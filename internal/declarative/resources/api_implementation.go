@@ -17,11 +17,16 @@ const (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAPIImplementation,
 		func(rs *ResourceSet) *[]APIImplementationResource { return &rs.APIImplementations },
 		AutoExplain[APIImplementationResource](
 			WithExplainSchemaBuilder(apiImplementationExplainNode),
+		),
+		apiChildLoad(
+			30,
+			func(api *APIResource) *[]APIImplementationResource { return &api.Implementations },
+			func(child *APIImplementationResource, ref string) { child.API = ref },
 		),
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIImplementationResource) *APIResource {
 			return rs.GetAPIByRef(r.API)

@@ -748,49 +748,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	}
 
 	for i := range rs.APIs {
-		api := &rs.APIs[i]
-
-		// Extract versions
-		for j := range api.Versions {
-			version := api.Versions[j]
-			version.API = api.Ref // Set parent reference
-			rs.APIVersions = append(rs.APIVersions, version)
-		}
-
-		// Extract publications
-		for j := range api.Publications {
-			publication := api.Publications[j]
-			publication.API = api.Ref // Set parent reference
-			rs.APIPublications = append(rs.APIPublications, publication)
-		}
-
-		// Extract implementations
-		for j := range api.Implementations {
-			implementation := api.Implementations[j]
-			implementation.API = api.Ref // Set parent reference
-			rs.APIImplementations = append(rs.APIImplementations, implementation)
-		}
-
-		// Extract documents (with recursive flattening) and reassign to API
-		docs := make([]resources.APIDocumentResource, 0)
-		for j := range api.Documents {
-			document := api.Documents[j]
-			l.extractAPIDocuments(&docs, document, api.Ref, "")
-		}
-		api.Documents = docs
-
-		// Clear other nested resources from API
-		api.Versions = nil
-		api.Publications = nil
-		api.Implementations = nil
+		rs.ExtractRegisteredChildren(&rs.APIs[i])
 	}
-
-	// Extract root-level API documents (with recursive flattening)
-	flattenedDocs := make([]resources.APIDocumentResource, 0)
-	for _, document := range rs.APIDocuments {
-		l.extractAPIDocuments(&flattenedDocs, document, document.API, "")
-	}
-	rs.APIDocuments = flattenedDocs
+	rs.FlattenRootAPIDocuments()
 
 	for i := range rs.Portals {
 		rs.ExtractRegisteredChildren(&rs.Portals[i])
@@ -842,34 +802,6 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 
 	for i := range rs.AIGatewayConsumers {
 		rs.ExtractRegisteredChildren(&rs.AIGatewayConsumers[i])
-	}
-}
-
-// extractAPIDocuments recursively extracts and flattens nested API documents
-func (l *Loader) extractAPIDocuments(
-	allDocs *[]resources.APIDocumentResource,
-	doc resources.APIDocumentResource,
-	apiRef string,
-	parentDocRef string,
-) {
-	if apiRef != "" {
-		doc.API = apiRef
-	}
-	if parentDocRef != "" {
-		doc.ParentDocumentRef = parentDocRef
-	}
-
-	children := doc.Children
-	doc.Children = nil
-
-	*allDocs = append(*allDocs, doc)
-
-	for _, child := range children {
-		childAPIRef := apiRef
-		if child.API != "" {
-			childAPIRef = child.API
-		}
-		l.extractAPIDocuments(allDocs, child, childAPIRef, doc.Ref)
 	}
 }
 

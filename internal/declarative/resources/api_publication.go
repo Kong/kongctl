@@ -9,10 +9,15 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAPIPublication,
 		func(rs *ResourceSet) *[]APIPublicationResource { return &rs.APIPublications },
 		AutoExplain[APIPublicationResource](),
+		apiChildLoad(
+			20,
+			func(api *APIResource) *[]APIPublicationResource { return &api.Publications },
+			func(child *APIPublicationResource, ref string) { child.API = ref },
+		),
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIPublicationResource) *APIResource {
 			return rs.GetAPIByRef(r.API)
 		}),

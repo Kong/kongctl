@@ -38,7 +38,8 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, AI Gateway/Portal child loading, and dump-default metadata.
+collection scope, AI Gateway/API/Portal child loading, and dump-default
+metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. Other families' nested
@@ -144,15 +145,22 @@ input cannot disclose a secret in an error.
 
 ### Child loading capabilities
 
-AI Gateway and Portal children register loading beside their declarations,
+AI Gateway, API, and Portal children register loading beside their declarations,
 reusing root storage through [`registerChildResourceType`][child-load]. Supply
 one extraction form: `nested`/`setParent` with an optional `beforeAppend`, or a
 typed `extract` handler for exceptional sources. Custom extraction receives
-the registered destination and must preserve copying and source clearing.
+the registered destination; preserve each source's copying and storage rules.
 
 All 16 AI Gateway child kinds pair extraction with validation. Direct children
 use [`registerAIGatewayChildResource`][ai-child-load] for gateway-local moniker
 uniqueness; data-plane certificates retain `title` diagnostics.
+
+API versions, publications, implementations, and documents register in that
+order. [`apiChildLoad`][api-child-load] shares ordinary extraction and both
+validation phases. [Documents][api-document] use custom preorder flattening:
+nested documents remain under their API; `FlattenRootAPIDocuments` separately
+normalizes root documents. Preserve parent-document selectors, explicit child
+API overrides, and allocated empty document slices in both locations.
 
 Portal registers fourteen extraction paths and its twelve existing child
 validators. [Singleton extraction][portal-child-load] copies a present value,
@@ -174,18 +182,22 @@ within their group, independently of scope-capture order. Registration rejects
 conflicting extraction forms, missing validation dispositions, and order
 clashes.
 
-The loader still owns phase sequencing. `ExtractRegisteredChildren` copies
-children, overwrites their parent selector, appends after existing root values,
-and clears nested fields. Recursion is explicit: Config Stores extract secrets
-before appending the store, ahead of secrets from root-declared stores. Secret
-defaults still run before source indexing; consumer credentials are extracted
-later. Preserve these phases in both loader representations.
+The loader still owns phase sequencing. Ordinary `ExtractRegisteredChildren`
+handlers copy children, overwrite their parent selector, append after existing
+root values, and clear nested fields. Recursion is explicit: Config Stores
+extract secrets before appending the store, ahead of secrets from root-declared
+stores. Secret defaults still run before source indexing; consumer credentials
+are extracted later. Preserve these phases in both loader representations.
 
-`ValidateRegisteredChildren` stops at the family's first error. Portal child
-validation follows separate API-child validation, preserving error precedence.
-Other families, root validation, cross-references, and namespaces retain their
-existing loader paths. Migrating another family requires its own compatibility
-assessment.
+`ValidateRegisteredNestedChildren` runs optional per-parent callbacks in
+extraction order. API root validation invokes it after each API's identity
+checks, preserving parent-context errors and cross-kind ref checks, including
+documents retained after extraction. `ValidateRegisteredChildren` then checks
+root child collections in family order, stopping at the first error. API and
+ordinary Portal ref validation both validate each resource before checking
+later siblings for duplicate refs.
+Portal child validation follows API-child validation. Other families, root
+validation, cross-references, and namespaces retain their existing loader paths.
 
 ### Explain, scaffold, and load schema
 
@@ -626,6 +638,8 @@ engine contract. Each refactoring migration should:
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
 [child-load]: ../../internal/declarative/resources/child_load.go
+[api-child-load]: ../../internal/declarative/resources/api_child_load.go
+[api-document]: ../../internal/declarative/resources/api_document.go
 [portal-child-load]: ../../internal/declarative/resources/portal_child_load.go
 [portal-page]: ../../internal/declarative/resources/portal_page.go
 [portal-template]: ../../internal/declarative/resources/portal_email_template.go

@@ -17,6 +17,7 @@ type childLoad[R, P any] struct {
 	setParent               func(*R, string)
 	beforeAppend            func(*ResourceSet, *R)
 	validate                func(*ResourceSet, []R) error
+	validateNested          func(*ResourceSet, *P) error
 	extract                 func(*ResourceSet, *P, *[]R)
 	validationOmittedReason string
 }
@@ -29,6 +30,7 @@ type childLoadRegistration struct {
 	validateOrder           int
 	extract                 func(*ResourceSet, Resource)
 	validate                func(*ResourceSet) error
+	validateNested          func(*ResourceSet, Resource) error
 	validationOmittedReason string
 }
 
@@ -91,6 +93,11 @@ func registerChildResourceType[R, P any, RPtr interface {
 				return load.validate(rs, *storage(rs))
 			}
 		}
+		if load.validateNested != nil {
+			registration.validateNested = func(rs *ResourceSet, parent Resource) error {
+				return load.validateNested(rs, any(parent).(*P))
+			}
+		}
 		ops.load = registration
 		return nil
 	})
@@ -136,13 +143,26 @@ func registerChildLoader(kind ResourceType, registration childLoadRegistration) 
 	}
 }
 
-// ExtractRegisteredChildren appends a parent's registered nested collections
-// to their existing root storage and clears the nested fields. Callers own the
-// phase order; extraction does not recursively visit children automatically.
+// ExtractRegisteredChildren applies a parent's registered child loaders.
+// Ordinary collections append to root storage and clear their nested fields;
+// custom handlers may retain normalized children. Callers own phase ordering.
 func (rs *ResourceSet) ExtractRegisteredChildren(parent Resource) {
 	for _, registration := range childExtractors[parent.GetType()] {
 		registration.extract(rs, parent)
 	}
+}
+
+// ValidateRegisteredNestedChildren runs optional per-parent validation in
+// extraction order. Callers choose its phase independently of root validation.
+func (rs *ResourceSet) ValidateRegisteredNestedChildren(parent Resource) error {
+	for _, registration := range childExtractors[parent.GetType()] {
+		if registration.validateNested != nil {
+			if err := registration.validateNested(rs, parent); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // ValidateRegisteredChildren validates a family's flattened child collections
