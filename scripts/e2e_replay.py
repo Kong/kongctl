@@ -33,7 +33,7 @@ SCENARIO = "control-plane/get"
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
-    "control-plane/sync", "control-plane/sync-groups", "portal/sync",
+    "control-plane/sync", "control-plane/sync-groups", "portal/sync", "portal/visibility",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -144,15 +144,84 @@ def pack_cassette(cassette, directory):
         raise ValueError("packed cassette failed lossless round-trip verification")
 
 
+def check_inline_overlays(directory, definition):
+    """Validate literal edits; the unchanged Go harness still applies them."""
+    import yaml
+
+    class OverlayLoader(yaml.SafeLoader):
+        pass
+
+    def unique_mapping(loader, node):
+        result = {}
+        for key_node, value_node in node.value:
+            key = loader.construct_object(key_node)
+            if not isinstance(key, str) or key in result:
+                raise ValueError("inline-overlay scenarios require unique string mapping keys")
+            result[key] = loader.construct_object(value_node)
+        return result
+
+    OverlayLoader.add_constructor("tag:yaml.org,2002:map", unique_mapping)
+    try:
+        if any(isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken))
+               for token in yaml.scan(definition)):
+            raise ValueError("inline-overlay scenarios cannot use YAML anchors or aliases")
+        scenario = yaml.load(definition, Loader=OverlayLoader)
+    except (yaml.YAMLError, TypeError):
+        raise ValueError("invalid inline-overlay scenario YAML") from None
+    if not isinstance(scenario, dict) or not isinstance(scenario.get("steps"), list):
+        raise ValueError("inline overlays require scenario steps")
+    allowed = [step for step in scenario["steps"] if isinstance(step, dict) and "inputOverlayOps" in step]
+
+    def check_placement(value):
+        if isinstance(value, dict):
+            if "inputOverlayOps" in value and not any(value is step for step in allowed):
+                raise ValueError("inline overlays are supported only directly on scenario steps")
+            for child in value.values():
+                check_placement(child)
+        elif isinstance(value, list):
+            for child in value:
+                check_placement(child)
+
+    check_placement(scenario)
+    selector = r"[a-z][a-z0-9_]*\[\?ref=='[a-zA-Z0-9_-]+'\]"
+    for step in allowed:
+        operations = step["inputOverlayOps"]
+        if not isinstance(operations, list) or not 0 < len(operations) <= 64:
+            raise ValueError("inline overlays require 1–64 operations per step")
+        for operation in operations:
+            if not isinstance(operation, dict) or set(operation) != {"file", "match", "set"}:
+                raise ValueError("inline overlays support only file, match, and set")
+            filename, match, fields = operation["file"], operation["match"], operation["set"]
+            if not isinstance(filename, str) or not re.fullmatch(r"[a-zA-Z0-9_-]+\.yaml", filename):
+                raise ValueError("inline overlay target must be a literal testdata-root YAML file")
+            target = directory / "testdata" / filename
+            if (not target.is_file() or target.is_symlink()
+                    or not target.resolve().is_relative_to((directory / "testdata").resolve())):
+                raise ValueError("inline overlay target must exist inside scenario testdata")
+            expression = selector + r"(?:\." + selector + r")*\s*\|\s*\[0\]"
+            if not isinstance(match, str) or not re.fullmatch(expression, match):
+                raise ValueError("inline overlays require literal ref selectors ending in | [0]")
+            if not isinstance(fields, dict) or not fields:
+                raise ValueError("inline overlay set requires nonempty scalar fields")
+            for key, value in fields.items():
+                if not isinstance(key, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", key):
+                    raise ValueError("inline overlay set requires plain field names")
+                if not (type(value) is bool or isinstance(value, str) and re.fullmatch(r"[a-zA-Z0-9 _.-]*", value)):
+                    raise ValueError("inline overlay values must be literal booleans or plain strings")
+            check_safe(fields)
+
+
 def check_eligibility(directory):
     # A deliberately conservative boundary for the reviewed local-input scenarios.
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
+    if "inputOverlayOps" in definition:
+        check_inline_overlays(directory, definition)
     definition = definition.replace("env:\n  KONGCTL_LOG_LEVEL: info\n", "")
     unsupported = (
         "exec|create|delete|resetOrgRegions|env|requiredEnvVars|assignedEnvironment|"
-        "inputOverlayOpsFiles|inputOverlayOps|stdinFile|workdir"
+        "inputOverlayOpsFiles|stdinFile|workdir"
     )
     if re.search(r"(?m)^\s*(?:-\s*)?(" + unsupported + r"):", definition):
         raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
@@ -373,7 +442,7 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
 def parallel_phases(cassette):
     """Compile reviewed, bounded phases with mandatory causal dependencies.
 
-    A phase is not a bag of responses: identical targets retain their stream
+    A phase is not a bag of responses: identical requests retain their stream
     order, new IDs cannot be observed before creation, and ancestor reads
     cannot cross updates/deletes. Additional dependencies can only constrain.
     """
@@ -389,6 +458,8 @@ def parallel_phases(cassette):
                 or end - start >= 64 or not isinstance(after, dict)):
             raise ValueError("parallel phases must be ordered, disjoint ranges of 2–64 exchanges")
         indices = range(start - 1, end)
+        read_only = all(interactions[i]["request"]["method"] == "GET"
+                        and interactions[i]["request"]["body"] is None for i in indices)
         dependencies = {i: set() for i in indices}
         owners = {}
         for i in indices:
@@ -414,6 +485,9 @@ def parallel_phases(cassette):
                 if earlier["endpoint"] != request["endpoint"]:
                     continue
                 same_target = earlier["path"] == request["path"]
+                # Different filtered collections may be read in either order,
+                # but only when the entire reviewed phase has no writes.
+                independent_queries = read_only and earlier["query"] != request["query"]
                 earlier_body, current_body = interactions[j]["response"]["body"], item["response"]["body"]
                 independent_creates = (earlier["method"] == request["method"] == "POST"
                                        and interactions[j]["response"]["status"] == item["response"]["status"] == 201
@@ -425,7 +499,8 @@ def parallel_phases(cassette):
                             or request["path"].startswith(earlier["path"].rstrip("/") + "/"))
                 changes_observation = ("GET" in {earlier["method"], request["method"]}
                                        and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
-                if (same_target and not independent_creates) or (ancestor and changes_observation):
+                if ((same_target and not independent_creates and not independent_queries)
+                        or (ancestor and changes_observation)):
                     dependencies[i].add(j)
         for index, parents in after.items():
             if not isinstance(index, str) or not index.isdecimal() or str(int(index)) != index:

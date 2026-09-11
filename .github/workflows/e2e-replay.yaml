@@ -21,6 +21,7 @@ on:
           - control-plane/sync
           - control-plane/sync-groups
           - portal/sync
+          - portal/visibility
       source_run:
         description: Optional prior recording run ID to validate its candidate without another live recording
         type: string

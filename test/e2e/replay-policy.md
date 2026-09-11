@@ -6,7 +6,8 @@ must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, `control-plane/sync`, and `portal/sync`.
+`control-plane/plan/apply-workflow`, `control-plane/sync`, `portal/sync`, and
+`portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -15,6 +16,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [Recording][sync], [isolated phases][sync-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
+| portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -23,6 +25,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
+[visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
+[visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
 
 ## Routing
 
@@ -84,7 +88,10 @@ interaction ranges of 2–64 exchanges. Outside those ranges, order stays strict
 Inside a range every method, path, query, and body must still match exactly,
 once. Generated UUID references depend on their recorded creation. Repeated
 targets keep their stream order, except distinct successful creates with
-distinct generated IDs. Ancestor reads cannot cross updates or deletes.
+distinct generated IDs. In a wholly read-only phase, bodyless GETs with
+different queries may also reorder (for example, publications filtered by
+different API IDs). Queries still match exactly; repeated identical requests
+retain their stream order. Ancestor reads cannot cross updates or deletes.
 Additional `after` dependencies can constrain ordering but cannot remove these
 mandatory dependencies. Never annotate a whole scenario as unordered.
 
@@ -131,6 +138,13 @@ It is only a storage format, not a sanitizer or approval mechanism. Run the
 packed cassette through isolated replay as part of PR validation too.
 
 Scenario-local overlays and workdir-local generated plan files are supported.
+Inline `inputOverlayOps` may set literal boolean/plain-string fields in an
+existing YAML file at the scenario's `testdata` root. Selectors must be literal
+`ref` filters (optionally nested), ending in `| [0]`. The unchanged Go harness
+performs the edits; replay validation does not implement another overlay
+engine. Operations, targets and assertions remain input-fingerprinted.
+Templates, nested replacement values, external ops files, YAML aliases and
+duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, including references from overlays copied onto that tree. Remote
@@ -169,6 +183,15 @@ and stay live pending reviewed phase annotations and isolated validation.
 Serverless additionally uses a harness creation command. The
 certificate scenario needs a reviewed public-PEM and environment-input policy.
 Product maturity alone is not sufficient to enable these scenarios.
+
+`portal/visibility` is enabled after its complete live recording and three
+isolated replays passed (390 HTTP interactions each). All visibility updates,
+no-op plans, dumps and cleanup assertions remain intact. The isolated wrappers
+took 4.81–4.96 seconds, compared with a 38.70-second historical live median
+(20 observations). This is not a same-source comparison or a measured workflow
+speedup. Recording's 50.07-second scenario includes proxy overhead and is not
+the live baseline. Its scenario-local replay README documents the reviewed
+phase boundaries, including the strict private/public visibility barriers.
 
 ## Measurement
 
