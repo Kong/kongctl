@@ -8,7 +8,7 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalAuditLogWebhook,
 		func(rs *ResourceSet) *[]PortalAuditLogWebhookResource { return &rs.PortalAuditLogWebhooks },
 		AutoExplain[PortalAuditLogWebhookResource](
@@ -19,6 +19,16 @@ func init() {
 				ExplainFieldHint{RefKind: string(ResourceTypeAuditLogWebhookDestination)},
 			),
 		),
+		childLoad[PortalAuditLogWebhookResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  110,
+			validateOrder: 110,
+			validate:      validatePortalAuditLogWebhookChildren,
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalAuditLogWebhookResource { return &p.AuditLogWebhook },
+				func(r *PortalAuditLogWebhookResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -121,4 +131,39 @@ func auditLogDestinationRef(value string) string {
 		return ""
 	}
 	return value
+}
+
+func validatePortalAuditLogWebhookChildren(_ *ResourceSet, children []PortalAuditLogWebhookResource) error {
+	portalAuditLogWebhookRefs := make(map[string]bool)
+	portalToAuditLogWebhookRef := make(map[string]string)
+	for i := range children {
+		webhook := &children[i]
+		if err := webhook.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_audit_log_webhook %q: %w", webhook.GetRef(), err)
+		}
+		for j := i + 1; j < len(children); j++ {
+			if children[j].GetRef() == webhook.GetRef() {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as portal_audit_log_webhook)",
+					webhook.GetRef(),
+				)
+			}
+		}
+		if webhook.Portal == "" {
+			return fmt.Errorf("portal_audit_log_webhook %q must specify portal", webhook.GetRef())
+		}
+		if portalAuditLogWebhookRefs[webhook.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_audit_log_webhook)", webhook.GetRef())
+		}
+		portalAuditLogWebhookRefs[webhook.GetRef()] = true
+
+		if existingRef, ok := portalToAuditLogWebhookRef[webhook.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_audit_log_webhook entries target portal %q (%s and %s)",
+				webhook.Portal, existingRef, webhook.GetRef(),
+			)
+		}
+		portalToAuditLogWebhookRef[webhook.Portal] = webhook.GetRef()
+	}
+	return nil
 }

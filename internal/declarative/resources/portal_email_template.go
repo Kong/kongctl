@@ -8,10 +8,17 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalEmailTemplate,
 		func(rs *ResourceSet) *[]PortalEmailTemplateResource { return &rs.PortalEmailTemplates },
 		AutoExplain[PortalEmailTemplateResource](),
+		childLoad[PortalEmailTemplateResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  120,
+			validateOrder: 120,
+			validate:      validatePortalEmailTemplateChildren,
+			extract:       extractPortalEmailTemplates,
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -207,4 +214,54 @@ var validPortalEmailTemplateNames = map[kkComps.EmailTemplateName]struct{}{
 	kkComps.EmailTemplateNameAccountAccessApproved:   {},
 	kkComps.EmailTemplateNameAccountAccessRejected:   {},
 	kkComps.EmailTemplateNameAccountAccessRevoked:    {},
+}
+
+func extractPortalEmailTemplates(_ *ResourceSet, portal *PortalResource, destination *[]PortalEmailTemplateResource) {
+	for key, tpl := range portal.EmailTemplates {
+		if tpl.Name == "" {
+			tpl.Name = kkComps.EmailTemplateName(key)
+		}
+		if tpl.Ref == "" {
+			tpl.Ref = key
+		}
+		tpl.Portal = portal.Ref
+		*destination = append(*destination, tpl)
+	}
+	portal.EmailTemplates = nil
+}
+
+func validatePortalEmailTemplateChildren(_ *ResourceSet, children []PortalEmailTemplateResource) error {
+	portalTemplateRefs := make(map[string]bool)
+	portalTemplateNames := make(map[string]map[string]string)
+	for i := range children {
+		tpl := &children[i]
+		if err := tpl.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_email_template %q: %w", tpl.GetRef(), err)
+		}
+		for j := i + 1; j < len(children); j++ {
+			if children[j].GetRef() == tpl.GetRef() {
+				return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_template)", tpl.GetRef())
+			}
+		}
+		if tpl.Portal == "" {
+			return fmt.Errorf("portal_email_template %q must specify portal", tpl.GetRef())
+		}
+		if portalTemplateRefs[tpl.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_email_template)", tpl.GetRef())
+		}
+		portalTemplateRefs[tpl.GetRef()] = true
+
+		if _, ok := portalTemplateNames[tpl.Portal]; !ok {
+			portalTemplateNames[tpl.Portal] = make(map[string]string)
+		}
+		nameKey := string(tpl.Name)
+		if existingRef, ok := portalTemplateNames[tpl.Portal][nameKey]; ok {
+			return fmt.Errorf(
+				"multiple portal_email_template entries target portal %q and template %q (%s and %s)",
+				tpl.Portal, nameKey, existingRef, tpl.GetRef(),
+			)
+		}
+		portalTemplateNames[tpl.Portal][nameKey] = tpl.GetRef()
+	}
+	return nil
 }

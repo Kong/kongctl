@@ -8,10 +8,18 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalTeam,
 		func(rs *ResourceSet) *[]PortalTeamResource { return &rs.PortalTeams },
 		AutoExplain[PortalTeamResource](),
+		childLoad[PortalTeamResource, PortalResource]{
+			family:                  ResourceTypePortal,
+			extractOrder:            90,
+			validationOmittedReason: "Portal teams are not validated by the loader",
+			nested:                  func(p *PortalResource) *[]PortalTeamResource { return &p.Teams },
+			setParent:               func(r *PortalTeamResource, ref string) { r.Portal = ref },
+			beforeAppend:            func(rs *ResourceSet, team *PortalTeamResource) { rs.ExtractRegisteredChildren(team) },
+		},
 		WithExternalUnsupportedReason("portal team lookup requires a portal-scoped list adapter"),
 		WithChildSyncScope(ResourceTypePortal, WithNestedCoScope(ResourceTypePortalTeamRole)),
 	)

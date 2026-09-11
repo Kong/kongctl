@@ -14,10 +14,20 @@ var (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalIntegration,
 		func(rs *ResourceSet) *[]PortalIntegrationResource { return &rs.PortalIntegrations },
 		AutoExplain[PortalIntegrationResource](),
+		childLoad[PortalIntegrationResource, PortalResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  40,
+			validateOrder: 60,
+			validate:      validatePortalIntegrationChildren,
+			extract: extractPortalSingleton(
+				func(p *PortalResource) **PortalIntegrationResource { return &p.Integrations },
+				func(r *PortalIntegrationResource, ref string) { r.Portal = ref },
+			),
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -143,5 +153,32 @@ func (i *PortalIntegrationResource) UnmarshalJSON(data []byte) error {
 	i.Portal = temp.Portal
 	i.PortalIntegrations = temp.PortalIntegrations
 
+	return nil
+}
+
+func validatePortalIntegrationChildren(_ *ResourceSet, children []PortalIntegrationResource) error {
+	portalIntegrationRefs := make(map[string]bool)
+	portalToIntegrationRef := make(map[string]string)
+	for i := range children {
+		integration := &children[i]
+		if err := integration.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_integration %q: %w", integration.GetRef(), err)
+		}
+		if integration.Portal == "" {
+			return fmt.Errorf("portal_integration %q must specify portal", integration.GetRef())
+		}
+		if portalIntegrationRefs[integration.GetRef()] {
+			return fmt.Errorf("duplicate ref '%s' (already defined as portal_integration)", integration.GetRef())
+		}
+		portalIntegrationRefs[integration.GetRef()] = true
+
+		if existingRef, ok := portalToIntegrationRef[integration.Portal]; ok {
+			return fmt.Errorf(
+				"multiple portal_integration entries target portal %q (%s and %s)",
+				integration.Portal, existingRef, integration.GetRef(),
+			)
+		}
+		portalToIntegrationRef[integration.Portal] = integration.GetRef()
+	}
 	return nil
 }

@@ -6,10 +6,17 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypePortalTeamGroupMapping,
 		func(rs *ResourceSet) *[]PortalTeamGroupMappingResource { return &rs.PortalTeamGroupMappings },
 		AutoExplain[PortalTeamGroupMappingResource](),
+		childLoad[PortalTeamGroupMappingResource, PortalTeamResource]{
+			family:        ResourceTypePortal,
+			extractOrder:  20,
+			validateOrder: 80,
+			validate:      validatePortalTeamGroupMappingChildren,
+			extract:       extractPortalTeamGroupMappingChildren,
+		},
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }
@@ -136,5 +143,54 @@ func (p *PortalTeamGroupMappingResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*p = PortalTeamGroupMappingResource(decoded)
+	return nil
+}
+
+func extractPortalTeamGroupMappingChildren(
+	_ *ResourceSet,
+	team *PortalTeamResource,
+	destination *[]PortalTeamGroupMappingResource,
+) {
+	for _, child := range team.GroupMappings {
+		child.Portal = team.Portal
+		child.Team = team.Ref
+		*destination = append(*destination, child)
+	}
+	team.GroupMappings = nil
+}
+
+func validatePortalTeamGroupMappingChildren(_ *ResourceSet, children []PortalTeamGroupMappingResource) error {
+	portalMappingRefs := make(map[string]bool)
+	portalTeamMappings := make(map[string]map[string]string)
+	for i := range children {
+		mapping := &children[i]
+		if err := mapping.Validate(); err != nil {
+			return fmt.Errorf("invalid portal_team_group_mapping %q: %w", mapping.GetRef(), err)
+		}
+		if mapping.Portal == "" {
+			return fmt.Errorf("portal_team_group_mapping %q must specify portal", mapping.GetRef())
+		}
+		if mapping.Team == "" {
+			return fmt.Errorf("portal_team_group_mapping %q must specify team", mapping.GetRef())
+		}
+		if portalMappingRefs[mapping.GetRef()] {
+			return fmt.Errorf("duplicate ref %s (already defined as portal_team_group_mapping)", mapping.GetRef())
+		}
+		portalMappingRefs[mapping.GetRef()] = true
+
+		if _, ok := portalTeamMappings[mapping.Portal]; !ok {
+			portalTeamMappings[mapping.Portal] = make(map[string]string)
+		}
+		if existingRef, ok := portalTeamMappings[mapping.Portal][mapping.Team]; ok {
+			return fmt.Errorf(
+				"multiple portal_team_group_mapping entries target portal %q and team %q (%s and %s)",
+				mapping.Portal,
+				mapping.Team,
+				existingRef,
+				mapping.GetRef(),
+			)
+		}
+		portalTeamMappings[mapping.Portal][mapping.Team] = mapping.GetRef()
+	}
 	return nil
 }

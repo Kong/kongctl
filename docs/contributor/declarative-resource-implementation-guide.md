@@ -38,8 +38,8 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, AI Gateway child loading, and dump-default metadata. The
-[root planner inventory][roots] drives root construction and dispatch.
+collection scope, AI Gateway/Portal child loading, and dump-default metadata.
+The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. Other families' nested
 extraction and load validation, specialized namespace selection, relationships,
@@ -144,18 +144,35 @@ input cannot disclose a secret in an error.
 
 ### Child loading capabilities
 
-All 16 AI Gateway child kinds register extraction and load validation beside
-their declarations. Direct children use
-[`registerAIGatewayChildResource`][ai-child-load]; credentials and secrets use
-[`registerChildResourceType`][child-load] with their existing validation rules.
-Both reuse the registered root slice for appending and validation. Supply the
-typed nested collection and parent setter; do not add loader type inventories
-for this family. Direct children validate moniker uniqueness per gateway;
-data-plane certificates retain `title` diagnostics.
+AI Gateway and Portal children register loading beside their declarations,
+reusing root storage through [`registerChildResourceType`][child-load]. Supply
+one extraction form: `nested`/`setParent` with an optional `beforeAppend`, or a
+typed `extract` handler for exceptional sources. Custom extraction receives
+the registered destination and must preserve copying and source clearing.
+
+All 16 AI Gateway child kinds pair extraction with validation. Direct children
+use [`registerAIGatewayChildResource`][ai-child-load] for gateway-local moniker
+uniqueness; data-plane certificates retain `title` diagnostics.
+
+Portal registers fourteen extraction paths and its twelve existing child
+validators. [Singleton extraction][portal-child-load] copies a present value,
+sets its portal, appends it, and clears the source pointer. [Pages][portal-page]
+retain preorder flattening; [email templates][portal-template] retain
+map-key defaults. [Teams][portal-team] extract roles and group mappings before
+appending the team, carrying both team and portal selectors. Only teams nested
+under portals enter that extraction phase; root-declared teams do not.
+
+Portal teams and team roles explicitly set `validationOmittedReason` and leave
+`validateOrder` zero to preserve their existing lack of loader validation.
+Other registrations require a validator and a positive order. This exception
+does not authorize skipping validation for a new resource. Portal assets keep
+their separate handling and are outside these loading registrations.
 
 Extraction order is per immediate parent; validation order is per family,
-including grandchildren. Both must be positive and unique within their group.
-They are independent of scope-capture order. Registration rejects conflicts.
+including grandchildren. Participating orders must be positive and unique
+within their group, independently of scope-capture order. Registration rejects
+conflicting extraction forms, missing validation dispositions, and order
+clashes.
 
 The loader still owns phase sequencing. `ExtractRegisteredChildren` copies
 children, overwrites their parent selector, appends after existing root values,
@@ -164,9 +181,11 @@ before appending the store, ahead of secrets from root-declared stores. Secret
 defaults still run before source indexing; consumer credentials are extracted
 later. Preserve these phases in both loader representations.
 
-`ValidateRegisteredChildren` stops at the family's first error. Other families,
-root validation, cross-references, and namespaces retain their existing loader
-paths. Migrating another family requires its own compatibility assessment.
+`ValidateRegisteredChildren` stops at the family's first error. Portal child
+validation follows separate API-child validation, preserving error precedence.
+Other families, root validation, cross-references, and namespaces retain their
+existing loader paths. Migrating another family requires its own compatibility
+assessment.
 
 ### Explain, scaffold, and load schema
 
@@ -607,6 +626,10 @@ engine contract. Each refactoring migration should:
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
 [child-load]: ../../internal/declarative/resources/child_load.go
+[portal-child-load]: ../../internal/declarative/resources/portal_child_load.go
+[portal-page]: ../../internal/declarative/resources/portal_page.go
+[portal-template]: ../../internal/declarative/resources/portal_email_template.go
+[portal-team]: ../../internal/declarative/resources/portal_team.go
 [ai-child-load]: ../../internal/declarative/resources/ai_gateway_child_load.go
 [plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
