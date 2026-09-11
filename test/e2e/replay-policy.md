@@ -6,7 +6,8 @@ must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, `control-plane/sync`, and `portal/sync`.
+`control-plane/plan/apply-workflow`, `control-plane/sync`, `portal/sync`, and
+`portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -15,6 +16,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [Recording][sync], [isolated phases][sync-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
+| portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -23,6 +25,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
+[visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
+[visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
 
 ## Routing
 
@@ -180,9 +184,14 @@ Serverless additionally uses a harness creation command. The
 certificate scenario needs a reviewed public-PEM and environment-input policy.
 Product maturity alone is not sufficient to enable these scenarios.
 
-`portal/visibility` is supported for manual recording but remains live on PRs
-until its complete recording and three isolated replays pass. Visibility
-updates, no-op plans, dumps and cleanup assertions must all remain intact.
+`portal/visibility` is enabled after its complete live recording and three
+isolated replays passed (390 HTTP interactions each). All visibility updates,
+no-op plans, dumps and cleanup assertions remain intact. The isolated wrappers
+took 4.81–4.96 seconds, compared with a 38.70-second historical live median
+(20 observations). This is not a same-source comparison or a measured workflow
+speedup. Recording's 50.07-second scenario includes proxy overhead and is not
+the live baseline. Its scenario-local replay README documents the reviewed
+phase boundaries, including the strict private/public visibility barriers.
 
 ## Measurement
 
