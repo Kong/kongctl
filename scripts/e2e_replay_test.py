@@ -23,6 +23,57 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_inline_overlays_are_local_literal_and_fingerprinted(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "testdata").mkdir()
+            (root / "testdata/portal.yaml").write_text("portals: []\n")
+            operation = {"file": "portal.yaml", "match": "portals[?ref=='portal'] | [0]",
+                         "set": {"default_api_visibility": "private", "auto_approve_applications": True}}
+            definition = {"baseInputsPath": "testdata", "steps": [{"inputOverlayOps": [operation]}]}
+            path = root / "scenario.yaml"
+            path.write_text(yaml.safe_dump(definition, indent=2))
+            MODULE.check_eligibility(root)
+            before = MODULE.scenario_digest(root)
+            operation["set"]["default_api_visibility"] = "public"
+            path.write_text(yaml.safe_dump(definition, indent=2))
+            MODULE.check_eligibility(root)
+            self.assertNotEqual(before, MODULE.scenario_digest(root))
+            invalid = [
+                {"file": "../portal.yaml"}, {"file": "/etc/passwd"}, {"file": "missing.yaml"},
+                {"file": "https://example.com/portal.yaml"}, {"file": "{{ .vars.file }}"},
+                {"match": "portals[?ref=='{{ .vars.ref }}'] | [0]"}, {"match": "portals[*]"},
+                {"set": {"visibility": {"from": "file"}}}, {"set": {"visibility": "!file doc.md"}},
+                {"set": {"visibility": "{{ .vars.visibility }}"}}, {"set": {"a.b": "private"}},
+                {"set": {}}, {"append": {"visibility": "private"}},
+            ]
+            for change in invalid:
+                definition["steps"][0]["inputOverlayOps"] = [{**operation, **change}]
+                path.write_text(yaml.safe_dump(definition, indent=2))
+                with self.subTest(change=change), self.assertRaises(ValueError):
+                    MODULE.check_eligibility(root)
+
+    def test_inline_overlay_declarations_cannot_hide_in_yaml(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "testdata").mkdir()
+            (root / "testdata/portal.yaml").write_text("portals: []\n")
+            operation = "      - file: portal.yaml\n        match: portals[?ref=='p'] | [0]\n        set: {visibility: private}\n"
+            header = "baseInputsPath: testdata\nsteps:\n  - name: example\n"
+            for text in [
+                header + "    inputOverlayOps: []\n",
+                header + "    inputOverlayOps: []\n    inputOverlayOps:\n" + operation,
+                "baseInputsPath: testdata\ninputOverlayOps: []\n",
+                header + "    commands:\n      - inputOverlayOps: []\n",
+                header + "    inputOverlayOps: &ops []\n",
+                header + "    inputOverlayOps: !custom []\n",
+                header + "    inputOverlayOpsFiles: [operations.yaml]\n",
+            ]:
+                (root / "scenario.yaml").write_text(text)
+                with self.subTest(text=text), self.assertRaises(ValueError):
+                    MODULE.check_eligibility(root)
+
     def test_chunked_cassette_round_trip_and_tamper_detection(self):
         cassette = {"schema_version": 2, "interactions": [interaction(body=None)] * 3}
         cassette["interactions"][0]["response"]["body"] = "x" * 180000

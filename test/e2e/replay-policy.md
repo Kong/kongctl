@@ -131,6 +131,13 @@ It is only a storage format, not a sanitizer or approval mechanism. Run the
 packed cassette through isolated replay as part of PR validation too.
 
 Scenario-local overlays and workdir-local generated plan files are supported.
+Inline `inputOverlayOps` may set literal boolean/plain-string fields in an
+existing YAML file at the scenario's `testdata` root. Selectors must be literal
+`ref` filters (optionally nested), ending in `| [0]`. The unchanged Go harness
+performs the edits; replay validation does not implement another overlay
+engine. Operations, targets and assertions remain input-fingerprinted.
+Templates, nested replacement values, external ops files, YAML aliases and
+duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, including references from overlays copied onto that tree. Remote
@@ -169,6 +176,10 @@ and stay live pending reviewed phase annotations and isolated validation.
 Serverless additionally uses a harness creation command. The
 certificate scenario needs a reviewed public-PEM and environment-input policy.
 Product maturity alone is not sufficient to enable these scenarios.
+
+`portal/visibility` is supported for manual recording but remains live on PRs
+until its complete recording and three isolated replays pass. Visibility
+updates, no-op plans, dumps and cleanup assertions must all remain intact.
 
 ## Measurement
 
