@@ -2,7 +2,8 @@ package planner
 
 import (
 	"context"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -257,12 +258,7 @@ func normalizeNamespaces(namespaces []string) []string {
 		return nil
 	}
 
-	normalized := make([]string, 0, len(normalizedSet))
-	for ns := range normalizedSet {
-		normalized = append(normalized, ns)
-	}
-	sort.Strings(normalized)
-	return normalized
+	return slices.Sorted(maps.Keys(normalizedSet))
 }
 
 func namespaceCacheKey(normalizedNamespaces []string) string {
