@@ -1531,6 +1531,13 @@ func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, dep
 		renderExplainFields(b, node.Items, path+"[]", depth)
 		return
 	}
+	if node.Kind == explainKindObject && len(node.OneOf) > 0 {
+		for _, branch := range node.OneOf {
+			fmt.Fprintf(b, "%soneOf option: %s\n", strings.Repeat("  ", depth), scaffoldOneOfOptionLabel(branch))
+			renderExplainFields(b, branch, path, depth+1)
+		}
+		return
+	}
 	if node.Kind == explainKindObject && node.Additional != nil {
 		renderExplainFields(b, node.Additional, path+"{}", depth)
 	}

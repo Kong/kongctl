@@ -57,7 +57,8 @@ func (l *Loader) collectSecretSources(actual, placeholder *resources.ResourceSet
 			}
 
 			return false, fmt.Errorf(
-				"resource %s %q field %s is write-only and requires !secret with a deferred source",
+				"resource %s %q field %s is write-only and requires !secret with a deferred source"+
+					" or a vault reference such as {vault://<store>/<key>}",
 				resource.GetType(), resourceRef, path,
 			)
 		})
