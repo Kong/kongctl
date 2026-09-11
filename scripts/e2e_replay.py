@@ -198,7 +198,8 @@ def check_inline_overlays(directory, definition):
             if (not target.is_file() or target.is_symlink()
                     or not target.resolve().is_relative_to((directory / "testdata").resolve())):
                 raise ValueError("inline overlay target must exist inside scenario testdata")
-            if not isinstance(match, str) or not re.fullmatch(selector + r"(?:\." + selector + r")*\s*\|\s*\[0\]", match):
+            expression = selector + r"(?:\." + selector + r")*\s*\|\s*\[0\]"
+            if not isinstance(match, str) or not re.fullmatch(expression, match):
                 raise ValueError("inline overlays require literal ref selectors ending in | [0]")
             if not isinstance(fields, dict) or not fields:
                 raise ValueError("inline overlay set requires nonempty scalar fields")
@@ -441,7 +442,7 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
 def parallel_phases(cassette):
     """Compile reviewed, bounded phases with mandatory causal dependencies.
 
-    A phase is not a bag of responses: identical targets retain their stream
+    A phase is not a bag of responses: identical requests retain their stream
     order, new IDs cannot be observed before creation, and ancestor reads
     cannot cross updates/deletes. Additional dependencies can only constrain.
     """
@@ -457,6 +458,8 @@ def parallel_phases(cassette):
                 or end - start >= 64 or not isinstance(after, dict)):
             raise ValueError("parallel phases must be ordered, disjoint ranges of 2–64 exchanges")
         indices = range(start - 1, end)
+        read_only = all(interactions[i]["request"]["method"] == "GET"
+                        and interactions[i]["request"]["body"] is None for i in indices)
         dependencies = {i: set() for i in indices}
         owners = {}
         for i in indices:
@@ -482,6 +485,9 @@ def parallel_phases(cassette):
                 if earlier["endpoint"] != request["endpoint"]:
                     continue
                 same_target = earlier["path"] == request["path"]
+                # Different filtered collections may be read in either order,
+                # but only when the entire reviewed phase has no writes.
+                independent_queries = read_only and earlier["query"] != request["query"]
                 earlier_body, current_body = interactions[j]["response"]["body"], item["response"]["body"]
                 independent_creates = (earlier["method"] == request["method"] == "POST"
                                        and interactions[j]["response"]["status"] == item["response"]["status"] == 201
@@ -493,7 +499,8 @@ def parallel_phases(cassette):
                             or request["path"].startswith(earlier["path"].rstrip("/") + "/"))
                 changes_observation = ("GET" in {earlier["method"], request["method"]}
                                        and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
-                if (same_target and not independent_creates) or (ancestor and changes_observation):
+                if ((same_target and not independent_creates and not independent_queries)
+                        or (ancestor and changes_observation)):
                     dependencies[i].add(j)
         for index, parents in after.items():
             if not isinstance(index, str) or not index.isdecimal() or str(int(index)) != index:

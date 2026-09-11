@@ -59,7 +59,8 @@ class ReplayTest(unittest.TestCase):
             root = Path(temporary)
             (root / "testdata").mkdir()
             (root / "testdata/portal.yaml").write_text("portals: []\n")
-            operation = "      - file: portal.yaml\n        match: portals[?ref=='p'] | [0]\n        set: {visibility: private}\n"
+            operation = ("      - file: portal.yaml\n        match: portals[?ref=='p'] | [0]\n"
+                         "        set: {visibility: private}\n")
             header = "baseInputsPath: testdata\nsteps:\n  - name: example\n"
             for text in [
                 header + "    inputOverlayOps: []\n",
@@ -151,6 +152,52 @@ class ReplayTest(unittest.TestCase):
         ]:
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 MODULE.parallel_phases({**cassette, "parallel_phases": invalid})
+
+    def test_visibility_update_cannot_be_skipped_or_changed_between_phases(self):
+        before = interaction()
+        before["response"]["body"] = {"visibility": "public"}
+        after = copy.deepcopy(before)
+        after["response"]["body"] = {"visibility": "private"}
+        update = interaction("PUT", b'{"visibility":"private"}')
+        engine = MODULE.Replay({"interactions": [before, before, update, after, after],
+                               "parallel_phases": [{"start": 1, "end": 2, "after": {}},
+                                                   {"start": 4, "end": 5, "after": {}}]})
+        def send(method="GET", body=b""):
+            return engine.exchange("us.api.konghq.com", method, "/v2/control-planes?a=1&b=2", body)
+        self.assertEqual(send()["body"], {"visibility": "public"})
+        self.assertEqual(send()["body"], {"visibility": "public"})
+        with self.assertRaises(ValueError):
+            send()  # Later-state reads cannot skip the visibility mutation.
+        with self.assertRaises(ValueError):
+            send("PUT", b'{"visibility":"public"}')
+        send("PUT", b'{"visibility":"private"}')
+        self.assertEqual(send()["body"], {"visibility": "private"})
+        self.assertEqual(send()["body"], {"visibility": "private"})
+        engine.verify()
+
+    def test_read_only_phase_matches_distinct_queries_without_wildcards(self):
+        def get(api, value):
+            return {"request": MODULE.request_key("regional", "GET", "/v3/api-publications?api=" + api, b""),
+                    "response": {"status": 200, "body": {"value": value}}}
+        items = [get("a", "first-a"), get("b", "b"), get("a", "second-a")]
+        phase = {"start": 1, "end": 3, "after": {}}
+        engine = MODULE.Replay({"interactions": items, "parallel_phases": [phase]})
+        def send(api):
+            return engine.exchange("us.api.konghq.com", "GET", "/v3/api-publications?api=" + api, b"")
+        with self.assertRaises(ValueError):
+            send("unknown")
+        self.assertEqual(send("b")["body"], {"value": "b"})
+        self.assertEqual(send("a")["body"], {"value": "first-a"})
+        self.assertEqual(send("a")["body"], {"value": "second-a"})
+        engine.verify()
+        constrained = MODULE.parallel_phases({"interactions": items, "parallel_phases": [
+            {**phase, "after": {"2": [1]}}
+        ]})
+        self.assertIn(0, constrained[0][1])
+        # A phase containing writes must not gain this read-only relaxation.
+        items[2] = interaction("PUT", b'{"visibility":"private"}')
+        mixed = MODULE.parallel_phases({"interactions": items, "parallel_phases": [phase]})
+        self.assertIn(0, mixed[0][1])
 
     def test_failure_diagnostics_never_include_raw_cli_output(self):
         engine = MODULE.Replay({"interactions": []})
