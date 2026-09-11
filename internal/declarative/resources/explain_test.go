@@ -425,11 +425,10 @@ func TestRenderExplainText_AIGatewayProviderAuthAllowedValues(t *testing.T) {
 
 	resource, err := ResolveExplainSubject("ai_gateway.model_providers")
 	require.NoError(t, err)
-	assert.Contains(
-		t,
-		RenderExplainText(resource, true),
-		"- type: string required allowed: basic|azure|aws|gcp|sagemaker",
-	)
+	text := RenderExplainText(resource, true)
+	for _, authType := range []string{"basic", "azure", "aws", "gcp", "sagemaker"} {
+		assert.Contains(t, text, "- type: string required allowed: "+authType+"\n")
+	}
 
 	field, err := ResolveExplainSubject("ai_gateway.model_providers.config.auth.type")
 	require.NoError(t, err)
