@@ -76,8 +76,8 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
-	// Validate separate API child resources (extracted from nested resources)
-	if err := l.validateSeparateAPIChildResources(rs); err != nil {
+	// Validate API child resources in root storage.
+	if err := rs.ValidateRegisteredChildren(resources.ResourceTypeAPI); err != nil {
 		return err
 	}
 
@@ -875,71 +875,8 @@ func (l *Loader) validateAPIs(apis []resources.APIResource, rs *resources.Resour
 
 		apiNames[api.Name] = api.GetRef()
 
-		// Validate nested versions (these should be empty after extraction)
-		for j := range api.Versions {
-			version := &api.Versions[j]
-			if err := version.Validate(); err != nil {
-				return fmt.Errorf("invalid api_version %q in api %q: %w", version.GetRef(), api.GetRef(), err)
-			}
-			// Check global ref uniqueness for nested version
-			if existing, found := rs.GetResourceByRef(version.GetRef()); found {
-				if existing.GetType() != resources.ResourceTypeAPIVersion {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-						version.GetRef(), existing.GetType())
-				}
-			}
-		}
-
-		// Validate nested publications (these should be empty after extraction)
-		for j := range api.Publications {
-			publication := &api.Publications[j]
-			if err := publication.Validate(); err != nil {
-				return fmt.Errorf("invalid api_publication %q in api %q: %w", publication.GetRef(), api.GetRef(), err)
-			}
-			// Check global ref uniqueness for nested publication
-			if existing, found := rs.GetResourceByRef(publication.GetRef()); found {
-				if existing.GetType() != resources.ResourceTypeAPIPublication {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-						publication.GetRef(), existing.GetType())
-				}
-			}
-		}
-
-		// Validate nested implementations (these should be empty after extraction)
-		for j := range api.Implementations {
-			implementation := &api.Implementations[j]
-			if err := implementation.Validate(); err != nil {
-				return fmt.Errorf(
-					"invalid api_implementation %q in api %q: %w",
-					implementation.GetRef(),
-					api.GetRef(),
-					err,
-				)
-			}
-			// Check global ref uniqueness for nested implementation
-			if existing, found := rs.GetResourceByRef(implementation.GetRef()); found {
-				if existing.GetType() != resources.ResourceTypeAPIImplementation {
-					return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-						implementation.GetRef(), existing.GetType())
-				}
-			}
-		}
-
-		// Validate documents retained under their parent API after flattening.
-		for j := range api.Documents {
-			document := &api.Documents[j]
-			if err := document.Validate(); err != nil {
-				return fmt.Errorf("invalid api_document %q in api %q: %w", document.GetRef(), api.GetRef(), err)
-			}
-			if existing, found := rs.GetResourceByRef(document.GetRef()); found {
-				if existing.GetType() != resources.ResourceTypeAPIDocument {
-					return fmt.Errorf(
-						"duplicate ref '%s' (already defined as %s)",
-						document.GetRef(),
-						existing.GetType(),
-					)
-				}
-			}
+		if err := rs.ValidateRegisteredNestedChildren(api); err != nil {
+			return err
 		}
 	}
 
@@ -1005,78 +942,6 @@ func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
 	}
 
 	// Note: API versions don't have outbound references, so no validation needed
-
-	return nil
-}
-
-// validateSeparateAPIChildResources validates individual API child resources that were extracted
-func (l *Loader) validateSeparateAPIChildResources(rs *resources.ResourceSet) error {
-	// Count versions per API to enforce single-version constraint
-	// This is a safety check in case the early validation was bypassed
-	versionCountByAPI := make(map[string]int)
-	for i := range rs.APIVersions {
-		version := &rs.APIVersions[i]
-		if version.API != "" {
-			versionCountByAPI[version.API]++
-		}
-	}
-
-	// Validate separate API versions
-	for i := range rs.APIVersions {
-		version := &rs.APIVersions[i]
-		if err := version.Validate(); err != nil {
-			return fmt.Errorf("invalid api_version %q: %w", version.GetRef(), err)
-		}
-		// Check global ref uniqueness using RefReader (duplicates were extracted from nested)
-		// We need to check against self since these are already in the ResourceSet
-		for j := i + 1; j < len(rs.APIVersions); j++ {
-			if rs.APIVersions[j].GetRef() == version.GetRef() {
-				return fmt.Errorf("duplicate ref '%s' (already defined as api_version)", version.GetRef())
-			}
-		}
-	}
-
-	// Validate separate API publications
-	for i := range rs.APIPublications {
-		publication := &rs.APIPublications[i]
-		if err := publication.Validate(); err != nil {
-			return fmt.Errorf("invalid api_publication %q: %w", publication.GetRef(), err)
-		}
-		// Check for duplicates within extracted publications
-		for j := i + 1; j < len(rs.APIPublications); j++ {
-			if rs.APIPublications[j].GetRef() == publication.GetRef() {
-				return fmt.Errorf("duplicate ref '%s' (already defined as api_publication)", publication.GetRef())
-			}
-		}
-	}
-
-	// Validate separate API implementations
-	for i := range rs.APIImplementations {
-		implementation := &rs.APIImplementations[i]
-		if err := implementation.Validate(); err != nil {
-			return fmt.Errorf("invalid api_implementation %q: %w", implementation.GetRef(), err)
-		}
-		// Check for duplicates within extracted implementations
-		for j := i + 1; j < len(rs.APIImplementations); j++ {
-			if rs.APIImplementations[j].GetRef() == implementation.GetRef() {
-				return fmt.Errorf("duplicate ref '%s' (already defined as api_implementation)", implementation.GetRef())
-			}
-		}
-	}
-
-	// Validate separate API documents
-	for i := range rs.APIDocuments {
-		document := &rs.APIDocuments[i]
-		if err := document.Validate(); err != nil {
-			return fmt.Errorf("invalid api_document %q: %w", document.GetRef(), err)
-		}
-		// Check for duplicates within extracted documents
-		for j := i + 1; j < len(rs.APIDocuments); j++ {
-			if rs.APIDocuments[j].GetRef() == document.GetRef() {
-				return fmt.Errorf("duplicate ref '%s' (already defined as api_document)", document.GetRef())
-			}
-		}
-	}
 
 	return nil
 }

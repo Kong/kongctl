@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAPIVersion,
 		func(rs *ResourceSet) *[]APIVersionResource { return &rs.APIVersions },
 		AutoExplain[APIVersionResource](
@@ -27,6 +27,11 @@ func init() {
 			WithExplainFieldHint("spec.content", ExplainFieldHint{
 				Notes: []string{"Set the whole spec with `spec: !file ...` instead of populating content directly."},
 			}),
+		),
+		apiChildLoad(
+			10,
+			func(api *APIResource) *[]APIVersionResource { return &api.Versions },
+			func(child *APIVersionResource, ref string) { child.API = ref },
 		),
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIVersionResource) *APIResource {
 			return rs.GetAPIByRef(r.API)

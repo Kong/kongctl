@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeAPIDocument,
 		func(rs *ResourceSet) *[]APIDocumentResource { return &rs.APIDocuments },
 		AutoExplain[APIDocumentResource](
@@ -24,6 +24,16 @@ func init() {
 				},
 			}),
 		),
+		childLoad[APIDocumentResource, APIResource]{
+			family:        ResourceTypeAPI,
+			extractOrder:  40,
+			validateOrder: 40,
+			validate:      validateChildRefs[APIDocumentResource],
+			validateNested: validateNestedAPIChildren(
+				func(api *APIResource) *[]APIDocumentResource { return &api.Documents },
+			),
+			extract: extractNestedAPIDocuments,
+		},
 		WithExternalUnsupportedReason("scoped API document lookup is planned for API domain enablement"),
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIDocumentResource) *APIResource {
 			return rs.GetAPIByRef(r.API)
@@ -260,4 +270,51 @@ func (d *APIDocumentResource) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// Nested documents retain their API-owned storage after flattening.
+func extractNestedAPIDocuments(_ *ResourceSet, api *APIResource, _ *[]APIDocumentResource) {
+	docs := make([]APIDocumentResource, 0)
+	for _, document := range api.Documents {
+		extractAPIDocuments(&docs, document, api.Ref, "")
+	}
+	api.Documents = docs
+}
+
+// FlattenRootAPIDocuments normalizes root declarations separately from documents
+// retained under their API. Each root document supplies its own API selector.
+func (rs *ResourceSet) FlattenRootAPIDocuments() {
+	docs := make([]APIDocumentResource, 0)
+	for _, document := range rs.APIDocuments {
+		extractAPIDocuments(&docs, document, document.API, "")
+	}
+	rs.APIDocuments = docs
+}
+
+// extractAPIDocuments recursively extracts and flattens nested API documents
+func extractAPIDocuments(
+	allDocs *[]APIDocumentResource,
+	doc APIDocumentResource,
+	apiRef string,
+	parentDocRef string,
+) {
+	if apiRef != "" {
+		doc.API = apiRef
+	}
+	if parentDocRef != "" {
+		doc.ParentDocumentRef = parentDocRef
+	}
+
+	children := doc.Children
+	doc.Children = nil
+
+	*allDocs = append(*allDocs, doc)
+
+	for _, child := range children {
+		childAPIRef := apiRef
+		if child.API != "" {
+			childAPIRef = child.API
+		}
+		extractAPIDocuments(allDocs, child, childAPIRef, doc.Ref)
+	}
 }
