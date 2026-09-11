@@ -191,8 +191,9 @@ are extracted later. Preserve these phases in both loader representations.
 
 `ValidateRegisteredNestedChildren` runs optional per-parent callbacks in
 extraction order. API root validation invokes it after each API's identity
-checks, preserving parent-context errors and cross-kind ref checks, including
-documents retained after extraction. `ValidateRegisteredChildren` then checks
+checks, preserving parent-context errors and cross-kind ref checks. Ordinary
+API child callbacks retain validation before extraction; normal loading leaves
+only documents nested. `ValidateRegisteredChildren` then checks
 root child collections in family order, stopping at the first error. API and
 ordinary Portal ref validation both validate each resource before checking
 later siblings for duplicate refs.

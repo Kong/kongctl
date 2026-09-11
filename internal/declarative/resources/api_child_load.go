@@ -2,6 +2,8 @@ package resources
 
 import "fmt"
 
+// Retain the legacy per-API checks for validation before extraction. Normal
+// loading clears these nested slices and validates their children in root storage.
 func apiChildLoad[R any, RPtr interface {
 	*R
 	Resource
