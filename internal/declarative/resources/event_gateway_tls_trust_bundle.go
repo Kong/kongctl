@@ -8,12 +8,19 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeEventGatewayTLSTrustBundle,
 		func(rs *ResourceSet) *[]EventGatewayTLSTrustBundleResource {
 			return &rs.EventGatewayTLSTrustBundles
 		},
 		AutoExplain[EventGatewayTLSTrustBundleResource](),
+		eventGatewayChildLoad(
+			20,
+			func(gateway *EventGatewayControlPlaneResource) *[]EventGatewayTLSTrustBundleResource {
+				return &gateway.TrustBundles
+			},
+			func(child *EventGatewayTLSTrustBundleResource, ref string) { child.EventGateway = ref },
+		),
 		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }

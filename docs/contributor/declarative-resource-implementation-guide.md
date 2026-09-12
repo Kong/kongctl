@@ -38,8 +38,7 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, AI Gateway/API/Portal child loading, and dump-default
-metadata.
+collection scope, registered child loading, and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. Other families' nested
@@ -145,9 +144,9 @@ input cannot disclose a secret in an error.
 
 ### Child loading capabilities
 
-AI Gateway, API, and Portal children register loading beside their declarations,
-reusing root storage through [`registerChildResourceType`][child-load]. Supply
-one extraction form: `nested`/`setParent` with an optional `beforeAppend`, or a
+AI Gateway, API, Portal, and Event Gateway children register loading beside
+their declarations through [`registerChildResourceType`][child-load], reusing
+root storage. Supply `nested`/`setParent` with an optional `beforeAppend`, or a
 typed `extract` handler for exceptional sources. Custom extraction receives
 the registered destination; preserve each source's copying and storage rules.
 
@@ -170,11 +169,17 @@ map-key defaults. [Teams][portal-team] extract roles and group mappings before
 appending the team, carrying both team and portal selectors. Only teams nested
 under portals enter that extraction phase; root-declared teams do not.
 
-Portal teams and team roles explicitly set `validationOmittedReason` and leave
-`validateOrder` zero to preserve their existing lack of loader validation.
-Other registrations require a validator and a positive order. This exception
-does not authorize skipping validation for a new resource. Portal assets keep
-their separate handling and are outside these loading registrations.
+Event Gateway's [`eventGatewayChildLoad`][eg-child-load] registers extraction
+for static keys, TLS trust bundles, schema registries, backend clusters,
+listeners, and data-plane certificates, in that order. Extraction stays before
+deferred-value indexing, preserving attribution to each child ref. Virtual
+clusters and policy placement retain their existing storage and traversal.
+
+Portal teams, team roles, and these Event Gateway children record
+`validationOmittedReason` with zero `validateOrder` to preserve their lack of
+family-level loader validation. Other registrations require a validator and a
+positive order; these exceptions do not authorize skipping new-resource
+validation. Portal assets retain separate handling outside these registrations.
 
 Extraction order is per immediate parent; validation order is per family,
 including grandchildren. Participating orders must be positive and unique
@@ -197,8 +202,9 @@ only documents nested. `ValidateRegisteredChildren` then checks
 root child collections in family order, stopping at the first error. API and
 ordinary Portal ref validation both validate each resource before checking
 later siblings for duplicate refs.
-Portal child validation follows API-child validation. Other families, root
-validation, cross-references, and namespaces retain their existing loader paths.
+Portal child validation follows API-child validation. Control-plane and
+organization/grouped loading, root validation, cross-references, and namespaces
+retain their existing loader paths.
 
 ### Explain, scaffold, and load schema
 
@@ -646,6 +652,7 @@ engine contract. Each refactoring migration should:
 [portal-template]: ../../internal/declarative/resources/portal_email_template.go
 [portal-team]: ../../internal/declarative/resources/portal_team.go
 [ai-child-load]: ../../internal/declarative/resources/ai_gateway_child_load.go
+[eg-child-load]: ../../internal/declarative/resources/event_gateway_child_load.go
 [plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
 [roots]: ../../internal/declarative/planner/root_planners.go

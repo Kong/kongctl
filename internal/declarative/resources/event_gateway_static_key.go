@@ -8,10 +8,17 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeEventGatewayStaticKey,
 		func(rs *ResourceSet) *[]EventGatewayStaticKeyResource { return &rs.EventGatewayStaticKeys },
 		AutoExplain[EventGatewayStaticKeyResource](),
+		eventGatewayChildLoad(
+			10,
+			func(gateway *EventGatewayControlPlaneResource) *[]EventGatewayStaticKeyResource {
+				return &gateway.StaticKeys
+			},
+			func(child *EventGatewayStaticKeyResource, ref string) { child.EventGateway = ref },
+		),
 		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
