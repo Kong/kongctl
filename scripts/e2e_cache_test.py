@@ -35,7 +35,21 @@ class CacheTest(unittest.TestCase):
             )
             return result, output.read_text() if output.exists() else '', summary.read_text() if summary.exists() else ''
 
-    def test_fallback_partition_matches_setup_go_namespace(self):
+    def test_setup_go_cache_contract_requires_review_on_action_update(self):
+        # Reviewed v7 source: src/cache-restore.ts and src/package-managers.ts
+        # https://github.com/actions/setup-go/tree/b7ad1dad31e06c5925ef5d2fc7ad053ef454303e/src
+        self.assertEqual(
+            self.step('Setup Go')['uses'],
+            'actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e',
+            'Review the new setup-go cache key format and ordered cache paths, '
+            'then update this reviewed pin and the documented namespace expectations.',
+        )
+
+    def test_fallback_partition_uses_documented_namespace(self):
+        # Pinned setup-go's Linux key uses RUNNER_OS, process.arch, ImageOS,
+        # exact Go version, then the dependency hash. Paths are GOMODCACHE,
+        # GOCACHE, in that order. This is an offline contract snapshot, not
+        # a live comparison with upstream; the revision guard forces review.
         for arch, image, version in [('X64', 'ubuntu24', '1.26.0'), ('ARM64', 'ubuntu24', '1.26.0'),
                                      ('X64', 'ubuntu26', '1.26.0'), ('X64', 'ubuntu24', '1.26.1')]:
             with self.subTest(arch=arch, image=image, version=version):

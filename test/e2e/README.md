@@ -644,7 +644,8 @@ There is no broader cross-platform or cross-toolchain fallback. The fallback
 uses only `go env GOMODCACHE` and `go env GOCACHE`, in setup-go's path order,
 and its existing key namespace; no checkout, credentials, or built executables
 are added to the cache. GitHub's existing branch access restrictions remain.
-Review this namespace/path compatibility when updating setup-go.
+The offline cache test pins the reviewed setup-go revision. When updating the
+action, review its namespace/path compatibility before updating that test pin.
 
 Both binaries are always built and all tests still run. Go validates cached
 compilation against its inputs; a fallback does not reuse a previous kongctl
