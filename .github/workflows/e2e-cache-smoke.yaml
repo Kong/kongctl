@@ -1,7 +1,9 @@
 {
   "name": "E2E cache fallback smoke",
   "on": {
-    "workflow_dispatch": {}
+    "push": {
+      "branches": ["gh-2053-e2e-cache-fallback"]
+    }
   },
   "permissions": {
     "contents": "read"
