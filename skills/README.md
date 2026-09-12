@@ -5,6 +5,8 @@ with `kongctl`.
 
 ## Included Skills
 
+- [kongctl-ai-gateway](kongctl-ai-gateway/SKILL.md)
+  - Deploy native AI Gateway models, caller access and auditable CI/CD.
 - `kongctl-declarative`
   - Generate declarative config and manage plan/apply/sync/delete/adopt flows.
 - `kongctl-extension-builder`
@@ -28,8 +30,10 @@ kongctl install skills --dry-run
 By default, the installer writes skill files to `.kongctl/skills/` and creates
 symlinks for supported agent tooling:
 
+- `.agents/skills/kongctl-ai-gateway`
 - `.agents/skills/kongctl-declarative`
 - `.agents/skills/kongctl-extension-builder`
+- `.claude/skills/kongctl-ai-gateway`
 - `.claude/skills/kongctl-declarative`
 - `.claude/skills/kongctl-extension-builder`
 
@@ -50,6 +54,7 @@ tool's skills directory.
 
 - Target path: `.claude/skills/`
 - Example:
+  - `ln -s ../../skills/kongctl-ai-gateway .claude/skills/kongctl-ai-gateway`
   - `ln -s ../../skills/kongctl-declarative .claude/skills/kongctl-declarative`
   - `ln -s ../../skills/kongctl-extension-builder .claude/skills/kongctl-extension-builder`
 
@@ -57,5 +62,6 @@ tool's skills directory.
 
 - Target path: `.agents/skills/` (some setups use `.agents/skills/`)
 - Example:
+  - `ln -s ../../skills/kongctl-ai-gateway .agents/skills/kongctl-ai-gateway`
   - `ln -s ../../skills/kongctl-declarative .agents/skills/kongctl-declarative`
   - `ln -s ../../skills/kongctl-extension-builder .agents/skills/kongctl-extension-builder`

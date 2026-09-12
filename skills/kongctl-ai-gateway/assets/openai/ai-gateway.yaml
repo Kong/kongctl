@@ -1,0 +1,58 @@
+_defaults:
+  kongctl:
+    namespace: ai-demo
+
+ai_gateways:
+  - ref: ai-demo
+    name: ai-demo
+    display_name: AI Demo
+    description: Local OpenAI-backed AI Gateway
+    deployment_type: hybrid
+    proxy_urls:
+      - host: localhost
+        port: 8000
+        protocol: http
+    data_plane_certificates:
+      - ref: ai-demo-data-plane
+        title: ai-demo-data-plane
+        description: Local Docker data plane
+        cert: !file ./certs/data-plane.crt
+    model_providers:
+      - ref: openai
+        name: openai
+        display_name: OpenAI
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret
+                  parts:
+                    - "Bearer "
+                    - !env OPENAI_API_KEY
+    models:
+      - ref: demo-chat
+        name: demo-chat
+        display_name: Demo Chat
+        type: model
+        enabled: true
+        formats:
+          - type: openai
+        config:
+          route:
+            paths:
+              - /v1
+            model:
+              body_param: model
+              values:
+                - demo-chat
+        targets:
+          - name: !env OPENAI_MODEL
+            provider: openai
+            allow_auth_override: false
+            config:
+              type: openai
+        policies: []
+        capabilities:
+          - generate
