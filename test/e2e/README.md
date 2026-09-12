@@ -637,6 +637,28 @@ Keep that step as the identification marker when changing the cache policy.
 The `uncached` cohort contains builds without that step. A dependency change
 may produce a cold build and still belongs to `cache-enabled`.
 
+E2E builds retain setup-go's dependency-specific restore and successful-job
+save. On an exact-key miss, a best-effort restore can reuse an older dependency
+cache for the same Linux runner image, architecture, and exact Go version.
+There is no broader cross-platform or cross-toolchain fallback. The fallback
+uses only `go env GOMODCACHE` and `go env GOCACHE`, in setup-go's path order,
+and its existing key namespace; no checkout, credentials, or built executables
+are added to the cache. GitHub's existing branch access restrictions remain.
+Review this namespace/path compatibility when updating setup-go.
+
+Both binaries are always built and all tests still run. Go validates cached
+compilation against its inputs; a fallback does not reuse a previous kongctl
+executable. Missing caches or a failed/timed-out fallback restore simply leave
+the normal build to run. The fallback restore has a two-minute limit, and a
+successful job still saves its cache under the current dependency-specific
+key through setup-go. Exact hits do not perform the additional restore.
+
+The `Report Go cache status` log and job summary preserve the original
+primary-key hit field and add `dependency-fallback-v1` with `exact`, `fallback`,
+or `cold`, plus the fallback outcome and matched key. Compare these categories
+separately when measuring build time; all still belong to `cache-enabled`.
+This policy does not change scenario routing, resets, sharding, or org locks.
+
 The collector rejects a saved file belonging to a different cohort and rejects
 mixed records. Set `E2E_BASELINE_COHORT`, `E2E_BASELINE_OBSERVATIONS`, and
 `E2E_BASELINE_REPORT` together when collecting a different cohort. Schema 2

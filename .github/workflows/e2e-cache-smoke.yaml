@@ -1,0 +1,106 @@
+{
+  "name": "E2E cache fallback smoke",
+  "on": {
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "smoke": {
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 15,
+      "steps": [
+        {
+          "name": "Harden Runner",
+          "uses": "step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c",
+          "with": {
+            "egress-policy": "audit"
+          }
+        },
+        {
+          "name": "Checkout",
+          "uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "with": {
+            "ref": "${{ github.sha }}",
+            "persist-credentials": false
+          }
+        },
+        {
+          "name": "Configure private module access",
+          "shell": "bash",
+          "env": {
+            "GH_TOKEN_PRIVATE_READ": "${{ secrets.GH_TOKEN_PRIVATE_READ }}"
+          },
+          "run": "set -euo pipefail\n\nif ! grep -q 'sdk-konnect-go-internal' go.mod; then\n  exit 0\nfi\n\nif [ -z \"${GH_TOKEN_PRIVATE_READ:-}\" ]; then\n  echo \"::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal\"\n  exit 1\nfi\n\ngit config --global \\\n  url.\"https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/\".insteadOf \\\n  \"https://github.com/\"\necho \"GOPRIVATE=github.com/Kong/sdk-konnect-go-internal\" >> \"${GITHUB_ENV}\"\n"
+        },
+        {
+          "name": "Setup Go",
+          "id": "setup-go",
+          "uses": "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e",
+          "with": {
+            "go-version-file": "go.mod",
+            "cache": false,
+            "cache-dependency-path": "go.mod\ngo.sum\n"
+          }
+        },
+        {
+          "name": "Resolve Go fallback cache",
+          "id": "go-cache-paths",
+          "if": "steps.setup-go.outputs.cache-hit != 'true' && runner.os == 'Linux'",
+          "continue-on-error": true,
+          "shell": "bash",
+          "env": {
+            "GO_VERSION": "${{ steps.setup-go.outputs.go-version }}"
+          },
+          "run": "set -euo pipefail\ntest -n \"$GO_VERSION\"\ntest -n \"$ImageOS\"\nmodule_cache=$(go env GOMODCACHE)\nbuild_cache=$(go env GOCACHE)\n{\n  echo \"mod=$module_cache\"\n  echo \"build=$build_cache\"\n  echo \"prefix=setup-go-${RUNNER_OS}-${RUNNER_ARCH,,}-${ImageOS}-go-${GO_VERSION}-\"\n} >> \"$GITHUB_OUTPUT\"\n"
+        },
+        {
+          "name": "Restore Go dependency fallback",
+          "id": "go-cache-fallback",
+          "if": "steps.go-cache-paths.outcome == 'success'",
+          "continue-on-error": true,
+          "timeout-minutes": 2,
+          "uses": "actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
+          "with": {
+            "path": "${{ steps.go-cache-paths.outputs.mod }}\n${{ steps.go-cache-paths.outputs.build }}\n",
+            "key": "${{ steps.go-cache-paths.outputs.prefix }}smoke-${{ github.run_id }}",
+            "restore-keys": "${{ steps.go-cache-paths.outputs.prefix }}"
+          }
+        },
+        {
+          "name": "Report Go cache status",
+          "shell": "bash",
+          "env": {
+            "CACHE_HIT": "${{ steps.setup-go.outputs.cache-hit }}",
+            "FALLBACK_KEY": "${{ steps.go-cache-fallback.outputs.cache-matched-key }}",
+            "FALLBACK_OUTCOME": "${{ steps.go-cache-fallback.outcome }}"
+          },
+          "run": "cache_result=cold\nif [ \"$CACHE_HIT\" = true ]; then\n  cache_result=exact\nelif [ \"$FALLBACK_OUTCOME\" = success ] && [ -n \"$FALLBACK_KEY\" ]; then\n  cache_result=fallback\nfi\necho \"Go build cache primary-key hit: ${CACHE_HIT}\"\nprintf 'Go build cache primary-key hit: `%s`\\n' \"${CACHE_HIT}\" >> \"${GITHUB_STEP_SUMMARY}\"\nprintf 'Go build cache result (dependency-fallback-v1): %s\\n' \"$cache_result\" | tee -a \"$GITHUB_STEP_SUMMARY\"\nprintf 'Go fallback restore outcome: %s; matched key: %s\\n' \"$FALLBACK_OUTCOME\" \"$FALLBACK_KEY\" | tee -a \"$GITHUB_STEP_SUMMARY\"\n"
+        },
+        {
+          "name": "Use local private SDK module",
+          "shell": "bash",
+          "run": "set -euo pipefail\n\nif grep -q 'sdk-konnect-go-internal' go.mod; then\n  sdk_ref=\"$(\n    sed -nE 's#^replace github\\.com/Kong/sdk-konnect-go => github\\.com/Kong/sdk-konnect-go-internal v[^[:space:]]*-([0-9a-f]+)$#\\1#p' go.mod\n  )\"\n  if [ -z \"${sdk_ref}\" ]; then\n    echo \"::error::Unable to determine sdk-konnect-go-internal ref from go.mod\"\n    exit 1\n  fi\n\n  git clone --filter=blob:none \\\n    https://github.com/Kong/sdk-konnect-go-internal \\\n    .private/sdk-konnect-go-internal\n  git -C .private/sdk-konnect-go-internal checkout --detach \"${sdk_ref}\"\n  go mod edit -replace=github.com/Kong/sdk-konnect-go=./.private/sdk-konnect-go-internal\nfi\n"
+        },
+        {
+          "name": "Build kongctl",
+          "run": "make build-ci"
+        },
+        {
+          "name": "Build scenario test binary",
+          "run": "go test -c -tags=e2e -o e2e.test ./test/e2e"
+        },
+        {
+          "name": "Require an actual fallback restore",
+          "shell": "bash",
+          "env": {
+            "FALLBACK_KEY": "${{ steps.go-cache-fallback.outputs.cache-matched-key }}",
+            "FALLBACK_OUTCOME": "${{ steps.go-cache-fallback.outcome }}"
+          },
+          "run": "test \"$FALLBACK_OUTCOME\" = success\ntest -n \"$FALLBACK_KEY\"\n./kongctl version\n"
+        }
+      ]
+    }
+  }
+}
