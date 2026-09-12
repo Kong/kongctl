@@ -91,7 +91,7 @@ func reportDeleted(helper cmd.Helper, descriptor ResourceDescriptor, mesh, name 
 		rows,
 		"Deleted Mesh Resource",
 		tableview.WithExactCustomTable(
-			[]string{"TYPE", "NAME", "MESH", "RESULT"},
+			[]string{colType, colName, colMesh, colResult},
 			[]table.Row{{descriptor.Name, name, mesh, "deleted"}},
 		),
 		tableview.WithRootLabel(helper.GetCmd().Name()),

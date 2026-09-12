@@ -31,14 +31,24 @@ type resourceRow struct {
 }
 
 // headersFor returns the column set for a resource type, matching kumactl.
+// Column headers shared across the mesh tables. They are constants so that one
+// column means one thing everywhere, and so that renaming a column is a single
+// edit rather than a grep.
+const (
+	colName   = "NAME"
+	colMesh   = "MESH"
+	colType   = "TYPE"
+	colResult = "RESULT"
+)
+
 func headersFor(d ResourceDescriptor) []string {
 	switch {
 	case d.Name == "Dataplane":
-		return []string{"MESH", "NAME", "TAGS", "ADDRESS", "AGE"}
+		return []string{colMesh, colName, "TAGS", "ADDRESS", "AGE"}
 	case d.IsMeshScoped():
-		return []string{"MESH", "NAME", "AGE"}
+		return []string{colMesh, colName, "AGE"}
 	default:
-		return []string{"NAME", "AGE"}
+		return []string{colName, "AGE"}
 	}
 }
 

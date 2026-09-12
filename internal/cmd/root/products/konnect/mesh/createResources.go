@@ -341,7 +341,7 @@ func reportApplyResults(helper cmd.Helper, results []applyResult) error {
 		rows,
 		rows,
 		"Applied Mesh Resources",
-		tableview.WithExactCustomTable([]string{"TYPE", "NAME", "MESH", "RESULT"}, tableRows),
+		tableview.WithExactCustomTable([]string{colType, colName, colMesh, colResult}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }

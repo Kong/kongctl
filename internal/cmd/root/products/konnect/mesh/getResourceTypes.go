@@ -121,7 +121,7 @@ func (c *getResourceTypesCmd) runE(cobraCmd *cobra.Command, args []string) error
 }
 
 // resourceTypeHeaders is the column set for the resource type listing.
-var resourceTypeHeaders = []string{"NAME", "ALIAS", "SCOPE", "KIND", "WRITABLE"}
+var resourceTypeHeaders = []string{colName, "ALIAS", "SCOPE", "KIND", "WRITABLE"}
 
 func toResourceTypeTableRows(rows []resourceTypeRow) []table.Row {
 	tableRows := make([]table.Row, 0, len(rows))
