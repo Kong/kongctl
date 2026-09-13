@@ -446,6 +446,14 @@ The workflow summary also includes aggregated execution results from all shard
 jobs, including assigned scenario count, pass/fail/skip totals, per-shard
 durations, exit codes, and a failed-scenarios table when applicable.
 
+Shard result artifacts are named `e2e-artifacts-<run-id>-<attempt>-<org>`.
+The verifier downloads all attempts and uses the highest recorded attempt
+number per shard, retaining earlier results for shards that were not rerun.
+Distinct names prevent the download action from choosing between attempts by
+artifact ID, which does not reliably reflect upload order. A newer failed
+attempt still blocks verification; an older failure does not override a
+successful rerun.
+
 For temporary GitHub-runner network debugging, the workflow can also capture
 packet traces for Konnect endpoints:
 
@@ -636,6 +644,29 @@ misses in builds containing the `Report Go cache status` step added by #2069.
 Keep that step as the identification marker when changing the cache policy.
 The `uncached` cohort contains builds without that step. A dependency change
 may produce a cold build and still belongs to `cache-enabled`.
+
+E2E builds retain setup-go's dependency-specific restore and successful-job
+save. On an exact-key miss, a best-effort restore can reuse an older dependency
+cache for the same Linux runner image, architecture, and exact Go version.
+There is no broader cross-platform or cross-toolchain fallback. The fallback
+uses only `go env GOMODCACHE` and `go env GOCACHE`, in setup-go's path order,
+and its existing key namespace; no checkout, credentials, or built executables
+are added to the cache. GitHub's existing branch access restrictions remain.
+The offline cache test pins the reviewed setup-go revision. When updating the
+action, review its namespace/path compatibility before updating that test pin.
+
+Both binaries are always built and all tests still run. Go validates cached
+compilation against its inputs; a fallback does not reuse a previous kongctl
+executable. Missing caches or a failed/timed-out fallback restore simply leave
+the normal build to run. The fallback restore has a two-minute limit, and a
+successful job still saves its cache under the current dependency-specific
+key through setup-go. Exact hits do not perform the additional restore.
+
+The `Report Go cache status` log and job summary preserve the original
+primary-key hit field and add `dependency-fallback-v1` with `exact`, `fallback`,
+or `cold`, plus the fallback outcome and matched key. Compare these categories
+separately when measuring build time; all still belong to `cache-enabled`.
+This policy does not change scenario routing, resets, sharding, or org locks.
 
 The collector rejects a saved file belonging to a different cohort and rejects
 mixed records. Set `E2E_BASELINE_COHORT`, `E2E_BASELINE_OBSERVATIONS`, and
