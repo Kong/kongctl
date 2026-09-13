@@ -9,10 +9,17 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeEventGatewayListener,
 		func(rs *ResourceSet) *[]EventGatewayListenerResource { return &rs.EventGatewayListeners },
 		AutoExplain[EventGatewayListenerResource](),
+		eventGatewayChildLoad(
+			50,
+			func(gateway *EventGatewayControlPlaneResource) *[]EventGatewayListenerResource {
+				return &gateway.Listeners
+			},
+			func(child *EventGatewayListenerResource, ref string) { child.EventGateway = ref },
+		),
 		WithExternalUnsupportedReason("listener lookup requires an Event Gateway-scoped list adapter"),
 		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)

@@ -756,48 +756,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		rs.ExtractRegisteredChildren(&rs.Portals[i])
 	}
 
-	// Extract nested Event Gateway child resources so that deferred !env
-	// placeholders on their fields are tracked per child resource ref (not
-	// per gateway ref).  Each nested type already has a root-level slice in
-	// ResourceSet and a GetXxxForGateway helper that reads from both.
+	// Extract Event Gateway children before indexing deferred values by child ref.
 	for i := range rs.EventGatewayControlPlanes {
-		egw := &rs.EventGatewayControlPlanes[i]
-
-		for _, sk := range egw.StaticKeys {
-			sk.EventGateway = egw.Ref
-			rs.EventGatewayStaticKeys = append(rs.EventGatewayStaticKeys, sk)
-		}
-		egw.StaticKeys = nil
-
-		for _, tb := range egw.TrustBundles {
-			tb.EventGateway = egw.Ref
-			rs.EventGatewayTLSTrustBundles = append(rs.EventGatewayTLSTrustBundles, tb)
-		}
-		egw.TrustBundles = nil
-
-		for _, sr := range egw.SchemaRegistries {
-			sr.EventGateway = egw.Ref
-			rs.EventGatewaySchemaRegistries = append(rs.EventGatewaySchemaRegistries, sr)
-		}
-		egw.SchemaRegistries = nil
-
-		for _, bc := range egw.BackendClusters {
-			bc.EventGateway = egw.Ref
-			rs.EventGatewayBackendClusters = append(rs.EventGatewayBackendClusters, bc)
-		}
-		egw.BackendClusters = nil
-
-		for _, l := range egw.Listeners {
-			l.EventGateway = egw.Ref
-			rs.EventGatewayListeners = append(rs.EventGatewayListeners, l)
-		}
-		egw.Listeners = nil
-
-		for _, dp := range egw.DataPlaneCertificates {
-			dp.EventGateway = egw.Ref
-			rs.EventGatewayDataPlaneCertificates = append(rs.EventGatewayDataPlaneCertificates, dp)
-		}
-		egw.DataPlaneCertificates = nil
+		rs.ExtractRegisteredChildren(&rs.EventGatewayControlPlanes[i])
 	}
 
 	for i := range rs.AIGatewayConsumers {

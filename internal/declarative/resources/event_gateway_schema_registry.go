@@ -8,13 +8,20 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeEventGatewaySchemaRegistry,
 		func(rs *ResourceSet) *[]EventGatewaySchemaRegistryResource {
 			return &rs.EventGatewaySchemaRegistries
 		},
 		AutoExplain[EventGatewaySchemaRegistryResource](
 			WithExplainSchemaBuilder(eventGatewaySchemaRegistryExplainNode),
+		),
+		eventGatewayChildLoad(
+			30,
+			func(gateway *EventGatewayControlPlaneResource) *[]EventGatewaySchemaRegistryResource {
+				return &gateway.SchemaRegistries
+			},
+			func(child *EventGatewaySchemaRegistryResource, ref string) { child.EventGateway = ref },
 		),
 		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)

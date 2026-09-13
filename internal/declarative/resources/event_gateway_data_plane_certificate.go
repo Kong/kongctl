@@ -9,12 +9,19 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeEventGatewayDataPlaneCertificate,
 		func(rs *ResourceSet) *[]EventGatewayDataPlaneCertificateResource {
 			return &rs.EventGatewayDataPlaneCertificates
 		},
 		AutoExplain[EventGatewayDataPlaneCertificateResource](),
+		eventGatewayChildLoad(
+			60,
+			func(gateway *EventGatewayControlPlaneResource) *[]EventGatewayDataPlaneCertificateResource {
+				return &gateway.DataPlaneCertificates
+			},
+			func(child *EventGatewayDataPlaneCertificateResource, ref string) { child.EventGateway = ref },
+		),
 		WithChildSyncScope(ResourceTypeEventGatewayControlPlane),
 	)
 }
