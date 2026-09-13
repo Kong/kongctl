@@ -1083,7 +1083,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-artifacts-${{ github.run_id }}-${{ matrix.org_name }}
+          # Preserve all attempts: artifact IDs do not reliably order reruns.
+          name: e2e-artifacts-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.org_name }}
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
 
   e2e-replay-verify:
@@ -1153,6 +1154,7 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
+          # Download every attempt; verification selects the newest per shard.
           pattern: e2e-artifacts-${{ github.run_id }}-*
           path: ${{ github.workspace }}/.downloaded-artifacts
 

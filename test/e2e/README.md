@@ -446,6 +446,14 @@ The workflow summary also includes aggregated execution results from all shard
 jobs, including assigned scenario count, pass/fail/skip totals, per-shard
 durations, exit codes, and a failed-scenarios table when applicable.
 
+Shard result artifacts are named `e2e-artifacts-<run-id>-<attempt>-<org>`.
+The verifier downloads all attempts and uses the highest recorded attempt
+number per shard, retaining earlier results for shards that were not rerun.
+Distinct names prevent the download action from choosing between attempts by
+artifact ID, which does not reliably reflect upload order. A newer failed
+attempt still blocks verification; an older failure does not override a
+successful rerun.
+
 For temporary GitHub-runner network debugging, the workflow can also capture
 packet traces for Konnect endpoints:
 
