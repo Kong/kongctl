@@ -6,10 +6,11 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeControlPlaneDataPlaneCertificate,
 		func(rs *ResourceSet) *[]ControlPlaneDataPlaneCertificateResource {
 			return &rs.ControlPlaneDataPlaneCertificates
@@ -25,6 +26,16 @@ func init() {
 			}),
 			WithExplainRecommendedFields("ref", "control_plane", "cert"),
 		),
+		childLoad[ControlPlaneDataPlaneCertificateResource, ControlPlaneResource]{
+			family:        ResourceTypeControlPlane,
+			extractOrder:  20,
+			validateOrder: 20,
+			nested: func(cp *ControlPlaneResource) *[]ControlPlaneDataPlaneCertificateResource {
+				return &cp.DataPlaneCertificates
+			},
+			setParent: func(cert *ControlPlaneDataPlaneCertificateResource, ref string) { cert.ControlPlane = ref },
+			validate:  validateControlPlaneDataPlaneCertificates,
+		},
 		WithChildSyncScope(ResourceTypeControlPlane),
 	)
 }
@@ -141,4 +152,63 @@ func stringPtrValue(value *string) string {
 		return ""
 	}
 	return *value
+}
+
+func validateControlPlaneDataPlaneCertificates(
+	rs *ResourceSet,
+	certs []ControlPlaneDataPlaneCertificateResource,
+) error {
+	identitiesByControlPlane := make(map[string]map[string]string)
+
+	for i := range certs {
+		cert := &certs[i]
+
+		if err := cert.Validate(); err != nil {
+			return fmt.Errorf("invalid control_plane_data_plane_certificate %q: %w", cert.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(cert.GetRef()); found {
+			if existing.GetType() != ResourceTypeControlPlaneDataPlaneCertificate {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					cert.GetRef(), existing.GetType())
+			}
+		}
+
+		if tags.IsExternalPlaceholder(cert.ControlPlane) {
+			continue
+		}
+
+		if !rs.HasRef(cert.ControlPlane) {
+			return fmt.Errorf(
+				"control_plane_data_plane_certificate %q references unknown control_plane: %s",
+				cert.GetRef(),
+				cert.ControlPlane,
+			)
+		}
+
+		if actualType, _ := rs.GetResourceTypeByRef(cert.ControlPlane); actualType != ResourceTypeControlPlane {
+			return fmt.Errorf(
+				"control_plane_data_plane_certificate %q references %s but expected control_plane: %s",
+				cert.GetRef(),
+				actualType,
+				cert.ControlPlane,
+			)
+		}
+
+		identity := ControlPlaneDataPlaneCertificateIdentity(cert.Cert)
+		if identitiesByControlPlane[cert.ControlPlane] == nil {
+			identitiesByControlPlane[cert.ControlPlane] = make(map[string]string)
+		}
+		if existingRef, exists := identitiesByControlPlane[cert.ControlPlane][identity]; exists {
+			return fmt.Errorf(
+				"duplicate data plane certificate for control_plane %q (ref: %s conflicts with ref: %s)",
+				cert.ControlPlane,
+				cert.GetRef(),
+				existingRef,
+			)
+		}
+		identitiesByControlPlane[cert.ControlPlane][identity] = cert.GetRef()
+	}
+
+	return nil
 }

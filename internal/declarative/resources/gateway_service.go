@@ -11,15 +11,24 @@ import (
 )
 
 func init() {
+	storage := func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices }
 	registerExternalResourceType(
 		ResourceTypeGatewayService,
-		func(rs *ResourceSet) *[]GatewayServiceResource { return &rs.GatewayServices },
+		storage,
 		AutoExplain[GatewayServiceResource](),
 		ExternalResolutionRegistration{
 			Selectors:       []string{SchemaFieldName},
 			ParentType:      ResourceTypeControlPlane,
 			ParentFieldPath: "control_plane",
 		},
+		withChildLoad(ResourceTypeGatewayService, storage, childLoad[GatewayServiceResource, ControlPlaneResource]{
+			family:        ResourceTypeControlPlane,
+			extractOrder:  10,
+			validateOrder: 10,
+			nested:        func(cp *ControlPlaneResource) *[]GatewayServiceResource { return &cp.GatewayServices },
+			setParent:     func(service *GatewayServiceResource, ref string) { service.ControlPlane = ref },
+			validate:      validateGatewayServices,
+		}),
 	)
 }
 
@@ -247,4 +256,26 @@ func (s *GatewayServiceResource) SetResolvedControlPlaneID(id string) {
 // IsExternal returns true when the service is marked as externally managed.
 func (s *GatewayServiceResource) IsExternal() bool {
 	return s.External != nil && s.External.IsExternal()
+}
+
+func validateGatewayServices(
+	rs *ResourceSet,
+	services []GatewayServiceResource,
+) error {
+	for i := range services {
+		service := &services[i]
+
+		if err := service.Validate(); err != nil {
+			return fmt.Errorf("invalid gateway_service %q: %w", service.GetRef(), err)
+		}
+
+		if existing, found := rs.GetResourceByRef(service.GetRef()); found {
+			if existing.GetType() != ResourceTypeGatewayService {
+				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
+					service.GetRef(), existing.GetType())
+			}
+		}
+	}
+
+	return nil
 }
