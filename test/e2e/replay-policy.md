@@ -150,8 +150,8 @@ Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
 Overlay-only document/spec files are fingerprinted and receive the same
 exact-content public-fixture checks; another overlay is not a fallback search
-path. Remote
-files, parent traversal, symlinks, arbitrary environment overrides and custom
+path. Remote files, parent traversal, symlinks, arbitrary environment overrides
+and custom
 creation commands remain unsupported. Every input/overlay/assertion file is
 fingerprinted, including document and OpenAPI content.
 
