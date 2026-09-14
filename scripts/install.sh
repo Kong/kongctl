@@ -600,6 +600,7 @@ lock_is_stale() {
 }
 
 acquire_install_lock() {
+  missing_lock_attempts=0
   while ! mkdir "$LOCK_DIR" 2>/dev/null; do
     if lock_is_stale; then
       warn "removing stale installer lock at $LOCK_DIR"
@@ -608,6 +609,9 @@ acquire_install_lock() {
     fi
 
     if [ ! -d "$LOCK_DIR" ]; then
+      # Another process may have reclaimed the stale lock after mkdir failed.
+      missing_lock_attempts=$((missing_lock_attempts + 1))
+      [ "$missing_lock_attempts" -lt 3 ] && continue
       die "could not acquire installer lock at $LOCK_DIR; check directory permissions"
     fi
     die "another $PROGRAM install or uninstall is already running for $INSTALL_DIR_ABS"

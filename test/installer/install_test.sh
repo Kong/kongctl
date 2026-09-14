@@ -726,6 +726,44 @@ EOF
   pass "uninstall locking and permission/removal errors"
 }
 
+test_uninstall_lock_disappears() {
+  setup_uninstall lock-disappears
+  local lock="${UNINSTALL_DIR}/.kongctl-install.lock.d"
+  local attempts="${CASE_DIR}/attempts"
+  mkdir "$lock"
+  printf '1\n' > "${lock}/started_at"
+  rm "${CASE_DIR}/tools/mkdir"
+  # Simulate another process reclaiming the stale lock after mkdir fails.
+  cat > "${CASE_DIR}/tools/mkdir" <<EOF
+#!/bin/sh
+if [ ! -f "$attempts" ]; then
+  printf 'attempt\n' > "$attempts"
+  rm -rf "$lock"
+  exit 1
+fi
+exec "$(command -v mkdir)" "\$@"
+EOF
+  chmod +x "${CASE_DIR}/tools/mkdir"
+  run_uninstall
+  uninstall_succeeded "retry when stale lock disappears"
+  [[ ! -e "${UNINSTALL_DIR}/kongctl" && ! -e "$lock" ]] || fail "retry removes binary and releases lock"
+
+  # Persistent failures must stop after the bounded retry, even as root.
+  printf 'keep\n' > "${UNINSTALL_DIR}/kongctl"
+  : > "$attempts"
+  cat > "${CASE_DIR}/tools/mkdir" <<EOF
+#!/bin/sh
+printf 'attempt\n' >> "$attempts"
+exit 1
+EOF
+  run_uninstall
+  uninstall_failed "could not acquire installer lock"
+  [[ "$(wc -l < "$attempts")" -eq 3 ]] || fail "lock acquisition retries are bounded"
+  [[ -f "${UNINSTALL_DIR}/kongctl" ]] || fail "lock failure preserves binary"
+  pass "uninstall retries vanished locks and bounds persistent failures"
+}
+
+test_uninstall_lock_disappears
 test_uninstall_paths
 test_uninstall_unsafe_targets
 test_uninstall_path_and_packages
