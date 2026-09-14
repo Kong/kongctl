@@ -90,7 +90,7 @@ class Artifact:
 
     @property
     def org_name(self) -> str:
-        match = re.match(r"^e2e-artifacts-\d+-(.+)$", self.name)
+        match = re.match(r"^e2e-artifacts-\d+-(?:\d+-)?(.+)$", self.name)
         if match:
             return match.group(1)
         return self.name
@@ -1100,7 +1100,7 @@ def trim_block(text: str, max_lines: int) -> str:
 
 def infer_org_from_artifact_dir(path: Path) -> str:
     for part in [path.name, *[parent.name for parent in path.parents]]:
-        match = re.match(r"^e2e-artifacts-\d+-(.+)$", part)
+        match = re.match(r"^e2e-artifacts-\d+-(?:\d+-)?(.+)$", part)
         if match:
             return match.group(1)
     return path.name

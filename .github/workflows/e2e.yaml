@@ -623,13 +623,57 @@ jobs:
             go.mod
             go.sum
 
+      # Keep setup-go's exact restore/save, including its cache namespace and
+      # ordered paths. Only a miss needs the broader dependency fallback.
+      - name: Resolve Go fallback cache
+        id: go-cache-paths
+        if: steps.setup-go.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        continue-on-error: true
+        shell: bash
+        env:
+          GO_VERSION: ${{ steps.setup-go.outputs.go-version }}
+        run: |
+          set -euo pipefail
+          test -n "$GO_VERSION"
+          test -n "$ImageOS"
+          module_cache=$(go env GOMODCACHE)
+          build_cache=$(go env GOCACHE)
+          {
+            echo "mod=$module_cache"
+            echo "build=$build_cache"
+            echo "prefix=setup-go-${RUNNER_OS}-${RUNNER_ARCH,,}-${ImageOS}-go-${GO_VERSION}-"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Restore Go dependency fallback
+        id: go-cache-fallback
+        if: steps.go-cache-paths.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ steps.go-cache-paths.outputs.mod }}
+            ${{ steps.go-cache-paths.outputs.build }}
+          key: ${{ steps.go-cache-paths.outputs.prefix }}${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: ${{ steps.go-cache-paths.outputs.prefix }}
+
       - name: Report Go cache status
         shell: bash
         env:
           CACHE_HIT: ${{ steps.setup-go.outputs.cache-hit }}
+          FALLBACK_KEY: ${{ steps.go-cache-fallback.outputs.cache-matched-key }}
+          FALLBACK_OUTCOME: ${{ steps.go-cache-fallback.outcome }}
         run: |
+          cache_result=cold
+          if [ "$CACHE_HIT" = true ]; then
+            cache_result=exact
+          elif [ "$FALLBACK_OUTCOME" = success ] && [ -n "$FALLBACK_KEY" ]; then
+            cache_result=fallback
+          fi
           echo "Go build cache primary-key hit: ${CACHE_HIT}"
           printf 'Go build cache primary-key hit: `%s`\n' "${CACHE_HIT}" >> "${GITHUB_STEP_SUMMARY}"
+          printf 'Go build cache result (dependency-fallback-v1): %s\n' "$cache_result" | tee -a "$GITHUB_STEP_SUMMARY"
+          printf 'Go fallback restore outcome: %s; matched key: %s\n' "$FALLBACK_OUTCOME" "$FALLBACK_KEY" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Use local private SDK module
         shell: bash
@@ -1039,7 +1083,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-artifacts-${{ github.run_id }}-${{ matrix.org_name }}
+          # Preserve all attempts: artifact IDs do not reliably order reruns.
+          name: e2e-artifacts-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.org_name }}
           path: ${{ env.KONGCTL_E2E_ARTIFACTS_DIR }}
 
   e2e-replay-verify:
@@ -1109,6 +1154,7 @@ jobs:
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
+          # Download every attempt; verification selects the newest per shard.
           pattern: e2e-artifacts-${{ github.run_id }}-*
           path: ${{ github.workspace }}/.downloaded-artifacts
 
