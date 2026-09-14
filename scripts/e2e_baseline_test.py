@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +18,70 @@ SPEC.loader.exec_module(MODULE)
 
 
 class E2EBaselineTest(unittest.TestCase):
+    def test_refresh_keeps_history_and_reports_latest_window(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            observations, report = root / "observations.json", root / "report.md"
+            saved = [self.run_record(i, f"2026-09-0{i}T00:00:00Z") for i in [1, 2]]
+            fresh = [self.run_record(3, "2026-09-03T00:00:00Z")]
+            MODULE.write_json(observations, MODULE.observation_document("kong/kongctl", saved))
+            args = [str(SCRIPT), "--count", "2", "--scan", "10", "--observations", str(observations),
+                    "--output", str(report), "--refresh"]
+            with patch.object(sys, "argv", args), patch.object(MODULE, "collect_runs", return_value=fresh) as collect:
+                self.assertEqual(0, MODULE.main())
+            self.assertEqual(10, collect.call_args.args[1])
+            self.assertEqual({1, 2}, collect.call_args.kwargs["excluded_run_ids"])
+            self.assertEqual([3, 2, 1], [r["run_id"] for r in MODULE.load_observations(observations, "kong/kongctl")])
+            text = report.read_text()
+            self.assertIn("latest 2 of 3 retained observations", text)
+            self.assertIn("https://example.test/runs/3", text)
+            self.assertNotIn("https://example.test/runs/1", text)
+            # Refresh with no new data retains history and yields the same report.
+            with patch.object(sys, "argv", args), patch.object(MODULE, "collect_runs", return_value=[]):
+                MODULE.main()
+            self.assertEqual(text, report.read_text())
+            # Historical target-limited collection remains opt-in unchanged.
+            with patch.object(sys, "argv", args[:-1]), patch.object(MODULE, "collect_runs", return_value=[]) as collect:
+                MODULE.main()
+            self.assertEqual(0, collect.call_args.args[1])
+
+    def test_refresh_requires_archive_and_rejects_frozen(self) -> None:
+        for extra in [[], ["--frozen"]]:
+            with patch.object(sys, "argv", [str(SCRIPT), "--refresh", "--output", "unused.md", *extra]):
+                with self.assertRaises(SystemExit):
+                    MODULE.main()
+
+    def test_cache_categories_use_emitted_markers_not_script_or_duration(self) -> None:
+        for value in ["exact", "fallback", "cold"]:
+            log = f"2026-09-14T00:00:00Z Go build cache result (dependency-fallback-v1): {value}\n"
+            self.assertEqual(value, MODULE.cache_result(log, True))
+        for value, category in [("true", "exact"), ("false", "cold")]:
+            log = f"2026-09-14T00:00:00Z Go build cache primary-key hit: {value}\n"
+            self.assertEqual(category, MODULE.cache_result(log, False))
+            self.assertEqual("unknown", MODULE.cache_result(log, True))
+        self.assertEqual("unknown", MODULE.cache_result("printf 'Go build cache primary-key hit: true'\n", False))
+        build = {"databaseId": 42, "steps": [{"name": "Report Go cache status"}]}
+        with patch.object(MODULE.subprocess, "run", return_value=subprocess.CompletedProcess([], 1, "", "expired")):
+            self.assertEqual("unknown", MODULE.read_cache_result("kong/kongctl", 1, build))
+        records = [self.run_record(1, "2026-09-01T00:00:00Z")]
+        report = MODULE.markdown_report("kong/kongctl", records, MODULE.summarize(records), 20)
+        self.assertIn("| unknown | 1 |", report)
+        records[0]["cache_result"] = "fallback"
+        self.assertIn("| fallback | 1 |", MODULE.markdown_report("kong/kongctl", records, MODULE.summarize(records), 20))
+
+    def test_cache_log_timeout_is_unknown_and_next_lookup_can_succeed(self) -> None:
+        build = {"databaseId": 42, "steps": [{"name": "Report Go cache status"}]}
+        log = "Go build cache primary-key hit: true\n"
+        with patch.object(MODULE.subprocess, "run", side_effect=[
+            subprocess.TimeoutExpired("gh", 120, output=log),
+            subprocess.CompletedProcess([], 0, log, ""),
+        ]) as run:
+            self.assertEqual("unknown", MODULE.read_cache_result("kong/kongctl", 1, build))
+            self.assertEqual("exact", MODULE.read_cache_result("kong/kongctl", 2, build))
+        self.assertEqual(2, run.call_count)
+        for call in run.call_args_list:
+            self.assertEqual(120, call.kwargs["timeout"])
+
     def test_nearest_rank(self) -> None:
         values = list(range(1, 21))
         self.assertEqual(10, MODULE.nearest_rank(values, 0.50))

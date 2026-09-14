@@ -39,7 +39,7 @@ test-smoke:
 
 .PHONY: format fmt
 format:
-	gofumpt -l -w . 
+	gofumpt -l -w .
 	golines -m 120 -w --base-formatter=gofumpt .
 fmt: format
 
@@ -280,6 +280,22 @@ E2E_BASELINE_COHORT ?= cache-enabled
 E2E_BASELINE_ALLOCATION ?= $(shell python3 scripts/e2e_weights.py --print-allocation-id)
 E2E_BASELINE_OBSERVATIONS ?= test/e2e/baselines/weighted-v1-2026-09-observations.json
 E2E_BASELINE_REPORT ?= test/e2e/baselines/weighted-v1-2026-09.md
+E2E_PROGRESS_MODE ?= live
+E2E_PROGRESS_DIR ?= .e2e-artifacts/progress
+
+.PHONY: collect-e2e-progress
+collect-e2e-progress: setup-e2e-replay
+	@set -eu; \
+	allocation="$$(python3 scripts/e2e_replay_routing.py allocation --mode "$(E2E_PROGRESS_MODE)")"; \
+	snapshot="$$(printf '%s' "$$allocation" | tr ':' '-')"; \
+	python3 scripts/e2e_baseline.py \
+		--allocation-id "$$allocation" \
+		--count "$(E2E_BASELINE_COUNT)" --scan "$(E2E_BASELINE_SCAN)" \
+		--observations "$(E2E_PROGRESS_DIR)/$$snapshot-observations.json" \
+		--output "$(E2E_PROGRESS_DIR)/$$snapshot.md" \
+		--refresh --allow-partial; \
+	echo "Updated $(E2E_PROGRESS_DIR)/$$snapshot-observations.json"; \
+	echo "Updated $(E2E_PROGRESS_DIR)/$$snapshot.md"
 
 .PHONY: collect-e2e-baseline
 collect-e2e-baseline:

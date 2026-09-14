@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import importlib.util
 import json
 import os
@@ -8,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("routing", Path(__file__).with_name("e2e_replay_routing.py"))
 MODULE = importlib.util.module_from_spec(SPEC)
@@ -15,6 +17,19 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RoutingTest(unittest.TestCase):
+    def test_progress_allocation_matches_weight_bytes_and_go_membership_encoding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            weights = root / "test/e2e/baselines/scenario-weights.json"
+            weights.parent.mkdir(parents=True)
+            weights.write_bytes(b"weights\n")
+            expected = "weighted-v1:" + hashlib.sha256(b"weights\n").hexdigest()
+            with patch.object(MODULE, "make_plan", return_value={"replay": []}):
+                self.assertEqual(expected, MODULE.allocation_id(root, "live"))
+            with patch.object(MODULE, "make_plan", return_value={"replay": ["a/scenario.yaml", "b/scenario.yaml"]}):
+                expected += ":pr-replay:" + hashlib.sha256(b'["a/scenario.yaml","b/scenario.yaml"]').hexdigest()
+                self.assertEqual(expected, MODULE.allocation_id(root, "pr"))
+
     def test_performance_comparison_uses_live_median_and_wrapper_time(self):
         baseline = {"runs": [{"scenario_durations": [
             {"scenario": "portal/sync/scenario.yaml", "result": "pass", "duration_seconds": duration}
@@ -69,7 +84,8 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("control-plane/get/scenario.yaml", pr["replay"])
         self.assertIn("portal/sync/scenario.yaml", pr["replay"])
         self.assertIn("portal/visibility/scenario.yaml", pr["replay"])
-        self.assertEqual(6, len(pr["replay"]))
+        self.assertIn("portal/api_docs_with_children/scenario.yaml", pr["replay"])
+        self.assertEqual(7, len(pr["replay"]))
 
     def test_stale_cassette_fails_pr_but_does_not_block_live(self):
         with tempfile.TemporaryDirectory() as temporary:

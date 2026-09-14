@@ -681,6 +681,43 @@ deleted.
 Commit the updated files regularly, for example twice a week, before the
 10-day artifact retention expires. Collection remains an administrator task.
 
+### Ongoing progress after a baseline is complete
+
+Keep the completed historical baselines frozen. For ongoing collection use:
+
+```sh
+make collect-e2e-progress E2E_BASELINE_SCAN=150
+make collect-e2e-progress E2E_PROGRESS_MODE=pr E2E_BASELINE_SCAN=150
+```
+
+The first command selects the current full-live weighted allocation (main,
+plus any fully live PR/manual runs with the same allocation). The second
+selects the current reduced-live PR allocation, including the exact replay
+membership hash. A changed weight snapshot or replay list creates a separate
+snapshot, never a mixed comparison. This target assumes weighted sharding;
+use the baseline script's explicit allocation option for rollback data.
+
+Files default to `.e2e-artifacts/progress/<allocation>-observations.json` and
+`<allocation>.md`, with colons replaced by hyphens. These local files are
+ignored, not automatically committed or backed up. Set `E2E_PROGRESS_DIR` to
+a reviewed versioned directory when retaining observations in the repository;
+collect and commit regularly before GitHub artifacts expire.
+
+Unlike target-limited `collect-e2e-baseline`, this target uses `--refresh`:
+every invocation scans for new eligible runs even after the target is full.
+The cumulative JSON retains all saved runs; the report uses only the latest
+`E2E_BASELINE_COUNT` runs (20 by default). Refresh does not prune history or
+replace a saved successful run with a later failed/partial attempt. Full
+same-attempt eligibility and allocation/cohort checks remain unchanged.
+
+New observations include `cache_result`: `exact`, `fallback`, `cold`,
+`uncached`, or `unknown`. The report groups build times by those categories.
+Missing/expired logs and old observations without a category stay `unknown`;
+duration is never used to guess a hit. This is a successful-full-run report,
+not a cache hit-rate audit of all builds, and replay execution durations stay
+in the separate replay artifacts. Main and PR wall-clock comparisons remain
+observational, affected by queueing, source changes, and Konnect latency.
+
 Collection defaults to the exact weighted allocation embedded in the current
 checkout. `E2E_BASELINE_ALLOCATION` combines the algorithm version and the
 weight snapshot SHA-256. A different strategy or weight hash is excluded from

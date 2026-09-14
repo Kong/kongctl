@@ -2,6 +2,7 @@
 """Deterministic, whole-scenario PR replay routing and result verification."""
 
 import argparse
+import hashlib
 import importlib.util
 import os
 from pathlib import Path
@@ -36,6 +37,15 @@ def make_plan(root, mode):
         raise ValueError("replay scenario missing from inventory")
     return {"schema_version": 1, "mode": mode, "replay": replay,
             "live": [s for s in inventory if s not in replay]}
+
+
+def allocation_id(root, mode):
+    plan = make_plan(root, mode)
+    weights = (root / "test/e2e/baselines/scenario-weights.json").read_bytes()
+    identity = "weighted-v1:" + hashlib.sha256(weights).hexdigest()
+    if plan["replay"]:
+        identity += ":pr-replay:" + hashlib.sha256(REPLAY.canonical(plan["replay"]).encode()).hexdigest()
+    return identity
 
 
 def verify_results(plan, result_directory, commit, run_id):
@@ -85,7 +95,7 @@ def performance_report(baseline, summaries):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("plan", "run", "verify"))
+    parser.add_argument("command", choices=("plan", "run", "verify", "allocation"))
     parser.add_argument("--mode", choices=("pr", "live"), default="live")
     parser.add_argument("--root", type=Path, default=REPLAY.ROOT,
                         help="scenario data checkout; never used to load executable code")
@@ -93,6 +103,9 @@ def main():
     parser.add_argument("--results", type=Path, default=Path(".e2e-artifacts/pr-replay"))
     parser.add_argument("--baseline", type=Path, help="optional frozen live observations for the run summary")
     args = parser.parse_args()
+    if args.command == "allocation":
+        print(allocation_id(args.root, args.mode))
+        return
     if args.command == "plan":
         plan = make_plan(args.root, args.mode)
         REPLAY.write_json(args.plan, plan)

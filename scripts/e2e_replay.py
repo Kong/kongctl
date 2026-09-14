@@ -33,7 +33,8 @@ SCENARIO = "control-plane/get"
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
-    "control-plane/sync", "control-plane/sync-groups", "portal/sync", "portal/visibility",
+    "control-plane/sync", "control-plane/sync-groups", "portal/api_docs_with_children",
+    "portal/sync", "portal/visibility",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -260,11 +261,16 @@ def check_eligibility(directory):
                 raise ValueError("replay requires scenario-local !file references")
             parts = path.relative_to(directory).parts
             source = path.parent
+            roots = [directory / "testdata"]
             if parts[0] == "overlays":
                 source = directory / "testdata" / Path(*parts[2:-1])
-            target = source / relative
-            if not target.is_file() or not target.resolve().is_relative_to((directory / "testdata").resolve()):
-                raise ValueError("replay !file target must exist within scenario testdata")
+                roots.append(directory / "overlays" / parts[1])
+            targets = [source / relative]
+            if parts[0] == "overlays":
+                targets.insert(0, path.parent / relative)
+            if not any(target.is_file() and any(target.resolve().is_relative_to(root.resolve()) for root in roots)
+                       for target in targets):
+                raise ValueError("replay !file target must exist within scenario testdata or its own overlay")
         if path.name == "scenario.yaml" and any(marker in content for marker in ("https://", "http://")):
             raise ValueError("scenario gained an external command input")
 
@@ -276,7 +282,8 @@ def fixture_strings(directory):
     containing example credentials/emails; never exempt a modified payload.
     """
     strings, specs = set(), set()
-    for path in (directory / "testdata").rglob("*"):
+    paths = sorted([*(directory / "testdata").rglob("*"), *(directory / "overlays").rglob("*")])
+    for path in paths:
         if not path.is_file() or path.suffix not in (".md", ".yaml", ".json"):
             continue
         content = path.read_text(encoding="utf-8")

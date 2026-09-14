@@ -6,8 +6,8 @@ must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, `control-plane/sync`, `portal/sync`, and
-`portal/visibility`.
+`control-plane/plan/apply-workflow`, `control-plane/sync`,
+`portal/api_docs_with_children`, `portal/sync`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -17,6 +17,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | sync | [Recording][sync], [isolated phases][sync-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
+| portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -27,6 +28,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
 [visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
+[docs-record]: https://github.com/Kong/kongctl/actions/runs/34860627806
+[docs-replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
 
 ## Routing
 
@@ -147,10 +150,12 @@ Templates, nested replacement values, external ops files, YAML aliases and
 duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
-`testdata`, including references from overlays copied onto that tree. Remote
-files, parent traversal, symlinks, arbitrary environment overrides and custom
-creation commands remain unsupported. Every input/overlay/assertion file is
-fingerprinted, including document and OpenAPI content.
+`testdata`, or the referencing file's own overlay copied onto that tree.
+Overlay-only document/spec files are fingerprinted and receive the same
+exact-content public-fixture checks; another overlay is not a fallback search
+path. Remote files, parent traversal, symlinks, arbitrary environment overrides
+and custom creation commands remain unsupported. Every input, overlay and
+assertion file is fingerprinted, including document and OpenAPI content.
 
 Public document/spec strings containing example credentials or email addresses
 are preserved only when they match a fingerprinted input file: exact text for
@@ -193,6 +198,13 @@ speedup. Recording's 50.07-second scenario includes proxy overhead and is not
 the live baseline. Its scenario-local replay README documents the reviewed
 phase boundaries, including the strict private/public visibility barriers.
 
+`portal/api_docs_with_children` is enabled after its complete live recording
+and three isolated replays passed (268 HTTP interactions each). The scenario
+still asserts document hierarchy, content/status updates, child and parent
+deletion, and dump round-trip behavior. Its replay README records the reviewed
+command boundaries. Replay wrappers took 3.90–4.56 seconds; promotion avoids
+one additional scenario reset on PRs. Main continues to run it live.
+
 ## Measurement
 
 The routing artifact records exact live/replay membership. Replay artifacts
@@ -214,3 +226,10 @@ historical live median and sample count from
 resets. The percentages describe execution work, not a causal estimate of PR
 completion time. Keep collecting reduced-live allocation cohorts separately
 to evaluate the longest remaining shard and queue/admission delays.
+
+Use `make collect-e2e-progress E2E_PROGRESS_MODE=pr` for an ongoing snapshot
+of the current reduced-live allocation. Its cumulative observations continue
+growing after the initial 20-run target; its report shows the latest window.
+The default `live` mode selects the full-live allocation separately. See the
+[harness README](README.md#ongoing-progress-after-a-baseline-is-complete) for
+retention and cache-category reporting.
