@@ -183,6 +183,9 @@ Control planes extract gateway services before data-plane certificates.
 Their validators retain separate loader call sites through
 `ValidateRegisteredResource`: services, audit-log destinations, then
 certificates. Do not replace these calls with a contiguous family pass.
+For each new control-plane child, add a `ValidateRegisteredResource` call
+in `validateResourceSet` at the intended phase. Family registration alone
+does not invoke its validator.
 Gateway services retain external lookup metadata and their accepted inline
 forms; [certificates][cp-certificate] retain parent lookup, external-placeholder
 handling, and per-control-plane certificate identity checks.
