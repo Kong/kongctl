@@ -1471,8 +1471,9 @@ kongctl plan -f dashboards.yaml --mode apply
 ## CI/CD Integration
 
 Start with the [GitHub Actions quickstart][cicd-quickstart] for a complete
-AI Gateway example: show diffs on pull requests, then run `kongctl apply` on
-pushes to main. It includes the manifest, both workflows, and GitHub secret
+Dev Portal and API example: show diffs on pull requests, then run
+`kongctl apply` on pushes to main. It includes an inline OpenAPI
+specification, the manifest, the workflow, and GitHub secret
 configuration. The apply command calculates a fresh plan before execution.
 
 [cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/

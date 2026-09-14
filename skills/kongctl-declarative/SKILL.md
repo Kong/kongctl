@@ -419,10 +419,11 @@ Use for prompts like:
   repository sync script.
 
 For requests to show diffs on PRs and apply on main, start with the complete
-[GitHub Actions quickstart][cicd-quickstart]. It includes one AI Gateway,
-provider, model, and GitHub secret mappings. Creating a template does not
-require live credentials or applying resources. Preserve the user's resource
-scope; add decK only when their configuration requires it.
+[GitHub Actions quickstart][cicd-quickstart]. It includes a Dev Portal, an
+API with an inline OpenAPI specification, and a GitHub token mapping.
+Creating a template does not require live credentials or applying resources.
+Preserve the user's resource scope; add decK only when their configuration
+requires it.
 
 [cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
 

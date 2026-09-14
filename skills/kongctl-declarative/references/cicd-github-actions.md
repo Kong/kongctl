@@ -1,15 +1,15 @@
 # Declarative CI/CD with GitHub Actions
 
 Use this reference when creating GitHub Actions workflows for kongctl.
-For a complete AI Gateway manifest and both workflows, start with the
+For a complete Dev Portal and API manifest and workflow, start with the
 [GitHub Actions quickstart][quickstart].
 
 [quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
 
 ## Basic GitOps: diffs on PRs, apply on main
 
-For requests such as "create a GitOps repository for one AI Gateway; plan on
-PRs and apply on main", use the quickstart's direct diff/apply pattern unless
+For requests such as "create a GitOps repository; show diffs on PRs and
+apply on main", use the quickstart's direct diff/apply pattern unless
 the user explicitly asks for saved plan artifacts:
 
 - Store the requested resources in a dedicated manifest or resource directory.
@@ -32,19 +32,14 @@ locally versus against Konnect.
 ## Installation, authentication, and triggers
 
 - Install with `kong/setup-kongctl@v1` and set its `kongctl-version` input
-  to the same tested release in both workflows.
+  to a tested release shared by the diff and apply steps.
 - Map repository secret `KONNECT_TOKEN` to
-  `KONGCTL_DEFAULT_KONNECT_PAT` in both workflows.
+  `KONGCTL_DEFAULT_KONNECT_PAT` for both diff and apply.
 - Set repository variable `KONNECT_REGION` and pass it through an environment
   variable to `--region` in both commands. Planning and diff require
   authenticated access to live Konnect state.
-- For an AI Gateway provider, use `!secret` with `!env OPENAI_API_KEY`,
-  composing the public `Bearer ` prefix with `parts` where needed.
-  Expose the GitHub `OPENAI_API_KEY` secret only to apply; diff does not need
-  deferred secret values.
-- An ordinary apply writes provider secrets on creation. Updating a GitHub
-  secret alone does not rotate an existing credential; secret rotation needs
-  explicit secret-write selection.
+- The portal/API quickstart needs only a Konnect token. Add other secrets
+  only when the requested resources require them.
 - Limit PR runs to trusted same-repository branches and exclude Dependabot
   runs that lack secrets. Do not use `pull_request_target` to execute
   untrusted PR content with credentials.
