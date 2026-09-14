@@ -1,0 +1,74 @@
+{
+  "schema_version": 2,
+  "scenario": "portal/api_docs_with_children",
+  "inputs_sha256": "sha256:a6976317bd7b3be4e68cacc90dcb92e73001b9a64ab26d8224d8260d07fd4f5a",
+  "source": {
+    "kind": "recorded",
+    "commit": "9c6fb8b0bb42af6d0dd9714b7a87af3b1e47943d",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/34860627806"
+  },
+  "parallel_phases": [
+    {
+      "start": 1,
+      "end": 7,
+      "after": {}
+    },
+    {
+      "start": 8,
+      "end": 40,
+      "after": {}
+    },
+    {
+      "start": 43,
+      "end": 83,
+      "after": {}
+    },
+    {
+      "start": 84,
+      "end": 124,
+      "after": {}
+    },
+    {
+      "start": 125,
+      "end": 132,
+      "after": {}
+    },
+    {
+      "start": 138,
+      "end": 175,
+      "after": {}
+    },
+    {
+      "start": 182,
+      "end": 218,
+      "after": {}
+    },
+    {
+      "start": 225,
+      "end": 242,
+      "after": {}
+    },
+    {
+      "start": 243,
+      "end": 259,
+      "after": {}
+    },
+    {
+      "start": 260,
+      "end": 262,
+      "after": {}
+    },
+    {
+      "start": 263,
+      "end": 268,
+      "after": {}
+    }
+  ],
+  "interaction_chunks": [
+    "55913dacc48b0f32397897703a7c9c6a4be5732b5ac30b28f18e0340455164c6",
+    "15bdcaefeedc3582564b75bc8bab28ae6d3f243ddb0c79142380df91be5c480a",
+    "5944b9b69a432f2e02285344eeeda237c91b1c332a45750685908dcee642caec",
+    "313187082624525eac644360c1208aa76837c38b997afa1fdc92efaa36a889fe",
+    "97d5e4cf57f67092101c41e1a9b36f0a41902207e36687e46a0139b9c1538cec"
+  ]
+}

@@ -6,6 +6,13 @@ hierarchy, content, publication status, deletion and dump round-trip assertions.
 The candidate contains 268 exchanges. Its 84.382-second scenario duration
 includes recording proxy overhead and is not the normal live baseline.
 
+[Three loopback-only CI replays][replay] passed all 268 exchanges each.
+Wrapper durations were 4.152, 4.560 and 3.897 seconds; scenario durations were
+3.336, 3.904 and 3.317 seconds. The latest six eligible reduced-live PR runs
+before promotion had a 30.23-second live median for this scenario. This is
+an observational execution comparison, not a same-source or workflow speedup.
+The packed cassette preserves the validated exchanges and provenance exactly.
+
 The annotation in `parallel-phases.json` is bound to that exact candidate's
 SHA-256. It permits independent operations only within individual command
 phases, using the existing matcher's mandatory creation-ID, repeated-target
@@ -38,3 +45,4 @@ request matching or changing the scenario. They must not be reused for a
 different recording without reviewing its command boundaries.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/34860627806
+[replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
