@@ -40,6 +40,13 @@ For complete documentation and guides, see the documentation on the Kong Develop
 
 [https://developer.konghq.com/kongctl/](https://developer.konghq.com/kongctl/)
 
+**[CI/CD with GitHub Actions: diffs on PRs, apply on main][cicd-quickstart]**
+provides a complete example for an AI Gateway, provider, and model, including
+GitHub secrets and both workflows. Start here when asking an agent to create
+a kongctl GitOps repository.
+
+[cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
+
 ## Installation
 
 ### Shell installer

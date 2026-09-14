@@ -28,6 +28,9 @@ Choose the execution approach from user intent:
 
 ## Preconditions
 
+For template authoring, use local schema discovery when the CLI is available;
+live authentication checks apply only when running against Konnect.
+
 - Confirm CLI is installed and runnable: `kongctl version`
 - For Kong Gateway configuration, confirm decK is installed: `deck version`
 - Local schema helpers do not require Konnect authentication:
@@ -54,8 +57,9 @@ Choose the execution approach from user intent:
 - `kongctl` flags can be defaulted via profile config or environment.
 - Environment variable pattern: `KONGCTL_<PROFILE>_<PATH>`.
 - Example: `KONGCTL_DEFAULT_OUTPUT=yaml` changes default output format.
-- Pass explicit `-o yaml`, `-o json`, or `-o text` on command lines to avoid
-  unexpected output behavior.
+- Pass explicit `-o yaml`, `-o json`, or `-o text` on commands that support
+  output selection. `plan` always outputs JSON and rejects `-o/--output`;
+  use `--output-file` to save a plan.
 
 ## Skill References
 
@@ -101,7 +105,9 @@ state is the best source of truth, such as when adopting existing resources.
 - Execute commands directly when the user asks the agent to run them.
 - Before any mutating run, state the intended effect in plain language.
 - Choose path from user intent:
-  - Preview/review/audit/CI request: use explicit plan artifacts.
+  - Saved-plan review/audit/promotion request: use explicit plan artifacts.
+  - Basic CI request: use `diff` on PRs and inline `apply` on main unless
+    the user requests saved plans.
   - "Do it now" execution request: use inline commands.
 - Treat `sync` as destructive because it can delete missing resources.
 - Treat `delete` as destructive because it deletes input configuration
@@ -181,8 +187,8 @@ state is the best source of truth, such as when adopting existing resources.
 
 Use this quick decision rule:
 
-- Use explicit plan artifacts when the user asks to preview, review, export a
-  plan file, or run a CI/CD style workflow.
+- Use explicit plan artifacts when the user asks to export, review, or
+  promote a saved plan. For a basic PR preview, `diff --mode apply` is enough.
 - Use inline commands when the user asks to execute immediately and does not
   ask for a saved plan file.
 - For destructive requests (`sync`, `delete`), prefer `--dry-run` first unless
@@ -405,15 +411,27 @@ If names are ambiguous, use `--filter-id` for both adopt and dump.
 
 Use for prompts like:
 
+- Create a GitOps repository for one AI Gateway with diffs on PRs and apply
+  on main.
 - Create a GitHub Actions workflow that validates and syncs Konnect
   declarative resources.
 - Add CI/CD automation that installs `kongctl` and `deck` and runs the
   repository sync script.
 
+For requests to show diffs on PRs and apply on main, start with the complete
+[GitHub Actions quickstart][cicd-quickstart]. It includes one AI Gateway,
+provider, model, and GitHub secret mappings. Creating a template does not
+require live credentials or applying resources. Preserve the user's resource
+scope; add decK only when their configuration requires it.
+
+[cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
+
 Steps:
 
 1. Decide trigger model from user intent:
-   - Pull request validation: run plan/diff only (no mutations).
+   - Basic pull request preview: run `diff --mode apply -f <manifest>`.
+   - Basic main deployment: run `apply -f <manifest> --auto-approve -o text`.
+   - Saved-plan review: run plan/diff only (no mutations).
    - Branch deploy workflow: run apply/sync or a repo wrapper script.
 2. Use standard setup actions:
    - `actions/checkout@v4`
@@ -421,11 +439,12 @@ Steps:
    - `kong/setup-deck@v1` (when deck is required)
 3. Configure authentication using repository secrets and workflow env.
 4. Restrict execution with path filters, for example `konnect/**`.
-5. Upload execution artifacts with `if: always()` for debugging and audits.
+5. Display diffs in workflow logs or summaries. Upload saved plans only when
+   the requested workflow uses plan artifacts.
 6. In User-run mode, explain required secrets and expected script behavior.
 
-Load `references/cicd-github-actions.md` for starter workflow templates,
-trigger patterns, auth conventions, and validation workflow examples.
+Load `references/cicd-github-actions.md` for the quickstart, command patterns,
+authentication conventions, and saved-plan workflows.
 
 ## Safety and Troubleshooting
 

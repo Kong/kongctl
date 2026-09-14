@@ -1470,10 +1470,18 @@ kongctl plan -f dashboards.yaml --mode apply
 
 ## CI/CD Integration
 
+Start with the [GitHub Actions quickstart][cicd-quickstart] for a complete
+AI Gateway example: show diffs on pull requests, then run `kongctl apply` on
+pushes to main. It includes the manifest, both workflows, and GitHub secret
+configuration. The apply command calculates a fresh plan before execution.
+
+[cicd-quickstart]: https://developer.konghq.com/kongctl/ci-cd/github-actions/
+
 Key principles for CI/CD integration:
 
 1. **Plan on PR**: Generate and review plans in pull requests
-2. **Apply on Merge**: Apply reviewed plans when merged to target branch
+2. **Apply on Merge**: Apply merged configuration on the target branch;
+   use saved plans when the workflow requires a separate artifact review
 3. **Environment Separation**: Different configs for dev/staging/prod
 4. **Approval Gates**: Require human approval for production
 
