@@ -972,6 +972,8 @@ jobs:
           mkdir -p "${ART_DIR}"
           echo "artifacts_dir=${ART_DIR}" >> "${GITHUB_OUTPUT}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
+          KONGCTL_E2E_CHECKOUT_SHA="$(git rev-parse HEAD)"
+          export KONGCTL_E2E_CHECKOUT_SHA
 
           source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
 
@@ -1050,6 +1052,13 @@ jobs:
 
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
+
+      - name: Summarize scenario diagnostics
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 scripts/e2e_diagnostics.py \
+            "${KONGCTL_E2E_ARTIFACTS_DIR}" "${GITHUB_STEP_SUMMARY}"
 
       - name: Report weighted sharding predictions
         if: always() && env.KONGCTL_E2E_KONNECT_ENV == 'com'
