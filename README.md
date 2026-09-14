@@ -72,8 +72,8 @@ sh kongctl-install.sh --version v1.3.0 --install-dir "$HOME/bin"
 Windows is not supported by the shell installer. Download Windows binaries from
 the [release page](https://github.com/kong/kongctl/releases).
 
-To uninstall, run `sh kongctl-install.sh --uninstall` (add `--install-dir` for
-a custom installation). User data is preserved. See
+To uninstall, run `curl -fsSL https://get.konghq.com/kongctl | sh -s -- --uninstall`.
+Add `--install-dir` for a custom installation. User data is preserved. See
 [uninstall details](docs/contributor/installer.md#uninstall-behavior).
 
 ### Homebrew
