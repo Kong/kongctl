@@ -147,7 +147,10 @@ Templates, nested replacement values, external ops files, YAML aliases and
 duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
 Plain scalar `!file` references may resolve to existing files inside scenario
-`testdata`, including references from overlays copied onto that tree. Remote
+`testdata`, or the referencing file's own overlay copied onto that tree.
+Overlay-only document/spec files are fingerprinted and receive the same
+exact-content public-fixture checks; another overlay is not a fallback search
+path. Remote
 files, parent traversal, symlinks, arbitrary environment overrides and custom
 creation commands remain unsupported. Every input/overlay/assertion file is
 fingerprinted, including document and OpenAPI content.
@@ -214,3 +217,10 @@ historical live median and sample count from
 resets. The percentages describe execution work, not a causal estimate of PR
 completion time. Keep collecting reduced-live allocation cohorts separately
 to evaluate the longest remaining shard and queue/admission delays.
+
+Use `make collect-e2e-progress E2E_PROGRESS_MODE=pr` for an ongoing snapshot
+of the current reduced-live allocation. Its cumulative observations continue
+growing after the initial 20-run target; its report shows the latest window.
+The default `live` mode selects the full-live allocation separately. See the
+[harness README](README.md#ongoing-progress-after-a-baseline-is-complete) for
+retention and cache-category reporting.

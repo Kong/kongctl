@@ -23,6 +23,7 @@ REQUIRED_JOB = "Publish “E2E Required”"
 SCENARIO_JOB_PREFIX = "Run scenarios — "
 OBSERVATION_SCHEMA_VERSION = 2
 COHORTS = ("uncached", "cache-enabled")
+CACHE_RESULTS = ("exact", "fallback", "cold", "unknown", "uncached")
 LEGACY_ALLOCATION = "modulo-v1"
 
 
@@ -177,6 +178,31 @@ def run_cohort(jobs: list[dict[str, Any]]) -> str | None:
     return "cache-enabled" if named_step(build, "Report Go cache status") else "uncached"
 
 
+def cache_result(log: str, fallback_policy: bool) -> str:
+    """Read emitted markers, never infer a cache hit from elapsed time."""
+    results = re.findall(r"(?m)(?:^|\s)Go build cache result \(dependency-fallback-v1\): (exact|fallback|cold)\s*$", log)
+    if results:
+        return results[-1]
+    if fallback_policy:
+        return "unknown"
+    hits = re.findall(r"(?m)(?:^|\s)Go build cache primary-key hit: (true|false)\s*$", log)
+    return {"true": "exact", "false": "cold"}.get(hits[-1] if hits else "", "unknown")
+
+
+def read_cache_result(repo: str, run_id: int, build: dict[str, Any]) -> str:
+    if not named_step(build, "Report Go cache status"):
+        return "uncached"
+    if not build.get("databaseId"):
+        return "unknown"
+    process = subprocess.run(
+        ["gh", "run", "view", str(run_id), "--repo", repo, "--job", str(build["databaseId"]), "--log"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    if process.returncode:
+        return "unknown"
+    return cache_result(process.stdout, named_step(build, "Restore Go dependency fallback") is not None)
+
+
 def eligible_run(
     run: dict[str, Any],
     jobs: list[dict[str, Any]],
@@ -326,6 +352,9 @@ def collect_runs(
         }
         record = eligible_run(candidate, view["jobs"], metrics)
         if record is not None and record["allocation_id"] == allocation_id:
+            record["cache_result"] = read_cache_result(
+                repo, int(candidate["databaseId"]), named_job(view["jobs"], BUILD_JOB),
+            )
             selected.append(record)
         if len(selected) == count:
             break
@@ -356,6 +385,8 @@ def validate_run(run: Any, index: int) -> dict[str, Any]:
             raise ValueError(f"observation run {index} has an invalid {field}")
     if run["cohort"] not in COHORTS:
         raise ValueError(f"observation run {index} has an invalid cohort")
+    if run.get("cache_result", "unknown") not in CACHE_RESULTS:
+        raise ValueError(f"observation run {index} has an invalid cache_result")
     return run
 
 
@@ -506,6 +537,17 @@ def markdown_report(
     for name, values in summary["metrics"].items():
         lines.append(f"| {name} | {values['p50']:.1f}s | {values['p75']:.1f}s | {values['p90']:.1f}s |")
 
+    lines.extend(["", "## Build cache categories", "",
+                  "Categories come from build logs; missing or historical markers are unknown.",
+                  "Only builds belonging to this report's full successful runs are included.", "",
+                  "| Cache result | Builds | Build p50 | Build p90 |",
+                  "| --- | ---: | ---: | ---: |"])
+    for category in CACHE_RESULTS:
+        samples = [run["build_job_seconds"] for run in runs if run.get("cache_result", "unknown") == category]
+        if samples:
+            lines.append(f"| {category} | {len(samples)} | {nearest_rank(samples, 0.5):.1f}s | "
+                         f"{nearest_rank(samples, 0.9):.1f}s |")
+
     lines.extend(
         [
             "",
@@ -592,6 +634,8 @@ def main() -> int:
     parser.add_argument("--allocation-id", default=LEGACY_ALLOCATION,
                         help="modulo-v1 or weighted-v1:<snapshot SHA-256>, optionally :pr-replay:<membership SHA-256>; never pool allocations")
     parser.add_argument("--frozen", action="store_true", help="report saved observations without collecting")
+    parser.add_argument("--refresh", action="store_true",
+                        help="scan for new runs even after the target is met; retain all observations and report the latest --count")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--json-output", type=Path)
     parser.add_argument(
@@ -611,6 +655,8 @@ def main() -> int:
         parser.error("invalid --allocation-id; expected modulo-v1 or weighted-v1:<SHA-256>, optionally :pr-replay:<SHA-256>")
     if args.frozen and (args.observations is None or not args.observations.exists()):
         parser.error("--frozen requires an existing --observations file")
+    if args.refresh and (args.frozen or args.observations is None):
+        parser.error("--refresh requires --observations and cannot be combined with --frozen")
 
     try:
         saved = load_observations(args.observations, args.repo, args.cohort, args.allocation_id) if args.observations else []
@@ -619,7 +665,7 @@ def main() -> int:
     saved_run_ids = {int(run["run_id"]) for run in saved}
     collected = collect_runs(
         args.repo,
-        0 if args.frozen else max(0, args.count - len(saved)),
+        0 if args.frozen else args.scan if args.refresh else max(0, args.count - len(saved)),
         args.scan,
         excluded_run_ids=saved_run_ids,
         cohort=args.cohort,
@@ -628,6 +674,9 @@ def main() -> int:
     runs = merge_runs(saved, collected)
     if args.observations is not None:
         write_json(args.observations, observation_document(args.repo, runs, args.cohort, args.allocation_id))
+    retained_count = len(runs)
+    if args.refresh:
+        runs = runs[:args.count]
     if len(runs) < args.count and not args.frozen:
         message = (
             f"found {len(runs)} eligible full .com runs, need {args.count}; "
@@ -638,9 +687,11 @@ def main() -> int:
         print(message, file=sys.stderr)
     summary = summarize(runs)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(
-        markdown_report(args.repo, runs, summary, args.count, args.cohort, args.frozen, args.allocation_id), encoding="utf-8"
-    )
+    report = markdown_report(args.repo, runs, summary, args.count, args.cohort, args.frozen, args.allocation_id)
+    if args.refresh:
+        report += (f"\nRolling report: latest {len(runs)} of {retained_count} retained observations.\n"
+                   "Older observations remain in the cumulative JSON; no historical data was pruned.\n")
+    args.output.write_text(report, encoding="utf-8")
     if args.json_output is not None:
         write_json(
             args.json_output,
