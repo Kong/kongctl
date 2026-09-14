@@ -323,7 +323,18 @@ scenario failures here; their advisory handling remains unchanged.
 Scenarios skipped before initialization, load/preflight failures, and processes
 killed before diagnostics can be written may have no record. Missing records
 are not evidence of success. Diagnostics write or summary errors are reported
-without changing the scenario's result. To generate a summary locally:
+without changing the scenario's result. Malformed records are counted as
+unavailable without discarding summaries from valid records.
+
+If scenario capture never starts, the shard summary reports that fact (and
+identifies a failed Setup deck step), and metrics generation is skipped.
+Metrics are still collected after failed scenario executions when capture
+started. Collector validation remains strict; collection failures produce a
+warning and a summary note without changing the scenario result. Metrics are
+uploaded only when collection succeeds. No empty or zero-valued replacement
+metrics are generated for unavailable data.
+
+To generate a summary locally:
 
 ```sh
 python3 scripts/e2e_diagnostics.py <artifacts_dir> <summary.md>

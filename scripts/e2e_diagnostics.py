@@ -11,16 +11,50 @@ def cell(value):
     return html.escape(str(value)).replace("|", "&#124;").replace("\n", " ").replace("\r", " ")
 
 
+def validate_fields(value, required, optional=None):
+    if not isinstance(value, dict):
+        raise ValueError("expected an object")
+    for key, expected_type in required.items():
+        if key not in value or type(value[key]) is not expected_type:
+            raise ValueError(f"invalid or missing {key}")
+    for key, expected_type in (optional or {}).items():
+        if key in value and type(value[key]) is not expected_type:
+            raise ValueError(f"invalid {key}")
+
+
+def validate_record(record):
+    # Validate the fields consumed by rendering before accepting the record.
+    # Unknown fields remain allowed for compatible schema additions.
+    validate_fields(record, {"schema_version": int, "scenario": str, "commands": list})
+    if record["schema_version"] != 1:
+        raise ValueError("unsupported diagnostics")
+    failure = record.get("failure")
+    if failure is not None:
+        validate_fields(failure, {"phase": str, "cause": str}, {"step": str, "command": str})
+    for command in record["commands"]:
+        validate_fields(command, {
+            "step": str, "command": str, "outcome": str, "duration_ms": int, "attempts": list,
+        }, {"retry_stop": str, "attempt_limit": int})
+        if command["duration_ms"] < 0 or command.get("attempt_limit", 0) < 0:
+            raise ValueError("negative command duration or attempt limit")
+        for attempt in command["attempts"]:
+            validate_fields(attempt, {"duration_ms": int, "timeout_ms": int}, {
+                "kind": str, "timed_out": bool, "exit_code": int, "http_status": int,
+                "http_method": str, "http_host": str, "error_class": str,
+            })
+            if attempt["duration_ms"] < 0 or attempt["timeout_ms"] < 0:
+                raise ValueError("negative attempt duration or timeout")
+
+
 def summarize(root):
     records = []
     unavailable = 0
     for path in sorted(root.rglob("scenario-diagnostics.json")):
         try:
             record = json.loads(path.read_text())
-            if record.get("schema_version") != 1 or not isinstance(record.get("commands"), list):
-                raise ValueError("unsupported diagnostics")
+            validate_record(record)
             records.append(record)
-        except (OSError, ValueError, AttributeError):
+        except (OSError, ValueError):
             unavailable += 1
 
     lines = ["### Scenario diagnostics", "", "Observation only; retry behavior is unchanged.", ""]
