@@ -535,6 +535,239 @@ test_path_shadow_warning() {
   pass "warns about PATH shadowing"
 }
 
+# Uninstall cases use only filesystem tools: no downloader, platform detection,
+# checksum/extraction tools, or package managers from the host are available.
+setup_uninstall() {
+  local name="$1"
+  local tool
+  CASE_DIR="${TMP_ROOT}/uninstall-${name}"
+  mkdir -p "${CASE_DIR}/tools" "${CASE_DIR}/home/.local/bin"
+  for tool in mkdir rm cat date; do
+    ln -s "$(command -v "$tool")" "${CASE_DIR}/tools/$tool"
+  done
+  UNINSTALL_DIR="${CASE_DIR}/home/.local/bin"
+  printf 'unrunnable preview binary\n' > "${UNINSTALL_DIR}/kongctl"
+}
+
+run_uninstall() {
+  LAST_OUTPUT="${CASE_DIR}/output.log"
+  LAST_STATUS=0
+  env -i HOME="${CASE_DIR}/home" PATH="${UNINSTALL_PATH:-${CASE_DIR}/tools}" \
+    KONGCTL_INSTALL_DIR="${UNINSTALL_ENV_DIR:-}" \
+    KONGCTL_VERSION=preview KONGCTL_INSTALL_OS=unsupported \
+    KONGCTL_INSTALL_ARCH=unsupported KONGCTL_INSTALL_ART=invalid \
+    KONGCTL_RELEASE_BASE_URL=https://invalid.invalid \
+    KONGCTL_RELEASE_METADATA_URL=https://invalid.invalid \
+    /bin/sh "$INSTALLER" --uninstall "$@" < /dev/null > "$LAST_OUTPUT" 2>&1 || LAST_STATUS=$?
+}
+
+uninstall_succeeded() {
+  [[ "$LAST_STATUS" -eq 0 ]] || fail "$1" "$LAST_OUTPUT"
+  assert_contains "$LAST_OUTPUT" "were preserved" "$1 preserves data message"
+}
+
+uninstall_failed() {
+  [[ "$LAST_STATUS" -ne 0 ]] || fail "$1 should fail" "$LAST_OUTPUT"
+  assert_contains "$LAST_OUTPUT" "$1" "$1"
+}
+
+test_uninstall_paths() {
+  setup_uninstall paths
+  run_uninstall --version --uninstall
+  uninstall_failed "requires a value"
+  [[ -f "${UNINSTALL_DIR}/kongctl" ]] || fail "invalid options preserve target"
+  mkdir -p "${CASE_DIR}/home/.config/kongctl/extensions"
+  printf 'credentials\n' > "${CASE_DIR}/home/.config/kongctl/token.json"
+  printf 'extension\n' > "${CASE_DIR}/home/.config/kongctl/extensions/example"
+  printf 'profile\n' > "${CASE_DIR}/home/.profile"
+  printf 'neighbor\n' > "${UNINSTALL_DIR}/neighbor"
+  run_uninstall --yes --version ignored --os unsupported --arch unsupported
+  uninstall_succeeded "default offline uninstall"
+  [[ ! -e "${UNINSTALL_DIR}/kongctl" && -d "$UNINSTALL_DIR" ]] || fail "remove only binary"
+  assert_contains "$LAST_OUTPUT" "Removed ${UNINSTALL_DIR}/kongctl" "removed path"
+  assert_contains "${UNINSTALL_DIR}/neighbor" neighbor "preserve neighbor"
+  assert_contains "${CASE_DIR}/home/.config/kongctl/token.json" credentials "preserve credentials"
+  assert_contains "${CASE_DIR}/home/.config/kongctl/extensions/example" extension "preserve extension"
+  assert_contains "${CASE_DIR}/home/.profile" profile "preserve shell profile"
+  run_uninstall
+  uninstall_succeeded "repeat uninstall"
+  assert_contains "$LAST_OUTPUT" "Already absent" "repeat removal"
+  run_uninstall --install-dir "${CASE_DIR}/missing/bin"
+  uninstall_succeeded "missing directory"
+  [[ ! -e "${CASE_DIR}/missing" ]] || fail "must not create missing directory"
+
+  local custom="${CASE_DIR}/custom path"
+  mkdir -p "$custom"
+  printf 'custom\n' > "${custom}/kongctl"
+  printf 'default\n' > "${UNINSTALL_DIR}/kongctl"
+  UNINSTALL_ENV_DIR="$custom" run_uninstall
+  uninstall_succeeded "environment directory"
+  [[ ! -e "${custom}/kongctl" && -f "${UNINSTALL_DIR}/kongctl" ]] || fail "environment precedence"
+  printf 'custom\n' > "${custom}/kongctl"
+  UNINSTALL_ENV_DIR="$custom" run_uninstall --install-dir "$UNINSTALL_DIR"
+  uninstall_succeeded "flag precedence"
+  [[ -f "${custom}/kongctl" && ! -e "${UNINSTALL_DIR}/kongctl" ]] || fail "flag precedence"
+  run_uninstall --install-dir="$custom"
+  uninstall_succeeded "equals flag and spaces"
+  [[ ! -e "${custom}/kongctl" ]] || fail "custom path with spaces"
+  printf '#!/bin/sh\necho executed > "%s"\nexit 1\n' "${CASE_DIR}/executed" > "${custom}/kongctl"
+  chmod 555 "${custom}/kongctl"
+  run_uninstall --install-dir "$custom"
+  uninstall_succeeded "read-only executable removal"
+  [[ ! -e "${CASE_DIR}/executed" && ! -e "${custom}/kongctl" ]] || fail "must not execute installed binary"
+  pass "uninstall paths, precedence, offline operation, and preserved data"
+}
+
+test_uninstall_unsafe_targets() {
+  setup_uninstall unsafe
+  mv "${UNINSTALL_DIR}/kongctl" "${CASE_DIR}/original"
+  ln -s "${CASE_DIR}/original" "${UNINSTALL_DIR}/kongctl"
+  run_uninstall
+  uninstall_failed "refusing to remove symlink"
+  [[ -L "${UNINSTALL_DIR}/kongctl" && -f "${CASE_DIR}/original" ]] || fail "preserve symlink target"
+  rm "${CASE_DIR}/original"
+  run_uninstall
+  uninstall_failed "refusing to remove symlink"
+  [[ -L "${UNINSTALL_DIR}/kongctl" ]] || fail "preserve dangling link"
+  rm "${UNINSTALL_DIR}/kongctl"
+  mkdir "${UNINSTALL_DIR}/kongctl"
+  printf 'keep\n' > "${UNINSTALL_DIR}/kongctl/child"
+  run_uninstall
+  uninstall_failed "refusing to remove directory"
+  [[ -f "${UNINSTALL_DIR}/kongctl/child" ]] || fail "preserve directory contents"
+  pass "uninstall refuses symlinks and directories"
+}
+
+test_uninstall_path_and_packages() {
+  setup_uninstall packages
+  mkdir "${CASE_DIR}/other"
+  write_fake_binary "${CASE_DIR}/other/kongctl" preview linux amd64
+  UNINSTALL_PATH="${UNINSTALL_DIR}:${CASE_DIR}/other:${CASE_DIR}/tools" run_uninstall
+  uninstall_succeeded "another PATH copy"
+  assert_contains "$LAST_OUTPUT" "remains installed on PATH: ${CASE_DIR}/other/kongctl" "remaining PATH copy"
+  [[ -x "${CASE_DIR}/other/kongctl" ]] || fail "preserve PATH copy"
+
+  local keg="${CASE_DIR}/prefix/Cellar/kongctl/1.0/bin"
+  mkdir -p "$keg"
+  printf 'brew\n' > "${keg}/kongctl"
+  run_uninstall --install-dir "$keg"
+  uninstall_failed "use brew uninstall kongctl"
+  [[ -f "${keg}/kongctl" ]] || fail "preserve Homebrew keg"
+  mkdir "${CASE_DIR}/alias"
+  ln -s "$keg" "${CASE_DIR}/alias/bin"
+  run_uninstall --install-dir "${CASE_DIR}/alias/bin"
+  uninstall_failed "use brew uninstall kongctl"
+
+  local custom="${CASE_DIR}/usr/local/bin"
+  mkdir -p "$custom"
+  printf 'manual\n' > "${custom}/kongctl"
+  run_uninstall --install-dir "$custom"
+  uninstall_succeeded "custom usr/local directory"
+  printf 'receipt managed\n' > "${custom}/kongctl"
+  printf '{}\n' > "${custom}/../INSTALL_RECEIPT.json"
+  run_uninstall --install-dir "$custom"
+  uninstall_failed "use brew uninstall kongctl"
+
+  local manager
+  for manager in dpkg-query rpm; do
+    printf '#!/bin/sh\nexit 0\n' > "${CASE_DIR}/tools/$manager"
+    chmod +x "${CASE_DIR}/tools/$manager"
+    printf 'package\n' > "${UNINSTALL_DIR}/kongctl"
+    run_uninstall
+    uninstall_failed "package-managed installation"
+    [[ -f "${UNINSTALL_DIR}/kongctl" ]] || fail "preserve package file"
+    rm "${CASE_DIR}/tools/$manager"
+  done
+  pass "uninstall reports other copies and protects package installations"
+}
+
+test_uninstall_lock_and_errors() {
+  setup_uninstall lock
+  local lock="${UNINSTALL_DIR}/.kongctl-install.lock.d"
+  mkdir "$lock"
+  printf '%s\n' "$$" > "${lock}/pid"
+  date +%s > "${lock}/started_at"
+  run_uninstall
+  uninstall_failed "already running"
+  [[ -f "${UNINSTALL_DIR}/kongctl" && -d "$lock" ]] || fail "preserve active lock and binary"
+  printf 'not-a-pid\n' > "${lock}/pid"
+  printf '1\n' > "${lock}/started_at"
+  run_uninstall
+  uninstall_succeeded "stale lock recovery"
+  [[ ! -e "$lock" ]] || fail "release uninstall lock"
+
+  printf 'keep\n' > "${UNINSTALL_DIR}/kongctl"
+  if [[ "$(id -u)" -ne 0 ]]; then
+    chmod 555 "$UNINSTALL_DIR"
+    run_uninstall
+    chmod 755 "$UNINSTALL_DIR"
+    uninstall_failed "could not acquire installer lock"
+    assert_not_contains "$LAST_OUTPUT" "already running" "accurate permission error"
+    chmod 000 "$UNINSTALL_DIR"
+    run_uninstall --install-dir "${UNINSTALL_DIR}/missing/bin"
+    chmod 755 "$UNINSTALL_DIR"
+    uninstall_failed "not searchable"
+  fi
+
+  # Inject a removal failure even when tests run as root; cleanup still works.
+  rm "${CASE_DIR}/tools/rm"
+  cat > "${CASE_DIR}/tools/rm" <<EOF
+#!/bin/sh
+if [ "\${2:-}" = "${UNINSTALL_DIR}/kongctl" ]; then
+  echo 'Permission denied' >&2
+  exit 1
+fi
+exec "$(command -v rm)" "\$@"
+EOF
+  chmod +x "${CASE_DIR}/tools/rm"
+  run_uninstall
+  uninstall_failed "could not remove"
+  [[ -f "${UNINSTALL_DIR}/kongctl" && ! -e "$lock" ]] || fail "failed removal preserves binary and releases lock"
+  pass "uninstall locking and permission/removal errors"
+}
+
+test_uninstall_lock_disappears() {
+  setup_uninstall lock-disappears
+  local lock="${UNINSTALL_DIR}/.kongctl-install.lock.d"
+  local attempts="${CASE_DIR}/attempts"
+  mkdir "$lock"
+  printf '1\n' > "${lock}/started_at"
+  rm "${CASE_DIR}/tools/mkdir"
+  # Simulate another process reclaiming the stale lock after mkdir fails.
+  cat > "${CASE_DIR}/tools/mkdir" <<EOF
+#!/bin/sh
+if [ ! -f "$attempts" ]; then
+  printf 'attempt\n' > "$attempts"
+  rm -rf "$lock"
+  exit 1
+fi
+exec "$(command -v mkdir)" "\$@"
+EOF
+  chmod +x "${CASE_DIR}/tools/mkdir"
+  run_uninstall
+  uninstall_succeeded "retry when stale lock disappears"
+  [[ ! -e "${UNINSTALL_DIR}/kongctl" && ! -e "$lock" ]] || fail "retry removes binary and releases lock"
+
+  # Persistent failures must stop after the bounded retry, even as root.
+  printf 'keep\n' > "${UNINSTALL_DIR}/kongctl"
+  : > "$attempts"
+  cat > "${CASE_DIR}/tools/mkdir" <<EOF
+#!/bin/sh
+printf 'attempt\n' >> "$attempts"
+exit 1
+EOF
+  run_uninstall
+  uninstall_failed "could not acquire installer lock"
+  [[ "$(wc -l < "$attempts")" -eq 3 ]] || fail "lock acquisition retries are bounded"
+  [[ -f "${UNINSTALL_DIR}/kongctl" ]] || fail "lock failure preserves binary"
+  pass "uninstall retries vanished locks and bounds persistent failures"
+}
+
+test_uninstall_lock_disappears
+test_uninstall_paths
+test_uninstall_unsafe_targets
+test_uninstall_path_and_packages
+test_uninstall_lock_and_errors
 test_success_matrix
 test_version_pin_and_install_dir
 test_prerelease_tag_version_pin
