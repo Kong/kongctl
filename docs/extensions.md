@@ -143,6 +143,93 @@ kongctl get foo -- --output raw
 Inside the extension, read `remaining_args` from the runtime context, or parse
 the process arguments passed to the executable.
 
+### Persistent Extension Flags
+
+Declare `persistent_flags` on a contribution to accept invocation overrides
+on that command and its extension-owned descendants:
+
+```yaml
+command_paths:
+  - path: [{name: ai}]
+    persistent_flags:
+      - name: context
+        type: string
+        description: Override the AI context for this invocation
+      - name: verbose
+        type: bool
+        description: Enable verbose extension output
+  - path: [{name: ai}, {name: status}]
+```
+
+These invocations select the same contribution and forward the same tokens:
+
+```sh
+kongctl ai --context example status
+kongctl ai status --context example
+```
+
+Declarations appear in parent and descendant help. They also apply across
+intermediate command levels and aliases. A flag becomes available after its
+declaring command: `--context example ai status` is not supported.
+
+The required `type` is either `string` or `bool`:
+
+- A string accepts `--context example` or `--context=example`, including an
+  empty explicit value (`--context=`). Its next token is a value even when
+  that token matches a subcommand or looks like a flag. For example,
+  `ai --context status` invokes `ai` with context `status`. A missing value,
+  including a following `--` separator, is an error.
+- A boolean accepts `--verbose` (true) or `--verbose=false`. Explicit values
+  use `=` and Go boolean syntax: `1`, `t`, `T`, `TRUE`, `true`, `True`, `0`,
+  `f`, `F`, `FALSE`, `false`, or `False`. A bare boolean never consumes the
+  next token; `--verbose false` leaves `false` as a positional argument.
+
+Tokens are forwarded in their original order, preserving repetitions,
+spelling, and explicit values. For example:
+
+```sh
+kongctl ai --context=first status --context second --verbose=false
+```
+
+The extension receives `--context=first --context second --verbose=false`.
+The extension decides how repeated overrides behave. The host does not
+inject default values. In a subtree using persistent declarations,
+positional arguments stop subcommand selection.
+`ai -- status --help` invokes `ai` with literal arguments `status --help`;
+the separator itself is consumed by the host.
+
+Flag names use lowercase letters, digits, underscores, and hyphens, begin
+with a letter, and contain at most 64 characters. Duplicate declarations,
+descendant redeclarations (even of the same type), and collisions with host
+flags are rejected. An inherited persistent flag must not also appear in a
+descendant's help-only `flags`. Existing `flags` remain help metadata; they
+do not enable parsing or inheritance.
+
+Under shared built-in roots such as `get` and `list`, declare flags on an
+extension-owned child, such as `get ai`. Flags then work in
+`get ai --context example status`, but not `get --context example ai status`.
+Declarations on `get` or `list` themselves are rejected. Flags do not leak
+to built-ins, siblings, or another extension.
+
+This is an additive manifest schema version 1 feature. Older hosts reject
+the unknown `persistent_flags` field; they cannot provide this behavior.
+When publishing, set `compatibility.min_version` to the first released
+kongctl version supporting this feature that you have tested against.
+
+### Runtime Argument Contract
+
+`invocation.original_args` contains the untouched CLI invocation, excluding
+the kongctl executable. It includes aliases, host flags, separators, and the
+original placement of extension flags. `matched_command_path.path` contains
+the canonical selected contribution path.
+
+`invocation.remaining_args` contains extension arguments after removal of
+command-path tokens, host flags and their values, and the first `--`
+separator. Declared flags before the selected leaf are included exactly
+once, before later arguments. Tokens after `--` remain literal. The
+executable receives exactly `remaining_args` as its arguments; command-path
+tokens are available through the runtime context instead.
+
 ## Host Flags
 
 Extension command help lists the host `kongctl` flags a command inherits, such

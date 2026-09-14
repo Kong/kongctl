@@ -97,15 +97,16 @@ type Compatibility struct {
 }
 
 type CommandPath struct {
-	ID          string        `json:"id"                    yaml:"id,omitempty"`
-	Path        []PathSegment `json:"path"                  yaml:"path"`
-	Summary     string        `json:"summary,omitempty"     yaml:"summary,omitempty"`
-	Description string        `json:"description,omitempty" yaml:"description,omitempty"`
-	Usage       string        `json:"usage,omitempty"       yaml:"usage,omitempty"`
-	Examples    []string      `json:"examples,omitempty"    yaml:"examples,omitempty"`
-	Args        []Argument    `json:"args,omitempty"        yaml:"args,omitempty"`
-	Flags       []Flag        `json:"flags,omitempty"       yaml:"flags,omitempty"`
-	HostFlags   *HostFlags    `json:"host_flags,omitempty"  yaml:"host_flags,omitempty"`
+	ID              string        `json:"id"                    yaml:"id,omitempty"`
+	Path            []PathSegment `json:"path"                  yaml:"path"`
+	Summary         string        `json:"summary,omitempty"     yaml:"summary,omitempty"`
+	Description     string        `json:"description,omitempty" yaml:"description,omitempty"`
+	Usage           string        `json:"usage,omitempty"       yaml:"usage,omitempty"`
+	Examples        []string      `json:"examples,omitempty"    yaml:"examples,omitempty"`
+	Args            []Argument    `json:"args,omitempty"        yaml:"args,omitempty"`
+	Flags           []Flag        `json:"flags,omitempty"       yaml:"flags,omitempty"`
+	PersistentFlags []Flag        `json:"persistent_flags,omitempty" yaml:"persistent_flags,omitempty"`
+	HostFlags       *HostFlags    `json:"host_flags,omitempty"  yaml:"host_flags,omitempty"`
 }
 
 // HostFlags controls which host flags a command contribution lists in its
@@ -310,7 +311,7 @@ func NormalizeAndValidateManifest(manifest *Manifest) error {
 		seenPaths[canonical] = struct{}{}
 	}
 
-	return nil
+	return validatePersistentDeclarations(manifest.CommandPaths)
 }
 
 func ValidateIdentitySegment(field, value string) error {
@@ -530,6 +531,14 @@ func normalizeAndValidateCommandPath(extensionID string, path *CommandPath) erro
 	for i := range path.Flags {
 		if err := normalizeFlag(&path.Flags[i]); err != nil {
 			return fmt.Errorf("flags[%d]: %w", i, err)
+		}
+	}
+	if len(path.PersistentFlags) > maxMetadataEntries {
+		return fmt.Errorf("persistent_flags must contain %d entries or fewer", maxMetadataEntries)
+	}
+	for i := range path.PersistentFlags {
+		if err := normalizeFlag(&path.PersistentFlags[i]); err != nil {
+			return fmt.Errorf("persistent_flags[%d]: %w", i, err)
 		}
 	}
 	if err := normalizeHostFlags(path.HostFlags); err != nil {

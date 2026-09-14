@@ -16,7 +16,19 @@ command_paths:
     summary: Get current user with a Go extension
     description: Calls Konnect through the kongctl Go SDK helper.
     usage: kongctl get hello-go [args] [flags]
+    persistent_flags:
+      - name: label
+        type: string
+        description: Label the displayed user record for this invocation
     examples:
       - go build -o bin/kongctl-ext-hello-go .
       - kongctl link extension docs/examples/extensions/go
       - kongctl get hello-go --output json --jq '{id, email}'
+      - kongctl get hello-go --label example me
+      - kongctl get hello-go me --label=example
+  - id: get_hello_go_me
+    path:
+      - name: get
+      - name: hello-go
+      - name: me
+    summary: Get current user with an inherited display label

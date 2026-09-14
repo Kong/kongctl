@@ -115,6 +115,9 @@ func MarkCommandConflicts(root *cobra.Command, extensions []Extension) []Extensi
 
 func RegisterCommands(root *cobra.Command, store Store, extensions []Extension) error {
 	for _, ext := range extensions {
+		if err := ValidateExtensionCommands(root, ext); err != nil {
+			return err
+		}
 		for _, path := range ext.CommandPaths {
 			if err := addContribution(root, store, ext, path); err != nil {
 				return fmt.Errorf("register extension %s path %q: %w", ext.ID, CommandPathString(path), err)
@@ -125,6 +128,12 @@ func RegisterCommands(root *cobra.Command, store Store, extensions []Extension) 
 }
 
 func ValidateExtensionCommands(root *cobra.Command, ext Extension) error {
+	if err := validatePersistentDeclarations(ext.CommandPaths); err != nil {
+		return err
+	}
+	if err := validatePersistentHostCollisions(root, ext); err != nil {
+		return err
+	}
 	for _, path := range ext.CommandPaths {
 		if err := validateContribution(root, ext, path); err != nil {
 			return fmt.Errorf("extension %s path %q: %w", ext.ID, CommandPathString(path), err)
@@ -164,6 +173,7 @@ func addContribution(root *cobra.Command, store Store, ext Extension, contributi
 		configureTerminalCommand(parent, ext, contribution, store)
 	}
 
+	registerPersistentFlags(parent, contribution.PersistentFlags)
 	return nil
 }
 
@@ -300,6 +310,14 @@ func runExtensionCommand(
 	ext Extension,
 	contribution CommandPath,
 ) error {
+	originalArgs := append(CommandPathNames(contribution), args...)
+	if invocation, ok := command.Context().Value(invocationKey{}).(*extensionInvocation); ok {
+		originalArgs = invocation.original
+		if invocation.command == command {
+			args = invocation.args
+		}
+	}
+	contribution.PersistentFlags = inheritedPersistentDeclarations(command)
 	if !ext.IsReady() {
 		if slices.Contains(args, "--help") || slices.Contains(args, "-h") {
 			if err := PrintExtensionHelp(command.OutOrStdout(), ext.ID, contribution); err != nil {
@@ -327,7 +345,6 @@ func runExtensionCommand(
 		return PrintExtensionHelp(command.OutOrStdout(), ext.ID, contribution)
 	}
 
-	originalArgs := append(CommandPathNames(contribution), args...)
 	return store.Dispatch(
 		helper.GetContext(),
 		helper.GetStreams(),
@@ -377,6 +394,15 @@ func SplitExtensionArgs(command *cobra.Command, args []string, cfg config.Hook) 
 		if strings.HasPrefix(token, "--") && token != "--" {
 			nameValue := strings.TrimPrefix(token, "--")
 			name, value, hasValue := strings.Cut(nameValue, "=")
+			if flag := persistentExtensionFlag(command, name); flag != nil {
+				next, err := persistentFlagEnd(args, i, flag)
+				if err != nil {
+					return result, err
+				}
+				result.Remaining = append(result.Remaining, args[i:next]...)
+				i = next - 1
+				continue
+			}
 			flag := hostFlags.Lookup(name)
 			if flag == nil {
 				result.Remaining = append(result.Remaining, token)
@@ -499,11 +525,11 @@ func PrintExtensionHelp(w io.Writer, extensionID string, contribution CommandPat
 			}
 		}
 	}
-	if len(contribution.Flags) > 0 {
+	if len(contribution.Flags)+len(contribution.PersistentFlags) > 0 {
 		if _, err := fmt.Fprintln(w, "\nExtension Flags:"); err != nil {
 			return err
 		}
-		for _, flag := range contribution.Flags {
+		for _, flag := range append(slices.Clone(contribution.Flags), contribution.PersistentFlags...) {
 			typeHint := ""
 			if flag.Type != "" {
 				typeHint = " " + flag.Type
@@ -591,6 +617,9 @@ func collectHostFlags(command *cobra.Command) *pflag.FlagSet {
 			return
 		}
 		source.VisitAll(func(flag *pflag.Flag) {
+			if flag.Annotations[annotationPersistentFlag] != nil {
+				return
+			}
 			if flags.Lookup(flag.Name) != nil {
 				return
 			}
@@ -612,9 +641,13 @@ func applyHostFlag(flag *pflag.Flag, value string, cfg config.Hook, result *Spli
 		return err
 	}
 	flag.Changed = true
-	switch flag.Name {
-	case cmdcommon.ProfileFlagName:
+	if flag.Name == cmdcommon.ProfileFlagName {
 		result.ProfileOverride = value
+	}
+	if cfg == nil {
+		return nil
+	}
+	switch flag.Name {
 	case cmdcommon.OutputFlagName:
 		cfg.SetString(cmdcommon.OutputConfigPath, value)
 	case cmdcommon.LogLevelFlagName:
