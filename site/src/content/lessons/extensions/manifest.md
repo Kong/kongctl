@@ -53,7 +53,7 @@ command. Existing `flags` entries provide help metadata only.
 
 ```yaml
 command_paths:
-  - path: [{name: ai}]
+  - path: [{ name: ai }]
     persistent_flags:
       - name: context
         type: string
@@ -61,7 +61,7 @@ command_paths:
       - name: verbose
         type: bool
         description: Enable verbose output
-  - path: [{name: ai}, {name: status}]
+  - path: [{ name: ai }, { name: status }]
 ```
 
 Both `kongctl ai --context example status` and

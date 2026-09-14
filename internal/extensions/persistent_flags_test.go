@@ -297,6 +297,73 @@ command_paths:
 	}
 }
 
+func TestPersistentFlagsStaySeparateAcrossExtensions(t *testing.T) {
+	root := testRootCommand()
+	root.TraverseChildren = true
+	other := mustExtension(t, `schema_version: 1
+publisher: kong
+name: tools
+runtime: {command: run}
+command_paths:
+  - path: [{name: tools}]
+    persistent_flags:
+      - {name: context, type: bool}
+      - {name: dry-run, type: bool}
+  - path: [{name: tools}, {name: status}]
+`)
+	extensions := []Extension{mustExtension(t, persistentManifest), other}
+	require.NoError(t, RegisterCommands(root, NewStore(t.TempDir()), extensions))
+	ai := findChildByName(root, "ai")
+	tools := findChildByName(root, "tools")
+	aiContext := ai.PersistentFlags().Lookup("context")
+	toolsContext := tools.PersistentFlags().Lookup("context")
+	require.NotSame(t, aiContext, toolsContext)
+	require.Equal(t, "string", aiContext.Value.Type())
+	require.Equal(t, "bool", toolsContext.Value.Type())
+	require.NoError(t, aiContext.Value.Set("ai-only"))
+	require.Equal(t, "false", toolsContext.Value.String())
+	require.NoError(t, toolsContext.Value.Set("true"))
+	require.Equal(t, "ai-only", aiContext.Value.String())
+	for _, tc := range []struct {
+		parent *cobra.Command
+		args   []string
+		want   []string
+		absent string
+	}{
+		{
+			ai,
+			[]string{"ai", "--context", "first", "status", "--context=last"},
+			[]string{"--context", "first", "--context=last"},
+			"dry-run",
+		},
+		{
+			tools,
+			[]string{"tools", "--context", "status", "--context=false"},
+			[]string{"--context", "--context=false"},
+			"verbose",
+		},
+	} {
+		t.Run(tc.parent.Name(), func(t *testing.T) {
+			child := findChildByName(tc.parent, "status")
+			require.Same(t, tc.parent.PersistentFlags().Lookup("context"), child.InheritedFlags().Lookup("context"))
+			require.Nil(t, child.InheritedFlags().Lookup(tc.absent))
+			called := false
+			child.RunE = func(command *cobra.Command, _ []string) error {
+				called = true
+				invocation := command.Context().Value(invocationKey{}).(*extensionInvocation)
+				require.Same(t, child, invocation.command)
+				split, err := SplitExtensionArgs(command, invocation.args, newTestHook())
+				require.NoError(t, err)
+				require.Equal(t, tc.want, split.Remaining)
+				return nil
+			}
+			_, err := ExecuteContextC(t.Context(), root, tc.args)
+			require.NoError(t, err)
+			require.True(t, called)
+		})
+	}
+}
+
 func TestPersistentFlagExampleManifests(t *testing.T) {
 	for _, example := range []string{"go", "script"} {
 		path := filepath.Join("..", "..", "docs", "examples", "extensions", example, ManifestFileName)
