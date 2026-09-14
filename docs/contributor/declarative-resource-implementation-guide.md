@@ -144,9 +144,13 @@ input cannot disclose a secret in an error.
 
 ### Child loading capabilities
 
-AI Gateway, API, Portal, and Event Gateway children register loading beside
-their declarations through [`registerChildResourceType`][child-load], reusing
-root storage. Supply `nested`/`setParent` with an optional `beforeAppend`, or a
+AI Gateway, API, Portal, Event Gateway, and control-plane children register
+loading beside their declarations through
+[`registerChildResourceType`][child-load], reusing root storage. Children with
+external resolution compose `withChildLoad` with `registerExternalResourceType`,
+sharing the same storage accessor; [gateway services][gateway-service] show
+this path.
+Supply `nested`/`setParent` with an optional `beforeAppend`, or a
 typed `extract` handler for exceptional sources. Custom extraction receives
 the registered destination; preserve each source's copying and storage rules.
 
@@ -175,6 +179,17 @@ listeners, and data-plane certificates, in that order. Extraction stays before
 deferred-value indexing, preserving attribution to each child ref. Virtual
 clusters and policy placement retain their existing storage and traversal.
 
+Control planes extract gateway services before data-plane certificates.
+Their validators retain separate loader call sites through
+`ValidateRegisteredResource`: services, audit-log destinations, then
+certificates. Do not replace these calls with a contiguous family pass.
+For each new control-plane child, add a `ValidateRegisteredResource` call
+in `validateResourceSet` at the intended phase. Family registration alone
+does not invoke its validator.
+Gateway services retain external lookup metadata and their accepted inline
+forms; [certificates][cp-certificate] retain parent lookup, external-placeholder
+handling, and per-control-plane certificate identity checks.
+
 Portal teams, team roles, and these Event Gateway children record
 `validationOmittedReason` with zero `validateOrder` to preserve their lack of
 family-level loader validation. Other registrations require a validator and a
@@ -202,9 +217,9 @@ only documents nested. `ValidateRegisteredChildren` then checks
 root child collections in family order, stopping at the first error. API and
 ordinary Portal ref validation both validate each resource before checking
 later siblings for duplicate refs.
-Portal child validation follows API-child validation. Control-plane and
-organization/grouped loading, root validation, cross-references, and namespaces
-retain their existing loader paths.
+Portal child validation follows API-child validation. Organization/grouped
+loading, root validation, cross-references, and namespaces retain their
+existing loader paths.
 
 ### Explain, scaffold, and load schema
 
@@ -652,7 +667,11 @@ engine contract. Each refactoring migration should:
 [portal-template]: ../../internal/declarative/resources/portal_email_template.go
 [portal-team]: ../../internal/declarative/resources/portal_team.go
 [ai-child-load]: ../../internal/declarative/resources/ai_gateway_child_load.go
-[eg-child-load]: ../../internal/declarative/resources/event_gateway_child_load.go
+[eg-child-load]:
+  ../../internal/declarative/resources/event_gateway_child_load.go
+[gateway-service]: ../../internal/declarative/resources/gateway_service.go
+[cp-certificate]:
+  ../../internal/declarative/resources/control_plane_data_plane_certificate.go
 [plan-scope]: ../../internal/declarative/planner/sync_scope.go
 [planner]: ../../internal/declarative/planner/planner.go
 [roots]: ../../internal/declarative/planner/root_planners.go

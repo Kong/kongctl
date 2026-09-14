@@ -52,6 +52,20 @@ func registerChildResourceType[R, P any, RPtr interface {
 	load childLoad[R, P],
 	options ...ResourceRegistrationOption,
 ) {
+	capability := withChildLoad[R, P, PPtr](rt, storage, load)
+	registerResourceType[R, RPtr](rt, storage, explain, append(options, capability)...)
+}
+
+// withChildLoad composes loading with other registration paths, including
+// external resolution. Reuse the resource registration's storage accessor.
+func withChildLoad[R, P any, PPtr interface {
+	*P
+	Resource
+}](
+	rt ResourceType,
+	storage func(*ResourceSet) *[]R,
+	load childLoad[R, P],
+) ResourceRegistrationOption {
 	if load.extract != nil {
 		if load.nested != nil || load.setParent != nil || load.beforeAppend != nil {
 			panic("register resource type " + string(rt) + ": custom extraction cannot also supply slice extraction")
@@ -59,7 +73,7 @@ func registerChildResourceType[R, P any, RPtr interface {
 	} else if load.nested == nil || load.setParent == nil {
 		panic("register resource type " + string(rt) + ": child loader requires extraction")
 	}
-	capability := ResourceRegistrationOption(func(ops *resourceOps) error {
+	return func(ops *resourceOps) error {
 		if ops.load != nil {
 			return fmt.Errorf("child loader is already registered")
 		}
@@ -100,8 +114,7 @@ func registerChildResourceType[R, P any, RPtr interface {
 		}
 		ops.load = registration
 		return nil
-	})
-	registerResourceType[R, RPtr](rt, storage, explain, append(options, capability)...)
+	}
 }
 
 func registerChildLoader(kind ResourceType, registration childLoadRegistration) {

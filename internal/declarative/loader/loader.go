@@ -714,23 +714,7 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 	}
 
 	for i := range rs.ControlPlanes {
-		cp := &rs.ControlPlanes[i]
-
-		for j := range cp.GatewayServices {
-			service := cp.GatewayServices[j]
-			service.ControlPlane = cp.Ref
-			rs.GatewayServices = append(rs.GatewayServices, service)
-		}
-
-		cp.GatewayServices = nil
-
-		for j := range cp.DataPlaneCertificates {
-			cert := cp.DataPlaneCertificates[j]
-			cert.ControlPlane = cp.Ref
-			rs.ControlPlaneDataPlaneCertificates = append(rs.ControlPlaneDataPlaneCertificates, cert)
-		}
-
-		cp.DataPlaneCertificates = nil
+		rs.ExtractRegisteredChildren(&rs.ControlPlanes[i])
 	}
 
 	for i := range rs.AIGateways {
