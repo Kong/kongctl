@@ -75,7 +75,7 @@ Flags:
   --install-dir PATH    Install directory (default: $HOME/.local/bin)
   --os OS               Override OS detection: linux or darwin
   --arch ARCH           Override architecture detection: amd64 or arm64
-  --yes                 Accepted for compatibility; neither mode prompts
+  --yes                 Accepted for compatibility; has no effect
   --help                Show this help
 
 Environment:
