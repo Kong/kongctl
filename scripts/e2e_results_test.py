@@ -23,6 +23,38 @@ class ResultsTest(unittest.TestCase):
     def step(self, job, name):
         return next(step for step in self.jobs[job]['steps'] if step.get('name') == name)
 
+    def test_setup_failure_reports_that_scenarios_did_not_run(self):
+        step = self.step('e2e', 'Summarize scenario diagnostics')
+        with tempfile.TemporaryDirectory() as directory:
+            summary = Path(directory) / 'summary.md'
+            result = subprocess.run(['bash', '-e', '-c', step['run']], capture_output=True, text=True,
+                                    env={**os.environ, 'SCENARIO_ARTIFACTS_DIR': '',
+                                         'SCENARIOS_OUTCOME': 'skipped', 'SETUP_DECK_OUTCOME': 'failure',
+                                         'GITHUB_STEP_SUMMARY': str(summary)})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('Scenarios did not run: Setup deck failed.', summary.read_text())
+            self.assertIn('Shard metrics unavailable', summary.read_text())
+            self.assertNotIn('No terminal failures', summary.read_text())
+
+    def test_metrics_require_started_scenarios_and_fail_nonfatally(self):
+        step = self.step('e2e', 'Generate shard metrics')
+        self.assertEqual(step['if'], "always() && steps.scenarios.outputs.artifacts_dir != ''")
+        self.assertTrue(step['continue-on-error'])
+        upload = self.step('e2e', 'Upload shard metrics')
+        # outcome retains a collector failure even with continue-on-error.
+        self.assertEqual(upload['if'], "always() && steps.metrics.outcome == 'success'")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            summary = root / 'summary.md'
+            result = subprocess.run(['bash', '-e', '-c', step['run']], cwd=ROOT,
+                                    capture_output=True, text=True,
+                                    env={**os.environ, 'KONGCTL_E2E_ARTIFACTS_DIR': str(root / 'missing'),
+                                         'GITHUB_STEP_SUMMARY': str(summary)})
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('::warning::Shard metrics unavailable', result.stdout)
+            self.assertIn('collection failed', summary.read_text())
+            self.assertFalse((root / 'missing/e2e-metrics.json').exists())
+
     def artifact_name(self, attempt, org):
         name = self.step('e2e', 'Upload scenario results and diagnostics')['with']['name']
         return (name.replace('${{ github.run_id }}', '123')

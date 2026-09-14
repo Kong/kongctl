@@ -618,6 +618,7 @@ func (s *Step) requestResource(
 	client := newHTTPClient(timeout)
 	start := time.Now()
 	resp, err := client.Do(req)
+	defer func() { s.cli.observeHTTP(req, resp, err, start, timeout) }()
 	result.Duration = time.Since(start)
 	errDetail := ""
 	if err != nil {

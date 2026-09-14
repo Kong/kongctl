@@ -864,6 +864,7 @@ jobs:
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
 
       - name: Setup deck
+        id: setup-deck
         uses: kong/setup-deck@6ea0a466ee5826ddb531cbe851ba8e5a77a0e041 # v1.7.1
 
       - name: Download scenario executables
@@ -972,6 +973,8 @@ jobs:
           mkdir -p "${ART_DIR}"
           echo "artifacts_dir=${ART_DIR}" >> "${GITHUB_OUTPUT}"
           export KONGCTL_E2E_ARTIFACTS_DIR="${ART_DIR}"
+          KONGCTL_E2E_CHECKOUT_SHA="$(git rev-parse HEAD)"
+          export KONGCTL_E2E_CHECKOUT_SHA
 
           source "${GITHUB_WORKSPACE}/test/e2e/harness/ci/results.sh"
 
@@ -1051,8 +1054,29 @@ jobs:
           sudo chown -R "${USER}:${USER}" "${CAP_DIR}" 2>/dev/null || true
           ls -lh "${CAP_DIR}" || true
 
+      - name: Summarize scenario diagnostics
+        if: always()
+        continue-on-error: true
+        env:
+          SCENARIO_ARTIFACTS_DIR: ${{ steps.scenarios.outputs.artifacts_dir }}
+          SCENARIOS_OUTCOME: ${{ steps.scenarios.outcome }}
+          SETUP_DECK_OUTCOME: ${{ steps.setup-deck.outcome }}
+        run: |
+          if [ -z "${SCENARIO_ARTIFACTS_DIR}" ]; then
+            if [ "${SETUP_DECK_OUTCOME}" = "failure" ]; then
+              message="Scenarios did not run: Setup deck failed."
+            else
+              message="Scenario capture did not start (scenario step: ${SCENARIOS_OUTCOME}). Inspect preceding job steps."
+            fi
+            printf '### Scenario diagnostics\n\n%s\n\nShard metrics unavailable: scenario capture did not start.\n' \
+              "${message}" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          python3 scripts/e2e_diagnostics.py \
+            "${KONGCTL_E2E_ARTIFACTS_DIR}" "${GITHUB_STEP_SUMMARY}"
+
       - name: Report weighted sharding predictions
-        if: always() && env.KONGCTL_E2E_KONNECT_ENV == 'com'
+        if: always() && steps.scenarios.outputs.artifacts_dir != '' && env.KONGCTL_E2E_KONNECT_ENV == 'com'
         continue-on-error: true
         env:
           WEIGHTED_REPORT_DIR: ${{ steps.scenarios.outputs.artifacts_dir }}
@@ -1066,14 +1090,21 @@ jobs:
           fi
 
       - name: Generate shard metrics
-        if: always()
+        id: metrics
+        if: always() && steps.scenarios.outputs.artifacts_dir != ''
+        continue-on-error: true
         run: |
-          python3 scripts/e2e_metrics.py \
+          if ! python3 scripts/e2e_metrics.py \
             "${KONGCTL_E2E_ARTIFACTS_DIR}" \
-            "${KONGCTL_E2E_ARTIFACTS_DIR}/e2e-metrics.json"
+            "${KONGCTL_E2E_ARTIFACTS_DIR}/e2e-metrics.json"; then
+            echo "::warning::Shard metrics unavailable; inspect collector output and scenario artifacts."
+            printf '\nShard metrics unavailable: collection failed. Scenario results are unchanged.\n' \
+              >> "${GITHUB_STEP_SUMMARY}"
+            exit 1
+          fi
 
       - name: Upload shard metrics
-        if: always()
+        if: always() && steps.metrics.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-metrics-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.org_name }}

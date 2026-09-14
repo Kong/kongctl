@@ -58,7 +58,7 @@ func Run(t *testing.T, scenarioPath string, betaMode BetaMode) (Maturity, error)
 	return preflight.Maturity, runScenario(t, scenarioPath, s)
 }
 
-func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
+func runScenario(t *testing.T, scenarioPath string, s Scenario) (runErr error) {
 	harness.RequireBinary(t)
 	if scenarioRequiresPAT(s) {
 		_ = harness.RequirePAT(t, "e2e")
@@ -68,6 +68,31 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 	if err != nil {
 		return fmt.Errorf("harness init failed: %w", err)
 	}
+	diagnostics := newScenarioDiagnostics(filepath.Join(cli.TestDir, "scenario-diagnostics.json"), scenarioPath)
+	cli.ObserveHTTP = diagnostics.http
+	completed := false
+	defer func() {
+		diagnosticErr := runErr
+		if !completed {
+			diagnostics.phase = "interrupted"
+			diagnosticErr = fmt.Errorf("scenario did not return")
+		}
+		if err := diagnostics.finish(diagnosticErr); err != nil {
+			t.Logf("Scenario diagnostics unavailable: %v", err)
+		}
+	}()
+	runErr = executeScenario(t, scenarioPath, s, cli, diagnostics)
+	completed = true
+	return runErr
+}
+
+func executeScenario(
+	t *testing.T,
+	scenarioPath string,
+	s Scenario,
+	cli *harness.CLI,
+	diagnostics *scenarioDiagnostics,
+) error {
 	if strings.TrimSpace(s.LogLevel) != "" {
 		cli.SetLogLevel(s.LogLevel)
 	}
@@ -107,6 +132,8 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 			continue
 		}
 
+		diagnostics.finishCommand(nil)
+		diagnostics.step, diagnostics.phase = stepName, "setup"
 		step, err := harness.NewStep(t, cli, stepName)
 		if err != nil {
 			return err
@@ -161,10 +188,12 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 			if strings.TrimSpace(cmdName) == "" {
 				cmdName = fmt.Sprintf("command-%03d", j)
 			}
+			diagnostics.begin(stepName, cmdName)
 			isLastCmdInStep := j == len(st.Commands)-1
 			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
+				diagnostics.phase = "reset"
 				if err := step.ResetOrgForRegions("scenario", cmd.ResetRegions); err != nil {
 					return fmt.Errorf("command %s resetOrg failed: %w", cmdName, err)
 				}
@@ -213,6 +242,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				if err != nil {
 					return err
 				}
+				diagnostics.phase = "execution"
 				res, err := cli.RunProgramTimeout(
 					context.Background(),
 					renderedArgs[0],
@@ -221,9 +251,13 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 					strings.TrimSpace(workdir),
 					timeout,
 				)
+				diagnostics.subprocess(res, timeout)
+				diagnostics.current.AttemptLimit = 1
+				diagnostics.current.RetryStop = "not_configured"
 				if err != nil {
 					return fmt.Errorf("command %s external execution failed: %w", cmdName, err)
 				}
+				diagnostics.phase = "output"
 				if err := writeStdoutFile(cmd.StdoutFile, res.Stdout, tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
 				}
@@ -249,6 +283,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				if err := maybeRecordVars(&s, cmd.RecordVar, cmd.RecordVars, parentData.Value(), tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 				}
+				diagnostics.phase = "assertion"
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 					return err
 				}
@@ -274,13 +309,15 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				retryCfg := effectiveHTTPRetry(s.Defaults.Retry, st.Retry, cmd.Retry)
 				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 				attempts := backoffCfg.Attempts
+				diagnostics.current.AttemptLimit = attempts
 				backoff := harness.BuildBackoffSchedule(backoffCfg)
 				var (
 					lastErr             error
 					result              harness.CreateResourceResult
 					consecutiveTimeouts int
 				)
-				for atry := 0; atry < attempts; atry++ {
+				for atry := range attempts {
+					diagnostics.phase = "setup"
 					if strings.TrimSpace(cmd.Name) != "" {
 						cli.OverrideNextCommandSlug(cmd.Name)
 					}
@@ -292,6 +329,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 					if perr != nil {
 						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
 					}
+					diagnostics.phase = "http"
 					result, lastErr = step.CreateResource(
 						cmd.Create.Resource,
 						payload,
@@ -301,7 +339,10 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 							PathParams:   pathParams,
 						},
 					)
+					diagnostics.current.RetryStop = "attempt_limit"
 					if lastErr == nil {
+						diagnostics.current.RetryStop = "succeeded"
+						diagnostics.phase = "output"
 						if err := maybeRecordVars(
 							&s,
 							cmd.Create.RecordVar,
@@ -330,6 +371,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 							retryCfg.Never,
 							consecutiveTimeouts,
 						) {
+							diagnostics.current.RetryStop = "retry_policy"
 							break
 						}
 						if result.TimedOut &&
@@ -363,6 +405,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				}
 				parseMode := strings.TrimSpace(cmd.ParseAs)
 				stdout := string(result.Body)
+				diagnostics.phase = "output"
 				if err := writeStdoutFile(cmd.StdoutFile, stdout, tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
 				}
@@ -385,6 +428,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 					)
 					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 				}
+				diagnostics.phase = "assertion"
 				if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 					return err
 				}
@@ -407,13 +451,15 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				retryCfg := effectiveHTTPRetry(s.Defaults.Retry, st.Retry, cmd.Retry)
 				backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 				attempts := backoffCfg.Attempts
+				diagnostics.current.AttemptLimit = attempts
 				backoff := harness.BuildBackoffSchedule(backoffCfg)
 				var (
 					lastErr             error
 					result              harness.DeleteResourceResult
 					consecutiveTimeouts int
 				)
-				for atry := 0; atry < attempts; atry++ {
+				for atry := range attempts {
+					diagnostics.phase = "setup"
 					if strings.TrimSpace(cmd.Name) != "" {
 						cli.OverrideNextCommandSlug(cmd.Name)
 					}
@@ -421,6 +467,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 					if perr != nil {
 						return fmt.Errorf("command %s build endpoint params failed: %w", cmdName, perr)
 					}
+					diagnostics.phase = "http"
 					result, lastErr = step.DeleteResource(
 						cmd.Delete.Resource,
 						harness.DeleteResourceOptions{
@@ -429,7 +476,10 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 							PathParams:   pathParams,
 						},
 					)
+					diagnostics.current.RetryStop = "attempt_limit"
 					if lastErr == nil {
+						diagnostics.current.RetryStop = "succeeded"
+						diagnostics.phase = "output"
 						if err := maybeRecordVars(
 							&s,
 							cmd.Delete.RecordVar,
@@ -458,6 +508,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 							retryCfg.Never,
 							consecutiveTimeouts,
 						) {
+							diagnostics.current.RetryStop = "retry_policy"
 							break
 						}
 						if result.TimedOut &&
@@ -491,6 +542,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				}
 				parseMode := strings.TrimSpace(cmd.ParseAs)
 				stdout := string(result.Body)
+				diagnostics.phase = "output"
 				if err := writeStdoutFile(cmd.StdoutFile, stdout, tmplCtx, step); err != nil {
 					return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
 				}
@@ -513,6 +565,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 					)
 					return fmt.Errorf("command %s produced unparsable output: %w", cmdName, err)
 				}
+				diagnostics.phase = "assertion"
 				if err := executeAssertions(
 					cli,
 					scenarioPath,
@@ -563,13 +616,18 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 			if err != nil {
 				return err
 			}
+			diagnostics.phase = "execution"
 			if cmd.ExpectFail != nil {
 				res, err = cli.RunWithEnvTimeout(context.Background(), envOverrides, timeout, args...)
+				diagnostics.subprocess(res, timeout)
+				diagnostics.current.AttemptLimit = 1
+				diagnostics.current.RetryStop = "expected_failure"
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout, diagnostics)
 			}
 			if cmd.ExpectFail != nil {
+				diagnostics.phase = "expected_failure"
 				if err == nil {
 					return fmt.Errorf("command %s expected failure but succeeded", cmdName)
 				}
@@ -616,6 +674,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 				return fmt.Errorf("%s", msg)
 			}
 
+			diagnostics.phase = "output"
 			if err := writeStdoutFile(cmd.StdoutFile, res.Stdout, tmplCtx, step); err != nil {
 				return fmt.Errorf("command %s stdoutFile failed: %w", cmdName, err)
 			}
@@ -644,6 +703,7 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) error {
 			if err := maybeRecordVars(&s, cmd.RecordVar, cmd.RecordVars, parentData.Value(), tmplCtx, step); err != nil {
 				return fmt.Errorf("command %s recordVar failed: %w", cmdName, err)
 			}
+			diagnostics.phase = "assertion"
 			if err := executeAssertions(cli, scenarioPath, s, st, cmd, parentData.Value(), step.InputsDir, stepName, cmdName, envOverrides); err != nil {
 				return err
 			}
@@ -864,7 +924,7 @@ func executeAssertions(
 			"step":     stepName,
 			"workdir":  workdir,
 		}
-		for atry := 0; atry < attempts; atry++ {
+		for atry := range attempts {
 			lastErr = runAssertion(
 				cli,
 				scenarioPath,
@@ -901,22 +961,30 @@ func runCLIWithRetry(
 	args []string,
 	env map[string]string,
 	timeout time.Duration,
+	diagnostics *scenarioDiagnostics,
 ) (harness.Result, error) {
 	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 	attempts := backoffCfg.Attempts
+	diagnostics.current.AttemptLimit = attempts
 	backoff := harness.BuildBackoffSchedule(backoffCfg)
 	var (
 		res harness.Result
 		err error
 	)
-	for atry := 0; atry < attempts; atry++ {
+	for atry := range attempts {
 		res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
+		diagnostics.subprocess(res, timeout)
 		if err == nil {
+			diagnostics.current.RetryStop = "succeeded"
 			return res, nil
 		}
 
 		detail := commandFailureDetail(res, err)
 		if !harness.ShouldRetry(err, detail, retryCfg.Only, retryCfg.Never, res, timeout) || atry+1 >= attempts {
+			diagnostics.current.RetryStop = "retry_policy"
+			if atry+1 >= attempts {
+				diagnostics.current.RetryStop = "attempt_limit"
+			}
 			return res, err
 		}
 

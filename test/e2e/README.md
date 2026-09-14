@@ -284,6 +284,62 @@ KONGCTL_E2E_SKIP_STEPS="*reset*,*delete*,*cleanup*" \
 make test-e2e-scenarios
 ```
 
+### Scenario diagnostics
+
+Each scenario that initializes its harness writes
+`scenario-diagnostics.json` in its test artifact directory when it returns.
+This is observation only: it does not change retries or request reruns.
+The E2E shard job summary lists terminal failures and the 15 slowest commands,
+including successful commands. All command timings remain in the JSON file.
+
+The versioned record includes scenario, organization, workflow run/attempt,
+workflow SHA, and checkout SHA (when supplied by CI). Each command includes
+step/name, outcome, total duration, individual execution attempts, configured
+timeouts, and the execution retry stop reason. Total duration includes command
+setup, retries, backoff, output processing, and assertions. Attempt durations
+measure subprocess execution or a direct HTTP operation. A timeout of zero
+means no configured application deadline.
+
+Terminal failures identify the phase separately from the cause. In particular,
+`subprocess_deadline` means the harness killed kongctl or an external command
+such as deck; it does not establish that Konnect timed out. An assertion or
+output-processing failure is not attributed to earlier recovered errors.
+Unknown causes stay `unknown`; no retry eligibility is inferred.
+
+Direct scenario create/delete HTTP operations include method, hostname,
+status, timing, and typed transport error metadata, even on failure. Arguments,
+URL paths, headers, bodies, and raw error messages are excluded. Requests made
+inside kongctl/deck and reset helpers are not individually captured in this
+record; consult their existing logs for endpoint and request/trace IDs. The
+attempt list covers command execution, not assertion reads or reset internals.
+
+Retry stop reasons are `succeeded`, `attempt_limit`, `retry_policy`,
+`not_configured` (external commands), or `expected_failure`. `retry_policy`
+means the existing predicate stopped retries; the recorded duration and limit
+help identify timeout suppression. A successful expected-failure command can
+have a nonzero subprocess exit code. Advisory beta failures still appear as
+scenario failures here; their advisory handling remains unchanged.
+
+Scenarios skipped before initialization, load/preflight failures, and processes
+killed before diagnostics can be written may have no record. Missing records
+are not evidence of success. Diagnostics write or summary errors are reported
+without changing the scenario's result. Malformed records are counted as
+unavailable without discarding summaries from valid records.
+
+If scenario capture never starts, the shard summary reports that fact (and
+identifies a failed Setup deck step), and metrics generation is skipped.
+Metrics are still collected after failed scenario executions when capture
+started. Collector validation remains strict; collection failures produce a
+warning and a summary note without changing the scenario result. Metrics are
+uploaded only when collection succeeds. No empty or zero-valued replacement
+metrics are generated for unavailable data.
+
+To generate a summary locally:
+
+```sh
+python3 scripts/e2e_diagnostics.py <artifacts_dir> <summary.md>
+```
+
 ### Artifacts Layout
 
 Each test run creates a single artifacts directory. The Makefile prints the

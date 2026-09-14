@@ -31,6 +31,10 @@ type CLI struct {
 	// LastCommandDir records the directory where the most recent command's artifacts
 	// were captured. Useful for attaching observations to a specific command.
 	LastCommandDir string
+	// ObserveHTTP receives metadata for direct scenario HTTP operations, including
+	// failures whose result is discarded by the resource helper. It does not
+	// participate in retry decisions.
+	ObserveHTTP func(HTTPAttempt)
 	// If set, inject --log-level into command args unless caller overrides.
 	AutoLogLevel string
 	AutoOutput   string
