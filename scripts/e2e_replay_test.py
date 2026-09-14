@@ -23,6 +23,33 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_overlay_only_documents_are_local_exact_and_fingerprinted(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "testdata").mkdir()
+            overlay = root / "overlays/update"
+            overlay.mkdir(parents=True)
+            (root / "scenario.yaml").write_text(
+                "baseInputsPath: testdata\nsteps:\n  - inputOverlayDirs:\n      - overlays/update\n")
+            (overlay / "apis.yaml").write_text("content: !file updated.md\n")
+            document = overlay / "updated.md"
+            public = "Public example: author@example.com\n"
+            document.write_text(public)
+            MODULE.check_eligibility(root)
+            fixtures = MODULE.fixture_strings(root)
+            MODULE.check_safe({"content": public}, fixtures)
+            with self.assertRaises(ValueError):
+                MODULE.check_safe({"content": public + "private extra"}, fixtures)
+            before = MODULE.scenario_digest(root)
+            document.write_text("Changed\n")
+            self.assertNotEqual(before, MODULE.scenario_digest(root))
+            document.unlink()
+            other = root / "overlays/other"
+            other.mkdir()
+            (other / "updated.md").write_text(public)
+            with self.assertRaisesRegex(ValueError, "own overlay"):
+                MODULE.check_eligibility(root)
+
     def test_inline_overlays_are_local_literal_and_fingerprinted(self):
         import yaml
         with tempfile.TemporaryDirectory() as temporary:
