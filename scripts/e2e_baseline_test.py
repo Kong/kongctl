@@ -69,6 +69,19 @@ class E2EBaselineTest(unittest.TestCase):
         records[0]["cache_result"] = "fallback"
         self.assertIn("| fallback | 1 |", MODULE.markdown_report("kong/kongctl", records, MODULE.summarize(records), 20))
 
+    def test_cache_log_timeout_is_unknown_and_next_lookup_can_succeed(self) -> None:
+        build = {"databaseId": 42, "steps": [{"name": "Report Go cache status"}]}
+        log = "Go build cache primary-key hit: true\n"
+        with patch.object(MODULE.subprocess, "run", side_effect=[
+            subprocess.TimeoutExpired("gh", 120, output=log),
+            subprocess.CompletedProcess([], 0, log, ""),
+        ]) as run:
+            self.assertEqual("unknown", MODULE.read_cache_result("kong/kongctl", 1, build))
+            self.assertEqual("exact", MODULE.read_cache_result("kong/kongctl", 2, build))
+        self.assertEqual(2, run.call_count)
+        for call in run.call_args_list:
+            self.assertEqual(120, call.kwargs["timeout"])
+
     def test_nearest_rank(self) -> None:
         values = list(range(1, 21))
         self.assertEqual(10, MODULE.nearest_rank(values, 0.50))

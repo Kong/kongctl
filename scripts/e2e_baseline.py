@@ -194,10 +194,13 @@ def read_cache_result(repo: str, run_id: int, build: dict[str, Any]) -> str:
         return "uncached"
     if not build.get("databaseId"):
         return "unknown"
-    process = subprocess.run(
-        ["gh", "run", "view", str(run_id), "--repo", repo, "--job", str(build["databaseId"]), "--log"],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-    )
+    try:
+        process = subprocess.run(
+            ["gh", "run", "view", str(run_id), "--repo", repo, "--job", str(build["databaseId"]), "--log"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=120,
+        )
+    except subprocess.TimeoutExpired:
+        return "unknown"
     if process.returncode:
         return "unknown"
     return cache_result(process.stdout, named_step(build, "Restore Go dependency fallback") is not None)
