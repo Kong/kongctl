@@ -63,7 +63,7 @@ func TestChildLoadRejectsConflictingExtraction(t *testing.T) {
 				extractOrder:  70,
 				validateOrder: 10,
 				extract:       extractPortalPageChildren,
-				validate:      validatePortalChildRefs[PortalPageResource],
+				validate:      validateChildRefs[PortalPageResource],
 			}
 			tt.configure(&load)
 

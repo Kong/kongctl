@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -94,34 +93,13 @@ func (e EventGatewayDataPlaneCertificateResource) GetKonnectMonikerFilter() stri
 }
 
 func (e *EventGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konnectResource any) bool {
-	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
+	if e.Name == nil {
 		return false
 	}
-
-	nameField := v.FieldByName("Name")
-	idField := v.FieldByName("ID")
-
-	if nameField.IsValid() && idField.IsValid() &&
-		idField.Kind() == reflect.String {
-		// Name field is a *string, so need to handle pointer
-		if nameField.Kind() == reflect.Pointer && !nameField.IsNil() {
-			nameVal := nameField.Elem()
-			if nameVal.Kind() == reflect.String && e.Name != nil && nameVal.String() == *e.Name {
-				e.konnectID = idField.String()
-				return true
-			}
-		} else if nameField.Kind() == reflect.String {
-			if e.Name != nil && nameField.String() == *e.Name {
-				e.konnectID = idField.String()
-				return true
-			}
-		}
+	if id := tryMatchByField(konnectResource, "Name", *e.Name); id != "" {
+		e.konnectID = id
+		return true
 	}
-
 	return false
 }
 

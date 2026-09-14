@@ -18,10 +18,3 @@ func extractPortalSingleton[R any](
 		*source = nil
 	}
 }
-
-func validatePortalChildRefs[R any, RPtr interface {
-	*R
-	Resource
-}](rs *ResourceSet, children []R) error {
-	return validateChildRefs[R, RPtr](rs, children)
-}
