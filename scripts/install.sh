@@ -28,6 +28,7 @@ LOCK_DIR=""
 LOCK_ACQUIRED="0"
 LOCK_STALE_AFTER_SECS=600
 USE_COLOR="0"
+UNINSTALL="0"
 
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
   USE_COLOR="1"
@@ -63,17 +64,18 @@ trap 'cleanup; exit 143' HUP TERM
 
 usage() {
   cat <<'EOF'
-Install kongctl from GitHub Releases.
+Install kongctl from GitHub Releases, or remove a script installation.
 
 Usage:
   sh install.sh [flags]
 
 Flags:
+  --uninstall           Remove only kongctl; preserve user data (no prompt)
   --version VERSION      Install a specific release tag, such as v1.3.0
   --install-dir PATH    Install directory (default: $HOME/.local/bin)
   --os OS               Override OS detection: linux or darwin
   --arch ARCH           Override architecture detection: amd64 or arm64
-  --yes                 Accepted for compatibility; install does not prompt
+  --yes                 Accepted for compatibility; neither mode prompts
   --help                Show this help
 
 Environment:
@@ -85,6 +87,11 @@ Environment:
 
 The installer verifies checksums before extraction and does not use sudo or
 modify shell profile files.
+Uninstall uses --install-dir, then KONGCTL_INSTALL_DIR, then $HOME/.local/bin.
+It ignores --version, --os, --arch and all install-only environment settings,
+including version, platform, art, release URLs, and KONGCTL_ALLOW_FILE_URLS.
+Install-only flags still require values. A downloaded script uninstalls offline
+without running kongctl. Use brew uninstall kongctl for Homebrew installations.
 EOF
 }
 
@@ -278,6 +285,9 @@ require_arg() {
   if [ $# -lt 2 ] || [ -z "$2" ]; then
     die "$1 requires a value"
   fi
+  case "$2" in
+    --*) die "$1 requires a value" ;;
+  esac
 }
 
 parse_args() {
@@ -321,6 +331,10 @@ parse_args() {
       --arch=*)
         INSTALL_ARCH="${1#--arch=}"
         [ -n "$INSTALL_ARCH" ] || die "--arch requires a value"
+        shift
+        ;;
+      --uninstall)
+        UNINSTALL="1"
         shift
         ;;
       --yes)
@@ -482,10 +496,89 @@ prepare_install_dir() {
   LOCK_DIR="$INSTALL_DIR_ABS/.${PROGRAM}-install.lock.d"
 }
 
+# Resolve existing parents so inaccessible paths are not reported as absent.
+prepare_uninstall_dir() {
+  case "$INSTALL_DIR" in
+    /*) ;;
+    *) INSTALL_DIR="./$INSTALL_DIR" ;;
+  esac
+  probe="$INSTALL_DIR"
+  while [ ! -d "$probe" ]; do
+    if [ -e "$probe" ] || [ -L "$probe" ]; then
+      die "not an accessible install directory: $probe"
+    fi
+    parent="${probe%/*}"
+    [ -n "$parent" ] || parent="/"
+    [ "$parent" != "$probe" ] || die "could not resolve install directory: $INSTALL_DIR"
+    probe="$parent"
+  done
+  [ -x "$probe" ] || die "install directory is not searchable: $probe"
+  if [ ! -d "$INSTALL_DIR" ]; then
+    INSTALL_TARGET="${INSTALL_DIR%/}/$PROGRAM"
+    return
+  fi
+  INSTALL_DIR_ABS="$(cd "$INSTALL_DIR" && pwd -P)" ||
+    die "could not resolve install directory: $INSTALL_DIR"
+  INSTALL_TARGET="$INSTALL_DIR_ABS/$PROGRAM"
+  LOCK_DIR="$INSTALL_DIR_ABS/.${PROGRAM}-install.lock.d"
+}
+
+refuse_package_manager_target() {
+  # Keg paths and receipts also cover custom Homebrew prefixes.
+  case "$INSTALL_TARGET" in
+    */Cellar/kongctl/* | */Cellar/kongctl@*/*)
+      die "Homebrew installation: $INSTALL_TARGET; use brew uninstall kongctl"
+      ;;
+  esac
+  if [ -f "$INSTALL_DIR_ABS/../INSTALL_RECEIPT.json" ]; then
+    die "Homebrew installation: $INSTALL_TARGET; use brew uninstall kongctl"
+  fi
+  if command -v dpkg-query >/dev/null 2>&1 &&
+    dpkg-query -S "$INSTALL_TARGET" >/dev/null 2>&1; then
+    die "package-managed installation: $INSTALL_TARGET; remove it with apt or dpkg"
+  fi
+  if command -v rpm >/dev/null 2>&1 &&
+    rpm -qf "$INSTALL_TARGET" >/dev/null 2>&1; then
+    die "package-managed installation: $INSTALL_TARGET; remove it with your RPM package manager"
+  fi
+}
+
+uninstall_binary() {
+  prepare_uninstall_dir
+  if [ -n "$INSTALL_DIR_ABS" ]; then
+    acquire_install_lock
+    if [ -L "$INSTALL_TARGET" ]; then
+      die "refusing to remove symlink: $INSTALL_TARGET; for Homebrew use brew uninstall kongctl"
+    fi
+    if [ -d "$INSTALL_TARGET" ]; then
+      die "refusing to remove directory: $INSTALL_TARGET"
+    fi
+    if [ -e "$INSTALL_TARGET" ]; then
+      [ -f "$INSTALL_TARGET" ] || die "refusing to remove non-regular file: $INSTALL_TARGET"
+      refuse_package_manager_target
+      rm -f "$INSTALL_TARGET" || die "could not remove $INSTALL_TARGET; check file and directory permissions"
+      success "Removed $INSTALL_TARGET"
+    else
+      success "Already absent: $INSTALL_TARGET"
+    fi
+    release_install_lock
+  else
+    success "Already absent: $INSTALL_TARGET"
+  fi
+  log "User data, configuration, credentials, extensions, and shell profiles were preserved."
+  remaining="$(command -v "$PROGRAM" 2>/dev/null || true)"
+  if [ -n "$remaining" ]; then
+    warn "another $PROGRAM remains installed on PATH: $remaining"
+  fi
+}
+
 lock_is_stale() {
   [ -d "$LOCK_DIR" ] || return 1
 
   pid="$(cat "$LOCK_DIR/pid" 2>/dev/null || true)"
+  case "$pid" in
+    "" | *[!0-9]* | 0) pid="" ;;
+  esac
   started_at="$(cat "$LOCK_DIR/started_at" 2>/dev/null || true)"
   now="$(date +%s 2>/dev/null || printf '%s' 0)"
 
@@ -514,7 +607,10 @@ acquire_install_lock() {
       continue
     fi
 
-    die "another $PROGRAM install is already running for $INSTALL_DIR_ABS"
+    if [ ! -d "$LOCK_DIR" ]; then
+      die "could not acquire installer lock at $LOCK_DIR; check directory permissions"
+    fi
+    die "another $PROGRAM install or uninstall is already running for $INSTALL_DIR_ABS"
   done
 
   LOCK_ACQUIRED="1"
@@ -974,8 +1070,12 @@ print_completion() {
 
 main() {
   parse_args "$@"
-  normalize_version
   set_default_install_dir
+  if [ "$UNINSTALL" = "1" ]; then
+    uninstall_binary
+    return
+  fi
+  normalize_version
 
   os="$(detect_os)"
   arch="$(detect_arch)"

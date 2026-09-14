@@ -72,6 +72,47 @@ sh kongctl-install.sh --version v1.3.0 --install-dir "$HOME/bin"
 Windows is not supported by the shell installer. Download Windows binaries from
 the [release page](https://github.com/kong/kongctl/releases).
 
+#### Uninstall a script installation
+
+Remove a stable or preview installation without prompting:
+
+```shell
+curl -fsSL https://get.konghq.com/kongctl | sh -s -- --uninstall
+
+# Use the same custom directory selected during installation:
+curl -fsSL https://get.konghq.com/kongctl |
+  sh -s -- --uninstall --install-dir "$HOME/bin"
+
+# A downloaded script also works offline:
+sh kongctl-install.sh --uninstall
+```
+
+The target directory is selected by `--install-dir`, then `KONGCTL_INSTALL_DIR`,
+then `$HOME/.local/bin`. Only `kongctl` in that directory is removed; a missing
+binary or directory is reported as already absent. Install-only options and
+environment settings (version, platform, art, and release URLs) are ignored.
+Flags that take values still require them; `--yes` remains accepted.
+
+To remove a script installation manually, including with an older installer
+that lacks `--uninstall`, run:
+
+```shell
+rm "$HOME/.local/bin/kongctl"
+# For a custom installation, remove only kongctl from its install directory.
+```
+
+Uninstall preserves configuration, credentials, logs, extensions, shell
+profiles, neighboring files, and the installation directory. Configuration
+usually lives in `${XDG_CONFIG_HOME:-$HOME/.config}/kongctl`; removing user data
+or manually added shell setup is a separate decision, especially if another
+copy of kongctl is in use.
+
+Use `command -v kongctl` or `type -a kongctl` to inspect PATH resolution. Do not
+blindly delete their output: it can refer to another installation. Uninstall
+does not choose its target from PATH, refuses symlinks and directories, and
+reports another copy that resolves on PATH afterward. For Homebrew-managed
+installations, use `brew uninstall kongctl`.
+
 ### Homebrew
 
 Install kongctl on macOS or Linux with Homebrew:
