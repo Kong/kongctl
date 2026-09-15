@@ -67,7 +67,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser
-          version: v2.13.3
+          version: v2.18.0
           args: release --snapshot --clean --parallelism=1 --timeout=55m --config .goreleaser.apple-validation.yml
         env:
           APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
