@@ -27,6 +27,7 @@ func TestReviewedSecretCatalog(t *testing.T) {
 		{resources.ResourceTypeAIGatewayAuthStrategy, "/config/client_secret/0", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/api_key", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/token", true},
+		{resources.ResourceTypeAIGatewayVault, "/config/key", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/client_secret", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/secret_access_key", true},
 		{resources.ResourceTypeAIGatewayVault, "/config/secret_id", true},
@@ -46,8 +47,6 @@ func TestReviewedSecretCatalog(t *testing.T) {
 	_, ok = Match(resources.ResourceTypeAIGatewayProvider, "/config/auth/headers/0/name")
 	require.False(t, ok)
 	_, ok = Match(resources.ResourceTypeAIGatewayProvider, "/config/foundry/headers/0/value")
-	require.False(t, ok)
-	_, ok = Match(resources.ResourceTypeAIGatewayVault, "/config/key")
 	require.False(t, ok)
 	_, ok = Match(resources.ResourceTypeAIGatewayVault, "/config/auth/token")
 	require.False(t, ok)

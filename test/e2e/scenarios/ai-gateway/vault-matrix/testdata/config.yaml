@@ -1,0 +1,275 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-vault-matrix-e2e
+ai_gateways:
+  - ref: vault-matrix-gateway
+    name: vault-matrix-gateway
+    display_name: AI Gateway Vault Matrix E2E
+    config_stores:
+      - ref: matrix-store
+        name: matrix-store
+        display_name: Matrix-Store
+ai_gateway_vaults:
+  - ref: matrix-konnect
+    ai_gateway: vault-matrix-gateway
+    name: matrix-konnect
+    type: konnect
+    description: Vault matrix create
+    config:
+      config_store_id: !ref matrix-store#id
+  - ref: matrix-env
+    ai_gateway: vault-matrix-gateway
+    name: matrix-env
+    type: env
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      prefix: example-prefix
+  - ref: matrix-aws
+    ai_gateway: vault-matrix-gateway
+    name: matrix-aws
+    type: aws
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      assume_role_arn: arn:aws:iam::123456789012:role/example-role
+      endpoint_url: https://secrets.example.net
+      region: us-east-1
+      role_session_name: custom-session
+      sts_endpoint_url: https://sts.example.net
+  - ref: matrix-gcp
+    ai_gateway: vault-matrix-gateway
+    name: matrix-gcp
+    type: gcp
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      project_id: example-project-id
+  - ref: matrix-azure
+    ai_gateway: vault-matrix-gateway
+    name: matrix-azure
+    type: azure
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      credentials_prefix: example-credentials-prefix
+      vault_uri: https://example.vault.azure.net
+      location: eastus
+      client_id: example-client-id
+      tenant_id: example-tenant-id
+      type: secrets
+  - ref: matrix-conjur
+    ai_gateway: vault-matrix-gateway
+    name: matrix-conjur
+    type: conjur
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      account: example-account
+      api_key: !secret {source: !env KONGCTL_E2E_VAULT_SECRET}
+      endpoint_url: https://secrets.example.net
+      login: example-login
+  - ref: matrix-hcv-token
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-token
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: token
+      token: !secret {source: !env KONGCTL_E2E_VAULT_SECRET}
+  - ref: matrix-hcv-cert
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-cert
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: cert
+      cert: !file certs/runtime.pem
+      key: !secret {source: !file certs/runtime.key}
+      role_name: example-role-name
+  - ref: matrix-hcv-jwt
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-jwt
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: jwt
+      role: example-role
+      token_endpoint: https://idp.example.net/token
+      client_id: example-client-id
+      client_secret: !secret {source: !env KONGCTL_E2E_VAULT_SECRET}
+      audiences: example-audiences
+  - ref: matrix-hcv-kubernetes
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-kubernetes
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: kubernetes
+      role: example-role
+      path: example-path
+      api_token_file: example-api-token-file
+  - ref: matrix-hcv-gcp-iam
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-gcp-iam
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: gcp_iam
+      role: example-role
+      service_account: vault@example.iam.gserviceaccount.com
+      jwt_exp: 600
+  - ref: matrix-hcv-gcp-gce
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-gcp-gce
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: gcp_gce
+      role: example-role
+      login_path: example-login-path
+  - ref: matrix-hcv-aws-ec2
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-aws-ec2
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: aws_ec2
+      role: example-role
+      nonce: example-nonce
+      login_path: example-login-path
+  - ref: matrix-hcv-aws-iam
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-aws-iam
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: aws_iam
+      role: example-role
+      region: us-east-1
+      login_path: example-login-path
+      access_key_id: example-access-key-id
+      secret_access_key: !secret {source: !env KONGCTL_E2E_VAULT_SECRET}
+      sts_endpoint_url: https://sts.example.net
+      assume_role_arn: arn:aws:iam::123456789012:role/example-role
+      role_session_name: custom-session
+  - ref: matrix-hcv-azure
+    ai_gateway: vault-matrix-gateway
+    name: matrix-hcv-azure
+    type: hcv
+    description: Vault matrix create
+    config:
+      base64_decode: true
+      neg_ttl: 120
+      resurrect_ttl: 120
+      ttl: 120
+      host: vault.example.net
+      port: 8200
+      mount: example-mount
+      kv: v2
+      protocol: https
+      ssl_verify: true
+      namespace: example-namespace
+      auth_method: azure
+      role: example-role
+      login_path: example-login-path

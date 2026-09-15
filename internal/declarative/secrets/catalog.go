@@ -29,6 +29,7 @@ var capabilities = []Capability{
 	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/client_secret", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/api_key", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/token", true, true},
+	{resources.ResourceTypeAIGatewayVault, "/config/key", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/client_secret", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/secret_access_key", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/secret_id", true, true},

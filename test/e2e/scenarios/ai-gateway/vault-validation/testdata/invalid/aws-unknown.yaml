@@ -1,0 +1,12 @@
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+ai_gateway_vaults:
+  - ref: vault
+    ai_gateway: gateway
+    name: vault
+    type: aws
+    config:
+      region: us-east-1
+      assume_role_arrn: arn:aws:iam::123456789012:role/example-role

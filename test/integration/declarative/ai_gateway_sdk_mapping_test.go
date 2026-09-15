@@ -3,6 +3,7 @@
 package declarative_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -19,11 +20,34 @@ func TestAIGatewayScenarioCreatePayloadsSurviveSDKMapping(t *testing.T) {
 
 	for _, path := range aiGatewayScenarioConfigPaths(t) {
 		t.Run(filepath.Base(filepath.Dir(filepath.Dir(path)))+"/"+filepath.Base(path), func(t *testing.T) {
-			resourceSet, err := loader.New().LoadFile(path)
+			resourceSet, err := loader.New().LoadFile(prepareAIGatewayScenarioConfig(t, path))
 			require.NoError(t, err)
 			mapAIGatewayScenarioCreatePayloads(t, resourceSet)
 		})
 	}
+}
+
+func prepareAIGatewayScenarioConfig(t *testing.T, path string) string {
+	t.Helper()
+	if filepath.Base(filepath.Dir(filepath.Dir(path))) != "vault-matrix" {
+		return path
+	}
+	// The live scenario generates its certificate before planning. Reuse the
+	// existing public test certificate for offline schema and SDK mapping checks.
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	cert, err := os.ReadFile(filepath.Join(
+		filepath.Dir(path), "..", "..", "runtime-tls", "testdata", "certs", "runtime.pem",
+	))
+	require.NoError(t, err)
+	dir := t.TempDir()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "certs"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "certs", "runtime.pem"), cert, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "certs", "runtime.key"), []byte("fake-private-key"), 0o600))
+	t.Setenv("KONGCTL_E2E_VAULT_SECRET", "fake-vault-secret")
+	output := filepath.Join(dir, "config.yaml")
+	require.NoError(t, os.WriteFile(output, data, 0o600))
+	return output
 }
 
 func aiGatewayScenarioConfigPaths(t *testing.T) []string {

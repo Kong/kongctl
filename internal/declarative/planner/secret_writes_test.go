@@ -178,6 +178,16 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			}, "hcv"),
 		},
 		{
+			name: "HashiCorp vault certificate key", resourceType: resources.ResourceTypeAIGatewayVault,
+			resourceRef: "vault", field: "/config/key", selector: "config.key",
+			resourceSet: vault(func(secret string) map[string]any {
+				return map[string]any{
+					"auth_method": "cert", "host": "vault.example.test", "port": 8200,
+					"cert": "public-certificate", "key": secret,
+				}
+			}, "hcv"),
+		},
+		{
 			name: "HashiCorp vault OAuth client secret", resourceType: resources.ResourceTypeAIGatewayVault,
 			resourceRef: "vault", field: "/config/client_secret", selector: "config.client_secret",
 			resourceSet: vault(func(secret string) map[string]any {

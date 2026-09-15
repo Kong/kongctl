@@ -18,7 +18,7 @@ func TestAIGatewayScenarioResourcesConformToExplainSchemas(t *testing.T) {
 
 	for _, path := range aiGatewayScenarioConfigPaths(t) {
 		t.Run(filepath.Base(filepath.Dir(filepath.Dir(path)))+"/"+filepath.Base(path), func(t *testing.T) {
-			resourceSet, err := loader.New().LoadFile(path)
+			resourceSet, err := loader.New().LoadFile(prepareAIGatewayScenarioConfig(t, path))
 			require.NoError(t, err)
 			validateAIGatewayScenarioExplainSchemas(t, resourceSet)
 		})
