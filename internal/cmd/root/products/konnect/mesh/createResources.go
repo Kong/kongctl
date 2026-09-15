@@ -37,6 +37,9 @@ type meshResource struct {
 type applyResult struct {
 	Resource meshResource
 	Created  bool
+	// Warnings are the notices the control plane returned for a write it
+	// accepted, such as a deprecated field.
+	Warnings []string
 	Err      error
 }
 
@@ -75,11 +78,20 @@ func runCreateResources(helper cmd.Helper, filenames []string) error {
 	results := make([]applyResult, 0, len(resources))
 	var failed bool
 	for _, resource := range resources {
-		created, err := applyResource(helper, descriptors, resource)
+		created, warnings, err := applyResource(helper, descriptors, resource)
 		if err != nil {
 			failed = true
 		}
-		results = append(results, applyResult{Resource: resource, Created: created, Err: err})
+		// Reported as each document is applied, before the summary, so the
+		// notice is attached to the write that caused it and reaches stderr
+		// even when the summary is machine-readable.
+		reportApplyWarnings(helper, resource, warnings)
+		results = append(results, applyResult{
+			Resource: resource,
+			Created:  created,
+			Warnings: warnings,
+			Err:      err,
+		})
 	}
 
 	if err := reportApplyResults(helper, results); err != nil {
@@ -98,16 +110,18 @@ var errApplyFailed = errors.New("see the reported resources above")
 
 // applyResource sends one document, reporting whether the control plane created
 // it rather than replaced an existing one.
-func applyResource(helper cmd.Helper, descriptors []ResourceDescriptor, resource meshResource) (bool, error) {
+func applyResource(
+	helper cmd.Helper, descriptors []ResourceDescriptor, resource meshResource,
+) (bool, []string, error) {
 	descriptor, err := ResolveType(descriptors, resource.Type)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 
 	// The control plane also refuses a write to a read-only type with a 405,
 	// but saying so before sending names the type rather than the status.
 	if descriptor.ReadOnly {
-		return false, fmt.Errorf(
+		return false, nil, fmt.Errorf(
 			"%s is read only on this control plane and cannot be created or updated", descriptor.Singular())
 	}
 
@@ -116,11 +130,29 @@ func applyResource(helper cmd.Helper, descriptors []ResourceDescriptor, resource
 		mesh = ""
 	}
 
-	status, err := sendForStatus(helper, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body)
+	status, warnings, err := sendForWrite(
+		helper, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
-	return status == http.StatusCreated, nil
+	return status == http.StatusCreated, warnings, nil
+}
+
+// reportApplyWarnings writes the control plane's notices for one document to
+// stderr, naming the resource because a single command can apply many.
+func reportApplyWarnings(helper cmd.Helper, resource meshResource, warnings []string) {
+	if len(warnings) == 0 {
+		return
+	}
+
+	streams := helper.GetStreams()
+	if streams == nil || streams.ErrOut == nil {
+		return
+	}
+
+	for _, warning := range warnings {
+		fmt.Fprintf(streams.ErrOut, "warning: %s %s: %s\n", resource.Type, resource.Name, warning)
+	}
 }
 
 // readResources collects every document from the given sources.
@@ -302,6 +334,10 @@ type applyRow struct {
 	Name   string `json:"name" table:"NAME"`
 	Mesh   string `json:"mesh" table:"MESH"`
 	Result string `json:"result" table:"RESULT"`
+	// Warnings is omitted when empty so that the common case renders
+	// unchanged, and carried otherwise so machine-readable output does not
+	// lose what stderr reported.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // reportApplyResults renders what happened to each document. Every document is
@@ -323,10 +359,11 @@ func reportApplyResults(helper cmd.Helper, results []applyResult) error {
 	tableRows := make([]table.Row, 0, len(results))
 	for _, result := range results {
 		row := applyRow{
-			Type:   result.Resource.Type,
-			Name:   result.Resource.Name,
-			Mesh:   result.Resource.Mesh,
-			Result: describeApplyOutcome(result),
+			Type:     result.Resource.Type,
+			Name:     result.Resource.Name,
+			Mesh:     result.Resource.Mesh,
+			Result:   describeApplyOutcome(result),
+			Warnings: result.Warnings,
 		}
 		rows = append(rows, row)
 		tableRows = append(tableRows, table.Row{row.Type, row.Name, row.Mesh, row.Result})
