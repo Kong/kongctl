@@ -74,6 +74,50 @@ func sendForStatus(helper cmd.Helper, method, path string, body []byte) (int, er
 	return status, err
 }
 
+// sendForWrite performs a write and returns the response status together with
+// any warnings the control plane reported.
+//
+// A successful create or update is answered with {"warnings":[...]} carrying
+// deprecation notices for the resource that was just written. They are the only
+// place the control plane reports a resource it accepted but wants changed, so
+// they are read here rather than discarded with the rest of the body.
+func sendForWrite(helper cmd.Helper, method, path string, body []byte) (int, []string, error) {
+	respBody, status, err := send(helper, method, path, body)
+	if err != nil {
+		return status, nil, err
+	}
+	return status, parseWarnings(respBody), nil
+}
+
+// parseWarnings reads the warnings from a successful write response.
+//
+// The warnings are advisory, so a body that is empty, is not JSON, or carries
+// no warnings yields none rather than an error: failing a write that the
+// control plane accepted would be worse than losing the notice.
+func parseWarnings(body []byte) []string {
+	if len(body) == 0 {
+		return nil
+	}
+
+	var payload struct {
+		Warnings []string `json:"warnings"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil
+	}
+
+	warnings := make([]string, 0, len(payload.Warnings))
+	for _, warning := range payload.Warnings {
+		if trimmed := strings.TrimSpace(warning); trimmed != "" {
+			warnings = append(warnings, trimmed)
+		}
+	}
+	if len(warnings) == 0 {
+		return nil
+	}
+	return warnings
+}
+
 // send performs a request against the selected control plane and returns the
 // response body.
 //
