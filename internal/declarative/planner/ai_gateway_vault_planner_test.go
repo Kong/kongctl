@@ -4,14 +4,91 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"maps"
+	"os"
+	"path/filepath"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	testdecl "github.com/kong/kongctl/test/declarative"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAIGatewayVaultPlansPreserveAPIConfigurations(t *testing.T) {
+	for _, tc := range testdecl.VaultCases(t) {
+		t.Run(tc.Name, func(t *testing.T) {
+			vault := map[string]any{
+				"ref": tc.Name, "ai_gateway": "support-gateway",
+				FieldName: tc.Name, FieldType: tc.Type, FieldConfig: tc.Config,
+			}
+			data, err := json.Marshal(map[string]any{
+				"ai_gateways": []any{map[string]any{
+					"ref": "support-gateway", "name": "support-gateway", "display_name": "Support Gateway",
+				}},
+				"ai_gateway_vaults": []any{vault},
+			})
+			require.NoError(t, err)
+			path := filepath.Join(t.TempDir(), "vault.yaml")
+			require.NoError(t, os.WriteFile(path, data, 0o600))
+			rs, err := loader.New().LoadFile(path)
+			require.NoError(t, err)
+			api := &testAIGatewayVaultAPI{}
+			client := state.NewClient(state.ClientConfig{
+				AIGatewayAPI:       &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+				AIGatewayVaultsAPI: api,
+			})
+			for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+				api.vaults = nil
+				plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.NoError(t, err)
+				require.Len(t, plan.Changes, 1)
+				require.Equal(t, ActionCreate, plan.Changes[0].Action)
+				require.Equal(t, tc.Config, plan.Changes[0].Fields[FieldConfig])
+				data, err := json.Marshal(plan)
+				require.NoError(t, err)
+				var saved Plan
+				require.NoError(t, json.Unmarshal(data, &saved))
+				require.Equal(t, tc.Config, saved.Changes[0].Fields[FieldConfig])
+
+				current := maps.Clone(vault)
+				current[FieldID] = "vault-id"
+				current["created_at"] = "2026-01-01T00:00:00Z"
+				current["updated_at"] = "2026-01-01T00:00:00Z"
+				data, err = json.Marshal(current)
+				require.NoError(t, err)
+				var response kkComps.AIGatewayVault
+				require.NoError(t, json.Unmarshal(data, &response))
+				api.vaults = []kkComps.AIGatewayVault{response}
+				plan, err = NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.NoError(t, err)
+				require.Empty(t, plan.Changes, "unchanged config must not drift")
+
+				// Change an observable config field in each variant.
+				config := maps.Clone(tc.Config)
+				if tc.Type == "konnect" {
+					config["config_store_id"] = "67426bee-2bca-4005-81af-284868fd3038"
+				} else {
+					config["base64_decode"] = false
+				}
+				current[FieldConfig] = config
+				data, err = json.Marshal(current)
+				require.NoError(t, err)
+				require.NoError(t, json.Unmarshal(data, &response))
+				api.vaults = []kkComps.AIGatewayVault{response}
+				plan, err = NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.NoError(t, err)
+				require.Len(t, plan.Changes, 1)
+				require.Equal(t, ActionUpdate, plan.Changes[0].Action)
+				require.Equal(t, tc.Config, plan.Changes[0].Fields[FieldConfig])
+				require.Contains(t, plan.Changes[0].ChangedFields, FieldConfig)
+			}
+		})
+	}
+}
 
 func TestAIGatewayVaultPlannerCreatesChildForExistingGateway(t *testing.T) {
 	vault := testAIGatewayVaultResource(t)

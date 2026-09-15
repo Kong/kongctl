@@ -1,0 +1,342 @@
+test:
+  requiresPAT: false
+baseInputsPath: testdata
+steps:
+  - name: 000-discovery
+    skipInputs: true
+    commands:
+      - name: explain-variants
+        run:
+          - explain
+          - ai_gateway_vault
+          - -o
+          - json
+        assertions:
+          - select: length(oneOf)
+            expect:
+              fields:
+                '@': 7
+          - select: oneOf[?properties.type.const=='aws'] | [0].properties.config
+            expect:
+              fields:
+                properties.assume_role_arn.type: string
+                properties.role_session_name.default: KongVault
+                properties.endpoint_url.type: string
+                properties.sts_endpoint_url.type: string
+          - select: oneOf[?properties.type.const=='azure'] | [0].properties.config
+            expect:
+              fields:
+                contains(required, 'location'): true
+                properties.type.default: secrets
+          - select: length(oneOf[?properties.type.const=='hcv'] | [0].properties.config.oneOf)
+            expect:
+              fields:
+                '@': 10
+      - name: scaffold-variants
+        run:
+          - scaffold
+          - ai_gateway_vault
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                contains(@, 'assume_role_arn:'): true
+                contains(@, 'location:'): true
+                contains(@, 'auth_method=cert'): true
+                'contains(@, ''!secret {source: !env VAULT_KEY}'')': true
+  - name: aws-unknown
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/aws-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arrn'
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/aws-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arrn'
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/aws-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arrn'
+  - name: gcp-wrong-branch
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/gcp-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arn'
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/gcp-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arn'
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/gcp-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'assume_role_arn'
+  - name: azure-missing-location
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/azure-missing-location.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: 'missing required fields: location'
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/azure-missing-location.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'missing required fields: location'
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/azure-missing-location.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: 'missing required fields: location'
+  - name: conjur-unknown
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/conjur-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'unknown_field'
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/conjur-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'unknown_field'
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/conjur-unknown.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'unknown_field'
+  - name: hcv-wrong-branch
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/hcv-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'nonce'
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/hcv-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'nonce'
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/hcv-wrong-branch.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: unknown field 'nonce'
+  - name: hcv-unknown-method
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/hcv-unknown-method.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: auth_method
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/hcv-unknown-method.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: auth_method
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/hcv-unknown-method.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: auth_method
+  - name: hcv-literal-key
+    commands:
+      - name: diff-rejects-invalid-config
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/invalid/hcv-literal-key.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: requires !secret with a deferred source
+      - name: apply-rejects-invalid-config
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/invalid/hcv-literal-key.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: requires !secret with a deferred source
+      - name: sync-rejects-invalid-config
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/invalid/hcv-literal-key.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: requires !secret with a deferred source
+  - name: approle-supported-fields
+    commands:
+      - name: diff-loads-approle-before-namespace-check
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/approle-supported.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --require-namespace
+          - intentionally-different
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: namespace enforcement failed
+      - name: apply-loads-approle-before-namespace-check
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/approle-supported.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --require-namespace
+          - intentionally-different
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: namespace enforcement failed
+      - name: sync-loads-approle-before-namespace-check
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/approle-supported.yaml'
+          - --pat
+          - local-vault-validation-token
+          - --require-namespace
+          - intentionally-different
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: namespace enforcement failed

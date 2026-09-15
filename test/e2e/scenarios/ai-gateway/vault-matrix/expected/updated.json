@@ -1,0 +1,257 @@
+[
+  {
+    "name": "matrix-aws",
+    "type": "aws",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "assume_role_arn": "arn:aws:iam::123456789012:role/updated-role",
+      "endpoint_url": "https://updated-secrets.example.net",
+      "region": "us-east-1",
+      "role_session_name": "updated-session",
+      "sts_endpoint_url": "https://updated-sts.example.net"
+    }
+  },
+  {
+    "name": "matrix-azure",
+    "type": "azure",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "credentials_prefix": "example-credentials-prefix",
+      "vault_uri": "https://example.vault.azure.net",
+      "location": "eastus",
+      "client_id": "example-client-id",
+      "tenant_id": "example-tenant-id",
+      "type": "secrets"
+    }
+  },
+  {
+    "name": "matrix-conjur",
+    "type": "conjur",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "account": "example-account",
+      "endpoint_url": "https://secrets.example.net",
+      "login": "example-login"
+    }
+  },
+  {
+    "name": "matrix-env",
+    "type": "env",
+    "config": {
+      "base64_decode": false,
+      "prefix": "example-prefix"
+    }
+  },
+  {
+    "name": "matrix-gcp",
+    "type": "gcp",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "project_id": "example-project-id"
+    }
+  },
+  {
+    "name": "matrix-hcv-aws-ec2",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "aws_ec2",
+      "role": "example-role",
+      "nonce": "example-nonce",
+      "login_path": "example-login-path"
+    }
+  },
+  {
+    "name": "matrix-hcv-aws-iam",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "aws_iam",
+      "role": "example-role",
+      "region": "us-east-1",
+      "login_path": "example-login-path",
+      "access_key_id": "example-access-key-id",
+      "sts_endpoint_url": "https://sts.example.net",
+      "assume_role_arn": "arn:aws:iam::123456789012:role/example-role",
+      "role_session_name": "custom-session"
+    }
+  },
+  {
+    "name": "matrix-hcv-azure",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "azure",
+      "role": "example-role",
+      "login_path": "example-login-path"
+    }
+  },
+  {
+    "name": "matrix-hcv-cert",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "cert",
+      "role_name": "example-role-name"
+    }
+  },
+  {
+    "name": "matrix-hcv-gcp-gce",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "gcp_gce",
+      "role": "example-role",
+      "login_path": "example-login-path"
+    }
+  },
+  {
+    "name": "matrix-hcv-gcp-iam",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "gcp_iam",
+      "role": "example-role",
+      "service_account": "vault@example.iam.gserviceaccount.com",
+      "jwt_exp": 600
+    }
+  },
+  {
+    "name": "matrix-hcv-jwt",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "jwt",
+      "role": "example-role",
+      "token_endpoint": "https://idp.example.net/token",
+      "client_id": "example-client-id",
+      "audiences": "example-audiences"
+    }
+  },
+  {
+    "name": "matrix-hcv-kubernetes",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "kubernetes",
+      "role": "example-role",
+      "path": "example-path",
+      "api_token_file": "example-api-token-file"
+    }
+  },
+  {
+    "name": "matrix-hcv-token",
+    "type": "hcv",
+    "config": {
+      "base64_decode": false,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 300,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "token"
+    }
+  },
+  {
+    "name": "matrix-konnect",
+    "type": "konnect",
+    "config": {}
+  }
+]

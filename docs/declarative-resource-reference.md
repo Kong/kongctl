@@ -1006,6 +1006,96 @@ ai_gateway_vaults:
      key: value
 ```
 
+Vault config fields follow the SDK request types for all seven variants.
+Use `kongctl explain ai_gateway_vault --output text --extended` to inspect
+their fields and `kongctl scaffold ai_gateway_vault` for examples of each
+branch. The same configuration works with declarative `diff`, `apply`, and
+`sync`.
+
+- `konnect`: requires `config_store_id`; supports Config Store references.
+- `env`: supports optional `prefix` and `base64_decode`.
+- `aws`: supports `region`, `assume_role_arn`, `endpoint_url`,
+  `role_session_name`, and `sts_endpoint_url`.
+- `gcp`: requires `project_id`.
+- `azure`: requires `vault_uri` and `location`; also supports
+  `credentials_prefix`, `client_id`, `tenant_id`, and config `type`.
+- `conjur`: requires `account`, `endpoint_url`, and `login`; supports
+  write-only `api_key`.
+- `hcv`: requires `host`, `port`, and `auth_method`, with additional fields
+  depending on the authentication method. Supported methods are `token`,
+  `cert`, `jwt`, `approle`, `kubernetes`, `gcp_iam`, `gcp_gce`, `aws_ec2`,
+  `aws_iam`, and `azure`.
+
+As of September 15, 2026, the live API rejects the documented HashiCorp
+AppRole `role_id` and `secret_id_file` fields, requesting different field
+names absent from the SDK/specification. kongctl accepts the documented
+fields; live AppRole creation remains blocked by that API discrepancy.
+
+AWS, GCP, Azure, Conjur, and HashiCorp also support `base64_decode`,
+`neg_ttl`, `resurrect_ttl`, and `ttl`. TTL values are seconds; the API range
+is 0 through 4294967295. For a nonzero `ttl`, use at least 60 seconds.
+The SDK supplies documented literal defaults, including AWS
+`role_session_name: KongVault` and Azure config `type: secrets`. Specify
+these fields to override their defaults where the API permits it.
+
+For example, an AWS vault using role assumption:
+
+```yaml
+ai_gateway_vaults:
+  - ref: aws-secrets
+    ai_gateway: support-gateway
+    type: aws
+    name: aws-secrets
+    config:
+      region: us-east-1
+      assume_role_arn: arn:aws:iam::123456789012:role/example-role
+      role_session_name: kongctl-vault
+      ttl: 300
+```
+
+An Azure vault must include its location:
+
+```yaml
+ai_gateway_vaults:
+  - ref: azure-secrets
+    ai_gateway: support-gateway
+    type: azure
+    name: azure-secrets
+    config:
+      vault_uri: https://example.vault.azure.net
+      location: eastus
+      type: secrets
+```
+
+HashiCorp config is selected by `auth_method`. For token authentication:
+
+```yaml
+ai_gateway_vaults:
+  - ref: hashicorp-secrets
+    ai_gateway: support-gateway
+    type: hcv
+    name: hashicorp-secrets
+    config:
+      host: vault.example.net
+      port: 8200
+      auth_method: token
+      token: !secret {source: !env HASHICORP_TOKEN}
+```
+
+Use deferred `!secret` sources for vault credentials: Conjur `api_key`,
+HashiCorp `token`, certificate `key`, `client_secret`, `secret_access_key`,
+and `secret_id`. Public vault references remain supported. Secret values
+are omitted from saved plans, diagnostics, and dumps; supply their sources
+when applying a dumped configuration that needs credentials.
+
+Unknown config fields and fields belonging to a different vault or
+HashiCorp authentication branch are rejected before SDK decoding. This
+also applies to Conjur and HashiCorp configs, whose schemas previously
+allowed unrecognized keys. API value constraints remain authoritative;
+see the [vault API specification][ai-vault-api].
+
+[ai-vault-api]: https://developer.konghq.com/api/konnect/ai-gateway/v1/#/operations/create-ai-gateway-vault
+
 AI Gateway Data Plane Certificates can also be declared as root resources.
 Include `ai_gateway` to point at the parent gateway `ref`. There is no update
 endpoint for this resource; changing `cert` or `description` for the same

@@ -1,0 +1,241 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_E2E_VAULT_SECRET: kongctl-vault-matrix-secret
+defaults:
+  mask:
+    dropKeys:
+      - api_key
+      - token
+      - key
+      - client_secret
+      - secret_access_key
+      - secret_id
+      - cert
+      - config_store_id
+steps:
+  - name: 000-check-isolation
+    skipInputs: true
+    commands:
+      - name: no-existing-test-gateway
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: length([?name=='vault-matrix-gateway'])
+            expect:
+              fields:
+                '@': 0
+  - name: 001-create
+    commands:
+      - name: plan-create
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/create-plan-observed.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 17
+                by_action.CREATE: 17
+          - select: 'sort_by(changes[?resource_type==''ai_gateway_vault''].fields, &name)[].{name: name, type: type, config: config}'
+            expect:
+              file: expected/created.json
+          - select: length(changes[?resource_ref=='matrix-hcv-cert'] | [0].secret_writes[?field=='/config/key'])
+            expect:
+              fields:
+                '@': 1
+        exec:
+          - python3
+          - '{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py'
+          - '{{ .workdir }}'
+          - '{{ .bin }}'
+          - --profile
+          - e2e
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+          - --output-file
+          - '{{ .workdir }}/create-plan.json'
+      - name: apply-saved-plan
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/create-plan.json'
+          - --auto-approve
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 17
+                failed: 0
+                status: success
+      - name: verify-created
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - AI Gateway Vault Matrix E2E
+          - -o
+          - json
+        assertions:
+          - select: 'sort_by(@, &name)[].{name: name, type: type, config: config}'
+            expect:
+              file: expected/created.json
+          - select: length([?type=='konnect'] | [0].config.config_store_id)
+            expect:
+              fields:
+                '@': 36
+      - name: diff-no-changes
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                contains(@, 'No changes detected. Konnect is up to date.'): true
+  - name: 002-update
+    inputOverlayDirs:
+      - overlays/update
+    commands:
+      - name: plan-sync-update
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/update-plan-observed.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 15
+                by_action.UPDATE: 15
+          - select: 'sort_by(changes[?resource_type==''ai_gateway_vault''].fields, &name)[].{name: name, type: type, config: config}'
+            expect:
+              file: expected/updated.json
+          - select: length(changes[?resource_ref=='matrix-hcv-cert'] | [0].secret_writes[?field=='/config/key'])
+            expect:
+              fields:
+                '@': 1
+        exec:
+          - python3
+          - '{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py'
+          - '{{ .workdir }}'
+          - '{{ .bin }}'
+          - --profile
+          - e2e
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+          - --write-secret
+          - matrix-hcv-cert#config.key
+          - --output-file
+          - '{{ .workdir }}/update-plan.json'
+      - name: sync-saved-plan
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/update-plan.json'
+          - --auto-approve
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 15
+                failed: 0
+                status: success
+      - name: verify-updated
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - AI Gateway Vault Matrix E2E
+          - -o
+          - json
+        assertions:
+          - select: 'sort_by(@, &name)[].{name: name, type: type, config: config}'
+            expect:
+              file: expected/updated.json
+      - name: diff-no-changes
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                contains(@, 'No changes detected. Konnect is up to date.'): true
+  - name: 003-dump
+    skipInputs: true
+    commands:
+      - name: dump-vaults
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateways
+          - --include-child-resources
+          - --filter-name=vault-matrix-gateway
+          - --default-namespace=ai-gateway-vault-matrix-e2e
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: 'sort_by(ai_gateways[?name==''vault-matrix-gateway''] | [0].vaults, &name)[].{name: name, type: type, config: config}'
+            expect:
+              file: expected/updated.json
+      - name: plan-dump
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 004-cleanup
+    commands:
+      - name: delete-test-gateway
+        run:
+          - sync
+          - -f
+          - '{{ .scenario_dir }}/overlays/cleanup/config.yaml'
+          - --auto-approve
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify-cleanup
+        run:
+          - get
+          - ai-gateways
+          - -o
+          - json
+        assertions:
+          - select: length([?name=='vault-matrix-gateway'])
+            expect:
+              fields:
+                '@': 0
+    skipInputs: true

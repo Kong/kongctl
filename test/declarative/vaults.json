@@ -1,0 +1,288 @@
+[
+  {
+    "name": "konnect",
+    "type": "konnect",
+    "config": {
+      "config_store_id": "77426bee-2bca-4005-81af-284868fd3038"
+    }
+  },
+  {
+    "name": "env",
+    "type": "env",
+    "config": {
+      "base64_decode": true,
+      "prefix": "example-prefix"
+    }
+  },
+  {
+    "name": "aws",
+    "type": "aws",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "assume_role_arn": "arn:aws:iam::123456789012:role/example-role",
+      "endpoint_url": "https://secrets.example.net",
+      "region": "us-east-1",
+      "role_session_name": "custom-session",
+      "sts_endpoint_url": "https://sts.example.net"
+    }
+  },
+  {
+    "name": "gcp",
+    "type": "gcp",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "project_id": "example-project-id"
+    }
+  },
+  {
+    "name": "azure",
+    "type": "azure",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "credentials_prefix": "example-credentials-prefix",
+      "vault_uri": "https://example.vault.azure.net",
+      "location": "eastus",
+      "client_id": "example-client-id",
+      "tenant_id": "example-tenant-id",
+      "type": "secrets"
+    }
+  },
+  {
+    "name": "conjur",
+    "type": "conjur",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "account": "example-account",
+      "api_key": "{vault://shared/api_key}",
+      "endpoint_url": "https://secrets.example.net",
+      "login": "example-login"
+    }
+  },
+  {
+    "name": "hcv-token",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "token",
+      "token": "{vault://shared/token}"
+    }
+  },
+  {
+    "name": "hcv-cert",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "cert",
+      "cert": "example-cert",
+      "key": "{vault://shared/key}",
+      "role_name": "example-role-name"
+    }
+  },
+  {
+    "name": "hcv-jwt",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "jwt",
+      "role": "example-role",
+      "token_endpoint": "example-token-endpoint",
+      "client_id": "example-client-id",
+      "client_secret": "{vault://shared/client_secret}",
+      "audiences": "example-audiences"
+    }
+  },
+  {
+    "name": "hcv-approle",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "approle",
+      "path": "example-path",
+      "response_wrapping": true,
+      "role_id": "example-role-id",
+      "secret_id": "{vault://shared/secret_id}",
+      "secret_id_file": "example-secret-id-file"
+    }
+  },
+  {
+    "name": "hcv-kubernetes",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "kubernetes",
+      "role": "example-role",
+      "path": "example-path",
+      "api_token_file": "example-api-token-file"
+    }
+  },
+  {
+    "name": "hcv-gcp_iam",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "gcp_iam",
+      "role": "example-role",
+      "service_account": "example-service-account",
+      "jwt_exp": 600
+    }
+  },
+  {
+    "name": "hcv-gcp_gce",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "gcp_gce",
+      "role": "example-role",
+      "login_path": "example-login-path"
+    }
+  },
+  {
+    "name": "hcv-aws_ec2",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "aws_ec2",
+      "role": "example-role",
+      "nonce": "example-nonce",
+      "login_path": "example-login-path"
+    }
+  },
+  {
+    "name": "hcv-aws_iam",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "aws_iam",
+      "role": "example-role",
+      "region": "us-east-1",
+      "login_path": "example-login-path",
+      "access_key_id": "example-access-key-id",
+      "secret_access_key": "{vault://shared/secret_access_key}",
+      "sts_endpoint_url": "https://sts.example.net",
+      "assume_role_arn": "arn:aws:iam::123456789012:role/example-role",
+      "role_session_name": "custom-session"
+    }
+  },
+  {
+    "name": "hcv-azure",
+    "type": "hcv",
+    "config": {
+      "base64_decode": true,
+      "neg_ttl": 120,
+      "resurrect_ttl": 120,
+      "ttl": 120,
+      "host": "vault.example.net",
+      "port": 8200,
+      "mount": "example-mount",
+      "kv": "v2",
+      "protocol": "https",
+      "ssl_verify": true,
+      "namespace": "example-namespace",
+      "auth_method": "azure",
+      "role": "example-role",
+      "login_path": "example-login-path"
+    }
+  }
+]

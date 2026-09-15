@@ -3,7 +3,8 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
+	"reflect"
+	"strings"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -397,73 +398,98 @@ func aiGatewayVaultStringField(value any, key string) string {
 }
 
 func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	commonFields := []*ExplainField{
-		explainResourceRefField(),
-		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
-		explainField("name", explainStringNode("support-env"), true, true),
-		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
-		explainField(
-			"labels",
-			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("value")},
-			false,
-			false,
-		),
-		explainField(
-			"managed_by",
-			&ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")},
-			false,
-			false,
-		),
+	hints := defaultExplainHints("")
+	for _, field := range []string{"api_key", "token", "key", "client_secret", "secret_access_key", "secret_id"} {
+		hints["config."+field] = ExplainFieldHint{
+			Literal:      "!secret {source: !env VAULT_" + strings.ToUpper(field) + "}",
+			PreferredTag: "!secret",
+			Notes:        []string{"write-only secret; use a deferred source"},
+		}
 	}
+	hints["config.kv"] = ExplainFieldHint{Enum: []any{"v1", "v2"}}
+	hints["config.protocol"] = ExplainFieldHint{Enum: []any{"http", "https"}}
+	hints["config.type"] = ExplainFieldHint{Enum: []any{"secrets"}}
+	hints["config.host"] = ExplainFieldHint{Literal: "vault.example.net"}
+	hints["config.port"] = ExplainFieldHint{Literal: "8200"}
+	hints["config.prefix"] = ExplainFieldHint{Literal: "SUPPORT_", Recommended: new(true)}
+	hints["config.region"] = ExplainFieldHint{Literal: "us-east-1", Recommended: new(true)}
+	hints["config.assume_role_arn"] = ExplainFieldHint{Literal: "arn:aws:iam::123456789012:role/example-role"}
+	for _, field := range []string{"endpoint_url", "sts_endpoint_url", "token_endpoint"} {
+		hints["config."+field] = ExplainFieldHint{Literal: "https://vault.example.net"}
+	}
+	node, _, err := autoExplainSDKUnionNode(
+		reflect.TypeFor[kkComps.CreateAIGatewayVaultRequest](), nil, hints, nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := aiGatewayVaultExplainDefaults(node, reflect.TypeFor[kkComps.CreateAIGatewayVaultRequest]()); err != nil {
+		return nil, err
+	}
+	for _, branch := range node.OneOf {
+		branch.addField(explainResourceRefField())
+		branch.addField(explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true))
+		setExplainLiteral(branch, []string{"name"}, "support-vault")
+		setExplainLiteral(branch, []string{"config", "project_id"}, "my-project")
+		setExplainLiteral(branch, []string{"config", "vault_uri"}, "https://vault.example.net")
+		setExplainLiteral(branch, []string{"config", "location"}, "eastus")
+		explainReplacePath(branch, []string{"config", "config_store_id"}, aiGatewayConfigStoreIDExplainNode())
+	}
+	// Keep the environment vault as the active scaffold example.
+	for i, branch := range node.OneOf {
+		if field, ok := branch.property("type"); ok && field.Node.Const == "env" {
+			node.OneOf[0], node.OneOf[i] = node.OneOf[i], node.OneOf[0]
+			break
+		}
+	}
+	return node, nil
+}
 
-	return explainUnionNode(
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("env"), true, true),
-			explainField("config", explainObject(
-				explainField("prefix", explainStringNode("SUPPORT_"), false, true),
-				explainField("base64_decode", explainBoolNode("false"), false, false),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("konnect"), true, true),
-			explainField("config", explainObject(
-				explainField("config_store_id", aiGatewayConfigStoreIDExplainNode(), true, true),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("aws"), true, true),
-			explainField("config", explainObject(
-				explainField("region", explainStringNode("us-east-1"), false, true),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("gcp"), true, true),
-			explainField("config", explainObject(
-				explainField("project_id", explainStringNode("my-project"), true, true),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("azure"), true, true),
-			explainField("config", explainObject(
-				explainField("vault_uri", explainStringNode("https://vault.example.net"), true, true),
-			), true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("conjur"), true, true),
-			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
-		)...),
-		explainObject(append(
-			slices.Clone(commonFields),
-			explainField("type", explainConstStringNode("hcv"), true, true),
-			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
-		)...),
-	), nil
+// The SDK represents optional API fields with pointers, and applies literal
+// defaults during marshaling. Reflect those defaults in discovery without
+// treating optional fields as nullable or changing manifest defaulting.
+func aiGatewayVaultExplainDefaults(node *ExplainNode, typ reflect.Type) error {
+	typ = derefExplainType(typ)
+	node.Nullable = false
+	if typ.Kind() != reflect.Struct {
+		return nil
+	}
+	branchIndex := 0
+	for field := range typ.Fields() {
+		if field.Tag.Get("union") == "member" {
+			if err := aiGatewayVaultExplainDefaults(node.OneOf[branchIndex], field.Type); err != nil {
+				return err
+			}
+			branchIndex++
+			continue
+		}
+		name, _, _, skip := explainFieldName(field, "json")
+		if skip || name == "" {
+			continue
+		}
+		property, ok := node.property(name)
+		if !ok {
+			continue
+		}
+		if err := aiGatewayVaultExplainDefaults(property.Node, field.Type); err != nil {
+			return err
+		}
+		if literal, ok := field.Tag.Lookup("default"); ok {
+			var value any = literal
+			if derefExplainType(field.Type).Kind() != reflect.String {
+				if err := json.Unmarshal([]byte(literal), &value); err != nil {
+					return fmt.Errorf("decode SDK default for AI Gateway Vault %s: %w", name, err)
+				}
+			}
+			property.Node.Default = value
+			property.Node.Literal = literal
+			if literal == "" {
+				property.Node.Literal = `""`
+			}
+			property.Required = false
+		}
+	}
+	return nil
 }
 
 func aiGatewayConfigStoreIDExplainNode() *ExplainNode {

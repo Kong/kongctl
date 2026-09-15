@@ -1,0 +1,12 @@
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+ai_gateway_vaults:
+  - ref: vault
+    ai_gateway: gateway
+    name: vault
+    type: gcp
+    config:
+      project_id: project
+      assume_role_arn: arn:aws:iam::123456789012:role/example-role
