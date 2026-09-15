@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -14,6 +15,7 @@ type userDisplayRecord struct {
 	Name    string `json:"name"    yaml:"name"`
 	Active  string `json:"active"  yaml:"active"`
 	Profile string `json:"profile" yaml:"profile"`
+	Label   string `json:"label" yaml:"label"`
 }
 
 func main() {
@@ -26,6 +28,12 @@ func main() {
 func run() error {
 	runtimeCtx, err := sdk.LoadRuntimeContextFromEnv()
 	if err != nil {
+		return err
+	}
+
+	flags := flag.NewFlagSet("hello-go", flag.ContinueOnError)
+	label := flags.String("label", "", "Label the displayed user record")
+	if err := flags.Parse(runtimeCtx.Invocation.RemainingArgs); err != nil {
 		return err
 	}
 
@@ -50,6 +58,7 @@ func run() error {
 		Name:    "n/a",
 		Active:  "n/a",
 		Profile: runtimeCtx.Resolved.Profile,
+		Label:   *label,
 	}
 
 	if user.ID != nil && *user.ID != "" {

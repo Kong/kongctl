@@ -24,5 +24,19 @@ command_paths:
     summary: Print extension debug information
     description: Prints the extension context path, context JSON, remaining arguments, and a reentrant kongctl call.
     usage: kongctl print-debug-info [args] [flags]
+    persistent_flags:
+      - name: context
+        type: string
+        description: Example invocation context forwarded to the script
+      - name: verbose
+        type: bool
+        description: Example boolean override forwarded to the script
     examples:
       - kongctl print-debug-info --example
+      - kongctl print-debug-info --context example status
+      - kongctl print-debug-info status --context=example --verbose=false
+  - id: print_debug_status
+    path:
+      - name: print-debug-info
+      - name: status
+    summary: Inspect inherited extension flags and runtime arguments

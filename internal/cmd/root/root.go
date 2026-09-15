@@ -782,7 +782,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		err = registerExtensions()
 	}
 	if err == nil {
-		executedCmd, err = rootCmd.ExecuteContextC(ctx)
+		executedCmd, err = extensioncore.ExecuteContextC(ctx, rootCmd, os.Args[1:])
 	}
 	cleanupTelemetryRecorder(ctx)
 	if err != nil {

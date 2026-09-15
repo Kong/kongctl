@@ -38,6 +38,18 @@ The file describes the matched command path, remaining arguments, selected
 profile, resolved Konnect URL, output and log settings, extension data
 directory, and host version. It does not contain secrets.
 
+`invocation.original_args` preserves the invocation excluding the kongctl
+executable, including aliases and original flag placement.
+`matched_command_path.path` identifies the canonical contribution selected.
+`invocation.remaining_args` is exactly the executable's argument list: host
+flags, command-path tokens, and the first `--` separator have been removed.
+
+Declared persistent extension flags retain their order across subcommands.
+For example, `ai --context=first status --context second` delivers
+`["--context=first", "--context", "second"]`. Tokens following `--` are
+literal. In a subtree using persistent declarations, `ai -- status --help`
+selects `ai` and delivers `["status", "--help"]`.
+
 ## Reuse authenticated access
 
 A script extension can invoke `kongctl` as a child process:
