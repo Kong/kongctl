@@ -19,7 +19,7 @@ func init() {
 			family:        ResourceTypePortal,
 			extractOrder:  60,
 			validateOrder: 90,
-			validate:      validatePortalChildRefs[PortalCustomDomainResource],
+			validate:      validateChildRefs[PortalCustomDomainResource],
 			extract: extractPortalSingleton(
 				func(p *PortalResource) **PortalCustomDomainResource { return &p.CustomDomain },
 				func(r *PortalCustomDomainResource, ref string) { r.Portal = ref },

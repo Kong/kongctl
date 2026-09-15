@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -99,25 +98,10 @@ func (e EventGatewayListenerResource) GetKonnectMonikerFilter() string {
 }
 
 func (e *EventGatewayListenerResource) TryMatchKonnectResource(konnectResource any) bool {
-	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
+	if id := tryMatchByField(konnectResource, "Name", e.Name); id != "" {
+		e.konnectID = id
+		return true
 	}
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	nameField := v.FieldByName("Name")
-	idField := v.FieldByName("ID")
-
-	if nameField.IsValid() && idField.IsValid() &&
-		nameField.Kind() == reflect.String && idField.Kind() == reflect.String {
-		if nameField.String() == e.Name {
-			e.konnectID = idField.String()
-			return true
-		}
-	}
-
 	return false
 }
 
