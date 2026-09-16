@@ -198,6 +198,7 @@ steps:
                 total_changes: 0
 
   # Verify that --filter-name restricts dump output to the matching EGW only.
+  # Without --include-child-resources, child resource arrays are omitted.
   - name: 003-dump-with-filter
     skipInputs: true
     commands:
@@ -220,6 +221,17 @@ steps:
             expect:
               fields:
                 "@": 1
+          - name: children-not-included-by-default
+            select: "event_gateways[?name=='{{ .vars.egwName }}'] | [0]"
+            expect:
+              fields:
+                backend_clusters: null
+                virtual_clusters: null
+                listeners: null
+                data_plane_certificates: null
+                schema_registries: null
+                static_keys: null
+                tls_trust_bundles: null
 
   # Sync with an empty event_gateways list to delete all created resources.
   - name: 004-sync-delete
