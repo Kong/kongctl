@@ -46,7 +46,8 @@ class ReplayTest(unittest.TestCase):
                     path.write_text(yaml.safe_dump(changed, default_flow_style=flow))
                     with self.subTest(level=level, flow=flow), self.assertRaisesRegex(ValueError, "environment"):
                         MODULE.check_eligibility(root)
-            for key in ["exec", "create", "delete", "resetOrgRegions", "assignedEnvironment"]:
+            for key in ["exec", "create", "delete", "resetOrgRegions", "requiredEnvVars", "assignedEnvironment",
+                        "inputOverlayOpsFiles", "stdinFile", "workdir"]:
                 changed = copy.deepcopy(scenario)
                 changed["steps"][0]["commands"][0][key] = "unsupported"
                 path.write_text(yaml.safe_dump(changed))
