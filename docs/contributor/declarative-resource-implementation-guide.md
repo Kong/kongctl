@@ -160,16 +160,19 @@ pass. Do not add earlier validation as part of registering that exception.
 [`ValidateRegisteredCollections`][dispatch] derives dispatch from
 the resource and selector registrations. Phases sort numerically; roots and
 selectors run at order zero, followed by children in `validateOrder`.
-Families register `withChildValidationPhase`; selector handles bind their
-phase with `withValidationPhase`. An exceptional child can set `validatePhase`
-to preserve interleaving with another family. Missing family/selector phases
-and duplicate positions fail when the dispatch is first assembled after init;
+Families register a default with `withChildValidationPhase`; selector handles
+bind their phase with `withValidationPhase`. A child can set `validatePhase`
+to preserve interleaving with another family without requiring a family
+default. Missing inherited phases, missing selector phases, and duplicate
+positions fail when the dispatch is first assembled after init;
 the result is cached. No additional loader invocation is required.
 
 The loader normalizes organization team selectors before this pass, then
 checks cross-references and namespaces after it. Preserve first-error order
 across phases and within each collection. Existing loader validation methods
 needed by tests delegate through `ValidateResourceCollection`.
+The [collection-validation contract test][validation-contract] pins the full
+diagnostic sequence and exercises registration guards.
 
 ### Child loading capabilities
 
@@ -704,6 +707,8 @@ engine contract. Each refactoring migration should:
 [child-load]: ../../internal/declarative/resources/child_load.go
 [collections]: ../../internal/declarative/resources/collection_validation.go
 [dispatch]: ../../internal/declarative/resources/validation_dispatch.go
+[validation-contract]:
+  ../../internal/declarative/resources/collection_validation_contract_test.go
 [selector-load]: ../../internal/declarative/resources/selector_load.go
 [org-user-load]: ../../internal/declarative/resources/organization_user.go
 [api-child-load]: ../../internal/declarative/resources/api_child_load.go

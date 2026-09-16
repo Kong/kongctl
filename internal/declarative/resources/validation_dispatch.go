@@ -37,15 +37,15 @@ func buildCollectionValidationSteps() []collectionValidationStep {
 			})
 		}
 		if load := ops.load; load != nil && load.validate != nil {
-			phase := registry[load.family].childValidationPhase
-			if selector, exists := selectorLoaders[load.family]; exists {
-				phase = selector.validationPhase
+			phase := load.validatePhase
+			if phase == 0 {
+				phase = registry[load.family].childValidationPhase
+				if selector, exists := selectorLoaders[load.family]; exists {
+					phase = selector.validationPhase
+				}
 			}
 			if phase <= 0 {
 				panic("child validation family has no registered phase: " + string(load.family))
-			}
-			if load.validatePhase != 0 {
-				phase = load.validatePhase
 			}
 			steps = append(steps, collectionValidationStep{
 				kind: kind, phase: phase, order: load.validateOrder, validate: load.validate,
