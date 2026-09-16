@@ -7,6 +7,7 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
+`event-gateway/consume-policy`,
 `portal/api_docs_with_children`, `portal/sync`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
@@ -15,6 +16,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [Recording][sync], [isolated phases][sync-replay] |
+| event-gateway/consume-policy | [Recording and isolated replays][consume-record] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
@@ -24,6 +26,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
+[consume-record]: https://github.com/Kong/kongctl/actions/runs/35048315678
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
@@ -185,6 +188,13 @@ exclude cassette directories or weaken the recorder's sensitive-data checks.
 `.e2e-artifacts/replay-python`. Build/check/metrics Make targets include this
 setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
+
+`event-gateway/consume-policy` passed its complete live recording and three
+isolated replays, each matching all 150 exchanges in strict order. No parallel
+phase annotations or matching exceptions were needed. Scenario execution took
+4.217–4.220 seconds in replay versus a recent 28.61-second live median; this
+is observational, not a measured workflow speedup. Its scenario-local replay
+README records provenance, coverage and measurement limitations.
 
 `portal/sync` is enabled after its complete live scenario and three isolated
 replays passed (293 HTTP interactions each), followed by three isolated
