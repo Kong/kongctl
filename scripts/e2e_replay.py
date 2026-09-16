@@ -33,7 +33,7 @@ SCENARIO = "control-plane/get"
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
-    "control-plane/sync", "control-plane/sync-groups", "portal/api_docs_with_children",
+    "control-plane/sync", "control-plane/sync-groups", "event-gateway/consume-policy", "portal/api_docs_with_children",
     "portal/sync", "portal/visibility",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
@@ -145,8 +145,8 @@ def pack_cassette(cassette, directory):
         raise ValueError("packed cassette failed lossless round-trip verification")
 
 
-def check_inline_overlays(directory, definition):
-    """Validate literal edits; the unchanged Go harness still applies them."""
+def parse_scenario(definition):
+    """Parse scenario structure without ambiguous keys, aliases or custom tags."""
     import yaml
 
     class OverlayLoader(yaml.SafeLoader):
@@ -157,7 +157,7 @@ def check_inline_overlays(directory, definition):
         for key_node, value_node in node.value:
             key = loader.construct_object(key_node)
             if not isinstance(key, str) or key in result:
-                raise ValueError("inline-overlay scenarios require unique string mapping keys")
+                raise ValueError("replay scenarios require unique string mapping keys")
             result[key] = loader.construct_object(value_node)
         return result
 
@@ -165,12 +165,59 @@ def check_inline_overlays(directory, definition):
     try:
         if any(isinstance(token, (yaml.tokens.AnchorToken, yaml.tokens.AliasToken))
                for token in yaml.scan(definition)):
-            raise ValueError("inline-overlay scenarios cannot use YAML anchors or aliases")
+            raise ValueError("replay scenarios cannot use YAML anchors or aliases")
         scenario = yaml.load(definition, Loader=OverlayLoader)
     except (yaml.YAMLError, TypeError):
-        raise ValueError("invalid inline-overlay scenario YAML") from None
+        raise ValueError("invalid replay scenario YAML") from None
     if not isinstance(scenario, dict) or not isinstance(scenario.get("steps"), list):
-        raise ValueError("inline overlays require scenario steps")
+        raise ValueError("replay requires scenario steps")
+    return scenario
+
+
+def check_scenario_controls(scenario):
+    """Assertion field values are data, not executable scenario controls."""
+    fields, initial_reset = [], None
+    for step_index, step in enumerate(scenario["steps"]):
+        if not isinstance(step, dict) or not isinstance(step.get("commands", []), list):
+            raise ValueError("invalid replay scenario step")
+        for command_index, command in enumerate(step.get("commands", [])):
+            if not isinstance(command, dict):
+                raise ValueError("invalid replay scenario command")
+            if step_index == command_index == 0:
+                initial_reset = command
+            assertions = command.get("assertions", [])
+            if not isinstance(assertions, list):
+                raise ValueError("invalid replay scenario assertions")
+            for assertion in assertions:
+                if isinstance(assertion, dict) and isinstance(assertion.get("expect"), dict):
+                    value = assertion["expect"].get("fields")
+                    if isinstance(value, dict):
+                        fields.append(value)
+    unsupported = {"exec", "create", "delete", "resetOrgRegions", "requiredEnvVars", "assignedEnvironment",
+                   "inputOverlayOpsFiles", "stdinFile", "workdir"}
+
+    def visit(value):
+        if isinstance(value, dict):
+            if any(value is field for field in fields):
+                return
+            if unsupported & value.keys():
+                raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
+            if "env" in value and (value is not scenario or value["env"] != {"KONGCTL_LOG_LEVEL": "info"}):
+                raise ValueError("replay does not support environment overrides")
+            if "resetOrg" in value and (value is not initial_reset or value["resetOrg"] is not True
+                                       or set(value) - {"name", "resetOrg"}):
+                raise ValueError("replay supports only a standalone initial reset; mid-scenario resets are unsupported")
+            for child in value.values():
+                visit(child)
+        elif isinstance(value, list):
+            for child in value:
+                visit(child)
+
+    visit(scenario)
+
+
+def check_inline_overlays(directory, scenario):
+    """Validate literal edits; the unchanged Go harness still applies them."""
     allowed = [step for step in scenario["steps"] if isinstance(step, dict) and "inputOverlayOps" in step]
 
     def check_placement(value):
@@ -217,15 +264,10 @@ def check_eligibility(directory):
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
+    scenario = parse_scenario(definition)
+    check_scenario_controls(scenario)
     if "inputOverlayOps" in definition:
-        check_inline_overlays(directory, definition)
-    definition = definition.replace("env:\n  KONGCTL_LOG_LEVEL: info\n", "")
-    unsupported = (
-        "exec|create|delete|resetOrgRegions|env|requiredEnvVars|assignedEnvironment|"
-        "inputOverlayOpsFiles|stdinFile|workdir"
-    )
-    if re.search(r"(?m)^\s*(?:-\s*)?(" + unsupported + r"):", definition):
-        raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
+        check_inline_overlays(directory, scenario)
     if not re.search(r"(?m)^baseInputsPath: testdata\s*$", definition):
         raise ValueError("prototype requires scenario-local testdata inputs")
     for match in re.finditer(r"(?m)^\s*stdoutFile:\s*(.+)$", definition):

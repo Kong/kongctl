@@ -149,6 +149,18 @@ engine. Operations, targets and assertions remain input-fingerprinted.
 Templates, nested replacement values, external ops files, YAML aliases and
 duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
+Scenario control checks use parsed YAML: fields inside command assertion
+`expect.fields` are data, so a header named `env` is not an environment
+override. Actual scenario/step/command overrides remain rejected, including
+flow-style declarations. Duplicate keys, YAML aliases and custom tags are
+rejected before eligibility is evaluated.
+
+Only a standalone `resetOrg: true` as the first command of the first step is
+supported. Recording uses the existing locked before/after reset; replay
+begins with an empty recorded state. A later reset would be skipped by the
+current replay environment and could invalidate a stateful round-trip test,
+so it fails eligibility rather than silently losing that boundary.
+
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
 Overlay-only document/spec files are fingerprinted and receive the same
