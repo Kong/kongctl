@@ -27,6 +27,10 @@ func init() {
 			return NamespaceParticipant{Ref: r.Ref, Label: "dcr_provider", SupportsProtected: true, Meta: &r.Kongctl}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(
+			30,
+			namedCollectionValidation(func(r *DCRProviderResource) string { return r.GetMoniker() }),
+		),
 	)
 }
 

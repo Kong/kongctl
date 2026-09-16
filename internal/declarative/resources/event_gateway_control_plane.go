@@ -24,6 +24,7 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidationOmitted("Event Gateway roots retain validation outside the loader collection pass"),
 	)
 }
 

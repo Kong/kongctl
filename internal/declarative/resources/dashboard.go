@@ -26,7 +26,32 @@ func init() {
 			return rs.Analytics.Dashboards
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(80, dashboardCollectionValidation),
 	)
+}
+
+func dashboardCollectionValidation(rs *ResourceSet) func(*DashboardResource) error {
+	refs := make(map[string]struct{})
+	namesByNamespace := make(map[string]string)
+	return func(dashboard *DashboardResource) error {
+		if err := validateCollectionResource(rs, dashboard); err != nil {
+			return err
+		}
+		if _, exists := refs[dashboard.GetRef()]; exists {
+			return fmt.Errorf("duplicate dashboard ref '%s'", dashboard.GetRef())
+		}
+		refs[dashboard.GetRef()] = struct{}{}
+		namespace := GetNamespace(dashboard.Kongctl)
+		nameKey := namespace + "\x00" + dashboard.Name
+		if existingRef, exists := namesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate dashboard name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				dashboard.Name, namespace, dashboard.GetRef(), existingRef,
+			)
+		}
+		namesByNamespace[nameKey] = dashboard.GetRef()
+		return nil
+	}
 }
 
 // DashboardResource represents a Konnect Analytics custom dashboard.

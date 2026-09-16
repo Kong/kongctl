@@ -20,22 +20,25 @@ import (
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
-	get                       func(rs *ResourceSet) []Resource
-	append                    func(dest, src *ResourceSet)
-	forEach                   func(rs *ResourceSet, fn func(Resource) bool) bool
-	count                     func(rs *ResourceSet) int
-	explain                   ExplainRegistration
-	namespace                 *namespaceRegistration
-	matchesNamespace          func(*ResourceSet, Resource, string) bool
-	namespaceOwner            ResourceType
-	syncScope                 *syncScopeRegistration
-	load                      *childLoadRegistration
-	dumpDefaultRules          map[string]dumpDefaultRule
-	maturity                  *maturity.Metadata
-	operationMaturity         map[Operation]maturity.Metadata
-	external                  *ExternalResolutionRegistration
-	materializeExternal       func(rs *ResourceSet, ref, id, parentRef string) (Resource, error)
-	externalUnsupportedReason string
+	get                               func(rs *ResourceSet) []Resource
+	append                            func(dest, src *ResourceSet)
+	forEach                           func(rs *ResourceSet, fn func(Resource) bool) bool
+	count                             func(rs *ResourceSet) int
+	explain                           ExplainRegistration
+	namespace                         *namespaceRegistration
+	matchesNamespace                  func(*ResourceSet, Resource, string) bool
+	namespaceOwner                    ResourceType
+	syncScope                         *syncScopeRegistration
+	load                              *childLoadRegistration
+	collectionValidation              *collectionValidationRegistration
+	collectionValidationOmittedReason string
+	childValidationPhase              int
+	dumpDefaultRules                  map[string]dumpDefaultRule
+	maturity                          *maturity.Metadata
+	operationMaturity                 map[Operation]maturity.Metadata
+	external                          *ExternalResolutionRegistration
+	materializeExternal               func(rs *ResourceSet, ref, id, parentRef string) (Resource, error)
+	externalUnsupportedReason         string
 }
 
 // ExternalResolutionRegistration describes the selectors and scope supported
@@ -337,6 +340,13 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 		if err := option(&ops); err != nil {
 			panic("register resource type " + string(rt) + ": " + err.Error())
 		}
+	}
+	if ops.syncScope != nil && ops.syncScope.parentType == "" &&
+		ops.collectionValidation == nil && ops.collectionValidationOmittedReason == "" {
+		panic("managed root requires a collection validation disposition: " + string(rt))
+	}
+	if ops.load != nil && (ops.collectionValidation != nil || ops.collectionValidationOmittedReason != "") {
+		panic("child loader already supplies the collection validation disposition: " + string(rt))
 	}
 	if ops.namespace != nil {
 		registerNamespaceParticipant(rt, *ops.namespace)

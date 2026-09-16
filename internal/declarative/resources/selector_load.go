@@ -9,11 +9,22 @@ type selectorLoader[P any] struct {
 }
 
 type selectorLoadRegistration struct {
-	extract  func(*ResourceSet)
-	validate func(*ResourceSet) error
+	extract         func(*ResourceSet)
+	validate        func(*ResourceSet) error
+	validationPhase int
 }
 
 var selectorLoaders = make(map[ResourceType]selectorLoadRegistration)
+
+func (loader selectorLoader[P]) withValidationPhase(phase int) selectorLoader[P] {
+	registration, exists := selectorLoaders[loader.kind]
+	if !exists || phase <= 0 || registration.validationPhase != 0 {
+		panic("selector validation requires one positive phase: " + string(loader.kind))
+	}
+	registration.validationPhase = phase
+	selectorLoaders[loader.kind] = registration
+	return loader
+}
 
 func registerSelectorLoader[P any](
 	kind ResourceType,

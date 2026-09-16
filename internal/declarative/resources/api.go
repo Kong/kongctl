@@ -26,10 +26,22 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(120, apiCollectionValidation),
+		withChildValidationPhase(130),
 	)
 }
 
 func (a *APIResource) GetExternalBlock() *ExternalBlock { return a.External }
+
+func apiCollectionValidation(rs *ResourceSet) func(*APIResource) error {
+	validate := namedCollectionValidation(func(api *APIResource) string { return api.Name })(rs)
+	return func(api *APIResource) error {
+		if err := validate(api); err != nil {
+			return err
+		}
+		return rs.ValidateRegisteredNestedChildren(api)
+	}
+}
 
 // APIResource represents an API in declarative configuration
 type APIResource struct {

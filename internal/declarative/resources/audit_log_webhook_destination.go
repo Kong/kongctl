@@ -12,10 +12,37 @@ func init() {
 			WithExplainRecommendedFields("ref", "_external"),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
+		withCollectionValidation(100, auditLogDestinationCollectionValidation),
 	)
 }
 
 func (d *AuditLogWebhookDestinationResource) GetExternalBlock() *ExternalBlock { return d.External }
+
+func auditLogDestinationCollectionValidation(rs *ResourceSet) func(*AuditLogWebhookDestinationResource) error {
+	refs := make(map[string]bool)
+	return func(destination *AuditLogWebhookDestinationResource) error {
+		if err := destination.Validate(); err != nil {
+			return fmt.Errorf("invalid audit_log_webhook_destination %q: %w", destination.GetRef(), err)
+		}
+		if refs[destination.GetRef()] {
+			return fmt.Errorf(
+				"duplicate ref '%s' (already defined as audit_log_webhook_destination)",
+				destination.GetRef(),
+			)
+		}
+		refs[destination.GetRef()] = true
+		if existing, found := rs.GetResourceByRef(destination.GetRef()); found {
+			if existing.GetType() != ResourceTypeAuditLogWebhookDestination {
+				return fmt.Errorf(
+					"duplicate ref '%s' (already defined as %s)",
+					destination.GetRef(),
+					existing.GetType(),
+				)
+			}
+		}
+		return nil
+	}
+}
 
 func auditLogWebhookDestinationSlice(rs *ResourceSet) *[]AuditLogWebhookDestinationResource {
 	if rs == nil || rs.AuditLogs == nil {

@@ -7,7 +7,7 @@ import (
 func init() {
 	selector := registerSelectorLoader(
 		ResourceTypeOrganizationUser, (*ResourceSet).organizationUsers, validateOrganizationUserSelectors,
-	)
+	).withValidationPhase(170)
 	registerSyncSelector(
 		ResourceTypeOrganizationUser,
 		SchemaFieldUser,
