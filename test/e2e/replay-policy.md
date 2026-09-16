@@ -193,8 +193,10 @@ Dependency installation belongs to job setup, not scenario execution savings.
 isolated replays, each matching all 150 exchanges in strict order. No parallel
 phase annotations or matching exceptions were needed. Scenario execution took
 4.217–4.220 seconds in replay versus a recent 28.61-second live median; this
-is observational, not a measured workflow speedup. Its scenario-local replay
-README records provenance, coverage and measurement limitations.
+is observational, not a measured workflow speedup. Live scenario timing
+already includes its reset; do not add reset savings again. Its scenario-local
+replay README records provenance, same-source live evidence, coverage and
+measurement limitations.
 
 `portal/sync` is enabled after its complete live scenario and three isolated
 replays passed (293 HTTP interactions each), followed by three isolated
