@@ -10,10 +10,11 @@ import (
 // `kongctl get konnect mesh` failed with "unknown command". These assert the
 // real command paths rather than the constructors.
 func TestMeshCommandPathsResolve(t *testing.T) {
-	// Every verb Kong Mesh serves. `delete konnect` is replaced by the
-	// declarative delete command and takes its own arguments, so mesh
-	// deletion is served by the direct form only.
+	// Every verb Kong Mesh serves. `apply konnect` and `delete konnect` are
+	// replaced by the declarative commands and take their own arguments, so
+	// those two are served by the direct form only.
 	paths := [][]string{
+		{"apply", "mesh", "--help"},
 		{"get", "mesh", "--help"},
 		{"get", "konnect", "mesh", "--help"},
 		{"create", "mesh", "--help"},

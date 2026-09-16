@@ -213,10 +213,11 @@ var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Create, verbs.Dump}
 // Mesh serves a subset of the verbs, so an unsupported verb registers nothing
 // rather than adding a command that cannot run.
 //
-// Delete is absent deliberately: `delete konnect` is replaced by the
-// declarative delete command, which takes its own arguments, so a `mesh`
-// subcommand there is read as one of them instead of dispatching. Mesh
-// deletion is served by the direct `delete mesh` form.
+// Apply and delete are absent deliberately. `apply konnect` and `delete
+// konnect` are replaced by the declarative commands, which take their own
+// arguments, so a `mesh` subcommand there is read as one of them instead of
+// dispatching. Both are served by the direct `apply mesh` and `delete mesh`
+// forms.
 func addMeshCommand(
 	cmd *cobra.Command,
 	verb verbs.VerbValue,
