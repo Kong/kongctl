@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -59,6 +60,43 @@ func (e apiError) Error() string {
 		msg += fmt.Sprintf("\n  %s (%s): %s", p.Field, p.Source, p.Reason)
 	}
 	return msg
+}
+
+// newHTTPClient builds the HTTP client every mesh request uses.
+//
+// The configured timeout and transport behaviour are resolved through the same
+// helpers the rest of the Konnect operations use, so a configured value
+// reaches mesh requests too. Constructing a default client here instead would
+// quietly opt mesh out of that configuration.
+func newHTTPClient(cfg config.Hook, logger *slog.Logger) (*httpclient.LoggingHTTPClient, error) {
+	clientConfig, err := meshClientConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return httpclient.NewLoggingHTTPClientWithClient(
+		httpclient.NewHTTPClientWithConfig(clientConfig), logger), nil
+}
+
+// meshClientConfig resolves the configured HTTP behaviour for mesh requests.
+//
+// Separated from the client it builds because the wrapped client keeps its
+// settings private, so this is where the resolution can be asserted.
+func meshClientConfig(cfg config.Hook) (httpclient.ClientConfig, error) {
+	timeout, err := konnectcommon.ResolveHTTPTimeout(cfg)
+	if err != nil {
+		return httpclient.ClientConfig{}, err
+	}
+
+	transportOptions, err := konnectcommon.ResolveHTTPTransportOptions(cfg)
+	if err != nil {
+		return httpclient.ClientConfig{}, err
+	}
+
+	return httpclient.ClientConfig{
+		Timeout:          timeout,
+		TransportOptions: transportOptions,
+	}, nil
 }
 
 // listPageSize is the page size requested when collecting a whole collection.
@@ -233,9 +271,14 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		headers = map[string]string{"Content-Type": "application/json"}
 	}
 
+	client, err := newHTTPClient(cfg, logger)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	result, err := apiutil.RequestWithTokenSource(
 		ctx,
-		httpclient.NewLoggingHTTPClient(logger),
+		client,
 		method,
 		baseURL,
 		path,
