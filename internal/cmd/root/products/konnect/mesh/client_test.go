@@ -1,8 +1,17 @@
 package mesh
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
 	"log/slog"
+	"math/big"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -242,4 +251,124 @@ func TestNewHTTPClientBuildsAClient(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, client)
+}
+
+func TestIsSelfManaged(t *testing.T) {
+	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{})))
+	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{
+		meshcommon.ControlPlaneIDConfigPath: "an-id",
+	})))
+	require.True(t, isSelfManaged(meshTestConfig(t, map[string]any{
+		meshcommon.ControlPlaneURLConfigPath: "http://localhost:5681",
+	})))
+	// Whitespace is not a selection.
+	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{
+		meshcommon.ControlPlaneURLConfigPath: "   ",
+	})))
+}
+
+// writeTempFile puts content on disk and returns its path.
+func writeTempFile(t *testing.T, name, content string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	return path
+}
+
+// selfSignedCAPEM generates a CA certificate, so the test does not depend on
+// one existing on disk.
+func selfSignedCAPEM(t *testing.T) string {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "mesh-test-ca"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+}
+
+func TestSelfManagedTLSConfig(t *testing.T) {
+	t.Run("nothing configured leaves Go's defaults", func(t *testing.T) {
+		tlsConfig, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{}))
+		require.NoError(t, err)
+		require.Nil(t, tlsConfig)
+	})
+
+	t.Run("skip verify is opt in", func(t *testing.T) {
+		tlsConfig, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.TLSSkipVerifyConfigPath: true,
+		}))
+		require.NoError(t, err)
+		require.NotNil(t, tlsConfig)
+		require.True(t, tlsConfig.InsecureSkipVerify)
+		// Even when verification is skipped, the floor on the protocol stands.
+		require.Equal(t, uint16(tls.VersionTLS12), tlsConfig.MinVersion)
+	})
+
+	t.Run("a CA file becomes the root pool", func(t *testing.T) {
+		caFile := writeTempFile(t, "ca.pem", selfSignedCAPEM(t))
+
+		tlsConfig, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.CACertFileConfigPath: caFile,
+		}))
+		require.NoError(t, err)
+		require.NotNil(t, tlsConfig.RootCAs)
+		require.False(t, tlsConfig.InsecureSkipVerify)
+	})
+
+	t.Run("a missing CA file is reported", func(t *testing.T) {
+		_, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.CACertFileConfigPath: filepath.Join(t.TempDir(), "absent.pem"),
+		}))
+		require.ErrorContains(t, err, meshcommon.CACertFileFlagName)
+	})
+
+	t.Run("a CA file holding no certificate is reported", func(t *testing.T) {
+		_, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.CACertFileConfigPath: writeTempFile(t, "bad.pem", "not a certificate"),
+		}))
+		require.ErrorContains(t, err, "no PEM certificate")
+	})
+
+	t.Run("a client certificate needs its key", func(t *testing.T) {
+		_, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.ClientCertFileConfigPath: writeTempFile(t, "cert.pem", selfSignedCAPEM(t)),
+		}))
+		require.ErrorContains(t, err, meshcommon.ClientKeyFileFlagName)
+	})
+
+	t.Run("a client key needs its certificate", func(t *testing.T) {
+		_, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{
+			meshcommon.ClientKeyFileConfigPath: writeTempFile(t, "key.pem", "key material"),
+		}))
+		require.ErrorContains(t, err, meshcommon.ClientCertFileFlagName)
+	})
+}
+
+// TLS material is meaningless for a Konnect hosted control plane, which is
+// reached over Konnect's own certificates.
+func TestMeshClientConfigAppliesTLSOnlyWhenSelfManaged(t *testing.T) {
+	settings := map[string]any{meshcommon.TLSSkipVerifyConfigPath: true}
+
+	konnect, err := meshClientConfig(meshTestConfig(t, settings))
+	require.NoError(t, err)
+	require.Nil(t, konnect.TransportOptions.TLSClientConfig)
+
+	settings[meshcommon.ControlPlaneURLConfigPath] = "https://mesh.example:5682"
+	selfManaged, err := meshClientConfig(meshTestConfig(t, settings))
+	require.NoError(t, err)
+	require.NotNil(t, selfManaged.TransportOptions.TLSClientConfig)
+	require.True(t, selfManaged.TransportOptions.TLSClientConfig.InsecureSkipVerify)
 }

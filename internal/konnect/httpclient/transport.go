@@ -1,6 +1,7 @@
 package httpclient
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 	"time"
@@ -22,6 +23,11 @@ type TransportOptions struct {
 	TCPUserTimeout            time.Duration
 	DisableKeepAlives         bool
 	RecycleConnectionsOnError bool
+	// TLSClientConfig overrides how server certificates are verified and
+	// which client certificate is presented. Left nil, the transport keeps
+	// Go's defaults, which is what a Konnect target wants. A self managed
+	// control plane may use a private CA or ask for a client certificate.
+	TLSClientConfig *tls.Config
 }
 
 func NewHTTPClient(timeout time.Duration) *http.Client {
@@ -63,6 +69,9 @@ func newHTTPTransport(options TransportOptions) http.RoundTripper {
 	}
 	transport := base.Clone()
 	transport.DisableKeepAlives = options.DisableKeepAlives
+	if options.TLSClientConfig != nil {
+		transport.TLSClientConfig = options.TLSClientConfig
+	}
 
 	dialer := &net.Dialer{
 		Timeout:   defaultHTTPDialTimeout,

@@ -3,12 +3,15 @@ package mesh
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
@@ -16,6 +19,7 @@ import (
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
+	"github.com/kong/kongctl/internal/konnect/auth"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
 
@@ -78,6 +82,73 @@ func newHTTPClient(cfg config.Hook, logger *slog.Logger) (*httpclient.LoggingHTT
 		httpclient.NewHTTPClientWithConfig(clientConfig), logger), nil
 }
 
+// isSelfManaged reports whether requests address a self managed control plane
+// rather than a Konnect hosted one.
+//
+// The URL is what distinguishes them: a Konnect control plane is addressed by
+// ID or name through Konnect's own base URL, so an explicit API URL can only be
+// a control plane the operator runs.
+func isSelfManaged(cfg config.Hook) bool {
+	return strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneURLConfigPath)) != ""
+}
+
+// selfManagedTLSConfig builds the TLS settings for a self managed control
+// plane, or nil when none were given and Go's defaults apply.
+func selfManagedTLSConfig(cfg config.Hook) (*tls.Config, error) {
+	var (
+		caCertFile     = strings.TrimSpace(cfg.GetString(meshcommon.CACertFileConfigPath))
+		clientCertFile = strings.TrimSpace(cfg.GetString(meshcommon.ClientCertFileConfigPath))
+		clientKeyFile  = strings.TrimSpace(cfg.GetString(meshcommon.ClientKeyFileConfigPath))
+		skipVerify     = cfg.GetBool(meshcommon.TLSSkipVerifyConfigPath)
+	)
+
+	if caCertFile == "" && clientCertFile == "" && clientKeyFile == "" && !skipVerify {
+		return nil, nil
+	}
+
+	// A certificate without its key, or the reverse, cannot be presented, so
+	// say which half is missing rather than failing the handshake later.
+	if (clientCertFile == "") != (clientKeyFile == "") {
+		return nil, &cmd.ConfigurationError{Err: fmt.Errorf(
+			"--%s and --%s are used together; provide both",
+			meshcommon.ClientCertFileFlagName, meshcommon.ClientKeyFileFlagName)}
+	}
+
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		// #nosec G402 -- opt in, named --tls-skip-verify, for a control plane
+		// whose certificate the operator cannot yet verify.
+		InsecureSkipVerify: skipVerify,
+	}
+
+	if caCertFile != "" {
+		pem, err := os.ReadFile(caCertFile)
+		if err != nil {
+			return nil, &cmd.ConfigurationError{
+				Err: fmt.Errorf("failed to read %s: %w", meshcommon.CACertFileFlagName, err),
+			}
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, &cmd.ConfigurationError{Err: fmt.Errorf(
+				"%s holds no PEM certificate: %s", meshcommon.CACertFileFlagName, caCertFile)}
+		}
+		tlsConfig.RootCAs = pool
+	}
+
+	if clientCertFile != "" {
+		certificate, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+		if err != nil {
+			return nil, &cmd.ConfigurationError{
+				Err: fmt.Errorf("failed to load the client certificate: %w", err),
+			}
+		}
+		tlsConfig.Certificates = []tls.Certificate{certificate}
+	}
+
+	return tlsConfig, nil
+}
+
 // meshClientConfig resolves the configured HTTP behaviour for mesh requests.
 //
 // Separated from the client it builds because the wrapped client keeps its
@@ -91,6 +162,16 @@ func meshClientConfig(cfg config.Hook) (httpclient.ClientConfig, error) {
 	transportOptions, err := konnectcommon.ResolveHTTPTransportOptions(cfg)
 	if err != nil {
 		return httpclient.ClientConfig{}, err
+	}
+
+	// TLS material applies only to a control plane the operator runs; Konnect
+	// is reached over its own certificates.
+	if isSelfManaged(cfg) {
+		tlsConfig, err := selfManagedTLSConfig(cfg)
+		if err != nil {
+			return httpclient.ClientConfig{}, err
+		}
+		transportOptions.TLSClientConfig = tlsConfig
 	}
 
 	return httpclient.ClientConfig{
@@ -249,17 +330,26 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		return nil, 0, err
 	}
 
-	tokenSource, err := konnectcommon.GetAccessTokenSource(cfg, logger)
-	if err != nil {
-		return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
-	}
-
 	ctx := helper.GetContext()
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
-		return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+
+	// A self managed control plane authenticates its own callers, so Konnect
+	// credentials are neither required nor sent. Resolving them regardless
+	// meant an unauthenticated local control plane never received a request:
+	// the command failed first on the missing Konnect token.
+	selfManaged := isSelfManaged(cfg)
+
+	var tokenSource *auth.TokenSource
+	if !selfManaged {
+		tokenSource, err = konnectcommon.GetAccessTokenSource(cfg, logger)
+		if err != nil {
+			return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+		}
+		if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
+			return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+		}
 	}
 
 	var (
@@ -276,16 +366,17 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		return nil, 0, err
 	}
 
-	result, err := apiutil.RequestWithTokenSource(
-		ctx,
-		client,
-		method,
-		baseURL,
-		path,
-		tokenSource,
-		headers,
-		payload,
-	)
+	var result *apiutil.Result
+	if selfManaged {
+		// An empty token sends no authorization header, which is what a
+		// control plane reached over loopback expects: Kuma authenticates
+		// such a caller as admin.
+		result, err = apiutil.Request(ctx, client, method, baseURL, path,
+			strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneTokenConfigPath)), headers, payload)
+	} else {
+		result, err = apiutil.RequestWithTokenSource(
+			ctx, client, method, baseURL, path, tokenSource, headers, payload)
+	}
 	if err != nil {
 		return nil, 0, err
 	}
