@@ -27,6 +27,8 @@ kongctl diff [flags]
 
 - `--output` (string): Output format: text, json, or yaml (default: text)
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
+- `--full-content`: Show large string values without summarizing them. Sensitive
+  fields and deferred environment values remain redacted.
 
 ## Output Formats
 
@@ -170,11 +172,27 @@ Shows exactly what fields are changing:
 ```
 API "payment-api":
   ~ description: "Payment processing" → "Payment processing with fraud detection"
-  ~ labels:
-    ~ version: "1.0.0" → "1.1.0"
+  labels:
     + compliance: "PCI-DSS"
     - deprecated: "false"
+    ~ version: "1.0.0" → "1.1.0"
 ```
+
+Nested objects show only changed fields, with keys sorted at each level:
+
+```text
+  config:
+    ~ client_secret: [REDACTED] → [REDACTED]
+    redis:
+      ~ connect_timeout: 1000 → 2000
+    ~ scopes_claim: ["old_claim"] → ["new_claim"]
+    + scopes_required: ["example_scope"]
+```
+
+`+` adds a field, `-` removes a field, and `~` changes a value. Explicit
+`null`, empty objects (`{}`), and empty arrays (`[]`) remain distinct.
+Sensitive values are redacted inside objects and arrays, including when
+`--full-content` is enabled.
 
 ### Nested Resource Changes
 
@@ -194,15 +212,13 @@ API "users-api":
 
 ### Array Changes
 
-Shows modifications to arrays:
+Arrays preserve order and display the complete old and new values. Large
+values use multiple lines with `-` for the old value and `+` for the new:
 
 ```
 Portal "developer-portal":
   ~ auto_approve_applications: false → true
-  ~ approved_domains:
-    + "example.com"
-    + "api.example.com"
-    - "old.example.com"
+  ~ approved_domains: ["old.example.com"] → ["example.com", "api.example.com"]
 ```
 
 ## Diff Modes

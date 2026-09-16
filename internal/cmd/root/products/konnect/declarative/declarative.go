@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/url"
 	"os"
 	pathpkg "path"
@@ -394,29 +395,35 @@ func writeRemoteSourceFile(path string, content []byte) error {
 }
 
 var diffSensitiveExactFieldKeys = map[string]struct{}{
-	"access_token":        {},
-	"refresh_token":       {},
-	"id_token":            {},
-	"token":               {},
-	"api_key":             {},
-	"apikey":              {},
-	"x_api_key":           {},
-	"secret":              {},
-	"password":            {},
-	"authorization":       {},
-	"cookie":              {},
-	"credential":          {},
-	"private_key":         {},
-	"passphrase":          {},
-	"client_secret":       {},
-	"set_cookie":          {},
-	"konnectaccesstoken":  {},
-	"konnectrefreshtoken": {},
+	"http_proxy_authorization":  {},
+	"https_proxy_authorization": {},
+	"cache_tokens_salt":         {},
+	"access_token":              {},
+	"refresh_token":             {},
+	"id_token":                  {},
+	"token":                     {},
+	"api_key":                   {},
+	"apikey":                    {},
+	"x_api_key":                 {},
+	"secret":                    {},
+	"password":                  {},
+	"authorization":             {},
+	"cookie":                    {},
+	"credential":                {},
+	"private_key":               {},
+	"passphrase":                {},
+	"client_secret":             {},
+	"set_cookie":                {},
+	"konnectaccesstoken":        {},
+	"konnectrefreshtoken":       {},
 }
 
 var diffNonSensitiveTokenFieldKeys = map[string]struct{}{
-	"token_count": {},
-	"token_type":  {},
+	"token_count":         {},
+	"token_type":          {},
+	"credential_claim":    {},
+	"credential_required": {},
+	"hide_credentials":    {},
 }
 
 func addBaseDirFlag(cmd *cobra.Command) {
@@ -1532,7 +1539,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					change.ID, change.ResourceType, change.ResourceRef)
 
 				// Show key fields
-				for field, value := range change.Fields {
+				for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+					value := change.Fields[field]
 					displayField(out, field, value, "  ", fullContent)
 				}
 
@@ -1568,7 +1576,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					displayFieldChanges(out, change.ChangedFields, "  ", fullContent)
 				} else {
 					// Backward compatibility with plans that only have raw update fields.
-					for field, value := range change.Fields {
+					for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+						value := change.Fields[field]
 						if fc, ok := value.(planner.FieldChange); ok {
 							displayFieldChange(out, field, fc.Old, fc.New, "  ", fullContent)
 						} else if fc, ok := value.(map[string]any); ok {
@@ -1594,7 +1603,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
 					change.ID, change.ResourceType, change.ResourceRef)
 
-				for field, value := range change.Fields {
+				for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+					value := change.Fields[field]
 					displayField(out, field, value, "  ", fullContent)
 				}
 			}
@@ -1699,9 +1709,8 @@ func displayFieldChange(
 	indent string,
 	fullContent bool,
 ) {
-	oldText := formatFieldValueForField(field, oldValue, fullContent)
-	newText := formatFieldValueForField(field, newValue, fullContent)
-	fmt.Fprintf(out, "%s%s: %s → %s\n", indent, field, oldText, newText)
+	displayNestedFieldChange(out, field, normalizeDiffValue(oldValue), normalizeDiffValue(newValue),
+		true, true, indent, fullContent)
 }
 
 func formatFieldValue(value any, fullContent bool) string {
@@ -1759,7 +1768,7 @@ func isSensitiveDiffField(field string) bool {
 		return true
 	}
 
-	if strings.Contains(normalized, "access_token") || strings.Contains(normalized, "refresh_token") {
+	if strings.HasSuffix(normalized, "_access_token") || strings.HasSuffix(normalized, "_refresh_token") {
 		return true
 	}
 	if strings.HasSuffix(normalized, "_token") {
@@ -1836,59 +1845,16 @@ func dereferenceFieldValue(value any) any {
 }
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
-	value = common.SanitizeDeferredEnvValue(value)
-
-	if isSensitiveDiffField(field) {
-		if dereferenceFieldValue(value) != nil {
-			fmt.Fprintf(out, "%s%s: %s\n", indent, field, diffFieldRedactedValue)
+	value = normalizeDiffValue(value)
+	if object, ok := value.(map[string]any); ok && len(object) > 0 && !isSensitiveDiffField(field) {
+		fmt.Fprintf(out, "%s%s:\n", indent, field)
+		for _, key := range slices.Sorted(maps.Keys(object)) {
+			displayField(out, key, object[key], indent+"  ", fullContent)
 		}
 		return
 	}
-
-	switch v := value.(type) {
-	case string:
-		if v != "" {
-			if v == common.DeferredEnvRedactedDisplay {
-				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
-				return
-			}
-			// Check if string is large and should be summarized
-			const maxDisplayLength = 500
-			if !fullContent && len(v) > maxDisplayLength {
-				// Count lines in the string
-				lines := strings.Count(v, "\n") + 1
-				fmt.Fprintf(out, "%s%s: <%d bytes, %d lines>\n", indent, field, len(v), lines)
-			} else {
-				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
-			}
-		}
-	case bool:
-		fmt.Fprintf(out, "%s%s: %t\n", indent, field, v)
-	case float64:
-		fmt.Fprintf(out, "%s%s: %g\n", indent, field, v)
-	case map[string]any:
-		// Skip empty maps
-		if len(v) == 0 {
-			return
-		}
-		fmt.Fprintf(out, "%s%s:\n", indent, field)
-		for k, val := range v {
-			displayField(out, k, val, indent+"  ", fullContent)
-		}
-	case []any:
-		// Skip empty slices
-		if len(v) == 0 {
-			return
-		}
-		fmt.Fprintf(out, "%s%s:\n", indent, field)
-		for i, item := range v {
-			displayField(out, fmt.Sprintf("[%d]", i), item, indent+"  ", fullContent)
-		}
-	default:
-		if v != nil {
-			fmt.Fprintf(out, "%s%s: %v\n", indent, field, common.SanitizeDeferredEnvValue(v))
-		}
-	}
+	text := formatDiffValue(field, value, indent, fullContent)
+	fmt.Fprintf(out, "%s%s: %s\n", indent, field, text)
 }
 
 func newDeclarativeSyncCmd() *cobra.Command {
