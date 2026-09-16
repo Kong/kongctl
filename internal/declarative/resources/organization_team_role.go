@@ -7,12 +7,20 @@ import (
 )
 
 func init() {
-	registerResourceType(
+	registerChildResourceType(
 		ResourceTypeOrganizationTeamRole,
 		func(rs *ResourceSet) *[]OrganizationTeamRoleResource { return &rs.OrganizationTeamRoles },
 		AutoExplain[OrganizationTeamRoleResource](
 			WithExplainRecommendedFields("team"),
 		),
+		childLoad[OrganizationTeamRoleResource, OrganizationTeamResource]{
+			family:        ResourceTypeOrganizationTeam,
+			extractOrder:  10,
+			validateOrder: 10,
+			nested:        func(t *OrganizationTeamResource) *[]OrganizationTeamRoleResource { return &t.Roles },
+			setParent:     func(r *OrganizationTeamRoleResource, ref string) { r.Team = ref },
+			validate:      ValidateOrganizationTeamRoles,
+		},
 		WithChildSyncScope(ResourceTypeOrganizationTeam),
 	)
 }

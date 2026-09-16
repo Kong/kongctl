@@ -1,0 +1,11 @@
+event_gateways:
+  - ref: "{{ .vars.egw_name }}"
+    _external:
+      selector:
+        matchFields:
+          name: "{{ .vars.egw_name }}"
+    static_keys:
+      - ref: "{{ .vars.static_key_ref }}"
+        name: "{{ .vars.static_key_name }}"
+        description: "{{ .vars.static_key_description }}"
+        value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="

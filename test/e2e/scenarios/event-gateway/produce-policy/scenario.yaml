@@ -17,6 +17,8 @@ vars:
   producePolicyDescription: Default Produce Policy description
   svPolicyRef: schema-validation-produce-policy
   svPolicyName: schema-validation-produce-policy-name-for-test
+  efPolicyRef: encrypt-fields-produce-policy
+  efPolicyName: encrypt-fields-produce-policy-name-for-test
   staticKeyRef: static-key-for-produce-policy
   staticKeyName: static-key-for-produce-policy-name
   schemaRegistryRef: schema-registry-for-produce-policy
@@ -829,7 +831,201 @@ steps:
                 name: "{{ .vars.svPolicyName }}"
                 type: schema_validation
 
-  - name: 011-schema-validation-sync-delete
+  - name: 011-encrypt-fields-create
+    inputOverlayDirs:
+      - overlays/009-encrypt-fields-policy
+    commands:
+      - name: 001-plan-encrypt-fields-create
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-encrypt-fields-create.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.staticKeyRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.efPolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.efPolicyRef }}"
+      - name: 002-apply-encrypt-fields-create
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-encrypt-fields-create.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-get-static-key
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        recordVar:
+          name: encryptFieldsKeyID
+          responsePath: "[?name=='{{ .vars.staticKeyName }}'] | [0].id"
+        assertions:
+          - select: "length([?name=='{{ .vars.staticKeyName }}'] | [0].id) > `0`"
+            expect:
+              fields:
+                "@": true
+      - name: 004-verify-encrypt-fields-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        recordVar:
+          name: schemaValidationPolicyID
+          responsePath: "[?name=='{{ .vars.svPolicyName }}'] | [0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "length([?name=='{{ .vars.svPolicyName }}'] | [0].id) > `0`"
+            expect:
+              fields:
+                "@": true
+          - select: "[?name=='{{ .vars.efPolicyName }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.efPolicyName }}"
+                type: encrypt_fields
+                enabled: true
+                parent_policy_id: "{{ .vars.schemaValidationPolicyID }}"
+                config.failure_mode: reject
+                length(config.encrypt_fields): 1
+                config.encrypt_fields[0].paths: 'record.value.content["customer.ssn"]'
+                config.encrypt_fields[0].encryption_key.type: static
+          - select: "[?name=='{{ .vars.efPolicyName }}'] | [0].config.encrypt_fields[0].encryption_key.key.id"
+            expect:
+              fields:
+                "@": "{{ .vars.encryptFieldsKeyID }}"
+      - name: 005-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 012-encrypt-fields-sync-delete
+    inputOverlayDirs:
+      - overlays/006-update-schema-validation
+    inputOverlayOps:
+      - file: config.yaml
+        match: "event_gateways[?ref=='egw-cp-for-vc-produce-policy-test'] | [0]"
+        set:
+          static_keys: []
+    commands:
+      - name: 001-plan-encrypt-fields-sync-delete
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-encrypt-fields-sync-delete.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_produce_policy' && resource_ref=='{{ .vars.efPolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.efPolicyName }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='{{ .vars.staticKeyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.staticKeyName }}"
+      - name: 002-sync-delete-encrypt-fields
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-encrypt-fields-sync-delete.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-verify-encrypt-fields-sync-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.svPolicyName }}"
+                type: schema_validation
+
+  - name: 013-schema-validation-sync-delete
     inputOverlayDirs:
       - overlays/007-sync-delete-schema-validation
     commands:

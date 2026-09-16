@@ -90,15 +90,15 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 		return err
 	}
 
-	if err := l.validateOrganizationTeamRoles(rs.OrganizationTeamRoles, rs); err != nil {
+	if err := rs.ValidateRegisteredChildren(resources.ResourceTypeOrganizationTeam); err != nil {
 		return err
 	}
 
-	if err := l.validateOrganizationUsers(rs); err != nil {
+	if err := rs.ValidateRegisteredSelectorChildren(resources.ResourceTypeOrganizationUser); err != nil {
 		return err
 	}
 
-	if err := l.validateOrganizationSystemAccounts(rs); err != nil {
+	if err := rs.ValidateRegisteredSelectorChildren(resources.ResourceTypeOrganizationSystemAccount); err != nil {
 		return err
 	}
 
@@ -139,299 +139,29 @@ func normalizeOrganizationTeamSelectors(rs *resources.ResourceSet) {
 	}
 }
 
-func (l *Loader) validateOrganizationUsers(rs *resources.ResourceSet) error {
-	if rs.Organization == nil {
-		if len(rs.OrganizationUserTeamMemberships) > 0 || len(rs.OrganizationUserRoles) > 0 {
-			return fmt.Errorf("organization.users must define selectors for root-level user assignments")
-		}
-		return nil
-	}
-
-	users := rs.Organization.Users
-	userRefs := make(map[string]bool)
-	assignmentRefs := make(map[string]bool)
-	for i := range users {
-		user := &users[i]
-		if err := user.Validate(); err != nil {
-			return fmt.Errorf("invalid organization user %q: %w", user.Ref, err)
-		}
-		if existing, found := rs.GetResourceByRef(user.Ref); found {
-			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", user.Ref, existing.GetType())
-		}
-		if userRefs[user.Ref] {
-			return fmt.Errorf("duplicate organization user ref: %s", user.Ref)
-		}
-		userRefs[user.Ref] = true
-	}
-
-	for i := range rs.OrganizationUserTeamMemberships {
-		membership := &rs.OrganizationUserTeamMemberships[i]
-		if err := membership.Validate(); err != nil {
-			return fmt.Errorf("invalid organization_user_team_membership %q: %w", membership.GetRef(), err)
-		}
-		if assignmentRefs[membership.GetRef()] {
-			return fmt.Errorf("duplicate organization user team membership: %s", membership.GetRef())
-		}
-		assignmentRefs[membership.GetRef()] = true
-		if !userRefs[membership.User] {
-			return fmt.Errorf(
-				"organization_user_team_membership %q references unknown organization user: %s",
-				membership.GetRef(),
-				membership.User,
-			)
-		}
-		if tags.IsExternalPlaceholder(membership.Team) {
-			continue
-		}
-		if resource, found := rs.GetResourceByRef(membership.Team); !found {
-			return fmt.Errorf("organization_user_team_membership %q references unknown organization_team: %s",
-				membership.GetRef(), membership.Team)
-		} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
-			return fmt.Errorf("organization_user_team_membership %q references %s but expected organization_team: %s",
-				membership.GetRef(), resource.GetType(), membership.Team)
-		}
-	}
-
-	roleRefs := make(map[string]bool)
-	for i := range rs.OrganizationUserRoles {
-		role := &rs.OrganizationUserRoles[i]
-		if err := role.Validate(); err != nil {
-			return fmt.Errorf("invalid organization_user_role %q: %w", role.GetRef(), err)
-		}
-		if roleRefs[role.GetRef()] {
-			return fmt.Errorf("duplicate organization_user_role ref: %s", role.GetRef())
-		}
-		roleRefs[role.GetRef()] = true
-		if !userRefs[role.User] {
-			return fmt.Errorf(
-				"organization_user_role %q references unknown organization user: %s",
-				role.GetRef(),
-				role.User,
-			)
-		}
-		if err := l.validateUserRoleEntityReference(role, rs); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func (l *Loader) validateOrganizationTeamRoles(
+	roles []resources.OrganizationTeamRoleResource,
+	rs *resources.ResourceSet,
+) error {
+	return resources.ValidateOrganizationTeamRoles(rs, roles)
 }
 
 func (l *Loader) validateUserRoleEntityReference(
 	role *resources.OrganizationUserRoleResource,
 	rs *resources.ResourceSet,
 ) error {
-	return validateRoleEntityReference(
-		resources.ResourceTypeOrganizationUserRole,
-		role.GetRef(),
-		role.EntityID,
-		role.EntityTypeName,
-		rs,
+	return resources.ValidateRoleEntityReference(
+		resources.ResourceTypeOrganizationUserRole, role.GetRef(), role.EntityID, role.EntityTypeName, rs,
 	)
-}
-
-func (l *Loader) validateOrganizationSystemAccounts(rs *resources.ResourceSet) error {
-	if rs.Organization == nil {
-		if len(rs.OrganizationSystemAccountTeamMemberships) > 0 || len(rs.OrganizationSystemAccountRoles) > 0 {
-			return fmt.Errorf(
-				"organization.system-accounts must define selectors for root-level system account assignments",
-			)
-		}
-		return nil
-	}
-
-	systemAccounts := rs.Organization.SystemAccounts
-	userRefs := make(map[string]bool, len(rs.Organization.Users))
-	for _, user := range rs.Organization.Users {
-		userRefs[user.Ref] = true
-	}
-
-	systemAccountRefs := make(map[string]bool)
-	assignmentRefs := make(map[string]bool)
-	for i := range systemAccounts {
-		systemAccount := &systemAccounts[i]
-		if err := systemAccount.Validate(); err != nil {
-			return fmt.Errorf("invalid organization system account %q: %w", systemAccount.Ref, err)
-		}
-		if existing, found := rs.GetResourceByRef(systemAccount.Ref); found {
-			return fmt.Errorf("duplicate ref '%s' (already defined as %s)", systemAccount.Ref, existing.GetType())
-		}
-		if userRefs[systemAccount.Ref] {
-			return fmt.Errorf(
-				"duplicate ref '%s' (already defined as %s)",
-				systemAccount.Ref,
-				resources.ResourceTypeOrganizationUser,
-			)
-		}
-		if systemAccountRefs[systemAccount.Ref] {
-			return fmt.Errorf("duplicate organization system account ref: %s", systemAccount.Ref)
-		}
-		systemAccountRefs[systemAccount.Ref] = true
-	}
-
-	for i := range rs.OrganizationSystemAccountTeamMemberships {
-		membership := &rs.OrganizationSystemAccountTeamMemberships[i]
-		if err := membership.Validate(); err != nil {
-			return fmt.Errorf("invalid organization_system_account_team_membership %q: %w", membership.GetRef(), err)
-		}
-		if assignmentRefs[membership.GetRef()] {
-			return fmt.Errorf("duplicate organization system account team membership: %s", membership.GetRef())
-		}
-		assignmentRefs[membership.GetRef()] = true
-		if !systemAccountRefs[membership.SystemAccount] {
-			return fmt.Errorf(
-				"organization_system_account_team_membership %q references unknown organization system account: %s",
-				membership.GetRef(),
-				membership.SystemAccount,
-			)
-		}
-		if tags.IsExternalPlaceholder(membership.Team) {
-			continue
-		}
-		if resource, found := rs.GetResourceByRef(membership.Team); !found {
-			return fmt.Errorf("organization_system_account_team_membership %q references unknown organization_team: %s",
-				membership.GetRef(), membership.Team)
-		} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
-			return fmt.Errorf(
-				"organization_system_account_team_membership %q references %s but expected organization_team: %s",
-				membership.GetRef(),
-				resource.GetType(),
-				membership.Team,
-			)
-		}
-	}
-
-	roleRefs := make(map[string]bool)
-	for i := range rs.OrganizationSystemAccountRoles {
-		role := &rs.OrganizationSystemAccountRoles[i]
-		if err := role.Validate(); err != nil {
-			return fmt.Errorf("invalid organization_system_account_role %q: %w", role.GetRef(), err)
-		}
-		if roleRefs[role.GetRef()] {
-			return fmt.Errorf("duplicate organization_system_account_role ref: %s", role.GetRef())
-		}
-		roleRefs[role.GetRef()] = true
-		if !systemAccountRefs[role.SystemAccount] {
-			return fmt.Errorf(
-				"organization_system_account_role %q references unknown organization system account: %s",
-				role.GetRef(),
-				role.SystemAccount,
-			)
-		}
-		if err := l.validateSystemAccountRoleEntityReference(role, rs); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (l *Loader) validateSystemAccountRoleEntityReference(
 	role *resources.OrganizationSystemAccountRoleResource,
 	rs *resources.ResourceSet,
 ) error {
-	return validateRoleEntityReference(
-		resources.ResourceTypeOrganizationSystemAccountRole,
-		role.GetRef(),
-		role.EntityID,
-		role.EntityTypeName,
-		rs,
+	return resources.ValidateRoleEntityReference(
+		resources.ResourceTypeOrganizationSystemAccountRole, role.GetRef(), role.EntityID, role.EntityTypeName, rs,
 	)
-}
-
-func (l *Loader) validateOrganizationTeamRoles(roles []resources.OrganizationTeamRoleResource,
-	rs *resources.ResourceSet,
-) error {
-	roleRefs := make(map[string]bool)
-
-	for i := range roles {
-		role := &roles[i]
-		if err := role.Validate(); err != nil {
-			return fmt.Errorf("invalid organization_team_role %q: %w", role.GetRef(), err)
-		}
-
-		if existing, found := rs.GetResourceByRef(role.GetRef()); found {
-			if existing.GetType() != resources.ResourceTypeOrganizationTeamRole {
-				return fmt.Errorf("duplicate ref '%s' (already defined as %s)",
-					role.GetRef(), existing.GetType())
-			}
-		}
-
-		if roleRefs[role.GetRef()] {
-			return fmt.Errorf("duplicate organization_team_role ref: %s", role.GetRef())
-		}
-		roleRefs[role.GetRef()] = true
-
-		if err := l.validateOrganizationTeamRoleReferences(role, rs); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (l *Loader) validateOrganizationTeamRoleReferences(
-	role *resources.OrganizationTeamRoleResource,
-	rs *resources.ResourceSet,
-) error {
-	if !tags.IsExternalPlaceholder(role.Team) {
-		if resource, found := rs.GetResourceByRef(role.Team); !found {
-			return fmt.Errorf("organization_team_role %q references unknown organization_team: %s",
-				role.GetRef(), role.Team)
-		} else if resource.GetType() != resources.ResourceTypeOrganizationTeam {
-			return fmt.Errorf("organization_team_role %q references %s but expected organization_team: %s",
-				role.GetRef(), resource.GetType(), role.Team)
-		}
-	}
-
-	if !tags.IsRefPlaceholder(role.EntityID) {
-		return nil
-	}
-
-	return validateRoleEntityReference(
-		resources.ResourceTypeOrganizationTeamRole,
-		role.GetRef(),
-		role.EntityID,
-		role.EntityTypeName,
-		rs,
-	)
-}
-
-func validateRoleEntityReference(
-	roleType resources.ResourceType,
-	roleRef string,
-	entityID string,
-	entityTypeName string,
-	rs *resources.ResourceSet,
-) error {
-	if !tags.IsRefPlaceholder(entityID) {
-		return nil
-	}
-
-	entityRef, _, ok := tags.ParseRefPlaceholder(entityID)
-	if !ok || entityRef == "" {
-		return fmt.Errorf("%s %q has invalid entity_id reference: %s", roleType, roleRef, entityID)
-	}
-
-	expectedType, ok := resources.RoleEntityResourceType(entityTypeName)
-	if !ok {
-		return fmt.Errorf(
-			"%s %q has unsupported entity_type_name for entity_id reference: %s",
-			roleType,
-			roleRef,
-			entityTypeName,
-		)
-	}
-
-	if resource, found := rs.GetResourceByRef(entityRef); !found {
-		return fmt.Errorf("%s %q references unknown %s: %s (field: entity_id)",
-			roleType, roleRef, expectedType, entityRef)
-	} else if resource.GetType() != expectedType {
-		return fmt.Errorf("%s %q references %s but expected %s: %s (field: entity_id)",
-			roleType, roleRef, resource.GetType(), expectedType, entityRef)
-	}
-
-	return nil
 }
 
 // validateOrganizationTeams validates organization team resources

@@ -5,6 +5,9 @@ import (
 )
 
 func init() {
+	selector := registerSelectorLoader(
+		ResourceTypeOrganizationUser, (*ResourceSet).organizationUsers, validateOrganizationUserSelectors,
+	)
 	registerSyncSelector(
 		ResourceTypeOrganizationUser,
 		SchemaFieldUser,
@@ -23,7 +26,8 @@ func init() {
 			return NamespaceParticipant{Ref: r.Ref, Label: "organization user", Meta: &r.Kongctl}
 		},
 	)
-	registerResourceType(
+	registerSelectorChildResourceType(
+		selector,
 		ResourceTypeOrganizationUserTeamMembership,
 		func(rs *ResourceSet) *[]OrganizationUserTeamMembershipResource {
 			return &rs.OrganizationUserTeamMemberships
@@ -31,21 +35,38 @@ func init() {
 		AutoExplain[OrganizationUserTeamMembershipResource](
 			WithExplainRecommendedFields(SchemaFieldUser),
 		),
+		childLoad[OrganizationUserTeamMembershipResource, OrganizationUserResource]{
+			family:        ResourceTypeOrganizationUser,
+			extractOrder:  10,
+			validateOrder: 10,
+			nested:        func(u *OrganizationUserResource) *[]OrganizationUserTeamMembershipResource { return &u.Teams },
+			setParent:     func(r *OrganizationUserTeamMembershipResource, ref string) { r.User = ref },
+			validate:      validateOrganizationUserTeamMemberships,
+		},
 		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationUser),
 	)
-	registerResourceType(
+	registerSelectorChildResourceType(
+		selector,
 		ResourceTypeOrganizationUserRole,
 		func(rs *ResourceSet) *[]OrganizationUserRoleResource { return &rs.OrganizationUserRoles },
 		AutoExplain[OrganizationUserRoleResource](
 			WithExplainRecommendedFields(SchemaFieldUser),
 		),
+		childLoad[OrganizationUserRoleResource, OrganizationUserResource]{
+			family:        ResourceTypeOrganizationUser,
+			extractOrder:  20,
+			validateOrder: 20,
+			nested:        func(u *OrganizationUserResource) *[]OrganizationUserRoleResource { return &u.Roles },
+			setParent:     func(r *OrganizationUserRoleResource, ref string) { r.User = ref },
+			validate:      validateOrganizationUserRoles,
+		},
 		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationUser),
 	)
 }
 
 // OrganizationUserResource selects an existing Konnect user and declares user-bound assignments.
 type OrganizationUserResource struct {
-	Ref     string                                   `yaml:"ref" json:"ref"`
+	Ref     string                                   `yaml:"ref"               json:"ref"`
 	Email   string                                   `yaml:"email,omitempty"   json:"email,omitempty"`
 	ID      string                                   `yaml:"id,omitempty"      json:"id,omitempty"`
 	Kongctl *KongctlMeta                             `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -89,9 +110,9 @@ func (u *OrganizationUserResource) SetKonnectID(id string) {
 
 // OrganizationUserTeamMembershipResource represents an organization user's team assignment.
 type OrganizationUserTeamMembershipResource struct {
-	Ref  string `yaml:"ref" json:"ref"`
+	Ref  string `yaml:"ref"            json:"ref"`
 	User string `yaml:"user,omitempty" json:"user,omitempty"`
-	Team string `yaml:"team" json:"team"`
+	Team string `yaml:"team"           json:"team"`
 }
 
 func (r OrganizationUserTeamMembershipResource) GetType() ResourceType {
