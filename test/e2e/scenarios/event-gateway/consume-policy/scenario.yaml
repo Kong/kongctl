@@ -872,3 +872,316 @@ steps:
             expect:
               fields:
                 "@": 0
+
+  - name: 013-decrypt-fields-prerequisites
+    inputOverlayDirs:
+      - overlays/008-decrypt-fields-prerequisites
+    commands:
+      - name: 001-plan-schema-validation
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-schema-validation.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.consumePolicyRef }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='static-key-for-consume-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: 002-apply-schema-validation
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-schema-validation.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-verify-schema-validation
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        recordVar:
+          name: decryptFieldsParentID
+          responsePath: "[0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+                enabled: true
+                config:
+                  key_validation_action: skip
+                  value_validation_action: mark
+                  type: json
+
+  - name: 014-decrypt-fields-policy
+    inputOverlayDirs:
+      - overlays/009-decrypt-fields-policy
+    commands:
+      - name: 001-plan-decrypt-fields-consume
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-decrypt-fields-consume.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='decrypt-fields-consume-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: decrypt-fields-consume-policy
+      - name: 002-apply-decrypt-fields-consume
+        outputFormat: json
+        run:
+          - apply
+          - --plan
+          - "{{ .workdir }}/plan-decrypt-fields-consume.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-decrypt-fields-consume
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 2
+          - select: "[?type=='schema_validation'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+          - select: "[?type=='decrypt_fields'] | [0]"
+            expect:
+              fields:
+                name: decrypt-fields-consume-policy-name-for-test
+                type: decrypt_fields
+                enabled: true
+                parent_policy_id: "{{ .vars.decryptFieldsParentID }}"
+                config.failure_mode: error
+                config.key_sources:
+                  - type: static
+                config.decrypt_fields:
+                  paths: 'record.value.content["customer.ssn"]'
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 015-sync-delete-decrypt-fields
+    inputOverlayDirs:
+      - overlays/008-decrypt-fields-prerequisites
+    commands:
+      - name: 001-plan-sync-delete-decrypt-fields-consume
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-decrypt-fields-consume.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='decrypt-fields-consume-policy-name-for-test'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: decrypt-fields-consume-policy-name-for-test
+      - name: 002-sync-delete-decrypt-fields-consume
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-decrypt-fields-consume.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 003-verify-decrypt-fields-consume-delete
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.consumePolicyName }}"
+                type: schema_validation
+
+  - name: 016-sync-delete-decrypt-fields-prerequisites
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    inputOverlayOps:
+      - file: config.yaml
+        match: "event_gateways[?ref=='{{ .vars.egwRef }}'] | [0]"
+        set:
+          static_keys: []
+    commands:
+      - name: 001-plan-sync-delete-root-level
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync-delete-root-level.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: >-
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.consumePolicyName }}'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                resource_ref: "{{ .vars.consumePolicyName }}"
+          - select: >-
+              changes[?resource_type=='event_gateway_static_key' && resource_ref=='static-key-for-consume-policy-name'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: 002-sync-delete-root-level
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/plan-sync-delete-root-level.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: 003-verify-delete-root-level
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - --virtual-cluster-name
+          - "{{ .vars.virtualClusterName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+      - name: 004-verify-static-key-delete
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egwName }}"
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
