@@ -33,6 +33,8 @@ const (
 	// called "profile": that is kongctl's global configuration profile, and a
 	// local flag of the same name shadows it.
 	ExportProfileFlagName = "export-profile"
+	// InspectTypeFlagName selects what an inspection reads.
+	InspectTypeFlagName = "type"
 
 	// TokenValidForFlagName sets how long an issued token remains valid, and
 	// TokenScopeFlagName which scopes a zone token carries. Both express a
@@ -58,6 +60,7 @@ var (
 	MeshConfigPath             = "konnect.mesh.mesh"
 	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
 	ExportProfileConfigPath    = "konnect.mesh.export-profile"
+	InspectTypeConfigPath      = "konnect.mesh.inspect.type"
 	// These name where a token's lifetime and scope are configured. They hold
 	// no credential themselves.
 	TokenValidForConfigPath = "konnect.mesh.token.valid-for" // #nosec G101 -- configuration path, not a credential
@@ -232,6 +235,7 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{MeshFlagName, MeshConfigPath},
 		{AllMeshesFlagName, AllMeshesConfigPath},
 		{ExportProfileFlagName, ExportProfileConfigPath},
+		{InspectTypeFlagName, InspectTypeConfigPath},
 		{TokenValidForFlagName, TokenValidForConfigPath},
 		{TokenScopeFlagName, TokenScopeConfigPath},
 		{ControlPlaneTokenFlagName, ControlPlaneTokenConfigPath},

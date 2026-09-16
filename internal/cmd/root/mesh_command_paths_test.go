@@ -99,6 +99,11 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 		// form, and its own pre-run must leave the mesh binding to the mesh
 		// command.
 		{"dump", "mesh"},
+		// Inspect commands are subcommands with their own pre-run, so they
+		// must chain the mesh binding rather than take the caller's as is.
+		{"get", "mesh", "inspect", "dataplane", "dp1"},
+		{"get", "konnect", "mesh", "inspect", "dataplane", "dp1"},
+		{"get", "mesh", "inspect", "zones"},
 	}
 
 	for _, path := range paths {

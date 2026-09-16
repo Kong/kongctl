@@ -97,15 +97,10 @@ func TestRequireValidFor(t *testing.T) {
 	}
 }
 
-// The configurable token options must resolve with the flag winning over an
-// environment variable, which wins over the configuration file. The control
-// plane selection flags already behaved this way; these did not exist as
-// configuration at all.
-// Mesh options resolve through configuration, so the file, the environment
-// and the flag must layer in that order.
-//
-// This claimed environment coverage with an envValue field that no case set
-// and nothing read, so the environment rung was never exercised.
+// The configurable token and inspection options must resolve with the flag
+// winning over an environment variable, which wins over the configuration
+// file. The control plane selection flags already behaved this way; these did
+// not exist as configuration at all.
 func TestMeshOptionPrecedence(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -166,6 +161,21 @@ func TestMeshOptionPrecedence(t *testing.T) {
 			envVar:     "KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_ID",
 			envValue:   "from-the-environment",
 			want:       "from-the-environment",
+		},
+		{
+			name:       "inspection type from the file",
+			configPath: meshcommon.InspectTypeConfigPath,
+			flagName:   meshcommon.InspectTypeFlagName,
+			fileValue:  InspectStats,
+			want:       InspectStats,
+		},
+		{
+			name:       "the flag wins for the inspection type",
+			configPath: meshcommon.InspectTypeConfigPath,
+			flagName:   meshcommon.InspectTypeFlagName,
+			fileValue:  InspectStats,
+			flagValue:  InspectClusters,
+			want:       InspectClusters,
 		},
 	}
 
