@@ -1,0 +1,19 @@
+event_gateways:
+  - ref: "{{ .vars.egw_name }}"
+    _external:
+      selector:
+        matchFields:
+          name: "{{ .vars.egw_name }}"
+    schema_registries:
+      - ref: "{{ .vars.schema_registry_ref }}"
+        name: "{{ .vars.schema_registry_name }}"
+        description: "{{ .vars.schema_registry_description }}"
+        type: confluent
+        config:
+          schema_type: json
+          endpoint: https://schema-registry.example.com
+          timeout_seconds: 30
+          authentication:
+            type: basic
+            username: testuser
+            password: "${vault['env']['PATH']}"
