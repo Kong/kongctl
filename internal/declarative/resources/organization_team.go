@@ -28,6 +28,11 @@ func init() {
 			return rs.Organization.Teams
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(
+			150,
+			namedCollectionValidation(func(r *OrganizationTeamResource) string { return r.Name }),
+		),
+		withChildValidationPhase(160),
 	)
 }
 

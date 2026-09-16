@@ -23,6 +23,8 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(40, namedCollectionValidation(func(r *ControlPlaneResource) string { return r.Name })),
+		withChildValidationPhase(90),
 	)
 }
 

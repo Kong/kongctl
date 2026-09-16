@@ -38,11 +38,12 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, registered child loading, and dump-default metadata.
+collection scope, registered child loading, ordered collection validation,
+and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Grouped loading, root
-validation, specialized namespace selection, relationships,
+payload validation for SDK resource operations. Grouped loading,
+specialized namespace selection, relationships,
 pre-execution validation, state-client wiring, and dump collection remain
 separate steps.
 Registering a declaration does not complete those steps automatically.
@@ -142,6 +143,37 @@ Capture sync scope before extraction loses YAML key presence. Shape
 validation must run before resolving ordinary environment values so invalid
 input cannot disclose a secret in an error.
 
+### Collection validation
+
+Register root collection rules with [`withCollectionValidation`][collections].
+Supply a positive phase and a typed validator factory. The factory creates
+fresh uniqueness state per pass; its visitor receives each resource through
+registered storage, including grouped accessors. Use
+`namedCollectionValidation` for type-wide name uniqueness with the resource's
+actual name accessor. AI gateways and dashboards retain namespace-aware
+rules; APIs add nested checks after each root's identity checks.
+
+Managed roots must register validation or an explicit omission reason.
+Event Gateway roots retain their existing validation outside this collection
+pass. Do not add earlier validation as part of registering that exception.
+
+[`ValidateRegisteredCollections`][dispatch] derives dispatch from
+the resource and selector registrations. Phases sort numerically; roots and
+selectors run at order zero, followed by children in `validateOrder`.
+Families register a default with `withChildValidationPhase`; selector handles
+bind their phase with `withValidationPhase`. A child can set `validatePhase`
+to preserve interleaving with another family without requiring a family
+default. Missing inherited phases, missing selector phases, and duplicate
+positions fail when the dispatch is first assembled after init;
+the result is cached. No additional loader invocation is required.
+
+The loader normalizes organization team selectors before this pass, then
+checks cross-references and namespaces after it. Preserve first-error order
+across phases and within each collection. Existing loader validation methods
+needed by tests delegate through `ValidateResourceCollection`.
+The [collection-validation contract test][validation-contract] pins the full
+diagnostic sequence and exercises registration guards.
+
 ### Child loading capabilities
 
 For parents implementing `Resource`, register child loading beside declarations
@@ -179,12 +211,10 @@ deferred-value indexing, preserving attribution to each child ref. Virtual
 clusters and policy placement retain their existing storage and traversal.
 
 Control planes extract gateway services before data-plane certificates.
-Their validators retain separate loader call sites through
-`ValidateRegisteredResource`: services, audit-log destinations, then
-certificates. Do not replace these calls with a contiguous family pass.
-For each new control-plane child, add a `ValidateRegisteredResource` call
-in `validateResourceSet` at the intended phase. Family registration alone
-does not invoke its validator.
+Validation keeps services in the family phase (90), audit-log destinations
+in phase 100, and certificates in their explicit phase 110. Preserve this
+interleaving when assigning a new child's phase; registration supplies its
+invocation automatically.
 Gateway services retain external lookup metadata and their accepted inline
 forms; [certificates][cp-certificate] retain parent lookup, external-placeholder
 handling, and per-control-plane certificate identity checks.
@@ -199,9 +229,9 @@ validator through `registerSelectorLoader`. Pass that handle to
 storage, extraction, and validation; [user assignments][org-user-load] provide
 an example. No per-assignment loader branch is needed.
 `ExtractRegisteredSelectorChildren` visits selectors in source order, extracting
-memberships before roles for each. `ValidateRegisteredSelectorChildren` checks
-all selectors, then memberships, then roles. The loader validates team roles
-before the user family, then the system-account family. Preserve that order,
+memberships before roles for each. Registered validation checks all selectors,
+then memberships, then roles. Team roles precede the user family, then the
+system-account family. Preserve that order,
 the missing-group diagnostics, and team-selector normalization before resource
 validation, including sync-scope parent rebinding.
 
@@ -217,8 +247,9 @@ within their group, independently of scope-capture order. Registration rejects
 conflicting extraction forms, missing validation dispositions, and order
 clashes.
 
-The loader still owns phase sequencing. Ordinary `ExtractRegisteredChildren`
-handlers copy children, overwrite their parent selector, append after existing
+The loader still owns extraction sequencing. Ordinary
+`ExtractRegisteredChildren` handlers copy children, overwrite their parent
+selector, append after existing
 root values, and clear nested fields. Recursion is explicit: Config Stores
 extract secrets before appending the store, ahead of secrets from root-declared
 stores. Secret defaults still run before source indexing; consumer credentials
@@ -228,12 +259,12 @@ are extracted later. Preserve these phases in both loader representations.
 extraction order. API root validation invokes it after each API's identity
 checks, preserving parent-context errors and cross-kind ref checks. Ordinary
 API child callbacks retain validation before extraction; normal loading leaves
-only documents nested. `ValidateRegisteredChildren` then checks
-root child collections in family order, stopping at the first error. API and
-ordinary Portal ref validation both validate each resource before checking
-later siblings for duplicate refs.
+only documents nested. The registered collection pass then checks
+root child collections in phase/order sequence, stopping at the first error.
+API and ordinary Portal ref validation both validate each resource before
+checking later siblings for duplicate refs.
 Portal child validation follows API-child validation. Grouped root extraction,
-root validation, cross-references, and namespaces retain explicit loader paths.
+cross-references, and namespaces retain explicit loader paths.
 
 ### Explain, scaffold, and load schema
 
@@ -674,6 +705,10 @@ engine contract. Each refactoring migration should:
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
 [child-load]: ../../internal/declarative/resources/child_load.go
+[collections]: ../../internal/declarative/resources/collection_validation.go
+[dispatch]: ../../internal/declarative/resources/validation_dispatch.go
+[validation-contract]:
+  ../../internal/declarative/resources/collection_validation_contract_test.go
 [selector-load]: ../../internal/declarative/resources/selector_load.go
 [org-user-load]: ../../internal/declarative/resources/organization_user.go
 [api-child-load]: ../../internal/declarative/resources/api_child_load.go

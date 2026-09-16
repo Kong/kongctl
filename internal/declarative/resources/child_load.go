@@ -13,6 +13,7 @@ type childLoad[R, P any] struct {
 	family                  ResourceType
 	extractOrder            int
 	validateOrder           int
+	validatePhase           int
 	nested                  func(*P) *[]R
 	setParent               func(*R, string)
 	beforeAppend            func(*ResourceSet, *R)
@@ -28,6 +29,7 @@ type childLoadRegistration struct {
 	family                  ResourceType
 	extractOrder            int
 	validateOrder           int
+	validatePhase           int
 	extract                 func(*ResourceSet, Resource)
 	extractSelector         func(*ResourceSet, any)
 	validate                func(*ResourceSet) error
@@ -95,6 +97,7 @@ func (load childLoad[R, P]) registration(
 		family:                  load.family,
 		extractOrder:            load.extractOrder,
 		validateOrder:           load.validateOrder,
+		validatePhase:           load.validatePhase,
 		validationOmittedReason: load.validationOmittedReason,
 	}
 	if load.validate != nil {
@@ -157,6 +160,9 @@ func registerChildLoader(kind ResourceType, registration childLoadRegistration) 
 		}
 	} else if registration.validateOrder <= 0 || registration.validationOmittedReason != "" {
 		panic("child validation requires a positive order and no omission reason: " + string(kind))
+	}
+	if registration.validatePhase < 0 || (registration.validate == nil && registration.validatePhase != 0) {
+		panic("child validation phase requires a validator and cannot be negative: " + string(kind))
 	}
 	for _, existing := range childExtractors[registration.parent] {
 		if existing.kind == kind || existing.extractOrder == registration.extractOrder {

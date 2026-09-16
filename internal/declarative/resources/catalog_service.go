@@ -16,6 +16,10 @@ func init() {
 			return NamespaceParticipant{Ref: r.Ref, Label: "catalog_service", SupportsProtected: true, Meta: &r.Kongctl}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(
+			50,
+			namedCollectionValidation(func(r *CatalogServiceResource) string { return r.GetMoniker() }),
+		),
 	)
 }
 

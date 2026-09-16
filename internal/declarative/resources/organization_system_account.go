@@ -9,7 +9,7 @@ func init() {
 		ResourceTypeOrganizationSystemAccount,
 		(*ResourceSet).organizationSystemAccounts,
 		validateOrganizationSystemAccountSelectors,
-	)
+	).withValidationPhase(180)
 	registerSyncSelector(
 		ResourceTypeOrganizationSystemAccount,
 		SchemaFieldSystemAccount,

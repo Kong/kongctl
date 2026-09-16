@@ -30,6 +30,7 @@ func init() {
 			family:        ResourceTypeControlPlane,
 			extractOrder:  20,
 			validateOrder: 20,
+			validatePhase: 110,
 			nested: func(cp *ControlPlaneResource) *[]ControlPlaneDataPlaneCertificateResource {
 				return &cp.DataPlaneCertificates
 			},

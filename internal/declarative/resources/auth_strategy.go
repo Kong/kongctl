@@ -28,6 +28,10 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(
+			20,
+			namedCollectionValidation(func(r *ApplicationAuthStrategyResource) string { return r.GetMoniker() }),
+		),
 	)
 }
 

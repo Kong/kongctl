@@ -33,10 +33,34 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(60, aiGatewayCollectionValidation),
+		withChildValidationPhase(70),
 	)
 }
 
 func (a *AIGatewayResource) GetExternalBlock() *ExternalBlock { return a.External }
+
+func aiGatewayCollectionValidation(rs *ResourceSet) func(*AIGatewayResource) error {
+	namesByNamespace := make(map[string]string)
+	return func(gateway *AIGatewayResource) error {
+		if err := validateCollectionResource(rs, gateway); err != nil {
+			return err
+		}
+		if gateway.IsExternal() {
+			return nil
+		}
+		namespace := GetNamespace(gateway.Kongctl)
+		nameKey := namespace + "\x00" + gateway.Name
+		if existingRef, exists := namesByNamespace[nameKey]; exists {
+			return fmt.Errorf(
+				"duplicate ai_gateway name '%s' in namespace '%s' (ref: %s conflicts with ref: %s)",
+				gateway.Name, namespace, gateway.GetRef(), existingRef,
+			)
+		}
+		namesByNamespace[nameKey] = gateway.GetRef()
+		return nil
+	}
+}
 
 // AIGatewayResource represents a Konnect AI Gateway in declarative configuration.
 type AIGatewayResource struct {

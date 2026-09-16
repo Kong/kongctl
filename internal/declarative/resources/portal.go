@@ -25,6 +25,8 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
+		withCollectionValidation(10, namedCollectionValidation(func(r *PortalResource) string { return r.Name })),
+		withChildValidationPhase(140),
 		WithNestedSyncScopeCapture(capturePortalNestedSyncScope),
 	)
 }
