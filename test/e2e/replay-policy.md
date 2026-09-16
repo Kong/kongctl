@@ -16,7 +16,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [Recording][sync], [isolated phases][sync-replay] |
-| event-gateway/consume-policy | [Recording and isolated replays][consume-record] |
+| event-gateway/consume-policy | [Recording][consume-record], [isolated replays][consume-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
@@ -26,7 +26,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
-[consume-record]: https://github.com/Kong/kongctl/actions/runs/35048315678
+[consume-record]: https://github.com/Kong/kongctl/actions/runs/35115143565
+[consume-replay]: https://github.com/Kong/kongctl/actions/runs/35116004092
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
@@ -199,14 +200,14 @@ exclude cassette directories or weaken the recorder's sensitive-data checks.
 setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
 
-`event-gateway/consume-policy` passed its complete live recording and three
-isolated replays, each matching all 150 exchanges in strict order. No parallel
-phase annotations or matching exceptions were needed. Scenario execution took
-4.217–4.220 seconds in replay versus a recent 28.61-second live median; this
-is observational, not a measured workflow speedup. Live scenario timing
-already includes its reset; do not add reset savings again. Its scenario-local
-replay README records provenance, same-source live evidence, coverage and
-measurement limitations.
+`event-gateway/consume-policy` passed its expanded live scenario and three
+isolated replays, each matching all 211 exchanges. Two bounded phases cover
+independent schema-validation-parent/static-key creation and cleanup.
+The decrypt_fields child lifecycle and all assertions remain intact. Replay
+scenario execution took 6.855–6.971 seconds; wrappers took 7.565–7.744 seconds.
+Its scenario-local replay README records provenance, phase boundaries and
+measurement limitations. The cassette retains the live source provenance;
+the isolated job's validated artifact adds only the reviewed annotations.
 
 `portal/sync` is enabled after its complete live scenario and three isolated
 replays passed (293 HTTP interactions each), followed by three isolated
