@@ -29,15 +29,30 @@ kongctl diff [flags]
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
 - `--full-content`: Show large string values without summarizing them. Sensitive
   fields and deferred environment values remain redacted.
+- `--color` (string): Text diff styling: `auto` (default), `always`, or `never`.
+  Automatic styling requires terminal output and respects `NO_COLOR` and
+  `TERM=dumb`. Explicit `always` or `never` overrides these checks. JSON/YAML
+  output is unaffected.
+- `--color-theme` (string): Use the existing CLI theme setting for diff colors.
+  The default `auto` selects the Kong light or dark theme for the terminal.
 
 ## Output Formats
 
 ### Text Format (Default)
 
-Shows human-readable differences with color coding:
-- 🟢 Green: Additions (CREATE)
-- 🟡 Yellow: Modifications (UPDATE)
-- 🔴 Red: Deletions (DELETE - sync mode only)
+Shows human-readable differences using the selected theme's diff colors:
+- `+`: Additions, green in the built-in Kong themes
+- `~`: Modifications, amber/yellow in the built-in Kong themes
+- `-`: Removals, red in the built-in Kong themes
+
+Old values use the removal color and new values use the addition color. The
+terminal background is preserved, and symbols remain visible without color.
+
+```sh
+kongctl diff --plan plan.json --color-theme kong-dark
+kongctl diff --plan plan.json --color never
+kongctl diff --plan plan.json --color always | less -R
+```
 
 ```diff
 Portal "developer-portal":
@@ -182,17 +197,19 @@ Nested objects show only changed fields, with keys sorted at each level:
 
 ```text
   config:
-    ~ client_secret: [REDACTED] → [REDACTED]
+    ~ client_secret: (sensitive value changed)
     redis:
       ~ connect_timeout: 1000 → 2000
-    ~ scopes_claim: ["old_claim"] → ["new_claim"]
+    scopes_claim:
+      ~ [0]: "old_claim" → "new_claim"
     + scopes_required: ["example_scope"]
 ```
 
 `+` adds a field, `-` removes a field, and `~` changes a value. Explicit
 `null`, empty objects (`{}`), and empty arrays (`[]`) remain distinct.
 Sensitive values are redacted inside objects and arrays, including when
-`--full-content` is enabled.
+`--full-content` is enabled. Type replacements have an explicit `(type)`
+label, for example `~ port: 80 → "80" (type)`.
 
 ### Nested Resource Changes
 
@@ -212,14 +229,22 @@ API "users-api":
 
 ### Array Changes
 
-Arrays preserve order and display the complete old and new values. Large
-values use multiple lines with `-` for the old value and `+` for the new:
+Arrays compare by index and preserve order. Only changed elements and fields
+inside those elements are shown; indices start at zero. Reordering elements
+is a change. Additions and removals refer to positions in the old/new arrays,
+not a sequence of edit operations.
 
 ```
 Portal "developer-portal":
   ~ auto_approve_applications: false → true
-  ~ approved_domains: ["old.example.com"] → ["example.com", "api.example.com"]
+  approved_domains:
+    ~ [0]: "old.example.com" → "example.com"
+    + [1]: "api.example.com"
 ```
+
+Entire added or removed arrays and objects still show their complete values.
+Large values use multiline formatting; replacements use `-` for the old value
+and `+` for the new value.
 
 ## Diff Modes
 

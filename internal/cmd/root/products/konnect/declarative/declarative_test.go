@@ -1081,7 +1081,7 @@ func TestDisplayTextDiff_RedactsSensitiveChangedFields(t *testing.T) {
 	require.NoError(t, err)
 
 	output := out.String()
-	assert.Contains(t, output, "oidc_client_secret: [REDACTED] → [REDACTED]")
+	assert.Contains(t, output, "oidc_client_secret: (sensitive value changed)")
 	assert.NotContains(t, output, "old-secret-value")
 	assert.NotContains(t, output, "new-secret-value")
 }

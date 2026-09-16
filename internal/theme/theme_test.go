@@ -88,6 +88,24 @@ func TestKongLightAccentTextHasReadableContrast(t *testing.T) {
 	require.GreaterOrEqual(t, accent.DistanceLab(primary), 0.35)
 }
 
+func TestDiffColorsHaveReadableContrast(t *testing.T) {
+	for _, palette := range []Palette{kongLightPalette(), kongDarkPalette()} {
+		background, err := colorful.Hex(palette.Color(ColorSurface).Light)
+		require.NoError(t, err)
+		for _, token := range []Token{ColorDiffAdded, ColorDiffRemoved, ColorDiffChanged} {
+			foreground, err := colorful.Hex(palette.Color(token).Light)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, contrastRatio(background, foreground), 4.5, "%s %s", palette.Name, token)
+		}
+	}
+	palette := paletteFromTint(&tint.Tint{ID: "example"})
+	for diff, semantic := range map[Token]Token{
+		ColorDiffAdded: ColorSuccess, ColorDiffRemoved: ColorDanger, ColorDiffChanged: ColorWarning,
+	} {
+		require.Equal(t, palette.Colors[semantic], palette.Colors[diff])
+	}
+}
+
 func TestDarkBackgroundFromColorFGBG(t *testing.T) {
 	t.Parallel()
 

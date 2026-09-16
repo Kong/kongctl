@@ -34,6 +34,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -1320,6 +1321,9 @@ func checkStdinApprovalConflict(planFile string, filenames []string) error {
 }
 
 func runDiff(command *cobra.Command, args []string) error {
+	if _, err := diffColorMode(command); err != nil {
+		return err
+	}
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
 
@@ -1460,7 +1464,10 @@ func runDiff(command *cobra.Command, args []string) error {
 }
 
 func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
-	out := command.OutOrStdout()
+	out, err := newDiffOutput(command)
+	if err != nil {
+		return err
+	}
 	displayPlanWarnings(plan, command.ErrOrStderr())
 
 	// Handle empty plan
@@ -1528,15 +1535,15 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	// Display changes grouped by namespace
 	for nsIdx, namespace := range namespaces {
 		// Show namespace header
-		fmt.Fprintf(out, "=== Namespace: %s ===\n", namespace)
+		fmt.Fprintln(out, out.paint(theme.ColorPrimary, fmt.Sprintf("=== Namespace: %s ===", namespace)))
 
 		// Display each change in this namespace
 		for _, change := range changesByNamespace[namespace] {
 
 			switch change.Action {
 			case planner.ActionCreate:
-				fmt.Fprintf(out, "+ [%s] %s %q will be created\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("+ [%s] %s %q will be created", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffAdded, header))
 
 				// Show key fields
 				for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
@@ -1554,8 +1561,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				}
 
 			case planner.ActionUpdate:
-				fmt.Fprintf(out, "~ [%s] %s %q will be updated\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("~ [%s] %s %q will be updated", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffChanged, header))
 
 				// Check if this is a protection change
 				if pc, ok := change.Protection.(planner.ProtectionChange); ok {
@@ -1597,8 +1604,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 			case planner.ActionDelete:
 				// DELETE action (future implementation)
-				fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("- [%s] %s %q will be deleted", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffRemoved, header))
 			case planner.ActionExternalTool:
 				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
 					change.ID, change.ResourceType, change.ResourceRef)
@@ -1846,15 +1853,17 @@ func dereferenceFieldValue(value any) any {
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
 	value = normalizeDiffValue(value)
+	output := diffOutputFor(out)
+	fieldText := output.paint(theme.ColorTextSecondary, field)
 	if object, ok := value.(map[string]any); ok && len(object) > 0 && !isSensitiveDiffField(field) {
-		fmt.Fprintf(out, "%s%s:\n", indent, field)
+		fmt.Fprintf(out, "%s%s:\n", indent, fieldText)
 		for _, key := range slices.Sorted(maps.Keys(object)) {
 			displayField(out, key, object[key], indent+"  ", fullContent)
 		}
 		return
 	}
 	text := formatDiffValue(field, value, indent, fullContent)
-	fmt.Fprintf(out, "%s%s: %s\n", indent, field, text)
+	fmt.Fprintf(out, "%s%s: %s\n", indent, fieldText, output.paint(theme.ColorDiffAdded, text))
 }
 
 func newDeclarativeSyncCmd() *cobra.Command {
@@ -1921,6 +1930,7 @@ Konnect is the default target for this command, so "kongctl diff" and
 	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
+	cmd.Flags().String(cmdcommon.ColorFlagName, cmdcommon.DefaultColorMode, "Colorize text diffs (auto|always|never)")
 	addSecretWriteFlags(cmd)
 	addRequireNamespaceFlags(cmd)
 

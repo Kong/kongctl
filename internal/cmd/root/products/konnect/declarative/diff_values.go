@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+
+	"github.com/kong/kongctl/internal/theme"
 )
 
 // Use the plan's JSON representation to handle typed maps, slices, and pointers
@@ -37,38 +39,76 @@ func displayNestedFieldChange(
 	if hasOld == hasNew && reflect.DeepEqual(oldValue, newValue) {
 		return
 	}
+	output := diffOutputFor(out)
+	fieldText := output.paint(theme.ColorTextSecondary, field)
+	marker := output.paint(theme.ColorDiffChanged, "~")
+	sensitive := isSensitiveDiffField(field)
 	oldMap, oldObject := oldValue.(map[string]any)
 	newMap, newObject := newValue.(map[string]any)
-	if oldObject && newObject && !isSensitiveDiffField(field) {
-		var children strings.Builder
+	if oldObject && newObject && !sensitive {
+		fmt.Fprintf(out, "%s%s:\n", indent, fieldText)
 		keys := maps.Clone(oldMap)
 		maps.Copy(keys, newMap)
 		for _, key := range slices.Sorted(maps.Keys(keys)) {
 			oldChild, oldExists := oldMap[key]
 			newChild, newExists := newMap[key]
-			displayNestedFieldChange(&children, key, oldChild, newChild,
+			displayNestedFieldChange(out, key, oldChild, newChild,
 				oldExists, newExists, indent+"  ", fullContent)
 		}
-		if children.Len() > 0 {
-			fmt.Fprintf(out, "%s%s:\n%s", indent, field, children.String())
+		return
+	}
+	oldArray, oldIsArray := oldValue.([]any)
+	newArray, newIsArray := newValue.([]any)
+	if oldIsArray && newIsArray && !sensitive {
+		fmt.Fprintf(out, "%s%s:\n", indent, fieldText)
+		for i := range max(len(oldArray), len(newArray)) {
+			var oldItem, newItem any
+			oldExists, newExists := i < len(oldArray), i < len(newArray)
+			if oldExists {
+				oldItem = oldArray[i]
+			}
+			if newExists {
+				newItem = newArray[i]
+			}
+			displayNestedFieldChange(out, fmt.Sprintf("[%d]", i), oldItem, newItem,
+				oldExists, newExists, indent+"  ", fullContent)
 		}
 		return
 	}
 	if !hasOld {
-		fmt.Fprintf(out, "%s+ %s: %s\n", indent, field, formatDiffValue(field, newValue, indent, fullContent))
+		fmt.Fprintf(out, "%s%s %s: %s\n", indent, output.paint(theme.ColorDiffAdded, "+"), fieldText,
+			output.paint(theme.ColorDiffAdded, formatDiffValue(field, newValue, indent, fullContent)))
 		return
 	}
 	if !hasNew {
-		fmt.Fprintf(out, "%s- %s: %s\n", indent, field, formatDiffValue(field, oldValue, indent, fullContent))
+		fmt.Fprintf(out, "%s%s %s: %s\n", indent, output.paint(theme.ColorDiffRemoved, "-"), fieldText,
+			output.paint(theme.ColorDiffRemoved, formatDiffValue(field, oldValue, indent, fullContent)))
 		return
+	}
+	// Retain explicit null transitions, but never reveal non-null secret values
+	// or their types. The comparison above still detects secret-only changes.
+	if sensitive && oldValue != nil && newValue != nil {
+		fmt.Fprintf(out, "%s%s %s: %s\n", indent, marker, fieldText,
+			output.paint(theme.ColorTextMuted, "(sensitive value changed)"))
+		return
+	}
+	typeTag := ""
+	if !sensitive && reflect.TypeOf(oldValue) != reflect.TypeOf(newValue) {
+		typeTag = " (type)"
 	}
 	oldText := formatDiffValue(field, oldValue, indent+"  ", fullContent)
 	newText := formatDiffValue(field, newValue, indent+"  ", fullContent)
-	if strings.Contains(oldText, "\n") || strings.Contains(newText, "\n") || len(oldText)+len(newText) > 100 {
-		fmt.Fprintf(out, "%s~ %s:\n%s  - %s\n%s  + %s\n", indent, field, indent, oldText, indent, newText)
+	multiline := strings.Contains(oldText, "\n") || strings.Contains(newText, "\n") || len(oldText)+len(newText) > 100
+	oldText = output.paint(theme.ColorDiffRemoved, oldText)
+	newText = output.paint(theme.ColorDiffAdded, newText)
+	typeTag = output.paint(theme.ColorTextMuted, typeTag)
+	if multiline {
+		fmt.Fprintf(out, "%s%s %s:%s\n%s  %s %s\n%s  %s %s\n", indent, marker, fieldText, typeTag,
+			indent, output.paint(theme.ColorDiffRemoved, "-"), oldText,
+			indent, output.paint(theme.ColorDiffAdded, "+"), newText)
 		return
 	}
-	fmt.Fprintf(out, "%s~ %s: %s → %s\n", indent, field, oldText, newText)
+	fmt.Fprintf(out, "%s%s %s: %s → %s%s\n", indent, marker, fieldText, oldText, newText, typeTag)
 }
 
 // Format containers only after recursively formatting their children. Both the

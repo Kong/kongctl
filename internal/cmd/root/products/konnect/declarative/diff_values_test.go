@@ -40,13 +40,14 @@ func TestNestedDiffChanges(t *testing.T) {
 	displayFieldChange(&out, planner.FieldConfig, oldValue, newValue, "  ", false)
 	require.Equal(t, `  config:
     + added: null
-    ~ empty: {} → []
-    ~ null: null → {}
+    ~ empty: {} → [] (type)
+    ~ null: null → {} (type)
     redis:
       ~ connect_timeout: 1000 → 2000
     - removed: null
-    ~ scopes_claim: ["old_claim"] → ["new_claim"]
-    ~ type: "scalar" → {}
+    scopes_claim:
+      ~ [0]: "old_claim" → "new_claim"
+    ~ type: "scalar" → {} (type)
 `, out.String())
 }
 
@@ -56,10 +57,12 @@ func TestNestedDiffCollections(t *testing.T) {
 		old, new any
 		want     string
 	}{
-		{"array order", []string{"a", "b"}, []any{"b", "a"}, `  ~ config: ["a", "b"] → ["b", "a"]` + "\n"},
+		{"array order", []string{"a", "b"}, []any{"b", "a"}, `  config:
+    ~ [0]: "a" → "b"
+    ~ [1]: "b" → "a"` + "\n"},
 		{"typed equality", map[string]int{"count": 1}, map[string]any{"count": float64(1)}, ""},
-		{"nil slice", []string(nil), []string{}, "  ~ config: null → []\n"},
-		{"nil map", map[string]string(nil), map[string]string{}, "  ~ config: null → {}\n"},
+		{"nil slice", []string(nil), []string{}, "  ~ config: null → [] (type)\n"},
+		{"nil map", map[string]string(nil), map[string]string{}, "  ~ config: null → {} (type)\n"},
 		{"empty parent", map[string]any{}, map[string]any{"child": map[string]any{}}, "  config:\n    + child: {}\n"},
 		{"removed child", map[string]any{"child": []string{}}, map[string]any{}, "  config:\n    - child: []\n"},
 	} {
@@ -89,13 +92,11 @@ func TestDiffRecursiveRedaction(t *testing.T) {
 			}
 			var out bytes.Buffer
 			displayFieldChange(&out, planner.FieldConfig, oldValue, newValue, "  ", full)
-			assert.Contains(t, out.String(), "~ cache_tokens_salt: [REDACTED] → [REDACTED]")
-			assert.Contains(t, out.String(), "~ client_secret: [REDACTED] → [REDACTED]")
+			assert.Contains(t, out.String(), "~ cache_tokens_salt: (sensitive value changed)")
+			assert.Contains(t, out.String(), "~ client_secret: (sensitive value changed)")
 			assert.Contains(t, out.String(), "[redacted from !env]")
-			assert.Contains(t, out.String(), "~ nested:")
-			if full {
-				assert.Contains(t, out.String(), "~ nested:\n")
-			}
+			assert.Contains(t, out.String(), "nested:")
+
 			displayField(&out, planner.FieldConfig, newValue, "  ", full)
 			// Also cover object replacements and removals, which print whole values.
 			displayFieldChange(&out, planner.FieldConfig, newValue, "replacement", "  ", full)
@@ -122,19 +123,46 @@ func TestDiffSensitiveOnlyArrayChange(t *testing.T) {
 	displayFieldChange(&out, planner.FieldConfig,
 		[]map[string]string{{"client_secret": "old"}},
 		[]map[string]string{{"client_secret": "new"}}, "  ", true)
-	assert.Equal(t, "  ~ config: [{\"client_secret\": [REDACTED]}] → [{\"client_secret\": [REDACTED]}]\n", out.String())
+	assert.Equal(t, "  config:\n    [0]:\n      ~ client_secret: (sensitive value changed)\n", out.String())
+}
+
+func TestDiffArrayLeavesAndTypes(t *testing.T) {
+	oldValue := []any{
+		map[string]any{"path": "/v1", "methods": []string{"GET"}, "unchanged": true},
+		map[string]any{"port": 80},
+		nil,
+	}
+	newValue := []any{
+		map[string]any{"path": "/v2", "methods": []string{"GET", "POST"}, "unchanged": true},
+		map[string]any{"port": "80"},
+	}
+	var out bytes.Buffer
+	displayFieldChange(&out, planner.FieldConfig, oldValue, newValue, "  ", false)
+	assert.Equal(t, `  config:
+    [0]:
+      methods:
+        + [1]: "POST"
+      ~ path: "/v1" → "/v2"
+    [1]:
+      ~ port: 80 → "80" (type)
+    - [2]: null
+`, out.String())
+}
+
+func TestDiffSensitiveNullTransitions(t *testing.T) {
+	var out bytes.Buffer
+	displayFieldChange(&out, "client_secret", nil, "hidden", "  ", true)
+	displayFieldChange(&out, "client_secret", "hidden", nil, "  ", true)
+	assert.Equal(t, "  ~ client_secret: null → [REDACTED]\n  ~ client_secret: [REDACTED] → null\n", out.String())
 }
 
 func TestDiffMultilineArray(t *testing.T) {
 	var out bytes.Buffer
 	displayFieldChange(&out, planner.FieldConfig, []string{},
 		[]string{strings.Repeat("a", 40), strings.Repeat("b", 40)}, "  ", false)
-	assert.Equal(t, `  ~ config:
-    - []
-    + [
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-    ]
+	assert.Equal(t, `  config:
+    + [0]: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    + [1]: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 `, out.String())
 }
 
@@ -197,7 +225,7 @@ func TestDiffPlanRoundTripAndLegacyFields(t *testing.T) {
 				expected = out.String()
 			}
 			assert.Equal(t, expected, out.String())
-			assert.Contains(t, out.String(), `~ scopes_claim: ["old"] → ["new"]`)
+			assert.Contains(t, out.String(), `~ [0]: "old" → "new"`)
 			assert.NotContains(t, out.String(), "redis:")
 			assert.Contains(t, out.String(), "will be updated")
 		}
