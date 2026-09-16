@@ -5,6 +5,11 @@ import (
 )
 
 func init() {
+	selector := registerSelectorLoader(
+		ResourceTypeOrganizationSystemAccount,
+		(*ResourceSet).organizationSystemAccounts,
+		validateOrganizationSystemAccountSelectors,
+	)
 	registerSyncSelector(
 		ResourceTypeOrganizationSystemAccount,
 		SchemaFieldSystemAccount,
@@ -23,7 +28,8 @@ func init() {
 			return NamespaceParticipant{Ref: r.Ref, Label: "organization system account", Meta: &r.Kongctl}
 		},
 	)
-	registerResourceType(
+	registerSelectorChildResourceType(
+		selector,
 		ResourceTypeOrganizationSystemAccountTeamMembership,
 		func(rs *ResourceSet) *[]OrganizationSystemAccountTeamMembershipResource {
 			return &rs.OrganizationSystemAccountTeamMemberships
@@ -31,9 +37,20 @@ func init() {
 		AutoExplain[OrganizationSystemAccountTeamMembershipResource](
 			WithExplainRecommendedFields(SchemaFieldSystemAccount),
 		),
+		childLoad[OrganizationSystemAccountTeamMembershipResource, OrganizationSystemAccountResource]{
+			family:        ResourceTypeOrganizationSystemAccount,
+			extractOrder:  10,
+			validateOrder: 10,
+			nested: func(s *OrganizationSystemAccountResource) *[]OrganizationSystemAccountTeamMembershipResource {
+				return &s.Teams
+			},
+			setParent: func(r *OrganizationSystemAccountTeamMembershipResource, ref string) { r.SystemAccount = ref },
+			validate:  validateOrganizationSystemAccountTeamMemberships,
+		},
 		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationSystemAccount),
 	)
-	registerResourceType(
+	registerSelectorChildResourceType(
+		selector,
 		ResourceTypeOrganizationSystemAccountRole,
 		func(rs *ResourceSet) *[]OrganizationSystemAccountRoleResource {
 			return &rs.OrganizationSystemAccountRoles
@@ -41,13 +58,23 @@ func init() {
 		AutoExplain[OrganizationSystemAccountRoleResource](
 			WithExplainRecommendedFields(SchemaFieldSystemAccount),
 		),
+		childLoad[OrganizationSystemAccountRoleResource, OrganizationSystemAccountResource]{
+			family:        ResourceTypeOrganizationSystemAccount,
+			extractOrder:  20,
+			validateOrder: 20,
+			nested: func(s *OrganizationSystemAccountResource) *[]OrganizationSystemAccountRoleResource {
+				return &s.Roles
+			},
+			setParent: func(r *OrganizationSystemAccountRoleResource, ref string) { r.SystemAccount = ref },
+			validate:  validateOrganizationSystemAccountRoles,
+		},
 		WithSelectorAssignmentSyncScope(ResourceTypeOrganizationSystemAccount),
 	)
 }
 
 // OrganizationSystemAccountResource selects an existing Konnect system account and declares assignments.
 type OrganizationSystemAccountResource struct {
-	Ref     string                                            `yaml:"ref" json:"ref"`
+	Ref     string                                            `yaml:"ref"               json:"ref"`
 	Name    string                                            `yaml:"name,omitempty"    json:"name,omitempty"`
 	ID      string                                            `yaml:"id,omitempty"      json:"id,omitempty"`
 	Kongctl *KongctlMeta                                      `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`
@@ -91,9 +118,9 @@ func (s *OrganizationSystemAccountResource) SetKonnectID(id string) {
 
 // OrganizationSystemAccountTeamMembershipResource represents a system account's team assignment.
 type OrganizationSystemAccountTeamMembershipResource struct {
-	Ref           string `yaml:"ref" json:"ref"`
+	Ref           string `yaml:"ref"                      json:"ref"`
 	SystemAccount string `yaml:"system_account,omitempty" json:"system_account,omitempty"`
-	Team          string `yaml:"team" json:"team"`
+	Team          string `yaml:"team"                     json:"team"`
 }
 
 func (r OrganizationSystemAccountTeamMembershipResource) GetType() ResourceType {

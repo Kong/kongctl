@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -45,4 +46,43 @@ func roleEntityDependency(entityID, entityTypeName string) []ResourceRef {
 	}
 
 	return []ResourceRef{{Kind: resourceType, Ref: ref}}
+}
+
+// ValidateRoleEntityReference checks a declarative entity selector against the
+// Konnect role entity type. Literal entity IDs require no resource lookup.
+func ValidateRoleEntityReference(
+	roleType ResourceType,
+	roleRef string,
+	entityID string,
+	entityTypeName string,
+	rs *ResourceSet,
+) error {
+	if !tags.IsRefPlaceholder(entityID) {
+		return nil
+	}
+
+	entityRef, _, ok := tags.ParseRefPlaceholder(entityID)
+	if !ok || entityRef == "" {
+		return fmt.Errorf("%s %q has invalid entity_id reference: %s", roleType, roleRef, entityID)
+	}
+
+	expectedType, ok := RoleEntityResourceType(entityTypeName)
+	if !ok {
+		return fmt.Errorf(
+			"%s %q has unsupported entity_type_name for entity_id reference: %s",
+			roleType,
+			roleRef,
+			entityTypeName,
+		)
+	}
+
+	if resource, found := rs.GetResourceByRef(entityRef); !found {
+		return fmt.Errorf("%s %q references unknown %s: %s (field: entity_id)",
+			roleType, roleRef, expectedType, entityRef)
+	} else if resource.GetType() != expectedType {
+		return fmt.Errorf("%s %q references %s but expected %s: %s (field: entity_id)",
+			roleType, roleRef, resource.GetType(), expectedType, entityRef)
+	}
+
+	return nil
 }

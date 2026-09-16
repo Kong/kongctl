@@ -664,53 +664,14 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		// Extract organization teams from organization
 		for i := range org.Teams {
 			team := org.Teams[i]
-			for j := range team.Roles {
-				role := team.Roles[j]
-				role.Team = team.Ref
-				rs.OrganizationTeamRoles = append(rs.OrganizationTeamRoles, role)
-			}
-			team.Roles = nil
+			rs.ExtractRegisteredChildren(&team)
 			rs.OrganizationTeams = append(rs.OrganizationTeams, team)
 		}
 
 		org.Teams = nil
 
-		for i := range org.Users {
-			user := &org.Users[i]
-			userRef := user.Ref
-			for _, teamMembership := range user.Teams {
-				teamMembership.User = userRef
-				rs.OrganizationUserTeamMemberships = append(
-					rs.OrganizationUserTeamMemberships,
-					teamMembership,
-				)
-			}
-			for j := range user.Roles {
-				role := user.Roles[j]
-				role.User = userRef
-				rs.OrganizationUserRoles = append(rs.OrganizationUserRoles, role)
-			}
-			user.Teams = nil
-			user.Roles = nil
-		}
-		for i := range org.SystemAccounts {
-			systemAccount := &org.SystemAccounts[i]
-			systemAccountRef := systemAccount.Ref
-			for _, teamMembership := range systemAccount.Teams {
-				teamMembership.SystemAccount = systemAccountRef
-				rs.OrganizationSystemAccountTeamMemberships = append(
-					rs.OrganizationSystemAccountTeamMemberships,
-					teamMembership,
-				)
-			}
-			for j := range systemAccount.Roles {
-				role := systemAccount.Roles[j]
-				role.SystemAccount = systemAccountRef
-				rs.OrganizationSystemAccountRoles = append(rs.OrganizationSystemAccountRoles, role)
-			}
-			systemAccount.Teams = nil
-			systemAccount.Roles = nil
-		}
+		rs.ExtractRegisteredSelectorChildren(resources.ResourceTypeOrganizationUser)
+		rs.ExtractRegisteredSelectorChildren(resources.ResourceTypeOrganizationSystemAccount)
 	}
 
 	for i := range rs.ControlPlanes {
