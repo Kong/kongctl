@@ -51,6 +51,17 @@ Kong Mesh 3.0 or later is required.`))
 	`, meta.CLIName)))
 )
 
+// appliesResources reports whether a verb sends resource documents from -f.
+//
+// Both apply and create do. `apply` is the primary form because it is what
+// kumactl calls this and what the behaviour actually is: the control plane
+// addresses a resource by type and name and a write creates or replaces it,
+// which kumactl implements as an upsert and reports as created or updated.
+// `create` is kept because it was the name this shipped under first.
+func appliesResources(verb verbs.VerbValue) bool {
+	return verb == verbs.Apply || verb == verbs.Create
+}
+
 // NewMeshCmd builds the mesh container command for a verb.
 //
 // It follows the same constructor shape as the other product containers so
@@ -75,7 +86,7 @@ func NewMeshCmd(
 		addParentFlags(verb, baseCmd)
 	}
 	meshcommon.AddControlPlaneFlags(baseCmd.PersistentFlags())
-	if verb == verbs.Create {
+	if appliesResources(verb) {
 		baseCmd.Flags().StringSliceP(FilenameFlagName, "f", nil,
 			"Files, directories, URLs, or - for stdin, holding the mesh resources to apply. Repeatable.")
 	}
@@ -94,7 +105,7 @@ func NewMeshCmd(
 		if _, err := helper.GetOutputFormat(); err != nil {
 			return err
 		}
-		if verb == verbs.Create {
+		if appliesResources(verb) {
 			// Resources come from -f, so a positional argument here is either
 			// a mistyped subcommand or a misunderstanding of the command.
 			if len(args) > 0 {
@@ -135,7 +146,7 @@ func NewMeshCmd(
 		}
 		return cmd.RequireSubcommand(cmdObj, args)
 	}
-	if verb != verbs.Create && verb != verbs.Delete {
+	if !appliesResources(verb) && verb != verbs.Delete {
 		cmd.MarkRequiresSubcommand(baseCmd)
 	}
 
