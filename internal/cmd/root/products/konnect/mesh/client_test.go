@@ -2,11 +2,17 @@ package mesh
 
 import (
 	"errors"
+	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
+	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
+	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
@@ -197,4 +203,43 @@ func TestListPayloadReportsWhatWasCollected(t *testing.T) {
 	empty := listPayload(nil)
 	require.Equal(t, 0, empty["total"])
 	require.Equal(t, []map[string]any{}, empty["items"])
+}
+
+// meshTestConfig builds a profiled config carrying the given settings under
+// the active profile.
+func meshTestConfig(t *testing.T, settings map[string]any) config.Hook {
+	t.Helper()
+
+	main := viper.New()
+	main.Set("default", settings)
+	return config.BuildProfiledConfig("default", "/tmp/kongctl-mesh-test-config.yaml", main)
+}
+
+// Mesh requests must use the configured HTTP behaviour rather than a default
+// client, which is what constructing one inline had made them do.
+func TestMeshClientConfigUsesConfiguredSettings(t *testing.T) {
+	clientConfig, err := meshClientConfig(meshTestConfig(t, map[string]any{
+		cmdcommon.HTTPTimeoutConfigPath:                   "7s",
+		cmdcommon.HTTPDisableKeepAlivesConfigPath:         true,
+		cmdcommon.HTTPRecycleConnectionsOnErrorConfigPath: true,
+	}))
+
+	require.NoError(t, err)
+	require.Equal(t, 7*time.Second, clientConfig.Timeout)
+	require.True(t, clientConfig.TransportOptions.DisableKeepAlives)
+	require.True(t, clientConfig.TransportOptions.RecycleConnectionsOnError)
+}
+
+func TestMeshClientConfigFallsBackToTheDefaultTimeout(t *testing.T) {
+	clientConfig, err := meshClientConfig(meshTestConfig(t, map[string]any{}))
+
+	require.NoError(t, err)
+	require.Equal(t, httpclient.DefaultHTTPClientTimeout, clientConfig.Timeout)
+}
+
+func TestNewHTTPClientBuildsAClient(t *testing.T) {
+	client, err := newHTTPClient(meshTestConfig(t, map[string]any{}), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	require.NotNil(t, client)
 }
