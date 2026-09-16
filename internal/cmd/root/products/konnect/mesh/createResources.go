@@ -17,7 +17,6 @@ import (
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
-	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/segmentio/cli"
 	"go.yaml.in/yaml/v4"
 )
@@ -219,9 +218,21 @@ func readResourceURL(helper cmd.Helper, rawURL, defaultMesh string) ([]meshResou
 		return nil, err
 	}
 
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// The configured timeout and transport apply here too; what stays separate
+	// is the credential, which apiutil.Request does not attach.
+	client, err := newHTTPClient(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx := helper.GetContext()
 	result, err := apiutil.Request(
-		ctx, httpclient.NewLoggingHTTPClient(logger), http.MethodGet, "", rawURL, "", nil, nil)
+		ctx, client, http.MethodGet, "", rawURL, "", nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch %s: %w", rawURL, err)
 	}
