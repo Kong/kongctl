@@ -29,10 +29,15 @@ const (
 	// resources, so that commands carrying no --mesh behave the same way.
 	DefaultMesh = "default"
 
-	// ExportProfileFlagName selects which types an export covers. It is not
-	// called "profile": that is kongctl's global configuration profile, and a
-	// local flag of the same name shadows it.
-	ExportProfileFlagName = "export-profile"
+	// TokenValidForFlagName sets how long an issued token remains valid, and
+	// TokenScopeFlagName which scopes a zone token carries. Both express a
+	// policy an operator applies to every token they issue, so both support a
+	// persistent default.
+	TokenValidForFlagName = "valid-for"
+	TokenScopeFlagName    = "scope"
+
+	// InspectTypeFlagName selects what an inspection reads.
+	InspectTypeFlagName = "type"
 )
 
 var (
@@ -41,6 +46,11 @@ var (
 	ControlPlaneURLConfigPath  = "konnect.mesh.control-plane.url"
 	MeshConfigPath             = "konnect.mesh.mesh"
 	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
+	// These name where a token's lifetime and scope are configured. They hold
+	// no credential themselves.
+	TokenValidForConfigPath = "konnect.mesh.token.valid-for" // #nosec G101 -- configuration path, not a credential
+	TokenScopeConfigPath    = "konnect.mesh.token.scope"     // #nosec G101 -- configuration path, not a credential
+	InspectTypeConfigPath   = "konnect.mesh.inspect.type"
 )
 
 // ControlPlanesPath lists the Konnect hosted Kong Mesh control planes, and
@@ -152,8 +162,16 @@ func AddControlPlaneFlags(flags *pflag.FlagSet) {
 - Config path: [ %s ]`, AllMeshesConfigPath))
 }
 
-// BindFlags associates the control plane selection flags with their
-// configuration paths.
+// BindFlags associates the mesh flags with their configuration paths.
+//
+// Every option that supports a persistent default is listed here, and a flag
+// absent from the command being run is skipped, so one call covers the shared
+// selection flags and whichever command specific options are present.
+//
+// Options deliberately absent identify the subject of a single invocation --
+// which dataplane, workload, zone or tags a token is for -- where a persistent
+// default would silently issue a token for something other than what the
+// operator named.
 func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 	if cfg == nil || flags == nil {
 		return nil
@@ -165,6 +183,8 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{ControlPlaneURLFlagName, ControlPlaneURLConfigPath},
 		{MeshFlagName, MeshConfigPath},
 		{AllMeshesFlagName, AllMeshesConfigPath},
+		{TokenValidForFlagName, TokenValidForConfigPath},
+		{TokenScopeFlagName, TokenScopeConfigPath},
 	}
 
 	for _, b := range bindings {
