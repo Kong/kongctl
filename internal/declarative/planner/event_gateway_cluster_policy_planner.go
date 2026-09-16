@@ -510,24 +510,31 @@ func (p *Planner) extractClusterPolicyConfig(
 func configFieldsMatch(current, desired map[string]any) bool {
 	for key, desiredVal := range desired {
 		currentVal, exists := current[key]
-		if !exists {
-			return false
-		}
-
-		// Recursive comparison for nested maps
-		desiredMap, desiredIsMap := desiredVal.(map[string]any)
-		currentMap, currentIsMap := currentVal.(map[string]any)
-		if desiredIsMap && currentIsMap {
-			if !configFieldsMatch(currentMap, desiredMap) {
-				return false
-			}
-			continue
-		}
-
-		// For slices, use DeepEqual (order matters for rules)
-		if !reflect.DeepEqual(currentVal, desiredVal) {
+		if !exists || !configValuesMatch(currentVal, desiredVal) {
 			return false
 		}
 	}
 	return true
+}
+
+func configValuesMatch(current, desired any) bool {
+	switch desired := desired.(type) {
+	case map[string]any:
+		current, ok := current.(map[string]any)
+		return ok && configFieldsMatch(current, desired)
+	case []any:
+		current, ok := current.([]any)
+		if !ok || len(current) != len(desired) || (current == nil) != (desired == nil) {
+			return false
+		}
+		// Array order matters for policy rules.
+		for i, desiredElement := range desired {
+			if !configValuesMatch(current[i], desiredElement) {
+				return false
+			}
+		}
+		return true
+	default:
+		return reflect.DeepEqual(current, desired)
+	}
 }

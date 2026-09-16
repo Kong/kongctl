@@ -210,3 +210,43 @@ func TestShouldUpdateClusterPolicy_ConfigChangedNestedField(t *testing.T) {
 	assert.NotNil(t, updateFields, "updateFields should contain the new config")
 	require.Contains(t, changedFields, "config", "config should be in changed fields")
 }
+
+func TestConfigFieldsMatchArrays(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		current any
+		desired any
+		want    bool
+	}{
+		{
+			name:    "API adds fields inside array objects",
+			current: []any{map[string]any{FieldID: "key-id", FieldName: "key-name"}},
+			desired: []any{map[string]any{FieldID: "key-id"}},
+			want:    true,
+		},
+		{
+			name:    "changed nested field",
+			current: []any{map[string]any{FieldID: "old-key"}},
+			desired: []any{map[string]any{FieldID: "new-key"}},
+		},
+		{
+			name:    "missing nested field",
+			current: []any{map[string]any{FieldName: "key-name"}},
+			desired: []any{map[string]any{FieldID: "key-id"}},
+		},
+		{name: "order matters", current: []any{"a", "b"}, desired: []any{"b", "a"}},
+		{name: "extra element", current: []any{"a", "b"}, desired: []any{"a"}},
+		{name: "missing element", current: []any{"a"}, desired: []any{"a", "b"}},
+		{name: "different type", current: "a", desired: []any{"a"}},
+		{name: "nil versus empty", current: []any(nil), desired: []any{}},
+		{name: "equal scalar elements", current: []any{"a", true}, desired: []any{"a", true}, want: true},
+		{name: "nested arrays", current: []any{[]any{"a"}}, desired: []any{[]any{"a"}}, want: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, configFieldsMatch(
+				map[string]any{FieldConfig: tt.current},
+				map[string]any{FieldConfig: tt.desired},
+			))
+		})
+	}
+}
