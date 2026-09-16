@@ -35,9 +35,9 @@ func headersFor(d ResourceDescriptor) []string {
 	case d.Name == dataplaneTypeName:
 		return []string{colMesh, colName, "TAGS", "ADDRESS", "AGE"}
 	case d.IsMeshScoped():
-		return []string{"MESH", "NAME", "AGE"}
+		return []string{colMesh, colName, "AGE"}
 	default:
-		return []string{"NAME", "AGE"}
+		return []string{colName, "AGE"}
 	}
 }
 
@@ -111,8 +111,6 @@ func duration(d time.Duration) string {
 	return fmt.Sprintf("%dy", hours/24/365)
 }
 
-// Discovered type names the printers and the export selection both test
-// against, named once so the string is not repeated across the package.
 // Column headers shared by the printers, named once so a heading cannot drift
 // between the tables that show the same field.
 const (
@@ -122,6 +120,8 @@ const (
 	colResult = "RESULT"
 )
 
+// Discovered type names the printers test against, named once so the string is
+// not repeated across the package.
 const (
 	dataplaneTypeName        = "Dataplane"
 	dataplaneInsightTypeName = "DataplaneInsight"
