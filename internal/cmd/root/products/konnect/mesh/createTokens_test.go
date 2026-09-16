@@ -2,6 +2,9 @@ package mesh
 
 import (
 	"encoding/json"
+	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
 	"maps"
 	"slices"
 	"strings"
@@ -48,33 +51,39 @@ func TestSplitTagValues(t *testing.T) {
 
 func TestRequireValidFor(t *testing.T) {
 	tests := []struct {
-		name     string
-		duration time.Duration
-		want     string
-		wantErr  bool
+		name    string
+		raw     string
+		want    string
+		wantErr bool
 	}{
-		{"a day", 24 * time.Hour, "24h0m0s", false},
-		{"a minute", time.Minute, "1m0s", false},
+		{name: "a day", raw: (24 * time.Hour).String(), want: "24h0m0s"},
+		{name: "a minute", raw: time.Minute.String(), want: "1m0s"},
 		// A token with no expiry would be accepted by the control plane, so it
 		// is refused here rather than sent.
-		{"zero is refused", 0, "", true},
-		{"negative is refused", -time.Hour, "", true},
+		{name: "zero is refused", raw: "0s", wantErr: true},
+		{name: "negative is refused", raw: (-time.Hour).String(), wantErr: true},
+		// Nothing configured and no flag given is the same refusal: the
+		// requirement is checked after resolution, not by MarkFlagRequired.
+		{name: "absent is refused", raw: "", wantErr: true},
+		{name: "unparseable is refused", raw: "soon", wantErr: true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmdObj := newDataplaneTokenCmd(nil)
-			if err := cmdObj.Flags().Set(tokenValidForFlagName, tc.duration.String()); err != nil {
-				t.Fatal(err)
-			}
+			cfg := meshTestConfig(t, map[string]any{
+				meshcommon.TokenValidForConfigPath: tc.raw,
+			})
 
-			got, err := requireValidFor(cmdObj)
+			got, err := requireValidFor(cfg)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("expected an error")
 				}
-				if !strings.Contains(err.Error(), tokenValidForFlagName) {
-					t.Errorf("error should name the flag, got %q", err)
+				// The message has to name a way to supply the value, since
+				// either the flag or configuration will do.
+				if !strings.Contains(err.Error(), tokenValidForFlagName) &&
+					!strings.Contains(err.Error(), "token lifetime") {
+					t.Errorf("error should name the flag or the value, got %q", err)
 				}
 				return
 			}
@@ -84,6 +93,57 @@ func TestRequireValidFor(t *testing.T) {
 			if got != tc.want {
 				t.Errorf("validFor = %q, want %q", got, tc.want)
 			}
+		})
+	}
+}
+
+// The configurable token options must resolve with the flag winning over an
+// environment variable, which wins over the configuration file. The control
+// plane selection flags already behaved this way; these did not exist as
+// configuration at all.
+func TestMeshOptionPrecedence(t *testing.T) {
+	cases := []struct {
+		name       string
+		configPath string
+		flagName   string
+		fileValue  string
+		envValue   string
+		flagValue  string
+		want       string
+	}{
+		{
+			name:       "token lifetime from the file",
+			configPath: meshcommon.TokenValidForConfigPath,
+			flagName:   meshcommon.TokenValidForFlagName,
+			fileValue:  "1h0m0s",
+			want:       "1h0m0s",
+		},
+		{
+			name:       "the flag wins over the file",
+			configPath: meshcommon.TokenValidForConfigPath,
+			flagName:   meshcommon.TokenValidForFlagName,
+			fileValue:  "1h0m0s",
+			flagValue:  "5m0s",
+			want:       "5m0s",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := map[string]any{}
+			if tc.fileValue != "" {
+				settings[tc.configPath] = tc.fileValue
+			}
+			cfg := meshTestConfig(t, settings)
+
+			flags := pflag.NewFlagSet("precedence", pflag.ContinueOnError)
+			flags.String(tc.flagName, "", "")
+			if tc.flagValue != "" {
+				require.NoError(t, flags.Set(tc.flagName, tc.flagValue))
+			}
+			require.NoError(t, cfg.BindFlag(tc.configPath, flags.Lookup(tc.flagName)))
+
+			require.Equal(t, tc.want, cfg.GetString(tc.configPath))
 		})
 	}
 }
