@@ -83,16 +83,17 @@ func validatePersistentHostCollisions(root *cobra.Command, ext Extension) error 
 }
 
 func registerPersistentFlags(command *cobra.Command, declarations []Flag) {
+	flags := command.PersistentFlags()
 	for _, declaration := range declarations {
-		if command.PersistentFlags().Lookup(declaration.Name) != nil {
+		if flags.Lookup(declaration.Name) != nil {
 			continue
 		}
 		if declaration.Type == "bool" {
-			command.PersistentFlags().Bool(declaration.Name, false, declaration.Description)
+			flags.Bool(declaration.Name, false, declaration.Description)
 		} else {
-			command.PersistentFlags().String(declaration.Name, "", declaration.Description)
+			flags.String(declaration.Name, "", declaration.Description)
 		}
-		command.PersistentFlags().Lookup(declaration.Name).Annotations = map[string][]string{
+		flags.Lookup(declaration.Name).Annotations = map[string][]string{
 			annotationPersistentFlag: {command.Annotations[annotationExtensionID]},
 		}
 	}

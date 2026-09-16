@@ -164,13 +164,15 @@ func (a *AIGatewayVaultResource) TryMatchKonnectResource(konnectResource any) bo
 	if name == "" {
 		return false
 	}
-	if id := AIGatewayVaultID(konnectResource); id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
-		if a.Ref == id || a.GetKonnectID() == id {
-			a.SetKonnectID(id)
-			return true
-		}
+	id := AIGatewayVaultID(konnectResource)
+	if id == "" {
+		return false
 	}
-	if id := AIGatewayVaultID(konnectResource); id != "" && AIGatewayVaultName(konnectResource) == name {
+	if (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") && (a.Ref == id || a.GetKonnectID() == id) {
+		a.SetKonnectID(id)
+		return true
+	}
+	if AIGatewayVaultName(konnectResource) == name {
 		a.SetKonnectID(id)
 		return true
 	}
