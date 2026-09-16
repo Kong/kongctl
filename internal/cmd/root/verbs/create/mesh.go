@@ -20,6 +20,10 @@ import (
 // giving "kongctl create mesh ..." alongside the explicit
 // "kongctl create konnect mesh ..." form.
 //
+// `apply mesh` is the primary form for sending resources, since a write
+// creates or replaces and that is what apply means. This is kept because it is
+// the name the command first shipped under.
+//
 // Reaching Kong Mesh through one command path regardless of whether the control
 // plane is Konnect hosted or self managed is deliberate: where a control plane
 // runs is a connection detail, not a different command.
@@ -62,7 +66,8 @@ func NewDirectMeshCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 
-	meshCmd.Example = fmt.Sprintf(`  # Apply mesh resources from a file
+	meshCmd.Example = fmt.Sprintf(`  # Apply mesh resources from a file. A write creates or replaces,
+  # so 'apply mesh' is the primary form for this.
   %[1]s create mesh -f policy.yaml --control-plane-id <id>
 
   # Apply every resource in a directory
