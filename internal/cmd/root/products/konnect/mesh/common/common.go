@@ -29,6 +29,9 @@ const (
 	// resources, so that commands carrying no --mesh behave the same way.
 	DefaultMesh = "default"
 
+	// InspectTypeFlagName selects what an inspection reads.
+	InspectTypeFlagName = "type"
+
 	// TokenValidForFlagName sets how long an issued token remains valid, and
 	// TokenScopeFlagName which scopes a zone token carries. Both express a
 	// policy an operator applies to every token they issue, so both support a
@@ -52,6 +55,7 @@ var (
 	ControlPlaneURLConfigPath  = "konnect.mesh.control-plane.url"
 	MeshConfigPath             = "konnect.mesh.mesh"
 	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
+	InspectTypeConfigPath      = "konnect.mesh.inspect.type"
 	// These name where a token's lifetime and scope are configured. They hold
 	// no credential themselves.
 	TokenValidForConfigPath = "konnect.mesh.token.valid-for" // #nosec G101 -- configuration path, not a credential
@@ -225,6 +229,7 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{ControlPlaneURLFlagName, ControlPlaneURLConfigPath},
 		{MeshFlagName, MeshConfigPath},
 		{AllMeshesFlagName, AllMeshesConfigPath},
+		{InspectTypeFlagName, InspectTypeConfigPath},
 		{TokenValidForFlagName, TokenValidForConfigPath},
 		{TokenScopeFlagName, TokenScopeConfigPath},
 		{ControlPlaneTokenFlagName, ControlPlaneTokenConfigPath},

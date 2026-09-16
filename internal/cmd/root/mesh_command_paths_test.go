@@ -93,6 +93,11 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 		// both trees as well.
 		{"create", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
 		{"create", "konnect", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
+		// Inspect commands are subcommands with their own pre-run, so they
+		// must chain the mesh binding rather than take the caller's as is.
+		{"get", "mesh", "inspect", "dataplane", "dp1"},
+		{"get", "konnect", "mesh", "inspect", "dataplane", "dp1"},
+		{"get", "mesh", "inspect", "zones"},
 	}
 
 	for _, path := range paths {
