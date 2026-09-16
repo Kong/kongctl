@@ -130,7 +130,7 @@ func (c *getControlPlanesCmd) runE(cobraCmd *cobra.Command, args []string) error
 		rows,
 		controlPlanes,
 		"Mesh Control Planes",
-		tableview.WithExactCustomTable([]string{"NAME", "ID", "API LINE"}, tableRows),
+		tableview.WithExactCustomTable([]string{colName, "ID", "API LINE"}, tableRows),
 		tableview.WithRootLabel(helper.GetCmd().Name()),
 	)
 }
