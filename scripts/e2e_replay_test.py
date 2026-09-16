@@ -5,6 +5,7 @@ import http.client
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import ssl
 import tempfile
@@ -22,7 +23,38 @@ def interaction(method="GET", body=None):
             "response": {"status": 200, "body": {"data": []}}}
 
 
+def cassette_refresh_scenario(env):
+    """Only the manual candidate workflow may defer one old input fingerprint."""
+    scenario = env.get("KONGCTL_REPLAY_REFRESH_SCENARIO")
+    if not scenario:
+        return None
+    mode, source = env.get("REPLAY_MODE"), env.get("SOURCE_RUN", "")
+    if (env.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
+            or env.get("GITHUB_WORKFLOW") != "E2E replay experiment"
+            or scenario not in MODULE.SCENARIOS
+            or scenario != env.get("REPLAY_SCENARIO")
+            or not (mode == "record" and not source
+                    or mode == "replay" and re.fullmatch(r"[0-9]+", source))):
+        raise ValueError("cassette refresh requires the selected manual recording or source-run replay")
+    return scenario
+
+
 class ReplayTest(unittest.TestCase):
+    def test_cassette_refresh_is_scoped_to_manual_candidate_workflow(self):
+        env = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_WORKFLOW": "E2E replay experiment",
+               "REPLAY_MODE": "record", "REPLAY_SCENARIO": MODULE.SCENARIO,
+               "KONGCTL_REPLAY_REFRESH_SCENARIO": MODULE.SCENARIO}
+        self.assertIsNone(cassette_refresh_scenario({}))
+        self.assertEqual(MODULE.SCENARIO, cassette_refresh_scenario(env))
+        self.assertEqual(MODULE.SCENARIO, cassette_refresh_scenario(
+            {**env, "REPLAY_MODE": "replay", "SOURCE_RUN": "123"}))
+        for changes in [{"GITHUB_EVENT_NAME": "pull_request"}, {"GITHUB_WORKFLOW": "CI Test"},
+                        {"REPLAY_SCENARIO": "portal/sync"}, {"KONGCTL_REPLAY_REFRESH_SCENARIO": "unknown"},
+                        {"REPLAY_MODE": "replay"}, {"SOURCE_RUN": "123"},
+                        {"REPLAY_MODE": "replay", "SOURCE_RUN": "not-a-run"}]:
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                cassette_refresh_scenario({**env, **changes})
+
     def test_assertion_fields_are_data_but_environment_controls_stay_restricted(self):
         import yaml
         with tempfile.TemporaryDirectory() as temporary:
@@ -346,11 +378,13 @@ class ReplayTest(unittest.TestCase):
 
     def test_repository_cassettes_are_current_even_without_replay_routing(self):
         root = MODULE.ROOT / "test/e2e/scenarios"
+        refresh = cassette_refresh_scenario(os.environ)
         for path in sorted(root.glob("**/replay/cassette.json")):
             directory = path.parent.parent
+            scenario = directory.relative_to(root).as_posix()
             with self.subTest(path=path):
                 MODULE.validate_cassette(MODULE.load_cassette(path), directory,
-                                        directory.relative_to(root).as_posix())
+                                        scenario, allow_stale=scenario == refresh)
 
     def test_external_dependencies_require_explicit_review(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -645,6 +679,16 @@ class ReplayTest(unittest.TestCase):
             (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: [{name: changed}]")
             with self.assertRaisesRegex(ValueError, "stale cassette"):
                 MODULE.validate_cassette(cassette, root)
+            MODULE.validate_cassette(cassette, root, allow_stale=True)
+            invalid = copy.deepcopy(cassette)
+            invalid["interactions"][0]["response"]["body"] = {"token": "private"}
+            with self.assertRaisesRegex(ValueError, "sensitive field"):
+                MODULE.validate_cassette(invalid, root, allow_stale=True)
+            with self.assertRaisesRegex(ValueError, "must be a live recording"):
+                MODULE.validate_cassette(bootstrap, root, allow_stale=True)
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nenv: {}\nsteps: []")
+            with self.assertRaisesRegex(ValueError, "environment"):
+                MODULE.validate_cassette(cassette, root, allow_stale=True)
 
     def test_real_https_connect_and_certificate_validation(self):
         engine = MODULE.Replay({"interactions": [interaction()]})

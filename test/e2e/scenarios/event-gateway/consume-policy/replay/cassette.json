@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "event-gateway/consume-policy",
-  "inputs_sha256": "sha256:483868308eeb6947ec8d36b90f481cf2403771596d527946e3743696f2f42350",
+  "inputs_sha256": "sha256:6debda2bd90bbf89b19b2b8a164d5a2009d8e26c6a31f70d63cb65ece6b5832e",
   "source": {
     "kind": "recorded",
-    "commit": "6e18e39d76a5fe2006cea5f306f143cb3661f7f1",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35048315678"
+    "commit": "1ccd9dd9450e0d52ed192c25ed26286f95966438",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35115143565"
   },
   "interactions": [
     {
@@ -48,7 +48,7 @@
       "response": {
         "status": 201,
         "body": {
-          "created_at": "2026-09-16T02:40:12.678521Z",
+          "created_at": "2026-09-16T15:29:50.607635Z",
           "description": "EGW for Virtual Cluster Consume Policy Test",
           "id": "00000000-0000-4000-8000-000000000001",
           "labels": {
@@ -57,7 +57,7 @@
           "min_runtime_version": "1.2",
           "name": "egw-cp-for-vc-consume-policy-test",
           "nodes_total": 0,
-          "updated_at": "2026-09-16T02:40:12.678521Z",
+          "updated_at": "2026-09-16T15:29:50.607635Z",
           "version": "v1.0.0+builder.0.3",
           "virtual_clusters_total": 0
         },
@@ -102,7 +102,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -116,7 +116,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -151,7 +151,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -160,7 +160,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -205,7 +205,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -216,7 +216,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:13.400673Z"
+          "updated_at": "2026-09-16T15:29:50.987312Z"
         },
         "content_type": "application/json"
       }
@@ -239,7 +239,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -248,7 +248,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:13.383118Z",
+              "updated_at": "2026-09-16T15:29:50.977661Z",
               "version": "v1.3.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -288,7 +288,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -297,7 +297,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -333,7 +333,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -344,7 +344,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:13.400673Z"
+            "updated_at": "2026-09-16T15:29:50.987312Z"
           }
         ],
         "content_type": "application/json"
@@ -368,7 +368,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -377,7 +377,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:13.383118Z",
+              "updated_at": "2026-09-16T15:29:50.977661Z",
               "version": "v1.3.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -417,7 +417,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -426,7 +426,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -462,7 +462,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -473,7 +473,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:13.400673Z"
+            "updated_at": "2026-09-16T15:29:50.987312Z"
           }
         ],
         "content_type": "application/json"
@@ -500,7 +500,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -511,7 +511,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:13.400673Z"
+          "updated_at": "2026-09-16T15:29:50.987312Z"
         },
         "content_type": "application/json"
       }
@@ -534,7 +534,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -543,7 +543,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:13.383118Z",
+              "updated_at": "2026-09-16T15:29:50.977661Z",
               "version": "v1.3.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -583,7 +583,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -592,7 +592,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -627,7 +627,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -638,7 +638,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:13.400673Z"
+          "updated_at": "2026-09-16T15:29:50.987312Z"
         },
         "content_type": "application/json"
       }
@@ -656,7 +656,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -665,7 +665,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:13.383118Z",
+              "updated_at": "2026-09-16T15:29:50.977661Z",
               "version": "v1.3.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -701,7 +701,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -715,7 +715,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -747,7 +747,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -761,7 +761,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -785,7 +785,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -794,7 +794,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -825,7 +825,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -834,7 +834,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -861,7 +861,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -872,7 +872,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:13.400673Z"
+            "updated_at": "2026-09-16T15:29:50.987312Z"
           }
         ],
         "content_type": "application/json"
@@ -899,7 +899,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -910,7 +910,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:13.400673Z"
+          "updated_at": "2026-09-16T15:29:50.987312Z"
         },
         "content_type": "application/json"
       }
@@ -955,7 +955,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description updated",
           "enabled": false,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -966,7 +966,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:17.836405Z"
+          "updated_at": "2026-09-16T15:29:53.662739Z"
         },
         "content_type": "application/json"
       }
@@ -989,7 +989,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -998,7 +998,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:17.827584Z",
+              "updated_at": "2026-09-16T15:29:53.655063Z",
               "version": "v1.4.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -1038,7 +1038,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -1047,7 +1047,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -1083,7 +1083,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description updated",
             "enabled": false,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -1094,7 +1094,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:17.836405Z"
+            "updated_at": "2026-09-16T15:29:53.662739Z"
           }
         ],
         "content_type": "application/json"
@@ -1113,7 +1113,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -1122,7 +1122,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:17.827584Z",
+              "updated_at": "2026-09-16T15:29:53.655063Z",
               "version": "v1.4.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -1158,7 +1158,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1172,7 +1172,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -1204,7 +1204,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1218,7 +1218,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -1242,7 +1242,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -1251,7 +1251,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -1282,7 +1282,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -1291,7 +1291,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -1318,7 +1318,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description updated",
             "enabled": false,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -1329,7 +1329,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:17.836405Z"
+            "updated_at": "2026-09-16T15:29:53.662739Z"
           }
         ],
         "content_type": "application/json"
@@ -1357,7 +1357,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -1366,7 +1366,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:17.827584Z",
+              "updated_at": "2026-09-16T15:29:53.655063Z",
               "version": "v1.4.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -1402,7 +1402,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1416,7 +1416,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -1449,7 +1449,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -1458,7 +1458,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -1522,7 +1522,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description updated",
             "enabled": false,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -1533,7 +1533,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:17.836405Z"
+            "updated_at": "2026-09-16T15:29:53.662739Z"
           }
         ],
         "content_type": "application/json"
@@ -1667,7 +1667,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -1676,7 +1676,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:17.827584Z",
+              "updated_at": "2026-09-16T15:29:53.655063Z",
               "version": "v1.4.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -1712,7 +1712,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1726,7 +1726,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -1758,7 +1758,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1772,7 +1772,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -1796,7 +1796,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -1805,7 +1805,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -1836,7 +1836,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -1845,7 +1845,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -1872,7 +1872,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description updated",
             "enabled": false,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -1883,7 +1883,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:17.836405Z"
+            "updated_at": "2026-09-16T15:29:53.662739Z"
           }
         ],
         "content_type": "application/json"
@@ -1902,7 +1902,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -1911,7 +1911,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:17.827584Z",
+              "updated_at": "2026-09-16T15:29:53.655063Z",
               "version": "v1.4.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -1947,7 +1947,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -1961,7 +1961,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -1993,7 +1993,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -2007,7 +2007,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -2031,7 +2031,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -2040,7 +2040,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -2071,7 +2071,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -2080,7 +2080,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -2107,7 +2107,7 @@
                 }
               ]
             },
-            "created_at": "2026-09-16T02:40:13.400673Z",
+            "created_at": "2026-09-16T15:29:50.987312Z",
             "description": "Default Consume Policy description updated",
             "enabled": false,
             "id": "00000000-0000-4000-8000-000000000004",
@@ -2118,7 +2118,7 @@
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "modify_headers",
-            "updated_at": "2026-09-16T02:40:17.836405Z"
+            "updated_at": "2026-09-16T15:29:53.662739Z"
           }
         ],
         "content_type": "application/json"
@@ -2145,7 +2145,7 @@
               }
             ]
           },
-          "created_at": "2026-09-16T02:40:13.400673Z",
+          "created_at": "2026-09-16T15:29:50.987312Z",
           "description": "Default Consume Policy description updated",
           "enabled": false,
           "id": "00000000-0000-4000-8000-000000000004",
@@ -2156,7 +2156,7 @@
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "modify_headers",
-          "updated_at": "2026-09-16T02:40:17.836405Z"
+          "updated_at": "2026-09-16T15:29:53.662739Z"
         },
         "content_type": "application/json"
       }
@@ -2193,7 +2193,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -2202,7 +2202,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:25.955036Z",
+              "updated_at": "2026-09-16T15:29:58.054569Z",
               "version": "v1.5.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -2242,7 +2242,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -2251,7 +2251,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -2292,7 +2292,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -2301,7 +2301,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:25.955036Z",
+              "updated_at": "2026-09-16T15:29:58.054569Z",
               "version": "v1.5.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -2337,7 +2337,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -2351,7 +2351,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -2383,7 +2383,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -2397,7 +2397,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -2421,7 +2421,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -2430,7 +2430,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -2461,7 +2461,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -2470,7 +2470,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -2533,7 +2533,7 @@
               "key"
             ]
           },
-          "created_at": "2026-09-16T02:40:28.424777Z",
+          "created_at": "2026-09-16T15:29:59.477294Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000005",
@@ -2543,7 +2543,7 @@
           },
           "name": "default-consume-policy-name-for-test",
           "type": "decrypt",
-          "updated_at": "2026-09-16T02:40:28.424777Z"
+          "updated_at": "2026-09-16T15:29:59.477294Z"
         },
         "content_type": "application/json"
       }
@@ -2566,7 +2566,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -2575,7 +2575,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:28.40841Z",
+              "updated_at": "2026-09-16T15:29:59.469131Z",
               "version": "v1.6.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -2615,7 +2615,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -2624,7 +2624,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -2662,7 +2662,7 @@
                 "key"
               ]
             },
-            "created_at": "2026-09-16T02:40:28.424777Z",
+            "created_at": "2026-09-16T15:29:59.477294Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000005",
@@ -2672,7 +2672,7 @@
             },
             "name": "default-consume-policy-name-for-test",
             "type": "decrypt",
-            "updated_at": "2026-09-16T02:40:28.424777Z"
+            "updated_at": "2026-09-16T15:29:59.477294Z"
           }
         ],
         "content_type": "application/json"
@@ -2691,7 +2691,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -2700,7 +2700,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:28.40841Z",
+              "updated_at": "2026-09-16T15:29:59.469131Z",
               "version": "v1.6.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -2736,7 +2736,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -2750,7 +2750,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -2782,7 +2782,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -2796,7 +2796,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -2820,7 +2820,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -2829,7 +2829,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -2860,7 +2860,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -2869,7 +2869,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -2898,7 +2898,7 @@
                 "key"
               ]
             },
-            "created_at": "2026-09-16T02:40:28.424777Z",
+            "created_at": "2026-09-16T15:29:59.477294Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000005",
@@ -2908,7 +2908,7 @@
             },
             "name": "default-consume-policy-name-for-test",
             "type": "decrypt",
-            "updated_at": "2026-09-16T02:40:28.424777Z"
+            "updated_at": "2026-09-16T15:29:59.477294Z"
           }
         ],
         "content_type": "application/json"
@@ -2937,7 +2937,7 @@
               "key"
             ]
           },
-          "created_at": "2026-09-16T02:40:28.424777Z",
+          "created_at": "2026-09-16T15:29:59.477294Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000005",
@@ -2947,7 +2947,7 @@
           },
           "name": "default-consume-policy-name-for-test",
           "type": "decrypt",
-          "updated_at": "2026-09-16T02:40:28.424777Z"
+          "updated_at": "2026-09-16T15:29:59.477294Z"
         },
         "content_type": "application/json"
       }
@@ -2984,7 +2984,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -2993,7 +2993,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:31.102195Z",
+              "updated_at": "2026-09-16T15:30:01.026802Z",
               "version": "v1.7.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3033,7 +3033,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3042,7 +3042,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3083,7 +3083,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -3092,7 +3092,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:31.102195Z",
+              "updated_at": "2026-09-16T15:30:01.026802Z",
               "version": "v1.7.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3128,7 +3128,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3142,7 +3142,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -3174,7 +3174,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3188,7 +3188,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -3212,7 +3212,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3221,7 +3221,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3252,7 +3252,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -3261,7 +3261,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -3299,14 +3299,14 @@
         "body": {
           "condition": "",
           "config": null,
-          "created_at": "2026-09-16T02:40:33.625307Z",
+          "created_at": "2026-09-16T15:30:02.399558Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000006",
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "skip_record",
-          "updated_at": "2026-09-16T02:40:33.625307Z"
+          "updated_at": "2026-09-16T15:30:02.399558Z"
         },
         "content_type": "application/json"
       }
@@ -3329,7 +3329,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -3338,7 +3338,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:33.622778Z",
+              "updated_at": "2026-09-16T15:30:02.396219Z",
               "version": "v1.8.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3378,7 +3378,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3387,7 +3387,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3415,14 +3415,14 @@
           {
             "condition": "",
             "config": null,
-            "created_at": "2026-09-16T02:40:33.625307Z",
+            "created_at": "2026-09-16T15:30:02.399558Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000006",
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "skip_record",
-            "updated_at": "2026-09-16T02:40:33.625307Z"
+            "updated_at": "2026-09-16T15:30:02.399558Z"
           }
         ],
         "content_type": "application/json"
@@ -3441,7 +3441,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -3450,7 +3450,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:33.622778Z",
+              "updated_at": "2026-09-16T15:30:02.396219Z",
               "version": "v1.8.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3486,7 +3486,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3500,7 +3500,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -3532,7 +3532,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3546,7 +3546,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -3570,7 +3570,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3579,7 +3579,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3610,7 +3610,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -3619,7 +3619,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -3638,14 +3638,14 @@
           {
             "condition": "",
             "config": null,
-            "created_at": "2026-09-16T02:40:33.625307Z",
+            "created_at": "2026-09-16T15:30:02.399558Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000006",
             "name": "default-consume-policy-name-for-test",
             "parent_policy_id": null,
             "type": "skip_record",
-            "updated_at": "2026-09-16T02:40:33.625307Z"
+            "updated_at": "2026-09-16T15:30:02.399558Z"
           }
         ],
         "content_type": "application/json"
@@ -3664,14 +3664,14 @@
         "body": {
           "condition": "",
           "config": null,
-          "created_at": "2026-09-16T02:40:33.625307Z",
+          "created_at": "2026-09-16T15:30:02.399558Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000006",
           "name": "default-consume-policy-name-for-test",
           "parent_policy_id": null,
           "type": "skip_record",
-          "updated_at": "2026-09-16T02:40:33.625307Z"
+          "updated_at": "2026-09-16T15:30:02.399558Z"
         },
         "content_type": "application/json"
       }
@@ -3708,7 +3708,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -3717,7 +3717,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:36.367181Z",
+              "updated_at": "2026-09-16T15:30:03.834628Z",
               "version": "v1.9.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3757,7 +3757,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3766,7 +3766,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3807,7 +3807,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -3816,7 +3816,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:36.367181Z",
+              "updated_at": "2026-09-16T15:30:03.834628Z",
               "version": "v1.9.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -3852,7 +3852,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3866,7 +3866,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -3898,7 +3898,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -3912,7 +3912,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -3936,7 +3936,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -3945,7 +3945,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -3976,7 +3976,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -3985,7 +3985,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -4032,13 +4032,13 @@
             "type": "json",
             "value_validation_action": "mark"
           },
-          "created_at": "2026-09-16T02:40:38.813654Z",
+          "created_at": "2026-09-16T15:30:05.225992Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000007",
           "name": "default-consume-policy-name-for-test",
           "type": "schema_validation",
-          "updated_at": "2026-09-16T02:40:38.813654Z"
+          "updated_at": "2026-09-16T15:30:05.225992Z"
         },
         "content_type": "application/json"
       }
@@ -4061,7 +4061,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -4070,7 +4070,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:38.805947Z",
+              "updated_at": "2026-09-16T15:30:05.222457Z",
               "version": "v1.10.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -4110,7 +4110,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -4119,7 +4119,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -4151,13 +4151,13 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           }
         ],
         "content_type": "application/json"
@@ -4176,7 +4176,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -4185,7 +4185,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:38.805947Z",
+              "updated_at": "2026-09-16T15:30:05.222457Z",
               "version": "v1.10.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -4221,7 +4221,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4235,7 +4235,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -4267,7 +4267,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4281,7 +4281,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -4305,7 +4305,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -4314,7 +4314,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -4345,7 +4345,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -4354,7 +4354,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -4377,13 +4377,13 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           }
         ],
         "content_type": "application/json"
@@ -4409,14 +4409,14 @@
         "body": {
           "condition": "",
           "config": null,
-          "created_at": "2026-09-16T02:40:41.259265Z",
+          "created_at": "2026-09-16T15:30:06.605716Z",
           "description": "Chained Skip Record Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000008",
           "name": "chained-skip-record-policy-name-for-test",
           "parent_policy_id": "00000000-0000-4000-8000-000000000007",
           "type": "skip_record",
-          "updated_at": "2026-09-16T02:40:41.259265Z"
+          "updated_at": "2026-09-16T15:30:06.605716Z"
         },
         "content_type": "application/json"
       }
@@ -4439,7 +4439,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -4448,7 +4448,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:41.255623Z",
+              "updated_at": "2026-09-16T15:30:06.598307Z",
               "version": "v1.11.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -4488,7 +4488,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -4497,7 +4497,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -4529,25 +4529,25 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           },
           {
             "condition": "",
             "config": null,
-            "created_at": "2026-09-16T02:40:41.259265Z",
+            "created_at": "2026-09-16T15:30:06.605716Z",
             "description": "Chained Skip Record Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000008",
             "name": "chained-skip-record-policy-name-for-test",
             "parent_policy_id": "00000000-0000-4000-8000-000000000007",
             "type": "skip_record",
-            "updated_at": "2026-09-16T02:40:41.259265Z"
+            "updated_at": "2026-09-16T15:30:06.605716Z"
           }
         ],
         "content_type": "application/json"
@@ -4566,7 +4566,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -4575,7 +4575,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:41.255623Z",
+              "updated_at": "2026-09-16T15:30:06.598307Z",
               "version": "v1.11.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -4611,7 +4611,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4625,7 +4625,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -4657,7 +4657,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4671,7 +4671,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -4695,7 +4695,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -4704,7 +4704,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -4735,7 +4735,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -4744,7 +4744,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -4767,25 +4767,25 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           },
           {
             "condition": "",
             "config": null,
-            "created_at": "2026-09-16T02:40:41.259265Z",
+            "created_at": "2026-09-16T15:30:06.605716Z",
             "description": "Chained Skip Record Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000008",
             "name": "chained-skip-record-policy-name-for-test",
             "parent_policy_id": "00000000-0000-4000-8000-000000000007",
             "type": "skip_record",
-            "updated_at": "2026-09-16T02:40:41.259265Z"
+            "updated_at": "2026-09-16T15:30:06.605716Z"
           }
         ],
         "content_type": "application/json"
@@ -4804,7 +4804,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -4813,7 +4813,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:41.255623Z",
+              "updated_at": "2026-09-16T15:30:06.598307Z",
               "version": "v1.11.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -4849,7 +4849,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4863,7 +4863,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -4895,7 +4895,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -4909,7 +4909,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -4933,7 +4933,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -4942,7 +4942,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -4973,7 +4973,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -4982,7 +4982,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -5005,25 +5005,25 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           },
           {
             "condition": "",
             "config": null,
-            "created_at": "2026-09-16T02:40:41.259265Z",
+            "created_at": "2026-09-16T15:30:06.605716Z",
             "description": "Chained Skip Record Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000008",
             "name": "chained-skip-record-policy-name-for-test",
             "parent_policy_id": "00000000-0000-4000-8000-000000000007",
             "type": "skip_record",
-            "updated_at": "2026-09-16T02:40:41.259265Z"
+            "updated_at": "2026-09-16T15:30:06.605716Z"
           }
         ],
         "content_type": "application/json"
@@ -5042,14 +5042,14 @@
         "body": {
           "condition": "",
           "config": null,
-          "created_at": "2026-09-16T02:40:41.259265Z",
+          "created_at": "2026-09-16T15:30:06.605716Z",
           "description": "Chained Skip Record Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000008",
           "name": "chained-skip-record-policy-name-for-test",
           "parent_policy_id": "00000000-0000-4000-8000-000000000007",
           "type": "skip_record",
-          "updated_at": "2026-09-16T02:40:41.259265Z"
+          "updated_at": "2026-09-16T15:30:06.605716Z"
         },
         "content_type": "application/json"
       }
@@ -5086,7 +5086,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -5095,7 +5095,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:45.439485Z",
+              "updated_at": "2026-09-16T15:30:08.849453Z",
               "version": "v1.12.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -5135,7 +5135,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -5144,7 +5144,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -5176,13 +5176,13 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           }
         ],
         "content_type": "application/json"
@@ -5201,7 +5201,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -5210,7 +5210,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:45.439485Z",
+              "updated_at": "2026-09-16T15:30:08.849453Z",
               "version": "v1.12.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -5246,7 +5246,7 @@
                 "egw-backend-1.example.com:9092",
                 "egw-backend-2.example.com:9092"
               ],
-              "created_at": "2026-09-16T02:40:12.90896Z",
+              "created_at": "2026-09-16T15:29:50.748205Z",
               "description": "Backend Cluster for Test",
               "id": "00000000-0000-4000-8000-000000000002",
               "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -5260,7 +5260,7 @@
                   "tls13"
                 ]
               },
-              "updated_at": "2026-09-16T02:40:12.90896Z"
+              "updated_at": "2026-09-16T15:29:50.748205Z"
             }
           ],
           "meta": {
@@ -5292,7 +5292,7 @@
             "egw-backend-1.example.com:9092",
             "egw-backend-2.example.com:9092"
           ],
-          "created_at": "2026-09-16T02:40:12.90896Z",
+          "created_at": "2026-09-16T15:29:50.748205Z",
           "description": "Backend Cluster for Test",
           "id": "00000000-0000-4000-8000-000000000002",
           "insecure_allow_anonymous_virtual_cluster_auth": false,
@@ -5306,7 +5306,7 @@
               "tls13"
             ]
           },
-          "updated_at": "2026-09-16T02:40:12.90896Z"
+          "updated_at": "2026-09-16T15:29:50.748205Z"
         },
         "content_type": "application/json"
       }
@@ -5330,7 +5330,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -5339,7 +5339,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -5370,7 +5370,7 @@
               "type": "anonymous"
             }
           ],
-          "created_at": "2026-09-16T02:40:13.132844Z",
+          "created_at": "2026-09-16T15:29:50.864827Z",
           "description": "Virtual Cluster for Consume Policy Test",
           "destination": {
             "id": "00000000-0000-4000-8000-000000000002",
@@ -5379,7 +5379,7 @@
           "dns_label": "vc-default",
           "id": "00000000-0000-4000-8000-000000000003",
           "name": "default-virtual-cluster-name-for-consume-policy-test",
-          "updated_at": "2026-09-16T02:40:13.132844Z"
+          "updated_at": "2026-09-16T15:29:50.864827Z"
         },
         "content_type": "application/json"
       }
@@ -5402,13 +5402,13 @@
               "type": "json",
               "value_validation_action": "mark"
             },
-            "created_at": "2026-09-16T02:40:38.813654Z",
+            "created_at": "2026-09-16T15:30:05.225992Z",
             "description": "Default Consume Policy description",
             "enabled": true,
             "id": "00000000-0000-4000-8000-000000000007",
             "name": "default-consume-policy-name-for-test",
             "type": "schema_validation",
-            "updated_at": "2026-09-16T02:40:38.813654Z"
+            "updated_at": "2026-09-16T15:30:05.225992Z"
           }
         ],
         "content_type": "application/json"
@@ -5431,13 +5431,13 @@
             "type": "json",
             "value_validation_action": "mark"
           },
-          "created_at": "2026-09-16T02:40:38.813654Z",
+          "created_at": "2026-09-16T15:30:05.225992Z",
           "description": "Default Consume Policy description",
           "enabled": true,
           "id": "00000000-0000-4000-8000-000000000007",
           "name": "default-consume-policy-name-for-test",
           "type": "schema_validation",
-          "updated_at": "2026-09-16T02:40:38.813654Z"
+          "updated_at": "2026-09-16T15:30:05.225992Z"
         },
         "content_type": "application/json"
       }
@@ -5474,7 +5474,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-16T02:40:12.678521Z",
+              "created_at": "2026-09-16T15:29:50.607635Z",
               "description": "EGW for Virtual Cluster Consume Policy Test",
               "id": "00000000-0000-4000-8000-000000000001",
               "labels": {
@@ -5483,7 +5483,7 @@
               "min_runtime_version": "1.2",
               "name": "egw-cp-for-vc-consume-policy-test",
               "nodes_total": 0,
-              "updated_at": "2026-09-16T02:40:48.146129Z",
+              "updated_at": "2026-09-16T15:30:10.291151Z",
               "version": "v1.13.0+builder.0.3",
               "virtual_clusters_total": 1
             }
@@ -5523,7 +5523,7 @@
                   "type": "anonymous"
                 }
               ],
-              "created_at": "2026-09-16T02:40:13.132844Z",
+              "created_at": "2026-09-16T15:29:50.864827Z",
               "description": "Virtual Cluster for Consume Policy Test",
               "destination": {
                 "id": "00000000-0000-4000-8000-000000000002",
@@ -5532,7 +5532,7 @@
               "dns_label": "vc-default",
               "id": "00000000-0000-4000-8000-000000000003",
               "name": "default-virtual-cluster-name-for-consume-policy-test",
-              "updated_at": "2026-09-16T02:40:13.132844Z"
+              "updated_at": "2026-09-16T15:29:50.864827Z"
             }
           ],
           "meta": {
@@ -5559,6 +5559,2263 @@
         "body": [],
         "content_type": "application/json"
       }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:10.291151Z",
+              "version": "v1.13.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "authentication": {
+                "type": "anonymous"
+              },
+              "bootstrap_servers": [
+                "egw-backend-1.example.com:9092",
+                "egw-backend-2.example.com:9092"
+              ],
+              "created_at": "2026-09-16T15:29:50.748205Z",
+              "description": "Backend Cluster for Test",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "insecure_allow_anonymous_virtual_cluster_auth": false,
+              "metadata_update_interval_seconds": 60,
+              "name": "default-backend-cluster",
+              "tls": {
+                "enabled": true,
+                "insecure_skip_verify": false,
+                "tls_versions": [
+                  "tls12",
+                  "tls13"
+                ]
+              },
+              "updated_at": "2026-09-16T15:29:50.748205Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "authentication": {
+            "type": "anonymous"
+          },
+          "bootstrap_servers": [
+            "egw-backend-1.example.com:9092",
+            "egw-backend-2.example.com:9092"
+          ],
+          "created_at": "2026-09-16T15:29:50.748205Z",
+          "description": "Backend Cluster for Test",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "insecure_allow_anonymous_virtual_cluster_auth": false,
+          "metadata_update_interval_seconds": 60,
+          "name": "default-backend-cluster",
+          "tls": {
+            "enabled": true,
+            "insecure_skip_verify": false,
+            "tls_versions": [
+              "tls12",
+              "tls13"
+            ]
+          },
+          "updated_at": "2026-09-16T15:29:50.748205Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "acl_mode": "enforce_on_gateway",
+          "authentication": [
+            {
+              "type": "anonymous"
+            }
+          ],
+          "created_at": "2026-09-16T15:29:50.864827Z",
+          "description": "Virtual Cluster for Consume Policy Test",
+          "destination": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "default-backend-cluster"
+          },
+          "dns_label": "vc-default",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "default-virtual-cluster-name-for-consume-policy-test",
+          "updated_at": "2026-09-16T15:29:50.864827Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:10.291151Z",
+              "version": "v1.13.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": {
+          "description": "Static Key for Consume Policy Test",
+          "name": "static-key-for-consume-policy-name",
+          "value": "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "created_at": "2026-09-16T15:30:11.898566Z",
+          "description": "Static Key for Consume Policy Test",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "name": "static-key-for-consume-policy-name",
+          "updated_at": "2026-09-16T15:30:11.898566Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": {
+          "condition": "",
+          "config": {
+            "key_validation_action": "skip",
+            "type": "json",
+            "value_validation_action": "mark"
+          },
+          "description": "Default Consume Policy description",
+          "enabled": true,
+          "name": "default-consume-policy-name-for-test",
+          "type": "schema_validation"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "condition": "",
+          "config": {
+            "key_validation_action": "skip",
+            "type": "json",
+            "value_validation_action": "mark"
+          },
+          "created_at": "2026-09-16T15:30:12.010899Z",
+          "description": "Default Consume Policy description",
+          "enabled": true,
+          "id": "00000000-0000-4000-8000-000000000010",
+          "name": "default-consume-policy-name-for-test",
+          "type": "schema_validation",
+          "updated_at": "2026-09-16T15:30:12.010899Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:12.006151Z",
+              "version": "v1.15.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:12.006151Z",
+              "version": "v1.15.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "authentication": {
+                "type": "anonymous"
+              },
+              "bootstrap_servers": [
+                "egw-backend-1.example.com:9092",
+                "egw-backend-2.example.com:9092"
+              ],
+              "created_at": "2026-09-16T15:29:50.748205Z",
+              "description": "Backend Cluster for Test",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "insecure_allow_anonymous_virtual_cluster_auth": false,
+              "metadata_update_interval_seconds": 60,
+              "name": "default-backend-cluster",
+              "tls": {
+                "enabled": true,
+                "insecure_skip_verify": false,
+                "tls_versions": [
+                  "tls12",
+                  "tls13"
+                ]
+              },
+              "updated_at": "2026-09-16T15:29:50.748205Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "authentication": {
+            "type": "anonymous"
+          },
+          "bootstrap_servers": [
+            "egw-backend-1.example.com:9092",
+            "egw-backend-2.example.com:9092"
+          ],
+          "created_at": "2026-09-16T15:29:50.748205Z",
+          "description": "Backend Cluster for Test",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "insecure_allow_anonymous_virtual_cluster_auth": false,
+          "metadata_update_interval_seconds": 60,
+          "name": "default-backend-cluster",
+          "tls": {
+            "enabled": true,
+            "insecure_skip_verify": false,
+            "tls_versions": [
+              "tls12",
+              "tls13"
+            ]
+          },
+          "updated_at": "2026-09-16T15:29:50.748205Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "acl_mode": "enforce_on_gateway",
+          "authentication": [
+            {
+              "type": "anonymous"
+            }
+          ],
+          "created_at": "2026-09-16T15:29:50.864827Z",
+          "description": "Virtual Cluster for Consume Policy Test",
+          "destination": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "default-backend-cluster"
+          },
+          "dns_label": "vc-default",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "default-virtual-cluster-name-for-consume-policy-test",
+          "updated_at": "2026-09-16T15:29:50.864827Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:30:11.898566Z",
+              "description": "Static Key for Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "name": "static-key-for-consume-policy-name",
+              "updated_at": "2026-09-16T15:30:11.898566Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": {
+          "condition": "",
+          "config": {
+            "decrypt_fields": {
+              "paths": "record.value.content[\"customer.ssn\"]"
+            },
+            "failure_mode": "error",
+            "key_sources": [
+              {
+                "type": "static"
+              }
+            ]
+          },
+          "description": "Field-level decryption consume policy",
+          "enabled": true,
+          "labels": {
+            "env": "staging",
+            "team": "payments"
+          },
+          "name": "decrypt-fields-consume-policy-name-for-test",
+          "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+          "type": "decrypt_fields"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "condition": "",
+          "config": {
+            "decrypt_fields": {
+              "paths": "record.value.content[\"customer.ssn\"]"
+            },
+            "failure_mode": "error",
+            "key_sources": [
+              {
+                "type": "static"
+              }
+            ]
+          },
+          "created_at": "2026-09-16T15:30:13.483886Z",
+          "description": "Field-level decryption consume policy",
+          "enabled": true,
+          "id": "00000000-0000-4000-8000-000000000011",
+          "labels": {
+            "env": "staging",
+            "team": "payments"
+          },
+          "name": "decrypt-fields-consume-policy-name-for-test",
+          "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+          "type": "decrypt_fields",
+          "updated_at": "2026-09-16T15:30:13.483886Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:13.461805Z",
+              "version": "v1.16.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          },
+          {
+            "condition": "",
+            "config": {
+              "decrypt_fields": {
+                "paths": "record.value.content[\"customer.ssn\"]"
+              },
+              "failure_mode": "error",
+              "key_sources": [
+                {
+                  "type": "static"
+                }
+              ]
+            },
+            "created_at": "2026-09-16T15:30:13.483886Z",
+            "description": "Field-level decryption consume policy",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000011",
+            "labels": {
+              "env": "staging",
+              "team": "payments"
+            },
+            "name": "decrypt-fields-consume-policy-name-for-test",
+            "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+            "type": "decrypt_fields",
+            "updated_at": "2026-09-16T15:30:13.483886Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:13.461805Z",
+              "version": "v1.16.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "authentication": {
+                "type": "anonymous"
+              },
+              "bootstrap_servers": [
+                "egw-backend-1.example.com:9092",
+                "egw-backend-2.example.com:9092"
+              ],
+              "created_at": "2026-09-16T15:29:50.748205Z",
+              "description": "Backend Cluster for Test",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "insecure_allow_anonymous_virtual_cluster_auth": false,
+              "metadata_update_interval_seconds": 60,
+              "name": "default-backend-cluster",
+              "tls": {
+                "enabled": true,
+                "insecure_skip_verify": false,
+                "tls_versions": [
+                  "tls12",
+                  "tls13"
+                ]
+              },
+              "updated_at": "2026-09-16T15:29:50.748205Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "authentication": {
+            "type": "anonymous"
+          },
+          "bootstrap_servers": [
+            "egw-backend-1.example.com:9092",
+            "egw-backend-2.example.com:9092"
+          ],
+          "created_at": "2026-09-16T15:29:50.748205Z",
+          "description": "Backend Cluster for Test",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "insecure_allow_anonymous_virtual_cluster_auth": false,
+          "metadata_update_interval_seconds": 60,
+          "name": "default-backend-cluster",
+          "tls": {
+            "enabled": true,
+            "insecure_skip_verify": false,
+            "tls_versions": [
+              "tls12",
+              "tls13"
+            ]
+          },
+          "updated_at": "2026-09-16T15:29:50.748205Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "acl_mode": "enforce_on_gateway",
+          "authentication": [
+            {
+              "type": "anonymous"
+            }
+          ],
+          "created_at": "2026-09-16T15:29:50.864827Z",
+          "description": "Virtual Cluster for Consume Policy Test",
+          "destination": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "default-backend-cluster"
+          },
+          "dns_label": "vc-default",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "default-virtual-cluster-name-for-consume-policy-test",
+          "updated_at": "2026-09-16T15:29:50.864827Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          },
+          {
+            "condition": "",
+            "config": {
+              "decrypt_fields": {
+                "paths": "record.value.content[\"customer.ssn\"]"
+              },
+              "failure_mode": "error",
+              "key_sources": [
+                {
+                  "type": "static"
+                }
+              ]
+            },
+            "created_at": "2026-09-16T15:30:13.483886Z",
+            "description": "Field-level decryption consume policy",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000011",
+            "labels": {
+              "env": "staging",
+              "team": "payments"
+            },
+            "name": "decrypt-fields-consume-policy-name-for-test",
+            "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+            "type": "decrypt_fields",
+            "updated_at": "2026-09-16T15:30:13.483886Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:30:11.898566Z",
+              "description": "Static Key for Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "name": "static-key-for-consume-policy-name",
+              "updated_at": "2026-09-16T15:30:11.898566Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:13.461805Z",
+              "version": "v1.16.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "authentication": {
+                "type": "anonymous"
+              },
+              "bootstrap_servers": [
+                "egw-backend-1.example.com:9092",
+                "egw-backend-2.example.com:9092"
+              ],
+              "created_at": "2026-09-16T15:29:50.748205Z",
+              "description": "Backend Cluster for Test",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "insecure_allow_anonymous_virtual_cluster_auth": false,
+              "metadata_update_interval_seconds": 60,
+              "name": "default-backend-cluster",
+              "tls": {
+                "enabled": true,
+                "insecure_skip_verify": false,
+                "tls_versions": [
+                  "tls12",
+                  "tls13"
+                ]
+              },
+              "updated_at": "2026-09-16T15:29:50.748205Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "authentication": {
+            "type": "anonymous"
+          },
+          "bootstrap_servers": [
+            "egw-backend-1.example.com:9092",
+            "egw-backend-2.example.com:9092"
+          ],
+          "created_at": "2026-09-16T15:29:50.748205Z",
+          "description": "Backend Cluster for Test",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "insecure_allow_anonymous_virtual_cluster_auth": false,
+          "metadata_update_interval_seconds": 60,
+          "name": "default-backend-cluster",
+          "tls": {
+            "enabled": true,
+            "insecure_skip_verify": false,
+            "tls_versions": [
+              "tls12",
+              "tls13"
+            ]
+          },
+          "updated_at": "2026-09-16T15:29:50.748205Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "acl_mode": "enforce_on_gateway",
+          "authentication": [
+            {
+              "type": "anonymous"
+            }
+          ],
+          "created_at": "2026-09-16T15:29:50.864827Z",
+          "description": "Virtual Cluster for Consume Policy Test",
+          "destination": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "default-backend-cluster"
+          },
+          "dns_label": "vc-default",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "default-virtual-cluster-name-for-consume-policy-test",
+          "updated_at": "2026-09-16T15:29:50.864827Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          },
+          {
+            "condition": "",
+            "config": {
+              "decrypt_fields": {
+                "paths": "record.value.content[\"customer.ssn\"]"
+              },
+              "failure_mode": "error",
+              "key_sources": [
+                {
+                  "type": "static"
+                }
+              ]
+            },
+            "created_at": "2026-09-16T15:30:13.483886Z",
+            "description": "Field-level decryption consume policy",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000011",
+            "labels": {
+              "env": "staging",
+              "team": "payments"
+            },
+            "name": "decrypt-fields-consume-policy-name-for-test",
+            "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+            "type": "decrypt_fields",
+            "updated_at": "2026-09-16T15:30:13.483886Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:30:11.898566Z",
+              "description": "Static Key for Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "name": "static-key-for-consume-policy-name",
+              "updated_at": "2026-09-16T15:30:11.898566Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies/00000000-0000-4000-8000-000000000011",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "condition": "",
+          "config": {
+            "decrypt_fields": {
+              "paths": "record.value.content[\"customer.ssn\"]"
+            },
+            "failure_mode": "error",
+            "key_sources": [
+              {
+                "type": "static"
+              }
+            ]
+          },
+          "created_at": "2026-09-16T15:30:13.483886Z",
+          "description": "Field-level decryption consume policy",
+          "enabled": true,
+          "id": "00000000-0000-4000-8000-000000000011",
+          "labels": {
+            "env": "staging",
+            "team": "payments"
+          },
+          "name": "decrypt-fields-consume-policy-name-for-test",
+          "parent_policy_id": "00000000-0000-4000-8000-000000000010",
+          "type": "decrypt_fields",
+          "updated_at": "2026-09-16T15:30:13.483886Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies/00000000-0000-4000-8000-000000000011",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:15.934065Z",
+              "version": "v1.17.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:15.934065Z",
+              "version": "v1.17.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "authentication": {
+                "type": "anonymous"
+              },
+              "bootstrap_servers": [
+                "egw-backend-1.example.com:9092",
+                "egw-backend-2.example.com:9092"
+              ],
+              "created_at": "2026-09-16T15:29:50.748205Z",
+              "description": "Backend Cluster for Test",
+              "id": "00000000-0000-4000-8000-000000000002",
+              "insecure_allow_anonymous_virtual_cluster_auth": false,
+              "metadata_update_interval_seconds": 60,
+              "name": "default-backend-cluster",
+              "tls": {
+                "enabled": true,
+                "insecure_skip_verify": false,
+                "tls_versions": [
+                  "tls12",
+                  "tls13"
+                ]
+              },
+              "updated_at": "2026-09-16T15:29:50.748205Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/backend-clusters/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "authentication": {
+            "type": "anonymous"
+          },
+          "bootstrap_servers": [
+            "egw-backend-1.example.com:9092",
+            "egw-backend-2.example.com:9092"
+          ],
+          "created_at": "2026-09-16T15:29:50.748205Z",
+          "description": "Backend Cluster for Test",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "insecure_allow_anonymous_virtual_cluster_auth": false,
+          "metadata_update_interval_seconds": 60,
+          "name": "default-backend-cluster",
+          "tls": {
+            "enabled": true,
+            "insecure_skip_verify": false,
+            "tls_versions": [
+              "tls12",
+              "tls13"
+            ]
+          },
+          "updated_at": "2026-09-16T15:29:50.748205Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "acl_mode": "enforce_on_gateway",
+          "authentication": [
+            {
+              "type": "anonymous"
+            }
+          ],
+          "created_at": "2026-09-16T15:29:50.864827Z",
+          "description": "Virtual Cluster for Consume Policy Test",
+          "destination": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "name": "default-backend-cluster"
+          },
+          "dns_label": "vc-default",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "default-virtual-cluster-name-for-consume-policy-test",
+          "updated_at": "2026-09-16T15:29:50.864827Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [
+          {
+            "condition": "",
+            "config": {
+              "key_validation_action": "skip",
+              "type": "json",
+              "value_validation_action": "mark"
+            },
+            "created_at": "2026-09-16T15:30:12.010899Z",
+            "description": "Default Consume Policy description",
+            "enabled": true,
+            "id": "00000000-0000-4000-8000-000000000010",
+            "name": "default-consume-policy-name-for-test",
+            "type": "schema_validation",
+            "updated_at": "2026-09-16T15:30:12.010899Z"
+          }
+        ],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:30:11.898566Z",
+              "description": "Static Key for Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "name": "static-key-for-consume-policy-name",
+              "updated_at": "2026-09-16T15:30:11.898566Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:15.934065Z",
+              "version": "v1.17.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:15.934065Z",
+              "version": "v1.17.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 20
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies/00000000-0000-4000-8000-000000000010",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "condition": "",
+          "config": {
+            "key_validation_action": "skip",
+            "type": "json",
+            "value_validation_action": "mark"
+          },
+          "created_at": "2026-09-16T15:30:12.010899Z",
+          "description": "Default Consume Policy description",
+          "enabled": true,
+          "id": "00000000-0000-4000-8000-000000000010",
+          "name": "default-consume-policy-name-for-test",
+          "type": "schema_validation",
+          "updated_at": "2026-09-16T15:30:12.010899Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys/00000000-0000-4000-8000-000000000009",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "created_at": "2026-09-16T15:30:11.898566Z",
+          "description": "Static Key for Consume Policy Test",
+          "id": "00000000-0000-4000-8000-000000000009",
+          "name": "static-key-for-consume-policy-name",
+          "updated_at": "2026-09-16T15:30:11.898566Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies/00000000-0000-4000-8000-000000000010",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys/00000000-0000-4000-8000-000000000009",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:17.951769Z",
+              "version": "v1.19.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "acl_mode": "enforce_on_gateway",
+              "authentication": [
+                {
+                  "type": "anonymous"
+                }
+              ],
+              "created_at": "2026-09-16T15:29:50.864827Z",
+              "description": "Virtual Cluster for Consume Policy Test",
+              "destination": {
+                "id": "00000000-0000-4000-8000-000000000002",
+                "name": "default-backend-cluster"
+              },
+              "dns_label": "vc-default",
+              "id": "00000000-0000-4000-8000-000000000003",
+              "name": "default-virtual-cluster-name-for-consume-policy-test",
+              "updated_at": "2026-09-16T15:29:50.864827Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/virtual-clusters/00000000-0000-4000-8000-000000000003/consume-policies",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-16T15:29:50.607635Z",
+              "description": "EGW for Virtual Cluster Consume Policy Test",
+              "id": "00000000-0000-4000-8000-000000000001",
+              "labels": {
+                "KONGCTL-namespace": "event-gateways-vc-consume-policy-comprehensive-test"
+              },
+              "min_runtime_version": "1.2",
+              "name": "egw-cp-for-vc-consume-policy-test",
+              "nodes_total": 0,
+              "updated_at": "2026-09-16T15:30:17.951769Z",
+              "version": "v1.19.0+builder.0.3",
+              "virtual_clusters_total": 1
+            }
+          ],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways/00000000-0000-4000-8000-000000000001/static-keys",
+        "query": [
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    }
+  ],
+  "parallel_phases": [
+    {
+      "start": 158,
+      "end": 160,
+      "after": {
+        "159": [
+          158
+        ]
+      }
+    },
+    {
+      "start": 201,
+      "end": 206,
+      "after": {}
     }
   ]
 }

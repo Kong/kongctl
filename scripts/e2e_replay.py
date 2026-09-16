@@ -426,7 +426,7 @@ def request_key(endpoint, method, target, data):
             "query": [list(pair) for pair in sorted(parse_qsl(url.query, keep_blank_values=True))], "body": body}
 
 
-def validate_cassette(cassette, directory, scenario=SCENARIO):
+def validate_cassette(cassette, directory, scenario=SCENARIO, *, allow_stale=False):
     check_eligibility(directory)
     fixtures = fixture_strings(directory)
     fields = {"schema_version", "scenario", "inputs_sha256", "source", "interactions"}
@@ -436,7 +436,7 @@ def validate_cassette(cassette, directory, scenario=SCENARIO):
         raise ValueError("invalid cassette fields")
     if type(cassette["schema_version"]) is not int or cassette["schema_version"] not in (1, 2) or cassette["scenario"] != scenario:
         raise ValueError("unsupported cassette schema or scenario")
-    if cassette["inputs_sha256"] != scenario_digest(directory):
+    if not allow_stale and cassette["inputs_sha256"] != scenario_digest(directory):
         raise ValueError(f"stale cassette: {scenario}; re-record and review, or remove replay eligibility")
     source = cassette["source"]
     if not isinstance(source, dict) or not isinstance(source.get("commit"), str) or not re.fullmatch(r"[0-9a-f]{40}", source["commit"]):

@@ -52,11 +52,15 @@ jobs:
         env:
           SOURCE_RUN: ${{ inputs.source_run }}
           REPLAY_MODE: ${{ inputs.mode }}
+          REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
           if [ -n "$SOURCE_RUN" ]; then
             [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]] && [ "$REPLAY_MODE" = replay ]
           fi
           make setup-e2e-replay
+          if [ "$REPLAY_MODE" = record ] || [ -n "$SOURCE_RUN" ]; then
+            export KONGCTL_REPLAY_REFRESH_SCENARIO="$REPLAY_SCENARIO"
+          fi
           python3 -m unittest discover -s scripts -p e2e_replay_test.py
       - name: Build experiment binaries
         run: make build-e2e-replay
