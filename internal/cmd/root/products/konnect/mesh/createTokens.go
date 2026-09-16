@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/kong/kongctl/internal/cmd"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
+	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -32,12 +34,15 @@ const controlPlaneZoneScope = "cp"
 // Flag names for the token commands.
 const (
 	tokenNameFlagName      = "name"
-	tokenValidForFlagName  = "valid-for"
 	tokenTagFlagName       = "tag"
 	tokenProxyTypeFlagName = "proxy-type"
 	tokenWorkloadFlagName  = "workload"
 	tokenZoneFlagName      = "zone"
-	tokenScopeFlagName     = "scope"
+
+	// These two support a persistent default, so their names live with the
+	// other configurable mesh options.
+	tokenValidForFlagName = meshcommon.TokenValidForFlagName
+	tokenScopeFlagName    = meshcommon.TokenScopeFlagName
 )
 
 // dataplaneTokenRequest is the payload the control plane expects. Fields are
@@ -117,13 +122,17 @@ func newDataplaneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *co
 		cmdObj.PreRunE = parentPreRun
 	}
 
-	cmdObj.Flags().String(tokenNameFlagName, "", "Name of the dataplane the token identifies.")
+	cmdObj.Flags().String(tokenNameFlagName, "",
+		"Name of the dataplane the token identifies. Given per invocation; it has no configured default.")
 	cmdObj.Flags().StringToString(tokenTagFlagName, nil,
 		"Tag values the dataplane must carry. Repeatable; separate multiple values for one tag with commas.")
-	cmdObj.Flags().String(tokenProxyTypeFlagName, "", `Proxy type the token is for (for example "dataplane").`)
-	cmdObj.Flags().String(tokenWorkloadFlagName, "", "Workload label value the dataplane must carry.")
-	cmdObj.Flags().Duration(tokenValidForFlagName, 0, `How long the token remains valid, for example "24h".`)
-	_ = cmdObj.MarkFlagRequired(tokenValidForFlagName)
+	cmdObj.Flags().String(tokenProxyTypeFlagName, "",
+		`Proxy type the token is for (for example "dataplane"). Given per invocation; it has no configured default.`)
+	cmdObj.Flags().String(tokenWorkloadFlagName, "",
+		"Workload label value the dataplane must carry. Given per invocation; it has no configured default.")
+	cmdObj.Flags().Duration(tokenValidForFlagName, 0,
+		fmt.Sprintf(`How long the token remains valid, for example "24h".
+- Config path: [ %s ]`, meshcommon.TokenValidForConfigPath))
 
 	cmdObj.RunE = func(c *cobra.Command, args []string) error {
 		helper := cmd.BuildHelper(c, args)
@@ -145,12 +154,17 @@ func newZoneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *cobra.C
 		cmdObj.PreRunE = parentPreRun
 	}
 
-	cmdObj.Flags().String(tokenZoneFlagName, "", "Name of the zone the token identifies.")
+	cmdObj.Flags().String(tokenZoneFlagName, "",
+		"Name of the zone the token identifies. Given per invocation; it has no configured default.")
 	cmdObj.Flags().StringSlice(tokenScopeFlagName, []string{controlPlaneZoneScope},
 		"Scope of resources the token can identify.")
-	cmdObj.Flags().Duration(tokenValidForFlagName, 0, `How long the token remains valid, for example "24h".`)
+	cmdObj.Flags().Duration(tokenValidForFlagName, 0,
+		fmt.Sprintf(`How long the token remains valid, for example "24h".
+- Config path: [ %s ]`, meshcommon.TokenValidForConfigPath))
+	// The zone names this token's subject and has no configured default, so it
+	// is required here. --valid-for can be satisfied by configuration, so it
+	// is validated after resolution instead.
 	_ = cmdObj.MarkFlagRequired(tokenZoneFlagName)
-	_ = cmdObj.MarkFlagRequired(tokenValidForFlagName)
 
 	cmdObj.RunE = func(c *cobra.Command, args []string) error {
 		helper := cmd.BuildHelper(c, args)
@@ -165,7 +179,7 @@ func runDataplaneToken(helper cmd.Helper, cmdObj *cobra.Command) error {
 		return err
 	}
 
-	validFor, err := requireValidFor(cmdObj)
+	validFor, err := requireValidFor(cfg)
 	if err != nil {
 		return err
 	}
@@ -200,7 +214,12 @@ func runDataplaneToken(helper cmd.Helper, cmdObj *cobra.Command) error {
 }
 
 func runZoneToken(helper cmd.Helper, cmdObj *cobra.Command) error {
-	validFor, err := requireValidFor(cmdObj)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	validFor, err := requireValidFor(cfg)
 	if err != nil {
 		return err
 	}
@@ -209,9 +228,12 @@ func runZoneToken(helper cmd.Helper, cmdObj *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	scope, err := cmdObj.Flags().GetStringSlice(tokenScopeFlagName)
-	if err != nil {
-		return err
+
+	scope := cfg.GetStringSlice(meshcommon.TokenScopeConfigPath)
+	if len(scope) == 0 {
+		// Configuration can supply this, so an empty result is filled here
+		// rather than relying on the flag's own default.
+		scope = []string{controlPlaneZoneScope}
 	}
 
 	request := zoneTokenRequest{
@@ -223,17 +245,35 @@ func runZoneToken(helper cmd.Helper, cmdObj *cobra.Command) error {
 	return issueToken(helper, zoneTokenPath, request, "zone token")
 }
 
-// requireValidFor reads --valid-for and renders it the way the control plane
-// parses it. A token with no expiry is refused rather than sent, because the
-// control plane would accept it.
-func requireValidFor(cmdObj *cobra.Command) (string, error) {
-	validFor, err := cmdObj.Flags().GetDuration(tokenValidForFlagName)
-	if err != nil {
-		return "", err
+// requireValidFor reads the effective token lifetime and renders it the way the
+// control plane parses it.
+//
+// The value is read through configuration because it can come from a profile or
+// an environment variable as well as the flag, which is also why it is checked
+// here rather than with MarkFlagRequired: a configured lifetime satisfies the
+// requirement, and marking the flag required would reject that. A token with no
+// expiry is refused rather than sent, because the control plane would accept it.
+func requireValidFor(cfg config.Hook) (string, error) {
+	// Read as text and parsed here: a value from a profile or an environment
+	// variable arrives as a string, and a bound duration flag renders as one.
+	raw := strings.TrimSpace(cfg.GetString(meshcommon.TokenValidForConfigPath))
+
+	var validFor time.Duration
+	if raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			return "", &cmd.ConfigurationError{
+				Err: fmt.Errorf("invalid token lifetime %q; use a duration such as 24h", raw),
+			}
+		}
+		validFor = parsed
 	}
+
 	if validFor <= 0 {
 		return "", &cmd.ConfigurationError{
-			Err: fmt.Errorf("--%s must be a positive duration, for example 24h", tokenValidForFlagName),
+			Err: fmt.Errorf(
+				"a positive token lifetime is required, for example 24h; set --%s or %s",
+				tokenValidForFlagName, meshcommon.TokenValidForConfigPath),
 		}
 	}
 	return validFor.String(), nil
