@@ -28,6 +28,15 @@ vars:
   data_plane_certificate_name: external-sync-data-plane-certificate
   data_plane_certificate_description: External sync data plane certificate
   data_plane_certificate_updated_description: Updated external sync data plane certificate
+  schema_registry_ref: external-sync-schema-registry
+  schema_registry_name: external-sync-schema-registry
+  schema_registry_description: External sync schema registry
+  static_key_ref: external-sync-static-key
+  static_key_name: external-sync-static-key
+  static_key_description: External sync static key
+  tls_trust_bundle_ref: external-sync-tls-trust-bundle
+  tls_trust_bundle_name: external-sync-tls-trust-bundle
+  tls_trust_bundle_description: External sync tls trust bundle
 
 defaults:
   mask:
@@ -902,3 +911,374 @@ steps:
               fields:
                 name: "{{ .vars.consume_policy_name }}"
                 description: "{{ .vars.consume_policy_description }}"
+
+  - name: 020-sync-with-declarative-schema-registry
+    inputOverlayDirs:
+      - overlays/010-add-schema-registry
+    commands:
+      - name: 000-sync-add-schema-registry
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_schema_registry' &&
+              resource_ref=='{{ .vars.schema_registry_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.schema_registry_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-schema-registries
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.schema_registry_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.schema_registry_name }}"
+                description: "{{ .vars.schema_registry_description }}"
+                type: confluent
+                config.schema_type: json
+                config.endpoint: https://schema-registry.example.com
+                config.timeout_seconds: 30
+                config.authentication.type: basic
+                config.authentication.username: testuser
+
+  - name: 021-sync-idempotency-declarative-schema-registry
+    inputOverlayDirs:
+      - overlays/010-add-schema-registry
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 022-sync-with-declarative-static-key
+    inputOverlayDirs:
+      - overlays/011-add-static-key
+    commands:
+      - name: 000-sync-add-static-key
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_static_key' &&
+              resource_ref=='{{ .vars.static_key_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.static_key_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-static-keys
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.static_key_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.static_key_name }}"
+                description: "{{ .vars.static_key_description }}"
+                "contains(keys(@), 'value')": false
+
+  - name: 023-sync-idempotency-declarative-static-key
+    inputOverlayDirs:
+      - overlays/011-add-static-key
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 024-sync-with-declarative-tls-trust-bundle
+    inputOverlayDirs:
+      - overlays/012-add-tls-trust-bundle
+    commands:
+      - name: 000-sync-add-tls-trust-bundle
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: >-
+              plan.changes[?resource_type=='event_gateway_tls_trust_bundle' &&
+              resource_ref=='{{ .vars.tls_trust_bundle_ref }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                resource_ref: "{{ .vars.tls_trust_bundle_ref }}"
+          - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_virtual_cluster' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+
+      - name: 001-get-tls-trust-bundles
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.tls_trust_bundle_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.tls_trust_bundle_name }}"
+                description: "{{ .vars.tls_trust_bundle_description }}"
+                config.trusted_ca: |-
+                  -----BEGIN CERTIFICATE-----
+                  MIIFPjCCAyYCCQD2y9kVBp5f1jANBgkqhkiG9w0BAQsFADBhMQswCQYDVQQGEwJJ
+                  TjELMAkGA1UECAwCS0ExDDAKBgNVBAcMA0JMUjEPMA0GA1UECgwGQVBJT1BzMRAw
+                  DgYDVQQLDAdLT05HQ1RMMRQwEgYDVQQDDAtFMkVTQ0VOQVJJTzAeFw0yNjA0MTcw
+                  NzQ0MTJaFw0zNjA0MTQwNzQ0MTJaMGExCzAJBgNVBAYTAklOMQswCQYDVQQIDAJL
+                  QTEMMAoGA1UEBwwDQkxSMQ8wDQYDVQQKDAZBUElPUHMxEDAOBgNVBAsMB0tPTkdD
+                  VEwxFDASBgNVBAMMC0UyRVNDRU5BUklPMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
+                  MIICCgKCAgEA8Ej5Tqj4ulz9WH4CalU9fJQsnSpSf3CbZfL9uAHGc2zZCErYH18m
+                  91XpWP0YNe/Htz8JM22K6HKqrW5z+93VwUrAiI88w9jECXVkw7r5QB3yxZ/QYJiD
+                  290AVTzjLIcgM6hywXyiTOE6rZlvoqRGObk5Kv31gpV2UvJuY21YMvlnSTQ0VmQs
+                  bBBvmdpebE7AMF/YFsx6/05L47wv3cmIJ+X3RO3YpZmlntl3vgxdM/RgXtIttBsC
+                  U+ugm9OlcEwT1tb6H5mY02cy7hSyvibpUg+7PWz/kwVBLz5WUVBYurKbWq5wHTcf
+                  cWfxFS7gyyBFPMVAZMnXLlq7HyicdGLBU1+WsJF1WwdS6e+cNSpWEt4STF78so+u
+                  i5+CM5gz2HOKD3XuQmnYmu0GMIeSqP1Pu50OprBNhOI6Wsw0r6jo9dvGK+A/TqIf
+                  Cf8ACulhRib+3qyTlSK9U5QfmRzw9stt2EjkqEuG9afJC3fqTNGgiY5J5/CPWU0n
+                  MQU9SHsNMoOL8OAQ3u6xVrEAYruMfwJykxZLKm9Lhi+7FxPRk0B99Y4MNml215ou
+                  cEMI27XCKGfq1RwtKyIYNnMjADNoN5sAMlTxaZra1mcnyZeMKE1nDwtpIP9DJmjH
+                  I0eqA7kFB4Ndc276aovOe/5lEfqQYi+nGIcCaazwOhIqWekIHRE6n3sCAwEAATAN
+                  BgkqhkiG9w0BAQsFAAOCAgEAhs2XcLqy78r4tGkGqEIWpjmjnkw7OQTn14uLVIjH
+                  RjAhMyowefzHU35Icck3k60zOljNA96ChFiWj8H5w+DP4QKW23HZZ5c8htUPehNA
+                  lkt6WH/s13jHW+08I5rRxCNHpnoB9Te5kg33Y059ZHgz4HliatOdmKJ3PbyBbkCg
+                  X93aLDQ1Hpv0k9XsU7uczKwSLmd3VSFAxOT+mvGU6G4XwdCvqJHqn2pn7N0+ZmGA
+                  /kbVOkAq5e4bYyC87yTLQiaTZLdb0jamL6sCPJnW5aEmPKgl7kILrVAKOIdihDxW
+                  r/9vDrw2gUmnpW8DO+QxmNBIZ7soua/b5AOBeG9vpaVqH6sisoILLGPDL6Vh6Xg4
+                  DONgc/2T1EDpeutwzxnUC85g28Vh9J6/o+inungVEfUFOAYwTuJYYmme3BuuIVSx
+                  3K7LNims8ZHUbq3s0JOH4Pwef38WCozTa6Cufoh8BlUURbr0OBp7u4Wy7Pg3zCdu
+                  AVbLk0nbLMRdm6bE5k+YGnuYIQwZ3UWJ3m44zYE2cgtsqm08NAjqQeAHh8hngtaM
+                  pE/YOhO3S9xO1IbFbsqdPw8ajZmXOlhGBCX6LnDFsikTj+kG5lPTNr9ueLpcQ5eu
+                  Jeo7mJ0RN29/eYI7ob59j8IIkTVSd8lJEpLoakPV4uyZPNgDx14MUB1Bz7qGU7gj
+                  oxQ=
+                  -----END CERTIFICATE-----
+
+  - name: 025-sync-idempotency-declarative-tls-trust-bundle
+    inputOverlayDirs:
+      - overlays/012-add-tls-trust-bundle
+    commands:
+      - name: 000-sync-no-changes
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 026-sync-with-first-level-child-collections-omitted
+    commands:
+      - name: 000-sync-no-deletions
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/external-event-gateway.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: plan.changes[?resource_type=='event_gateway_schema_registry' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_static_key' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: plan.changes[?resource_type=='event_gateway_tls_trust_bundle' && action=='DELETE']
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 001-get-schema-registries-after-omission
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.schema_registry_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.schema_registry_name }}"
+                description: "{{ .vars.schema_registry_description }}"
+                type: confluent
+                config.schema_type: json
+                config.endpoint: https://schema-registry.example.com
+                config.timeout_seconds: 30
+                config.authentication.type: basic
+                config.authentication.username: testuser
+
+      - name: 002-get-static-keys-after-omission
+        run:
+          - get
+          - event-gateway
+          - static-keys
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.static_key_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.static_key_name }}"
+                description: "{{ .vars.static_key_description }}"
+                "contains(keys(@), 'value')": false
+
+      - name: 003-get-tls-trust-bundles-after-omission
+        run:
+          - get
+          - event-gateway
+          - tls-trust-bundles
+          - --gateway-name
+          - "{{ .vars.egw_name }}"
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='{{ .vars.tls_trust_bundle_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.tls_trust_bundle_name }}"
+                description: "{{ .vars.tls_trust_bundle_description }}"
+                config.trusted_ca: |-
+                  -----BEGIN CERTIFICATE-----
+                  MIIFPjCCAyYCCQD2y9kVBp5f1jANBgkqhkiG9w0BAQsFADBhMQswCQYDVQQGEwJJ
+                  TjELMAkGA1UECAwCS0ExDDAKBgNVBAcMA0JMUjEPMA0GA1UECgwGQVBJT1BzMRAw
+                  DgYDVQQLDAdLT05HQ1RMMRQwEgYDVQQDDAtFMkVTQ0VOQVJJTzAeFw0yNjA0MTcw
+                  NzQ0MTJaFw0zNjA0MTQwNzQ0MTJaMGExCzAJBgNVBAYTAklOMQswCQYDVQQIDAJL
+                  QTEMMAoGA1UEBwwDQkxSMQ8wDQYDVQQKDAZBUElPUHMxEDAOBgNVBAsMB0tPTkdD
+                  VEwxFDASBgNVBAMMC0UyRVNDRU5BUklPMIICIjANBgkqhkiG9w0BAQEFAAOCAg8A
+                  MIICCgKCAgEA8Ej5Tqj4ulz9WH4CalU9fJQsnSpSf3CbZfL9uAHGc2zZCErYH18m
+                  91XpWP0YNe/Htz8JM22K6HKqrW5z+93VwUrAiI88w9jECXVkw7r5QB3yxZ/QYJiD
+                  290AVTzjLIcgM6hywXyiTOE6rZlvoqRGObk5Kv31gpV2UvJuY21YMvlnSTQ0VmQs
+                  bBBvmdpebE7AMF/YFsx6/05L47wv3cmIJ+X3RO3YpZmlntl3vgxdM/RgXtIttBsC
+                  U+ugm9OlcEwT1tb6H5mY02cy7hSyvibpUg+7PWz/kwVBLz5WUVBYurKbWq5wHTcf
+                  cWfxFS7gyyBFPMVAZMnXLlq7HyicdGLBU1+WsJF1WwdS6e+cNSpWEt4STF78so+u
+                  i5+CM5gz2HOKD3XuQmnYmu0GMIeSqP1Pu50OprBNhOI6Wsw0r6jo9dvGK+A/TqIf
+                  Cf8ACulhRib+3qyTlSK9U5QfmRzw9stt2EjkqEuG9afJC3fqTNGgiY5J5/CPWU0n
+                  MQU9SHsNMoOL8OAQ3u6xVrEAYruMfwJykxZLKm9Lhi+7FxPRk0B99Y4MNml215ou
+                  cEMI27XCKGfq1RwtKyIYNnMjADNoN5sAMlTxaZra1mcnyZeMKE1nDwtpIP9DJmjH
+                  I0eqA7kFB4Ndc276aovOe/5lEfqQYi+nGIcCaazwOhIqWekIHRE6n3sCAwEAATAN
+                  BgkqhkiG9w0BAQsFAAOCAgEAhs2XcLqy78r4tGkGqEIWpjmjnkw7OQTn14uLVIjH
+                  RjAhMyowefzHU35Icck3k60zOljNA96ChFiWj8H5w+DP4QKW23HZZ5c8htUPehNA
+                  lkt6WH/s13jHW+08I5rRxCNHpnoB9Te5kg33Y059ZHgz4HliatOdmKJ3PbyBbkCg
+                  X93aLDQ1Hpv0k9XsU7uczKwSLmd3VSFAxOT+mvGU6G4XwdCvqJHqn2pn7N0+ZmGA
+                  /kbVOkAq5e4bYyC87yTLQiaTZLdb0jamL6sCPJnW5aEmPKgl7kILrVAKOIdihDxW
+                  r/9vDrw2gUmnpW8DO+QxmNBIZ7soua/b5AOBeG9vpaVqH6sisoILLGPDL6Vh6Xg4
+                  DONgc/2T1EDpeutwzxnUC85g28Vh9J6/o+inungVEfUFOAYwTuJYYmme3BuuIVSx
+                  3K7LNims8ZHUbq3s0JOH4Pwef38WCozTa6Cufoh8BlUURbr0OBp7u4Wy7Pg3zCdu
+                  AVbLk0nbLMRdm6bE5k+YGnuYIQwZ3UWJ3m44zYE2cgtsqm08NAjqQeAHh8hngtaM
+                  pE/YOhO3S9xO1IbFbsqdPw8ajZmXOlhGBCX6LnDFsikTj+kG5lPTNr9ueLpcQ5eu
+                  Jeo7mJ0RN29/eYI7ob59j8IIkTVSd8lJEpLoakPV4uyZPNgDx14MUB1Bz7qGU7gj
+                  oxQ=
+                  -----END CERTIFICATE-----
