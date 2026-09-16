@@ -529,3 +529,73 @@ func TestPrepareProducePolicyParentRefsResolvesModifyHeadersParent(t *testing.T)
 		*prepared[1].EventGatewayModifyHeadersPolicyCreate.ParentPolicyID,
 	)
 }
+
+func TestShouldUpdateProducePolicy_EncryptFieldsReference(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		keyName    string
+		wantUpdate bool
+	}{
+		{name: "same key", keyName: "static-key-name"},
+		{name: "different key", keyName: "another-key-name", wantUpdate: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			desired := producePolicyResourceFromJSON(t, `{
+				"ref": "encrypt-fields",
+				"type": "encrypt_fields",
+				"name": "encrypt-fields",
+				"parent_policy_id": "parent-id",
+				"config": {
+					"failure_mode": "reject",
+					"encrypt_fields": [{
+						"paths": "record.value.content.ssn",
+						"encryption_key": {
+							"type": "static",
+							"key": {"id": "__REF__:static-key-ref#id"}
+						}
+					}]
+				}
+			}`)
+			p := newTestPlanner()
+			p.resolver = NewReferenceResolver(nil, &resources.ResourceSet{
+				EventGatewayStaticKeys: []resources.EventGatewayStaticKeyResource{{
+					Ref:                         "static-key-ref",
+					EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{Name: tt.keyName},
+				}},
+			})
+			current := state.EventGatewayVirtualClusterProducePolicyInfo{
+				EventGatewayPolicy: kkComps.EventGatewayPolicy{
+					ID:             "policy-id",
+					Name:           new("encrypt-fields"),
+					Type:           "encrypt_fields",
+					ParentPolicyID: new("parent-id"),
+				},
+				RawConfig: map[string]any{
+					"failure_mode": "reject",
+					"encrypt_fields": []any{map[string]any{
+						"paths": "record.value.content.ssn",
+						"encryption_key": map[string]any{
+							"type": "static",
+							"key":  map[string]any{FieldID: "key-id", FieldName: "static-key-name"},
+						},
+					}},
+				},
+			}
+
+			needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desired)
+			assert.Equal(t, tt.wantUpdate, needsUpdate)
+			if tt.wantUpdate {
+				assert.Contains(t, changedFields, FieldConfig)
+				assert.NotNil(t, updateFields)
+			} else {
+				assert.Empty(t, changedFields)
+				assert.Nil(t, updateFields)
+			}
+			// Comparison must not replace the desired reference in the request payload.
+			fields := p.producePolicyToFields(desired)
+			id, ok := stringValueAtFieldPath(fields, "config.encrypt_fields.0.encryption_key.key.id")
+			require.True(t, ok)
+			assert.Equal(t, "__REF__:static-key-ref#id", id)
+		})
+	}
+}
