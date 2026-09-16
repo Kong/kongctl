@@ -935,6 +935,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.schema_registry_ref }}"
+                fields.config.authentication.password: "${vault['env']['PATH']}"
           - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
             expect:
               fields:
@@ -970,6 +971,7 @@ steps:
                 config.timeout_seconds: 30
                 config.authentication.type: basic
                 config.authentication.username: testuser
+                config.authentication.password: "${vault['env']['PATH']}"
 
   - name: 021-sync-idempotency-declarative-schema-registry
     inputOverlayDirs:
@@ -1217,6 +1219,7 @@ steps:
                 config.timeout_seconds: 30
                 config.authentication.type: basic
                 config.authentication.username: testuser
+                config.authentication.password: "${vault['env']['PATH']}"
 
       - name: 002-get-static-keys-after-omission
         run:
