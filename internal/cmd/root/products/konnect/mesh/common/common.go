@@ -29,6 +29,11 @@ const (
 	// resources, so that commands carrying no --mesh behave the same way.
 	DefaultMesh = "default"
 
+	// ExportProfileFlagName selects which types an export covers. It is not
+	// called "profile": that is kongctl's global configuration profile, and a
+	// local flag of the same name shadows it.
+	ExportProfileFlagName = "export-profile"
+
 	// TokenValidForFlagName sets how long an issued token remains valid, and
 	// TokenScopeFlagName which scopes a zone token carries. Both express a
 	// policy an operator applies to every token they issue, so both support a
@@ -52,6 +57,7 @@ var (
 	ControlPlaneURLConfigPath  = "konnect.mesh.control-plane.url"
 	MeshConfigPath             = "konnect.mesh.mesh"
 	AllMeshesConfigPath        = "konnect.mesh.all-meshes"
+	ExportProfileConfigPath    = "konnect.mesh.export-profile"
 	// These name where a token's lifetime and scope are configured. They hold
 	// no credential themselves.
 	TokenValidForConfigPath = "konnect.mesh.token.valid-for" // #nosec G101 -- configuration path, not a credential
@@ -225,6 +231,7 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{ControlPlaneURLFlagName, ControlPlaneURLConfigPath},
 		{MeshFlagName, MeshConfigPath},
 		{AllMeshesFlagName, AllMeshesConfigPath},
+		{ExportProfileFlagName, ExportProfileConfigPath},
 		{TokenValidForFlagName, TokenValidForConfigPath},
 		{TokenScopeFlagName, TokenScopeConfigPath},
 		{ControlPlaneTokenFlagName, ControlPlaneTokenConfigPath},

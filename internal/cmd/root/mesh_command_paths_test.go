@@ -25,6 +25,8 @@ func TestMeshCommandPathsResolve(t *testing.T) {
 		{"get", "konnect", "mesh", "--help"},
 		{"create", "mesh", "--help"},
 		{"create", "konnect", "mesh", "--help"},
+		{"dump", "mesh", "--help"},
+		{"dump", "konnect", "mesh", "--help"},
 		{"delete", "mesh", "--help"},
 	}
 
@@ -150,4 +152,25 @@ func TestCreateMeshOffersTokensNotResourceWrites(t *testing.T) {
 			t.Fatalf("expected apply mesh to offer -f\nstdout:\n%s", result.stdout)
 		}
 	})
+}
+
+// The export selection must not be called --profile: that name belongs to the
+// global configuration profile, and a local flag of the same name shadowed it.
+func TestMeshDumpDoesNotShadowProfileFlag(t *testing.T) {
+	result := executeRootForTest(t, "dump", "mesh", "--help")
+	if result.exitCode != 0 {
+		t.Fatalf("expected dump mesh help to succeed\nstderr:\n%s", result.stderr)
+	}
+
+	if !strings.Contains(result.stdout, "--export-profile") {
+		t.Fatalf("expected the export selection to be --export-profile\nstdout:\n%s", result.stdout)
+	}
+	// The global -p/--profile is still present and must stay: what must not
+	// appear is an example telling operators to pass --profile for an export
+	// selection, which is what the rename was for.
+	for _, line := range strings.Split(result.stdout, "\n") {
+		if strings.Contains(line, "dump mesh --profile") {
+			t.Fatalf("example still uses --profile for the export selection: %q", line)
+		}
+	}
 }
