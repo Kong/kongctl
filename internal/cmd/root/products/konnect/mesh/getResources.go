@@ -66,22 +66,41 @@ func runGetResources(helper cmd.Helper, args []string) error {
 		return &cmd.ConfigurationError{Err: err}
 	}
 
-	body, err := fetch(helper, path)
-	if err != nil {
-		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to retrieve mesh %s", descriptor.Plural()), err, helper.GetCmd())
-	}
+	var (
+		items []map[string]any
+		raw   any
+	)
+	if name != "" {
+		body, fetchErr := fetch(helper, path)
+		if fetchErr != nil {
+			return cmd.PrepareExecutionError(
+				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Singular()), fetchErr, helper.GetCmd())
+		}
 
-	// JSON and YAML print the control plane payload as it arrived, so scripts
-	// written against kumactl continue to parse it (NFR-1).
-	var raw any
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return fmt.Errorf("failed to decode mesh %s response: %w", descriptor.Plural(), err)
-	}
+		// JSON and YAML print the control plane payload as it arrived, so
+		// scripts written against kumactl continue to parse it (NFR-1).
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return fmt.Errorf("failed to decode mesh %s response: %w", descriptor.Singular(), err)
+		}
 
-	items, err := itemsFrom(body, name)
-	if err != nil {
-		return err
+		items, err = itemsFrom(body, name)
+		if err != nil {
+			return err
+		}
+	} else {
+		// A collection is paged: one request returns the control plane's first
+		// page, which for a large mesh silently omits the rest.
+		items, err = listAll(helper, path)
+		if err != nil {
+			return cmd.PrepareExecutionError(
+				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Plural()), err, helper.GetCmd())
+		}
+
+		// The envelope is rebuilt from everything collected so that structured
+		// output carries the whole collection. `next` is deliberately absent:
+		// there is nothing further to fetch, and echoing a stale link would
+		// suggest otherwise.
+		raw = listPayload(items)
 	}
 
 	rows := buildRows(items, time.Now())

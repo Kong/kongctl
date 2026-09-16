@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 )
@@ -33,8 +32,8 @@ type resourceRow struct {
 // headersFor returns the column set for a resource type, matching kumactl.
 func headersFor(d ResourceDescriptor) []string {
 	switch {
-	case d.Name == "Dataplane":
-		return []string{"MESH", "NAME", "TAGS", "ADDRESS", "AGE"}
+	case d.Name == dataplaneTypeName:
+		return []string{colMesh, colName, "TAGS", "ADDRESS", "AGE"}
 	case d.IsMeshScoped():
 		return []string{"MESH", "NAME", "AGE"}
 	default:
@@ -45,7 +44,7 @@ func headersFor(d ResourceDescriptor) []string {
 // cellsFor projects a row onto the resolved column set.
 func cellsFor(d ResourceDescriptor, row resourceRow) []string {
 	switch {
-	case d.Name == "Dataplane":
+	case d.Name == dataplaneTypeName:
 		return []string{row.Mesh, row.Name, row.Tags, row.Address, row.Age}
 	case d.IsMeshScoped():
 		return []string{row.Mesh, row.Name, row.Age}
@@ -112,37 +111,54 @@ func duration(d time.Duration) string {
 	return fmt.Sprintf("%dy", hours/24/365)
 }
 
+// Discovered type names the printers and the export selection both test
+// against, named once so the string is not repeated across the package.
+// Column headers shared by the printers, named once so a heading cannot drift
+// between the tables that show the same field.
+const (
+	colName   = "NAME"
+	colMesh   = "MESH"
+	colType   = "TYPE"
+	colResult = "RESULT"
+)
+
+const (
+	dataplaneTypeName        = "Dataplane"
+	dataplaneInsightTypeName = "DataplaneInsight"
+)
+
 // displayTags renders the TAGS column for a Dataplane.
 //
 // On Kong Mesh 3 this is the resource's labels merged with its gateway tags,
 // not the inbound tags an older Kuma displayed. Labels win on conflict, which
 // is what the control plane itself does.
 func displayTags(item map[string]any) string {
-	tags := map[string][]string{}
+	tags := map[string]string{}
 
 	for key, value := range mapField(item, "labels") {
 		if s, ok := value.(string); ok {
-			tags[key] = []string{s}
+			tags[key] = s
 		}
 	}
 
+	// A gateway tag is only shown where a label has not already claimed the
+	// key, so that the two sources cannot render the same key twice.
 	gateway := mapField(mapField(item, "networking"), "gateway")
 	for key, value := range mapField(gateway, "tags") {
 		if _, taken := tags[key]; taken {
 			continue
 		}
 		if s, ok := value.(string); ok {
-			tags[key] = []string{s}
+			tags[key] = s
 		}
 	}
 
+	// The keys are walked in sorted order, so the rendered list is already
+	// ordered and needs no further sorting.
 	rendered := make([]string, 0, len(tags))
 	for _, key := range slices.Sorted(maps.Keys(tags)) {
-		values := tags[key]
-		sort.Strings(values)
-		rendered = append(rendered, fmt.Sprintf("%s=%s", key, strings.Join(values, ",")))
+		rendered = append(rendered, fmt.Sprintf("%s=%s", key, tags[key]))
 	}
-	sort.Strings(rendered)
 	return strings.Join(rendered, " ")
 }
 

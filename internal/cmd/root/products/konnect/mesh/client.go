@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/kong/kongctl/internal/cmd"
@@ -58,6 +59,77 @@ func (e apiError) Error() string {
 		msg += fmt.Sprintf("\n  %s (%s): %s", p.Field, p.Source, p.Reason)
 	}
 	return msg
+}
+
+// listPageSize is the page size requested when collecting a whole collection.
+// The control plane may return fewer, which is why termination is driven by the
+// reported total rather than by a short page.
+const listPageSize = 100
+
+// listAll pages through a collection and returns every item.
+//
+// The `next` link in the response cannot be followed: on Konnect hosted
+// control planes it carries an internal cluster address. Pagination is
+// therefore driven by constructing offset and size directly.
+func listAll(helper cmd.Helper, path string) ([]map[string]any, error) {
+	return paginate(func(offset int) (listEnvelope, error) {
+		query := url.Values{}
+		query.Set("size", fmt.Sprint(listPageSize))
+		if offset > 0 {
+			query.Set("offset", fmt.Sprint(offset))
+		}
+
+		body, err := fetch(helper, path+"?"+query.Encode())
+		if err != nil {
+			return listEnvelope{}, err
+		}
+
+		var envelope listEnvelope
+		if err := json.Unmarshal(body, &envelope); err != nil {
+			return listEnvelope{}, fmt.Errorf("failed to decode %s: %w", path, err)
+		}
+		return envelope, nil
+	})
+}
+
+// paginate collects every page, asking fetchPage for the page at each offset.
+//
+// The fetching is supplied by the caller so that the termination rules can be
+// exercised without HTTP.
+func paginate(fetchPage func(offset int) (listEnvelope, error)) ([]map[string]any, error) {
+	var items []map[string]any
+	offset := 0
+
+	for {
+		envelope, err := fetchPage(offset)
+		if err != nil {
+			return nil, err
+		}
+
+		items = append(items, envelope.Items...)
+
+		// Termination is driven by the reported total, not by a short page:
+		// the control plane caps its own page size, so a page smaller than
+		// the one requested is normal and says nothing about being the last.
+		// A page that returns nothing ends the loop regardless, so a control
+		// plane that keeps offering a next link cannot spin here.
+		if len(envelope.Items) == 0 || len(items) >= envelope.Total {
+			return items, nil
+		}
+		offset += len(envelope.Items)
+	}
+}
+
+// listPayload rebuilds a collection envelope from everything listAll
+// collected, for the structured output forms that print the payload.
+//
+// `next` is deliberately absent: every page has already been fetched, so
+// echoing a link would suggest there is more to read.
+func listPayload(items []map[string]any) map[string]any {
+	if items == nil {
+		items = []map[string]any{}
+	}
+	return map[string]any{"total": len(items), "items": items}
 }
 
 // fetch performs a GET against the selected control plane and returns the
