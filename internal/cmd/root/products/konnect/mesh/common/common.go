@@ -38,6 +38,15 @@ const (
 
 	// InspectTypeFlagName selects what an inspection reads.
 	InspectTypeFlagName = "type"
+
+	// These configure how a self managed control plane is reached. They apply
+	// only alongside ControlPlaneURLFlagName: a Konnect hosted control plane
+	// is reached with Konnect credentials and Konnect's own certificates.
+	ControlPlaneTokenFlagName = "control-plane-token"
+	CACertFileFlagName        = "ca-cert-file"
+	ClientCertFileFlagName    = "client-cert-file"
+	ClientKeyFileFlagName     = "client-key-file"
+	TLSSkipVerifyFlagName     = "tls-skip-verify"
 )
 
 var (
@@ -50,7 +59,14 @@ var (
 	// no credential themselves.
 	TokenValidForConfigPath = "konnect.mesh.token.valid-for" // #nosec G101 -- configuration path, not a credential
 	TokenScopeConfigPath    = "konnect.mesh.token.scope"     // #nosec G101 -- configuration path, not a credential
-	InspectTypeConfigPath   = "konnect.mesh.inspect.type"
+
+	// Self managed control plane connection settings.
+	ControlPlaneTokenConfigPath = "konnect.mesh.control-plane.token" // #nosec G101 -- configuration path, not a credential
+	CACertFileConfigPath        = "konnect.mesh.control-plane.ca-cert-file"
+	ClientCertFileConfigPath    = "konnect.mesh.control-plane.client-cert-file"
+	ClientKeyFileConfigPath     = "konnect.mesh.control-plane.client-key-file"
+	TLSSkipVerifyConfigPath     = "konnect.mesh.control-plane.tls-skip-verify"
+	InspectTypeConfigPath       = "konnect.mesh.inspect.type"
 )
 
 // ControlPlanesPath lists the Konnect hosted Kong Mesh control planes, and
@@ -160,6 +176,36 @@ func AddControlPlaneFlags(flags *pflag.FlagSet) {
 	flags.Bool(AllMeshesFlagName, false,
 		fmt.Sprintf(`List mesh scoped resources across every mesh instead of one. Ignored for global types.
 - Config path: [ %s ]`, AllMeshesConfigPath))
+
+	addSelfManagedFlags(flags)
+}
+
+// addSelfManagedFlags registers how a self managed control plane is reached.
+//
+// A self managed control plane authenticates its own callers, so none of these
+// carry a Konnect credential. Kuma authenticates an API caller as admin over
+// loopback, which is why a local control plane needs no token at all, and
+// accepts a bearer token or a client certificate otherwise.
+func addSelfManagedFlags(flags *pflag.FlagSet) {
+	flags.String(ControlPlaneTokenFlagName, "",
+		fmt.Sprintf(`Bearer token for a self managed control plane. Not used for a Konnect hosted one.
+- Config path: [ %s ]`, ControlPlaneTokenConfigPath))
+
+	flags.String(CACertFileFlagName, "",
+		fmt.Sprintf(`Path to a CA certificate that verifies a self managed control plane.
+- Config path: [ %s ]`, CACertFileConfigPath))
+
+	flags.String(ClientCertFileFlagName, "",
+		fmt.Sprintf(`Path to a client certificate presented to a self managed control plane.
+- Config path: [ %s ]`, ClientCertFileConfigPath))
+
+	flags.String(ClientKeyFileFlagName, "",
+		fmt.Sprintf(`Path to the key for --%s.
+- Config path: [ %s ]`, ClientCertFileFlagName, ClientKeyFileConfigPath))
+
+	flags.Bool(TLSSkipVerifyFlagName, false,
+		fmt.Sprintf(`Do not verify a self managed control plane's certificate. Prefer --%s.
+- Config path: [ %s ]`, CACertFileFlagName, TLSSkipVerifyConfigPath))
 }
 
 // BindFlags associates the mesh flags with their configuration paths.
@@ -185,6 +231,11 @@ func BindFlags(cfg config.Hook, flags *pflag.FlagSet) error {
 		{AllMeshesFlagName, AllMeshesConfigPath},
 		{TokenValidForFlagName, TokenValidForConfigPath},
 		{TokenScopeFlagName, TokenScopeConfigPath},
+		{ControlPlaneTokenFlagName, ControlPlaneTokenConfigPath},
+		{CACertFileFlagName, CACertFileConfigPath},
+		{ClientCertFileFlagName, ClientCertFileConfigPath},
+		{ClientKeyFileFlagName, ClientKeyFileConfigPath},
+		{TLSSkipVerifyFlagName, TLSSkipVerifyConfigPath},
 	}
 
 	for _, b := range bindings {
