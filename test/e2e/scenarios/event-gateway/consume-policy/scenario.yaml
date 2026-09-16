@@ -1106,12 +1106,7 @@ steps:
 
   - name: 016-sync-delete-decrypt-fields-prerequisites
     inputOverlayDirs:
-      - overlays/004-sync-delete-root-level-declaration
-    inputOverlayOps:
-      - file: config.yaml
-        match: "event_gateways[?ref=='{{ .vars.egwRef }}'] | [0]"
-        set:
-          static_keys: []
+      - overlays/010-sync-delete-decrypt-fields-prerequisites
     commands:
       - name: 001-plan-sync-delete-root-level
         outputFormat: disable

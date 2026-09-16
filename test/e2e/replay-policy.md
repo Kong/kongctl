@@ -80,6 +80,16 @@ the isolated replay job passes. Commit it under the scenario's
 `replay/cassette.json` and add its directory to the sorted policy list. The
 recorder never commits or overwrites reviewed cassettes automatically.
 
+To refresh an enabled scenario, first update its inputs and push the branch,
+then dispatch `mode=record` for that scenario. The manual workflow's build
+tests defer only the selected old cassette's input-fingerprint comparison.
+Its schema, provenance, sanitization and scenario eligibility are still
+checked, as are all other repository cassettes. The same exception applies
+when validating a `source_run` candidate. Normal PR tests, ordinary replay,
+and validation of the newly recorded candidate still require current input
+fingerprints. This lets recording replace stale data without relaxing the
+PR gate or removing the scenario from replay routing.
+
 New recordings use cassette schema v2, which also preserves an allowlisted
 response media type (`application/json` or `application/problem+json`; absent
 is allowed only for an empty body). This is significant: the SDK uses the
