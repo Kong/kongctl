@@ -7,6 +7,7 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
+`event-gateway/consume-policy`,
 `portal/api_docs_with_children`, `portal/sync`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
@@ -15,6 +16,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
 | sync | [Recording][sync], [isolated phases][sync-replay] |
+| event-gateway/consume-policy | [Recording and isolated replays][consume-record] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
@@ -24,6 +26,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
+[consume-record]: https://github.com/Kong/kongctl/actions/runs/35048315678
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
@@ -149,6 +152,18 @@ engine. Operations, targets and assertions remain input-fingerprinted.
 Templates, nested replacement values, external ops files, YAML aliases and
 duplicate keys require separate support and remain rejected.
 Only the fixed `KONGCTL_LOG_LEVEL: info` scenario environment block is allowed.
+Scenario control checks use parsed YAML: fields inside command assertion
+`expect.fields` are data, so a header named `env` is not an environment
+override. Actual scenario/step/command overrides remain rejected, including
+flow-style declarations. Duplicate keys, YAML aliases and custom tags are
+rejected before eligibility is evaluated.
+
+Only a standalone `resetOrg: true` as the first command of the first step is
+supported. Recording uses the existing locked before/after reset; replay
+begins with an empty recorded state. A later reset would be skipped by the
+current replay environment and could invalidate a stateful round-trip test,
+so it fails eligibility rather than silently losing that boundary.
+
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
 Overlay-only document/spec files are fingerprinted and receive the same
@@ -173,6 +188,15 @@ exclude cassette directories or weaken the recorder's sensitive-data checks.
 `.e2e-artifacts/replay-python`. Build/check/metrics Make targets include this
 setup; CI performs it before network isolation. No kongctl dependency changes.
 Dependency installation belongs to job setup, not scenario execution savings.
+
+`event-gateway/consume-policy` passed its complete live recording and three
+isolated replays, each matching all 150 exchanges in strict order. No parallel
+phase annotations or matching exceptions were needed. Scenario execution took
+4.217–4.220 seconds in replay versus a recent 28.61-second live median; this
+is observational, not a measured workflow speedup. Live scenario timing
+already includes its reset; do not add reset savings again. Its scenario-local
+replay README records provenance, same-source live evidence, coverage and
+measurement limitations.
 
 `portal/sync` is enabled after its complete live scenario and three isolated
 replays passed (293 HTTP interactions each), followed by three isolated

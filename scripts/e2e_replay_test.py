@@ -23,6 +23,73 @@ def interaction(method="GET", body=None):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_assertion_fields_are_data_but_environment_controls_stay_restricted(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / "scenario.yaml"
+            command = {"run": ["get", "event-gateways"], "assertions": [
+                {"expect": {"fields": {"headers": {"env": "production"}, "exec": "example",
+                                       "resetOrg": True}}}
+            ]}
+            scenario = {"baseInputsPath": "testdata", "env": {"KONGCTL_LOG_LEVEL": "info"},
+                        "steps": [{"commands": [command]}]}
+            path.write_text(yaml.safe_dump(scenario))
+            MODULE.check_eligibility(root)
+            # Both block and flow/quoted YAML forms must be checked structurally.
+            for flow in [False, True]:
+                for level in ["root", "step", "command"]:
+                    changed = copy.deepcopy(scenario)
+                    target = {"root": changed, "step": changed["steps"][0],
+                              "command": changed["steps"][0]["commands"][0]}[level]
+                    target["env"] = {"HTTPS_PROXY": "other-proxy"}
+                    path.write_text(yaml.safe_dump(changed, default_flow_style=flow))
+                    with self.subTest(level=level, flow=flow), self.assertRaisesRegex(ValueError, "environment"):
+                        MODULE.check_eligibility(root)
+            for key in ["exec", "create", "delete", "resetOrgRegions", "requiredEnvVars", "assignedEnvironment",
+                        "inputOverlayOpsFiles", "stdinFile", "workdir"]:
+                changed = copy.deepcopy(scenario)
+                changed["steps"][0]["commands"][0][key] = "unsupported"
+                path.write_text(yaml.safe_dump(changed))
+                with self.subTest(key=key), self.assertRaisesRegex(ValueError, "unsupported"):
+                    MODULE.check_eligibility(root)
+
+    def test_only_standalone_initial_reset_is_supported(self):
+        import yaml
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / "scenario.yaml"
+            reset = {"name": "reset", "resetOrg": True}
+            get = {"run": ["get", "event-gateways"]}
+            def check(commands, later_steps=None):
+                path.write_text(yaml.safe_dump({"baseInputsPath": "testdata", "steps": [
+                    {"commands": commands}, *(later_steps or [])]}))
+                MODULE.check_eligibility(root)
+            check([reset, get])
+            for commands, later in [
+                ([get, reset], []), ([reset, get, dict(reset)], []),
+                ([reset, get], [{"commands": [dict(reset)]}]),
+                ([{**reset, **get}], []), ([{"resetOrg": False}], []),
+                ([{"resetOrg": "true"}], []),
+            ]:
+                with self.subTest(commands=commands, later=later), self.assertRaisesRegex(ValueError, "initial reset"):
+                    check(commands, later)
+
+    def test_scenario_controls_reject_ambiguous_yaml(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            header = "baseInputsPath: testdata\n"
+            for definition in [
+                header + "env: {}\nenv: {KONGCTL_LOG_LEVEL: info}\nsteps: []\n",
+                header + "steps: [{commands: [{run: [get], env: {}, env: {}}]}]\n",
+                header + "vars: &vars {value: data}\nsteps: []\n",
+                header + "steps: [{commands: [{env: !custom {}}]}]\n",
+                header + "steps: [{commands: [{assertions: null}]}]\n",
+            ]:
+                (root / "scenario.yaml").write_text(definition)
+                with self.subTest(definition=definition), self.assertRaises(ValueError):
+                    MODULE.check_eligibility(root)
+
     def test_overlay_only_documents_are_local_exact_and_fingerprinted(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -575,7 +642,7 @@ class ReplayTest(unittest.TestCase):
                 invalid["interactions"][0]["response"]["status"] = status
                 with self.subTest(status=status), self.assertRaises(ValueError):
                     MODULE.validate_cassette(invalid, root)
-            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: [changed]")
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: [{name: changed}]")
             with self.assertRaisesRegex(ValueError, "stale cassette"):
                 MODULE.validate_cassette(cassette, root)
 
