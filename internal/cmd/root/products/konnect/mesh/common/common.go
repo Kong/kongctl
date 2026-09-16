@@ -28,6 +28,11 @@ const (
 	// DefaultMesh matches the default kumactl applies to mesh scoped
 	// resources, so that commands carrying no --mesh behave the same way.
 	DefaultMesh = "default"
+
+	// ExportProfileFlagName selects which types an export covers. It is not
+	// called "profile": that is kongctl's global configuration profile, and a
+	// local flag of the same name shadows it.
+	ExportProfileFlagName = "export-profile"
 )
 
 var (
@@ -75,6 +80,21 @@ func ResolveControlPlaneAPIURL(cfg config.Hook) (string, error) {
 	}
 
 	controlPlaneID := strings.TrimSpace(cfg.GetString(ControlPlaneIDConfigPath))
+	if controlPlaneID == "" {
+		return "", ErrNoControlPlaneSelected
+	}
+
+	return ControlPlaneAPIURLForID(cfg, controlPlaneID)
+}
+
+// ControlPlaneAPIURLForID builds the API URL of a Konnect hosted control plane
+// from its ID.
+//
+// Callers that have established which selector the operator chose use this to
+// address that control plane directly, without re-entering the precedence in
+// ResolveControlPlaneAPIURL and picking up a different configured selector.
+func ControlPlaneAPIURLForID(cfg config.Hook, controlPlaneID string) (string, error) {
+	controlPlaneID = strings.TrimSpace(controlPlaneID)
 	if controlPlaneID == "" {
 		return "", ErrNoControlPlaneSelected
 	}

@@ -223,6 +223,29 @@ func buildAPIError(statusCode int, body []byte) error {
 // live there, so it is resolved here and the identifier written back to
 // configuration — leaving the composition itself in one place.
 func resolveBaseURL(helper cmd.Helper, cfg config.Hook) (string, error) {
+	// A selector named on the command line is this invocation's intent, so it
+	// decides the target even when configuration names a different one. Without
+	// this, a configured ID answers an explicit --control-plane-name, and since
+	// this resolver also serves writes and deletes that would act on a control
+	// plane the operator did not choose.
+	selector, err := explicitControlPlaneSelector(helper)
+	if err != nil {
+		return "", err
+	}
+
+	switch selector {
+	case meshcommon.ControlPlaneURLFlagName:
+		return meshcommon.ResolveControlPlaneAPIURL(cfg)
+	case meshcommon.ControlPlaneIDFlagName:
+		return meshcommon.ControlPlaneAPIURLForID(
+			cfg, cfg.GetString(meshcommon.ControlPlaneIDConfigPath))
+	case meshcommon.ControlPlaneNameFlagName:
+		return resolveBaseURLByName(
+			helper, cfg, cfg.GetString(meshcommon.ControlPlaneNameConfigPath))
+	}
+
+	// Nothing was named on the command line, so configuration decides in the
+	// documented order: URL, then ID, then name.
 	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
 	if err == nil {
 		return baseURL, nil
@@ -235,11 +258,70 @@ func resolveBaseURL(helper cmd.Helper, cfg config.Hook) (string, error) {
 		return "", err
 	}
 
-	controlPlaneID, resolveErr := resolveControlPlaneIDByName(helper, name)
-	if resolveErr != nil {
-		return "", resolveErr
+	return resolveBaseURLByName(helper, cfg, name)
+}
+
+// resolveBaseURLByName turns a control plane name into its API URL.
+//
+// A name is not resolvable from configuration alone, so it is looked up against
+// Konnect and the resulting ID is recorded for the rest of the invocation.
+func resolveBaseURLByName(helper cmd.Helper, cfg config.Hook, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", meshcommon.ErrNoControlPlaneSelected
+	}
+
+	controlPlaneID, err := resolveControlPlaneIDByName(helper, name)
+	if err != nil {
+		return "", err
 	}
 
 	cfg.SetString(meshcommon.ControlPlaneIDConfigPath, controlPlaneID)
-	return meshcommon.ResolveControlPlaneAPIURL(cfg)
+	return meshcommon.ControlPlaneAPIURLForID(cfg, controlPlaneID)
+}
+
+// controlPlaneSelectorFlags are the mutually exclusive ways to name a control
+// plane, in the order configuration consults them.
+var controlPlaneSelectorFlags = []string{
+	meshcommon.ControlPlaneURLFlagName,
+	meshcommon.ControlPlaneIDFlagName,
+	meshcommon.ControlPlaneNameFlagName,
+}
+
+// explicitControlPlaneSelector reports which selector was given on the command
+// line, or "" when none was.
+//
+// Two selectors at once is rejected rather than resolved by precedence: the
+// operator has asked for two different control planes and guessing which one
+// they meant is worse than making them choose.
+func explicitControlPlaneSelector(helper cmd.Helper) (string, error) {
+	if helper == nil {
+		return "", nil
+	}
+	command := helper.GetCmd()
+	if command == nil {
+		return "", nil
+	}
+
+	var named []string
+	for _, flag := range controlPlaneSelectorFlags {
+		if command.Flags().Changed(flag) {
+			named = append(named, flag)
+		}
+	}
+
+	switch len(named) {
+	case 0:
+		return "", nil
+	case 1:
+		return named[0], nil
+	default:
+		quoted := make([]string, 0, len(named))
+		for _, flag := range named {
+			quoted = append(quoted, "--"+flag)
+		}
+		return "", &cmd.ConfigurationError{Err: fmt.Errorf(
+			"%s select different control planes; provide only one",
+			strings.Join(quoted, " and "))}
+	}
 }
