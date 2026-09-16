@@ -14,6 +14,8 @@ vars:
   consumePolicyRef: default-consume-policy
   consumePolicyName: default-consume-policy-name-for-test
   consumePolicyDescription: Default Consume Policy description
+  decryptPolicyRef: decrypt-fields-consume-policy
+  decryptPolicyName: decrypt-fields-consume-policy-name-for-test
 
 defaults:
   mask:
@@ -975,11 +977,11 @@ steps:
                 total_changes: 1
                 by_action.CREATE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='decrypt-fields-consume-policy'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.decryptPolicyRef }}'] | [0]
             expect:
               fields:
                 action: CREATE
-                resource_ref: decrypt-fields-consume-policy
+                resource_ref: "{{ .vars.decryptPolicyRef }}"
       - name: 002-apply-decrypt-fields-consume
         outputFormat: json
         run:
@@ -1018,7 +1020,7 @@ steps:
           - select: "[?type=='decrypt_fields'] | [0]"
             expect:
               fields:
-                name: decrypt-fields-consume-policy-name-for-test
+                name: "{{ .vars.decryptPolicyName }}"
                 type: decrypt_fields
                 enabled: true
                 parent_policy_id: "{{ .vars.decryptFieldsParentID }}"
@@ -1061,11 +1063,11 @@ steps:
                 total_changes: 1
                 by_action.DELETE: 1
           - select: >-
-              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='decrypt-fields-consume-policy-name-for-test'] | [0]
+              changes[?resource_type=='event_gateway_virtual_cluster_consume_policy' && resource_ref=='{{ .vars.decryptPolicyName }}'] | [0]
             expect:
               fields:
                 action: DELETE
-                resource_ref: decrypt-fields-consume-policy-name-for-test
+                resource_ref: "{{ .vars.decryptPolicyName }}"
       - name: 002-sync-delete-decrypt-fields-consume
         outputFormat: json
         run:
