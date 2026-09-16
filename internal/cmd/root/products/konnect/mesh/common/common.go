@@ -36,9 +36,6 @@ const (
 	TokenValidForFlagName = "valid-for"
 	TokenScopeFlagName    = "scope"
 
-	// InspectTypeFlagName selects what an inspection reads.
-	InspectTypeFlagName = "type"
-
 	// These configure how a self managed control plane is reached. They apply
 	// only alongside ControlPlaneURLFlagName: a Konnect hosted control plane
 	// is reached with Konnect credentials and Konnect's own certificates.
@@ -66,7 +63,6 @@ var (
 	ClientCertFileConfigPath    = "konnect.mesh.control-plane.client-cert-file"
 	ClientKeyFileConfigPath     = "konnect.mesh.control-plane.client-key-file"
 	TLSSkipVerifyConfigPath     = "konnect.mesh.control-plane.tls-skip-verify"
-	InspectTypeConfigPath       = "konnect.mesh.inspect.type"
 )
 
 // ControlPlanesPath lists the Konnect hosted Kong Mesh control planes, and
