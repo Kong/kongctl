@@ -12,7 +12,6 @@ import (
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
-	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
 
 // ControlPlane is a Konnect hosted Kong Mesh control plane.
@@ -84,7 +83,10 @@ func ListControlPlanes(helper cmd.Helper) ([]ControlPlane, error) {
 	}
 
 	var controlPlanes []ControlPlane
-	client := httpclient.NewLoggingHTTPClient(logger)
+	client, err := newHTTPClient(cfg, logger)
+	if err != nil {
+		return nil, err
+	}
 
 	for page := 1; ; page++ {
 		query := url.Values{}
