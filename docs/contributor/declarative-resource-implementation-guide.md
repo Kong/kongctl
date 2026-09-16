@@ -41,8 +41,8 @@ explain/scaffold, load-schema discovery, namespace participation,
 collection scope, registered child loading, and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Other families' nested
-extraction and load validation, specialized namespace selection, relationships,
+payload validation for SDK resource operations. Grouped loading, root
+validation, specialized namespace selection, relationships,
 pre-execution validation, state-client wiring, and dump collection remain
 separate steps.
 Registering a declaration does not complete those steps automatically.
@@ -144,12 +144,11 @@ input cannot disclose a secret in an error.
 
 ### Child loading capabilities
 
-AI Gateway, API, Portal, Event Gateway, and control-plane children register
-loading beside their declarations through
-[`registerChildResourceType`][child-load], reusing root storage. Children with
-external resolution compose `withChildLoad` with `registerExternalResourceType`,
-sharing the same storage accessor; [gateway services][gateway-service] show
-this path.
+For parents implementing `Resource`, register child loading beside declarations
+through [`registerChildResourceType`][child-load], reusing root storage.
+Children with external resolution compose `withChildLoad` with
+`registerExternalResourceType`, sharing the same storage accessor;
+[gateway services][gateway-service] show this path.
 Supply `nested`/`setParent` with an optional `beforeAppend`, or a
 typed `extract` handler for exceptional sources. Custom extraction receives
 the registered destination; preserve each source's copying and storage rules.
@@ -190,6 +189,22 @@ Gateway services retain external lookup metadata and their accepted inline
 forms; [certificates][cp-certificate] retain parent lookup, external-placeholder
 handling, and per-control-plane certificate identity checks.
 
+Organization team roles use ordinary child loading, invoked only for teams
+under `organization.teams`; teams already in flattened root storage retain
+their nested roles.
+Users and system accounts remain selectors outside the resource registry.
+Their [typed selector loaders][selector-load] bind each source and selector
+validator through `registerSelectorLoader`. Pass that handle to
+`registerSelectorChildResourceType` when registering an assignment, with its
+storage, extraction, and validation; [user assignments][org-user-load] provide
+an example. No per-assignment loader branch is needed.
+`ExtractRegisteredSelectorChildren` visits selectors in source order, extracting
+memberships before roles for each. `ValidateRegisteredSelectorChildren` checks
+all selectors, then memberships, then roles. The loader validates team roles
+before the user family, then the system-account family. Preserve that order,
+the missing-group diagnostics, and team-selector normalization before resource
+validation, including sync-scope parent rebinding.
+
 Portal teams, team roles, and these Event Gateway children record
 `validationOmittedReason` with zero `validateOrder` to preserve their lack of
 family-level loader validation. Other registrations require a validator and a
@@ -217,9 +232,8 @@ only documents nested. `ValidateRegisteredChildren` then checks
 root child collections in family order, stopping at the first error. API and
 ordinary Portal ref validation both validate each resource before checking
 later siblings for duplicate refs.
-Portal child validation follows API-child validation. Organization/grouped
-loading, root validation, cross-references, and namespaces retain their
-existing loader paths.
+Portal child validation follows API-child validation. Grouped root extraction,
+root validation, cross-references, and namespaces retain explicit loader paths.
 
 ### Explain, scaffold, and load schema
 
@@ -660,6 +674,8 @@ engine contract. Each refactoring migration should:
 [loader]: ../../internal/declarative/loader/loader.go
 [load-validation]: ../../internal/declarative/loader/validator.go
 [child-load]: ../../internal/declarative/resources/child_load.go
+[selector-load]: ../../internal/declarative/resources/selector_load.go
+[org-user-load]: ../../internal/declarative/resources/organization_user.go
 [api-child-load]: ../../internal/declarative/resources/api_child_load.go
 [api-document]: ../../internal/declarative/resources/api_document.go
 [portal-child-load]: ../../internal/declarative/resources/portal_child_load.go

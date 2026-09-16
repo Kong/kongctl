@@ -29,6 +29,7 @@ type childLoadRegistration struct {
 	extractOrder            int
 	validateOrder           int
 	extract                 func(*ResourceSet, Resource)
+	extractSelector         func(*ResourceSet, any)
 	validate                func(*ResourceSet) error
 	validateNested          func(*ResourceSet, Resource) error
 	validationOmittedReason string
@@ -66,6 +67,22 @@ func withChildLoad[R, P any, PPtr interface {
 	storage func(*ResourceSet) *[]R,
 	load childLoad[R, P],
 ) ResourceRegistrationOption {
+	registration := load.registration(rt, PPtr(new(P)).GetType(), storage)
+	registration.extract = func(rs *ResourceSet, parent Resource) {
+		load.extractInto(rs, any(parent).(*P), storage, parent.GetRef())
+	}
+	if load.validateNested != nil {
+		registration.validateNested = func(rs *ResourceSet, parent Resource) error {
+			return load.validateNested(rs, any(parent).(*P))
+		}
+	}
+	return withChildLoadRegistration(registration)
+}
+
+func (load childLoad[R, P]) registration(
+	rt, parent ResourceType,
+	storage func(*ResourceSet) *[]R,
+) *childLoadRegistration {
 	if load.extract != nil {
 		if load.nested != nil || load.setParent != nil || load.beforeAppend != nil {
 			panic("register resource type " + string(rt) + ": custom extraction cannot also supply slice extraction")
@@ -73,44 +90,47 @@ func withChildLoad[R, P any, PPtr interface {
 	} else if load.nested == nil || load.setParent == nil {
 		panic("register resource type " + string(rt) + ": child loader requires extraction")
 	}
+	registration := &childLoadRegistration{
+		parent:                  parent,
+		family:                  load.family,
+		extractOrder:            load.extractOrder,
+		validateOrder:           load.validateOrder,
+		validationOmittedReason: load.validationOmittedReason,
+	}
+	if load.validate != nil {
+		registration.validate = func(rs *ResourceSet) error {
+			return load.validate(rs, *storage(rs))
+		}
+	}
+	return registration
+}
+
+func (load childLoad[R, P]) extractInto(
+	rs *ResourceSet,
+	parent *P,
+	storage func(*ResourceSet) *[]R,
+	parentRef string,
+) {
+	if load.extract != nil {
+		load.extract(rs, parent, storage(rs))
+		return
+	}
+	nested := load.nested(parent)
+	for _, child := range *nested {
+		load.setParent(&child, parentRef)
+		if load.beforeAppend != nil {
+			load.beforeAppend(rs, &child)
+		}
+		destination := storage(rs)
+		*destination = append(*destination, child)
+	}
+	*nested = nil
+}
+
+func withChildLoadRegistration(registration *childLoadRegistration) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
 		if ops.load != nil {
 			return fmt.Errorf("child loader is already registered")
-		}
-		registration := &childLoadRegistration{
-			parent:                  PPtr(new(P)).GetType(),
-			family:                  load.family,
-			extractOrder:            load.extractOrder,
-			validateOrder:           load.validateOrder,
-			validationOmittedReason: load.validationOmittedReason,
-		}
-		if load.extract != nil {
-			registration.extract = func(rs *ResourceSet, parent Resource) {
-				load.extract(rs, any(parent).(*P), storage(rs))
-			}
-		} else {
-			registration.extract = func(rs *ResourceSet, parent Resource) {
-				nested := load.nested(any(parent).(*P))
-				for _, child := range *nested {
-					load.setParent(&child, parent.GetRef())
-					if load.beforeAppend != nil {
-						load.beforeAppend(rs, &child)
-					}
-					destination := storage(rs)
-					*destination = append(*destination, child)
-				}
-				*nested = nil
-			}
-		}
-		if load.validate != nil {
-			registration.validate = func(rs *ResourceSet) error {
-				return load.validate(rs, *storage(rs))
-			}
-		}
-		if load.validateNested != nil {
-			registration.validateNested = func(rs *ResourceSet, parent Resource) error {
-				return load.validateNested(rs, any(parent).(*P))
-			}
 		}
 		ops.load = registration
 		return nil
@@ -119,8 +139,15 @@ func withChildLoad[R, P any, PPtr interface {
 
 func registerChildLoader(kind ResourceType, registration childLoadRegistration) {
 	if registration.parent == "" || registration.family == "" ||
-		registration.extractOrder <= 0 || registration.extract == nil {
+		registration.extractOrder <= 0 || (registration.extract == nil && registration.extractSelector == nil) {
 		panic("child loader requires parent, family, and positive extraction order: " + string(kind))
+	}
+	if registration.extract != nil && registration.extractSelector != nil {
+		panic("child loader cannot extract from both resources and selectors: " + string(kind))
+	}
+	_, selectorParent := selectorLoaders[registration.parent]
+	if selectorParent != (registration.extractSelector != nil) {
+		panic("child loader extraction must match its parent source: " + string(kind))
 	}
 	if registration.validate == nil {
 		if registration.validationOmittedReason == "" || registration.validateOrder != 0 {
