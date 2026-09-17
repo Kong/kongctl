@@ -197,7 +197,7 @@ Nested objects show only changed fields, with keys sorted at each level:
 
 ```text
   config:
-    ~ client_secret: (sensitive value changed)
+    ~ client_secret: (secret write; no value comparison)
     redis:
       ~ connect_timeout: 1000 → 2000
     scopes_claim:

@@ -86,7 +86,7 @@ func TestDiffRecursiveRedaction(t *testing.T) {
 			map[string]any{"name": "Authorization", "value": "new-secret"},
 		}}}
 		displayFieldChange(output, planner.FieldConfig, oldValue, newValue, "  ", full)
-		assert.Contains(t, out.String(), "~ value: (sensitive value changed)")
+		assert.Contains(t, out.String(), "~ value: (secret write; no value comparison)")
 		displayField(output, planner.FieldConfig, newValue, "  ", full)
 		displayFieldChange(output, planner.FieldConfig, newValue, "replacement", "  ", full)
 		displayFieldChange(output, planner.FieldConfig, oldValue, map[string]any{}, "  ", full)

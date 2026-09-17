@@ -1585,8 +1585,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 			}
 
 			for _, secretWrite := range change.SecretWrites {
-				fmt.Fprintf(out, "  %s: (secret write; no value comparison)\n",
-					pointerToDisplayField(secretWrite.Field))
+				fmt.Fprintf(out, "  %s: %s\n",
+					pointerToDisplayField(secretWrite.Field), diffSecretWriteLabel)
 			}
 
 			// Show dependencies

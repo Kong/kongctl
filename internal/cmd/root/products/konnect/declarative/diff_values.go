@@ -15,6 +15,8 @@ import (
 	"github.com/kong/kongctl/internal/theme"
 )
 
+const diffSecretWriteLabel = "(secret write; no value comparison)"
+
 // Use the plan's JSON representation to handle typed maps, slices, and pointers
 // identically before and after saving a plan. Keep numbers lossless.
 func normalizeDiffValue(value any) any {
@@ -95,10 +97,10 @@ func displayDiffChange(
 		return
 	}
 	// Retain explicit null transitions, but never reveal non-null secret values
-	// or their types. The comparison above still detects secret-only changes.
+	// or their types. Describe the write without claiming a remote value comparison.
 	if sensitive && oldValue != nil && newValue != nil {
 		fmt.Fprintf(out, "%s%s %s: %s\n", indent, marker, fieldText,
-			output.paint(theme.ColorTextMuted, "(sensitive value changed)"))
+			output.paint(theme.ColorTextMuted, diffSecretWriteLabel))
 		return
 	}
 	typeTag := ""

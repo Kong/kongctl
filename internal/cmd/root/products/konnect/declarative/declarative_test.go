@@ -1081,7 +1081,7 @@ func TestDisplayTextDiff_RedactsSensitiveChangedFields(t *testing.T) {
 	require.NoError(t, err)
 
 	output := out.String()
-	assert.Contains(t, output, "client_secret: (sensitive value changed)")
+	assert.Contains(t, output, "client_secret: (secret write; no value comparison)")
 	assert.NotContains(t, output, "old-secret-value")
 	assert.NotContains(t, output, "new-secret-value")
 }
