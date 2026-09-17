@@ -114,3 +114,36 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 		})
 	}
 }
+
+// Resource writes belong to apply. `create mesh -f` reached the same upsert
+// and so replaced an existing resource while reporting "updated", without the
+// operator asking for a replacement, so it was removed. Token issuance stays
+// under create.
+func TestCreateMeshOffersTokensNotResourceWrites(t *testing.T) {
+	t.Run("the -f flag is gone", func(t *testing.T) {
+		result := executeRootForTest(t, "create", "mesh", "-f", "policy.yaml")
+
+		if result.exitCode == 0 {
+			t.Fatalf("expected create mesh -f to be rejected\nstdout:\n%s", result.stdout)
+		}
+		if !strings.Contains(result.stderr, "shorthand flag: 'f'") {
+			t.Fatalf("expected an unknown-flag error for -f\nstderr:\n%s", result.stderr)
+		}
+	})
+
+	t.Run("token subcommands remain", func(t *testing.T) {
+		for _, sub := range []string{"zone-token", "dataplane-token"} {
+			result := executeRootForTest(t, "create", "mesh", sub, "--help")
+			if result.exitCode != 0 {
+				t.Fatalf("create mesh %s should still resolve\nstderr:\n%s", sub, result.stderr)
+			}
+		}
+	})
+
+	t.Run("apply still takes -f", func(t *testing.T) {
+		result := executeRootForTest(t, "apply", "mesh", "--help")
+		if !strings.Contains(result.stdout, "-f") {
+			t.Fatalf("expected apply mesh to offer -f\nstdout:\n%s", result.stdout)
+		}
+	})
+}
