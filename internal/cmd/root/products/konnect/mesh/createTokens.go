@@ -118,9 +118,7 @@ func newDataplaneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *co
 		Example: dataplaneTokenExample,
 		Args:    cobra.NoArgs,
 	}
-	if parentPreRun != nil {
-		cmdObj.PreRunE = parentPreRun
-	}
+	cmdObj.PreRunE = chainMeshPreRun(parentPreRun)
 
 	cmdObj.Flags().String(tokenNameFlagName, "",
 		"Name of the dataplane the token identifies. Given per invocation; it has no configured default.")
@@ -150,9 +148,7 @@ func newZoneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *cobra.C
 		Example: zoneTokenExample,
 		Args:    cobra.NoArgs,
 	}
-	if parentPreRun != nil {
-		cmdObj.PreRunE = parentPreRun
-	}
+	cmdObj.PreRunE = chainMeshPreRun(parentPreRun)
 
 	cmdObj.Flags().String(tokenZoneFlagName, "",
 		"Name of the zone the token identifies. Given per invocation; it has no configured default.")

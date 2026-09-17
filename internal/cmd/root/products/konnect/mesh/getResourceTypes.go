@@ -67,9 +67,7 @@ func newGetResourceTypesCmd(
 	}
 
 	c.Command = cmdObj
-	if parentPreRun != nil {
-		c.PreRunE = parentPreRun
-	}
+	c.PreRunE = chainMeshPreRun(parentPreRun)
 	if addParentFlags != nil {
 		addParentFlags(verb, c.Command)
 	}
