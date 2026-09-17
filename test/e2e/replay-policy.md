@@ -70,20 +70,33 @@ the enclosing workflow still holds its environment queue slot.
 
 ## Recording and expansion
 
-The manual `e2e-replay.yaml` workflow supports a `scenario` choice. Record one
-complete scenario under the existing acceptance-3 lock, then replay it three
-times in the workflow's separate network-isolated job:
+Use this shared procedure for new replay coverage and cassette refreshes.
+The manual `e2e-replay.yaml` workflow uses CI credentials and the existing
+acceptance-3 lock and before/after resets; no local PAT or new organization
+is needed. After pushing the scenario changes, record the complete scenario
+and replay it three times in the separate network-isolated job (replace
+both placeholders):
 
 ```sh
 gh workflow run e2e-replay.yaml --repo Kong/kongctl \
-  --ref YOUR_REVIEWED_BRANCH -f mode=record -f scenario=control-plane/apply
+  --ref YOUR_BRANCH -f mode=record -f scenario=SUITE/SCENARIO
 ```
 
 The candidate is uploaded only after a passing live scenario and final reset.
-Download `replay-candidate` from the run, review it, and promote it only after
-the isolated replay job passes. Commit it under the scenario's
-`replay/cassette.json` and add its directory to the sorted policy list. The
-recorder never commits or overwrites reviewed cassettes automatically.
+Monitor the run and download its sanitized `replay-candidate` artifact.
+Review the exchanges against the scenario and its assertions. The candidate
+remains usable if subsequent isolated replay fails. If concurrent operations
+need annotations, follow [ordering validation](#recording-format-and-ordering)
+below to iterate with `source_run` without another live recording.
+
+After all three isolated replays pass, promote the candidate (or the
+annotated `validated-cassette.json`) under the scenario's
+`replay/cassette.json`, together with corresponding annotations and any
+packed chunks. For newly enabled scenarios, add the directory to the sorted
+policy list. The recorder never commits or overwrites reviewed cassettes
+automatically. Verify the committed representation with isolated replay,
+run applicable repository checks, and include recording and replay-validation
+run links in the PR.
 
 ### Refresh existing replay coverage
 
@@ -98,36 +111,15 @@ includes refreshing its recording in the same PR.
    requires explicit maintainer authorization; a stale recording alone is
    not authorization. Keep assertions and replay validation strict rather
    than removing eligibility or changing routing tests to accept its loss.
-2. Update the scenario and push the working branch. Dispatch recording for
-   that branch and scenario (replace both placeholders):
-
-   ```sh
-   gh workflow run e2e-replay.yaml --repo Kong/kongctl \
-     --ref YOUR_BRANCH -f mode=record -f scenario=SUITE/SCENARIO
-   ```
-
+2. Follow [Recording and expansion](#recording-and-expansion) above for the
+   updated scenario on the working branch.
    The old cassette may remain stale during this step. The manual workflow
    defers only the selected old cassette's input-fingerprint comparison;
    schema, provenance, sanitization, eligibility, and other cassettes remain
    checked. The same exception applies to `source_run` validation. Normal
    PR tests and fresh candidates still require current fingerprints.
-   Recording uses CI credentials and the existing acceptance-3 lock and
-   before/after resets; no local PAT or new organization is needed.
-3. Monitor the run and download its sanitized `replay-candidate` artifact.
-   Review the recorded exchanges against the expanded scenario and its
-   assertions. A candidate is published only after live execution and final
-   cleanup succeed; it remains usable if subsequent isolated replay fails.
-4. Require three successful isolated replays. If concurrent operations need
-   ordering annotations, follow the `source_run` procedure below to iterate
-   without another live recording. Review phases against the exact new
-   candidate, preserving command boundaries and operation dependencies.
-   Never simply rebind old interaction positions to a new recording hash.
-5. Promote the passing candidate, or `validated-cassette.json` when using
-   annotations, together with its corresponding annotations and any packed
-   chunks. If scenario inputs change again, record again; manually editing
-   the fingerprint is not a refresh. Verify the committed representation
-   with isolated replay, run applicable repository checks, and include the
-   recording and replay-validation run links in the PR.
+3. If scenario inputs change again, record again; manually editing the
+   fingerprint is not a refresh.
 
 If recording or validation is blocked, report the blocker while preserving
 replay eligibility. Keep the PR incomplete rather than switching it to
