@@ -26,6 +26,90 @@ steps:
               fields:
                 action: CREATE
 
+      - name: 001-sync-idempotent
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+  - name: 001-update-description-labels
+    inputOverlayDirs:
+      - overlays/001-update-description-labels
+    commands:
+      - name: 000-sync-update
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='e2e-cp'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 001-get-updated
+        run:
+          - get
+          - konnect
+          - gateway
+          - control-planes
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='kongctl-e2e-cp'] | [0]"
+            expect:
+              fields:
+                name: "kongctl-e2e-cp"
+                description: "Updated description for E2E sync test"
+                config.cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+                labels.env: e2e
+                labels.owner: kongctl-test
+
+      - name: 002-sync-idempotent-after-update
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
   - name: 002-sync-with-delete
     inputOverlayDirs:
       - overlays/002-sync-with-delete
