@@ -22,6 +22,7 @@ on:
           - control-plane/sync-groups
           - event-gateway/consume-policy
           - portal/api_docs_with_children
+          - portal/ip-allow-list
           - portal/sync
           - portal/visibility
       source_run:
