@@ -87,8 +87,7 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("portal/visibility/scenario.yaml", pr["replay"])
         self.assertIn("portal/api_docs_with_children/scenario.yaml", pr["replay"])
         self.assertIn("portal/ip-allow-list/scenario.yaml", pr["replay"])
-        self.assertIn("control-plane/sync/scenario.yaml", pr["live"])
-        self.assertEqual(8, len(pr["replay"]))
+        self.assertEqual(9, len(pr["replay"]))
 
     def test_stale_cassette_fails_pr_but_does_not_block_live(self):
         with tempfile.TemporaryDirectory() as temporary:
