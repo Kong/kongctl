@@ -42,9 +42,12 @@ collection scope, registered child loading, ordered collection validation,
 and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
-payload validation for SDK resource operations. Grouped loading,
+payload validation for SDK resource operations. [Coverage checks][coverage]
+tie root planners, SDK executors, and dump dispositions to managed scope.
+The [dump collector inventory][dump-collectors] supplies supported selectors,
+help, and dispatch. Grouped loading,
 specialized namespace selection, relationships,
-pre-execution validation, state-client wiring, and dump collection remain
+pre-execution validation, state-client wiring, and child dump traversal remain
 separate steps.
 Registering a declaration does not complete those steps automatically.
 
@@ -434,6 +437,8 @@ optional scope predicate. Preserve the inventory order: it affects planning
 dependencies and change IDs. Organization assignments use broader scope than
 the team root. Root dispatch supplies namespace error context and HTTP log
 components; add child orchestration to the owning parent planner.
+Assembly checks that this inventory covers every registered managed root
+exactly once. Do not add a second list of expected planner kinds.
 
 When comparing fields, distinguish omission, explicit empty values, and
 literal defaults. Normalize equivalent API representations. Compare only
@@ -488,6 +493,12 @@ The typed base executor supplies its resource kind and payload contract.
 `crudResourceExecutor` exposes create/update/delete;
 `createDeleteResourceExecutor` leaves update unsupported.
 Registration rejects missing contracts, empty action sets, and duplicate kinds.
+Executor construction also checks exact coverage of kinds with managed sync
+scope. Gateway services use decK/external lookup; audit-log destinations are
+external-only. Neither has SDK execution scope. Organization selectors remain
+outside the resource registry; their assignments and Portal assets do have
+managed scope and executors. Coverage checks do not imply CRUD support:
+supported actions and their payload contracts remain executor-local.
 No per-kind executor field, payload-list entry, or action-switch case is needed.
 Use an explicit `resourceExecutor` for custom actions such as the update-only
 portal team-group mapping executor. Keep unsupported actions nil.
@@ -609,9 +620,22 @@ return a value-free error when it is missing.
 
 ## 6. Export, document, and validate
 
-Wire supported root/child collection and API-to-declarative conversion in
-[dump][dump] and [child dump][dump-children]. Preserve valid reloadable YAML,
-parent relationships, user labels, and secret omission. Update the
+Register each managed root in the [dump collector inventory][dump-collectors]
+with a supported selector and collector, or an explicit omission reason.
+Catalog services retain their existing omission. Registration checks exact
+managed-root coverage and rejects duplicate kinds/selectors or conflicting
+dispositions. Supported selectors, CLI help, and dispatch derive from it;
+adding a declaration alone does not add dump support.
+
+Use `rootCollector` for typed collection, optional child population, and
+append-to-output behavior. Grouped destinations must preserve allocation even
+for empty results. Organization collection stays explicit because it also
+derives user/system-account selectors after exporting teams. Preserve request
+order, fatal Portal child errors, and other families' warning/skip policies.
+
+Keep API-to-declarative conversion in [dump][dump] and child traversal in
+[child dump][dump-children]. Preserve valid reloadable YAML, parent
+relationships, user labels, and secret omission. Update the
 [resource reference][reference] for parent and child fields, constraints,
 API-specification/example links, and supported operations. Update
 [usage documentation][usage], help, and examples when behavior changes.
@@ -707,6 +731,7 @@ engine contract. Each refactoring migration should:
 [child-load]: ../../internal/declarative/resources/child_load.go
 [collections]: ../../internal/declarative/resources/collection_validation.go
 [dispatch]: ../../internal/declarative/resources/validation_dispatch.go
+[coverage]: ../../internal/declarative/resources/capability_coverage.go
 [validation-contract]:
   ../../internal/declarative/resources/collection_validation_contract_test.go
 [selector-load]: ../../internal/declarative/resources/selector_load.go
@@ -770,6 +795,8 @@ engine contract. Each refactoring migration should:
 [secret-planning]: ../../internal/declarative/planner/secret_writes.go
 [secret-execution]: ../../internal/declarative/executor/secret_writes.go
 [dump]: ../../internal/cmd/root/verbs/dump/declarative.go
+[dump-collectors]:
+  ../../internal/cmd/root/verbs/dump/declarative_collectors.go
 [dump-children]: ../../internal/cmd/root/verbs/dump/declarative_children.go
 [dump-defaults]: ../../internal/declarative/resources/dump_defaults.go
 [dump-inventory]:
