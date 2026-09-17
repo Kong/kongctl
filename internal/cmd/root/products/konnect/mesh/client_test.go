@@ -227,7 +227,7 @@ func meshTestConfig(t *testing.T, settings map[string]any) config.Hook {
 // Mesh requests must use the configured HTTP behaviour rather than a default
 // client, which is what constructing one inline had made them do.
 func TestMeshClientConfigUsesConfiguredSettings(t *testing.T) {
-	clientConfig, err := meshClientConfig(meshTestConfig(t, map[string]any{
+	clientConfig, err := baseClientConfig(meshTestConfig(t, map[string]any{
 		cmdcommon.HTTPTimeoutConfigPath:                   "7s",
 		cmdcommon.HTTPDisableKeepAlivesConfigPath:         true,
 		cmdcommon.HTTPRecycleConnectionsOnErrorConfigPath: true,
@@ -240,31 +240,27 @@ func TestMeshClientConfigUsesConfiguredSettings(t *testing.T) {
 }
 
 func TestMeshClientConfigFallsBackToTheDefaultTimeout(t *testing.T) {
-	clientConfig, err := meshClientConfig(meshTestConfig(t, map[string]any{}))
+	clientConfig, err := baseClientConfig(meshTestConfig(t, map[string]any{}))
 
 	require.NoError(t, err)
 	require.Equal(t, httpclient.DefaultHTTPClientTimeout, clientConfig.Timeout)
 }
 
-func TestNewHTTPClientBuildsAClient(t *testing.T) {
-	client, err := newHTTPClient(meshTestConfig(t, map[string]any{}), slog.New(slog.DiscardHandler))
+func TestClientBuildersBuildAClient(t *testing.T) {
+	cfg := meshTestConfig(t, map[string]any{})
+	logger := slog.New(slog.DiscardHandler)
 
+	cpClient, err := newControlPlaneClient(cfg, meshTarget{baseURL: "https://cp.example"}, logger)
 	require.NoError(t, err)
-	require.NotNil(t, client)
-}
+	require.NotNil(t, cpClient)
 
-func TestIsSelfManaged(t *testing.T) {
-	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{})))
-	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{
-		meshcommon.ControlPlaneIDConfigPath: "an-id",
-	})))
-	require.True(t, isSelfManaged(meshTestConfig(t, map[string]any{
-		meshcommon.ControlPlaneURLConfigPath: "http://localhost:5681",
-	})))
-	// Whitespace is not a selection.
-	require.False(t, isSelfManaged(meshTestConfig(t, map[string]any{
-		meshcommon.ControlPlaneURLConfigPath: "   ",
-	})))
+	konnectClient, err := newKonnectClient(cfg, logger)
+	require.NoError(t, err)
+	require.NotNil(t, konnectClient)
+
+	inputClient, err := newInputClient(cfg, logger)
+	require.NoError(t, err)
+	require.NotNil(t, inputClient)
 }
 
 // writeTempFile puts content on disk and returns its path.
@@ -358,17 +354,131 @@ func TestSelfManagedTLSConfig(t *testing.T) {
 }
 
 // TLS material is meaningless for a Konnect hosted control plane, which is
-// reached over Konnect's own certificates.
-func TestMeshClientConfigAppliesTLSOnlyWhenSelfManaged(t *testing.T) {
-	settings := map[string]any{meshcommon.TLSSkipVerifyConfigPath: true}
-
-	konnect, err := meshClientConfig(meshTestConfig(t, settings))
-	require.NoError(t, err)
-	require.Nil(t, konnect.TransportOptions.TLSClientConfig)
-
-	settings[meshcommon.ControlPlaneURLConfigPath] = "https://mesh.example:5682"
-	selfManaged, err := meshClientConfig(meshTestConfig(t, settings))
+// reached over Konnect's own certificates. It is also meaningless for the two
+// destinations that are not the control plane at all.
+func TestClientTLSAppliesOnlyToASelfManagedControlPlane(t *testing.T) {
+	// Configured as though a self managed control plane were in use, so the
+	// material is available to leak if a builder installs it.
+	cfg := meshTestConfig(t, map[string]any{
+		meshcommon.TLSSkipVerifyConfigPath:   true,
+		meshcommon.ControlPlaneURLConfigPath: "https://mesh.example:5682",
+	})
+	selfManaged, err := controlPlaneClientConfig(
+		cfg, meshTarget{baseURL: "https://mesh.example:5682", selfManaged: true})
 	require.NoError(t, err)
 	require.NotNil(t, selfManaged.TransportOptions.TLSClientConfig)
 	require.True(t, selfManaged.TransportOptions.TLSClientConfig.InsecureSkipVerify)
+
+	// A hosted target, even with self managed TLS sitting in configuration.
+	hosted, err := controlPlaneClientConfig(
+		cfg, meshTarget{baseURL: "https://global.api.konghq.com"})
+	require.NoError(t, err)
+	require.Nil(t, hosted.TransportOptions.TLSClientConfig)
+
+	// Konnect's own API and a remote `-f` input are never the control plane,
+	// so neither may be handed the control plane's identity or trust policy.
+	shared, err := baseClientConfig(cfg)
+	require.NoError(t, err)
+	require.Nil(t, shared.TransportOptions.TLSClientConfig)
+
+	// The timeout and transport settings are still shared by all of them.
+	require.Equal(t, shared.Timeout, selfManaged.Timeout)
+	require.Equal(t, shared.Timeout, hosted.Timeout)
+}
+
+// An explicit hosted selector must win over a self managed URL left in
+// configuration, and the classification must follow it.
+//
+// These were decided separately: the URL resolver honoured the explicit
+// selector while a second check asked only whether a URL sat in
+// configuration. A profile holding a self managed URL and token therefore sent
+// that token to a Konnect hosted endpoint, and applied the self managed TLS
+// policy to it.
+func TestResolveTargetClassifiesFromTheWinningSelector(t *testing.T) {
+	const (
+		selfManagedURL = "https://mesh.example:5682"
+		hostedID       = "8f1c2d3e-0000-4000-8000-000000000001"
+	)
+
+	cases := []struct {
+		name            string
+		settings        map[string]any
+		given           []string
+		wantSelfManaged bool
+		wantURLContains string
+	}{
+		{
+			name: "explicit id beats a configured self managed url",
+			settings: map[string]any{
+				meshcommon.ControlPlaneURLConfigPath: selfManagedURL,
+				meshcommon.ControlPlaneIDConfigPath:  hostedID,
+			},
+			given:           []string{meshcommon.ControlPlaneIDFlagName},
+			wantSelfManaged: false,
+			wantURLContains: hostedID,
+		},
+		{
+			name: "explicit url is self managed",
+			settings: map[string]any{
+				meshcommon.ControlPlaneURLConfigPath: selfManagedURL,
+			},
+			given:           []string{meshcommon.ControlPlaneURLFlagName},
+			wantSelfManaged: true,
+			wantURLContains: "mesh.example",
+		},
+		{
+			name: "a configured url with no explicit selector is self managed",
+			settings: map[string]any{
+				meshcommon.ControlPlaneURLConfigPath: selfManagedURL,
+			},
+			given:           nil,
+			wantSelfManaged: true,
+			wantURLContains: "mesh.example",
+		},
+		{
+			name: "a configured id with no explicit selector is hosted",
+			settings: map[string]any{
+				meshcommon.ControlPlaneIDConfigPath: hostedID,
+			},
+			given:           nil,
+			wantSelfManaged: false,
+			wantURLContains: hostedID,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			helper := &cmd.MockHelper{}
+			helper.EXPECT().GetCmd().Return(selectorCmd(t, tc.given...))
+
+			target, err := resolveTarget(helper, meshTestConfig(t, tc.settings))
+			require.NoError(t, err)
+			require.Equal(t, tc.wantSelfManaged, target.selfManaged,
+				"selfManaged for %q", tc.name)
+			require.Contains(t, target.baseURL, tc.wantURLContains)
+		})
+	}
+}
+
+// The classification decides which credential is sent, so a hosted target
+// resolved over a configured self managed URL must not be handed the self
+// managed TLS policy either.
+func TestResolveTargetHostedOverSelfManagedURLGetsNoSelfManagedTLS(t *testing.T) {
+	cfg := meshTestConfig(t, map[string]any{
+		meshcommon.ControlPlaneURLConfigPath: "https://mesh.example:5682",
+		meshcommon.ControlPlaneIDConfigPath:  "8f1c2d3e-0000-4000-8000-000000000001",
+		meshcommon.TLSSkipVerifyConfigPath:   true,
+	})
+
+	helper := &cmd.MockHelper{}
+	helper.EXPECT().GetCmd().Return(selectorCmd(t, meshcommon.ControlPlaneIDFlagName))
+
+	target, err := resolveTarget(helper, cfg)
+	require.NoError(t, err)
+	require.False(t, target.selfManaged)
+
+	clientConfig, err := controlPlaneClientConfig(cfg, target)
+	require.NoError(t, err)
+	require.Nil(t, clientConfig.TransportOptions.TLSClientConfig,
+		"a hosted target must not receive the self managed TLS policy")
 }
