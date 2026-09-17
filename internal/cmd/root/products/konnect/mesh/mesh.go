@@ -165,9 +165,9 @@ func NewMeshCmd(
 	return baseCmd, nil
 }
 
-// BindFlags binds the mesh command's own flags to configuration, in the
+// bindOwnFlags binds the mesh command's own flags to configuration, in the
 // signature the other product binders use so it can sit in a pre-run chain.
-func BindFlags(c *cobra.Command, args []string) error {
+func bindOwnFlags(c *cobra.Command, args []string) error {
 	if c == nil {
 		return nil
 	}
@@ -201,6 +201,6 @@ func chainMeshPreRun(
 				return err
 			}
 		}
-		return BindFlags(c, args)
+		return bindOwnFlags(c, args)
 	}
 }
