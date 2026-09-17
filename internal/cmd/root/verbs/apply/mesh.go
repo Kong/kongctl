@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
-	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
@@ -52,12 +51,9 @@ func NewDirectMeshCmd() (*cobra.Command, error) {
 			return err
 		}
 
-		helper := cmdpkg.BuildHelper(c, args)
-		cfg, err := helper.GetConfig()
-		if err != nil {
-			return err
-		}
-		return meshcommon.BindFlags(cfg, c.Flags())
+		// Mesh flags are bound by the mesh command itself, which chains this
+		// pre-run, so both command trees bind identically.
+		return nil
 	}
 
 	meshCmd, err := mesh.NewMeshCmd(Verb, addFlags, preRunE)
