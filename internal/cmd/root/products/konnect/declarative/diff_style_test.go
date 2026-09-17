@@ -71,7 +71,7 @@ func TestDiffDeferredWriteLabel(t *testing.T) {
 	var out bytes.Buffer
 	command.SetOut(&out)
 	require.NoError(t, displayTextDiff(command, plan, false))
-	assert.Contains(t, out.String(), "  config.client_secret: (write deferred)\n")
+	assert.Contains(t, out.String(), "  config.client_secret: (secret write; no value comparison)\n")
 	assert.NotContains(t, out.String(), "sensitive value changed")
 }
 

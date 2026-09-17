@@ -195,7 +195,7 @@ steps:
             expect:
               fields:
                 "contains(@, '[redacted from !env]')": true
-                "contains(@, 'ssl.custom_private_key: (write deferred)')": true
+                "contains(@, 'ssl.custom_private_key: (secret write; no value comparison)')": true
                 "contains(@, 'BEGIN CERTIFICATE')": false
                 "contains(@, 'BEGIN PRIVATE KEY')": false
                 "contains(@, '__ENV__:KONGCTL_E2E_PORTAL_CUSTOM_CERT')": false
