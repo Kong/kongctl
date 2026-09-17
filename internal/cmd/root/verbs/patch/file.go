@@ -1,14 +1,16 @@
 package patch
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v4"
 
 	"github.com/kong/go-apiops/filebasics"
-	"github.com/kong/go-apiops/jsonbasics"
 	"github.com/kong/go-apiops/patch"
 	"github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/meta"
@@ -33,7 +35,13 @@ to remove fields, or '[val1,val2]' to append to arrays. String values must
 be double-quoted within the JSON value portion.
 
 Patch files optionally support a '_format_version' field for compatibility
-with existing deck patch files, but it is not required.`))
+with existing deck patch files, but it is not required.
+
+YAML output preserves custom tags without resolving them. Updating children
+of a tagged mapping preserves its tag; replacing a field replaces its tag
+with the replacement value's type. JSON output is rejected if custom tags
+remain after patching. Patch values must not contain custom YAML tags.
+Comments, ordering, anchors, and byte-for-byte formatting are not guaranteed.`))
 
 	fileExamples = normalizers.Examples(i18n.T("root.verbs.patch.file.fileExamples",
 		fmt.Sprintf(`
@@ -130,20 +138,10 @@ func runFilePatch(
 		return &cmd.ConfigurationError{Err: err}
 	}
 
-	// Read and deserialize input file
-	data, err := filebasics.DeserializeFile(inputFile)
+	yamlNode, err := readPatchInput(inputFile)
 	if err != nil {
 		return &cmd.ExecutionError{
 			Err: fmt.Errorf("failed to read input file: %w", err),
-		}
-	}
-
-	// Convert to YAML node tree for JSONPath operations.
-	// ConvertToYamlNode panics on error, so we recover.
-	yamlNode, err := safeConvertToYamlNode(data)
-	if err != nil {
-		return &cmd.ExecutionError{
-			Err: fmt.Errorf("failed to convert input to YAML node: %w", err),
 		}
 	}
 
@@ -157,16 +155,30 @@ func runFilePatch(
 		return &cmd.ExecutionError{Err: err}
 	}
 
-	// Convert back to map and write output.
-	// ConvertToJSONobject panics on error, so we recover.
-	result, err := safeConvertToJSONObject(yamlNode)
+	var output []byte
+	if outputFmt == filebasics.OutputFormatJSON {
+		if err := rejectCustomTags(yamlNode); err != nil {
+			return &cmd.ExecutionError{Err: fmt.Errorf("cannot output JSON: %w; use --format yaml", err)}
+		}
+		var result map[string]any
+		if err := yamlNode.Decode(&result); err != nil {
+			return &cmd.ExecutionError{Err: fmt.Errorf("failed to convert patched result: %w", err)}
+		}
+		output, err = filebasics.Serialize(result, outputFmt)
+	} else {
+		if err := checkPatchAliases(yamlNode, make(map[string]*yaml.Node)); err != nil {
+			return &cmd.ExecutionError{Err: fmt.Errorf("cannot output YAML: %w", err)}
+		}
+		normalizePatchStyles(yamlNode)
+		output, err = yaml.Marshal(yamlNode)
+	}
 	if err != nil {
 		return &cmd.ExecutionError{
-			Err: fmt.Errorf("failed to convert patched result: %w", err),
+			Err: fmt.Errorf("failed to serialize patched result: %w", err),
 		}
 	}
 
-	if err := filebasics.WriteSerializedFile(outputFile, result, outputFmt); err != nil {
+	if err := filebasics.WriteFile(outputFile, output); err != nil {
 		return &cmd.ExecutionError{
 			Err: fmt.Errorf("failed to write output: %w", err),
 		}
@@ -219,24 +231,75 @@ func parseOutputFormat(format string) (filebasics.OutputFormat, error) {
 	}
 }
 
-// safeConvertToYamlNode wraps jsonbasics.ConvertToYamlNode with panic recovery
-// since the upstream function panics on errors instead of returning them.
-func safeConvertToYamlNode(data any) (result *yaml.Node, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+// readPatchInput keeps tags as syntax; it does not use the declarative loader.
+func readPatchInput(filename string) (*yaml.Node, error) {
+	data, err := filebasics.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	var document yaml.Node
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
+	}
+	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("expected the data to be an object")
+	}
+	var extra yaml.Node
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		if err != nil {
+			return nil, err
 		}
-	}()
-	return jsonbasics.ConvertToYamlNode(data), nil
+		return nil, fmt.Errorf("expected a single YAML document")
+	}
+	return document.Content[0], nil
 }
 
-// safeConvertToJSONObject wraps jsonbasics.ConvertToJSONobject with panic recovery
-// since the upstream function panics on errors instead of returning them.
-func safeConvertToJSONObject(data *yaml.Node) (result map[string]any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+func rejectCustomTags(node *yaml.Node) error {
+	return checkPatchTags(node, make(map[*yaml.Node]bool))
+}
+
+// Check anchors in serialization order. A removed or replaced anchor must not
+// leave an alias undefined or referring to a different node with the same name.
+func checkPatchAliases(node *yaml.Node, anchors map[string]*yaml.Node) error {
+	if node.Kind == yaml.AliasNode {
+		if target := anchors[node.Value]; target == nil || target != node.Alias {
+			return fmt.Errorf("alias %q refers to an anchor that is no longer available", node.Value)
 		}
-	}()
-	return jsonbasics.ConvertToJSONobject(data), nil
+		return nil
+	}
+	if node.Anchor != "" {
+		anchors[node.Anchor] = node
+	}
+	for _, child := range node.Content {
+		if err := checkPatchAliases(child, anchors); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkPatchTags(node *yaml.Node, seen map[*yaml.Node]bool) error {
+	if node == nil || seen[node] {
+		return nil
+	}
+	seen[node] = true
+	if node.Tag != "" && !strings.HasPrefix(node.ShortTag(), "!!") {
+		return fmt.Errorf("custom YAML tag %q cannot be represented", node.Tag)
+	}
+	for _, child := range node.Content {
+		if err := checkPatchTags(child, seen); err != nil {
+			return err
+		}
+	}
+	return checkPatchTags(node.Alias, seen)
+}
+
+// Patch values come from JSON with flow and quoted styles. Emit ordinary YAML
+// while retaining explicit tags; formatting is not part of the patch contract.
+func normalizePatchStyles(node *yaml.Node) {
+	node.Style &= yaml.TaggedStyle
+	for _, child := range node.Content {
+		normalizePatchStyles(child)
+	}
 }

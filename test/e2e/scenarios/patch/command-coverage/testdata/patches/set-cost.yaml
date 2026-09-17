@@ -1,0 +1,6 @@
+patches:
+  - selectors:
+      - >-
+        $.ai_gateway_models[?(@.ref=='model-gemini-3.1-flash-lite-preview')].targets[?(@.name=='gemini-3.1-flash-lite-preview')].config
+    values:
+      input_cost: 0.25

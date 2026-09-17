@@ -1,0 +1,11 @@
+ai_gateway_models:
+  - ref: model-gemini-3.1-flash-lite-preview
+    ai_gateway: !ref lab-agentic
+    targets:
+      - name: gemini-3.1-flash-lite-preview
+        config:
+          input_cost: 0.075
+file: !file ./nonexistent.txt
+env: !env PATCH_REPRO_NONEXISTENT
+secret: !secret
+  source: !env PATCH_REPRO_NONEXISTENT
