@@ -79,9 +79,7 @@ func NewMeshCmd(
 		Example: meshExample,
 	}
 
-	if parentPreRun != nil {
-		baseCmd.PreRunE = parentPreRun
-	}
+	baseCmd.PreRunE = chainMeshPreRun(parentPreRun)
 	if addParentFlags != nil {
 		addParentFlags(verb, baseCmd)
 	}
@@ -160,4 +158,44 @@ func NewMeshCmd(
 	}
 
 	return baseCmd, nil
+}
+
+// BindFlags binds the mesh command's own flags to configuration, in the
+// signature the other product binders use so it can sit in a pre-run chain.
+func BindFlags(c *cobra.Command, args []string) error {
+	if c == nil {
+		return nil
+	}
+
+	helper := cmd.BuildHelper(c, args)
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return err
+	}
+
+	return meshcommon.BindFlags(cfg, c.Flags())
+}
+
+// chainMeshPreRun runs the caller's pre-run, then binds the mesh command's own
+// flags.
+//
+// The mesh command used to assign the caller's pre-run outright and bind
+// nothing itself, which left binding to whoever registered it. The four direct
+// verb paths each called meshcommon.BindFlags in their own closure; the
+// explicit konnect path passed the general konnect pre-run, which knows
+// nothing about mesh, so every mesh flag there was registered but unbound and
+// `get konnect mesh --control-plane-url ...` reported no control plane
+// selected. Binding here means the two trees cannot diverge again, and
+// matches how every other product owns both halves.
+func chainMeshPreRun(
+	parentPreRun func(*cobra.Command, []string) error,
+) func(*cobra.Command, []string) error {
+	return func(c *cobra.Command, args []string) error {
+		if parentPreRun != nil {
+			if err := parentPreRun(c, args); err != nil {
+				return err
+			}
+		}
+		return BindFlags(c, args)
+	}
 }
