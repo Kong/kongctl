@@ -18,6 +18,12 @@ primary guide.
 
 - Spend time on thinking, you do not need to use the commentary channel to report progress to me unecesasrily
 
+- Before changing an E2E scenario or addressing a stale cassette, read
+  [replay refresh](test/e2e/replay-policy.md#refresh-existing-replay-coverage)
+  and check `test/e2e/replay-scenarios.json`. Preserve enabled replay coverage
+  and refresh its recording in the same PR; removal requires explicit
+  maintainer authorization.
+
 ## Repository Overview
 
 **kongctl** is a command-line interface (CLI) tool for operating Kong Konnect

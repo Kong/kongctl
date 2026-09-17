@@ -20,6 +20,12 @@ Quickstart
   - `KONGCTL_E2E_UPDATE_EXPECT=1 make test-e2e-scenarios SCENARIO=portal/visibility`
 - Artifacts: set `KONGCTL_E2E_ARTIFACTS_DIR=/tmp/kongctl-e2e` to choose a folder; otherwise a temp dir is created and printed at the end.
 
+Replay-enabled scenarios
+
+Before editing a scenario, check its replay eligibility and follow
+the [refresh procedure](../replay-policy.md#refresh-existing-replay-coverage).
+This applies to steps, inputs, overlays, and assertion/expected files.
+
 Scenario Maturity
 
 Scenarios are stable by default. Use the `test.maturity` field for scenarios

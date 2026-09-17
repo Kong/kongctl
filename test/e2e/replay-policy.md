@@ -85,15 +85,55 @@ the isolated replay job passes. Commit it under the scenario's
 `replay/cassette.json` and add its directory to the sorted policy list. The
 recorder never commits or overwrites reviewed cassettes automatically.
 
-To refresh an enabled scenario, first update its inputs and push the branch,
-then dispatch `mode=record` for that scenario. The manual workflow's build
-tests defer only the selected old cassette's input-fingerprint comparison.
-Its schema, provenance, sanitization and scenario eligibility are still
-checked, as are all other repository cassettes. The same exception applies
-when validating a `source_run` candidate. Normal PR tests, ordinary replay,
-and validation of the newly recorded candidate still require current input
-fingerprints. This lets recording replace stale data without relaxing the
-PR gate or removing the scenario from replay routing.
+### Refresh existing replay coverage
+
+Use this procedure when modifying an enabled scenario's steps, inputs,
+overlays, or assertions/expected files, or when validation reports a stale
+cassette. Replay coverage is intentional: completing the scenario change
+includes refreshing its recording in the same PR.
+
+1. Check `test/e2e/replay-scenarios.json`, including the PR's base version if
+   eligibility has already been edited. Preserve existing membership and
+   keep the old cassette while preparing its replacement. Removing coverage
+   requires explicit maintainer authorization; a stale recording alone is
+   not authorization. Keep assertions and replay validation strict rather
+   than removing eligibility or changing routing tests to accept its loss.
+2. Update the scenario and push the working branch. Dispatch recording for
+   that branch and scenario (replace both placeholders):
+
+   ```sh
+   gh workflow run e2e-replay.yaml --repo Kong/kongctl \
+     --ref YOUR_BRANCH -f mode=record -f scenario=SUITE/SCENARIO
+   ```
+
+   The old cassette may remain stale during this step. The manual workflow
+   defers only the selected old cassette's input-fingerprint comparison;
+   schema, provenance, sanitization, eligibility, and other cassettes remain
+   checked. The same exception applies to `source_run` validation. Normal
+   PR tests and fresh candidates still require current fingerprints.
+   Recording uses CI credentials and the existing acceptance-3 lock and
+   before/after resets; no local PAT or new organization is needed.
+3. Monitor the run and download its sanitized `replay-candidate` artifact.
+   Review the recorded exchanges against the expanded scenario and its
+   assertions. A candidate is published only after live execution and final
+   cleanup succeed; it remains usable if subsequent isolated replay fails.
+4. Require three successful isolated replays. If concurrent operations need
+   ordering annotations, follow the `source_run` procedure below to iterate
+   without another live recording. Review phases against the exact new
+   candidate, preserving command boundaries and operation dependencies.
+   Never simply rebind old interaction positions to a new recording hash.
+5. Promote the passing candidate, or `validated-cassette.json` when using
+   annotations, together with its corresponding annotations and any packed
+   chunks. If scenario inputs change again, record again; manually editing
+   the fingerprint is not a refresh. Verify the committed representation
+   with isolated replay, run applicable repository checks, and include the
+   recording and replay-validation run links in the PR.
+
+If recording or validation is blocked, report the blocker while preserving
+replay eligibility. Keep the PR incomplete rather than switching it to
+live-only routing or weakening matching, sanitization, or fingerprint checks.
+
+### Recording format and ordering
 
 New recordings use cassette schema v2, which also preserves an allowlisted
 response media type (`application/json` or `application/problem+json`; absent
