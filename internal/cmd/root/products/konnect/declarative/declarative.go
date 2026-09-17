@@ -398,7 +398,6 @@ func writeRemoteSourceFile(path string, content []byte) error {
 var diffSensitiveExactFieldKeys = map[string]struct{}{
 	"http_proxy_authorization":  {},
 	"https_proxy_authorization": {},
-	"cache_tokens_salt":         {},
 	"access_token":              {},
 	"refresh_token":             {},
 	"id_token":                  {},
@@ -1617,7 +1616,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 			}
 
 			for _, secretWrite := range change.SecretWrites {
-				fmt.Fprintf(out, "  %s: write requested (current value unavailable; deferred source)\n",
+				fmt.Fprintf(out, "  %s: (write deferred)\n",
 					pointerToDisplayField(secretWrite.Field))
 			}
 

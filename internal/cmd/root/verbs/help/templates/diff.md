@@ -211,6 +211,11 @@ Sensitive values are redacted inside objects and arrays, including when
 `--full-content` is enabled. Type replacements have an explicit `(type)`
 label, for example `~ port: 80 → "80" (type)`.
 
+Write-only values resolved during execution appear as
+`config.client_secret: (write deferred)`. This reports a requested write, not
+a comparison of known secret values. Cache-key salts such as `cache_tokens_salt`
+are displayed as ordinary configuration values.
+
 ### Nested Resource Changes
 
 Shows changes in nested resources:

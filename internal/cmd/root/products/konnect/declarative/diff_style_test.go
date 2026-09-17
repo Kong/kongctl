@@ -59,6 +59,22 @@ func TestDiffColorFlag(t *testing.T) {
 	require.ErrorContains(t, runDiff(command, nil), "invalid color mode")
 }
 
+func TestDiffDeferredWriteLabel(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID: "write", ResourceType: planner.ResourceTypeAIGatewayAuthStrategy,
+		ResourceRef: "auth", Action: planner.ActionUpdate,
+		SecretWrites: []planner.SecretWriteIntent{{Field: "/config/client_secret"}},
+	})
+	plan.SetExecutionOrder([]string{"write"})
+	command := newDeclarativeDiffCmd()
+	var out bytes.Buffer
+	command.SetOut(&out)
+	require.NoError(t, displayTextDiff(command, plan, false))
+	assert.Contains(t, out.String(), "  config.client_secret: (write deferred)\n")
+	assert.NotContains(t, out.String(), "sensitive value changed")
+}
+
 func TestDiffColorPreservesPlainOutput(t *testing.T) {
 	plan := planner.NewPlan("1.0", "test", planner.PlanModeSync)
 	plan.AddChange(planner.PlannedChange{

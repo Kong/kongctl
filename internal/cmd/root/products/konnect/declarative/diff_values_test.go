@@ -92,7 +92,7 @@ func TestDiffRecursiveRedaction(t *testing.T) {
 			}
 			var out bytes.Buffer
 			displayFieldChange(&out, planner.FieldConfig, oldValue, newValue, "  ", full)
-			assert.Contains(t, out.String(), "~ cache_tokens_salt: (sensitive value changed)")
+			assert.Contains(t, out.String(), "~ cache_tokens_salt: \"old-salt\" → \"new-salt\"")
 			assert.Contains(t, out.String(), "~ client_secret: (sensitive value changed)")
 			assert.Contains(t, out.String(), "[redacted from !env]")
 			assert.Contains(t, out.String(), "nested:")
@@ -102,8 +102,6 @@ func TestDiffRecursiveRedaction(t *testing.T) {
 			displayFieldChange(&out, planner.FieldConfig, newValue, "replacement", "  ", full)
 			displayFieldChange(&out, planner.FieldConfig, map[string]any{"removed": newValue}, map[string]any{}, "  ", full)
 			for _, secret := range []string{
-				"old-salt",
-				"new-salt",
 				"old-secret",
 				"new-secret",
 				"old-password",
@@ -168,7 +166,6 @@ func TestDiffMultilineArray(t *testing.T) {
 
 func TestDiffOIDCFieldClassification(t *testing.T) {
 	for _, key := range []string{
-		"cache_tokens_salt",
 		"client_secret",
 		"session_secret",
 		"redis_password",
@@ -180,6 +177,7 @@ func TestDiffOIDCFieldClassification(t *testing.T) {
 		assert.True(t, isSensitiveDiffField(key), key)
 	}
 	for _, key := range []string{
+		"cache_tokens_salt",
 		"cache_tokens",
 		"access_token_in_header",
 		"refresh_tokens",
