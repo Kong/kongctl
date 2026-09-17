@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -45,17 +46,14 @@ type DeclarativeDumpOptions struct {
 	FilterID              string
 }
 
-var declarativeAllowedResources = map[string]struct{}{
-	"portals":                     {},
-	resourceAPIs:                  {},
-	"application_auth_strategies": {},
-	"dcr_providers":               {},
-	"control_planes":              {},
-	resourceAnalyticsDashboards:   {},
-	"event_gateways":              {},
-	"ai_gateways":                 {},
-	"organization.teams":          {},
-}
+// Retain the validation entry point used by existing callers and tests.
+var declarativeAllowedResources = func() map[string]struct{} {
+	allowed := make(map[string]struct{}, len(declarativeCollectors))
+	for selector := range declarativeCollectors {
+		allowed[selector] = struct{}{}
+	}
+	return allowed
+}()
 
 func newDeclarativeCmd() *cobra.Command {
 	opts := &declarativeOptions{}
@@ -84,9 +82,8 @@ func newDeclarativeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("resources", "",
-		"Comma separated list of resource types to dump "+
-			"(ai_gateways, "+resourceAnalyticsDashboards+", apis, application_auth_strategies, "+
-			"control_planes, dcr_providers, event_gateways, organization.teams, portals).")
+		"Comma separated list of resource types to dump ("+
+			strings.Join(slices.Sorted(maps.Keys(declarativeAllowedResources)), ", ")+").")
 	_ = cmd.MarkFlagRequired("resources")
 
 	cmd.Flags().BoolVar(&opts.includeChildResources, "include-child-resources", false,
@@ -286,123 +283,14 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		konnectCommon.DefaultRequestPageSize,
 	))
 
+	dumpContext := &declarativeDumpContext{
+		sdk: sdk, stateClient: stateClient, logger: logger, pageSize: requestPageSize,
+		filter: opts.filter, includeChildren: opts.includeChildResources,
+	}
 	for _, resource := range opts.resources {
-		switch resource {
-		case "portals":
-			portals, err := collectDeclarativePortals(ctx, sdk.GetPortalAPI(), requestPageSize, opts.filter)
-			if err != nil {
+		if collector, ok := declarativeCollectors[resource]; ok {
+			if err := collector.collect(ctx, dumpContext, &resourceSet); err != nil {
 				return err
-			}
-			if opts.includeChildResources {
-				if err := populatePortalChildren(ctx, logger, stateClient, portals); err != nil {
-					return err
-				}
-			}
-			resourceSet.Portals = append(resourceSet.Portals, portals...)
-		case resourceAPIs:
-			apis, err := collectDeclarativeAPIs(ctx, sdk.GetAPIAPI(), requestPageSize, opts.filter)
-			if err != nil {
-				return err
-			}
-			if opts.includeChildResources {
-				populateAPIChildren(ctx, logger, stateClient, apis)
-			}
-			resourceSet.APIs = append(resourceSet.APIs, apis...)
-		case "application_auth_strategies":
-			authStrategies, err := collectDeclarativeAuthStrategies(
-				ctx, sdk.GetAppAuthStrategiesAPI(), requestPageSize, opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			resourceSet.ApplicationAuthStrategies = append(resourceSet.ApplicationAuthStrategies, authStrategies...)
-		case "dcr_providers":
-			dcrProviders, err := collectDeclarativeDCRProviders(
-				ctx, sdk.GetDCRProvidersAPI(), requestPageSize, opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			resourceSet.DCRProviders = append(resourceSet.DCRProviders, dcrProviders...)
-		case "control_planes":
-			controlPlanes, err := collectDeclarativeControlPlanes(
-				ctx,
-				sdk.GetControlPlaneAPI(),
-				sdk.GetControlPlaneGroupsAPI(),
-				requestPageSize,
-				opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			if opts.includeChildResources {
-				populateControlPlaneChildren(ctx, logger, stateClient, controlPlanes)
-			}
-			resourceSet.ControlPlanes = append(resourceSet.ControlPlanes, controlPlanes...)
-		case resourceAnalyticsDashboards:
-			dashboards, err := collectDeclarativeDashboards(ctx, sdk.GetDashboardsAPI(), requestPageSize, opts.filter)
-			if err != nil {
-				return err
-			}
-			if resourceSet.Analytics == nil {
-				resourceSet.Analytics = &declresources.AnalyticsResource{}
-			}
-			resourceSet.Analytics.Dashboards = append(resourceSet.Analytics.Dashboards, dashboards...)
-		case "event_gateways":
-			eventGateways, err := collectDeclarativeEventGateways(
-				ctx,
-				sdk.GetEventGatewayControlPlaneAPI(),
-				requestPageSize,
-				opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			if opts.includeChildResources {
-				populateEventGatewayChildren(ctx, logger, stateClient, eventGateways)
-			}
-			resourceSet.EventGatewayControlPlanes = append(resourceSet.EventGatewayControlPlanes, eventGateways...)
-		case "ai_gateways":
-			aiGateways, err := collectDeclarativeAIGateways(
-				ctx,
-				sdk.GetAIGatewayAPI(),
-				requestPageSize,
-				opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			if opts.includeChildResources {
-				populateAIGatewayChildren(ctx, logger, stateClient, aiGateways)
-			}
-			resourceSet.AIGateways = append(resourceSet.AIGateways, aiGateways...)
-		case "organization.teams":
-			teams, err := collectDeclarativeOrganizationTeams(
-				ctx,
-				sdk.GetOrganizationTeamAPI(),
-				requestPageSize,
-				opts.filter,
-			)
-			if err != nil {
-				return err
-			}
-			if opts.includeChildResources {
-				populateOrganizationTeamChildren(ctx, logger, stateClient, teams)
-			}
-			// Wrap teams in organization grouping for the new format
-			if resourceSet.Organization == nil {
-				resourceSet.Organization = &declresources.OrganizationResource{}
-			}
-			resourceSet.Organization.Teams = append(resourceSet.Organization.Teams, teams...)
-			if opts.includeChildResources {
-				resourceSet.Organization.Users = append(
-					resourceSet.Organization.Users,
-					collectOrganizationUsersFromTeamMemberships(ctx, logger, stateClient, teams)...,
-				)
-				resourceSet.Organization.SystemAccounts = append(
-					resourceSet.Organization.SystemAccounts,
-					collectOrganizationSystemAccountsFromTeamMemberships(ctx, logger, stateClient, teams)...,
-				)
 			}
 		}
 	}

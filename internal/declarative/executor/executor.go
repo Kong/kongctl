@@ -130,6 +130,13 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.registerPortalChildExecutors()
 	e.registerAPIChildExecutors()
 
+	kinds := make([]resources.ResourceType, 0, len(e.resourceExecutors))
+	for kind := range e.resourceExecutors {
+		kinds = append(kinds, resources.ResourceType(kind))
+	}
+	if err := resources.ValidateManagedResourceCoverage("resource executors", kinds); err != nil {
+		panic(err)
+	}
 	return e
 }
 

@@ -21,7 +21,7 @@ type rootPlanner struct {
 // references against changes produced by earlier entries.
 func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
-	return []rootPlanner{
+	roots := []rootPlanner{
 		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
@@ -75,6 +75,14 @@ func (p *Planner) rootPlanners() []rootPlanner {
 			inScope: p.shouldPlanOrganization,
 		},
 	}
+	kinds := make([]resources.ResourceType, 0, len(roots))
+	for _, root := range roots {
+		kinds = append(kinds, root.resourceType)
+	}
+	if err := resources.ValidateManagedRootCoverage("root planners", kinds); err != nil {
+		panic(err)
+	}
+	return roots
 }
 
 func (p *Planner) planRootChanges(ctx context.Context, opts Options, plannerCtx *Config, plan *Plan) error {
