@@ -15,6 +15,10 @@ func TestReviewedSecretCatalog(t *testing.T) {
 		path         string
 		update       bool
 	}{
+		{resources.ResourceTypePortalCustomDomain, "/ssl/custom_private_key", true},
+		{resources.ResourceTypeEventGatewayBackendCluster, "/authentication/password", true},
+		{resources.ResourceTypeAIGatewayAuthStrategy, "/config/http_proxy_authorization", true},
+		{resources.ResourceTypeAIGatewayAuthStrategy, "/config/https_proxy_authorization", true},
 		{resources.ResourceTypePortalIdentityProvider, "/config/client_secret", true},
 		{resources.ResourceTypeDCRProvider, "/dcr_config/initial_client_secret", true},
 		{resources.ResourceTypeDCRProvider, "/dcr_config/dcr_token", true},
@@ -58,6 +62,7 @@ func TestIsVaultReference(t *testing.T) {
 	for _, value := range []string{
 		"{vault://support-secrets/openai-auth-header}",
 		"  {vault://support-secrets/openai-auth-header}  ",
+		"${vault.env[\"TOKEN\"]}",
 		"${vault['my-vault']['key']}",
 	} {
 		require.True(t, IsVaultReference(value), value)

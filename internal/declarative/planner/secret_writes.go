@@ -732,6 +732,32 @@ func (p *Planner) resolveSecretResourceID(
 			return "", err
 		}
 		return current.ID, nil
+	case *resources.PortalCustomDomainResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("portal custom domain %q has no resolved portal", typed.Ref)
+		}
+		current, err := p.client.GetPortalCustomDomain(ctx, parent.ID)
+		if err != nil || current == nil {
+			return "", err
+		}
+		if current.Hostname == typed.Hostname {
+			return parent.ID, nil
+		}
+	case *resources.EventGatewayBackendClusterResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("event gateway backend cluster %q has no resolved gateway", typed.Ref)
+		}
+		current, err := p.client.ListEventGatewayBackendClusters(ctx, parent.ID)
+		if err != nil {
+			return "", err
+		}
+		for _, candidate := range current {
+			if candidate.Name == typed.Name {
+				return candidate.ID, nil
+			}
+		}
 	case *resources.PortalIdentityProviderResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {

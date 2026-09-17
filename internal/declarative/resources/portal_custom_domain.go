@@ -141,3 +141,8 @@ func isValidHostname(hostname string) bool {
 	hostnameRegex := regexp.MustCompile(pattern)
 	return hostnameRegex.MatchString(hostname)
 }
+
+// GetParentRef returns the parent portal reference.
+func (d PortalCustomDomainResource) GetParentRef() *ResourceRef {
+	return &ResourceRef{Ref: d.Portal, Kind: ResourceTypePortal}
+}

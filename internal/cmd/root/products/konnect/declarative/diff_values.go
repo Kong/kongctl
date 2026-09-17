@@ -8,8 +8,10 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/theme"
 )
 
@@ -35,14 +37,21 @@ func displayNestedFieldChange(
 	out io.Writer, field string, oldValue, newValue any,
 	hasOld, hasNew bool, indent string, fullContent bool,
 ) {
+	displayDiffChange(diffOutputFor(out).child(field), field, oldValue, newValue, hasOld, hasNew, indent, fullContent)
+}
+
+func displayDiffChange(
+	output *diffOutput, field string, oldValue, newValue any,
+	hasOld, hasNew bool, indent string, fullContent bool,
+) {
+	out := output
 	// Compare before redaction, including deferred environment references.
 	if hasOld == hasNew && reflect.DeepEqual(oldValue, newValue) {
 		return
 	}
-	output := diffOutputFor(out)
 	fieldText := output.paint(theme.ColorTextSecondary, field)
 	marker := output.paint(theme.ColorDiffChanged, "~")
-	sensitive := isSensitiveDiffField(field)
+	sensitive := output.sensitive(oldValue) || output.sensitive(newValue)
 	oldMap, oldObject := oldValue.(map[string]any)
 	newMap, newObject := newValue.(map[string]any)
 	if oldObject && newObject && !sensitive {
@@ -52,7 +61,7 @@ func displayNestedFieldChange(
 		for _, key := range slices.Sorted(maps.Keys(keys)) {
 			oldChild, oldExists := oldMap[key]
 			newChild, newExists := newMap[key]
-			displayNestedFieldChange(out, key, oldChild, newChild,
+			displayDiffChange(output.child(key), key, oldChild, newChild,
 				oldExists, newExists, indent+"  ", fullContent)
 		}
 		return
@@ -70,19 +79,19 @@ func displayNestedFieldChange(
 			if newExists {
 				newItem = newArray[i]
 			}
-			displayNestedFieldChange(out, fmt.Sprintf("[%d]", i), oldItem, newItem,
+			displayDiffChange(output.child(strconv.Itoa(i)), fmt.Sprintf("[%d]", i), oldItem, newItem,
 				oldExists, newExists, indent+"  ", fullContent)
 		}
 		return
 	}
 	if !hasOld {
 		fmt.Fprintf(out, "%s%s %s: %s\n", indent, output.paint(theme.ColorDiffAdded, "+"), fieldText,
-			output.paint(theme.ColorDiffAdded, formatDiffValue(field, newValue, indent, fullContent)))
+			output.paint(theme.ColorDiffAdded, output.formatValue(newValue, indent, fullContent)))
 		return
 	}
 	if !hasNew {
 		fmt.Fprintf(out, "%s%s %s: %s\n", indent, output.paint(theme.ColorDiffRemoved, "-"), fieldText,
-			output.paint(theme.ColorDiffRemoved, formatDiffValue(field, oldValue, indent, fullContent)))
+			output.paint(theme.ColorDiffRemoved, output.formatValue(oldValue, indent, fullContent)))
 		return
 	}
 	// Retain explicit null transitions, but never reveal non-null secret values
@@ -96,8 +105,8 @@ func displayNestedFieldChange(
 	if !sensitive && reflect.TypeOf(oldValue) != reflect.TypeOf(newValue) {
 		typeTag = " (type)"
 	}
-	oldText := formatDiffValue(field, oldValue, indent+"  ", fullContent)
-	newText := formatDiffValue(field, newValue, indent+"  ", fullContent)
+	oldText := output.formatValue(oldValue, indent+"  ", fullContent)
+	newText := output.formatValue(newValue, indent+"  ", fullContent)
 	multiline := strings.Contains(oldText, "\n") || strings.Contains(newText, "\n") || len(oldText)+len(newText) > 100
 	oldText = output.paint(theme.ColorDiffRemoved, oldText)
 	newText = output.paint(theme.ColorDiffAdded, newText)
@@ -113,9 +122,9 @@ func displayNestedFieldChange(
 
 // Format containers only after recursively formatting their children. Both the
 // inline and multiline forms therefore share the same redaction rules.
-func formatDiffValue(field string, value any, indent string, fullContent bool) string {
-	if isSensitiveDiffField(field) {
-		return formatFieldValueForField(field, value, fullContent)
+func (output *diffOutput) formatValue(value any, indent string, fullContent bool) string {
+	if value != nil && output.sensitive(value) {
+		return diffFieldRedactedValue
 	}
 	var parts []string
 	var opening, closing string
@@ -123,12 +132,12 @@ func formatDiffValue(field string, value any, indent string, fullContent bool) s
 	case map[string]any:
 		opening, closing = "{", "}"
 		for _, key := range slices.Sorted(maps.Keys(v)) {
-			parts = append(parts, fmt.Sprintf("%q: %s", key, formatDiffValue(key, v[key], indent+"  ", fullContent)))
+			parts = append(parts, fmt.Sprintf("%q: %s", key, output.child(key).formatValue(v[key], indent+"  ", fullContent)))
 		}
 	case []any:
 		opening, closing = "[", "]"
-		for _, item := range v {
-			parts = append(parts, formatDiffValue("", item, indent+"  ", fullContent))
+		for i, item := range v {
+			parts = append(parts, output.child(strconv.Itoa(i)).formatValue(item, indent+"  ", fullContent))
 		}
 	default:
 		return formatFieldValue(value, fullContent)
@@ -138,4 +147,19 @@ func formatDiffValue(field string, value any, indent string, fullContent bool) s
 		return inline
 	}
 	return opening + "\n" + indent + "  " + strings.Join(parts, ",\n"+indent+"  ") + "\n" + indent + closing
+}
+
+func (output *diffOutput) child(segment string) *diffOutput {
+	child := *output
+	segment = strings.ReplaceAll(strings.ReplaceAll(segment, "~", "~0"), "/", "~1")
+	child.path += "/" + segment
+	return &child
+}
+
+func (output *diffOutput) sensitive(value any) bool {
+	if reference, ok := value.(string); ok && secrets.IsVaultReference(reference) {
+		return false
+	}
+	_, ok := secrets.Match(output.resourceType, output.path)
+	return ok
 }

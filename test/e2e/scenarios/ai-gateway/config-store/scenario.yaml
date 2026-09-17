@@ -233,7 +233,7 @@ steps:
           - select: stdout
             expect:
               fields:
-                "contains(@, 'write requested (current value unavailable; deferred source)')": true
+                "contains(@, '(write deferred)')": true
                 "contains(@, 'rotated-config-store-secret-value')": false
       - name: 002-apply-rotation
         outputFormat: json

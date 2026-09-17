@@ -102,6 +102,21 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 
 	cases := []testCase{
 		{
+			name: "https proxy authorization", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
+			resourceRef: "auth-strategy", field: "/config/https_proxy_authorization",
+			selector: "config.https_proxy_authorization",
+			resourceSet: authStrategy(func(secret string) map[string]any {
+				return map[string]any{"issuer": "https://issuer.example.test", "https_proxy_authorization": secret}
+			}),
+		},
+		{
+			name: "http proxy authorization", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
+			resourceRef: "auth-strategy", field: "/config/http_proxy_authorization", selector: "config.http_proxy_authorization",
+			resourceSet: authStrategy(func(secret string) map[string]any {
+				return map[string]any{"issuer": "https://issuer.example.test", "http_proxy_authorization": secret}
+			}),
+		},
+		{
 			name: "provider header value", resourceType: resources.ResourceTypeAIGatewayProvider,
 			resourceRef: "provider", field: "/config/auth/headers/0/value",
 			selector: "config.auth.headers[].value",

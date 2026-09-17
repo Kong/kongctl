@@ -17,7 +17,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -393,37 +392,6 @@ func writeRemoteSourceFile(path string, content []byte) error {
 		return err
 	}
 	return os.Rename(tmpPath, path)
-}
-
-var diffSensitiveExactFieldKeys = map[string]struct{}{
-	"http_proxy_authorization":  {},
-	"https_proxy_authorization": {},
-	"access_token":              {},
-	"refresh_token":             {},
-	"id_token":                  {},
-	"token":                     {},
-	"api_key":                   {},
-	"apikey":                    {},
-	"x_api_key":                 {},
-	"secret":                    {},
-	"password":                  {},
-	"authorization":             {},
-	"cookie":                    {},
-	"credential":                {},
-	"private_key":               {},
-	"passphrase":                {},
-	"client_secret":             {},
-	"set_cookie":                {},
-	"konnectaccesstoken":        {},
-	"konnectrefreshtoken":       {},
-}
-
-var diffNonSensitiveTokenFieldKeys = map[string]struct{}{
-	"token_count":         {},
-	"token_type":          {},
-	"credential_claim":    {},
-	"credential_required": {},
-	"hide_credentials":    {},
 }
 
 func addBaseDirFlag(cmd *cobra.Command) {
@@ -1538,6 +1506,7 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 		// Display each change in this namespace
 		for _, change := range changesByNamespace[namespace] {
+			out.resourceType = resources.ResourceType(change.ResourceType)
 
 			switch change.Action {
 			case planner.ActionCreate:
@@ -1738,102 +1707,6 @@ func formatFieldValue(value any, fullContent bool) string {
 	}
 }
 
-func formatFieldValueForField(field string, value any, fullContent bool) string {
-	resolved := dereferenceFieldValue(value)
-	resolved = common.SanitizeDeferredEnvValue(resolved)
-	if isSensitiveDiffField(field) {
-		if resolved == nil {
-			return "null"
-		}
-		return diffFieldRedactedValue
-	}
-	return formatFieldValue(resolved, fullContent)
-}
-
-func isSensitiveDiffField(field string) bool {
-	normalized := normalizeFieldKey(field)
-	if normalized == "" {
-		return false
-	}
-
-	if _, ok := diffSensitiveExactFieldKeys[normalized]; ok {
-		return true
-	}
-
-	if _, ok := diffNonSensitiveTokenFieldKeys[normalized]; ok {
-		return false
-	}
-
-	if containsSegment(normalized, "secret") ||
-		containsSegment(normalized, "password") ||
-		containsSegment(normalized, "credential") ||
-		containsSegment(normalized, "passphrase") ||
-		hasSegmentPair(normalized, "private", "key") ||
-		hasSegmentPair(normalized, "api", "key") ||
-		hasSegmentPair(normalized, "client", "secret") {
-		return true
-	}
-
-	if strings.HasSuffix(normalized, "_access_token") || strings.HasSuffix(normalized, "_refresh_token") {
-		return true
-	}
-	if strings.HasSuffix(normalized, "_token") {
-		return true
-	}
-
-	return false
-}
-
-func containsSegment(normalized, segment string) bool {
-	return slices.Contains(strings.Split(normalized, "_"), segment)
-}
-
-func hasSegmentPair(normalized, first, second string) bool {
-	parts := strings.Split(normalized, "_")
-	for idx := 0; idx < len(parts)-1; idx++ {
-		if parts[idx] == first && parts[idx+1] == second {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizeFieldKey(key string) string {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return ""
-	}
-
-	runes := []rune(key)
-	out := make([]rune, 0, len(runes))
-	appendUnderscore := func() {
-		if len(out) > 0 && out[len(out)-1] != '_' {
-			out = append(out, '_')
-		}
-	}
-
-	for idx, current := range runes {
-		switch {
-		case current == '_' || current == '-' || current == '.' ||
-			current == '[' || current == ']' || current == '/' || unicode.IsSpace(current):
-			appendUnderscore()
-		case unicode.IsUpper(current):
-			if idx > 0 {
-				prev := runes[idx-1]
-				nextIsLower := idx+1 < len(runes) && unicode.IsLower(runes[idx+1])
-				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextIsLower) {
-					appendUnderscore()
-				}
-			}
-			out = append(out, unicode.ToLower(current))
-		default:
-			out = append(out, unicode.ToLower(current))
-		}
-	}
-
-	return strings.Trim(string(out), "_")
-}
-
 func dereferenceFieldValue(value any) any {
 	for {
 		rv := reflect.ValueOf(value)
@@ -1852,16 +1725,16 @@ func dereferenceFieldValue(value any) any {
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
 	value = normalizeDiffValue(value)
-	output := diffOutputFor(out)
+	output := diffOutputFor(out).child(field)
 	fieldText := output.paint(theme.ColorTextSecondary, field)
-	if object, ok := value.(map[string]any); ok && len(object) > 0 && !isSensitiveDiffField(field) {
+	if object, ok := value.(map[string]any); ok && len(object) > 0 && !output.sensitive(value) {
 		fmt.Fprintf(out, "%s%s:\n", indent, fieldText)
 		for _, key := range slices.Sorted(maps.Keys(object)) {
-			displayField(out, key, object[key], indent+"  ", fullContent)
+			displayField(output, key, object[key], indent+"  ", fullContent)
 		}
 		return
 	}
-	text := formatDiffValue(field, value, indent, fullContent)
+	text := output.formatValue(value, indent, fullContent)
 	fmt.Fprintf(out, "%s%s: %s\n", indent, fieldText, output.paint(theme.ColorDiffAdded, text))
 }
 

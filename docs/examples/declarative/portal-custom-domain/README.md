@@ -15,8 +15,8 @@ control. Konnect rejects hostnames ending in `example.com`, `example.net`, and
 ## Files
 
 - `portal-custom-domain.yaml` - creates a portal and configures a custom
-  domain. The `ssl.custom_certificate` and `ssl.custom_private_key` fields use
-  `!env`.
+  domain. The public `ssl.custom_certificate` uses `!env`; the write-only
+  `ssl.custom_private_key` uses `!secret` with an environment source.
 
 ## Usage
 

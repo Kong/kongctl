@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/colorprofile"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/theme"
 	"github.com/mattn/go-isatty"
@@ -17,8 +18,10 @@ import (
 // writers, without global styling state or coloring already-formatted values.
 type diffOutput struct {
 	io.Writer
-	palette theme.Palette
-	styled  bool
+	palette      theme.Palette
+	styled       bool
+	resourceType resources.ResourceType
+	path         string
 }
 
 func diffOutputFor(out io.Writer) *diffOutput {

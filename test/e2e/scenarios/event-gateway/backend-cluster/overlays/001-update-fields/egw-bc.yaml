@@ -20,7 +20,7 @@ event_gateways:
         authentication:
           type: sasl_plain
           username: ${env["updated-username"]}
-          password: ${env["updated-password"]}
+          password: ${vault["env"]["updated-password"]}
         tls:
           enabled: true
           insecure_skip_verify: false

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,52 +77,25 @@ func TestNestedDiffCollections(t *testing.T) {
 
 func TestDiffRecursiveRedaction(t *testing.T) {
 	for _, full := range []bool{false, true} {
-		t.Run(fmt.Sprintf("full=%t", full), func(t *testing.T) {
-			oldValue := map[string]any{
-				"cache_tokens_salt": "old-salt",
-				"client_secret":     []string{"old-secret"},
-				"nested":            []map[string]any{{"password": "old-password"}},
-				"env":               "__ENV__:OLD_VALUE",
-			}
-			newValue := map[string]any{
-				"cache_tokens_salt": "new-salt",
-				"client_secret":     []string{"new-secret"},
-				"nested":            []map[string]any{{"password": "new-password", "description": strings.Repeat("x", 600)}},
-				"env":               "__ENV__:NEW_VALUE",
-				"added":             map[string]string{"private_key": "added-key"},
-			}
-			var out bytes.Buffer
-			displayFieldChange(&out, planner.FieldConfig, oldValue, newValue, "  ", full)
-			assert.Contains(t, out.String(), "~ cache_tokens_salt: \"old-salt\" → \"new-salt\"")
-			assert.Contains(t, out.String(), "~ client_secret: (sensitive value changed)")
-			assert.Contains(t, out.String(), "[redacted from !env]")
-			assert.Contains(t, out.String(), "nested:")
-
-			displayField(&out, planner.FieldConfig, newValue, "  ", full)
-			// Also cover object replacements and removals, which print whole values.
-			displayFieldChange(&out, planner.FieldConfig, newValue, "replacement", "  ", full)
-			displayFieldChange(&out, planner.FieldConfig, map[string]any{"removed": newValue}, map[string]any{}, "  ", full)
-			for _, secret := range []string{
-				"old-secret",
-				"new-secret",
-				"old-password",
-				"new-password",
-				"added-key",
-				"__ENV__",
-			} {
-				assert.NotContains(t, out.String(), secret)
-			}
-			assert.NotContains(t, out.String(), "map[")
-		})
+		var out bytes.Buffer
+		output := &diffOutput{Writer: &out, resourceType: resources.ResourceTypeAIGatewayProvider}
+		oldValue := map[string]any{"auth": map[string]any{"headers": []any{
+			map[string]any{"name": "Authorization", "value": "old-secret"},
+		}}}
+		newValue := map[string]any{"auth": map[string]any{"headers": []any{
+			map[string]any{"name": "Authorization", "value": "new-secret"},
+		}}}
+		displayFieldChange(output, planner.FieldConfig, oldValue, newValue, "  ", full)
+		assert.Contains(t, out.String(), "~ value: (sensitive value changed)")
+		displayField(output, planner.FieldConfig, newValue, "  ", full)
+		displayFieldChange(output, planner.FieldConfig, newValue, "replacement", "  ", full)
+		displayFieldChange(output, planner.FieldConfig, oldValue, map[string]any{}, "  ", full)
+		displayFieldChange(output, planner.FieldConfig, map[string]any{}, newValue, "  ", full)
+		assert.NotContains(t, out.String(), "old-secret")
+		assert.NotContains(t, out.String(), "new-secret")
+		assert.Contains(t, out.String(), "[REDACTED]")
+		assert.Contains(t, out.String(), "Authorization")
 	}
-}
-
-func TestDiffSensitiveOnlyArrayChange(t *testing.T) {
-	var out bytes.Buffer
-	displayFieldChange(&out, planner.FieldConfig,
-		[]map[string]string{{"client_secret": "old"}},
-		[]map[string]string{{"client_secret": "new"}}, "  ", true)
-	assert.Equal(t, "  config:\n    [0]:\n      ~ client_secret: (sensitive value changed)\n", out.String())
 }
 
 func TestDiffArrayLeavesAndTypes(t *testing.T) {
@@ -149,8 +123,10 @@ func TestDiffArrayLeavesAndTypes(t *testing.T) {
 
 func TestDiffSensitiveNullTransitions(t *testing.T) {
 	var out bytes.Buffer
-	displayFieldChange(&out, "client_secret", nil, "hidden", "  ", true)
-	displayFieldChange(&out, "client_secret", "hidden", nil, "  ", true)
+	output := &diffOutput{Writer: &out, resourceType: resources.ResourceTypeAIGatewayAuthStrategy}
+	output = output.child(planner.FieldConfig)
+	displayFieldChange(output, "client_secret", nil, "hidden", "  ", true)
+	displayFieldChange(output, "client_secret", "hidden", nil, "  ", true)
 	assert.Equal(t, "  ~ client_secret: null → [REDACTED]\n  ~ client_secret: [REDACTED] → null\n", out.String())
 }
 
@@ -164,31 +140,21 @@ func TestDiffMultilineArray(t *testing.T) {
 `, out.String())
 }
 
-func TestDiffOIDCFieldClassification(t *testing.T) {
-	for _, key := range []string{
-		"client_secret",
-		"session_secret",
-		"redis_password",
-		"access_token",
-		"refresh_token",
-		"http_proxy_authorization",
-		"https_proxy_authorization",
-	} {
-		assert.True(t, isSensitiveDiffField(key), key)
+func TestDiffCatalogClassification(t *testing.T) {
+	output := &diffOutput{resourceType: resources.ResourceTypeAIGatewayAuthStrategy}
+	for _, key := range []string{"client_secret", "http_proxy_authorization", "https_proxy_authorization"} {
+		assert.True(t, output.child(planner.FieldConfig).child(key).sensitive("literal"), key)
+		assert.False(t, output.child("unrelated").child(key).sensitive("literal"), key)
 	}
-	for _, key := range []string{
-		"cache_tokens_salt",
-		"cache_tokens",
-		"access_token_in_header",
-		"refresh_tokens",
-		"credential_claim",
-		"credential_required",
-		"hide_credentials",
-		"token_count",
-		"token_type",
-	} {
-		assert.False(t, isSensitiveDiffField(key), key)
+	for _, key := range []string{"cache_tokens_salt", "password", "token_count", "credential_claim"} {
+		assert.False(t, output.child(planner.FieldConfig).child(key).sensitive("literal"), key)
 	}
+	var out bytes.Buffer
+	output.Writer = &out
+	displayFieldChange(output, planner.FieldConfig, map[string]any{"cache_tokens_salt": "old"},
+		map[string]any{"cache_tokens_salt": "new", "password": "ordinary"}, "", true)
+	assert.Contains(t, out.String(), `cache_tokens_salt: "old" → "new"`)
+	assert.Contains(t, out.String(), `password: "ordinary"`)
 }
 
 func TestDiffPlanRoundTripAndLegacyFields(t *testing.T) {

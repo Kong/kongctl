@@ -90,7 +90,7 @@ func TestDiffColorPreservesPlainOutput(t *testing.T) {
 				New: map[string]any{
 					"client_secret": "hidden-new", "added": true, "type": "80",
 					"array":       []any{map[string]any{"port": 443, "unchanged": true}},
-					"replacement": map[string]any{"password": "hidden-nested", "long": strings.Repeat("x", 90)},
+					"replacement": map[string]any{"label": "visible-nested", "long": strings.Repeat("x", 90)},
 				},
 			},
 		},

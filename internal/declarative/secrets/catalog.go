@@ -16,6 +16,10 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypePortalCustomDomain, "/ssl/custom_private_key", true, true},
+	{resources.ResourceTypeEventGatewayBackendCluster, "/authentication/password", true, true},
+	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/http_proxy_authorization", true, true},
+	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/https_proxy_authorization", true, true},
 	{resources.ResourceTypePortalIdentityProvider, "/config/client_secret", true, true},
 	{resources.ResourceTypeDCRProvider, "/dcr_config/initial_client_secret", true, true},
 	{resources.ResourceTypeDCRProvider, "/dcr_config/dcr_token", true, true},
@@ -62,7 +66,8 @@ func IsVaultReference(value string) bool {
 	if strings.HasPrefix(value, "{vault://") && strings.HasSuffix(value, "}") {
 		return len(value) > len("{vault://}")
 	}
-	return strings.HasPrefix(value, "${vault[") && strings.HasSuffix(value, "]}")
+	return (strings.HasPrefix(value, "${vault[") || strings.HasPrefix(value, "${vault.")) &&
+		strings.HasSuffix(value, "]}")
 }
 
 func matchPath(pattern, value string) bool {

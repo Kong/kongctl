@@ -207,9 +207,9 @@ Nested objects show only changed fields, with keys sorted at each level:
 
 `+` adds a field, `-` removes a field, and `~` changes a value. Explicit
 `null`, empty objects (`{}`), and empty arrays (`[]`) remain distinct.
-Sensitive values are redacted inside objects and arrays, including when
-`--full-content` is enabled. Type replacements have an explicit `(type)`
-label, for example `~ port: 80 → "80" (type)`.
+Values at reviewed write-only catalog paths are redacted inside objects and
+arrays, including when `--full-content` is enabled. Matching uses the resource
+type and full field path. Type replacements have an explicit `(type)` label, for example `~ port: 80 → "80" (type)`.
 
 Write-only values resolved during execution appear as
 `config.client_secret: (write deferred)`. This reports a requested write, not
