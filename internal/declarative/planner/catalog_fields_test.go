@@ -1,7 +1,9 @@
 package planner
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -10,6 +12,56 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBackendUpdateLogsExcludeAuthenticationValues(t *testing.T) {
+	for _, kind := range []string{"sasl_plain", "sasl_scram"} {
+		for _, jsonLog := range []bool{false, true} {
+			var logs bytes.Buffer
+			options := &slog.HandlerOptions{Level: slog.LevelDebug}
+			var handler slog.Handler = slog.NewTextHandler(&logs, options)
+			if jsonLog {
+				handler = slog.NewJSONHandler(&logs, options)
+			}
+			current := kkComps.BackendCluster{ID: "backend-id", Name: "backend"}
+			desired := resources.EventGatewayBackendClusterResource{
+				Ref: "backend-ref", EventGateway: "gateway-ref",
+				CreateBackendClusterRequest: kkComps.CreateBackendClusterRequest{Name: "backend"},
+			}
+			for _, value := range []struct {
+				password    string
+				destination any
+			}{
+				{"old-password-sentinel", &current.Authentication},
+				{"new-password-sentinel", &desired.Authentication},
+			} {
+				data, err := json.Marshal(map[string]any{
+					FieldType: kind, "algorithm": "sha256", "username": "private-username-sentinel",
+					"password": value.password,
+				})
+				require.NoError(t, err)
+				require.NoError(t, json.Unmarshal(data, value.destination))
+			}
+			p := &Planner{
+				logger: slog.New(handler),
+				client: state.NewClient(state.ClientConfig{
+					EventGatewayBackendClusterAPI: &stubExternalEventGatewayBackendClusterAPI{
+						clusters: []kkComps.BackendCluster{current},
+					},
+				}),
+			}
+			plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+			err := p.planBackendClusterChangesForExistingGateway(t.Context(), DefaultNamespace,
+				"gateway-id", "gateway-ref", "gateway", []resources.EventGatewayBackendClusterResource{desired}, plan)
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 1)
+			require.Contains(t, logs.String(), "Planning backend cluster UPDATE")
+			require.Contains(t, logs.String(), "Enqueuing backend cluster UPDATE")
+			require.NotContains(t, logs.String(), "old-password-sentinel")
+			require.NotContains(t, logs.String(), "new-password-sentinel")
+			require.NotContains(t, logs.String(), "private-username-sentinel")
+		}
+	}
+}
 
 func TestNewCatalogFieldWritePlans(t *testing.T) {
 	expression := envSecretExpression("UNAVAILABLE_CATALOG_SECRET")

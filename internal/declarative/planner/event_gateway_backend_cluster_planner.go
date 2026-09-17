@@ -118,8 +118,8 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 					"Planning backend cluster UPDATE",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
-					"update_fields", updateFields,
-					"changed_fields", changedFields,
+					"update_field_count", len(updateFields),
+					"changed_field_count", len(changedFields),
 				)
 				p.planBackendClusterUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
@@ -282,7 +282,7 @@ func (p *Planner) planBackendClusterUpdate(
 		slog.String("cluster_ref", cluster.Ref),
 		slog.String("cluster_id", clusterID),
 		slog.String("gateway_ref", gatewayRef),
-		slog.Any("fields", updateFields),
+		slog.Int("field_count", len(updateFields)),
 	)
 
 	plan.AddChange(change)
