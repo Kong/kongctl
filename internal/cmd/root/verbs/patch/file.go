@@ -166,6 +166,9 @@ func runFilePatch(
 		}
 		output, err = filebasics.Serialize(result, outputFmt)
 	} else {
+		if err := checkPatchAliases(yamlNode, make(map[string]*yaml.Node)); err != nil {
+			return &cmd.ExecutionError{Err: fmt.Errorf("cannot output YAML: %w", err)}
+		}
 		normalizePatchStyles(yamlNode)
 		output, err = yaml.Marshal(yamlNode)
 	}
@@ -254,6 +257,26 @@ func readPatchInput(filename string) (*yaml.Node, error) {
 
 func rejectCustomTags(node *yaml.Node) error {
 	return checkPatchTags(node, make(map[*yaml.Node]bool))
+}
+
+// Check anchors in serialization order. A removed or replaced anchor must not
+// leave an alias undefined or referring to a different node with the same name.
+func checkPatchAliases(node *yaml.Node, anchors map[string]*yaml.Node) error {
+	if node.Kind == yaml.AliasNode {
+		if target := anchors[node.Value]; target == nil || target != node.Alias {
+			return fmt.Errorf("alias %q refers to an anchor that is no longer available", node.Value)
+		}
+		return nil
+	}
+	if node.Anchor != "" {
+		anchors[node.Anchor] = node
+	}
+	for _, child := range node.Content {
+		if err := checkPatchAliases(child, anchors); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func checkPatchTags(node *yaml.Node, seen map[*yaml.Node]bool) error {

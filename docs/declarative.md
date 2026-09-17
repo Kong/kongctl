@@ -858,6 +858,11 @@ cannot represent them. Use YAML output, or explicitly remove or replace
 the tagged fields before requesting JSON output. Failed serialization does
 not overwrite the output file.
 
+Input must contain a single mapping document. Additional YAML documents,
+including an empty document introduced by a trailing `---`, are rejected
+instead of silently discarded. YAML output also fails before writing if a
+patch removes or replaces an anchor that a remaining alias still needs.
+
 Tag preservation is a semantic guarantee. Comments, key ordering, anchors,
 and byte-for-byte formatting are not guaranteed to remain unchanged.
 

@@ -175,7 +175,10 @@ func TestRunFilePatch_TaggedJSON(t *testing.T) {
 }
 
 func TestRunFilePatch_InvalidDocument(t *testing.T) {
-	for _, data := range []string{"", "[]", "scalar", "key: [", "key: value\n---\nother: value\n"} {
+	for _, data := range []string{
+		"", "[]", "scalar", "key: [", "key: value\n---\nother: value\n",
+		"key: value\n---\n", "key: value\n---\nnull\n", "key: value\n---\n---\nother: value\n",
+	} {
 		t.Run(data, func(t *testing.T) {
 			dir := t.TempDir()
 			input, output := filepath.Join(dir, "input.yaml"), filepath.Join(dir, "output.yaml")
@@ -184,6 +187,62 @@ func TestRunFilePatch_InvalidDocument(t *testing.T) {
 			require.ErrorContains(t, err, "failed to read input file")
 			_, err = os.Stat(output)
 			require.ErrorIs(t, err, os.ErrNotExist)
+		})
+	}
+}
+
+func TestRunFilePatch_QuotedScalarTypes(t *testing.T) {
+	for _, value := range []string{"1.0", "null", "true", "123", "2026-09-17", "", "line one\nline two\n"} {
+		t.Run(value, func(t *testing.T) {
+			dir := t.TempDir()
+			input, output := filepath.Join(dir, "input.yaml"), filepath.Join(dir, "output.yaml")
+			quoted, err := json.Marshal(value)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(input, []byte("version: "+string(quoted)+"\n"), 0o600))
+			require.NoError(t, runFilePatch([]string{input}, []string{"$"}, []string{"other:1"}, output, "yaml"))
+			root, err := readPatchInput(output)
+			require.NoError(t, err)
+			version := patchTestField(t, root, "version")
+			assert.Equal(t, "!!str", version.Tag)
+			assert.Equal(t, value, version.Value)
+		})
+	}
+}
+
+func TestRunFilePatch_YAMLAliases(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, patch string
+		wantError          bool
+	}{
+		{"remove anchor", "key: &ref !ref example\nalias: *ref\n", "key:", true},
+		{"replace anchor", "key: &ref example\nalias: *ref\n", `key:"new"`, true},
+		{"remove nested anchor", "key: {child: &ref example}\nalias: *ref\n", "key:", true},
+		{"shadowed anchor", "first: &ref old\nkey: &ref new\nalias: *ref\n", "key:", true},
+		{"keep alias", "key: &ref !ref example\nalias: *ref\n", "other:1", false},
+		{"remove alias", "key: &ref example\nalias: *ref\n", "alias:", false},
+		{"recursive alias", "key: &ref {self: *ref}\n", "other:1", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			input := filepath.Join(dir, "input.yaml")
+			require.NoError(t, os.WriteFile(input, []byte(tc.input), 0o600))
+			// In-place output must remain intact when a patch would orphan an alias.
+			err := runFilePatch([]string{input}, []string{"$"}, []string{tc.patch}, input, "yaml")
+			if tc.wantError {
+				require.ErrorContains(t, err, "cannot output YAML")
+				data, err := os.ReadFile(input)
+				require.NoError(t, err)
+				assert.Equal(t, tc.input, string(data))
+				return
+			}
+			require.NoError(t, err)
+			root, err := readPatchInput(input)
+			require.NoError(t, err)
+			if tc.name == "keep alias" {
+				alias := patchTestField(t, root, "alias")
+				require.Same(t, patchTestField(t, root, "key"), alias.Alias)
+				assert.Equal(t, "!ref", alias.Alias.Tag)
+			}
 		})
 	}
 }
