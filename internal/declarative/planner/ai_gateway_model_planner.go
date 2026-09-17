@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayModelChanges(
@@ -51,80 +50,46 @@ func (p *Planner) planAIGatewayModelChanges(
 		return fmt.Errorf("failed to list AI Gateway models for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayModels(currentModels)
-	desiredKeys := make(map[string]bool)
-
-	for _, desiredModel := range desired {
-		current, exists := matchCurrentAIGatewayModel(desiredModel, currentByID, currentByName)
-		desiredKeys[desiredModel.Name()] = true
-		if id := aiGatewayModelDesiredID(desiredModel); id != "" {
-			desiredKeys[id] = true
-		}
-
-		if !exists {
-			dependsOn := aiGatewayModelCreateDependencies(
-				desiredModel,
-				providerCreateDepsByName,
-				policyCreateDepsByName,
-			)
-			p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredModel, dependsOn, plan)
-			continue
-		}
-
-		modelID := resources.AIGatewayModelID(current.AIGatewayModel)
-		fullModel, err := p.client.GetAIGatewayModel(ctx, gatewayID, modelID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway model %s: %w", modelID, err)
-		}
-		if fullModel == nil {
-			dependsOn := aiGatewayModelCreateDependencies(
-				desiredModel,
-				providerCreateDepsByName,
-				policyCreateDepsByName,
-			)
-			p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredModel, dependsOn, plan)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayModel(*fullModel, desiredModel)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			p.planAIGatewayModelUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				modelID,
-				desiredModel,
-				updateFields,
-				changedFields,
-				aiGatewayModelCreateDependencies(
-					desiredModel,
-					providerCreateDepsByName,
-					policyCreateDepsByName,
-				),
-				plan,
-			)
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentModels {
-			modelID := resources.AIGatewayModelID(current.AIGatewayModel)
-			modelName := resources.AIGatewayModelName(current.AIGatewayModel)
-			if desiredKeys[modelID] || desiredKeys[modelName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayModel, modelName, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayModelDelete(namespace, gatewayRef, gatewayID, modelID, modelName, plan)
-		}
-	}
-
-	return nil
+	return reconcileIDMatchedChildren(p, ResourceTypeAIGatewayModel, desired, currentModels,
+		idMatchedChildOperations[resources.AIGatewayModelResource, state.AIGatewayModel]{
+			desiredIdentity: func(desired resources.AIGatewayModelResource) childIdentity {
+				return desiredChildIdentity(desired.Ref, desired.GetKonnectID(), desired.Name())
+			},
+			currentIdentity: func(current state.AIGatewayModel) childIdentity {
+				return childIdentity{
+					id:   resources.AIGatewayModelID(current.AIGatewayModel),
+					name: resources.AIGatewayModelName(current.AIGatewayModel),
+				}
+			},
+			fetch: func(_ resources.AIGatewayModelResource, current state.AIGatewayModel) (*state.AIGatewayModel, error) {
+				id := resources.AIGatewayModelID(current.AIGatewayModel)
+				full, err := p.client.GetAIGatewayModel(ctx, gatewayID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway model %s: %w", id, err)
+				}
+				return full, nil
+			},
+			diff: p.shouldUpdateAIGatewayModel,
+			create: func(desired resources.AIGatewayModelResource) {
+				p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desired,
+					aiGatewayModelCreateDependencies(desired, providerCreateDepsByName, policyCreateDepsByName), plan)
+			},
+			update: func(current state.AIGatewayModel, desired resources.AIGatewayModelResource,
+				fields map[string]any, changed map[string]FieldChange,
+			) {
+				p.planAIGatewayModelUpdate(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayModelID(current.AIGatewayModel), desired, fields, changed,
+					aiGatewayModelCreateDependencies(desired, providerCreateDepsByName, policyCreateDepsByName), plan)
+			},
+			protected: func(current state.AIGatewayModel) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayModel) {
+				p.planAIGatewayModelDelete(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayModelID(current.AIGatewayModel),
+					resources.AIGatewayModelName(current.AIGatewayModel), plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayModelCreatesForNewGateway(
@@ -298,45 +263,6 @@ func normalizeAIGatewayModelSelectorForComparison(
 	delete(currentRoute, FieldModel)
 	pruneEmptyContainersMissingFromPeer(currentPayload, desiredPayload)
 	return currentPayload, desiredPayload
-}
-
-func indexAIGatewayModels(
-	models []state.AIGatewayModel,
-) (map[string]state.AIGatewayModel, map[string]state.AIGatewayModel) {
-	byID := make(map[string]state.AIGatewayModel)
-	byName := make(map[string]state.AIGatewayModel)
-	for _, model := range models {
-		if id := resources.AIGatewayModelID(model.AIGatewayModel); id != "" {
-			byID[id] = model
-		}
-		if name := resources.AIGatewayModelName(model.AIGatewayModel); name != "" {
-			byName[name] = model
-		}
-	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayModel(
-	desired resources.AIGatewayModelResource,
-	currentByID map[string]state.AIGatewayModel,
-	currentByName map[string]state.AIGatewayModel,
-) (state.AIGatewayModel, bool) {
-	if id := aiGatewayModelDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name()]
-	return current, exists
-}
-
-func aiGatewayModelDesiredID(desired resources.AIGatewayModelResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
 }
 
 func aiGatewayProviderCreateDependencies(plan *Plan, namespace string, gatewayRef string) map[string]string {
