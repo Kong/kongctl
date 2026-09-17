@@ -190,7 +190,7 @@ func (p *Planner) planBackendClusterCreate(
 		fields[FieldDescription] = *cluster.Description
 	}
 
-	fields[FieldAuthentication] = cluster.Authentication
+	fields[FieldAuthentication] = backendClusterAuthenticationFields(cluster.Authentication)
 	fields[FieldBootstrapServers] = cluster.BootstrapServers
 	fields[FieldTLS] = cluster.TLS
 
@@ -357,7 +357,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 		needsUpdate = true
 		changes[FieldAuthentication] = FieldChange{
 			Old: current.Authentication,
-			New: desired.Authentication,
+			New: backendClusterAuthenticationFields(desired.Authentication),
 		}
 	}
 
@@ -420,7 +420,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 			updates[FieldDescription] = *desired.Description
 		}
 
-		updates[FieldAuthentication] = desired.Authentication
+		updates[FieldAuthentication] = backendClusterAuthenticationFields(desired.Authentication)
 		updates[FieldBootstrapServers] = desired.BootstrapServers
 		updates[FieldTLS] = desired.TLS
 
@@ -582,4 +582,25 @@ func sameBackendPassword(current *string, desired string) bool {
 		return true
 	}
 	return current != nil && *current == desired
+}
+
+// Keep authentication traversable so secret-write preparation can remove deferred
+// passwords from both request fields and changed-field metadata.
+func backendClusterAuthenticationFields(auth components.BackendClusterAuthenticationScheme) map[string]any {
+	fields := map[string]any{FieldType: string(auth.Type)}
+	switch auth.Type {
+	case components.BackendClusterAuthenticationSchemeTypeAnonymous:
+	case components.BackendClusterAuthenticationSchemeTypeSaslPlain:
+		if auth.BackendClusterAuthenticationSaslPlain != nil {
+			fields["username"] = auth.BackendClusterAuthenticationSaslPlain.Username
+			fields["password"] = auth.BackendClusterAuthenticationSaslPlain.Password
+		}
+	case components.BackendClusterAuthenticationSchemeTypeSaslScram:
+		if auth.BackendClusterAuthenticationSaslScram != nil {
+			fields["username"] = auth.BackendClusterAuthenticationSaslScram.Username
+			fields["password"] = auth.BackendClusterAuthenticationSaslScram.Password
+			fields["algorithm"] = string(auth.BackendClusterAuthenticationSaslScram.Algorithm)
+		}
+	}
+	return fields
 }

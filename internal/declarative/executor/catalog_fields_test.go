@@ -52,3 +52,23 @@ func TestBackendUpdatePreservesOmittedPassword(t *testing.T) {
 		}
 	}
 }
+
+func TestBackendUpdateRejectsMalformedAuthentication(t *testing.T) {
+	for name, auth := range map[string]any{
+		"unsupported type":        map[string]any{"type": "unsupported"},
+		"missing type":            map[string]any{"username": "user"},
+		"missing plain username":  map[string]any{"type": "sasl_plain"},
+		"missing scram username":  map[string]any{"type": "sasl_scram", "algorithm": "sha256"},
+		"missing scram algorithm": map[string]any{"type": "sasl_scram", "username": "user"},
+		"missing typed member": kkComps.BackendClusterAuthenticationScheme{
+			Type: kkComps.BackendClusterAuthenticationSchemeTypeSaslPlain,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var request kkComps.UpdateBackendClusterRequest
+			err := (&EventGatewayBackendClusterAdapter{}).MapUpdateFields(t.Context(), nil,
+				map[string]any{planner.FieldAuthentication: auth}, &request, nil)
+			require.Error(t, err)
+		})
+	}
+}
