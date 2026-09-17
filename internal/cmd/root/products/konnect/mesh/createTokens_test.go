@@ -101,11 +101,17 @@ func TestRequireValidFor(t *testing.T) {
 // environment variable, which wins over the configuration file. The control
 // plane selection flags already behaved this way; these did not exist as
 // configuration at all.
+// Mesh options resolve through configuration, so the file, the environment
+// and the flag must layer in that order.
+//
+// This claimed environment coverage with an envValue field that no case set
+// and nothing read, so the environment rung was never exercised.
 func TestMeshOptionPrecedence(t *testing.T) {
 	cases := []struct {
 		name       string
 		configPath string
 		flagName   string
+		envVar     string
 		fileValue  string
 		envValue   string
 		flagValue  string
@@ -126,15 +132,54 @@ func TestMeshOptionPrecedence(t *testing.T) {
 			flagValue:  "5m0s",
 			want:       "5m0s",
 		},
+		{
+			name:       "token lifetime from the environment",
+			configPath: meshcommon.TokenValidForConfigPath,
+			flagName:   meshcommon.TokenValidForFlagName,
+			envVar:     "KONGCTL_DEFAULT_KONNECT_MESH_TOKEN_VALID_FOR",
+			envValue:   "30m0s",
+			want:       "30m0s",
+		},
+		{
+			name:       "the environment wins over the file",
+			configPath: meshcommon.TokenValidForConfigPath,
+			flagName:   meshcommon.TokenValidForFlagName,
+			envVar:     "KONGCTL_DEFAULT_KONNECT_MESH_TOKEN_VALID_FOR",
+			fileValue:  "1h0m0s",
+			envValue:   "30m0s",
+			want:       "30m0s",
+		},
+		{
+			name:       "the flag wins over the environment",
+			configPath: meshcommon.TokenValidForConfigPath,
+			flagName:   meshcommon.TokenValidForFlagName,
+			envVar:     "KONGCTL_DEFAULT_KONNECT_MESH_TOKEN_VALID_FOR",
+			fileValue:  "1h0m0s",
+			envValue:   "30m0s",
+			flagValue:  "5m0s",
+			want:       "5m0s",
+		},
+		{
+			name:       "control plane id from the environment",
+			configPath: meshcommon.ControlPlaneIDConfigPath,
+			flagName:   meshcommon.ControlPlaneIDFlagName,
+			envVar:     "KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_ID",
+			envValue:   "from-the-environment",
+			want:       "from-the-environment",
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.envVar != "" {
+				t.Setenv(tc.envVar, tc.envValue)
+			}
+
 			settings := map[string]any{}
 			if tc.fileValue != "" {
 				settings[tc.configPath] = tc.fileValue
 			}
-			cfg := meshTestConfig(t, settings)
+			cfg := meshTestConfigWithEnv(t, settings)
 
 			flags := pflag.NewFlagSet("precedence", pflag.ContinueOnError)
 			flags.String(tc.flagName, "", "")
