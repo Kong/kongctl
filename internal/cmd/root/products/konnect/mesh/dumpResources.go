@@ -97,7 +97,7 @@ func runDumpResources(helper cmd.Helper, profile string) error {
 
 	ordered := slices.Concat(first, middle, last)
 	for _, item := range ordered {
-		removeOriginLabel(profile, item)
+		removeFederationLabels(profile, item)
 	}
 	return writeYAMLStream(helper, ordered)
 }
@@ -106,19 +106,28 @@ func runDumpResources(helper cmd.Helper, profile string) error {
 // immutable once set.
 const originLabel = "kuma.io/origin"
 
-// removeOriginLabel drops the origin label from a federation export.
+// zoneLabel records the zone a resource was synced up from. A global control
+// plane rejects it outright: "kuma.io/zone is not allowed on a global control
+// plane".
+const zoneLabel = "kuma.io/zone"
+
+// removeFederationLabels drops the origin and zone labels from a federation
+// export.
 //
-// A federation export seeds a new global control plane, and a resource that
-// still carries `kuma.io/origin: zone` would be imported there as a zone
-// resource. Dropping it lets the destination record the resource as its own,
-// which is what kumactl does for the same two profiles and for the same reason.
+// A federation export seeds a new global control plane. A resource that still
+// carries `kuma.io/origin: zone` would be imported there as a zone resource,
+// and one that still carries `kuma.io/zone` is refused by the destination's
+// validator before it is stored at all. Dropping both lets the destination
+// record the resource as its own, which is what kumactl does for the same two
+// profiles and for the same reason.
 //
 // This is not a way to reapply an export to the control plane it came from.
-// The label is immutable, so a resource that reached global by syncing up from
-// a zone is refused on reapply with "cannot be changed from zone to global"
-// whatever the stream says. `all` and `no-dataplanes` keep every label,
-// matching kumactl, since they describe a control plane rather than seed one.
-func removeOriginLabel(profile string, item map[string]any) {
+// The origin label is immutable, so a resource that reached global by syncing
+// up from a zone is refused on reapply with "cannot be changed from zone to
+// global" whatever the stream says. `all` and `no-dataplanes` keep every
+// label, matching kumactl, since they describe a control plane rather than
+// seed one.
+func removeFederationLabels(profile string, item map[string]any) {
 	if profile != ProfileFederation && profile != ProfileFederationWithPolicies {
 		return
 	}
@@ -129,6 +138,7 @@ func removeOriginLabel(profile string, item map[string]any) {
 	}
 
 	delete(labels, originLabel)
+	delete(labels, zoneLabel)
 	if len(labels) == 0 {
 		// An empty map is written out as `labels: {}`, which is noise in a
 		// stream meant to be read back.

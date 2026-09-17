@@ -143,3 +143,83 @@ func TestClassifyForDumpSuppressesInitialPolicies(t *testing.T) {
 		t.Errorf("expected skipCreatingInitialPolicies to be set to [*], got %v", item["skipCreatingInitialPolicies"])
 	}
 }
+
+func TestRemoveFederationLabels(t *testing.T) {
+	// A global control plane rejects kuma.io/zone outright and treats
+	// kuma.io/origin as immutable, so a federation export must carry neither.
+	tests := []struct {
+		name      string
+		profile   string
+		labels    map[string]any
+		wantGone  []string
+		wantKept  []string
+		wantNoKey bool
+	}{
+		{
+			name:    "federation drops origin and zone",
+			profile: ProfileFederation,
+			labels: map[string]any{
+				"kuma.io/origin":       "zone",
+				"kuma.io/zone":         "zone1",
+				"kuma.io/display-name": "backend",
+			},
+			wantGone: []string{"kuma.io/origin", "kuma.io/zone"},
+			wantKept: []string{"kuma.io/display-name"},
+		},
+		{
+			name:    "federation-with-policies drops them too",
+			profile: ProfileFederationWithPolicies,
+			labels: map[string]any{
+				"kuma.io/origin": "zone",
+				"kuma.io/zone":   "zone2",
+				"kuma.io/mesh":   "default",
+			},
+			wantGone: []string{"kuma.io/origin", "kuma.io/zone"},
+			wantKept: []string{"kuma.io/mesh"},
+		},
+		{
+			name:    "all keeps every label",
+			profile: ProfileAll,
+			labels: map[string]any{
+				"kuma.io/origin": "zone",
+				"kuma.io/zone":   "zone1",
+			},
+			wantKept: []string{"kuma.io/origin", "kuma.io/zone"},
+		},
+		{
+			name:      "labels map is dropped when it empties out",
+			profile:   ProfileFederation,
+			labels:    map[string]any{"kuma.io/origin": "zone", "kuma.io/zone": "zone1"},
+			wantNoKey: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := map[string]any{"name": "res", "labels": tt.labels}
+			removeFederationLabels(tt.profile, item)
+
+			if tt.wantNoKey {
+				if _, ok := item["labels"]; ok {
+					t.Errorf("labels key should be removed once empty, got %v", item["labels"])
+				}
+				return
+			}
+
+			labels, ok := item["labels"].(map[string]any)
+			if !ok {
+				t.Fatalf("labels missing or wrong type: %v", item["labels"])
+			}
+			for _, k := range tt.wantGone {
+				if _, present := labels[k]; present {
+					t.Errorf("%s should have been stripped for profile %q", k, tt.profile)
+				}
+			}
+			for _, k := range tt.wantKept {
+				if _, present := labels[k]; !present {
+					t.Errorf("%s should have been kept for profile %q", k, tt.profile)
+				}
+			}
+		})
+	}
+}
