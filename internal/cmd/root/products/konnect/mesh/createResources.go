@@ -223,9 +223,11 @@ func readResourceURL(helper cmd.Helper, rawURL, defaultMesh string) ([]meshResou
 		return nil, err
 	}
 
-	// The configured timeout and transport apply here too; what stays separate
-	// is the credential, which apiutil.Request does not attach.
-	client, err := newHTTPClient(cfg, logger)
+	// The configured timeout and transport apply here too. What stays separate
+	// is everything that identifies the caller to a control plane: the
+	// credential, which apiutil.Request does not attach, and the TLS identity
+	// and trust policy, which this client does not carry.
+	client, err := newInputClient(cfg, logger)
 	if err != nil {
 		return nil, err
 	}

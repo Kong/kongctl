@@ -83,7 +83,7 @@ func ListControlPlanes(helper cmd.Helper) ([]ControlPlane, error) {
 	}
 
 	var controlPlanes []ControlPlane
-	client, err := newHTTPClient(cfg, logger)
+	client, err := newKonnectClient(cfg, logger)
 	if err != nil {
 		return nil, err
 	}

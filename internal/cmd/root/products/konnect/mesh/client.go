@@ -66,30 +66,97 @@ func (e apiError) Error() string {
 	return msg
 }
 
-// newHTTPClient builds the HTTP client every mesh request uses.
+// Mesh talks to three kinds of destination, and only one of them may be
+// presented the control plane's TLS identity. Timeout and transport behaviour
+// are shared by all three, so they resolve through the same helpers the rest
+// of the Konnect operations use; TLS identity and trust are scoped per
+// destination.
 //
-// The configured timeout and transport behaviour are resolved through the same
-// helpers the rest of the Konnect operations use, so a configured value
-// reaches mesh requests too. Constructing a default client here instead would
-// quietly opt mesh out of that configuration.
-func newHTTPClient(cfg config.Hook, logger *slog.Logger) (*httpclient.LoggingHTTPClient, error) {
-	clientConfig, err := meshClientConfig(cfg)
+// A single builder installed the control plane's client certificate, private
+// CA and tls-skip-verify on every destination. A remote `-f https://...` input
+// therefore presented the operator's control plane certificate to whatever
+// server held the file, and accepted that server's certificate through a
+// skip-verify meant for the control plane. Omitting the bearer token was not
+// enough: TLS is its own credential.
+
+// newControlPlaneClient builds the client for control plane requests. Only a
+// self managed target's TLS material is installed; Konnect is reached over its
+// own certificates.
+func newControlPlaneClient(
+	cfg config.Hook, target meshTarget, logger *slog.Logger,
+) (*httpclient.LoggingHTTPClient, error) {
+	clientConfig, err := controlPlaneClientConfig(cfg, target)
 	if err != nil {
 		return nil, err
 	}
-
-	return httpclient.NewLoggingHTTPClientWithClient(
-		httpclient.NewHTTPClientWithConfig(clientConfig), logger), nil
+	return newLoggingClient(clientConfig, logger), nil
 }
 
-// isSelfManaged reports whether requests address a self managed control plane
-// rather than a Konnect hosted one.
+// controlPlaneClientConfig is the control plane's client settings, separated
+// from the client itself so that what TLS material a target receives can be
+// asserted directly.
+func controlPlaneClientConfig(
+	cfg config.Hook, target meshTarget,
+) (httpclient.ClientConfig, error) {
+	clientConfig, err := baseClientConfig(cfg)
+	if err != nil {
+		return httpclient.ClientConfig{}, err
+	}
+
+	if target.selfManaged {
+		tlsConfig, err := selfManagedTLSConfig(cfg)
+		if err != nil {
+			return httpclient.ClientConfig{}, err
+		}
+		clientConfig.TransportOptions.TLSClientConfig = tlsConfig
+	}
+
+	return clientConfig, nil
+}
+
+// newKonnectClient builds the client for Konnect's own API, such as listing
+// control planes. Konnect presents its own certificates, so no control plane
+// TLS material applies.
+func newKonnectClient(cfg config.Hook, logger *slog.Logger) (*httpclient.LoggingHTTPClient, error) {
+	clientConfig, err := baseClientConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return newLoggingClient(clientConfig, logger), nil
+}
+
+// newInputClient builds the client that downloads resource documents named by
+// `-f <url>`. That URL is not the control plane, so it is sent neither the
+// control plane's credential nor its TLS identity, and it is not trusted
+// through the control plane's skip-verify option.
+func newInputClient(cfg config.Hook, logger *slog.Logger) (*httpclient.LoggingHTTPClient, error) {
+	clientConfig, err := baseClientConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return newLoggingClient(clientConfig, logger), nil
+}
+
+func newLoggingClient(
+	clientConfig httpclient.ClientConfig, logger *slog.Logger,
+) *httpclient.LoggingHTTPClient {
+	return httpclient.NewLoggingHTTPClientWithClient(
+		httpclient.NewHTTPClientWithConfig(clientConfig), logger)
+}
+
+// meshTarget is the control plane an invocation addresses, resolved once.
 //
-// The URL is what distinguishes them: a Konnect control plane is addressed by
-// ID or name through Konnect's own base URL, so an explicit API URL can only be
-// a control plane the operator runs.
-func isSelfManaged(cfg config.Hook) bool {
-	return strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneURLConfigPath)) != ""
+// Whether a target is self managed decides three things at once: the base URL,
+// which credential is sent, and whose TLS material applies. Deciding it twice
+// from different inputs is how a self managed token reached a hosted endpoint:
+// the URL resolver honoured an explicit --control-plane-id while a separate
+// check asked only whether a URL happened to sit in configuration. One value,
+// resolved once, keeps the three consistent.
+type meshTarget struct {
+	baseURL string
+	// selfManaged is true when the resolved target is a control plane the
+	// operator runs, which authenticates its own callers.
+	selfManaged bool
 }
 
 // selfManagedTLSConfig builds the TLS settings for a self managed control
@@ -149,11 +216,12 @@ func selfManagedTLSConfig(cfg config.Hook) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// meshClientConfig resolves the configured HTTP behaviour for mesh requests.
+// baseClientConfig resolves the configured HTTP behaviour shared by every
+// mesh destination. It carries no TLS identity: that is destination specific.
 //
 // Separated from the client it builds because the wrapped client keeps its
 // settings private, so this is where the resolution can be asserted.
-func meshClientConfig(cfg config.Hook) (httpclient.ClientConfig, error) {
+func baseClientConfig(cfg config.Hook) (httpclient.ClientConfig, error) {
 	timeout, err := konnectcommon.ResolveHTTPTimeout(cfg)
 	if err != nil {
 		return httpclient.ClientConfig{}, err
@@ -162,16 +230,6 @@ func meshClientConfig(cfg config.Hook) (httpclient.ClientConfig, error) {
 	transportOptions, err := konnectcommon.ResolveHTTPTransportOptions(cfg)
 	if err != nil {
 		return httpclient.ClientConfig{}, err
-	}
-
-	// TLS material applies only to a control plane the operator runs; Konnect
-	// is reached over its own certificates.
-	if isSelfManaged(cfg) {
-		tlsConfig, err := selfManagedTLSConfig(cfg)
-		if err != nil {
-			return httpclient.ClientConfig{}, err
-		}
-		transportOptions.TLSClientConfig = tlsConfig
 	}
 
 	return httpclient.ClientConfig{
@@ -325,7 +383,7 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		return nil, 0, err
 	}
 
-	baseURL, err := resolveBaseURL(helper, cfg)
+	target, err := resolveTarget(helper, cfg)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -339,10 +397,12 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 	// credentials are neither required nor sent. Resolving them regardless
 	// meant an unauthenticated local control plane never received a request:
 	// the command failed first on the missing Konnect token.
-	selfManaged := isSelfManaged(cfg)
-
+	//
+	// This reads the resolved target rather than asking configuration again,
+	// so an explicit --control-plane-id carries the Konnect credential even
+	// when a self managed URL is also configured.
 	var tokenSource *auth.TokenSource
-	if !selfManaged {
+	if !target.selfManaged {
 		tokenSource, err = konnectcommon.GetAccessTokenSource(cfg, logger)
 		if err != nil {
 			return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
@@ -361,21 +421,21 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		headers = map[string]string{"Content-Type": "application/json"}
 	}
 
-	client, err := newHTTPClient(cfg, logger)
+	client, err := newControlPlaneClient(cfg, target, logger)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var result *apiutil.Result
-	if selfManaged {
+	if target.selfManaged {
 		// An empty token sends no authorization header, which is what a
 		// control plane reached over loopback expects: Kuma authenticates
 		// such a caller as admin.
-		result, err = apiutil.Request(ctx, client, method, baseURL, path,
+		result, err = apiutil.Request(ctx, client, method, target.baseURL, path,
 			strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneTokenConfigPath)), headers, payload)
 	} else {
 		result, err = apiutil.RequestWithTokenSource(
-			ctx, client, method, baseURL, path, tokenSource, headers, payload)
+			ctx, client, method, target.baseURL, path, tokenSource, headers, payload)
 	}
 	if err != nil {
 		return nil, 0, err
@@ -422,13 +482,14 @@ func buildAPIError(statusCode int, body []byte) error {
 	return fmt.Errorf("control plane request failed with status %d", statusCode)
 }
 
-// resolveBaseURL determines which control plane a command addresses.
+// resolveTarget determines which control plane a command addresses, and
+// whether it is one the operator runs.
 //
 // meshcommon resolves an explicit URL or an identifier from configuration
 // alone. A name needs a Konnect call to become an identifier, which cannot
 // live there, so it is resolved here and the identifier written back to
 // configuration — leaving the composition itself in one place.
-func resolveBaseURL(helper cmd.Helper, cfg config.Hook) (string, error) {
+func resolveTarget(helper cmd.Helper, cfg config.Hook) (meshTarget, error) {
 	// A selector named on the command line is this invocation's intent, so it
 	// decides the target even when configuration names a different one. Without
 	// this, a configured ID answers an explicit --control-plane-name, and since
@@ -436,35 +497,59 @@ func resolveBaseURL(helper cmd.Helper, cfg config.Hook) (string, error) {
 	// plane the operator did not choose.
 	selector, err := explicitControlPlaneSelector(helper)
 	if err != nil {
-		return "", err
+		return meshTarget{}, err
 	}
 
+	// Which selector won decides self managed, not whether a URL exists in
+	// configuration. An explicit ID or name addresses Konnect even when a self
+	// managed URL is also configured, and it must then carry the Konnect
+	// credential rather than the self managed one.
 	switch selector {
 	case meshcommon.ControlPlaneURLFlagName:
-		return meshcommon.ResolveControlPlaneAPIURL(cfg)
+		baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
+		if err != nil {
+			return meshTarget{}, err
+		}
+		return meshTarget{baseURL: baseURL, selfManaged: true}, nil
 	case meshcommon.ControlPlaneIDFlagName:
-		return meshcommon.ControlPlaneAPIURLForID(
+		baseURL, err := meshcommon.ControlPlaneAPIURLForID(
 			cfg, cfg.GetString(meshcommon.ControlPlaneIDConfigPath))
+		if err != nil {
+			return meshTarget{}, err
+		}
+		return meshTarget{baseURL: baseURL}, nil
 	case meshcommon.ControlPlaneNameFlagName:
-		return resolveBaseURLByName(
+		baseURL, err := resolveBaseURLByName(
 			helper, cfg, cfg.GetString(meshcommon.ControlPlaneNameConfigPath))
+		if err != nil {
+			return meshTarget{}, err
+		}
+		return meshTarget{baseURL: baseURL}, nil
 	}
 
 	// Nothing was named on the command line, so configuration decides in the
-	// documented order: URL, then ID, then name.
+	// documented order: URL, then ID, then name. Only the URL branch is self
+	// managed.
 	baseURL, err := meshcommon.ResolveControlPlaneAPIURL(cfg)
 	if err == nil {
-		return baseURL, nil
+		return meshTarget{
+			baseURL:     baseURL,
+			selfManaged: strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneURLConfigPath)) != "",
+		}, nil
 	}
 
 	name := strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneNameConfigPath))
 	if name == "" {
 		// Nothing identifies a control plane, so report that rather than the
 		// failure to resolve a name that was never given.
-		return "", err
+		return meshTarget{}, err
 	}
 
-	return resolveBaseURLByName(helper, cfg, name)
+	byName, err := resolveBaseURLByName(helper, cfg, name)
+	if err != nil {
+		return meshTarget{}, err
+	}
+	return meshTarget{baseURL: byName}, nil
 }
 
 // resolveBaseURLByName turns a control plane name into its API URL.
