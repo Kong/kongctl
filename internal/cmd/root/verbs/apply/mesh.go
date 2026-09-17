@@ -71,8 +71,8 @@ func NewDirectMeshCmd() (*cobra.Command, error) {
   # Apply every resource in a directory
   %[1]s apply mesh -f ./policies --control-plane-id <id>
 
-  # Apply from stdin, which is how an export is reapplied
-  %[1]s dump mesh --control-plane-id <id> | %[1]s apply mesh -f - --control-plane-id <id>`, meta.CLIName)
+  # Apply from stdin
+  cat policy.yaml | %[1]s apply mesh -f - --control-plane-id <id>`, meta.CLIName)
 
 	return meshCmd, nil
 }

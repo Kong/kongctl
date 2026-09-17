@@ -42,13 +42,14 @@ type applyResult struct {
 	Err      error
 }
 
-// runCreateResources serves `create mesh -f <source>`, applying every document
+// runApplyResources serves `apply mesh -f <source>`, applying every document
 // in the input to the control plane.
 //
 // Kuma addresses a resource by type and name and creates or replaces it with a
-// PUT, which is what kumactl apply does. The verb here is create rather than
-// apply because kongctl's apply carries plan-and-diff semantics this does not.
-func runCreateResources(helper cmd.Helper, filenames []string) error {
+// PUT, so every write is an upsert and is reported as created or updated. That
+// is what kumactl apply does and what this is named after. It is not kongctl's
+// declarative apply and carries no plan-and-diff step.
+func runApplyResources(helper cmd.Helper, filenames []string) error {
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
