@@ -20,9 +20,10 @@ import (
 // giving "kongctl create mesh ..." alongside the explicit
 // "kongctl create konnect mesh ..." form.
 //
-// `apply mesh` is the primary form for sending resources, since a write
-// creates or replaces and that is what apply means. This is kept because it is
-// the name the command first shipped under.
+// Under create, mesh serves token issuance only. Resources are written with
+// `apply mesh -f`, because a write creates or replaces and that is what apply
+// means; a create that silently replaced an existing resource was the reason
+// the -f form is not offered here.
 //
 // Reaching Kong Mesh through one command path regardless of whether the control
 // plane is Konnect hosted or self managed is deliberate: where a control plane
@@ -66,15 +67,14 @@ func NewDirectMeshCmd() (*cobra.Command, error) {
 		return nil, err
 	}
 
-	meshCmd.Example = fmt.Sprintf(`  # Apply mesh resources from a file. A write creates or replaces,
-  # so 'apply mesh' is the primary form for this.
-  %[1]s create mesh -f policy.yaml --control-plane-id <id>
+	meshCmd.Example = fmt.Sprintf(`  # Issue a token that proves a zone's identity to the global control plane
+  %[1]s create mesh zone-token --zone zone1 --valid-for 720h --control-plane-id <id>
 
-  # Apply every resource in a directory
-  %[1]s create mesh -f ./policies --control-plane-id <id>
+  # Issue a token that proves a dataplane's identity
+  %[1]s create mesh dataplane-token --mesh default --name backend-01 --control-plane-id <id>
 
-  # Apply from stdin
-  cat policy.yaml | %[1]s create mesh -f - --control-plane-id <id>`, meta.CLIName)
+  # Mesh resources are written with apply, since a write creates or replaces
+  %[1]s apply mesh -f policy.yaml --control-plane-id <id>`, meta.CLIName)
 
 	return meshCmd, nil
 }

@@ -14,7 +14,7 @@ import (
 
 const CommandName = meshcommon.CommandName
 
-// FilenameFlagName names the -f flag that supplies resources to create.
+// FilenameFlagName names the -f flag that supplies resources to apply.
 const FilenameFlagName = "filename"
 
 var (
@@ -53,13 +53,18 @@ Kong Mesh 3.0 or later is required.`))
 
 // appliesResources reports whether a verb sends resource documents from -f.
 //
-// Both apply and create do. `apply` is the primary form because it is what
-// kumactl calls this and what the behaviour actually is: the control plane
-// addresses a resource by type and name and a write creates or replaces it,
-// which kumactl implements as an upsert and reports as created or updated.
-// `create` is kept because it was the name this shipped under first.
+// Only apply does. The control plane addresses a resource by type and name and
+// a write creates or replaces it, so every resource write is an upsert; apply
+// is both what that means and what kumactl calls it.
+//
+// `create mesh -f` reached the same write and so replaced an existing resource
+// while reporting "updated", without the operator asking for a replacement.
+// Kuma has no create-only write to implement a conflict check against, and
+// detecting the conflict client-side would be a racy read-then-write, so the
+// alias is gone rather than given surprising semantics. Token issuance stays
+// under create, where a create is what it is.
 func appliesResources(verb verbs.VerbValue) bool {
-	return verb == verbs.Apply || verb == verbs.Create
+	return verb == verbs.Apply
 }
 
 // NewMeshCmd builds the mesh container command for a verb.
@@ -116,7 +121,7 @@ func NewMeshCmd(
 			if err != nil {
 				return err
 			}
-			return runCreateResources(helper, filenames)
+			return runApplyResources(helper, filenames)
 		}
 		if verb == verbs.Delete {
 			if len(args) != 2 {
