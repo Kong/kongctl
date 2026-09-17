@@ -1,0 +1,58 @@
+{
+  "schema_version": 2,
+  "scenario": "portal/ip-allow-list",
+  "inputs_sha256": "sha256:c46834b8c6563670d635d29969cb483e18e3a85b4501f2da8a8c58e0d90ff07e",
+  "source": {
+    "kind": "recorded",
+    "commit": "5c23f18406326d822ca75585fe532f8ca9d45f58",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35165520273"
+  },
+  "parallel_phases": [
+    {
+      "start": 4,
+      "end": 7,
+      "after": {}
+    },
+    {
+      "start": 8,
+      "end": 39,
+      "after": {}
+    },
+    {
+      "start": 40,
+      "end": 56,
+      "after": {}
+    },
+    {
+      "start": 57,
+      "end": 73,
+      "after": {}
+    },
+    {
+      "start": 74,
+      "end": 81,
+      "after": {}
+    },
+    {
+      "start": 82,
+      "end": 98,
+      "after": {}
+    },
+    {
+      "start": 99,
+      "end": 130,
+      "after": {}
+    },
+    {
+      "start": 131,
+      "end": 136,
+      "after": {}
+    }
+  ],
+  "interaction_chunks": [
+    "63e615790e91da6708be0e8e063a49143023f0e8ec300bef0021eed1ff51293c",
+    "a44a5398ba2de9f7dc5a1e628e3c08022851512057946c3796018f7de9235bfc",
+    "914064359d3757b223338fbcef46c3a3bb4af25b6e44e969c262004c5af35d45",
+    "3c54b9edac3d455b98522e0382d92940daa43aaa3f88132f0c73803e2aef0f06"
+  ]
+}

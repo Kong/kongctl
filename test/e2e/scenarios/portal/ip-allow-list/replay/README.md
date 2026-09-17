@@ -29,8 +29,24 @@ cannot consume pre-update responses. Cleanup reads remain before deletion.
 Identical requests retain stream order. No phase crosses a command boundary,
 and no later-state response can satisfy an earlier-state command.
 
-Recording's 43.845-second scenario duration includes proxy overhead and is
-not a normal live baseline. Isolated replay validation is pending; this
-scenario is not yet in the PR replay policy.
+The annotated candidate passed [three loopback-only replays][replay], each
+matching all 136 exchanges. Scenario durations were 1.732, 1.715 and 1.683
+seconds; wrapper durations were 2.297, 2.388 and 2.399 seconds. The committed
+chunks preserve the validated candidate exactly, including all response data,
+ordering annotations and provenance. No matcher or sanitizer rules changed.
+
+The ordinary [PR run at the recording's source commit][live] measured 13.01
+seconds live. This suggests about 11 seconds less scenario work, not a
+controlled benchmark or a measured end-to-end workflow saving. Live subtest
+timing includes the scenario reset, so reset savings must not be added again.
+Replay's scenario timer additionally includes test-process startup. Recording's
+43.845-second scenario duration includes proxy overhead and is not a normal
+live baseline.
+
+Only eligible PRs use this cassette. Main and force-live runs stay live. Input
+or assertion changes invalidate the fingerprint and require a new reviewed
+recording or removal from replay policy.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/35165520273
+[replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
+[live]: https://github.com/Kong/kongctl/actions/runs/35165525053

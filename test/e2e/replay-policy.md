@@ -8,7 +8,8 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
 `event-gateway/consume-policy`,
-`portal/api_docs_with_children`, `portal/sync`, and `portal/visibility`.
+`portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/sync`, and
+`portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -20,6 +21,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
+| portal/ip-allow-list | [Recording][ip-record], [isolated replays][ip-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -34,6 +36,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
 [docs-record]: https://github.com/Kong/kongctl/actions/runs/34860627806
 [docs-replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
+[ip-record]: https://github.com/Kong/kongctl/actions/runs/35165520273
+[ip-replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
 
 ## Routing
 
