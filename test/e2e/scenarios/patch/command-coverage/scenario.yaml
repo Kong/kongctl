@@ -189,3 +189,57 @@ steps:
         expectFailure:
           exitCode: 1
           contains: "cannot combine"
+
+  - name: 008-preserve-custom-tags
+    skipInputs: true
+    commands:
+      - name: 000-inline-cost
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/tagged.yaml"
+          - -s
+          - >-
+            $.ai_gateway_models[?(@.ref=='model-gemini-3.1-flash-lite-preview')].targets[?(@.name=='gemini-3.1-flash-lite-preview')].config
+          - -v
+          - "input_cost:0.25"
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'input_cost: 0.25')": true
+                "contains(stdout, 'ai_gateway: !ref lab-agentic')": true
+                "contains(stdout, 'file: !file ./nonexistent.txt')": true
+                "contains(stdout, 'env: !env PATCH_REPRO_NONEXISTENT')": true
+                "contains(stdout, 'secret: !secret')": true
+                "contains(stdout, 'source: !env PATCH_REPRO_NONEXISTENT')": true
+      - name: 001-patch-file-cost
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/tagged.yaml"
+          - "{{ .scenario_dir }}/testdata/patches/set-cost.yaml"
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'input_cost: 0.25')": true
+                "contains(stdout, 'ai_gateway: !ref lab-agentic')": true
+                "contains(stdout, 'file: !file ./nonexistent.txt')": true
+                "contains(stdout, 'env: !env PATCH_REPRO_NONEXISTENT')": true
+                "contains(stdout, 'secret: !secret')": true
+                "contains(stdout, 'source: !env PATCH_REPRO_NONEXISTENT')": true
+      - name: 002-json-rejected
+        run:
+          - patch
+          - file
+          - "{{ .scenario_dir }}/testdata/tagged.yaml"
+          - "{{ .scenario_dir }}/testdata/patches/set-cost.yaml"
+          - --format
+          - json
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: "cannot output JSON"
