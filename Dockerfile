@@ -10,6 +10,8 @@ FROM alpine:3@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec4349
 
 ARG TARGETPLATFORM
 
+RUN apk add --no-cache --upgrade libssl3 libcrypto3
+
 COPY --from=basefs /etc/passwd /etc/passwd
 COPY --from=basefs /etc/group /etc/group
 COPY --from=basefs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
