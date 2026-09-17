@@ -20,6 +20,7 @@ import (
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
@@ -222,6 +223,18 @@ func meshTestConfig(t *testing.T, settings map[string]any) config.Hook {
 	main := viper.New()
 	main.Set("default", settings)
 	return config.BuildProfiledConfig("default", "/tmp/kongctl-mesh-test-config.yaml", main)
+}
+
+// meshTestConfigWithEnv is meshTestConfig with environment variable handling
+// wired up, which plain viper.New() does not do. Use it when a test needs the
+// KONGCTL_<PROFILE>_... rung of the precedence chain.
+func meshTestConfigWithEnv(t *testing.T, settings map[string]any) config.Hook {
+	t.Helper()
+
+	const path = "/tmp/kongctl-mesh-test-config.yaml"
+	main := utilviper.NewViper(path)
+	main.Set("default", settings)
+	return config.BuildProfiledConfig("default", path, main)
 }
 
 // Mesh requests must use the configured HTTP behaviour rather than a default

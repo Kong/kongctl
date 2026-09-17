@@ -1,0 +1,207 @@
+# The resource write lifecycle: apply, read back, delete.
+#
+# Everything created here is deleted in the final step. The org reset that other
+# suites rely on does not sweep mesh control planes, so a scenario that leaves a
+# mesh behind leaves it behind for every later run.
+#
+# Names are fixed and prefixed rather than randomised, matching the other
+# suites; isolation comes from the org matrix and the explicit cleanup.
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
+  requiredEnvVars:
+    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
+  info: >
+    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
+    of a Kong Mesh control plane to run the mesh scenarios.
+
+vars:
+  mesh: kongctl-e2e-mesh-lifecycle
+  policy: kongctl-e2e-timeouts
+
+steps:
+  # A previous run that failed before its cleanup step would leave these
+  # behind, so remove them first and tolerate their absence.
+  - name: 000-pre-clean
+    skipInputs: true
+    commands:
+      - name: 000-delete-policy-if-present
+        run:
+          - delete
+          - mesh
+          - meshtimeouts
+          - "{{ .vars.policy }}"
+          - --mesh
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        # Absent is the expected case on a clean org.
+        expectFailure:
+          exitCode: 1
+      - name: 001-delete-mesh-if-present
+        run:
+          - delete
+          - mesh
+          - meshes
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        expectFailure:
+          exitCode: 1
+
+  - name: 001-apply-mesh
+    skipInputs: true
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - mesh
+          - -f
+          - "-"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        stdin: |
+          type: Mesh
+          name: {{ .vars.mesh }}
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='Mesh' && name=='{{ .vars.mesh }}' && result=='created']) == `1`": true
+
+  # A write addresses a resource by type and name and creates or replaces it,
+  # so applying the same document again is an update rather than a conflict.
+  - name: 002-apply-is-an-upsert
+    skipInputs: true
+    commands:
+      - name: 000-reapply
+        run:
+          - apply
+          - mesh
+          - -f
+          - "-"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        stdin: |
+          type: Mesh
+          name: {{ .vars.mesh }}
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?name=='{{ .vars.mesh }}' && result=='updated']) == `1`": true
+
+  - name: 003-apply-a-policy-into-the-mesh
+    skipInputs: true
+    commands:
+      - name: 000-apply-policy
+        run:
+          - apply
+          - mesh
+          - -f
+          - "-"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        stdin: |
+          type: MeshTimeout
+          name: {{ .vars.policy }}
+          mesh: {{ .vars.mesh }}
+          spec:
+            targetRef:
+              kind: Mesh
+            to:
+              - targetRef:
+                  kind: Mesh
+                default:
+                  connectionTimeout: 5s
+                  idleTimeout: 1h
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='MeshTimeout' && result=='created']) == `1`": true
+
+  - name: 004-read-back
+    skipInputs: true
+    commands:
+      - name: 000-get-the-mesh
+        run:
+          - get
+          - mesh
+          - meshes
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='{{ .vars.mesh }}']) == `1`": true
+      - name: 001-get-the-policy
+        run:
+          - get
+          - mesh
+          - meshtimeouts
+          - "{{ .vars.policy }}"
+          - --mesh
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.policy }}"
+                mesh: "{{ .vars.mesh }}"
+                # Written through this control plane, so it owns the resource.
+                'labels."kuma.io/origin"': global
+
+  - name: 005-delete-cleanup
+    skipInputs: true
+    # A write or delete against a remote control plane occasionally takes long
+    # enough to look like a failure. Retrying matters most here: a cleanup that
+    # gives up leaves a mesh behind for every later run, because the org reset
+    # the other suites rely on does not sweep mesh control planes.
+    retry:
+      attempts: 3
+      interval: 5s
+      backoffFactor: 2
+    commands:
+      - name: 000-delete-policy
+        run:
+          - delete
+          - mesh
+          - meshtimeouts
+          - "{{ .vars.policy }}"
+          - --mesh
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='deleted']) == `1`": true
+      - name: 001-delete-mesh
+        run:
+          - delete
+          - mesh
+          - meshes
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='deleted']) == `1`": true
+      - name: 002-confirm-gone
+        run:
+          - get
+          - mesh
+          - meshes
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='{{ .vars.mesh }}'])": 0

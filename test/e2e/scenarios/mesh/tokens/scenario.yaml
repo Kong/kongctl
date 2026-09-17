@@ -1,0 +1,90 @@
+# Token issuance.
+#
+# A zone token proves a zone control plane's identity when it connects to the
+# global control plane over KDS; a dataplane token proves a proxy's identity.
+# Both are issued by the control plane and returned as a signed JWT, so the
+# assertion is on the shape of what comes back rather than its contents.
+#
+# Nothing is created that needs deleting: a token is not a stored resource.
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
+  requiredEnvVars:
+    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
+  info: >
+    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
+    of a Kong Mesh control plane to run the mesh scenarios.
+
+steps:
+  - name: 000-zone-token
+    skipInputs: true
+    commands:
+      - name: 000-issue
+        run:
+          - create
+          - mesh
+          - zone-token
+          - --zone
+          - kongctl-e2e-zone
+          - --valid-for
+          - 1h
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        # The token is printed as a bare JWT, not structured output.
+        parseAs: text
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                # A compact JWS: base64url segments joined by dots, so the
+                # header decodes from the leading 'eyJ'.
+                "starts_with(text, 'eyJ')": true
+                "contains(text, '.')": true
+                "length(text) > `100`": true
+
+  - name: 001-dataplane-token
+    skipInputs: true
+    commands:
+      - name: 000-issue
+        run:
+          - create
+          - mesh
+          - dataplane-token
+          - --mesh
+          - default
+          - --name
+          - kongctl-e2e-dp
+          - --valid-for
+          - 1h
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        parseAs: text
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "starts_with(text, 'eyJ')": true
+                "length(text) > `100`": true
+
+  # A lifetime is required, and configuration can satisfy it, so the resolved
+  # value is validated rather than the flag's presence.
+  - name: 002-lifetime-from-the-environment
+    skipInputs: true
+    commands:
+      - name: 000-issue-without-the-flag
+        env:
+          KONGCTL_DEFAULT_KONNECT_MESH_TOKEN_VALID_FOR: 1h
+        run:
+          - create
+          - mesh
+          - zone-token
+          - --zone
+          - kongctl-e2e-zone
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        parseAs: text
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "starts_with(text, 'eyJ')": true
+                "length(text) > `100`": true
