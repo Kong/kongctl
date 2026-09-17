@@ -1,9 +1,15 @@
 # Control plane sync replay
 
 The expanded scenario was recorded in [run 35249677971][recording] from
-commit `e3ef7d42dac40ddd0a0b5ed7b89b17e630b7066a`. The live scenario and
+commit `e3ef7d42d`. The live scenario and
 final reset passed. Its initial strict replay failed at the replacement
 step; the sanitized candidate remains the source for annotation validation.
+
+All three [isolated replays][validation] passed with the reviewed annotation,
+each consuming all 16 exchanges and passing the expanded scenario assertions.
+The committed cassette is the identical `validated-cassette.json` produced
+by all three attempts. It differs from the live candidate only by the
+reviewed `parallel_phases`; its input fingerprint and provenance are intact.
 
 ## Recording review
 
@@ -36,3 +42,4 @@ SHA-256. The positions were reviewed against this recording, rather than
 copied from the previous cassette.
 
 [recording]: https://github.com/Kong/kongctl/actions/runs/35249677971
+[validation]: https://github.com/Kong/kongctl/actions/runs/35250398004

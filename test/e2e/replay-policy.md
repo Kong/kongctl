@@ -26,8 +26,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
-[sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
-[sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
+[sync]: https://github.com/Kong/kongctl/actions/runs/35249677971
+[sync-replay]: https://github.com/Kong/kongctl/actions/runs/35250398004
 [consume-record]: https://github.com/Kong/kongctl/actions/runs/35115143565
 [consume-replay]: https://github.com/Kong/kongctl/actions/runs/35116004092
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
@@ -122,11 +122,13 @@ removal and API deletion remain barriers; reads from later scenario states
 cannot satisfy earlier requests. An annotation is a reviewed assertion about
 independent operations, not a general simulation of Konnect state.
 
-Control Plane sync annotates only exchanges 4–6: creating the new control
+Control Plane sync annotates only exchanges 10–12: creating the new control
 plane is independent of looking up/deleting the old one, but the old lookup
 must precede its deletion. All inventory and final-cleanup requests retain
-strict order. Its v2 cassette passed three isolated replays; the original
-strict-order flake was also reproduced using the unchanged main replay engine.
+strict order. Its refreshed v2 cassette covers UPDATE and idempotency after
+CREATE and UPDATE, and passed three isolated replays of all 16 exchanges.
+The [scenario replay review](scenarios/control-plane/sync/replay/README.md)
+documents the command boundaries and recording provenance.
 
 To iterate on an existing candidate without resetting a live organization:
 
