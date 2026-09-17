@@ -6,7 +6,7 @@ must have a reviewed, sanitized live recording beside its inputs, pass all
 normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
-`control-plane/plan/apply-workflow`, `control-plane/sync`,
+`control-plane/plan/apply-workflow`,
 `event-gateway/consume-policy`,
 `portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/sync`, and
 `portal/visibility`.
@@ -16,7 +16,6 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | get | [34377519108][get] |
 | apply | [34427742802][apply] |
 | plan/apply-workflow | [34428189915][plan] |
-| sync | [Recording][sync], [isolated phases][sync-replay] |
 | event-gateway/consume-policy | [Recording][consume-record], [isolated replays][consume-replay] |
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
@@ -26,8 +25,6 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
-[sync]: https://github.com/Kong/kongctl/actions/runs/34520312018
-[sync-replay]: https://github.com/Kong/kongctl/actions/runs/34521883600
 [consume-record]: https://github.com/Kong/kongctl/actions/runs/35115143565
 [consume-replay]: https://github.com/Kong/kongctl/actions/runs/35116004092
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
@@ -40,6 +37,10 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [ip-replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
 
 ## Routing
+
+`control-plane/sync` runs live after adding UPDATE and idempotency coverage.
+Its previous recording no longer covers the scenario. Restore replay
+eligibility only after recording and reviewing the expanded scenario.
 
 Same-repository PRs targeting `.com` run the enabled subset through a local
 HTTPS replay proxy. All other scenarios still run against real Konnect.
@@ -121,12 +122,6 @@ individual read-only planning/dump commands, and final cleanup. Publication
 removal and API deletion remain barriers; reads from later scenario states
 cannot satisfy earlier requests. An annotation is a reviewed assertion about
 independent operations, not a general simulation of Konnect state.
-
-Control Plane sync annotates only exchanges 4–6: creating the new control
-plane is independent of looking up/deleting the old one, but the old lookup
-must precede its deletion. All inventory and final-cleanup requests retain
-strict order. Its v2 cassette passed three isolated replays; the original
-strict-order flake was also reproduced using the unchanged main replay engine.
 
 To iterate on an existing candidate without resetting a live organization:
 
