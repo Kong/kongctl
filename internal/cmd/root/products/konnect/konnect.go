@@ -204,7 +204,17 @@ func preRunE(c *cobra.Command, args []string) error {
 }
 
 // meshVerbs are the verbs Kong Mesh serves under the explicit product path.
-var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Create, verbs.Dump}
+//
+// Get and Create are the only ones reachable. For Plan, Sync, Diff, Export,
+// Apply and Delete, NewKonnectCmd replaces the konnect command with the
+// declarative command and returns before any product is added, so mesh cannot
+// be registered under `apply konnect` or `delete konnect` without
+// restructuring how the declarative verbs claim that subtree. Those two are
+// served by the direct `apply mesh` and `delete mesh` forms.
+//
+// Dump is not listed because the dump verb never builds the konnect subtree,
+// which made an earlier Dump entry here inert.
+var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Create}
 
 // addMeshCommand registers Kong Mesh under the explicit product path, giving
 // `kongctl <verb> konnect mesh ...` alongside the direct `kongctl <verb> mesh
