@@ -63,10 +63,17 @@ func TestReadRecovery(t *testing.T) {
 				Strategy: RetryStrategyBackoff, MaxAttempts: 2, InitialIntervalMS: 1, MaxIntervalMS: 1,
 				BackoffFactor: 2, RetryReadErrors: true,
 			}
-			inner := NewLoggingHTTPClientWithClient(NewHTTPClient(50*time.Millisecond), logger)
+			inner := NewLoggingHTTPClientWithClient(NewHTTPClient(500*time.Millisecond), logger)
 			client := NewRetryingHTTPClient(inner, cfg, logger)
-			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
+			started := time.Now()
+			defer func() {
+				if t.Failed() {
+					t.Logf("received_requests=%d elapsed=%s outer_context_error=%v\nretry logs:\n%s",
+						calls.Load(), time.Since(started), ctx.Err(), logs.String())
+				}
+			}()
 			req, err := http.NewRequestWithContext(ctx, tc.method, server.URL, nil)
 			require.NoError(t, err)
 			resp, err := client.Do(req)

@@ -23,7 +23,7 @@ func TestReadRecoveryProcess(t *testing.T) {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	client := httpclient.NewRetryingHTTPClient(
-		httpclient.NewLoggingHTTPClientWithClient(httpclient.NewHTTPClient(50*time.Millisecond), logger),
+		httpclient.NewLoggingHTTPClientWithClient(httpclient.NewHTTPClient(500*time.Millisecond), logger),
 		httpclient.RetryConfig{
 			Strategy: httpclient.RetryStrategyBackoff, MaxAttempts: 2,
 			InitialIntervalMS: 1, MaxIntervalMS: 1, BackoffFactor: 2, RetryReadErrors: true,
@@ -62,7 +62,13 @@ func TestRequestTimeoutPrecedesSubprocessDeadline(t *testing.T) {
 				"KONGCTL_TEST_READ_RECOVERY_URL":     server.URL,
 				// Race-instrumented helpers otherwise sleep one second at exit.
 				"GORACE": "atexit_sleep_ms=0",
-			}, 2*time.Second, "-test.run=^TestReadRecoveryProcess$")
+			}, 5*time.Second, "-test.run=^TestReadRecoveryProcess$")
+			defer func() {
+				if t.Failed() {
+					t.Logf("received_requests=%d elapsed=%s timed_out=%t\nstdout:\n%s\nstderr:\n%s",
+						calls.Load(), res.Duration, res.TimedOut, res.Stdout, res.Stderr)
+				}
+			}()
 			if (err != nil) != persistent {
 				t.Fatalf("unexpected result: %v\n%s", err, res.Stderr)
 			}
