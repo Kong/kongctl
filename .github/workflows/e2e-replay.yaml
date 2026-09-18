@@ -23,6 +23,7 @@ on:
           - event-gateway/consume-policy
           - portal/api_docs_with_children
           - portal/ip-allow-list
+          - portal/pages
           - portal/sync
           - portal/visibility
       source_run:
