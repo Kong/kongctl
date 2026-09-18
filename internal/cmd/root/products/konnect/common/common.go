@@ -87,7 +87,7 @@ var (
 	HTTPRetryInitialIntervalConfigPath    = "konnect." + cmdcommon.HTTPRetryInitialIntervalConfigPath
 	HTTPRetryMaxIntervalConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxIntervalConfigPath
 	HTTPRetryBackoffFactorConfigPath      = "konnect." + cmdcommon.HTTPRetryBackoffFactorConfigPath
-	HTTPRetryOnReadErrorsConfigPath       = "konnect.http-retry-on-read-errors"
+	HTTPRetryOnReadErrorsConfigPath       = "konnect." + cmdcommon.HTTPRetryOnReadErrorsConfigPath
 	HTTPRetryOnConnectionErrorsConfigPath = "konnect." + cmdcommon.HTTPRetryOnConnectionErrorsConfigPath
 )
 

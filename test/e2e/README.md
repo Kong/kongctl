@@ -172,7 +172,10 @@ Request recovery and command budgets:
   has a nominal maximum of `2 * 15s + 1s = 31s`, leaving room in the command
   budget for other work. Several slow requests can still exhaust the command
   budget. Imperative commands retry only GET/HEAD transport failures;
-  declarative commands retain their existing HTTP status retry policy.
+  declarative commands retain their existing retryable HTTP status codes,
+  but share the generated profile's two-attempt limit and one-second backoff
+  cap. These intentionally replace the CLI defaults of three attempts and a
+  60-second backoff cap in E2E to leave room within the command deadline.
 - Read recovery is opt-in outside E2E through the profile setting above (or
   `KONGCTL_<PROFILE>_KONNECT_HTTP_RETRY_ON_READ_ERRORS`). It shares the existing
   `konnect.http-retry-max-attempts`, `http-retry-initial-interval`, and

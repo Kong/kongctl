@@ -809,8 +809,8 @@ jobs:
       KONGCTL_E2E_KONNECT_MACHINE_CLIENT_ID: ${{ needs.e2e-needed.outputs.konnect_machine_client_id }}
       # Reset is enabled by default in the harness; set explicitly for clarity
       KONGCTL_E2E_RESET: "1"
-      # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
-      # and rely on Go transport behavior plus the workflow/job timeout.
+      # HTTP requests default to 15s; 0s/default/off disables this request deadline.
+      # CLI subprocess, reset, and workflow/job deadlines remain separate.
       KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '15s' }}
       # Set TCP user timeout to 0s/default/off to leave TCP_USER_TIMEOUT unset and use the platform default.
       KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT || '0s' }}

@@ -103,6 +103,7 @@ const (
 	HTTPRetryMaxIntervalConfigPath        = HTTPRetryMaxIntervalFlagName
 	HTTPRetryBackoffFactorFlagName        = "http-retry-backoff-factor"
 	HTTPRetryBackoffFactorConfigPath      = HTTPRetryBackoffFactorFlagName
+	HTTPRetryOnReadErrorsConfigPath       = "http-retry-on-read-errors"
 	HTTPRetryOnConnectionErrorsFlagName   = "http-retry-on-connection-errors"
 	HTTPRetryOnConnectionErrorsConfigPath = HTTPRetryOnConnectionErrorsFlagName
 )
