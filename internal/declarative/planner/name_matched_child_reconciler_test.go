@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
+func TestNameMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 	const (
 		boundID   = "11111111-1111-4111-8111-111111111111"
 		refID     = "22222222-2222-4222-8222-222222222222"
@@ -24,55 +24,63 @@ func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 		name          string
 		boundID       string
 		ref           string
+		desiredName   string
 		missingDetail bool
 		wantGetIDs    []string
 		wantAction    ActionType
 		wantID        string
-		wantBoundID   string
 		wantDeleteIDs []string
 	}{
 		{
-			name:          "bound ID takes precedence over UUID ref and name",
+			name:          "name overrides cached ID and UUID ref",
 			boundID:       boundID,
 			ref:           refID,
-			wantGetIDs:    []string{boundID},
+			wantGetIDs:    []string{nameID},
 			wantAction:    ActionUpdate,
-			wantID:        boundID,
-			wantBoundID:   boundID,
-			wantDeleteIDs: []string{refID, staleID},
-		},
-		{
-			name:          "UUID ref takes precedence over name",
-			ref:           refID,
-			wantGetIDs:    []string{refID},
-			wantAction:    ActionUpdate,
-			wantID:        refID,
-			wantBoundID:   refID,
-			wantDeleteIDs: []string{boundID, staleID},
-		},
-		{
-			name:          "missing UUID ref does not fall back to name",
-			ref:           missingID,
-			wantAction:    ActionCreate,
+			wantID:        nameID,
 			wantDeleteIDs: []string{boundID, refID, staleID},
 		},
 		{
-			name:          "missing bound ID does not fall back to UUID ref or name",
+			name:          "name overrides UUID ref",
+			ref:           refID,
+			wantGetIDs:    []string{nameID},
+			wantAction:    ActionUpdate,
+			wantID:        nameID,
+			wantDeleteIDs: []string{boundID, refID, staleID},
+		},
+		{
+			name:          "missing UUID ref does not hide name match",
+			ref:           missingID,
+			wantGetIDs:    []string{nameID},
+			wantAction:    ActionUpdate,
+			wantID:        nameID,
+			wantDeleteIDs: []string{boundID, refID, staleID},
+		},
+		{
+			name:          "missing cached ID does not hide name match",
 			boundID:       missingID,
 			ref:           refID,
-			wantAction:    ActionCreate,
-			wantBoundID:   missingID,
+			wantGetIDs:    []string{nameID},
+			wantAction:    ActionUpdate,
+			wantID:        nameID,
 			wantDeleteIDs: []string{boundID, refID, staleID},
 		},
 		{
-			name:          "missing detail recreates and retains desired ID and name",
+			name:          "new name creates and sync deletes resources named only by ID or ref",
+			boundID:       boundID,
+			ref:           refID,
+			desiredName:   "new-agent",
+			wantAction:    ActionCreate,
+			wantDeleteIDs: []string{boundID, refID, nameID, staleID},
+		},
+		{
+			name:          "missing detail recreates and sync retains only the desired name",
 			boundID:       boundID,
 			ref:           refID,
 			missingDetail: true,
-			wantGetIDs:    []string{boundID},
+			wantGetIDs:    []string{nameID},
 			wantAction:    ActionCreate,
-			wantBoundID:   boundID,
-			wantDeleteIDs: []string{refID, staleID},
+			wantDeleteIDs: []string{boundID, refID, staleID},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,13 +95,16 @@ func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 				agent.ID, agent.Name = identity.id, identity.name
 				current = append(current, agent)
 			}
-			api := &idMatchedChildAgentAPI{
+			api := &nameMatchedChildAgentAPI{
 				testAIGatewayAgentAPI: &testAIGatewayAgentAPI{agents: current},
 				missingDetail:         tt.missingDetail,
 			}
 			desired := testAIGatewayAgentResource(t, nil)
 			desired.Ref = tt.ref
 			desired.SetKonnectID(tt.boundID)
+			if tt.desiredName != "" {
+				desired.Name = tt.desiredName
+			}
 			desired.DisplayName = "Updated Agent"
 			rs := testAIGatewayAgentResourceSet(desired)
 			p := NewPlanner(state.NewClient(state.ClientConfig{AIGatewayAgentsAPI: api}), slog.Default())
@@ -105,7 +116,9 @@ func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 
 			require.NoError(t, err)
 			require.Equal(t, tt.wantGetIDs, api.getIDs)
-			require.Equal(t, tt.wantBoundID, rs.AIGatewayAgents[0].GetKonnectID())
+			if len(tt.wantGetIDs) > 0 {
+				require.Equal(t, nameID, rs.AIGatewayAgents[0].GetKonnectID())
+			}
 			require.Len(t, plan.Changes, 1+len(tt.wantDeleteIDs))
 			change := plan.Changes[0]
 			require.Equal(t, tt.wantAction, change.Action)
@@ -115,8 +128,8 @@ func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 			if tt.wantAction == ActionUpdate {
 				require.Contains(t, change.ChangedFields, FieldDisplayName)
 			}
-			// Both desired identity keys survive sync, even when they identify
-			// different observed agents. Unmatched agents retain list order.
+			// UUID refs and cached IDs cannot retain differently named children.
+			// Unmatched children are deleted in observed order.
 			for i, id := range tt.wantDeleteIDs {
 				require.Equal(t, ActionDelete, plan.Changes[i+1].Action)
 				require.Equal(t, id, plan.Changes[i+1].ResourceID)
@@ -130,13 +143,68 @@ func TestIDMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 	}
 }
 
-type idMatchedChildAgentAPI struct {
+func TestNameMatchedChildResourceMatchers(t *testing.T) {
+	const (
+		id      = "11111111-1111-4111-8111-111111111111"
+		otherID = "22222222-2222-4222-8222-222222222222"
+	)
+	for _, tt := range []struct {
+		name     string
+		ref      string
+		cachedID string
+		sameName bool
+	}{
+		{name: "UUID ref cannot override name", ref: id},
+		{name: "cached ID cannot override name", ref: "local-ref", cachedID: id},
+		{name: "unrelated UUID and cached ID cannot hide name match", ref: otherID, cachedID: otherID, sameName: true},
+		{name: "matching UUID and cached ID allow name match", ref: id, cachedID: id, sameName: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			agent := testAIGatewayAgentResource(t, nil)
+			model := testAIGatewayModelResource(t)
+			vault := testAIGatewayVaultResource(t)
+			agent.Ref, model.Ref, vault.Ref = tt.ref, tt.ref, tt.ref
+			agent.SetKonnectID(tt.cachedID)
+			model.SetKonnectID(tt.cachedID)
+			vault.SetKonnectID(tt.cachedID)
+
+			currentAgent := testAIGatewayAgent(nil)
+			currentAgent.ID = id
+			modelName, vaultName := model.Name(), vault.Name()
+			if !tt.sameName {
+				currentAgent.Name = "different-name"
+				modelName, vaultName = "different-name", "different-name"
+			}
+			for _, resource := range []struct {
+				kind    string
+				desired interface {
+					TryMatchKonnectResource(any) bool
+					GetKonnectID() string
+				}
+				current any
+			}{
+				{ResourceTypeAIGatewayAgent, &agent, currentAgent},
+				{ResourceTypeAIGatewayModel, &model, testAIGatewayModel(id, modelName)},
+				{ResourceTypeAIGatewayVault, &vault, testAIGatewayVault(t, id, vaultName, "SUPPORT_")},
+			} {
+				t.Run(resource.kind, func(t *testing.T) {
+					require.Equal(t, tt.sameName, resource.desired.TryMatchKonnectResource(resource.current))
+					if tt.sameName {
+						require.Equal(t, id, resource.desired.GetKonnectID())
+					}
+				})
+			}
+		})
+	}
+}
+
+type nameMatchedChildAgentAPI struct {
 	*testAIGatewayAgentAPI
 	missingDetail bool
 	getIDs        []string
 }
 
-func (a *idMatchedChildAgentAPI) GetAiGatewayAgent(
+func (a *nameMatchedChildAgentAPI) GetAiGatewayAgent(
 	ctx context.Context,
 	gatewayID string,
 	agentID string,

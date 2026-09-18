@@ -8,7 +8,6 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 const (
@@ -167,10 +166,6 @@ func (a *AIGatewayVaultResource) TryMatchKonnectResource(konnectResource any) bo
 	id := AIGatewayVaultID(konnectResource)
 	if id == "" {
 		return false
-	}
-	if (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") && (a.Ref == id || a.GetKonnectID() == id) {
-		a.SetKonnectID(id)
-		return true
 	}
 	if AIGatewayVaultName(konnectResource) == name {
 		a.SetKonnectID(id)

@@ -48,16 +48,13 @@ func (p *Planner) planAIGatewayAgentChanges(
 		return fmt.Errorf("failed to list AI Gateway Agents for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileIDMatchedChildren(p, ResourceTypeAIGatewayAgent, desired, currentAgents,
-		idMatchedChildOperations[resources.AIGatewayAgentResource, state.AIGatewayAgent]{
-			desiredIdentity: func(desired resources.AIGatewayAgentResource) childIdentity {
-				return desiredChildIdentity(desired.Ref, desired.GetKonnectID(), desired.Name)
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayAgent, desired, currentAgents,
+		nameMatchedChildOperations[resources.AIGatewayAgentResource, state.AIGatewayAgent]{
+			desiredName: func(desired resources.AIGatewayAgentResource) string {
+				return desired.Name
 			},
-			currentIdentity: func(current state.AIGatewayAgent) childIdentity {
-				return childIdentity{
-					id:   resources.AIGatewayAgentID(current.AIGatewayAgent),
-					name: resources.AIGatewayAgentName(current.AIGatewayAgent),
-				}
+			currentName: func(current state.AIGatewayAgent) string {
+				return resources.AIGatewayAgentName(current.AIGatewayAgent)
 			},
 			fetch: func(desired resources.AIGatewayAgentResource, current state.AIGatewayAgent) (*state.AIGatewayAgent, error) {
 				id := resources.AIGatewayAgentID(current.AIGatewayAgent)

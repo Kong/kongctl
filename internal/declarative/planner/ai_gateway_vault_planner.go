@@ -39,16 +39,13 @@ func (p *Planner) planAIGatewayVaultChanges(
 		return fmt.Errorf("failed to list AI Gateway Vaults for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileIDMatchedChildren(p, ResourceTypeAIGatewayVault, desired, currentVaults,
-		idMatchedChildOperations[resources.AIGatewayVaultResource, state.AIGatewayVault]{
-			desiredIdentity: func(desired resources.AIGatewayVaultResource) childIdentity {
-				return desiredChildIdentity(desired.Ref, desired.GetKonnectID(), desired.Name())
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayVault, desired, currentVaults,
+		nameMatchedChildOperations[resources.AIGatewayVaultResource, state.AIGatewayVault]{
+			desiredName: func(desired resources.AIGatewayVaultResource) string {
+				return desired.Name()
 			},
-			currentIdentity: func(current state.AIGatewayVault) childIdentity {
-				return childIdentity{
-					id:   resources.AIGatewayVaultID(current.AIGatewayVault),
-					name: resources.AIGatewayVaultName(current.AIGatewayVault),
-				}
+			currentName: func(current state.AIGatewayVault) string {
+				return resources.AIGatewayVaultName(current.AIGatewayVault)
 			},
 			fetch: func(_ resources.AIGatewayVaultResource, current state.AIGatewayVault) (*state.AIGatewayVault, error) {
 				id := resources.AIGatewayVaultID(current.AIGatewayVault)

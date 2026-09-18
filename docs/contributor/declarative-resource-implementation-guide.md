@@ -415,13 +415,14 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
-- **ID-first children with detail lookup:** AI Gateway agents, models, and
-  vaults use [`reconcileIDMatchedChildren`][child-reconcile] within an existing
-  parent. A bound ID wins over a UUID ref, which wins over name matching;
-  a missing explicit ID never falls back to the name. Missing detail responses
-  schedule creation; read or comparison errors stop planning. Sync retains
-  desired IDs and names, then prunes in observed order, stopping at the first
-  protected deletion. Duplicate observed keys retain their last indexed value.
+- **Name-matched children with detail lookup:** AI Gateway agents, models, and
+  vaults use [`reconcileNameMatchedChildren`][child-reconcile] within an
+  existing parent. Match only by the declared API name; UUID refs and cached
+  IDs cannot override it. A changed name declares a different resource.
+  Missing detail responses schedule creation; read or comparison errors stop
+  planning. Sync retains declared names and prunes in observed order, stopping
+  at the first protected deletion. Duplicate observed names retain their last
+  indexed value.
   Typed adapters own detail reads, comparison, payloads, and dependencies;
   [agents][agent-plan] also bind the observed ID before the detail read.
   Callers retain scope checks and new-parent creation. This strategy does not
@@ -765,7 +766,7 @@ engine contract. Each refactoring migration should:
 [constants]: ../../internal/declarative/planner/constants.go
 [reconcile]: ../../internal/declarative/planner/managed_root_reconciler.go
 [child-reconcile]:
-  ../../internal/declarative/planner/id_matched_child_reconciler.go
+  ../../internal/declarative/planner/name_matched_child_reconciler.go
 [agent-plan]: ../../internal/declarative/planner/ai_gateway_agent_planner.go
 [auth-plan]: ../../internal/declarative/planner/auth_strategy_planner.go
 [dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
