@@ -196,6 +196,24 @@ Optional And Empty Fields
   assertions, you can omit the assertions key entirely. If a command is a
   `resetOrg`, `create`, or `delete` synthetic command, omit `run`.
 
+Stateful Commands and Retries
+
+- After reset, use a read-only `plan --mode sync` command to check original
+  CREATE actions, references, dependencies, and planned fields before mutation.
+- Run `sync -f` normally so each execution retry replans against current state.
+  Do not replay the original CREATE plan after a partially successful execution.
+- Check successful execution, then verify remote resources and fields with
+  readbacks, no-op convergence, and deletion checks. A recovered plan can omit
+  resources already created; fixed/minimum change counts or CREATE-or-UPDATE
+  assertions on that plan are not reliable coverage.
+- Assertions on command stdout and captured artifacts run once: those sources
+  are immutable. Only `source.get` assertions poll fresh remote state using the
+  configured bounded retry policy. A standalone `get` command's stdout is also
+  immutable; use `source.get` when eventual-consistency polling is needed.
+- Failed execution artifacts remain in their attempt directories. Assertion
+  artifacts belong to the final command output or the fresh readback attempt.
+  Each assertion's `source.json` records its source kind and final attempt.
+
 Selectors and Sources
 
 - Use JMESPath to target the object/array/scalar you want to compare.

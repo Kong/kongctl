@@ -911,6 +911,10 @@ func executeAssertions(
 			asName = fmt.Sprintf("assert-%03d", k)
 		}
 		retryCfg := effectiveRetry(sc.Defaults.Retry, st.Retry, cmd.Retry, as.Retry)
+		// Only fresh remote reads can change while an assertion is retried.
+		if strings.TrimSpace(as.Source.Get) == "" {
+			retryCfg.Attempts = 1
+		}
 		backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 		attempts := backoffCfg.Attempts
 		backoff := harness.BuildBackoffSchedule(backoffCfg)
@@ -1623,6 +1627,21 @@ func runAssertion(
 	env map[string]string,
 ) error {
 	// Resolve source
+	baseDir := parentDir
+	if baseDir == "" {
+		baseDir = cli.LastCommandDir
+	}
+	asDir := filepath.Join(baseDir, "assertions", asName)
+	_ = os.MkdirAll(asDir, 0o755)
+	sourceKind := "stdout"
+	if strings.TrimSpace(as.Source.Get) != "" {
+		sourceKind = "get"
+	} else if as.Source.Artifact != nil {
+		sourceKind = "artifact"
+	}
+	_ = writeJSON(filepath.Join(asDir, "source.json"), map[string]any{
+		"kind": sourceKind, "attempt": attempt + 1,
+	})
 	src, err := resolveAssertionSource(cli, as, parent, asName, attempt, parentDir, tmplCtx, env)
 	if err != nil {
 		return err
@@ -1710,13 +1729,6 @@ func runAssertion(
 		diff = cmp.Diff(exp, observed)
 	}
 
-	// Prepare assertion artifacts dir (always write observed/expected for clarity)
-	baseDir := parentDir
-	if baseDir == "" {
-		baseDir = cli.LastCommandDir
-	}
-	asDir := filepath.Join(baseDir, "assertions", asName)
-	_ = os.MkdirAll(asDir, 0o755)
 	// Persist the selector used for this assertion (post-templating)
 	if selUsed != "" {
 		_ = os.WriteFile(filepath.Join(asDir, "select.txt"), []byte(selUsed+"\n"), 0o644)
@@ -1781,19 +1793,19 @@ func resolveAssertionSource(
 	case strings.TrimSpace(as.Source.Get) != "":
 		// run fresh get, carefully tracking the command capture dir to relocate under retries
 		prevCmdDir := cli.LastCommandDir
+		defer func() { cli.LastCommandDir = prevCmdDir }()
 		var raw any
-		if _, err := cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get); err != nil {
-			return nil, fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
-		}
+		_, err := cli.RunJSONWithEnv(context.Background(), env, &raw, "get", as.Source.Get)
 		getCmdDir := cli.LastCommandDir
-		// restore parent command dir to avoid confusing subsequent artifact writes
-		cli.LastCommandDir = prevCmdDir
 		// Move captured get command under parent command retries to avoid inflating command counts
 		if getCmdDir != "" && parentDir != "" {
 			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
 			_ = os.MkdirAll(dstBase, 0o755)
 			dst := filepath.Join(dstBase, filepath.Base(getCmdDir))
 			_ = os.Rename(getCmdDir, dst)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("source.get %s failed: %w", as.Source.Get, err)
 		}
 		return raw, nil
 	case as.Source.Artifact != nil:
