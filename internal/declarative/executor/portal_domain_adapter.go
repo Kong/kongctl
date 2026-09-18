@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -53,7 +54,18 @@ func (p *PortalDomainAdapter) MapCreateFields(
 func (p *PortalDomainAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortalCustomDomainRequest, _ map[string]string,
 ) error {
-	// Only enabled field can be updated
+	if ssl, ok := fields[planner.FieldSSL]; ok {
+		data, err := json.Marshal(ssl)
+		if err != nil {
+			return fmt.Errorf("failed to encode SSL update: %w", err)
+		}
+		var request kkComps.UpdatePortalCustomDomainSSL
+		if err := json.Unmarshal(data, &request); err != nil {
+			return fmt.Errorf("failed to decode SSL update: %w", err)
+		}
+		update.Ssl = &request
+	}
+
 	if enabled, ok := fields[planner.FieldEnabled].(bool); ok {
 		update.Enabled = &enabled
 	}
@@ -131,7 +143,7 @@ func (p *PortalDomainAdapter) RequiredFields() []string {
 	return []string{planner.FieldHostname, planner.FieldEnabled}
 }
 
-// SupportsUpdate returns true as custom domains support updates (enabled field only)
+// SupportsUpdate returns true as custom domains support updates
 func (p *PortalDomainAdapter) SupportsUpdate() bool {
 	return true
 }

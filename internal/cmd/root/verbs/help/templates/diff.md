@@ -27,15 +27,32 @@ kongctl diff [flags]
 
 - `--output` (string): Output format: text, json, or yaml (default: text)
 - `--log-level` (string): Set logging level: trace, debug, info, warn, error
+- `--full-content`: Show large string values without summarizing them. Sensitive
+  fields and deferred environment values remain redacted.
+- `--color` (string): Text diff styling: `auto` (default), `always`, or `never`.
+  Automatic styling requires terminal output and respects `NO_COLOR` and
+  `TERM=dumb`. Explicit `always` or `never` overrides these checks. JSON/YAML
+  output is unaffected.
+- `--color-theme` (string): Use the existing CLI theme setting for diff colors.
+  The default `auto` selects the Kong light or dark theme for the terminal.
 
 ## Output Formats
 
 ### Text Format (Default)
 
-Shows human-readable differences with color coding:
-- 🟢 Green: Additions (CREATE)
-- 🟡 Yellow: Modifications (UPDATE)
-- 🔴 Red: Deletions (DELETE - sync mode only)
+Shows human-readable differences using the selected theme's diff colors:
+- `+`: Additions, green in the built-in Kong themes
+- `~`: Modifications, amber/yellow in the built-in Kong themes
+- `-`: Removals, red in the built-in Kong themes
+
+Old values use the removal color and new values use the addition color. The
+terminal background is preserved, and symbols remain visible without color.
+
+```sh
+kongctl diff --plan plan.json --color-theme kong-dark
+kongctl diff --plan plan.json --color never
+kongctl diff --plan plan.json --color always | less -R
+```
 
 ```diff
 Portal "developer-portal":
@@ -170,11 +187,35 @@ Shows exactly what fields are changing:
 ```
 API "payment-api":
   ~ description: "Payment processing" → "Payment processing with fraud detection"
-  ~ labels:
-    ~ version: "1.0.0" → "1.1.0"
+  labels:
     + compliance: "PCI-DSS"
     - deprecated: "false"
+    ~ version: "1.0.0" → "1.1.0"
 ```
+
+Nested objects show only changed fields, with keys sorted at each level:
+
+```text
+  config:
+    ~ client_secret: (secret write; no value comparison)
+    redis:
+      ~ connect_timeout: 1000 → 2000
+    scopes_claim:
+      ~ [0]: "old_claim" → "new_claim"
+    + scopes_required: ["example_scope"]
+```
+
+`+` adds a field, `-` removes a field, and `~` changes a value. Explicit
+`null`, empty objects (`{}`), and empty arrays (`[]`) remain distinct.
+Values at reviewed write-only catalog paths are redacted inside objects and
+arrays, including when `--full-content` is enabled. Matching uses the resource
+type and full field path. Type replacements have an explicit `(type)` label,
+for example `~ port: 80 → "80" (type)`.
+
+Write-only values resolved during execution appear as
+`config.client_secret: (secret write; no value comparison)`. This reports a
+requested write, not a comparison of known secret values. Cache-key salts
+such as `cache_tokens_salt` are displayed as ordinary configuration values.
 
 ### Nested Resource Changes
 
@@ -194,16 +235,22 @@ API "users-api":
 
 ### Array Changes
 
-Shows modifications to arrays:
+Arrays compare by index and preserve order. Only changed elements and fields
+inside those elements are shown; indices start at zero. Reordering elements
+is a change. Additions and removals refer to positions in the old/new arrays,
+not a sequence of edit operations.
 
 ```
 Portal "developer-portal":
   ~ auto_approve_applications: false → true
-  ~ approved_domains:
-    + "example.com"
-    + "api.example.com"
-    - "old.example.com"
+  approved_domains:
+    ~ [0]: "old.example.com" → "example.com"
+    + [1]: "api.example.com"
 ```
+
+Entire added or removed arrays and objects still show their complete values.
+Large values use multiline formatting; replacements use `-` for the old value
+and `+` for the new value.
 
 ## Diff Modes
 

@@ -17,7 +17,7 @@ event_gateways:
           type: sasl_scram
           algorithm: sha512
           username: ${env["scram-username"]}
-          password: ${env["scram-password"]}
+          password: ${vault["env"]["scram-password"]}
         tls:
           enabled: true
           tls_versions:

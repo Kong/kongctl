@@ -628,7 +628,10 @@ portals:
 
 	envSources := rs.GetEnvSources("env-portal-domain")
 	assert.Equal(t, "__ENV__:CUSTOM_CERT", envSources["/ssl/custom_certificate"])
-	assert.Equal(t, "__ENV__:CUSTOM_KEY", envSources["/ssl/custom_private_key"])
+	secret := rs.GetSecretSources("env-portal-domain")["/ssl/custom_private_key"]
+	assert.True(t, secret.DeprecatedBareEnv)
+	require.Len(t, secret.Expression.Parts, 1)
+	assert.Equal(t, "CUSTOM_KEY", secret.Expression.Parts[0].Source.Reference)
 }
 
 func TestLoader_EnvTagIntegration_PortalIdentityProviderConfig(t *testing.T) {

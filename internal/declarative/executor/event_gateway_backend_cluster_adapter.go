@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -139,19 +140,15 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		update.Description = &desc
 	}
 
-	// Note: Authentication type differs between create and update in SDK
-	// Convert from BackendClusterAuthenticationScheme to BackendClusterAuthenticationSensitiveDataAwareScheme
+	// The update schema permits an omitted password, preserving the current value.
 	if authField, ok := fields[planner.FieldAuthentication]; ok {
-		auth, err := buildAuthenticationScheme(authField)
+		data, err := json.Marshal(authField)
 		if err != nil {
-			return fmt.Errorf("failed to build authentication: %w", err)
+			return fmt.Errorf("failed to encode authentication update: %w", err)
 		}
-
-		sensitiveAuth, err := convertToSensitiveDataAwareAuth(auth)
-		if err != nil {
-			return fmt.Errorf("failed to convert authentication: %w", err)
+		if err := json.Unmarshal(data, &update.Authentication); err != nil {
+			return fmt.Errorf("failed to decode authentication update: %w", err)
 		}
-		update.Authentication = sensitiveAuth
 	}
 
 	// Handle bootstrap_servers as []interface{} or []string
@@ -339,50 +336,6 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 	default:
 		return kkComps.BackendClusterAuthenticationScheme{},
 			fmt.Errorf("unsupported authentication type: %s", authType)
-	}
-}
-
-// convertToSensitiveDataAwareAuth converts BackendClusterAuthenticationScheme
-// to BackendClusterAuthenticationSensitiveDataAwareScheme
-func convertToSensitiveDataAwareAuth(
-	auth kkComps.BackendClusterAuthenticationScheme,
-) (kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme, error) {
-	switch auth.Type {
-	case kkComps.BackendClusterAuthenticationSchemeTypeAnonymous:
-		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeAnonymous(
-			kkComps.BackendClusterAuthenticationAnonymous{},
-		), nil
-
-	case kkComps.BackendClusterAuthenticationSchemeTypeSaslPlain:
-		if auth.BackendClusterAuthenticationSaslPlain == nil {
-			return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
-				fmt.Errorf("SASL Plain authentication data is missing")
-		}
-		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslPlain(
-			kkComps.BackendClusterAuthenticationSaslPlainSensitiveDataAware{
-				Username: auth.BackendClusterAuthenticationSaslPlain.Username,
-				Password: &auth.BackendClusterAuthenticationSaslPlain.Password,
-			},
-		), nil
-
-	case kkComps.BackendClusterAuthenticationSchemeTypeSaslScram:
-		if auth.BackendClusterAuthenticationSaslScram == nil {
-			return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
-				fmt.Errorf("SASL SCRAM authentication data is missing")
-		}
-		return kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
-			kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
-				Algorithm: kkComps.Algorithm(
-					auth.BackendClusterAuthenticationSaslScram.Algorithm,
-				),
-				Username: auth.BackendClusterAuthenticationSaslScram.Username,
-				Password: &auth.BackendClusterAuthenticationSaslScram.Password,
-			},
-		), nil
-
-	default:
-		return kkComps.BackendClusterAuthenticationSensitiveDataAwareScheme{},
-			fmt.Errorf("unsupported authentication type: %s", auth.Type)
 	}
 }
 

@@ -1119,9 +1119,12 @@ them from `get` or `list` responses. Common examples include:
 - AI Gateway Model Provider authentication values such as
   `config.auth.headers[].value`, `client_secret`, `secret_access_key`, and
   `service_account_json`
-- AI Gateway Auth Strategy OpenID Connect `config.client_secret`
+- AI Gateway Auth Strategy OpenID Connect `config.client_secret`,
+  `config.http_proxy_authorization`, and `config.https_proxy_authorization`
 - AI Gateway Vault authentication credentials
 - AI Gateway runtime certificate `key` and `key_alt`
+- Portal custom domain `ssl.custom_private_key`
+- Event Gateway backend cluster `authentication.password`
 - Event Gateway schema registry authentication `password`
 - AI Gateway Consumer Credential `api_key`
 

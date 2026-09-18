@@ -175,7 +175,14 @@ steps:
                 "ssl.domain_verification_method": custom_certificate
                 "ssl.skip_ca_check": true
                 "ssl.custom_certificate": __ENV__:KONGCTL_E2E_PORTAL_CUSTOM_CERT
-                "ssl.custom_private_key": __ENV__:KONGCTL_E2E_PORTAL_CUSTOM_KEY
+                "ssl.custom_private_key": null
+          - select: >-
+              changes[?resource_type=='portal_custom_domain' && resource_ref=='{{ .vars.portal2DomainRef }}'] | [0].secret_writes[0]
+            expect:
+              fields:
+                field: /ssl/custom_private_key
+                expression.parts[0].source.kind: env
+                expression.parts[0].source.reference: KONGCTL_E2E_PORTAL_CUSTOM_KEY
       - name: 001-diff-custom-cert-text
         outputFormat: text
         parseAs: raw
@@ -188,7 +195,7 @@ steps:
             expect:
               fields:
                 "contains(@, '[redacted from !env]')": true
-                "contains(@, '[REDACTED]')": true
+                "contains(@, 'ssl.custom_private_key: (secret write; no value comparison)')": true
                 "contains(@, 'BEGIN CERTIFICATE')": false
                 "contains(@, 'BEGIN PRIVATE KEY')": false
                 "contains(@, '__ENV__:KONGCTL_E2E_PORTAL_CUSTOM_CERT')": false

@@ -10,6 +10,7 @@ import (
 	"github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // planEventGatewayBackendClusterChanges plans changes for Event Gateway Backend Clusters for a specific gateway
@@ -117,8 +118,8 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 					"Planning backend cluster UPDATE",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
-					"update_fields", updateFields,
-					"changed_fields", changedFields,
+					"update_field_count", len(updateFields),
+					"changed_field_count", len(changedFields),
 				)
 				p.planBackendClusterUpdate(
 					namespace, gatewayRef, gatewayName, gatewayID,
@@ -189,7 +190,7 @@ func (p *Planner) planBackendClusterCreate(
 		fields[FieldDescription] = *cluster.Description
 	}
 
-	fields[FieldAuthentication] = cluster.Authentication
+	fields[FieldAuthentication] = backendClusterAuthenticationFields(cluster.Authentication)
 	fields[FieldBootstrapServers] = cluster.BootstrapServers
 	fields[FieldTLS] = cluster.TLS
 
@@ -281,7 +282,7 @@ func (p *Planner) planBackendClusterUpdate(
 		slog.String("cluster_ref", cluster.Ref),
 		slog.String("cluster_id", clusterID),
 		slog.String("gateway_ref", gatewayRef),
-		slog.Any("fields", updateFields),
+		slog.Int("field_count", len(updateFields)),
 	)
 
 	plan.AddChange(change)
@@ -356,7 +357,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 		needsUpdate = true
 		changes[FieldAuthentication] = FieldChange{
 			Old: current.Authentication,
-			New: desired.Authentication,
+			New: backendClusterAuthenticationFields(desired.Authentication),
 		}
 	}
 
@@ -419,7 +420,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 			updates[FieldDescription] = *desired.Description
 		}
 
-		updates[FieldAuthentication] = desired.Authentication
+		updates[FieldAuthentication] = backendClusterAuthenticationFields(desired.Authentication)
 		updates[FieldBootstrapServers] = desired.BootstrapServers
 		updates[FieldTLS] = desired.TLS
 
@@ -458,30 +459,20 @@ func compareAuthenticationSchemes(
 			return false
 		}
 
-		if a.BackendClusterAuthenticationSaslPlainSensitiveDataAware.Password == nil {
-			// Password can be omitted in responses if literal value was used. Treat as unequal in that case.
-			return false
-		}
-
 		plainA := a.BackendClusterAuthenticationSaslPlainSensitiveDataAware
 		plainB := b.BackendClusterAuthenticationSaslPlain
 		return plainA.Username == plainB.Username &&
-			*plainA.Password == plainB.Password
+			sameBackendPassword(plainA.Password, plainB.Password)
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslScram:
 		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware == nil ||
 			b.BackendClusterAuthenticationSaslScram == nil {
 			return false
 		}
 
-		if a.BackendClusterAuthenticationSaslScramSensitiveDataAware.Password == nil {
-			// Password can be omitted in responses if literal value was used. Treat as unequal in that case.
-			return false
-		}
-
 		scramA := a.BackendClusterAuthenticationSaslScramSensitiveDataAware
 		scramB := b.BackendClusterAuthenticationSaslScram
 		return scramA.Username == scramB.Username &&
-			*scramA.Password == scramB.Password
+			sameBackendPassword(scramA.Password, scramB.Password)
 	}
 	return false
 }
@@ -584,4 +575,32 @@ func compareStringPtrs(a, b *string) bool {
 		return false
 	}
 	return *a == *b
+}
+
+func sameBackendPassword(current *string, desired string) bool {
+	if tags.IsSecretPlaceholder(desired) || tags.IsEnvPlaceholder(desired) {
+		return true
+	}
+	return current != nil && *current == desired
+}
+
+// Keep authentication traversable so secret-write preparation can remove deferred
+// passwords from both request fields and changed-field metadata.
+func backendClusterAuthenticationFields(auth components.BackendClusterAuthenticationScheme) map[string]any {
+	fields := map[string]any{FieldType: string(auth.Type)}
+	switch auth.Type {
+	case components.BackendClusterAuthenticationSchemeTypeAnonymous:
+	case components.BackendClusterAuthenticationSchemeTypeSaslPlain:
+		if auth.BackendClusterAuthenticationSaslPlain != nil {
+			fields["username"] = auth.BackendClusterAuthenticationSaslPlain.Username
+			fields["password"] = auth.BackendClusterAuthenticationSaslPlain.Password
+		}
+	case components.BackendClusterAuthenticationSchemeTypeSaslScram:
+		if auth.BackendClusterAuthenticationSaslScram != nil {
+			fields["username"] = auth.BackendClusterAuthenticationSaslScram.Username
+			fields["password"] = auth.BackendClusterAuthenticationSaslScram.Password
+			fields["algorithm"] = string(auth.BackendClusterAuthenticationSaslScram.Algorithm)
+		}
+	}
+	return fields
 }

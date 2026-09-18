@@ -1048,27 +1048,27 @@ func TestDisplayTextDiff_RedactsSensitiveChangedFields(t *testing.T) {
 	plan := &planner.Plan{
 		Changes: []planner.PlannedChange{
 			{
-				ID:           "1:u:application_auth_strategy:portal-auth",
-				ResourceType: "application_auth_strategy",
+				ID:           "1:u:ai_gateway_auth_strategy:portal-auth",
+				ResourceType: "ai_gateway_auth_strategy",
 				ResourceRef:  "portal-auth",
 				Action:       planner.ActionUpdate,
 				Namespace:    "default",
 				ChangedFields: map[string]planner.FieldChange{
-					"oidc_client_secret": {
-						Old: "old-secret-value",
-						New: "new-secret-value",
+					planner.FieldConfig: {
+						Old: map[string]any{"client_secret": "old-secret-value"},
+						New: map[string]any{"client_secret": "new-secret-value"},
 					},
 				},
 			},
 		},
-		ExecutionOrder: []string{"1:u:application_auth_strategy:portal-auth"},
+		ExecutionOrder: []string{"1:u:ai_gateway_auth_strategy:portal-auth"},
 		Summary: planner.PlanSummary{
 			TotalChanges: 1,
 			ByAction: map[planner.ActionType]int{
 				planner.ActionUpdate: 1,
 			},
 			ByResource: map[string]int{
-				"application_auth_strategy": 1,
+				"ai_gateway_auth_strategy": 1,
 			},
 		},
 	}
@@ -1081,7 +1081,7 @@ func TestDisplayTextDiff_RedactsSensitiveChangedFields(t *testing.T) {
 	require.NoError(t, err)
 
 	output := out.String()
-	assert.Contains(t, output, "oidc_client_secret: [REDACTED] → [REDACTED]")
+	assert.Contains(t, output, "client_secret: (secret write; no value comparison)")
 	assert.NotContains(t, output, "old-secret-value")
 	assert.NotContains(t, output, "new-secret-value")
 }

@@ -54,6 +54,9 @@ const (
 	ColorDanger        Token = "danger"
 	ColorDangerText    Token = "danger.text"
 	ColorHighlight     Token = "highlight"
+	ColorDiffAdded     Token = "diff.added"
+	ColorDiffRemoved   Token = "diff.removed"
+	ColorDiffChanged   Token = "diff.changed"
 )
 
 // Color stores light and dark variants for adaptive rendering.
@@ -484,6 +487,9 @@ func paletteFromTint(t *tint.Tint) Palette {
 		ColorAccentText:    singleColor(contrastColor(accentBright)),
 		ColorSelection:     pairColor(accentBright, accentBright),
 		ColorSelectionText: singleColor(contrastColor(accentBright)),
+		ColorDiffAdded:     pairColor(success, success),
+		ColorDiffRemoved:   pairColor(danger, danger),
+		ColorDiffChanged:   pairColor(warning, warning),
 		ColorSuccess:       pairColor(success, success),
 		ColorSuccessText:   singleColor(contrastColor(success)),
 		ColorInfo:          pairColor(info, info),
@@ -686,6 +692,9 @@ func kongLightPalette() Palette {
 			ColorAccentText:    singleColor("#FFFFFF"),
 			ColorSelection:     singleColor("#CCFF00"),
 			ColorSelectionText: singleColor("#000F06"),
+			ColorDiffAdded:     singleColor("#16703C"),
+			ColorDiffRemoved:   singleColor("#B42318"),
+			ColorDiffChanged:   singleColor("#805500"),
 			ColorSuccess:       singleColor("#000F06"),
 			ColorSuccessText:   singleColor("#FFFFFF"),
 			ColorInfo:          singleColor("#B7BDB5"),
@@ -717,6 +726,9 @@ func kongDarkPalette() Palette {
 			ColorAccentText:    singleColor("#000F06"),
 			ColorSelection:     singleColor("#CCFF00"),
 			ColorSelectionText: singleColor("#000F06"),
+			ColorDiffAdded:     singleColor("#75D99A"),
+			ColorDiffRemoved:   singleColor("#FF8A80"),
+			ColorDiffChanged:   singleColor("#F2CF66"),
 			ColorSuccess:       singleColor("#CCFF00"),
 			ColorSuccessText:   singleColor("#000F06"),
 			ColorInfo:          singleColor("#B7BDB5"),

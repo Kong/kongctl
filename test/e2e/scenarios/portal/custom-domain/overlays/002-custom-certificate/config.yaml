@@ -29,5 +29,5 @@ portals:
       ssl:
         domain_verification_method: custom_certificate
         custom_certificate: !env KONGCTL_E2E_PORTAL_CUSTOM_CERT
-        custom_private_key: !env KONGCTL_E2E_PORTAL_CUSTOM_KEY
+        custom_private_key: !secret {source: !env KONGCTL_E2E_PORTAL_CUSTOM_KEY}
         skip_ca_check: true

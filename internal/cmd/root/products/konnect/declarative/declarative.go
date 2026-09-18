@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/url"
 	"os"
 	pathpkg "path"
@@ -16,7 +17,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"github.com/kong/kongctl/internal/cmd"
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -33,6 +33,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	applog "github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/meta"
+	"github.com/kong/kongctl/internal/theme"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
@@ -391,32 +392,6 @@ func writeRemoteSourceFile(path string, content []byte) error {
 		return err
 	}
 	return os.Rename(tmpPath, path)
-}
-
-var diffSensitiveExactFieldKeys = map[string]struct{}{
-	"access_token":        {},
-	"refresh_token":       {},
-	"id_token":            {},
-	"token":               {},
-	"api_key":             {},
-	"apikey":              {},
-	"x_api_key":           {},
-	"secret":              {},
-	"password":            {},
-	"authorization":       {},
-	"cookie":              {},
-	"credential":          {},
-	"private_key":         {},
-	"passphrase":          {},
-	"client_secret":       {},
-	"set_cookie":          {},
-	"konnectaccesstoken":  {},
-	"konnectrefreshtoken": {},
-}
-
-var diffNonSensitiveTokenFieldKeys = map[string]struct{}{
-	"token_count": {},
-	"token_type":  {},
 }
 
 func addBaseDirFlag(cmd *cobra.Command) {
@@ -1313,6 +1288,9 @@ func checkStdinApprovalConflict(planFile string, filenames []string) error {
 }
 
 func runDiff(command *cobra.Command, args []string) error {
+	if _, err := diffColorMode(command); err != nil {
+		return err
+	}
 	// Silence usage for all runtime errors (command syntax is already valid at this point)
 	command.SilenceUsage = true
 
@@ -1453,7 +1431,10 @@ func runDiff(command *cobra.Command, args []string) error {
 }
 
 func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent bool) error {
-	out := command.OutOrStdout()
+	out, err := newDiffOutput(command)
+	if err != nil {
+		return err
+	}
 	displayPlanWarnings(plan, command.ErrOrStderr())
 
 	// Handle empty plan
@@ -1521,18 +1502,20 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 	// Display changes grouped by namespace
 	for nsIdx, namespace := range namespaces {
 		// Show namespace header
-		fmt.Fprintf(out, "=== Namespace: %s ===\n", namespace)
+		fmt.Fprintln(out, out.paint(theme.ColorPrimary, fmt.Sprintf("=== Namespace: %s ===", namespace)))
 
 		// Display each change in this namespace
 		for _, change := range changesByNamespace[namespace] {
+			out.resourceType = resources.ResourceType(change.ResourceType)
 
 			switch change.Action {
 			case planner.ActionCreate:
-				fmt.Fprintf(out, "+ [%s] %s %q will be created\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("+ [%s] %s %q will be created", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffAdded, header))
 
 				// Show key fields
-				for field, value := range change.Fields {
+				for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+					value := change.Fields[field]
 					displayField(out, field, value, "  ", fullContent)
 				}
 
@@ -1546,8 +1529,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				}
 
 			case planner.ActionUpdate:
-				fmt.Fprintf(out, "~ [%s] %s %q will be updated\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("~ [%s] %s %q will be updated", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffChanged, header))
 
 				// Check if this is a protection change
 				if pc, ok := change.Protection.(planner.ProtectionChange); ok {
@@ -1568,7 +1551,8 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					displayFieldChanges(out, change.ChangedFields, "  ", fullContent)
 				} else {
 					// Backward compatibility with plans that only have raw update fields.
-					for field, value := range change.Fields {
+					for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+						value := change.Fields[field]
 						if fc, ok := value.(planner.FieldChange); ok {
 							displayFieldChange(out, field, fc.Old, fc.New, "  ", fullContent)
 						} else if fc, ok := value.(map[string]any); ok {
@@ -1588,20 +1572,21 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 			case planner.ActionDelete:
 				// DELETE action (future implementation)
-				fmt.Fprintf(out, "- [%s] %s %q will be deleted\n",
-					change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf("- [%s] %s %q will be deleted", change.ID, change.ResourceType, change.ResourceRef)
+				fmt.Fprintln(out, out.paint(theme.ColorDiffRemoved, header))
 			case planner.ActionExternalTool:
 				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
 					change.ID, change.ResourceType, change.ResourceRef)
 
-				for field, value := range change.Fields {
+				for _, field := range slices.Sorted(maps.Keys(change.Fields)) {
+					value := change.Fields[field]
 					displayField(out, field, value, "  ", fullContent)
 				}
 			}
 
 			for _, secretWrite := range change.SecretWrites {
-				fmt.Fprintf(out, "  %s: write requested (current value unavailable; deferred source)\n",
-					pointerToDisplayField(secretWrite.Field))
+				fmt.Fprintf(out, "  %s: %s\n",
+					pointerToDisplayField(secretWrite.Field), diffSecretWriteLabel)
 			}
 
 			// Show dependencies
@@ -1699,9 +1684,8 @@ func displayFieldChange(
 	indent string,
 	fullContent bool,
 ) {
-	oldText := formatFieldValueForField(field, oldValue, fullContent)
-	newText := formatFieldValueForField(field, newValue, fullContent)
-	fmt.Fprintf(out, "%s%s: %s → %s\n", indent, field, oldText, newText)
+	displayNestedFieldChange(out, field, normalizeDiffValue(oldValue), normalizeDiffValue(newValue),
+		true, true, indent, fullContent)
 }
 
 func formatFieldValue(value any, fullContent bool) string {
@@ -1723,102 +1707,6 @@ func formatFieldValue(value any, fullContent bool) string {
 	}
 }
 
-func formatFieldValueForField(field string, value any, fullContent bool) string {
-	resolved := dereferenceFieldValue(value)
-	resolved = common.SanitizeDeferredEnvValue(resolved)
-	if isSensitiveDiffField(field) {
-		if resolved == nil {
-			return "null"
-		}
-		return diffFieldRedactedValue
-	}
-	return formatFieldValue(resolved, fullContent)
-}
-
-func isSensitiveDiffField(field string) bool {
-	normalized := normalizeFieldKey(field)
-	if normalized == "" {
-		return false
-	}
-
-	if _, ok := diffSensitiveExactFieldKeys[normalized]; ok {
-		return true
-	}
-
-	if _, ok := diffNonSensitiveTokenFieldKeys[normalized]; ok {
-		return false
-	}
-
-	if containsSegment(normalized, "secret") ||
-		containsSegment(normalized, "password") ||
-		containsSegment(normalized, "credential") ||
-		containsSegment(normalized, "passphrase") ||
-		hasSegmentPair(normalized, "private", "key") ||
-		hasSegmentPair(normalized, "api", "key") ||
-		hasSegmentPair(normalized, "client", "secret") {
-		return true
-	}
-
-	if strings.Contains(normalized, "access_token") || strings.Contains(normalized, "refresh_token") {
-		return true
-	}
-	if strings.HasSuffix(normalized, "_token") {
-		return true
-	}
-
-	return false
-}
-
-func containsSegment(normalized, segment string) bool {
-	return slices.Contains(strings.Split(normalized, "_"), segment)
-}
-
-func hasSegmentPair(normalized, first, second string) bool {
-	parts := strings.Split(normalized, "_")
-	for idx := 0; idx < len(parts)-1; idx++ {
-		if parts[idx] == first && parts[idx+1] == second {
-			return true
-		}
-	}
-	return false
-}
-
-func normalizeFieldKey(key string) string {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return ""
-	}
-
-	runes := []rune(key)
-	out := make([]rune, 0, len(runes))
-	appendUnderscore := func() {
-		if len(out) > 0 && out[len(out)-1] != '_' {
-			out = append(out, '_')
-		}
-	}
-
-	for idx, current := range runes {
-		switch {
-		case current == '_' || current == '-' || current == '.' ||
-			current == '[' || current == ']' || current == '/' || unicode.IsSpace(current):
-			appendUnderscore()
-		case unicode.IsUpper(current):
-			if idx > 0 {
-				prev := runes[idx-1]
-				nextIsLower := idx+1 < len(runes) && unicode.IsLower(runes[idx+1])
-				if unicode.IsLower(prev) || unicode.IsDigit(prev) || (unicode.IsUpper(prev) && nextIsLower) {
-					appendUnderscore()
-				}
-			}
-			out = append(out, unicode.ToLower(current))
-		default:
-			out = append(out, unicode.ToLower(current))
-		}
-	}
-
-	return strings.Trim(string(out), "_")
-}
-
 func dereferenceFieldValue(value any) any {
 	for {
 		rv := reflect.ValueOf(value)
@@ -1836,59 +1724,18 @@ func dereferenceFieldValue(value any) any {
 }
 
 func displayField(out io.Writer, field string, value any, indent string, fullContent bool) {
-	value = common.SanitizeDeferredEnvValue(value)
-
-	if isSensitiveDiffField(field) {
-		if dereferenceFieldValue(value) != nil {
-			fmt.Fprintf(out, "%s%s: %s\n", indent, field, diffFieldRedactedValue)
+	value = normalizeDiffValue(value)
+	output := diffOutputFor(out).child(field)
+	fieldText := output.paint(theme.ColorTextSecondary, field)
+	if object, ok := value.(map[string]any); ok && len(object) > 0 && !output.sensitive(value) {
+		fmt.Fprintf(out, "%s%s:\n", indent, fieldText)
+		for _, key := range slices.Sorted(maps.Keys(object)) {
+			displayField(output, key, object[key], indent+"  ", fullContent)
 		}
 		return
 	}
-
-	switch v := value.(type) {
-	case string:
-		if v != "" {
-			if v == common.DeferredEnvRedactedDisplay {
-				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
-				return
-			}
-			// Check if string is large and should be summarized
-			const maxDisplayLength = 500
-			if !fullContent && len(v) > maxDisplayLength {
-				// Count lines in the string
-				lines := strings.Count(v, "\n") + 1
-				fmt.Fprintf(out, "%s%s: <%d bytes, %d lines>\n", indent, field, len(v), lines)
-			} else {
-				fmt.Fprintf(out, "%s%s: %q\n", indent, field, v)
-			}
-		}
-	case bool:
-		fmt.Fprintf(out, "%s%s: %t\n", indent, field, v)
-	case float64:
-		fmt.Fprintf(out, "%s%s: %g\n", indent, field, v)
-	case map[string]any:
-		// Skip empty maps
-		if len(v) == 0 {
-			return
-		}
-		fmt.Fprintf(out, "%s%s:\n", indent, field)
-		for k, val := range v {
-			displayField(out, k, val, indent+"  ", fullContent)
-		}
-	case []any:
-		// Skip empty slices
-		if len(v) == 0 {
-			return
-		}
-		fmt.Fprintf(out, "%s%s:\n", indent, field)
-		for i, item := range v {
-			displayField(out, fmt.Sprintf("[%d]", i), item, indent+"  ", fullContent)
-		}
-	default:
-		if v != nil {
-			fmt.Fprintf(out, "%s%s: %v\n", indent, field, common.SanitizeDeferredEnvValue(v))
-		}
-	}
+	text := output.formatValue(value, indent, fullContent)
+	fmt.Fprintf(out, "%s%s: %s\n", indent, fieldText, output.paint(theme.ColorDiffAdded, text))
 }
 
 func newDeclarativeSyncCmd() *cobra.Command {
@@ -1955,6 +1802,7 @@ Konnect is the default target for this command, so "kongctl diff" and
 	cmd.Flags().String("mode", "sync", "Diff mode (sync|apply|delete)")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text, json, or yaml)")
 	cmd.Flags().Bool("full-content", false, "Display full content for large fields instead of summary")
+	cmd.Flags().String(cmdcommon.ColorFlagName, cmdcommon.DefaultColorMode, "Colorize text diffs (auto|always|never)")
 	addSecretWriteFlags(cmd)
 	addRequireNamespaceFlags(cmd)
 
