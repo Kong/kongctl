@@ -262,3 +262,85 @@ func TestMeshInputDownloadDoesNotInheritControlPlaneTrust(t *testing.T) {
 			result.stdout, result.stderr)
 	}
 }
+
+// A selector named on the command line decides the target, even when
+// configuration names a different one.
+//
+// A configured control plane id used to short-circuit the resolver before
+// --control-plane-name was considered, so an explicit name silently addressed
+// the configured id instead. This resolver also serves writes and deletes, so
+// that meant operating on a control plane the operator did not choose.
+//
+// The whole flow runs here: Konnect is faked so the name can be looked up,
+// and the assertion is the path the mesh request actually took.
+func TestMeshExplicitNameBeatsConfiguredID(t *testing.T) {
+	const (
+		configuredID = "00000000-0000-4000-8000-000000000001"
+		namedID      = "00000000-0000-4000-8000-000000000002"
+	)
+
+	var meshRequestPaths []string
+	konnect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v3/mesh/control-planes":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"data": []map[string]any{
+					{"id": configuredID, "name": "old", "version": "v3"},
+					{"id": namedID, "name": "new", "version": "v3"},
+				},
+				"meta": map[string]any{"page": map[string]any{"total": 2, "size": 100, "number": 1}},
+			})
+		case strings.HasSuffix(r.URL.Path, "/_resources"):
+			meshRequestPaths = append(meshRequestPaths, r.URL.Path)
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+		default:
+			meshRequestPaths = append(meshRequestPaths, r.URL.Path)
+			writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+		}
+	}))
+	defer konnect.Close()
+
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		// Configuration names one control plane; the command line names another.
+		"--control-plane-id", configuredID,
+		"--control-plane-name", "new",
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	// Two selectors at once is rejected rather than resolved by precedence,
+	// because they name two different control planes.
+	if result.exitCode == 0 {
+		t.Fatalf("expected conflicting selectors to be rejected\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "control-plane") {
+		t.Fatalf("expected the conflict to name the selectors\nstderr:\n%s", result.stderr)
+	}
+
+	// With only the name given, and the id supplied through configuration
+	// rather than a flag, the name must win.
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_ID", configuredID)
+	meshRequestPaths = nil
+
+	result = executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-name", "new",
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	if result.exitCode != 0 {
+		t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+	}
+	if len(meshRequestPaths) == 0 {
+		t.Fatal("no mesh request was made")
+	}
+	for _, path := range meshRequestPaths {
+		if strings.Contains(path, configuredID) {
+			t.Fatalf("request went to the configured id %s, not the named control plane: %s",
+				configuredID, path)
+		}
+		if !strings.Contains(path, namedID) {
+			t.Fatalf("request did not address the named control plane %s: %s", namedID, path)
+		}
+	}
+}
