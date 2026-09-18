@@ -403,11 +403,7 @@ do not add raw payload or secret values to diagnostics.
 
 ## 4. Plan the lifecycle
 
-Choose identity and operation semantics before selecting a reusable strategy.
-Managed AI Gateway policies and MCP servers match and retain children by API
-name within their parent gateway, consistent with agents, models, and vaults.
-UUID-shaped refs remain local identifiers; cached IDs only route operations
-after a name match. Do not generalize legacy ID-first matching as policy.
+Choose identity and operation semantics before selecting a reusable strategy:
 
 - **Managed roots matched by name:** [auth strategies][auth-plan] and
   [DCR providers][dcr-plan] use [`reconcileManagedRoots`][reconcile].
@@ -419,18 +415,25 @@ after a name match. Do not generalize legacy ID-first matching as policy.
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
-- **Name-matched children with detail lookup:** AI Gateway agents, models, and
-  vaults use [`reconcileNameMatchedChildren`][child-reconcile] within an
-  existing parent. Match only by the declared API name; UUID refs and cached
-  IDs cannot override it. A changed name declares a different resource.
+- **Name-matched children with detail lookup:** AI Gateway policies, agents,
+  models, and vaults use [`reconcileNameMatchedChildren`][child-reconcile]
+  within an existing parent. Match only by the declared API name; UUID refs and
+  cached IDs cannot override it. A changed name declares a different resource.
   Missing detail responses schedule creation; read or comparison errors stop
   planning. Sync retains declared names and prunes in observed order, stopping
   at the first protected deletion. Duplicate observed names retain their last
   indexed value.
   Typed adapters own detail reads, comparison, payloads, and dependencies;
-  [agents][agent-plan] also bind the observed ID before the detail read.
-  Callers retain scope checks and new-parent creation. This strategy does not
-  add child delete-mode dispatch, update protection, or child traversal.
+  [agents][agent-plan] and policies also bind the observed ID before the detail
+  read. Callers retain scope checks and new-parent creation. This strategy
+  does not add child delete-mode dispatch, update protection, or child
+  traversal.
+- **Dependency-ordered children:** [AI Gateway MCP servers][mcp-plan] use the
+  same name-only identity, with separate orchestration: plan sources before
+  listeners, delete listeners before sources, and derive creation dependencies
+  from changes already planned. Their name index uses original observation
+  order. Do not sort observations for deletion before indexing; that can
+  change duplicate-name matching.
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
@@ -771,6 +774,7 @@ engine contract. Each refactoring migration should:
 [reconcile]: ../../internal/declarative/planner/managed_root_reconciler.go
 [child-reconcile]:
   ../../internal/declarative/planner/name_matched_child_reconciler.go
+[mcp-plan]: ../../internal/declarative/planner/ai_gateway_mcp_server_planner.go
 [agent-plan]: ../../internal/declarative/planner/ai_gateway_agent_planner.go
 [auth-plan]: ../../internal/declarative/planner/auth_strategy_planner.go
 [dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
