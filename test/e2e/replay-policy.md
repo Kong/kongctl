@@ -8,8 +8,8 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
 `event-gateway/consume-policy`,
-`portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/sync`, and
-`portal/visibility`.
+`portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/pages`,
+`portal/sync`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -22,6 +22,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
 | portal/ip-allow-list | [Recording][ip-record], [isolated replays][ip-replay] |
+| portal/pages | [Recording and isolated replays][pages-record] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -38,6 +39,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [docs-replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
 [ip-record]: https://github.com/Kong/kongctl/actions/runs/35165520273
 [ip-replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
+[pages-record]: https://github.com/Kong/kongctl/actions/runs/35361530847
 
 ## Routing
 
@@ -277,6 +279,13 @@ still asserts document hierarchy, content/status updates, child and parent
 deletion, and dump round-trip behavior. Its replay README records the reviewed
 command boundaries. Replay wrappers took 3.90–4.56 seconds; promotion avoids
 one additional scenario reset on PRs. Main continues to run it live.
+
+`portal/pages` is enabled after live recording and three strict, isolated
+replays of all 71 exchanges. Page hierarchy, metadata and content updates,
+no-op and malformed-frontmatter plans, and leaf deletion assertions remain
+intact. No ordering annotations or matcher changes were needed. Its
+[replay review](scenarios/portal/pages/replay/README.md) records provenance
+and the timing comparison, including the avoided scenario reset.
 
 ## Measurement
 

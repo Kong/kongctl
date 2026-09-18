@@ -1,0 +1,2486 @@
+{
+  "schema_version": 2,
+  "scenario": "portal/pages",
+  "inputs_sha256": "sha256:9228db6702c7be6a96f2c9698a635c1895278d6562c872c1e6e6ea379fb57b54",
+  "source": {
+    "kind": "recorded",
+    "commit": "3de68dfda1bb2f3fb11e5b756a78f6d881ce4851",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35361530847"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals",
+        "query": [],
+        "body": {
+          "authentication_enabled": false,
+          "auto_approve_applications": false,
+          "auto_approve_developers": false,
+          "default_page_visibility": "public",
+          "description": "Portal for testing page create, update, and sync-delete lifecycle",
+          "display_name": "Pages Lifecycle Portal",
+          "labels": {
+            "KONGCTL-namespace": "portal-pages-lifecycle"
+          },
+          "name": "pages-portal",
+          "notifications_developer_pii_visibility_enabled": false,
+          "rbac_enabled": false,
+          "sipr_enabled": false
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "pages-portal",
+          "display_name": "Pages Lifecycle Portal",
+          "description": "Portal for testing page create, update, and sync-delete lifecycle",
+          "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+          "authentication_enabled": false,
+          "rbac_enabled": false,
+          "auto_approve_developers": false,
+          "auto_approve_applications": false,
+          "default_api_visibility": "public",
+          "default_page_visibility": "public",
+          "default_application_auth_strategy_id": null,
+          "labels": {
+            "KONGCTL-namespace": "portal-pages-lifecycle"
+          },
+          "updated_at": "2026-09-18T15:25:27.055Z",
+          "created_at": "2026-09-18T15:25:27.055Z",
+          "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+          "sipr_enabled": false,
+          "notifications_developer_pii_visibility_enabled": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": {
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "description": "Step-by-step guides for our platform",
+          "slug": "guides",
+          "status": "published",
+          "title": "Guides",
+          "visibility": "public"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "description": "Step-by-step guides for our platform",
+          "slug": "/guides",
+          "status": "published",
+          "title": "Guides",
+          "visibility": "public",
+          "id": "00000000-0000-4000-8000-000000000002",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": {
+          "content": "# Getting Started\n\nFollow this guide to get up and running quickly with our platform.\n",
+          "description": "A quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "slug": "getting-started",
+          "status": "published",
+          "title": "Getting Started",
+          "visibility": "public"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "content": "# Getting Started\n\nFollow this guide to get up and running quickly with our platform.\n",
+          "description": "A quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "slug": "/getting-started",
+          "status": "published",
+          "title": "Getting Started",
+          "visibility": "public",
+          "id": "00000000-0000-4000-8000-000000000003",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:27.539612Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started",
+                  "visibility": "public",
+                  "status": "published",
+                  "description": "A quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:27.539612Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started",
+                  "visibility": "public",
+                  "status": "published",
+                  "description": "A quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:27.539612Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "slug": "/guides",
+          "visibility": "public",
+          "status": "published",
+          "description": "Step-by-step guides for our platform",
+          "parent_page_id": null,
+          "title": "Guides",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "# Getting Started\n\nFollow this guide to get up and running quickly with our platform.\n",
+          "slug": "/getting-started",
+          "visibility": "public",
+          "status": "published",
+          "description": "A quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:27.539612Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 0
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:14272871276822161664",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:4047653452971109454",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "# Getting Started\n\nFollow this guide to get up and running quickly with our platform.\n",
+          "slug": "/getting-started",
+          "visibility": "public",
+          "status": "published",
+          "description": "A quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:27.539612Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": {
+          "content": "# Getting Started\n\nThis content was updated in step 002.",
+          "description": "An updated quick-start guide for new users",
+          "slug": "/getting-started",
+          "status": "unpublished",
+          "title": "Getting Started (Updated)",
+          "visibility": "private"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "title": "Getting Started (Updated)",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "slug": "/getting-started",
+          "content": "# Getting Started\n\nThis content was updated in step 002.",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:30.15835Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started (Updated)",
+                  "visibility": "private",
+                  "status": "unpublished",
+                  "description": "An updated quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:30.15835Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started (Updated)",
+                  "visibility": "private",
+                  "status": "unpublished",
+                  "description": "An updated quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:30.15835Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "slug": "/guides",
+          "visibility": "public",
+          "status": "published",
+          "description": "Step-by-step guides for our platform",
+          "parent_page_id": null,
+          "title": "Guides",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "# Getting Started\n\nThis content was updated in step 002.",
+          "slug": "/getting-started",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started (Updated)",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:30.15835Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 0
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:804118933239570533",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:4986764886010219059",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "# Getting Started\n\nThis content was updated in step 002.",
+          "slug": "/getting-started",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started (Updated)",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:30.15835Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "PATCH",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": {
+          "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
+          "slug": "/getting-started"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "title": "Getting Started (Updated)",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "slug": "/getting-started",
+          "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:32.618463Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started (Updated)",
+                  "visibility": "private",
+                  "status": "unpublished",
+                  "description": "An updated quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "slug": "/guides",
+          "visibility": "public",
+          "status": "published",
+          "description": "Step-by-step guides for our platform",
+          "parent_page_id": null,
+          "title": "Guides",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
+          "slug": "/getting-started",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started (Updated)",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:32.618463Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 0
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:13195925046842441989",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:17127336889041581303",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started (Updated)",
+                  "visibility": "private",
+                  "status": "unpublished",
+                  "description": "An updated quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "slug": "/guides",
+          "visibility": "public",
+          "status": "published",
+          "description": "Step-by-step guides for our platform",
+          "parent_page_id": null,
+          "title": "Guides",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
+          "slug": "/getting-started",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started (Updated)",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:32.618463Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/snippets",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/ip-allow-list",
+        "query": [
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 0
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/identity-providers",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": [],
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/email-config",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:646740185787096740",
+          "detail": "Portal email config not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/audit-log-webhook",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "enabled": false,
+          "audit_log_destination_id": "",
+          "include_principal_name": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/custom-domain",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "status": 404,
+          "title": "Not Found",
+          "instance": "kong:trace:7004790220871416407",
+          "detail": "custom domain not found"
+        },
+        "content_type": "application/problem+json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": [
+                {
+                  "id": "00000000-0000-4000-8000-000000000003",
+                  "slug": "/getting-started",
+                  "title": "Getting Started (Updated)",
+                  "visibility": "private",
+                  "status": "unpublished",
+                  "description": "An updated quick-start guide for new users",
+                  "parent_page_id": "00000000-0000-4000-8000-000000000002",
+                  "created_at": "2026-09-18T15:25:27.482504Z",
+                  "updated_at": "2026-09-18T15:25:32.618463Z",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000002",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "content": "# Guides\n\nWelcome to the Guides section. Browse step-by-step tutorials and best practices.\n",
+          "slug": "/guides",
+          "visibility": "public",
+          "status": "published",
+          "description": "Step-by-step guides for our platform",
+          "parent_page_id": null,
+          "title": "Guides",
+          "created_at": "2026-09-18T15:25:27.305041Z",
+          "updated_at": "2026-09-18T15:25:27.363012Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "content": "---\ntitle: \"Getting Started (Updated)\"\ndescription: \"An updated quick-start guide for new users\"\n---\n\n# Getting Started\n\nThis body changed without changing page metadata.\nIssue 1210 content-only update.\n",
+          "slug": "/getting-started",
+          "visibility": "private",
+          "status": "unpublished",
+          "description": "An updated quick-start guide for new users",
+          "parent_page_id": "00000000-0000-4000-8000-000000000002",
+          "title": "Getting Started (Updated)",
+          "created_at": "2026-09-18T15:25:27.482504Z",
+          "updated_at": "2026-09-18T15:25:32.618463Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "DELETE",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages/00000000-0000-4000-8000-000000000003",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "name": "pages-portal",
+              "description": "Portal for testing page create, update, and sync-delete lifecycle",
+              "display_name": "Pages Lifecycle Portal",
+              "authentication_enabled": false,
+              "rbac_enabled": false,
+              "sipr_enabled": false,
+              "default_api_visibility": "public",
+              "default_page_visibility": "public",
+              "default_application_auth_strategy_id": null,
+              "notifications_developer_pii_visibility_enabled": false,
+              "ai": {
+                "enabled": false,
+                "features": {
+                  "mcp_server": {
+                    "enabled": false,
+                    "write_operations_enabled": false
+                  }
+                }
+              },
+              "auto_approve_developers": false,
+              "auto_approve_applications": false,
+              "canonical_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "default_domain": "dc20f4bfe5a2.us.kongportals.com",
+              "created_at": "2026-09-18T15:25:27.055Z",
+              "updated_at": "2026-09-18T15:25:27.055Z",
+              "labels": {
+                "KONGCTL-namespace": "portal-pages-lifecycle"
+              }
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 10,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/00000000-0000-4000-8000-000000000001/pages",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "slug": "/guides",
+              "title": "Guides",
+              "visibility": "public",
+              "status": "published",
+              "description": "Step-by-step guides for our platform",
+              "parent_page_id": null,
+              "created_at": "2026-09-18T15:25:27.305041Z",
+              "updated_at": "2026-09-18T15:25:27.363012Z",
+              "children": []
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    }
+  ]
+}
