@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -179,6 +181,7 @@ func (c *LoggingHTTPClient) logRequest(
 ) {
 	attrs := []slog.Attr{
 		slog.String("log_type", logTypeRequest),
+		slog.Duration("http_timeout", c.wrapped.Timeout),
 		slog.String("http_source", httpSource),
 		slog.String("request_id", requestID),
 		slog.String("method", req.Method),
@@ -222,7 +225,17 @@ func (c *LoggingHTTPClient) logRequestError(
 	duration time.Duration,
 	reqErr error,
 ) {
+	errorClass := "transport_error"
+	var netErr net.Error
+	if errors.As(reqErr, &netErr) && netErr.Timeout() {
+		errorClass = "http_timeout"
+	}
+	if req.Context().Err() != nil {
+		errorClass = "request_context"
+	}
 	attrs := []slog.Attr{
+		slog.String("error_class", errorClass),
+		slog.Duration("http_timeout", c.wrapped.Timeout),
 		slog.String("log_type", logTypeError),
 		slog.String("http_source", httpSource),
 		slog.String("request_id", requestID),

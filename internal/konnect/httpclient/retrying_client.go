@@ -152,7 +152,7 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 
 		if err != nil {
 			if !c.shouldRetryError(req, err) {
-				if attempt > 0 {
+				if attempt > 0 || c.cfg.RetryReadErrors {
 					c.logRetrySkipped(
 						req,
 						requestID,
@@ -230,53 +230,39 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 // shouldRetryResponse reports whether a response with the given status code
 // should be retried given the configured codes and methods.
 func (c *RetryingHTTPClient) shouldRetryResponse(req *http.Request, resp *http.Response) bool {
-	if !slices.Contains(c.retryCodes, resp.StatusCode) {
+	if c.cfg.ReadErrorsOnly || !slices.Contains(c.retryCodes, resp.StatusCode) {
 		return false
 	}
 	return c.methodAllowed(req.Method)
 }
 
-// shouldRetryError reports whether a transport-level error should be retried.
-//   - url.Error with Temporary() or Timeout() + idempotent method → retry
-//   - url.Error wrapping io.EOF + idempotent method → retry (server closed conn)
-//   - net.OpError with EPIPE or ECONNRESET + idempotent method → retry
-//
-// All other errors are treated as permanent when RetryConnectionErrors is false.
+// shouldRetryError permits transient transport failures only for eligible
+// methods while the request context remains live. Read recovery is opt-in;
+// the broader connection-error policy retains its idempotent-method scope.
 func (c *RetryingHTTPClient) shouldRetryError(req *http.Request, err error) bool {
-	if !c.cfg.RetryConnectionErrors {
+	if req.Context().Err() != nil || !c.methodAllowed(req.Method) {
 		return false
 	}
-
-	method := req.Method
-
+	read := req.Method == http.MethodGet || req.Method == http.MethodHead
+	if c.cfg.ReadErrorsOnly && !read {
+		return false
+	}
+	eligible := (c.cfg.RetryReadErrors && read) ||
+		(c.cfg.RetryConnectionErrors && slices.Contains(idempotentMethods, req.Method))
+	if !eligible {
+		return false
+	}
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
+		return true
+	}
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
-		// Fall back to the method embedded in the url.Error operation name
-		if method == "" {
-			method = strings.ToUpper(urlErr.Op)
-		}
-
-		// Temporary or timeout errors are safe to retry on idempotent methods.
-		if (urlErr.Temporary() || urlErr.Timeout()) && slices.Contains(idempotentMethods, method) {
-			return true
-		}
-
-		// Connection closed by the server mid-flight — safe to retry on
-		// idempotent methods only.
-		if errors.Is(urlErr.Err, io.EOF) && slices.Contains(idempotentMethods, method) {
-			return true
-		}
-
-		return false
+		return urlErr.Timeout() || urlErr.Temporary()
 	}
-
-	// Broken pipe or connection reset — safe to retry on idempotent methods.
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
-		if (errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET)) &&
-			slices.Contains(idempotentMethods, method) {
-			return true
-		}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout()
 	}
 
 	return false
@@ -412,6 +398,8 @@ func (c *RetryingHTTPClient) retryConfigAttrs() []slog.Attr {
 		slog.Int("max_interval_ms", c.cfg.MaxIntervalMS),
 		slog.Float64("backoff_factor", c.cfg.BackoffFactor),
 		slog.Bool("retry_connection_errors", c.cfg.RetryConnectionErrors),
+		slog.Bool("retry_read_errors", c.cfg.RetryReadErrors),
+		slog.Bool("read_errors_only", c.cfg.ReadErrorsOnly),
 		slog.Any("retry_status_codes", c.retryCodes),
 		slog.Any("retry_methods", methods),
 	}

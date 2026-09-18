@@ -113,7 +113,12 @@ Core harness settings:
 - `KONGCTL_E2E_HTTP_TIMEOUT`: Per-request timeout for raw Konnect HTTP helpers
   used by scenario create/delete flows. The harness also writes the same
   value into the generated `e2e.http-timeout` profile setting so
-  SDK-backed CLI commands share the same default. Default: `15s`.
+  SDK-backed CLI commands share the same default. Default locally and in CI:
+  `15s`. Unset/empty selects that default. `0s` (also `0`, `off`, `none`,
+  `disable`, `disabled`, `default`, `defaults`, `platform`, or `system`)
+  explicitly disables the request timeout in both clients. Previously zero
+  omitted the CLI profile setting and retained the CLI's 60-second default.
+  It does not disable the subprocess deadline.
 - `KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT`: Linux-only `TCP_USER_TIMEOUT` applied
   to raw harness HTTP sockets. The harness also writes the same value into
   the generated `e2e.http-tcp-user-timeout` profile setting so
@@ -154,6 +159,43 @@ Core harness settings:
 - `KONGCTL_E2E_SKIP_STEPS`: Comma-separated glob patterns to skip scenario
   steps by name.
 - `KONGCTL_E2E_STOP_AFTER`: Stop after a matching step or command.
+
+Request recovery and command budgets:
+
+- Every CLI subprocess attempt has its own 60-second deadline, including all
+  requests, planning, mutations, and output. It is not a shared scenario
+  budget. Scenario commands can set `timeout: 120s` when measured healthy
+  execution plus recovery needs more time. A full subprocess timeout still
+  stops normal command recovery; it is not automatically retried.
+- E2E profiles enable `konnect.http-retry-on-read-errors`, with two total
+  HTTP attempts and backoff capped at one second. A stalled request therefore
+  has a nominal maximum of `2 * 15s + 1s = 31s`, leaving room in the command
+  budget for other work. Several slow requests can still exhaust the command
+  budget. Imperative commands retry only GET/HEAD transport failures;
+  declarative commands retain their existing HTTP status retry policy.
+- Read recovery is opt-in outside E2E through the profile setting above (or
+  `KONGCTL_<PROFILE>_KONNECT_HTTP_RETRY_ON_READ_ERRORS`). It shares the existing
+  `konnect.http-retry-max-attempts`, `http-retry-initial-interval`, and
+  `http-retry-max-interval` settings; intervals are milliseconds. Setting
+  max attempts to one disables recovery. The broader connection-error retry
+  option remains disabled in generated profiles, so mutations do not gain
+  transport retries. A request whose parent context has ended is not retried.
+- HTTP recovery retries the failed request while the CLI remains alive.
+  Failures while a caller consumes a response body can still surface to the
+  command. Harness command retries re-execute the whole command and replan;
+  stateful assertions must follow the pattern in the scenario authoring guide.
+  The harness still allows up to six command attempts by default, with its
+  existing bounded backoff. HTTP and command attempt counts are separate:
+  two HTTP attempts per request per command attempt, not an extra SDK loop.
+- Direct harness create/delete helpers and org reset retain their own retry
+  policies listed above. The new CLI read policy does not replace them.
+- HTTP request/error logs include the effective `http_timeout`; request
+  failures classify timeouts separately from parent-context cancellation.
+  Retry logs preserve attempts and terminal/recovered outcomes. Scenario
+  diagnostics report `profile_http_timeout_ms` and each subprocess's
+  `timeout_ms`. CLI flags/environment overrides can change the profile value;
+  the HTTP log reflects the actual client timeout. Go test and Actions job
+  deadlines remain separate outer limits.
 
 Scenario selection and sharding:
 

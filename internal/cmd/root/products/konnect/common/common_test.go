@@ -777,3 +777,26 @@ func TestKonnectSDKFactoryReturnsAuthConfigurationErrors(t *testing.T) {
 	require.NotContains(t, err.Error(), "authentication token not available")
 	require.NotContains(t, err.Error(), "no access token available")
 }
+
+func TestReadRecoveryConfigForEveryVerb(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Plan, verbs.Sync, verbs.Apply, verbs.Delete} {
+		t.Run(string(verb), func(t *testing.T) {
+			cfg, _ := newTestConfig(map[string]string{
+				HTTPRetryOnReadErrorsConfigPath:    "true",
+				HTTPRetryMaxAttemptsConfigPath:     "2",
+				HTTPRetryInitialIntervalConfigPath: "1000",
+				HTTPRetryMaxIntervalConfigPath:     "1000",
+			})
+			rc, err := resolveRetryConfigForVerb(cfg, verb)
+			require.NoError(t, err)
+			require.True(t, rc.RetryReadErrors)
+			require.False(t, rc.RetryConnectionErrors)
+			require.Equal(t, httpclient.RetryStrategyBackoff, rc.Strategy)
+			require.Equal(t, 2, rc.MaxAttempts)
+			require.Equal(t, !isDeclarativeRetryVerb(verb), rc.ReadErrorsOnly)
+		})
+	}
+	cfg, _ := newTestConfig(map[string]string{HTTPRetryOnReadErrorsConfigPath: "invalid"})
+	_, err := resolveRetryConfigForVerb(cfg, verbs.Get)
+	require.Error(t, err)
+}

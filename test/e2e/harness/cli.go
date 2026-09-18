@@ -426,7 +426,7 @@ func (c *CLI) runCommand(
 	res := Result{Stdout: stdout.String(), Stderr: stderr.String(), Duration: dur}
 	if ctx.Err() == context.DeadlineExceeded {
 		res.TimedOut = true
-		Warnf("command timed out after %s: %s", dur, strings.Join(cmd.Args, " "))
+		Warnf("subprocess deadline: elapsed=%s limit=%s command=%s", dur, timeout, strings.Join(cmd.Args, " "))
 	}
 	res.Stdout, c.pendingHTTPDumps = extractHTTPDumps(res.Stdout)
 	if err != nil {
@@ -772,15 +772,17 @@ func writeProfileConfig(cfgDir, profile, output, logLevel string) error {
 	fmt.Fprintf(&y, "%s:\n", profile)
 	fmt.Fprintf(&y, "  output: %s\n", output)
 	fmt.Fprintf(&y, "  log-level: %s\n", logLevel)
-	if timeout := HTTPRequestTimeout(); timeout > 0 {
-		fmt.Fprintf(&y, "  http-timeout: %s\n", timeout)
-	}
+	fmt.Fprintf(&y, "  http-timeout: %s\n", HTTPRequestTimeout())
 	if options.TCPUserTimeout > 0 {
 		fmt.Fprintf(&y, "  http-tcp-user-timeout: %s\n", options.TCPUserTimeout)
 	}
 	fmt.Fprintf(&y, "  http-disable-keepalives: %t\n", options.DisableKeepAlives)
 	fmt.Fprintf(&y, "  http-recycle-connections-on-error: %t\n", options.RecycleConnectionsOnError)
 	fmt.Fprintf(&y, "  konnect:\n")
+	fmt.Fprintf(&y, "    http-retry-on-read-errors: true\n")
+	fmt.Fprintf(&y, "    http-retry-max-attempts: 2\n")
+	fmt.Fprintf(&y, "    http-retry-initial-interval: 1000\n")
+	fmt.Fprintf(&y, "    http-retry-max-interval: 1000\n")
 	fmt.Fprintf(&y, "    environment: %s\n", konnectTarget.Name)
 	if strings.TrimSpace(os.Getenv(KonnectBaseURLEnvName)) != "" {
 		fmt.Fprintf(&y, "    base-url: %s\n", konnectTarget.BaseURL)

@@ -811,7 +811,7 @@ jobs:
       KONGCTL_E2E_RESET: "1"
       # Set HTTP timeout vars to 0s/default/off to disable kongctl/harness application-level timeouts
       # and rely on Go transport behavior plus the workflow/job timeout.
-      KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '0s' }}
+      KONGCTL_E2E_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TIMEOUT || '15s' }}
       # Set TCP user timeout to 0s/default/off to leave TCP_USER_TIMEOUT unset and use the platform default.
       KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT: ${{ vars.KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT || '0s' }}
       KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES: ${{ vars.KONGCTL_E2E_HTTP_DISABLE_KEEPALIVES || '' }}
