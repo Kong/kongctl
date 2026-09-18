@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayMCPServerChanges(
@@ -49,15 +48,12 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		return fmt.Errorf("failed to list AI Gateway MCP Servers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayMCPServers(currentServers)
-	desiredKeys := make(map[string]bool)
+	currentByName := indexAIGatewayMCPServers(currentServers)
+	desiredNames := make(map[string]bool)
 
 	for _, desiredServer := range orderAIGatewayMCPServersForPlanning(desired) {
-		current, exists := matchCurrentAIGatewayMCPServer(desiredServer, currentByID, currentByName)
-		desiredKeys[desiredServer.Name()] = true
-		if id := aiGatewayMCPServerDesiredID(desiredServer); id != "" {
-			desiredKeys[id] = true
-		}
+		current, exists := currentByName[desiredServer.Name()]
+		desiredNames[desiredServer.Name()] = true
 
 		if !exists {
 			dependsOn := aiGatewayMCPServerCreateDependencies(
@@ -65,7 +61,15 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 				policyCreateDepsByName,
 				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
 			)
-			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
+			p.planAIGatewayMCPServerCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredServer,
+				dependsOn,
+				plan,
+			)
 			continue
 		}
 
@@ -80,7 +84,15 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 				policyCreateDepsByName,
 				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
 			)
-			p.planAIGatewayMCPServerCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredServer, dependsOn, plan)
+			p.planAIGatewayMCPServerCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredServer,
+				dependsOn,
+				plan,
+			)
 			continue
 		}
 
@@ -111,7 +123,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		for _, current := range orderCurrentAIGatewayMCPServersForDeletion(currentServers) {
 			serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
 			serverName := resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
-			if desiredKeys[serverID] || desiredKeys[serverName] {
+			if desiredNames[serverName] {
 				continue
 			}
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -321,41 +333,14 @@ func emptyAIGatewayMCPACLs(value any) bool {
 
 func indexAIGatewayMCPServers(
 	servers []state.AIGatewayMCPServer,
-) (map[string]state.AIGatewayMCPServer, map[string]state.AIGatewayMCPServer) {
-	byID := make(map[string]state.AIGatewayMCPServer)
+) map[string]state.AIGatewayMCPServer {
 	byName := make(map[string]state.AIGatewayMCPServer)
 	for _, server := range servers {
-		if id := resources.AIGatewayMCPServerID(server.AIGatewayMCPServer); id != "" {
-			byID[id] = server
-		}
 		if name := resources.AIGatewayMCPServerName(server.AIGatewayMCPServer); name != "" {
 			byName[name] = server
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayMCPServer(
-	desired resources.AIGatewayMCPServerResource,
-	currentByID map[string]state.AIGatewayMCPServer,
-	currentByName map[string]state.AIGatewayMCPServer,
-) (state.AIGatewayMCPServer, bool) {
-	if id := aiGatewayMCPServerDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name()]
-	return current, exists
-}
-
-func aiGatewayMCPServerDesiredID(desired resources.AIGatewayMCPServerResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func aiGatewayMCPServerCreateDependencies(
