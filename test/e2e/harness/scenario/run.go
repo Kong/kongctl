@@ -1634,7 +1634,9 @@ func runAssertion(
 	asDir := filepath.Join(baseDir, "assertions", asName)
 	_ = os.MkdirAll(asDir, 0o755)
 	sourceKind := "stdout"
-	if strings.TrimSpace(as.Source.Get) != "" {
+	if strings.TrimSpace(as.Source.Get) != "" && as.Source.Artifact != nil {
+		sourceKind = "ambiguous"
+	} else if strings.TrimSpace(as.Source.Get) != "" {
 		sourceKind = "get"
 	} else if as.Source.Artifact != nil {
 		sourceKind = "artifact"

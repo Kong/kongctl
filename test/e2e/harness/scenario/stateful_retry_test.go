@@ -258,3 +258,51 @@ func TestFreshReadAssertionsPollAndPreserveParent(t *testing.T) {
 		})
 	}
 }
+
+func TestAssertionSourceDiagnostics(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		source    AssertionSrc
+		wantError string
+	}{
+		{name: "stdout", source: AssertionSrc{Get: " "}},
+		{name: "artifact", source: AssertionSrc{Artifact: &AssertionArtifactSource{Path: "output.json"}}},
+		{
+			name:      "ambiguous",
+			source:    AssertionSrc{Get: "portals", Artifact: &AssertionArtifactSource{Path: "output.json"}},
+			wantError: "assertion source supports only one of get or artifact",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "output.json"), []byte(`{"name":"expected"}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cli := &harness.CLI{LastCommandDir: dir}
+			as := Assertion{Source: tc.source, Expect: Expect{Fields: map[string]any{"name": "expected"}}}
+			err := runAssertion(cli, "scenario.yaml", dir, Scenario{}, Step{}, Command{}, as,
+				map[string]any{"name": "expected"}, "source-test", 0, dir, nil, nil)
+			if tc.wantError == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || err.Error() != tc.wantError {
+				t.Fatalf("expected %q, got %v", tc.wantError, err)
+			}
+			data, err := os.ReadFile(filepath.Join(dir, "assertions", "source-test", "source.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var source struct {
+				Kind    string
+				Attempt int
+			}
+			if err := json.Unmarshal(data, &source); err != nil {
+				t.Fatal(err)
+			}
+			if source.Kind != tc.name || source.Attempt != 1 {
+				t.Fatalf("unexpected source diagnostics: %s", data)
+			}
+		})
+	}
+}
