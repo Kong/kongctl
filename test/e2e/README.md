@@ -680,6 +680,26 @@ delete calls, resources deleted, and list/delete timing.
 family in a reset. List and delete durations cover each complete operation,
 including response-body handling and retry attempts, but exclude retry sleep.
 
+Live org reset clears configured user assignments first, then inventories up
+to three resource categories concurrently. Pagination and HTTP retries stay
+sequential within each category. Once every inventory read finishes, resource
+deletion follows the existing dependency order, including portal custom-domain
+cleanup. Conflict retries fetch fresh inventory. A failed inventory never
+causes deletion from a partial result; other categories still get cleaned up.
+The total reset deadline applies to both phases. Workflow organization locks
+are unchanged, and replay jobs continue to skip org reset entirely.
+
+Reset `duration_ms` is elapsed wall time. Per-category durations count active
+listing and deletion time, including backoff, but exclude waiting for other
+categories. List/delete request durations are cumulative work: concurrent list
+durations can overlap and must not be summed to infer elapsed reset time.
+Compare reset wall time and longest-shard duration across pre/post-change runs;
+use request counts and errors to check for increased retries or rate limiting.
+
+`make test-e2e-harness` runs the harness unit tests with the race detector and
+local HTTP test servers; it does not contact Konnect or reset an organization.
+It also runs in PR CI and as part of `make test-all`.
+
 After at least 20 instrumented successful full runs, generate a reproducible
 baseline with:
 

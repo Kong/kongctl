@@ -105,6 +105,8 @@ jobs:
           go test -race -count=1 ./...
       - name: test E2E metrics scripts
         run: make test-e2e-metrics
+      - name: test E2E harness without Konnect
+        run: make test-e2e-harness
       - name: test integration
         run: |
           go test -v -count=1 -tags=integration -race ${GOTESTFLAGS} ./test/integration/...
