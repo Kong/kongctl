@@ -469,17 +469,24 @@ AI Gateway Model
 Providers, Auth Strategies, Policies, Agents, Consumers, Consumer
 Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
 use their own required `name` field as the stable Konnect child name.
-AI Gateway Consumers match only by `name` within their parent gateway;
-UUID refs and cached IDs do not override a different declared consumer name.
+AI Gateway Agents, Consumers, Models, and Vaults match only by `name` within
+their parent gateway. UUID refs and cached IDs do not override the declared
+name or retain a differently named resource during sync.
 Config Store names are immutable after creation. AI Gateway Data Plane
 Certificates use their required `title` field as the stable Konnect child name.
 Child entries inherit management scope from their parent resource and do not
 accept `kongctl` metadata.
 
 When upgrading configurations that relied on UUID refs or display-name
-matching, explicitly set each gateway and consumer `name` to its existing API
-name before applying or syncing. A local `ref` can remain unchanged. Review the
-plan for unexpected CREATE or DELETE actions before executing it.
+matching, explicitly set each gateway, agent, consumer, model, and vault
+`name` to its existing API name before applying or syncing. A local `ref`
+can remain unchanged. Review the plan for unexpected CREATE or DELETE actions
+before executing it.
+
+Changing an agent, model, or vault `name` declares a different resource,
+rather than renaming the existing one. Sync can delete the previous resource
+when its name is no longer declared in scope. Legacy `name = ref` defaults
+for these children remain for now; use an explicit `name` in manifests.
 
 Changing a consumer `name` declares a new consumer, not a rename. In sync mode,
 deleting the old consumer also removes its credentials; existing API keys for

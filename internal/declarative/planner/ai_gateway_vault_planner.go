@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayVaultChanges(
@@ -40,70 +39,47 @@ func (p *Planner) planAIGatewayVaultChanges(
 		return fmt.Errorf("failed to list AI Gateway Vaults for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayVaults(currentVaults)
-	desiredKeys := make(map[string]bool)
-
-	for _, desiredVault := range desired {
-		current, exists := matchCurrentAIGatewayVault(desiredVault, currentByID, currentByName)
-		desiredKeys[desiredVault.Name()] = true
-		if id := aiGatewayVaultDesiredID(desiredVault); id != "" {
-			desiredKeys[id] = true
-		}
-
-		if !exists {
-			p.planAIGatewayVaultCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredVault, nil, plan)
-			continue
-		}
-
-		vaultID := resources.AIGatewayVaultID(current.AIGatewayVault)
-		fullVault, err := p.client.GetAIGatewayVault(ctx, gatewayID, vaultID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Vault %s: %w", vaultID, err)
-		}
-		if fullVault == nil {
-			p.planAIGatewayVaultCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredVault, nil, plan)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayVault(
-			*fullVault,
-			desiredVault,
-			p.resources,
-		)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			p.planAIGatewayVaultUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				vaultID,
-				desiredVault,
-				updateFields,
-				changedFields,
-				nil,
-				plan,
-			)
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentVaults {
-			vaultID := resources.AIGatewayVaultID(current.AIGatewayVault)
-			vaultName := resources.AIGatewayVaultName(current.AIGatewayVault)
-			if desiredKeys[vaultID] || desiredKeys[vaultName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayVault, vaultName, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayVaultDelete(namespace, gatewayRef, gatewayID, vaultID, vaultName, plan)
-		}
-	}
-
-	return nil
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayVault, desired, currentVaults,
+		nameMatchedChildOperations[resources.AIGatewayVaultResource, state.AIGatewayVault]{
+			desiredName: func(desired resources.AIGatewayVaultResource) string {
+				return desired.Name()
+			},
+			currentName: func(current state.AIGatewayVault) string {
+				return resources.AIGatewayVaultName(current.AIGatewayVault)
+			},
+			fetch: func(_ resources.AIGatewayVaultResource, current state.AIGatewayVault) (*state.AIGatewayVault, error) {
+				id := resources.AIGatewayVaultID(current.AIGatewayVault)
+				full, err := p.client.GetAIGatewayVault(ctx, gatewayID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway Vault %s: %w", id, err)
+				}
+				return full, nil
+			},
+			diff: func(current state.AIGatewayVault, desired resources.AIGatewayVaultResource) (
+				bool, map[string]any, map[string]FieldChange, error,
+			) {
+				return shouldUpdateAIGatewayVault(current, desired, p.resources)
+			},
+			create: func(desired resources.AIGatewayVaultResource) {
+				p.planAIGatewayVaultCreate(namespace, gatewayRef, gatewayName, gatewayID, desired,
+					nil, plan)
+			},
+			update: func(current state.AIGatewayVault, desired resources.AIGatewayVaultResource,
+				fields map[string]any, changed map[string]FieldChange,
+			) {
+				p.planAIGatewayVaultUpdate(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayVaultID(current.AIGatewayVault), desired, fields, changed,
+					nil, plan)
+			},
+			protected: func(current state.AIGatewayVault) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayVault) {
+				p.planAIGatewayVaultDelete(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayVaultID(current.AIGatewayVault),
+					resources.AIGatewayVaultName(current.AIGatewayVault), plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayVaultCreatesForNewGateway(
@@ -282,43 +258,4 @@ func isAIGatewayVaultWriteOnlyField(key string) bool {
 	default:
 		return false
 	}
-}
-
-func indexAIGatewayVaults(
-	vaults []state.AIGatewayVault,
-) (map[string]state.AIGatewayVault, map[string]state.AIGatewayVault) {
-	byID := make(map[string]state.AIGatewayVault)
-	byName := make(map[string]state.AIGatewayVault)
-	for _, vault := range vaults {
-		if id := resources.AIGatewayVaultID(vault.AIGatewayVault); id != "" {
-			byID[id] = vault
-		}
-		if name := resources.AIGatewayVaultName(vault.AIGatewayVault); name != "" {
-			byName[name] = vault
-		}
-	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayVault(
-	desired resources.AIGatewayVaultResource,
-	currentByID map[string]state.AIGatewayVault,
-	currentByName map[string]state.AIGatewayVault,
-) (state.AIGatewayVault, bool) {
-	if id := aiGatewayVaultDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name()]
-	return current, exists
-}
-
-func aiGatewayVaultDesiredID(desired resources.AIGatewayVaultResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
 }

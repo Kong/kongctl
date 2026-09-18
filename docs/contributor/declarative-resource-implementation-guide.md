@@ -415,6 +415,18 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
+- **Name-matched children with detail lookup:** AI Gateway agents, models, and
+  vaults use [`reconcileNameMatchedChildren`][child-reconcile] within an
+  existing parent. Match only by the declared API name; UUID refs and cached
+  IDs cannot override it. A changed name declares a different resource.
+  Missing detail responses schedule creation; read or comparison errors stop
+  planning. Sync retains declared names and prunes in observed order, stopping
+  at the first protected deletion. Duplicate observed names retain their last
+  indexed value.
+  Typed adapters own detail reads, comparison, payloads, and dependencies;
+  [agents][agent-plan] also bind the observed ID before the detail read.
+  Callers retain scope checks and new-parent creation. This strategy does not
+  add child delete-mode dispatch, update protection, or child traversal.
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
@@ -753,6 +765,9 @@ engine contract. Each refactoring migration should:
 [roots]: ../../internal/declarative/planner/root_planners.go
 [constants]: ../../internal/declarative/planner/constants.go
 [reconcile]: ../../internal/declarative/planner/managed_root_reconciler.go
+[child-reconcile]:
+  ../../internal/declarative/planner/name_matched_child_reconciler.go
+[agent-plan]: ../../internal/declarative/planner/ai_gateway_agent_planner.go
 [auth-plan]: ../../internal/declarative/planner/auth_strategy_planner.go
 [dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
 [dashboard-plan]: ../../internal/declarative/planner/dashboard_planner.go

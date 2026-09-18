@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayAgentChanges(
@@ -49,80 +48,46 @@ func (p *Planner) planAIGatewayAgentChanges(
 		return fmt.Errorf("failed to list AI Gateway Agents for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayAgents(currentAgents)
-	desiredKeys := make(map[string]bool)
-
-	for _, desiredAgent := range desired {
-		current, exists := matchCurrentAIGatewayAgent(desiredAgent, currentByID, currentByName)
-		desiredKeys[desiredAgent.Name] = true
-		if id := aiGatewayAgentDesiredID(desiredAgent); id != "" {
-			desiredKeys[id] = true
-		}
-
-		if !exists {
-			dependsOn := aiGatewayAgentPolicyCreateDependencies(
-				desiredAgent,
-				policyCreateDepsByRefOrName,
-			)
-			p.planAIGatewayAgentCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredAgent, dependsOn, plan)
-			continue
-		}
-
-		agentID := resources.AIGatewayAgentID(current.AIGatewayAgent)
-		if agent := p.resources.GetAIGatewayAgentByRef(desiredAgent.Ref); agent != nil {
-			agent.SetKonnectID(agentID)
-		}
-		fullAgent, err := p.client.GetAIGatewayAgent(ctx, gatewayID, agentID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Agent %s: %w", agentID, err)
-		}
-		if fullAgent == nil {
-			dependsOn := aiGatewayAgentPolicyCreateDependencies(
-				desiredAgent,
-				policyCreateDepsByRefOrName,
-			)
-			p.planAIGatewayAgentCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredAgent, dependsOn, plan)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayAgent(*fullAgent, desiredAgent)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			p.planAIGatewayAgentUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				agentID,
-				desiredAgent,
-				updateFields,
-				changedFields,
-				aiGatewayAgentPolicyCreateDependencies(
-					desiredAgent,
-					policyCreateDepsByRefOrName,
-				),
-				plan,
-			)
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentAgents {
-			agentID := resources.AIGatewayAgentID(current.AIGatewayAgent)
-			agentName := resources.AIGatewayAgentName(current.AIGatewayAgent)
-			if desiredKeys[agentID] || desiredKeys[agentName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayAgent, agentName, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayAgentDelete(namespace, gatewayRef, gatewayID, agentID, agentName, plan)
-		}
-	}
-
-	return nil
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayAgent, desired, currentAgents,
+		nameMatchedChildOperations[resources.AIGatewayAgentResource, state.AIGatewayAgent]{
+			desiredName: func(desired resources.AIGatewayAgentResource) string {
+				return desired.Name
+			},
+			currentName: func(current state.AIGatewayAgent) string {
+				return resources.AIGatewayAgentName(current.AIGatewayAgent)
+			},
+			fetch: func(desired resources.AIGatewayAgentResource, current state.AIGatewayAgent) (*state.AIGatewayAgent, error) {
+				id := resources.AIGatewayAgentID(current.AIGatewayAgent)
+				if agent := p.resources.GetAIGatewayAgentByRef(desired.Ref); agent != nil {
+					agent.SetKonnectID(id)
+				}
+				full, err := p.client.GetAIGatewayAgent(ctx, gatewayID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway Agent %s: %w", id, err)
+				}
+				return full, nil
+			},
+			diff: p.shouldUpdateAIGatewayAgent,
+			create: func(desired resources.AIGatewayAgentResource) {
+				p.planAIGatewayAgentCreate(namespace, gatewayRef, gatewayName, gatewayID, desired,
+					aiGatewayAgentPolicyCreateDependencies(desired, policyCreateDepsByRefOrName), plan)
+			},
+			update: func(current state.AIGatewayAgent, desired resources.AIGatewayAgentResource,
+				fields map[string]any, changed map[string]FieldChange,
+			) {
+				p.planAIGatewayAgentUpdate(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayAgentID(current.AIGatewayAgent), desired, fields, changed,
+					aiGatewayAgentPolicyCreateDependencies(desired, policyCreateDepsByRefOrName), plan)
+			},
+			protected: func(current state.AIGatewayAgent) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayAgent) {
+				p.planAIGatewayAgentDelete(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayAgentID(current.AIGatewayAgent),
+					resources.AIGatewayAgentName(current.AIGatewayAgent), plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayAgentCreatesForNewGateway(
@@ -274,45 +239,6 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 	}
 
 	return true, updateFields, changedFields, nil
-}
-
-func indexAIGatewayAgents(
-	agents []state.AIGatewayAgent,
-) (map[string]state.AIGatewayAgent, map[string]state.AIGatewayAgent) {
-	byID := make(map[string]state.AIGatewayAgent)
-	byName := make(map[string]state.AIGatewayAgent)
-	for _, agent := range agents {
-		if id := resources.AIGatewayAgentID(agent.AIGatewayAgent); id != "" {
-			byID[id] = agent
-		}
-		if name := resources.AIGatewayAgentName(agent.AIGatewayAgent); name != "" {
-			byName[name] = agent
-		}
-	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayAgent(
-	desired resources.AIGatewayAgentResource,
-	currentByID map[string]state.AIGatewayAgent,
-	currentByName map[string]state.AIGatewayAgent,
-) (state.AIGatewayAgent, bool) {
-	if id := aiGatewayAgentDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayAgentDesiredID(desired resources.AIGatewayAgentResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
 }
 
 func aiGatewayAgentPolicyCreateDependencies(

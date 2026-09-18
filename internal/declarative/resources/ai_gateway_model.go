@@ -7,7 +7,6 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func init() {
@@ -143,12 +142,6 @@ func (a *AIGatewayModelResource) TryMatchKonnectResource(konnectResource any) bo
 	name := a.Name()
 	if name == "" {
 		return false
-	}
-	if id := AIGatewayModelID(konnectResource); id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
-		if a.Ref == id || a.GetKonnectID() == id {
-			a.SetKonnectID(id)
-			return true
-		}
 	}
 	if id := AIGatewayModelID(konnectResource); id != "" && AIGatewayModelName(konnectResource) == name {
 		a.SetKonnectID(id)
