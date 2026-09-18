@@ -123,7 +123,8 @@ func newDataplaneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *co
 	cmdObj.Flags().String(tokenNameFlagName, "",
 		"Name of the dataplane the token identifies. Given per invocation; it has no configured default.")
 	cmdObj.Flags().StringToString(tokenTagFlagName, nil,
-		"Tag values the dataplane must carry. Repeatable; separate multiple values for one tag with commas.")
+		"Tag values the dataplane must carry. Repeatable; separate multiple values for one tag with commas. "+
+			"Given per invocation; it has no configured default.")
 	cmdObj.Flags().String(tokenProxyTypeFlagName, "",
 		`Proxy type the token is for (for example "dataplane"). Given per invocation; it has no configured default.`)
 	cmdObj.Flags().String(tokenWorkloadFlagName, "",
@@ -153,7 +154,8 @@ func newZoneTokenCmd(parentPreRun func(*cobra.Command, []string) error) *cobra.C
 	cmdObj.Flags().String(tokenZoneFlagName, "",
 		"Name of the zone the token identifies. Given per invocation; it has no configured default.")
 	cmdObj.Flags().StringSlice(tokenScopeFlagName, []string{controlPlaneZoneScope},
-		"Scope of resources the token can identify.")
+		fmt.Sprintf(`Scope of resources the token can identify.
+- Config path: [ %s ]`, meshcommon.TokenScopeConfigPath))
 	cmdObj.Flags().Duration(tokenValidForFlagName, 0,
 		fmt.Sprintf(`How long the token remains valid, for example "24h".
 - Config path: [ %s ]`, meshcommon.TokenValidForConfigPath))
