@@ -6,7 +6,6 @@ import (
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 const (
@@ -57,7 +56,7 @@ func init() {
 
 // AIGatewayPolicyResource represents a Policy nested under a Konnect AI Gateway.
 type AIGatewayPolicyResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `       yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 
@@ -146,12 +145,6 @@ func (a *AIGatewayPolicyResource) TryMatchKonnectResource(konnectResource any) b
 	name := a.Name
 	if name == "" {
 		return false
-	}
-	if id := AIGatewayPolicyID(konnectResource); id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
-		if a.Ref == id || a.GetKonnectID() == id {
-			a.SetKonnectID(id)
-			return true
-		}
 	}
 	if id := AIGatewayPolicyID(konnectResource); id != "" && AIGatewayPolicyName(konnectResource) == name {
 		a.SetKonnectID(id)

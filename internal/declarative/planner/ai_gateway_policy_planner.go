@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayPolicyChanges(
@@ -40,15 +39,12 @@ func (p *Planner) planAIGatewayPolicyChanges(
 		return fmt.Errorf("failed to list AI Gateway Policies for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayPolicies(currentPolicies)
-	desiredKeys := make(map[string]bool)
+	currentByName := indexAIGatewayPolicies(currentPolicies)
+	desiredNames := make(map[string]bool)
 
 	for _, desiredPolicy := range desired {
-		current, exists := matchCurrentAIGatewayPolicy(desiredPolicy, currentByID, currentByName)
-		desiredKeys[desiredPolicy.Name] = true
-		if id := aiGatewayPolicyDesiredID(desiredPolicy); id != "" {
-			desiredKeys[id] = true
-		}
+		current, exists := currentByName[desiredPolicy.Name]
+		desiredNames[desiredPolicy.Name] = true
 
 		if !exists {
 			p.planAIGatewayPolicyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredPolicy, nil, plan)
@@ -90,7 +86,7 @@ func (p *Planner) planAIGatewayPolicyChanges(
 		for _, current := range currentPolicies {
 			policyID := resources.AIGatewayPolicyID(current.AIGatewayPolicy)
 			policyName := resources.AIGatewayPolicyName(current.AIGatewayPolicy)
-			if desiredKeys[policyID] || desiredKeys[policyName] {
+			if desiredNames[policyName] {
 				continue
 			}
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -232,41 +228,14 @@ func shouldUpdateAIGatewayPolicy(
 
 func indexAIGatewayPolicies(
 	policies []state.AIGatewayPolicy,
-) (map[string]state.AIGatewayPolicy, map[string]state.AIGatewayPolicy) {
-	byID := make(map[string]state.AIGatewayPolicy)
+) map[string]state.AIGatewayPolicy {
 	byName := make(map[string]state.AIGatewayPolicy)
 	for _, policy := range policies {
-		if id := resources.AIGatewayPolicyID(policy.AIGatewayPolicy); id != "" {
-			byID[id] = policy
-		}
 		if name := resources.AIGatewayPolicyName(policy.AIGatewayPolicy); name != "" {
 			byName[name] = policy
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayPolicy(
-	desired resources.AIGatewayPolicyResource,
-	currentByID map[string]state.AIGatewayPolicy,
-	currentByName map[string]state.AIGatewayPolicy,
-) (state.AIGatewayPolicy, bool) {
-	if id := aiGatewayPolicyDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayPolicyDesiredID(desired resources.AIGatewayPolicyResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func aiGatewayPolicyCreateDependencies(plan *Plan, namespace string, gatewayRef string) map[string]string {

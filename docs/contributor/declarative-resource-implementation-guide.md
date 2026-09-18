@@ -403,7 +403,11 @@ do not add raw payload or secret values to diagnostics.
 
 ## 4. Plan the lifecycle
 
-Choose identity and operation semantics before selecting a reusable strategy:
+Choose identity and operation semantics before selecting a reusable strategy.
+Managed AI Gateway policies and MCP servers match and retain children by API
+name within their parent gateway, consistent with agents, models, and vaults.
+UUID-shaped refs remain local identifiers; cached IDs only route operations
+after a name match. Do not generalize legacy ID-first matching as policy.
 
 - **Managed roots matched by name:** [auth strategies][auth-plan] and
   [DCR providers][dcr-plan] use [`reconcileManagedRoots`][reconcile].
