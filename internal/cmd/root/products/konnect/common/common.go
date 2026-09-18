@@ -87,6 +87,7 @@ var (
 	HTTPRetryInitialIntervalConfigPath    = "konnect." + cmdcommon.HTTPRetryInitialIntervalConfigPath
 	HTTPRetryMaxIntervalConfigPath        = "konnect." + cmdcommon.HTTPRetryMaxIntervalConfigPath
 	HTTPRetryBackoffFactorConfigPath      = "konnect." + cmdcommon.HTTPRetryBackoffFactorConfigPath
+	HTTPRetryOnReadErrorsConfigPath       = "konnect." + cmdcommon.HTTPRetryOnReadErrorsConfigPath
 	HTTPRetryOnConnectionErrorsConfigPath = "konnect." + cmdcommon.HTTPRetryOnConnectionErrorsConfigPath
 )
 
@@ -455,6 +456,10 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		return httpclient.RetryConfig{}, err
 	}
 
+	retryReadErrors, err := resolveOptionalBool(cfg, HTTPRetryOnReadErrorsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
 	retryConfig := httpclient.RetryConfig{
 		Strategy:              strategy,
 		MaxAttempts:           maxAttempts,
@@ -462,6 +467,7 @@ func ResolveRetryConfig(cfg config.Hook) (httpclient.RetryConfig, error) {
 		MaxIntervalMS:         maxIntervalMS,
 		BackoffFactor:         factor,
 		RetryConnectionErrors: retryConnErrors,
+		RetryReadErrors:       retryReadErrors,
 	}
 	totalBackoffMS := httpclient.EstimatedRetryBackoffMS(retryConfig)
 	if totalBackoffMS > httpclient.MaxRetryTotalBackoffMS {
@@ -640,11 +646,20 @@ func noRetryConfig() httpclient.RetryConfig {
 }
 
 func resolveRetryConfigForVerb(cfg config.Hook, verb verbs.VerbValue) (httpclient.RetryConfig, error) {
-	if !isDeclarativeRetryVerb(verb) {
+	if isDeclarativeRetryVerb(verb) {
+		return ResolveRetryConfig(cfg)
+	}
+	enabled, err := resolveOptionalBool(cfg, HTTPRetryOnReadErrorsConfigPath)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
+	if !enabled {
 		return noRetryConfig(), nil
 	}
-
-	return ResolveRetryConfig(cfg)
+	rc, err := ResolveRetryConfig(cfg)
+	rc.ReadErrorsOnly = true
+	rc.RetryConnectionErrors = false
+	return rc, err
 }
 
 func konnectSDKFactory(
@@ -695,7 +710,7 @@ func konnectSDKFactory(
 // This is the real implementation of the SDKAPIFactory,
 // which creates a real Konnect SDK instance
 func KonnectSDKFactory(cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
-	return konnectSDKFactory(cfg, logger, noRetryConfig())
+	return KonnectSDKFactoryForVerb(verbs.Get, cfg, logger)
 }
 
 func KonnectSDKFactoryForVerb(verb verbs.VerbValue, cfg config.Hook, logger *slog.Logger) (helpers.SDKAPI, error) {
@@ -718,8 +733,8 @@ func GetSDKFactoryForVerb(verb verbs.VerbValue) helpers.SDKAPIFactory {
 }
 
 // GetSDKFactory returns the SDK factory to use, checking for test overrides.
-// The returned factory uses no retry config. Call GetSDKFactoryForVerb to
-// enable retries for declarative verbs.
+// The returned factory enables only opt-in read recovery. Call
+// GetSDKFactoryForVerb to enable status retries for declarative verbs.
 func GetSDKFactory() helpers.SDKAPIFactory {
 	if helpers.DefaultSDKFactory != nil {
 		return helpers.DefaultSDKFactory

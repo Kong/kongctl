@@ -43,6 +43,10 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 	}
 	for _, want := range []string{
 		"konnect:",
+		"http-retry-on-read-errors: true",
+		"http-retry-max-attempts: 2",
+		"http-retry-initial-interval: 1000",
+		"http-retry-max-interval: 1000",
 		"environment: " + konnectcommon.EnvironmentProduction,
 	} {
 		if !strings.Contains(content, want) {
@@ -60,7 +64,7 @@ func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 	}
 }
 
-func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
+func TestWriteProfileConfigWritesExplicitDisabledHTTPTimeout(t *testing.T) {
 	clearKonnectTargetEnv(t)
 	t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "0s")
 	t.Setenv("KONGCTL_E2E_HTTP_TCP_USER_TIMEOUT", "default")
@@ -76,8 +80,8 @@ func TestWriteProfileConfigOmitsDisabledHTTPTimeouts(t *testing.T) {
 	}
 
 	content := string(data)
-	if strings.Contains(content, "http-timeout:") {
-		t.Fatalf("config unexpectedly contains http-timeout: %s", content)
+	if !strings.Contains(content, "http-timeout: 0s") {
+		t.Fatalf("config missing explicit disabled http-timeout: %s", content)
 	}
 	if strings.Contains(content, "http-tcp-user-timeout:") {
 		t.Fatalf("config unexpectedly contains http-tcp-user-timeout: %s", content)

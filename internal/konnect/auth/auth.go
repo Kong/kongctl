@@ -21,6 +21,7 @@ import (
 
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkMetadata "github.com/Kong/sdk-konnect-go/pkg/metadata"
+	sdkretry "github.com/Kong/sdk-konnect-go/retry"
 
 	"github.com/kong/kongctl/internal/config"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
@@ -463,6 +464,8 @@ func GetAuthenticatedClient(
 	var sdkHTTPClient kk.HTTPClient = refreshingClient
 	if retryConfig != nil && retryConfig.Strategy == httpclient.RetryStrategyBackoff {
 		sdkHTTPClient = httpclient.NewRetryingHTTPClient(refreshingClient, *retryConfig, logger)
+		// The HTTP wrapper owns retries; do not multiply them at the SDK layer.
+		opts = append(opts, kk.WithRetryConfig(sdkretry.Config{Strategy: httpclient.RetryStrategyNone}))
 	}
 	opts = append(opts, kk.WithClient(sdkHTTPClient))
 

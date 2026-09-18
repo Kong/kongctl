@@ -15,16 +15,17 @@ import (
 // Diagnostics deliberately excludes arguments, output, error text, and URL paths:
 // these can contain credentials or user data. Unknown causes stay unknown.
 type scenarioDiagnostics struct {
-	SchemaVersion int                 `json:"schema_version"`
-	Scenario      string              `json:"scenario"`
-	RunID         string              `json:"run_id,omitempty"`
-	RunAttempt    string              `json:"run_attempt,omitempty"`
-	SHA           string              `json:"checkout_sha,omitempty"`
-	WorkflowSHA   string              `json:"workflow_sha,omitempty"`
-	Org           string              `json:"org,omitempty"`
-	Outcome       string              `json:"outcome"`
-	Commands      []commandDiagnostic `json:"commands"`
-	Failure       *terminalFailure    `json:"failure,omitempty"`
+	ProfileHTTPTimeoutMS int64               `json:"profile_http_timeout_ms"`
+	SchemaVersion        int                 `json:"schema_version"`
+	Scenario             string              `json:"scenario"`
+	RunID                string              `json:"run_id,omitempty"`
+	RunAttempt           string              `json:"run_attempt,omitempty"`
+	SHA                  string              `json:"checkout_sha,omitempty"`
+	WorkflowSHA          string              `json:"workflow_sha,omitempty"`
+	Org                  string              `json:"org,omitempty"`
+	Outcome              string              `json:"outcome"`
+	Commands             []commandDiagnostic `json:"commands"`
+	Failure              *terminalFailure    `json:"failure,omitempty"`
 
 	path    string
 	step    string
@@ -64,7 +65,8 @@ type attemptDiagnostic struct {
 
 func newScenarioDiagnostics(path, scenario string) *scenarioDiagnostics {
 	return &scenarioDiagnostics{
-		SchemaVersion: 1, Scenario: filepath.ToSlash(scenario),
+		ProfileHTTPTimeoutMS: harness.HTTPRequestTimeout().Milliseconds(),
+		SchemaVersion:        1, Scenario: filepath.ToSlash(scenario),
 		RunID: os.Getenv("GITHUB_RUN_ID"), RunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"),
 		SHA: os.Getenv("KONGCTL_E2E_CHECKOUT_SHA"), WorkflowSHA: os.Getenv("GITHUB_SHA"),
 		Org:     os.Getenv("KONGCTL_E2E_MATRIX_ORG"),

@@ -77,6 +77,10 @@ type RetryConfig struct {
 	MaxIntervalMS         int
 	BackoffFactor         float64
 	RetryConnectionErrors bool
+	// RetryReadErrors enables transport-error recovery only for GET and HEAD.
+	RetryReadErrors bool
+	// ReadErrorsOnly disables status/mutation retries for imperative commands.
+	ReadErrorsOnly bool
 }
 
 // EstimatedRetryBackoffMS returns the nominal cumulative retry sleep budget in
