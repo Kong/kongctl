@@ -10,6 +10,7 @@
     "portal/ip-allow-list",
     "portal/pages",
     "portal/sync",
+    "portal/teams",
     "portal/visibility"
   ]
 }

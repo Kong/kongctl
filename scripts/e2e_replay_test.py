@@ -43,6 +43,37 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_portal_teams_phases_reorder_independent_work_without_crossing_barriers(self):
+        cassette = MODULE.load_cassette(MODULE.ROOT /
+            "test/e2e/scenarios/portal/teams/replay/cassette.json")
+        engine = MODULE.Replay(cassette)
+
+        def send(index):
+            request = cassette["interactions"][index]["request"]
+            query = urlencode([tuple(pair) for pair in request["query"]])
+            target = request["path"] + ("?" + query if query else "")
+            body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+            return engine.exchange("us.api.konghq.com", request["method"], target, body)
+
+        position = 0
+        for phase in cassette["parallel_phases"]:
+            start, end = phase["start"] - 1, phase["end"]
+            for index in range(position, start):
+                send(index)
+            # No phase may consume the request from the following strict segment.
+            with self.assertRaisesRegex(ValueError, "mismatch"):
+                send(end)
+            self.assertEqual(start, engine.position)
+            self.assertLessEqual(end - start, 3)
+            methods = {item["request"]["method"] for item in cassette["interactions"][start:end]}
+            self.assertIn(methods, ({"GET"}, {"POST"}))
+            for index in reversed(range(start, end)):
+                self.assertEqual(send(index), cassette["interactions"][index]["response"])
+            position = end
+        for index in range(position, len(cassette["interactions"])):
+            send(index)
+        engine.verify()
+
     def test_portal_document_patch_waits_for_delayed_api_inventory(self):
         cassette = MODULE.load_cassette(MODULE.ROOT /
             "test/e2e/scenarios/portal/api_docs_with_children/replay/cassette.json")
