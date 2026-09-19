@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -289,7 +290,7 @@ func (p *Planner) doesStaticKeyNeedChange(
 	}
 
 	// Compare labels
-	if !compareStringMaps(current.Labels, desired.Labels) {
+	if !maps.Equal(current.Labels, desired.Labels) {
 		return true
 	}
 

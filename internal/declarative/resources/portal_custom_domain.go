@@ -133,12 +133,13 @@ func (d *PortalCustomDomainResource) TryMatchKonnectResource(konnectResource any
 	return false
 }
 
+var hostnameRegex = regexp.MustCompile(
+	`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*` +
+		`[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$`,
+)
+
 // isValidHostname validates hostname format
 func isValidHostname(hostname string) bool {
-	// Basic hostname validation regex
-	pattern := `^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*` +
-		`[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$`
-	hostnameRegex := regexp.MustCompile(pattern)
 	return hostnameRegex.MatchString(hostname)
 }
 

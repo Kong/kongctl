@@ -953,6 +953,7 @@ func isEmptyValue(v any) bool {
 
 	val := reflect.ValueOf(v)
 
+	//exhaustive:ignore // Other reflection kinds are not considered empty.
 	switch val.Kind() {
 	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
@@ -964,26 +965,6 @@ func isEmptyValue(v any) bool {
 	case reflect.Struct:
 		zero := reflect.Zero(val.Type())
 		return reflect.DeepEqual(v, zero.Interface())
-	case reflect.Invalid,
-		reflect.Bool,
-		reflect.Int,
-		reflect.Int8,
-		reflect.Int16,
-		reflect.Int32,
-		reflect.Int64,
-		reflect.Uint,
-		reflect.Uint8,
-		reflect.Uint16,
-		reflect.Uint32,
-		reflect.Uint64,
-		reflect.Uintptr,
-		reflect.Float32,
-		reflect.Float64,
-		reflect.Complex64,
-		reflect.Complex128,
-		reflect.Func,
-		reflect.UnsafePointer:
-		return false
 	}
 
 	return false
