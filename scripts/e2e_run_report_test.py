@@ -39,12 +39,21 @@ class RunReportTest(unittest.TestCase):
                       finished_at=self.shard["finished_at"] + 5)
         write(self.root / "second/e2e-report-shard.json", second)
         write(self.root / "e2e-routing.json", {"live": ["example", "other"], "replay": []})
-        report = self.report()
-        self.assertEqual("PASSED", report["state"])
-        self.assertEqual(35, report["live_window_seconds"])
-        self.assertEqual(60, report["initial_queue_seconds"])
-        self.assertEqual(60, report["shards"][0]["job_seconds"])
-        self.assertIn("Recorded replay", render(report))
+        original_rglob = Path.rglob
+        for reverse in (False, True):
+            with self.subTest(reverse=reverse):
+                def ordered_rglob(path, pattern):
+                    return iter(sorted(original_rglob(path, pattern), key=str, reverse=reverse))
+
+                with patch.object(Path, "rglob", ordered_rglob):
+                    report = self.report()
+                self.assertEqual("PASSED", report["state"])
+                self.assertEqual(35, report["live_window_seconds"])
+                self.assertEqual(60, report["initial_queue_seconds"])
+                shards = {shard["org_name"]: shard for shard in report["shards"]}
+                self.assertEqual(60, shards["org"]["job_seconds"])
+                self.assertIsNone(shards["org2"]["job_seconds"])
+                self.assertIn("Recorded replay", render(report))
 
     def test_missing_new_attempt_never_reuses_old_success(self):
         self.metadata["jobs"][0]["run_attempt"] = 2
