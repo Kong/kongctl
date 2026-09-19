@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayProviderChanges(
@@ -44,16 +43,13 @@ func (p *Planner) planAIGatewayProviderChanges(
 		return fmt.Errorf("failed to list AI Gateway Model Providers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayProviders(currentProviders)
+	currentByName := indexAIGatewayProviders(currentProviders)
 
-	desiredKeys := make(map[string]bool)
+	desiredNames := make(map[string]bool)
 	for _, desiredProvider := range desired {
-		desiredKeys[desiredProvider.Name] = true
-		if id := aiGatewayProviderDesiredID(desiredProvider); id != "" {
-			desiredKeys[id] = true
-		}
+		desiredNames[desiredProvider.Name] = true
 
-		current, exists := matchCurrentAIGatewayProvider(desiredProvider, currentByID, currentByName)
+		current, exists := currentByName[desiredProvider.Name]
 		if !exists {
 			p.planAIGatewayProviderCreate(
 				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
@@ -87,7 +83,7 @@ func (p *Planner) planAIGatewayProviderChanges(
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentProviders {
-			if desiredKeys[current.ID] || desiredKeys[current.Name] {
+			if desiredNames[current.Name] {
 				continue
 			}
 
@@ -104,41 +100,14 @@ func (p *Planner) planAIGatewayProviderChanges(
 
 func indexAIGatewayProviders(
 	providers []state.AIGatewayProvider,
-) (map[string]state.AIGatewayProvider, map[string]state.AIGatewayProvider) {
-	byID := make(map[string]state.AIGatewayProvider)
+) map[string]state.AIGatewayProvider {
 	byName := make(map[string]state.AIGatewayProvider)
 	for _, provider := range providers {
-		if provider.ID != "" {
-			byID[provider.ID] = provider
-		}
 		if provider.Name != "" {
 			byName[provider.Name] = provider
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayProvider(
-	desired resources.AIGatewayProviderResource,
-	currentByID map[string]state.AIGatewayProvider,
-	currentByName map[string]state.AIGatewayProvider,
-) (state.AIGatewayProvider, bool) {
-	if id := aiGatewayProviderDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayProviderDesiredID(desired resources.AIGatewayProviderResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func (p *Planner) planAIGatewayProviderCreatesForNewGateway(
@@ -264,7 +233,8 @@ func shouldUpdateAIGatewayProvider(
 	if current.Type != desired.Type {
 		return false, nil, nil, fmt.Errorf(
 			"changing AI Gateway Model Provider type from %s to %s is not supported. Please delete and recreate the provider",
-			current.Type, desired.Type,
+			current.Type,
+			desired.Type,
 		)
 	}
 

@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayAuthStrategyChanges(
@@ -51,16 +50,13 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayAuthStrategies(currentProviders)
+	currentByName := indexAIGatewayAuthStrategies(currentProviders)
 
-	desiredKeys := make(map[string]bool)
+	desiredNames := make(map[string]bool)
 	for _, desiredProvider := range desired {
-		desiredKeys[desiredProvider.Name] = true
-		if id := aiGatewayAuthStrategyDesiredID(desiredProvider); id != "" {
-			desiredKeys[id] = true
-		}
+		desiredNames[desiredProvider.Name] = true
 
-		current, exists := matchCurrentAIGatewayAuthStrategy(desiredProvider, currentByID, currentByName)
+		current, exists := currentByName[desiredProvider.Name]
 		if !exists {
 			p.planAIGatewayAuthStrategyCreate(
 				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
@@ -79,7 +75,10 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 			continue
 		}
 
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayAuthStrategy(*fullProvider, desiredProvider)
+		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayAuthStrategy(
+			*fullProvider,
+			desiredProvider,
+		)
 		if err != nil {
 			return err
 		}
@@ -94,7 +93,7 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentProviders {
-			if desiredKeys[current.ID] || desiredKeys[current.Name] {
+			if desiredNames[current.Name] {
 				continue
 			}
 
@@ -116,41 +115,14 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 
 func indexAIGatewayAuthStrategies(
 	providers []state.AIGatewayAuthStrategy,
-) (map[string]state.AIGatewayAuthStrategy, map[string]state.AIGatewayAuthStrategy) {
-	byID := make(map[string]state.AIGatewayAuthStrategy)
+) map[string]state.AIGatewayAuthStrategy {
 	byName := make(map[string]state.AIGatewayAuthStrategy)
 	for _, provider := range providers {
-		if provider.ID != "" {
-			byID[provider.ID] = provider
-		}
 		if provider.Name != "" {
 			byName[provider.Name] = provider
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayAuthStrategy(
-	desired resources.AIGatewayAuthStrategyResource,
-	currentByID map[string]state.AIGatewayAuthStrategy,
-	currentByName map[string]state.AIGatewayAuthStrategy,
-) (state.AIGatewayAuthStrategy, bool) {
-	if id := aiGatewayAuthStrategyDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayAuthStrategyDesiredID(desired resources.AIGatewayAuthStrategyResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func (p *Planner) planAIGatewayAuthStrategyCreatesForNewGateway(
@@ -276,7 +248,8 @@ func shouldUpdateAIGatewayAuthStrategy(
 	if current.Type != desired.Type {
 		return false, nil, nil, fmt.Errorf(
 			"changing AI Gateway Auth Strategy type from %s to %s is not supported. Please delete and recreate the provider",
-			current.Type, desired.Type,
+			current.Type,
+			desired.Type,
 		)
 	}
 
