@@ -109,9 +109,6 @@ func (a *AIGatewayModelResource) SetDefaults() {
 
 	enabled := true
 	if a.AIGatewayModelAPI != nil {
-		if a.AIGatewayModelAPI.Name == "" {
-			a.AIGatewayModelAPI.Name = a.Ref
-		}
 		if a.AIGatewayModelAPI.DisplayName == "" {
 			a.AIGatewayModelAPI.DisplayName = a.AIGatewayModelAPI.Name
 		}
@@ -121,9 +118,6 @@ func (a *AIGatewayModelResource) SetDefaults() {
 		a.Type = kkComps.CreateAIGatewayModelRequestTypeAPI
 	}
 	if a.AIGatewayModelModel != nil {
-		if a.AIGatewayModelModel.Name == "" {
-			a.AIGatewayModelModel.Name = a.Ref
-		}
 		if a.AIGatewayModelModel.DisplayName == "" {
 			a.AIGatewayModelModel.DisplayName = a.AIGatewayModelModel.Name
 		}

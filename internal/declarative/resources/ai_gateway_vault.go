@@ -139,9 +139,6 @@ func (a *AIGatewayVaultResource) SetDefaults() {
 			a.Ref = name
 		}
 	}
-	if name, _ := payload[aiGatewayVaultFieldName].(string); name == "" && a.Ref != "" {
-		payload[aiGatewayVaultFieldName] = a.Ref
-	}
 
 	data, err := json.Marshal(payload)
 	if err != nil {

@@ -52,13 +52,16 @@ func TestAIGatewayPolicyResourceDefaults(t *testing.T) {
 
 	policy.SetDefaults()
 
-	require.Equal(t, "mask-sensitive-data", policy.Name)
+	require.Empty(t, policy.Name)
 	require.Empty(t, policy.DisplayName)
-	require.ErrorContains(t, policy.Validate(), "display_name is required")
+	require.ErrorContains(t, policy.Validate(), "name is required")
 	require.NotNil(t, policy.Enabled)
 	require.True(t, *policy.Enabled)
 	require.NotNil(t, policy.Global)
 	require.False(t, *policy.Global)
+
+	policy.Name = "explicit-policy-name"
+	require.ErrorContains(t, policy.Validate(), "display_name is required")
 }
 
 func TestAIGatewayPolicyResourceRejectsKongctlMetadata(t *testing.T) {
