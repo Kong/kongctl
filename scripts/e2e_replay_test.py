@@ -43,6 +43,45 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_portal_email_template_phases_preserve_read_before_write(self):
+        cassette = MODULE.load_cassette(MODULE.ROOT /
+            "test/e2e/scenarios/portal/email-templates/replay/cassette.json")
+        engine = MODULE.Replay(cassette)
+
+        def send(index):
+            request = cassette["interactions"][index]["request"]
+            query = urlencode([tuple(pair) for pair in request["query"]])
+            target = request["path"] + ("?" + query if query else "")
+            body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+            return engine.exchange("us.api.konghq.com", request["method"], target, body)
+
+        position = 0
+        for phase in cassette["parallel_phases"]:
+            start, end = phase["start"] - 1, phase["end"]
+            for index in range(position, start):
+                send(index)
+            # The final portal deletion cannot cross any template phase.
+            with self.assertRaisesRegex(ValueError, "mismatch"):
+                send(len(cassette["interactions"]) - 1)
+            dependencies = engine.phases[start]
+            for index in range(start, end):
+                if (cassette["interactions"][index]["request"]["method"] in {"PATCH", "DELETE"}
+                        and dependencies[index]):
+                    with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+                        with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                            send(index)
+                    self.assertEqual(start, engine.position)
+            pending = set(range(start, end))
+            while pending:
+                # Prefer the opposite order while retaining mandatory dependencies.
+                index = max(i for i in pending if dependencies[i] <= engine.completed)
+                self.assertEqual(send(index), cassette["interactions"][index]["response"])
+                pending.remove(index)
+            position = end
+        for index in range(position, len(cassette["interactions"])):
+            send(index)
+        engine.verify()
+
     def test_portal_teams_phases_reorder_independent_work_without_crossing_barriers(self):
         cassette = MODULE.load_cassette(MODULE.ROOT /
             "test/e2e/scenarios/portal/teams/replay/cassette.json")

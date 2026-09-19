@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "scenario": "portal/email-templates",
+  "inputs_sha256": "sha256:586c163251973bbdc2eb7dc39423e2ce7d848428570512910288adfd68889988",
+  "source": {
+    "kind": "recorded",
+    "commit": "a21bca4891d871bb6c6a4e8e13a397f47d652723",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35446057376"
+  },
+  "parallel_phases": [
+    {
+      "start": 4,
+      "end": 5,
+      "after": {}
+    },
+    {
+      "start": 14,
+      "end": 15,
+      "after": {}
+    },
+    {
+      "start": 19,
+      "end": 24,
+      "after": {}
+    },
+    {
+      "start": 51,
+      "end": 52,
+      "after": {}
+    },
+    {
+      "start": 88,
+      "end": 93,
+      "after": {}
+    }
+  ],
+  "interaction_chunks": [
+    "1ecfb7aea2d9133b356be5dce75197fa9ce4ee5f5cc5e266bc537437e4d4a67c",
+    "a6ffb1fc6715813187c1f1dfbb2b97395f44f21aad2ae643c83fda12fdf0eda6"
+  ]
+}
