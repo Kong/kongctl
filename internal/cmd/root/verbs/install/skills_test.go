@@ -51,7 +51,7 @@ func TestInstallBundledSkillsWritesVersionedSkillsAndManifest(t *testing.T) {
 
 	assert.Equal(t, canonicalDir, result.CanonicalDir)
 	assert.Equal(t, "v9.9.9", result.CLIVersion)
-	expectedSkills := []string{"kongctl-declarative", "kongctl-extension-builder"}
+	expectedSkills := []string{"kongctl-ai-gateway", "kongctl-declarative", "kongctl-extension-builder"}
 	assert.ElementsMatch(t, expectedSkills, result.SkillNames)
 
 	for _, skillName := range result.SkillNames {
