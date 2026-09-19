@@ -110,9 +110,6 @@ func (a *AIGatewayConfigStoreResource) SetDefaults() {
 	if a.Ref == "" {
 		a.Ref = a.Name
 	}
-	if a.Name == "" {
-		a.Name = a.Ref
-	}
 }
 
 func (a AIGatewayConfigStoreResource) GetKonnectMonikerFilter() string {

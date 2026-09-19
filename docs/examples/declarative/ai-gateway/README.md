@@ -3,6 +3,11 @@
 This directory contains declarative configuration examples for Konnect AI
 Gateway resources.
 
+Declare an explicit `name` for each managed gateway and name-bearing child,
+including nested children. `ref` is a local reference identifier and does not
+supply a missing API name. When upgrading a manifest that relied on this
+legacy default, add the existing Konnect API name and keep the local `ref`.
+
 - [ai-gateway.yaml](ai-gateway.yaml) defines a root AI Gateway resource with
   a nested OpenAI provider, env vault, data plane certificate, policies,
   consumer, agent, consumer group, model that targets that provider, and a
