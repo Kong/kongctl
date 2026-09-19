@@ -486,15 +486,6 @@ jobs:
             if [ "${is_fork}" = "true" ]; then
               emit_outputs true false true
               echo "E2E requires maintainer-triggered trusted run for fork PR."
-              if [ -n "${RUNNER_TEMP}/e2e-details.md" ]; then
-                {
-                  echo "## E2E"
-                  echo
-                  echo "- Status: waiting for trusted maintainer run"
-                  echo "- Reason: fork PR code cannot receive E2E secrets automatically"
-                  echo "- Reviewed SHA required: ${status_sha}"
-                } >> "${RUNNER_TEMP}/e2e-details.md"
-              fi
             else
               emit_outputs true true false
               echo "E2E required for this change set."
@@ -774,6 +765,7 @@ jobs:
           make setup-e2e-replay
           chmod +x kongctl e2e.test
           python3 scripts/e2e_replay_routing.py run --mode pr \
+            --summary-output .e2e-artifacts/pr-replay/details.md \
             --baseline test/e2e/baselines/weighted-v1-2026-09-observations.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -1181,7 +1173,7 @@ jobs:
           fi
           if [ "$REPLAY_MODE" = pr ]; then make setup-e2e-replay; fi
           python3 scripts/e2e_replay_routing.py verify --mode "$REPLAY_MODE" --results .downloaded-replay
-          echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)" >> "${RUNNER_TEMP}/e2e-details.md"
+          echo "Replay scenarios passed: $REPLAY_COUNT (mode: $REPLAY_MODE)"
 
   e2e-verify:
     name: Verify scenario results and coverage

@@ -261,6 +261,7 @@ def aggregate(root, metadata, needs):
                          if line.startswith(("Go build cache", "Go fallback", "Scenario routing:"))]
     first_job = min((stamp(j.get("started_at")) for j in jobs if j.get("started_at")), default=None)
     return {"schema_version": 1, "run_id": metadata["run"]["id"], "state": state,
+            "reviewed_sha": required.get("status_sha"),
             "run_url": metadata["run"]["html_url"], "head_sha": metadata["run"]["head_sha"],
             "initial_queue_seconds": elapsed(stamp(metadata["run"]["created_at"]), first_job),
             "workflow_through_validation_seconds": elapsed(first_job, max(completed)) if completed else None,
@@ -291,6 +292,9 @@ def render(report):
              "Runtime and result counts cover the selected attempts. Missing evidence is never treated as success.", "",
              "| Mode | Assigned | Passed | Failed | Skipped | Advisory failures |",
              "| --- | ---: | ---: | ---: | ---: | ---: |"]
+    if report["state"] == "AWAITING TRUSTED RUN":
+        lines[2:2] = ["A maintainer must trigger a trusted run: fork PR code cannot receive E2E secrets automatically.",
+                      "", "Reviewed SHA required: `" + cell(report.get("reviewed_sha") or "unknown") + "`", ""]
     for label, assigned, counts in (("Live Konnect", report["assigned_live"], report["live_counts"]),
                                     ("Recorded replay", report["assigned_replay"], report["replay_counts"])):
         lines.append(f"| {label} | {assigned if assigned is not None else 'unknown'} | {counts['passed']} | "

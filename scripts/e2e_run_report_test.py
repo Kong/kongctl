@@ -141,5 +141,8 @@ class RunReportTest(unittest.TestCase):
         self.needs["e2e-needed"]["outputs"]["required"] = "false"
         self.assertEqual("NOT REQUIRED", self.report()["state"])
         self.needs["e2e-needed"]["outputs"].update(required="true", run_shards="false",
-                                                trusted_e2e_required="true")
+                                                trusted_e2e_required="true", status_sha="reviewed-head")
         self.assertEqual("AWAITING TRUSTED RUN", self.report()["state"])
+        markdown = render(self.report())
+        self.assertIn("fork PR code cannot receive E2E secrets automatically", markdown)
+        self.assertIn("Reviewed SHA required: `reviewed-head`", markdown)
