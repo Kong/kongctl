@@ -1,0 +1,610 @@
+{
+  "schema_version": 2,
+  "scenario": "org/users/get",
+  "inputs_sha256": "sha256:aeaa31d6ae224f255d238de4f97fb425bd3648780e8c9ca54809247d8ba257c5",
+  "source": {
+    "kind": "recorded",
+    "commit": "c139ad63ed85a286fadcd71500887a674399240b",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35463073348"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "email": "replay-user-1@example.invalid",
+          "full_name": "replay-user-1",
+          "preferred_name": "",
+          "active": true,
+          "created_at": "2026-01-01T00:00:00Z",
+          "updated_at": "2026-01-01T00:00:00Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    }
+  ]
+}

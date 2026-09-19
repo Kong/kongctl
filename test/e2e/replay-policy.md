@@ -7,7 +7,9 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
-`event-gateway/consume-policy`,
+`dump/organization-teams`, `event-gateway/consume-policy`,
+`org/users/assignments`, `org/users/get`, `org/users/plan/apply-workflow`,
+`org/users/plan/sync-workflow`, `org/users/sync`,
 `portal/api_docs_with_children`, `portal/customization`, `portal/email-templates`,
 `portal/ip-allow-list`, `portal/pages`,
 `portal/sync`, `portal/teams`, and `portal/visibility`.
@@ -27,6 +29,12 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/pages | [Recording and isolated replays][pages-record] |
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
 | portal/email-templates | [Recording][email-record], [isolated replays][email-replay] |
+| dump/organization-teams | [Recording][org-dump-record], [isolated replays][org-dump-replay] |
+| org/users/assignments | [Recording][user-assign-record], [isolated replays][user-assign-replay] |
+| org/users/get | [Recording and isolated replays][user-get-record] |
+| org/users/plan/apply-workflow | [Recording][user-apply-record], [isolated replays][user-apply-replay] |
+| org/users/plan/sync-workflow | [Recording][user-plan-sync-record], [isolated replays][user-plan-sync-replay] |
+| org/users/sync | [Recording][user-sync-record], [isolated replays][user-sync-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -49,6 +57,17 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [teams-replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
 [email-record]: https://github.com/Kong/kongctl/actions/runs/35446057376
 [email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
+[org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35463078546
+[org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35463672734
+[user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35463074418
+[user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35463667949
+[user-get-record]: https://github.com/Kong/kongctl/actions/runs/35463073348
+[user-apply-record]: https://github.com/Kong/kongctl/actions/runs/35463075604
+[user-apply-replay]: https://github.com/Kong/kongctl/actions/runs/35463669060
+[user-plan-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463076560
+[user-plan-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463670245
+[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463077601
+[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463671463
 
 ## Routing
 

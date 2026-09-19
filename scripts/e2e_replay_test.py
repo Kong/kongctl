@@ -43,6 +43,43 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
+        hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
+        for scenario in MODULE.USER_SCENARIOS:
+            with self.subTest(scenario=scenario):
+                cassette = MODULE.load_cassette(MODULE.ROOT / "test/e2e/scenarios" / scenario / "replay/cassette.json")
+                engine = MODULE.Replay(cassette)
+
+                def send(index):
+                    request = cassette["interactions"][index]["request"]
+                    query = urlencode([tuple(pair) for pair in request["query"]])
+                    target = request["path"] + ("?" + query if query else "")
+                    body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+                    return engine.exchange(hosts[request["endpoint"]], request["method"], target, body)
+
+                position = 0
+                for phase in cassette.get("parallel_phases", []):
+                    start, end = phase["start"] - 1, phase["end"]
+                    for index in range(position, start):
+                        send(index)
+                    dependencies = engine.phases[start]
+                    for index in range(start, end):
+                        if (cassette["interactions"][index]["request"]["method"] != "GET"
+                                and dependencies[index] - engine.completed):
+                            with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+                                with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                                    send(index)
+                            self.assertEqual(start, engine.position)
+                    pending = set(range(start, end))
+                    while pending:
+                        index = max(i for i in pending if dependencies[i] <= engine.completed)
+                        self.assertEqual(send(index), cassette["interactions"][index]["response"])
+                        pending.remove(index)
+                    position = end
+                for index in range(position, len(cassette["interactions"])):
+                    send(index)
+                engine.verify()
+
     def test_distinct_team_membership_creates_can_reorder_but_duplicates_cannot(self):
         team = "00000000-0000-4000-8000-000000000001"
         first_user = "00000000-0000-4000-8000-000000000002"
