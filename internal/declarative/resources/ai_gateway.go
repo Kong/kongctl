@@ -483,7 +483,7 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("consumer_groups", explainArrayOf(inlineExplainNode(aiGatewayConsumerGroupExplainNode)), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(inlineExplainNode(aiGatewayMCPServerExplainNode)), false, false),
-		explainField("config_stores", explainArrayOf(aiGatewayConfigStoreInlineExplainNode()), false, false),
+		explainField("config_stores", explainArrayOf(inlineExplainNode(aiGatewayConfigStoreExplainNode)), false, false),
 		explainField("vaults", explainArrayOf(inlineExplainNode(aiGatewayVaultExplainNode)), false, false),
 		explainField(
 			"data_plane_certificates",

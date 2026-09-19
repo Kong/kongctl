@@ -203,17 +203,9 @@ func aiGatewayConfigStoreExplainNode(_ ExplainBuildContext) (*ExplainNode, error
 		explainField(SchemaFieldDisplayName, explainStringNode("My-Config-Store"), false, true),
 		explainField(
 			"secrets",
-			&ExplainNode{Kind: explainKindArray, Items: aiGatewayConfigStoreSecretInlineExplainNode()},
+			&ExplainNode{Kind: explainKindArray, Items: inlineExplainNode(aiGatewayConfigStoreSecretExplainNode)},
 			false,
 			false,
 		),
 	), nil
-}
-
-func aiGatewayConfigStoreInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayConfigStoreExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
 }

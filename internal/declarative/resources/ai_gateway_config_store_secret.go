@@ -173,14 +173,6 @@ func aiGatewayConfigStoreSecretExplainNode(_ ExplainBuildContext) (*ExplainNode,
 	), nil
 }
 
-func aiGatewayConfigStoreSecretInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayConfigStoreSecretExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
 func validateAIGatewayConfigStoreSecrets(rs *ResourceSet, children []AIGatewayConfigStoreSecretResource) error {
 	keysByStore := make(map[string]string)
 	refs := make(map[string]struct{})
