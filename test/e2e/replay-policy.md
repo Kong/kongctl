@@ -104,7 +104,10 @@ Use this shared procedure for new replay coverage and cassette refreshes.
 The manual `e2e-replay.yaml` workflow uses CI credentials and the existing
 organization lock and before/after resets; no local PAT or new organization
 is needed. The six organization-user scenarios use `kongctl-acceptance`,
-where their pre-registered users exist; other recordings use acceptance-3.
+where their pre-registered users exist. `dump/portal-owned` records on
+acceptance-2, matching its successful live shard; acceptance-3 supplies a
+default auth-strategy ID that fails reconstruction after this scenario's
+reset. Other recordings use acceptance-3.
 The selected environment, credentials, and lock always refer to the same org.
 After pushing the scenario changes, record the complete scenario
 and replay it three times in the separate network-isolated job (replace

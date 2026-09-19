@@ -63,7 +63,7 @@ class ReplayTest(unittest.TestCase):
         env = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/portal-owned")
         self.assertEqual("1", env["KONGCTL_E2E_RESET"])
         self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
-        self.assertEqual("kongctl-acceptance-3", MODULE.recording_org("dump/portal-owned"))
+        self.assertEqual("kongctl-acceptance-2", MODULE.recording_org("dump/portal-owned"))
 
     def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
@@ -567,6 +567,8 @@ class ReplayTest(unittest.TestCase):
         self.assertIn("KONGCTL_E2E_MATRIX_ORG: ${{ needs.build.outputs.recording_org }}", experiment)
         for scenario in MODULE.SCENARIOS:
             expected = "kongctl-acceptance" if scenario in MODULE.USER_SCENARIOS else "kongctl-acceptance-3"
+            if scenario == "dump/portal-owned":
+                expected = "kongctl-acceptance-2"
             self.assertEqual(expected, MODULE.recording_org(scenario))
         self.assertIn("cancel-in-progress: false", experiment)
         self.assertIn("queue: max", experiment)
