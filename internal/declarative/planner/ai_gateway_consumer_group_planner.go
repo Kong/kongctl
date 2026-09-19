@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayConsumerGroupChanges(
@@ -50,16 +49,13 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 		return fmt.Errorf("failed to list AI Gateway Consumer Groups for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByID, currentByName := indexAIGatewayConsumerGroups(currentGroups)
-	desiredKeys := make(map[string]bool)
+	currentByName := indexAIGatewayConsumerGroups(currentGroups)
+	desiredNames := make(map[string]bool)
 	consumerCreateDepsByRefOrName := aiGatewayConsumerCreateDependencies(plan, namespace, gatewayRef)
 
 	for _, desiredGroup := range desired {
-		current, exists := matchCurrentAIGatewayConsumerGroup(desiredGroup, currentByID, currentByName)
-		desiredKeys[desiredGroup.Name] = true
-		if id := aiGatewayConsumerGroupDesiredID(desiredGroup); id != "" {
-			desiredKeys[id] = true
-		}
+		current, exists := currentByName[desiredGroup.Name]
+		desiredNames[desiredGroup.Name] = true
 
 		if !exists {
 			dependsOn := aiGatewayConsumerGroupPolicyCreateDependencies(
@@ -69,7 +65,15 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
 				dependsOn = appendDependsOn(dependsOn, dep)
 			}
-			p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredGroup, dependsOn, plan)
+			p.planAIGatewayConsumerGroupCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredGroup,
+				dependsOn,
+				plan,
+			)
 			continue
 		}
 
@@ -89,7 +93,15 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
 				dependsOn = appendDependsOn(dependsOn, dep)
 			}
-			p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredGroup, dependsOn, plan)
+			p.planAIGatewayConsumerGroupCreate(
+				namespace,
+				gatewayRef,
+				gatewayName,
+				gatewayID,
+				desiredGroup,
+				dependsOn,
+				plan,
+			)
 			continue
 		}
 
@@ -137,7 +149,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 		for _, current := range currentGroups {
 			groupID := resources.AIGatewayConsumerGroupID(current.AIGatewayConsumerGroup)
 			groupName := resources.AIGatewayConsumerGroupName(current.AIGatewayConsumerGroup)
-			if desiredKeys[groupID] || desiredKeys[groupName] {
+			if desiredNames[groupName] {
 				continue
 			}
 			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
@@ -193,7 +205,10 @@ func (p *Planner) planAIGatewayConsumerGroupCreate(
 ) {
 	fields, err := group.MutablePayloadMap()
 	if err != nil {
-		plan.AddWarning(group.GetRef(), fmt.Sprintf("failed to build AI Gateway Consumer Group create payload: %s", err))
+		plan.AddWarning(
+			group.GetRef(),
+			fmt.Sprintf("failed to build AI Gateway Consumer Group create payload: %s", err),
+		)
 		return
 	}
 	p.resolveAIGatewayConsumerGroupConsumerRefs(fields)
@@ -333,41 +348,14 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 
 func indexAIGatewayConsumerGroups(
 	groups []state.AIGatewayConsumerGroup,
-) (map[string]state.AIGatewayConsumerGroup, map[string]state.AIGatewayConsumerGroup) {
-	byID := make(map[string]state.AIGatewayConsumerGroup)
+) map[string]state.AIGatewayConsumerGroup {
 	byName := make(map[string]state.AIGatewayConsumerGroup)
 	for _, group := range groups {
-		if id := resources.AIGatewayConsumerGroupID(group.AIGatewayConsumerGroup); id != "" {
-			byID[id] = group
-		}
 		if name := resources.AIGatewayConsumerGroupName(group.AIGatewayConsumerGroup); name != "" {
 			byName[name] = group
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayConsumerGroup(
-	desired resources.AIGatewayConsumerGroupResource,
-	currentByID map[string]state.AIGatewayConsumerGroup,
-	currentByName map[string]state.AIGatewayConsumerGroup,
-) (state.AIGatewayConsumerGroup, bool) {
-	if id := aiGatewayConsumerGroupDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayConsumerGroupDesiredID(desired resources.AIGatewayConsumerGroupResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func aiGatewayConsumerGroupPolicyCreateDependencies(

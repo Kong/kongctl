@@ -465,32 +465,32 @@ neither `ref`, UUID refs, nor `display_name` provide a fallback match. Changing
 eligible for deletion if it is no longer declared in the selected scope.
 Managed AI Gateways require an explicit `name`; kongctl does not derive it
 from `ref`. Use `display_name` for the human-readable name shown in Konnect.
-AI Gateway Model
-Providers, Auth Strategies, Policies, Agents, Consumers, Consumer
-Credentials, Consumer Groups, Models, MCP Servers, Config Stores, and Vaults
-use their own required `name` field as the stable Konnect child name.
 AI Gateway Model Providers, Auth Strategies, Policies, Agents, Consumers,
-Models, MCP Servers, and Vaults match only by `name` within their parent
-gateway. UUID refs and cached IDs do not override the declared name or retain
-a differently named resource during sync. Config Store names are immutable
-after creation. AI Gateway Data Plane Certificates use their required `title`
-field as the stable Konnect child name. Child entries inherit management scope
-from their parent resource and do not accept `kongctl` metadata.
+Consumer Credentials, Consumer Groups, Models, MCP Servers, Config Stores,
+and Vaults use their required `name` field as the stable Konnect child name.
+These resources match only by `name` within their parent gateway, except
+Consumer Credentials, which match within their parent consumer. UUID refs
+and cached IDs do not override the declared name or retain a differently
+named resource during sync. Config Store names are immutable after creation.
+AI Gateway Data Plane Certificates use their required `title` field as the
+stable Konnect child name. Child entries inherit management scope from their
+parent resource and do not accept `kongctl` metadata.
 
 When upgrading configurations that relied on UUID refs or display-name
-matching, explicitly set each gateway, model provider, auth strategy, policy,
-agent, consumer, model, MCP server, and vault `name` to its existing API name
-before applying or syncing.
-A local `ref` can remain unchanged. Review the plan for unexpected CREATE or
-DELETE actions before executing it.
+matching, explicitly set each gateway and name-bearing child's `name` to its
+existing API name before applying or syncing. A local `ref` can remain
+unchanged. Review the plan for unexpected CREATE or DELETE actions before
+executing it.
 
-Changing a model provider, auth strategy, policy, agent, model, MCP server, or
-vault `name` declares a different resource, rather than renaming the existing
-one. Sync can delete the previous resource when its name is no longer declared
-in scope. Update references to renamed model providers, auth strategies,
-policies, or MCP server sources in dependent resources. Legacy `name = ref`
-defaults for these children remain for now; use an explicit `name` in
-manifests.
+Changing a name declares a different resource, rather than renaming the
+existing one. Sync can delete the previous resource when its name is no
+longer declared in scope. Update references in dependent resources, including
+model providers, auth strategies, policies, MCP server sources, config stores,
+and consumer groups. Newly named config stores need secret value sources for
+their declared secrets; newly named credentials need their required creation
+fields. Existing secret values and credentials are not copied automatically.
+Legacy `name = ref` defaults for these children remain for now; use an explicit
+`name` in manifests.
 
 Changing a consumer `name` declares a new consumer, not a rename. In sync mode,
 deleting the old consumer also removes its credentials; existing API keys for

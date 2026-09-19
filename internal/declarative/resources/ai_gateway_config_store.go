@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 var aiGatewayConfigStoreDisplayNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._~-]*$`)
@@ -122,12 +121,6 @@ func (a AIGatewayConfigStoreResource) GetKonnectMonikerFilter() string {
 
 func (a *AIGatewayConfigStoreResource) TryMatchKonnectResource(konnectResource any) bool {
 	id := AIGatewayConfigStoreID(konnectResource)
-	if id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
-		if a.Ref == id || a.GetKonnectID() == id {
-			a.SetKonnectID(id)
-			return true
-		}
-	}
 	if id != "" && AIGatewayConfigStoreName(konnectResource) == a.Name {
 		a.SetKonnectID(id)
 		return true

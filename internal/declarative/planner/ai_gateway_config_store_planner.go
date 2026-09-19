@@ -7,7 +7,6 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayConfigStoreChanges(
@@ -48,15 +47,12 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Config Stores for gateway %s: %w", gatewayID, err)
 	}
-	currentByID, currentByName := indexAIGatewayConfigStores(currentStores)
-	desiredKeys := make(map[string]bool)
+	currentByName := indexAIGatewayConfigStores(currentStores)
+	desiredNames := make(map[string]bool)
 
 	for _, desiredStore := range desired {
-		current, exists := matchCurrentAIGatewayConfigStore(desiredStore, currentByID, currentByName)
-		desiredKeys[desiredStore.Name] = true
-		if id := aiGatewayConfigStoreDesiredID(desiredStore); id != "" {
-			desiredKeys[id] = true
-		}
+		current, exists := currentByName[desiredStore.Name]
+		desiredNames[desiredStore.Name] = true
 		if !exists {
 			storeChangeID := p.planAIGatewayConfigStoreCreate(
 				namespace,
@@ -75,16 +71,6 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 			continue
 		}
 
-		if id := aiGatewayConfigStoreDesiredID(desiredStore); id != "" && current.Name != desiredStore.Name {
-			return fmt.Errorf(
-				"AI Gateway Config Store %q is matched by ID %s but its immutable name is %q; "+
-					"delete and recreate it to use name %q",
-				desiredStore.Ref,
-				id,
-				current.Name,
-				desiredStore.Name,
-			)
-		}
 		if resource := p.resources.GetAIGatewayConfigStoreByRef(desiredStore.Ref); resource != nil {
 			resource.SetKonnectID(current.ID)
 		}
@@ -119,7 +105,7 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentStores {
-			if desiredKeys[current.ID] || desiredKeys[current.Name] {
+			if desiredNames[current.Name] {
 				continue
 			}
 			plan.AddChange(PlannedChange{
@@ -206,37 +192,12 @@ func (p *Planner) planAIGatewayConfigStoreCreate(
 
 func indexAIGatewayConfigStores(
 	stores []state.AIGatewayConfigStore,
-) (map[string]state.AIGatewayConfigStore, map[string]state.AIGatewayConfigStore) {
-	byID := make(map[string]state.AIGatewayConfigStore, len(stores))
+) map[string]state.AIGatewayConfigStore {
 	byName := make(map[string]state.AIGatewayConfigStore, len(stores))
 	for _, store := range stores {
-		byID[store.ID] = store
 		byName[store.Name] = store
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayConfigStore(
-	desired resources.AIGatewayConfigStoreResource,
-	currentByID map[string]state.AIGatewayConfigStore,
-	currentByName map[string]state.AIGatewayConfigStore,
-) (state.AIGatewayConfigStore, bool) {
-	if id := aiGatewayConfigStoreDesiredID(desired); id != "" {
-		store, ok := currentByID[id]
-		return store, ok
-	}
-	store, ok := currentByName[desired.Name]
-	return store, ok
-}
-
-func aiGatewayConfigStoreDesiredID(desired resources.AIGatewayConfigStoreResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
 
 func stringPointersEqual(left, right *string) bool {

@@ -50,7 +50,7 @@ func TestAIGatewayConfigStorePlannerCreatesAndUpdatesSparseFields(t *testing.T) 
 	require.Equal(t, "existing-id", rs.GetAIGatewayConfigStoreByRef("existing-store").GetKonnectID())
 }
 
-func TestAIGatewayConfigStorePlannerRejectsIDMatchedRename(t *testing.T) {
+func TestAIGatewayConfigStorePlannerCreatesNewNameDespiteUUIDRef(t *testing.T) {
 	const storeID = "11111111-1111-1111-1111-111111111111"
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
@@ -64,10 +64,12 @@ func TestAIGatewayConfigStorePlannerRejectsIDMatchedRename(t *testing.T) {
 		Name:         "new-name",
 	})
 
-	_, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "immutable name")
-	require.Contains(t, err.Error(), "delete and recreate")
+	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, ActionCreate, plan.Changes[0].Action)
+	require.Equal(t, "new-name", plan.Changes[0].Fields[FieldName])
+	require.Empty(t, plan.Changes[0].ResourceID)
 }
 
 func TestAIGatewayConfigStorePlannerSyncDeletesScopedStores(t *testing.T) {
