@@ -80,87 +80,38 @@ func (e EventGatewayControlPlaneResource) Validate() error {
 	}
 
 	// Validate backend clusters
-	backendClusterRefs := make(map[string]bool)
-	for i, bc := range e.BackendClusters {
-		if err := bc.Validate(); err != nil {
-			return fmt.Errorf("invalid backend cluster %d: %w", i, err)
-		}
-		if backendClusterRefs[bc.GetRef()] {
-			return fmt.Errorf("duplicate backend cluster ref: %s", bc.GetRef())
-		}
-		backendClusterRefs[bc.GetRef()] = true
+	if err := validateNestedSlice(e.BackendClusters, "backend cluster"); err != nil {
+		return err
 	}
 
 	// Validate virtual clusters
-	virtualClusterRefs := make(map[string]bool)
-	for i, vc := range e.VirtualClusters {
-		if err := vc.Validate(); err != nil {
-			return fmt.Errorf("invalid virtual cluster %d: %w", i, err)
-		}
-		if virtualClusterRefs[vc.GetRef()] {
-			return fmt.Errorf("duplicate virtual cluster ref: %s", vc.GetRef())
-		}
-		virtualClusterRefs[vc.GetRef()] = true
+	if err := validateNestedSlice(e.VirtualClusters, "virtual cluster"); err != nil {
+		return err
 	}
 
 	// Validate listeners
-	listenerRefs := make(map[string]bool)
-	for i, l := range e.Listeners {
-		if err := l.Validate(); err != nil {
-			return fmt.Errorf("invalid listener %d: %w", i, err)
-		}
-		if listenerRefs[l.GetRef()] {
-			return fmt.Errorf("duplicate listener ref: %s", l.GetRef())
-		}
-		listenerRefs[l.GetRef()] = true
+	if err := validateNestedSlice(e.Listeners, "listener"); err != nil {
+		return err
 	}
 
 	// Validate data plane certificates
-	dataPlaneCertRefs := make(map[string]bool)
-	for i, dpc := range e.DataPlaneCertificates {
-		if err := dpc.Validate(); err != nil {
-			return fmt.Errorf("invalid data plane certificate %d: %w", i, err)
-		}
-		if dataPlaneCertRefs[dpc.GetRef()] {
-			return fmt.Errorf("duplicate data plane certificate ref: %s", dpc.GetRef())
-		}
-		dataPlaneCertRefs[dpc.GetRef()] = true
+	if err := validateNestedSlice(e.DataPlaneCertificates, "data plane certificate"); err != nil {
+		return err
 	}
 
 	// Validate schema registries
-	schemaRegistryRefs := make(map[string]bool)
-	for i, sr := range e.SchemaRegistries {
-		if err := sr.Validate(); err != nil {
-			return fmt.Errorf("invalid schema registry %d: %w", i, err)
-		}
-		if schemaRegistryRefs[sr.GetRef()] {
-			return fmt.Errorf("duplicate schema registry ref: %s", sr.GetRef())
-		}
-		schemaRegistryRefs[sr.GetRef()] = true
+	if err := validateNestedSlice(e.SchemaRegistries, "schema registry"); err != nil {
+		return err
 	}
 
 	// Validate static keys
-	staticKeyRefs := make(map[string]bool)
-	for i, sk := range e.StaticKeys {
-		if err := sk.Validate(); err != nil {
-			return fmt.Errorf("invalid static key %d: %w", i, err)
-		}
-		if staticKeyRefs[sk.GetRef()] {
-			return fmt.Errorf("duplicate static key ref: %s", sk.GetRef())
-		}
-		staticKeyRefs[sk.GetRef()] = true
+	if err := validateNestedSlice(e.StaticKeys, "static key"); err != nil {
+		return err
 	}
 
 	// Validate TLS trust bundles
-	trustBundleRefs := make(map[string]bool)
-	for i, tb := range e.TrustBundles {
-		if err := tb.Validate(); err != nil {
-			return fmt.Errorf("invalid TLS trust bundle %d: %w", i, err)
-		}
-		if trustBundleRefs[tb.GetRef()] {
-			return fmt.Errorf("duplicate TLS trust bundle ref: %s", tb.GetRef())
-		}
-		trustBundleRefs[tb.GetRef()] = true
+	if err := validateNestedSlice(e.TrustBundles, "TLS trust bundle"); err != nil {
+		return err
 	}
 
 	return nil

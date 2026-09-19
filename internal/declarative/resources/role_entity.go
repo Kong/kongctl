@@ -3,6 +3,7 @@ package resources
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
@@ -23,11 +24,12 @@ func RoleEntityResourceType(entityTypeName string) (ResourceType, bool) {
 }
 
 func normalizeRoleEntityTypeName(entityTypeName string) string {
-	normalized := strings.ToLower(strings.TrimSpace(entityTypeName))
-	normalized = strings.ReplaceAll(normalized, " ", "")
-	normalized = strings.ReplaceAll(normalized, "_", "")
-	normalized = strings.ReplaceAll(normalized, "-", "")
-	return normalized
+	return strings.Map(func(r rune) rune {
+		if r == ' ' || r == '_' || r == '-' {
+			return -1
+		}
+		return unicode.ToLower(r)
+	}, strings.TrimSpace(entityTypeName))
 }
 
 func roleEntityDependency(entityID, entityTypeName string) []ResourceRef {

@@ -111,3 +111,20 @@ func validateCollectionResource(rs *ResourceSet, resource Resource) error {
 	}
 	return nil
 }
+
+func validateNestedSlice[R interface {
+	Validate() error
+	GetRef() string
+}](items []R, label string) error {
+	refs := make(map[string]bool, len(items))
+	for i, item := range items {
+		if err := item.Validate(); err != nil {
+			return fmt.Errorf("invalid %s %d: %w", label, i, err)
+		}
+		if refs[item.GetRef()] {
+			return fmt.Errorf("duplicate %s ref: %s", label, item.GetRef())
+		}
+		refs[item.GetRef()] = true
+	}
+	return nil
+}

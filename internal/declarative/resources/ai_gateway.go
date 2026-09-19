@@ -153,11 +153,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 }
 
 func (a AIGatewayResource) aiGatewayDeclarativePayload() (map[string]any, error) {
-	fields, err := marshalObjectToMap(a.aiGatewayAlias(), "AI Gateway declarative payload")
-	if err != nil {
-		return nil, err
-	}
-	return fields, nil
+	return marshalObjectToMap(a.aiGatewayAlias(), "AI Gateway declarative payload")
 }
 
 // UnmarshalYAML decodes AI Gateway fields explicitly because the SDK request
@@ -474,24 +470,24 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			Kind:       explainKindObject,
 			Additional: explainStringNode("value"),
 		}, false, false),
-		explainField("model_providers", explainArrayOf(aiGatewayProviderInlineExplainNode()), false, false),
+		explainField("model_providers", explainArrayOf(inlineExplainNode(aiGatewayProviderExplainNode)), false, false),
 		explainField(
 			SchemaFieldAuthStrategies,
 			explainArrayOf(aiGatewayAuthStrategyInlineExplainNode()),
 			false,
 			false,
 		),
-		explainField("policies", explainArrayOf(aiGatewayPolicyInlineExplainNode()), false, false),
-		explainField("agents", explainArrayOf(aiGatewayAgentInlineExplainNode()), false, false),
-		explainField("consumers", explainArrayOf(aiGatewayConsumerInlineExplainNode()), false, false),
-		explainField("consumer_groups", explainArrayOf(aiGatewayConsumerGroupInlineExplainNode()), false, false),
+		explainField("policies", explainArrayOf(inlineExplainNode(aiGatewayPolicyExplainNode)), false, false),
+		explainField("agents", explainArrayOf(inlineExplainNode(aiGatewayAgentExplainNode)), false, false),
+		explainField("consumers", explainArrayOf(inlineExplainNode(aiGatewayConsumerExplainNode)), false, false),
+		explainField("consumer_groups", explainArrayOf(inlineExplainNode(aiGatewayConsumerGroupExplainNode)), false, false),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
-		explainField("mcp_servers", explainArrayOf(aiGatewayMCPServerInlineExplainNode()), false, false),
-		explainField("config_stores", explainArrayOf(aiGatewayConfigStoreInlineExplainNode()), false, false),
-		explainField("vaults", explainArrayOf(aiGatewayVaultInlineExplainNode()), false, false),
+		explainField("mcp_servers", explainArrayOf(inlineExplainNode(aiGatewayMCPServerExplainNode)), false, false),
+		explainField("config_stores", explainArrayOf(inlineExplainNode(aiGatewayConfigStoreExplainNode)), false, false),
+		explainField("vaults", explainArrayOf(inlineExplainNode(aiGatewayVaultExplainNode)), false, false),
 		explainField(
 			"data_plane_certificates",
-			explainArrayOf(aiGatewayDataPlaneCertificateInlineExplainNode()),
+			explainArrayOf(inlineExplainNode(aiGatewayDataPlaneCertificateExplainNode)),
 			false,
 			false,
 		),
@@ -513,72 +509,8 @@ func explainExternalField() *ExplainField {
 	), false, false)
 }
 
-func aiGatewayProviderInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayPolicyInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayPolicyExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayAgentInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayAgentExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayConsumerGroupInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayConsumerGroupExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayConsumerInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayConsumerExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayConsumerCredentialInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayConsumerCredentialExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayMCPServerInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayMCPServerExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayVaultInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayVaultExplainNode(ExplainBuildContext{})
-	if err != nil {
-		return explainObject()
-	}
-	return node
-}
-
-func aiGatewayDataPlaneCertificateInlineExplainNode() *ExplainNode {
-	node, err := aiGatewayDataPlaneCertificateExplainNode(ExplainBuildContext{})
+func inlineExplainNode(builder func(ExplainBuildContext) (*ExplainNode, error)) *ExplainNode {
+	node, err := builder(ExplainBuildContext{})
 	if err != nil {
 		return explainObject()
 	}

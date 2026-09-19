@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -435,7 +436,7 @@ func (p *Planner) shouldUpdateListenerPolicy(
 	// Compare labels
 	desiredLabels := p.extractListenerPolicyLabels(desired)
 	if desiredLabels != nil {
-		if !compareMaps(current.Labels, desiredLabels) {
+		if !maps.Equal(current.Labels, desiredLabels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,

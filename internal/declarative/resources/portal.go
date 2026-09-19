@@ -150,15 +150,8 @@ func (p PortalResource) Validate() error {
 		}
 	}
 
-	providerRefs := make(map[string]bool)
-	for i, provider := range p.IdentityProviders {
-		if err := provider.Validate(); err != nil {
-			return fmt.Errorf("invalid identity provider %d: %w", i, err)
-		}
-		if providerRefs[provider.GetRef()] {
-			return fmt.Errorf("duplicate identity provider ref: %s", provider.GetRef())
-		}
-		providerRefs[provider.GetRef()] = true
+	if err := validateNestedSlice(p.IdentityProviders, "identity provider"); err != nil {
+		return err
 	}
 
 	if p.CustomDomain != nil {
@@ -168,39 +161,18 @@ func (p PortalResource) Validate() error {
 	}
 
 	// Validate pages
-	pageRefs := make(map[string]bool)
-	for i, page := range p.Pages {
-		if err := page.Validate(); err != nil {
-			return fmt.Errorf("invalid page %d: %w", i, err)
-		}
-		if pageRefs[page.GetRef()] {
-			return fmt.Errorf("duplicate page ref: %s", page.GetRef())
-		}
-		pageRefs[page.GetRef()] = true
+	if err := validateNestedSlice(p.Pages, "page"); err != nil {
+		return err
 	}
 
 	// Validate snippets
-	snippetRefs := make(map[string]bool)
-	for i, snippet := range p.Snippets {
-		if err := snippet.Validate(); err != nil {
-			return fmt.Errorf("invalid snippet %d: %w", i, err)
-		}
-		if snippetRefs[snippet.GetRef()] {
-			return fmt.Errorf("duplicate snippet ref: %s", snippet.GetRef())
-		}
-		snippetRefs[snippet.GetRef()] = true
+	if err := validateNestedSlice(p.Snippets, "snippet"); err != nil {
+		return err
 	}
 
 	// Validate teams
-	teamRefs := make(map[string]bool)
-	for i, team := range p.Teams {
-		if err := team.Validate(); err != nil {
-			return fmt.Errorf("invalid team %d: %w", i, err)
-		}
-		if teamRefs[team.GetRef()] {
-			return fmt.Errorf("duplicate team ref: %s", team.GetRef())
-		}
-		teamRefs[team.GetRef()] = true
+	if err := validateNestedSlice(p.Teams, "team"); err != nil {
+		return err
 	}
 
 	if p.EmailConfig != nil {
