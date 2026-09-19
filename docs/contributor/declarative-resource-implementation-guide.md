@@ -415,10 +415,11 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
-- **Name-matched children with detail lookup:** AI Gateway policies, agents,
-  models, and vaults use [`reconcileNameMatchedChildren`][child-reconcile]
-  within an existing parent. Match only by the declared API name; UUID refs and
-  cached IDs cannot override it. A changed name declares a different resource.
+- **Name-matched children with detail lookup:** AI Gateway model providers,
+  auth strategies, policies, agents, models, and vaults use
+  [`reconcileNameMatchedChildren`][child-reconcile] within an existing parent.
+  Match only by the declared API name; UUID refs and cached IDs cannot
+  override it. A changed name declares a different resource.
   Missing detail responses schedule creation; read or comparison errors stop
   planning. Sync retains declared names and prunes in observed order, stopping
   at the first protected deletion. Duplicate observed names retain their last

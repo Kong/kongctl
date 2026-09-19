@@ -43,71 +43,44 @@ func (p *Planner) planAIGatewayProviderChanges(
 		return fmt.Errorf("failed to list AI Gateway Model Providers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByName := indexAIGatewayProviders(currentProviders)
-
-	desiredNames := make(map[string]bool)
-	for _, desiredProvider := range desired {
-		desiredNames[desiredProvider.Name] = true
-
-		current, exists := currentByName[desiredProvider.Name]
-		if !exists {
-			p.planAIGatewayProviderCreate(
-				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
-			)
-			continue
-		}
-
-		fullProvider, err := p.client.GetAIGatewayProvider(ctx, gatewayID, current.ID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Model Provider %s: %w", current.ID, err)
-		}
-		if fullProvider == nil {
-			p.planAIGatewayProviderCreate(
-				namespace, gatewayRef, gatewayName, gatewayID, desiredProvider, nil, plan,
-			)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := shouldUpdateAIGatewayProvider(*fullProvider, desiredProvider)
-		if err != nil {
-			return err
-		}
-		if !needsUpdate {
-			continue
-		}
-
-		p.planAIGatewayProviderUpdate(
-			namespace, gatewayRef, gatewayID, current.ID, desiredProvider, updateFields, changedFields, plan,
-		)
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentProviders {
-			if desiredNames[current.Name] {
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayProvider, current.Name, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
-		}
-	}
-
-	return nil
-}
-
-func indexAIGatewayProviders(
-	providers []state.AIGatewayProvider,
-) map[string]state.AIGatewayProvider {
-	byName := make(map[string]state.AIGatewayProvider)
-	for _, provider := range providers {
-		if provider.Name != "" {
-			byName[provider.Name] = provider
-		}
-	}
-	return byName
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayProvider, desired, currentProviders,
+		nameMatchedChildOperations[resources.AIGatewayProviderResource, state.AIGatewayProvider]{
+			desiredName: func(desired resources.AIGatewayProviderResource) string {
+				return desired.Name
+			},
+			currentName: func(current state.AIGatewayProvider) string {
+				return current.Name
+			},
+			fetch: func(
+				_ resources.AIGatewayProviderResource,
+				current state.AIGatewayProvider,
+			) (*state.AIGatewayProvider, error) {
+				full, err := p.client.GetAIGatewayProvider(ctx, gatewayID, current.ID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway Model Provider %s: %w", current.ID, err)
+				}
+				return full, nil
+			},
+			diff: shouldUpdateAIGatewayProvider,
+			create: func(desired resources.AIGatewayProviderResource) {
+				p.planAIGatewayProviderCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
+			},
+			update: func(
+				current state.AIGatewayProvider,
+				desired resources.AIGatewayProviderResource,
+				fields map[string]any,
+				changed map[string]FieldChange,
+			) {
+				p.planAIGatewayProviderUpdate(namespace, gatewayRef, gatewayID,
+					current.ID, desired, fields, changed, plan)
+			},
+			protected: func(current state.AIGatewayProvider) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayProvider) {
+				p.planAIGatewayProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayProviderCreatesForNewGateway(
