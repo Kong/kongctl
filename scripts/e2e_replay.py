@@ -22,12 +22,12 @@ import sys
 import tempfile
 import threading
 import time
-from urllib.parse import parse_qsl, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from e2e_replay_users import (USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdentities,
+from e2e_replay_users import (EMAIL, USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdentities,
                               check_user_profiles, recording_inputs, recording_org, replay_inputs)
 # CI installs the pinned parser here before entering network isolation. Local
 # users can install the same requirements in their active Python environment.
@@ -462,6 +462,16 @@ def request_key(endpoint, method, target, data):
     url = urlsplit(target)
     if url.scheme or url.netloc or url.fragment or not target.startswith("/"):
         raise ValueError("only origin-form requests are supported")
+    # Inspect decoded paths without changing exact request matching. Repeated
+    # encoding must not hide identities from recording or cassette validation.
+    decoded_path = url.path
+    while True:
+        if EMAIL.search(decoded_path):
+            raise ValueError("email address in request path: refusing cassette")
+        decoded = unquote(decoded_path)
+        if decoded == decoded_path:
+            break
+        decoded_path = decoded
     body = parse_json(data) if data else None
     if data and body is None:
         raise ValueError("explicit JSON null request bodies are unsupported")

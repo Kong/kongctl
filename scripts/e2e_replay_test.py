@@ -647,6 +647,34 @@ class ReplayTest(unittest.TestCase):
                 engine.exchange("global.api.konghq.com", "GET", "/v3/users", b"")
         self.assertEqual([], engine.interactions)
 
+    def test_email_paths_fail_closed_before_recording_and_during_validation(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        cassette = MODULE.load_cassette(directory / "replay/cassette.json")
+        for path in ["/v3/users/fixture@example.test", "/v3/users/fixture%40example.test",
+                     "/v3/users/fixture%2540example.test", "/v3/users/%66ixture@%65xample%2etest",
+                     "/v3/users/fixture%40example%2Etest", "/v3/users/replay-user-1%40example.invalid"]:
+            with self.subTest(path=path):
+                engine = MODULE.Replay(token="private-credential", fixtures=MODULE.fixture_strings(directory),
+                                       user_inputs={"KONGCTL_E2E_ORG_USER_EMAIL_1": "fixture@example.test"})
+                with patch.object(MODULE.http.client, "HTTPSConnection") as connection:
+                    with self.assertRaisesRegex(ValueError, "email address in request path") as error:
+                        engine.exchange("global.api.konghq.com", "GET", path, b"")
+                    connection.assert_not_called()
+                self.assertNotIn(path, str(error.exception))
+                self.assertEqual([], engine.interactions)
+                edited = copy.deepcopy(cassette)
+                edited["interactions"][0]["request"]["path"] = path
+                with self.assertRaisesRegex(ValueError, "email address in request path"):
+                    MODULE.validate_cassette(edited, directory, "org/users/get")
+
+    def test_safe_encoded_paths_retain_exact_matching(self):
+        for path in ["/v3/teams/team%20one", "/v3/teams/team%2Fchild", "/v3/teams/team%252Fchild"]:
+            with self.subTest(path=path):
+                request = MODULE.request_key("global", "GET", path, b"")
+                self.assertEqual(path, request["path"])
+        request = MODULE.request_key("global", "GET", "/v3/users?email=fixture%40example.test", b"")
+        self.assertEqual([["email", "fixture@example.test"]], request["query"])
+
     def test_recording_forwards_with_private_pat_but_only_saves_sanitized_data(self):
         response = MagicMock(status=201)
         response.getheader.return_value = "application/json"
