@@ -443,6 +443,15 @@ Choose identity and operation semantics before selecting a reusable strategy:
   membership and depend on policies/consumers; credentials replace through
   ordered delete/create changes. These do not all fit the detail-read
   reconciler above. A name change declares a different resource.
+- **AI Gateway certificate families:** Data-plane certificates match by
+  required title; runtime certificates, CA certificates, and SNIs match by
+  required name within their gateway. Refs and cached IDs do not select or
+  retain another title/name. Preserve first-match duplicate-title warnings
+  and data-plane replacement ordering. TLS orchestration keeps SNI
+  dependencies on certificate creation/updates and delays certificate
+  deletion until referencing SNIs are removed or repointed; reject deletion
+  while an unchanged SNI still references it. Private keys remain deferred
+  secret writes, outside comparison and ordinary plan fields.
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.

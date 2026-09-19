@@ -5,7 +5,6 @@ import (
 	"regexp"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 var (
@@ -324,11 +323,6 @@ func aiGatewayParentReferenceMapping(gateway string) map[string]string {
 func matchAIGatewayTLSResource(base *BaseResource, desiredName, remoteID, remoteName string) bool {
 	if remoteID == "" {
 		return false
-	}
-	if (util.IsValidUUID(base.Ref) || base.GetKonnectID() != "") &&
-		(base.Ref == remoteID || base.GetKonnectID() == remoteID) {
-		base.SetKonnectID(remoteID)
-		return true
 	}
 	if desiredName != "" && desiredName == remoteName {
 		base.SetKonnectID(remoteID)

@@ -93,26 +93,18 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 	if err != nil {
 		return nil, fmt.Errorf("failed to list AI Gateway certificates: %w", err)
 	}
-	byID, byName := indexAIGatewayCertificates(current)
-	desiredKeys := make(map[string]bool, len(desired)*2)
+	byName := indexAIGatewayCertificates(current)
+	desiredNames := make(map[string]bool, len(desired))
 	for i := range desired {
 		certificate := &desired[i]
-		matched, exists := matchAIGatewayCertificate(*certificate, byID, byName)
-		desiredKeys[certificate.Name] = true
-		if id := certificate.GetKonnectID(); id != "" {
-			desiredKeys[id] = true
-		}
+		matched, exists := byName[certificate.Name]
+		desiredNames[certificate.Name] = true
 		if !exists {
 			p.planAIGatewayTLSCreate(
 				ResourceTypeAIGatewayCertificate, namespace, gatewayRef, "",
 				gatewayID, certificate.Ref, certificate.PayloadMap(), nil, plan,
 			)
 			continue
-		}
-		if certificate.GetKonnectID() != "" && matched.Name != certificate.Name {
-			return nil, immutableAIGatewayTLSNameError(
-				"certificate", certificate.Ref, matched.ID, matched.Name, certificate.Name,
-			)
 		}
 		certificate.SetKonnectID(matched.ID)
 		fields, changed := diffAIGatewayCertificate(matched, *certificate)
@@ -127,7 +119,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 	var deletes []pendingAIGatewayCertificateDelete
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, certificate := range current {
-			if desiredKeys[certificate.ID] || desiredKeys[certificate.Name] {
+			if desiredNames[certificate.Name] {
 				continue
 			}
 			deletes = append(deletes, pendingAIGatewayCertificateDelete{
@@ -163,24 +155,18 @@ func (p *Planner) planAIGatewayCACertificateChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway CA certificates: %w", err)
 	}
-	byID, byName := indexAIGatewayCACertificates(current)
-	desiredKeys := make(map[string]bool, len(desired)*2)
+	byName := indexAIGatewayCACertificates(current)
+	desiredNames := make(map[string]bool, len(desired))
 	for i := range desired {
 		certificate := &desired[i]
-		matched, exists := matchAIGatewayCACertificate(*certificate, byID, byName)
-		desiredKeys[certificate.Name] = true
-		if id := certificate.GetKonnectID(); id != "" {
-			desiredKeys[id] = true
-		}
+		matched, exists := byName[certificate.Name]
+		desiredNames[certificate.Name] = true
 		if !exists {
 			p.planAIGatewayTLSCreate(
 				ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, "",
 				gatewayID, certificate.Ref, certificate.PayloadMap(), nil, plan,
 			)
 			continue
-		}
-		if certificate.GetKonnectID() != "" && matched.Name != certificate.Name {
-			return immutableAIGatewayTLSNameError("CA certificate", certificate.Ref, matched.ID, matched.Name, certificate.Name)
 		}
 		certificate.SetKonnectID(matched.ID)
 		fields, changed := diffAIGatewayCACertificate(matched, *certificate)
@@ -193,7 +179,7 @@ func (p *Planner) planAIGatewayCACertificateChanges(
 	}
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, certificate := range current {
-			if !desiredKeys[certificate.ID] && !desiredKeys[certificate.Name] {
+			if !desiredNames[certificate.Name] {
 				plan.AddChange(newAIGatewayTLSDelete(
 					p, ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, gatewayID,
 					certificate.ID, certificate.Name,
@@ -232,15 +218,12 @@ func (p *Planner) planAIGatewaySNIChanges(
 	if err != nil {
 		return nil, fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
 	}
-	byID, byName := indexAIGatewaySNIs(current)
-	desiredKeys := make(map[string]bool, len(desired)*2)
+	byName := indexAIGatewaySNIs(current)
+	desiredNames := make(map[string]bool, len(desired))
 	for i := range desired {
 		sni := &desired[i]
-		matched, exists := matchAIGatewaySNI(*sni, byID, byName)
-		desiredKeys[sni.Name] = true
-		if id := sni.GetKonnectID(); id != "" {
-			desiredKeys[id] = true
-		}
+		matched, exists := byName[sni.Name]
+		desiredNames[sni.Name] = true
 		fields := sni.PayloadMap()
 		certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
 		if err != nil {
@@ -254,9 +237,6 @@ func (p *Planner) planAIGatewaySNIChanges(
 			)
 			continue
 		}
-		if sni.GetKonnectID() != "" && matched.Name != sni.Name {
-			return nil, immutableAIGatewayTLSNameError("SNI", sni.Ref, matched.ID, matched.Name, sni.Name)
-		}
 		sni.SetKonnectID(matched.ID)
 		updateFields, changed := diffAIGatewaySNI(matched, fields)
 		if len(changed) > 0 {
@@ -268,7 +248,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 	}
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, sni := range current {
-			if !desiredKeys[sni.ID] && !desiredKeys[sni.Name] {
+			if !desiredNames[sni.Name] {
 				plan.AddChange(newAIGatewayTLSDelete(
 					p, ResourceTypeAIGatewaySNI, namespace, gatewayRef, gatewayID, sni.ID, sni.Name,
 				))
@@ -476,76 +456,30 @@ func findAIGatewayTLSChange(plan *Plan, resourceType, resourceID string) *Planne
 
 func indexAIGatewayCertificates(
 	current []state.AIGatewayCertificate,
-) (map[string]state.AIGatewayCertificate, map[string]state.AIGatewayCertificate) {
-	byID := make(map[string]state.AIGatewayCertificate, len(current))
+) map[string]state.AIGatewayCertificate {
 	byName := make(map[string]state.AIGatewayCertificate, len(current))
 	for _, certificate := range current {
-		byID[certificate.ID], byName[certificate.Name] = certificate, certificate
+		byName[certificate.Name] = certificate
 	}
-	return byID, byName
+	return byName
 }
 
 func indexAIGatewayCACertificates(
 	current []state.AIGatewayCACertificate,
-) (map[string]state.AIGatewayCACertificate, map[string]state.AIGatewayCACertificate) {
-	byID := make(map[string]state.AIGatewayCACertificate, len(current))
+) map[string]state.AIGatewayCACertificate {
 	byName := make(map[string]state.AIGatewayCACertificate, len(current))
 	for _, certificate := range current {
-		byID[certificate.ID], byName[certificate.Name] = certificate, certificate
+		byName[certificate.Name] = certificate
 	}
-	return byID, byName
+	return byName
 }
 
-func indexAIGatewaySNIs(current []state.AIGatewaySNI) (map[string]state.AIGatewaySNI, map[string]state.AIGatewaySNI) {
-	byID := make(map[string]state.AIGatewaySNI, len(current))
+func indexAIGatewaySNIs(current []state.AIGatewaySNI) map[string]state.AIGatewaySNI {
 	byName := make(map[string]state.AIGatewaySNI, len(current))
 	for _, sni := range current {
-		byID[sni.ID], byName[sni.Name] = sni, sni
+		byName[sni.Name] = sni
 	}
-	return byID, byName
-}
-
-func matchAIGatewayCertificate(
-	desired resources.AIGatewayCertificateResource,
-	byID, byName map[string]state.AIGatewayCertificate,
-) (state.AIGatewayCertificate, bool) {
-	if id := desired.GetKonnectID(); id != "" {
-		current, ok := byID[id]
-		return current, ok
-	}
-	current, ok := byName[desired.Name]
-	return current, ok
-}
-
-func matchAIGatewayCACertificate(
-	desired resources.AIGatewayCACertificateResource,
-	byID, byName map[string]state.AIGatewayCACertificate,
-) (state.AIGatewayCACertificate, bool) {
-	if id := desired.GetKonnectID(); id != "" {
-		current, ok := byID[id]
-		return current, ok
-	}
-	current, ok := byName[desired.Name]
-	return current, ok
-}
-
-func matchAIGatewaySNI(
-	desired resources.AIGatewaySNIResource,
-	byID, byName map[string]state.AIGatewaySNI,
-) (state.AIGatewaySNI, bool) {
-	if id := desired.GetKonnectID(); id != "" {
-		current, ok := byID[id]
-		return current, ok
-	}
-	current, ok := byName[desired.Name]
-	return current, ok
-}
-
-func immutableAIGatewayTLSNameError(kind, ref, id, currentName, desiredName string) error {
-	return fmt.Errorf(
-		"AI Gateway %s %q is matched by ID %s but its immutable name is %q; delete and recreate it to use name %q",
-		kind, ref, id, currentName, desiredName,
-	)
+	return byName
 }
 
 func validateAIGatewayCertificateSecretWrites(plan *Plan) error {
@@ -564,10 +498,12 @@ func validateAIGatewayCertificateSecretWrites(plan *Plan) error {
 		if !selected["/key"] {
 			return fmt.Errorf(
 				"AI Gateway certificate %q requires private key /key for %s; configure !secret and select it for updates",
-				change.ResourceRef, change.Action,
+				change.ResourceRef,
+				change.Action,
 			)
 		}
-		if _, hasAlternativeCertificate := change.Fields[FieldCertAlt]; hasAlternativeCertificate && !selected["/key_alt"] {
+		if _, hasAlternativeCertificate := change.Fields[FieldCertAlt]; hasAlternativeCertificate &&
+			!selected["/key_alt"] {
 			return fmt.Errorf(
 				"AI Gateway certificate %q requires private key /key_alt when cert_alt is configured",
 				change.ResourceRef,
