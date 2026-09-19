@@ -64,7 +64,7 @@ func init() {
 
 // AIGatewayMCPServerResource represents an MCP Server nested under a Konnect AI Gateway.
 type AIGatewayMCPServerResource struct {
-	BaseResource `       yaml:",inline"              json:",inline"`
+	BaseResource `yaml:",inline" json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 

@@ -657,9 +657,12 @@ func resolveRetryConfigForVerb(cfg config.Hook, verb verbs.VerbValue) (httpclien
 		return noRetryConfig(), nil
 	}
 	rc, err := ResolveRetryConfig(cfg)
+	if err != nil {
+		return httpclient.RetryConfig{}, err
+	}
 	rc.ReadErrorsOnly = true
 	rc.RetryConnectionErrors = false
-	return rc, err
+	return rc, nil
 }
 
 func konnectSDKFactory(

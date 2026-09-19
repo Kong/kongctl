@@ -55,12 +55,13 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		current, exists := currentByName[desiredServer.Name()]
 		desiredNames[desiredServer.Name()] = true
 
+		dependsOn := aiGatewayMCPServerCreateDependencies(
+			desiredServer,
+			policyCreateDepsByName,
+			aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
+		)
+
 		if !exists {
-			dependsOn := aiGatewayMCPServerCreateDependencies(
-				desiredServer,
-				policyCreateDepsByName,
-				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
-			)
 			p.planAIGatewayMCPServerCreate(
 				namespace,
 				gatewayRef,
@@ -79,11 +80,6 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			return fmt.Errorf("failed to get AI Gateway MCP Server %s: %w", serverID, err)
 		}
 		if fullServer == nil {
-			dependsOn := aiGatewayMCPServerCreateDependencies(
-				desiredServer,
-				policyCreateDepsByName,
-				aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
-			)
 			p.planAIGatewayMCPServerCreate(
 				namespace,
 				gatewayRef,
@@ -109,11 +105,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 				desiredServer,
 				updateFields,
 				changedFields,
-				aiGatewayMCPServerCreateDependencies(
-					desiredServer,
-					policyCreateDepsByName,
-					aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
-				),
+				dependsOn,
 				plan,
 			)
 		}
