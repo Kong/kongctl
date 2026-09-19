@@ -5,6 +5,7 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,12 +13,15 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 )
 
 const (
 	resetListPageSize = 100
 	resetListMaxPages = 10000
+	// Each worker owns a resource category, including its pagination and retries.
+	resetInventoryConcurrency = 3
 )
 
 // truthy returns true if v is a typical truthy string.
@@ -110,53 +114,47 @@ func skipSystemTeams(resource map[string]any) bool {
 	return true
 }
 
-func deleteAll(
-	ctx context.Context,
-	baseURL string,
-	deleteBaseURL string,
-	token string,
-	apiVersion string,
-	endpoint string,
-	deleteAPIVersion string,
-	deleteEndpoint string,
-	idField string,
-	filter filterFunc,
-	// preDeleteFn is called for each resource ID before deletion. It is used to clean up
-	// sub-resources. Any errors must be logged inside the function; the function must not
-	// return an error (it must not block deletion of the parent resource).
-	preDeleteFn func(ctx context.Context, session *resetHTTPSession, endpointURL, token, id string),
-	policy HTTPRetryPolicy,
-	transportOptions HTTPTransportOptions,
-) (total int, deleted int, metrics resetHTTPMetrics, err error) {
+type resetResource struct {
+	spec      resetResourceSpec
+	listURL   string
+	deleteURL string
+	session   *resetHTTPSession
+	items     []map[string]any
+	listErr   error
+}
+
+func (r *resetResource) list(ctx context.Context, token string, policy HTTPRetryPolicy) {
 	startedAt := time.Now()
-	url := fmt.Sprintf("%s/%s/%s", strings.TrimRight(baseURL, "/"), apiVersion, endpoint)
-	if deleteBaseURL == "" {
-		deleteBaseURL = baseURL
+	Infof("Fetching %s for deletion...", r.spec.Endpoint)
+	r.items, r.listErr = retryListAllItems(ctx, r.session, r.listURL, token, r.spec.Endpoint, policy)
+	r.session.metrics.Duration = time.Since(startedAt)
+}
+
+func (r *resetResource) deleteAll(
+	ctx context.Context,
+	token string,
+	policy HTTPRetryPolicy,
+) (total int, deleted int, err error) {
+	startedAt := time.Now()
+	defer func() {
+		// Exclude time waiting for other categories to list or delete.
+		r.session.metrics.Duration += time.Since(startedAt)
+	}()
+	if r.listErr != nil {
+		return 0, 0, r.listErr
 	}
-	if deleteAPIVersion == "" {
-		deleteAPIVersion = apiVersion
-	}
+	session := r.session
+	endpoint := r.spec.Endpoint
+	deleteEndpoint := r.spec.DeleteEndpoint
 	if deleteEndpoint == "" {
 		deleteEndpoint = endpoint
 	}
-	deleteURL := fmt.Sprintf(
-		"%s/%s/%s",
-		strings.TrimRight(deleteBaseURL, "/"),
-		deleteAPIVersion,
-		deleteEndpoint,
-	)
-	Infof("Fetching %s for deletion...", endpoint)
-	session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
-	defer func() {
-		session.Close()
-		metrics = session.Metrics()
-		metrics.Duration = time.Since(startedAt)
-	}()
+	filter := r.spec.Filter
 
 	if filter == nil {
 		filter = shouldDeleteResource
 	}
-	idField = strings.TrimSpace(idField)
+	idField := strings.TrimSpace(r.spec.IDField)
 	if idField == "" {
 		idField = "id"
 	}
@@ -165,22 +163,27 @@ func deleteAll(
 	const retryDelay = 2 * time.Second
 
 	attempt := 0
+	items := r.items
 
 	for {
 		if err := ctx.Err(); err != nil {
-			return total, deleted, metrics, err
+			return total, deleted, err
 		}
-		items, err := retryListAllItems(ctx, session, url, token, endpoint, policy)
-		if err != nil {
-			return total, deleted, metrics, err
+		// A conflict can reflect changing dependencies or visibility. Never reuse
+		// the initial inventory for a conflict retry.
+		if attempt > 0 {
+			items, err = retryListAllItems(ctx, session, r.listURL, token, endpoint, policy)
+			if err != nil {
+				return total, deleted, err
+			}
 		}
 
 		if len(items) == 0 {
 			if total == 0 {
 				Infof("No %s found", endpoint)
-				return 0, 0, metrics, nil
+				return 0, 0, nil
 			}
-			return total, deleted, metrics, nil
+			return total, deleted, nil
 		}
 
 		// Filter items based on the filter function
@@ -207,19 +210,23 @@ func deleteAll(
 
 		if len(idsToDelete) == 0 {
 			Infof("No %s matched deletion filter; nothing to delete", endpoint)
-			return total, deleted, metrics, nil
+			return total, deleted, nil
 		}
 
 		Infof("Attempt %d deleting %d %s", attempt+1, len(idsToDelete), endpoint)
 
 		conflicts := 0
 		for _, id := range idsToDelete {
-			if preDeleteFn != nil {
-				preDeleteFn(ctx, session, deleteURL, token, id)
+			if err := ctx.Err(); err != nil {
+				return total, deleted, err
 			}
-			if err := retryDeleteOne(ctx, session, deleteURL, token, deleteEndpoint, id, policy); err != nil {
+			if r.spec.PreDeleteFn != nil {
+				r.spec.PreDeleteFn(ctx, session, r.deleteURL, token, id)
+			}
+			if err := retryDeleteOne(ctx, session, r.deleteURL, token, deleteEndpoint, id, policy); err != nil {
 				Warnf("delete %s %s failed: %v", deleteEndpoint, id, err)
-				if he, ok := err.(*httpError); ok && he.status == http.StatusConflict {
+				var he *httpError
+				if errors.As(err, &he) && he.status == http.StatusConflict {
 					conflicts++
 				}
 			} else {
@@ -228,13 +235,16 @@ func deleteAll(
 			}
 		}
 
+		if err := ctx.Err(); err != nil {
+			return total, deleted, err
+		}
 		if conflicts == 0 {
-			return total, deleted, metrics, nil
+			return total, deleted, nil
 		}
 
 		attempt++
 		if attempt >= maxAttempts {
-			return total, deleted, metrics, fmt.Errorf(
+			return total, deleted, fmt.Errorf(
 				"failed to delete all %s after %d attempts (conflicts remain)",
 				endpoint,
 				maxAttempts,
@@ -243,7 +253,7 @@ func deleteAll(
 
 		Infof("Retrying deletion of %s (%d conflicts remaining)", endpoint, conflicts)
 		if err := sleepWithContext(ctx, retryDelay); err != nil {
-			return total, deleted, metrics, err
+			return total, deleted, err
 		}
 	}
 }
@@ -533,18 +543,26 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (result resetRe
 		resetEndpointResult("v3", "e2e-user-assignments", tot, del, metrics, err),
 	)
 
-	for _, step := range resetSequence {
-		if err := ctx.Err(); err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			result.Details = append(result.Details, resetEndpoint{
-				APIVersion: step.Version,
-				Endpoint:   step.Endpoint,
-				Error:      errorString(err),
-			})
-			break
-		}
+	details, err := resetResources(ctx, baseURL, globalBaseURL, token, resetSequence, policy, transportOptions)
+	result.Details = append(result.Details, details...)
+	if firstErr == nil {
+		firstErr = err
+	}
+	return result, firstErr
+}
+
+// resetResources inventories independent resource categories concurrently, then
+// deletes in dependency order. Sessions are owned by one category and never used
+// concurrently. The inventory barrier prevents reads from racing with deletes.
+func resetResources(
+	ctx context.Context,
+	baseURL, globalBaseURL, token string,
+	sequence []resetResourceSpec,
+	policy HTTPRetryPolicy,
+	transportOptions HTTPTransportOptions,
+) ([]resetEndpoint, error) {
+	resources := make([]*resetResource, 0, len(sequence))
+	for _, step := range sequence {
 		targetURL := baseURL
 		if step.UseGlobal {
 			targetURL = globalBaseURL
@@ -557,31 +575,50 @@ func executeReset(baseURL, token string, policy HTTPRetryPolicy) (result resetRe
 		if step.DeleteUseRegional {
 			deleteTargetURL = baseURL
 		}
-		tot, del, metrics, err := deleteAll(
-			ctx,
-			targetURL,
-			deleteTargetURL,
-			token,
-			step.Version,
-			step.Endpoint,
-			step.DeleteVersion,
-			step.DeleteEndpoint,
-			step.IDField,
-			step.Filter,
-			step.PreDeleteFn,
-			policy,
-			transportOptions,
-		)
+		deleteVersion, deleteEndpoint := step.DeleteVersion, step.DeleteEndpoint
+		if deleteVersion == "" {
+			deleteVersion = step.Version
+		}
+		if deleteEndpoint == "" {
+			deleteEndpoint = step.Endpoint
+		}
+		session := newResetHTTPSession(policy.RequestTimeout, transportOptions)
+		defer session.Close()
+		resources = append(resources, &resetResource{
+			spec:      step,
+			listURL:   fmt.Sprintf("%s/%s/%s", strings.TrimRight(targetURL, "/"), step.Version, step.Endpoint),
+			deleteURL: fmt.Sprintf("%s/%s/%s", strings.TrimRight(deleteTargetURL, "/"), deleteVersion, deleteEndpoint),
+			session:   session,
+		})
+	}
+
+	jobs := make(chan *resetResource, len(resources))
+	for _, resource := range resources {
+		jobs <- resource
+	}
+	close(jobs)
+	var workers sync.WaitGroup
+	for range min(resetInventoryConcurrency, len(resources)) {
+		workers.Go(func() {
+			for resource := range jobs {
+				resource.list(ctx, token, policy)
+			}
+		})
+	}
+	workers.Wait()
+
+	details := make([]resetEndpoint, 0, len(resources))
+	var firstErr error
+	for _, resource := range resources {
+		total, deleted, err := resource.deleteAll(ctx, token, policy)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
-		result.Details = append(
-			result.Details,
-			resetEndpointResult(step.Version, step.Endpoint, tot, del, metrics, err),
-		)
+		details = append(details, resetEndpointResult(
+			resource.spec.Version, resource.spec.Endpoint, total, deleted, resource.session.Metrics(), err,
+		))
 	}
-
-	return result, firstErr
+	return details, firstErr
 }
 
 type resetUser struct {
@@ -813,7 +850,7 @@ func captureResetEvent(
 	// command.txt
 	_ = os.WriteFile(
 		dir+string(os.PathSeparator)+"command.txt",
-		[]byte(fmt.Sprintf("RESET ORG (stage=%s)\n", stage)),
+		fmt.Appendf(nil, "RESET ORG (stage=%s)\n", stage),
 		0o644,
 	)
 	// meta.json
@@ -934,7 +971,7 @@ func retryListItems(
 		items []map[string]any
 		err   error
 	)
-	for atry := 0; atry < attempts; atry++ {
+	for atry := range attempts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -982,7 +1019,7 @@ func retryDeleteOne(
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
 	var err error
-	for atry := 0; atry < attempts; atry++ {
+	for atry := range attempts {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

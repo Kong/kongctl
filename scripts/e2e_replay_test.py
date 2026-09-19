@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from concurrent.futures import ThreadPoolExecutor
 import http.client
 import importlib.util
 import json
@@ -9,7 +10,9 @@ import re
 from pathlib import Path
 import ssl
 import tempfile
+import threading
 import unittest
+from urllib.parse import urlencode
 from unittest.mock import MagicMock, patch
 
 
@@ -40,6 +43,43 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_portal_document_patch_waits_for_delayed_api_inventory(self):
+        cassette = MODULE.load_cassette(MODULE.ROOT /
+            "test/e2e/scenarios/portal/api_docs_with_children/replay/cassette.json")
+        engine = MODULE.Replay(cassette)
+
+        def send(index):
+            request = cassette["interactions"][index]["request"]
+            query = urlencode([tuple(pair) for pair in request["query"]])
+            target = request["path"] + ("?" + query if query else "")
+            host = next(host for host, endpoint in MODULE.HOSTS.items() if endpoint == request["endpoint"])
+            body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+            return engine.exchange(host, request["method"], target, body)
+
+        # Reproduce #2229: PATCH 132 arrives while GET 127 is still in flight.
+        # The request matches exactly; only its ancestor-read dependency lags.
+        for index in [*range(124), 124, 125, 127, 129]:
+            send(index)
+        waiting = threading.Event()
+        original_wait = engine.changed.wait
+
+        def observed_wait(timeout):
+            waiting.set()
+            return original_wait(timeout)
+
+        with patch.object(engine.changed, "wait", side_effect=observed_wait), ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(send, 131)
+            try:
+                self.assertTrue(waiting.wait(2))
+                self.assertFalse(pending.done())
+                self.assertEqual(engine.position, 128)
+            finally:
+                send(126)
+            self.assertEqual(pending.result(timeout=1), cassette["interactions"][131]["response"])
+        for index in [128, 130, *range(132, len(cassette["interactions"]))]:
+            send(index)
+        engine.verify()
+
     def test_cassette_refresh_is_scoped_to_manual_candidate_workflow(self):
         env = {"GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_WORKFLOW": "E2E replay experiment",
                "REPLAY_MODE": "record", "REPLAY_SCENARIO": MODULE.SCENARIO,
@@ -252,7 +292,7 @@ class ReplayTest(unittest.TestCase):
             request = item["request"]
             return engine.exchange("us.api.konghq.com", request["method"], request["path"],
                                    json.dumps(request["body"]).encode() if request["body"] else b"")
-        with self.assertRaises(ValueError):
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0.01), self.assertRaisesRegex(ValueError, "dependency wait"):
             send(items[2])  # No child before its parent exists.
         changed = copy.deepcopy(items[1])
         changed["request"]["body"]["name"] = "different"
@@ -734,6 +774,147 @@ class ReplayTest(unittest.TestCase):
                 client.close()
         with self.assertRaisesRegex(ValueError, "blocked CONNECT"):
             engine.verify()
+
+
+class ReplayDependencyWaitTest(unittest.TestCase):
+    def setUp(self):
+        self.items = [
+            {"request": MODULE.request_key("regional", "GET", "/parents", b""),
+             "response": {"status": 200, "body": {"state": "before"}}},
+            {"request": MODULE.request_key("regional", "PATCH", "/parents/child", b'{"value":"updated"}'),
+             "response": {"status": 200, "body": {"state": "after"}}},
+            {"request": MODULE.request_key("regional", "GET", "/later", b""),
+             "response": {"status": 200, "body": {"state": "verified"}}},
+        ]
+        self.engine = MODULE.Replay({"interactions": self.items,
+                                    "parallel_phases": [{"start": 1, "end": 2, "after": {}}]})
+        self.addCleanup(self.engine.close)
+
+    def send(self, index):
+        request = self.items[index]["request"]
+        body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+        return self.engine.exchange("us.api.konghq.com", request["method"], request["path"], body)
+
+    def observe_wait(self):
+        waiting = threading.Event()
+        original = self.engine.changed.wait
+
+        def wait(timeout):
+            waiting.set()
+            return original(timeout)
+
+        self.enterContext(patch.object(self.engine.changed, "wait", side_effect=wait))
+        return waiting
+
+    def test_wait_reserves_exchange_and_rejects_mismatches_and_later_phases(self):
+        waiting = self.observe_wait()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(self.send, 1)
+            try:
+                self.assertTrue(waiting.wait(2))
+                self.assertEqual(self.engine.pending, {1})
+                # A duplicate cannot steal a waiting request's response.
+                with self.assertRaisesRegex(ValueError, "request mismatch"):
+                    self.send(1)
+                with self.assertRaisesRegex(ValueError, "request mismatch"):
+                    self.send(2)
+                for method, target, body in [
+                    ("PUT", "/parents/child", b'{"value":"updated"}'),
+                    ("PATCH", "/parents/other", b'{"value":"updated"}'),
+                    ("PATCH", "/parents/child?unexpected=1", b'{"value":"updated"}'),
+                    ("PATCH", "/parents/child", b'{"value":"different"}'),
+                ]:
+                    with self.subTest(method=method, target=target, body=body), self.assertRaisesRegex(
+                            ValueError, "request mismatch"):
+                        self.engine.exchange("us.api.konghq.com", method, target, body)
+            finally:
+                self.send(0)
+            self.assertEqual(pending.result(timeout=2), self.items[1]["response"])
+        self.assertEqual(self.engine.pending, set())
+        with self.assertRaisesRegex(ValueError, "request mismatch"):
+            self.send(1)
+        self.send(2)
+        self.engine.verify()
+        with self.assertRaisesRegex(ValueError, "unexpected extra request"):
+            self.send(2)
+
+    def test_spurious_wakeups_do_not_extend_deadline_or_consume_exchange(self):
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 5), \
+                patch.object(MODULE.time, "monotonic", side_effect=[0, 0, 1, 5]), \
+                patch.object(self.engine.changed, "wait", return_value=True) as wait:
+            with self.assertRaisesRegex(ValueError,
+                    r"dependency wait timed out for interaction 2; waiting for interactions \[1\]"):
+                self.send(1)
+        self.assertEqual([call.args[0] for call in wait.call_args_list], [5, 4])
+        self.assertEqual(self.engine.pending, set())
+        self.assertEqual(self.engine.completed, set())
+        self.assertEqual(self.engine.position, 0)
+        with self.assertRaisesRegex(ValueError, "required interactions unused"):
+            self.engine.verify()
+
+    def test_missing_dependency_times_out_in_http_handler_and_fails_verification(self):
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0.02), tempfile.TemporaryDirectory() as directory:
+            with MODULE.Server(self.engine, Path(directory)) as server:
+                context = ssl.create_default_context(cafile=str(server.certificate))
+                client = http.client.HTTPSConnection("127.0.0.1", server.httpd.server_port, context=context, timeout=2)
+                client.set_tunnel("us.api.konghq.com", 443)
+                try:
+                    client.request("PATCH", "/parents/child", b'{"value":"updated"}')
+                    response = client.getresponse()
+                    self.assertEqual(response.status, 400)
+                    response.read()
+                finally:
+                    client.close()
+            with self.assertRaisesRegex(ValueError, "dependency wait timed out for interaction 2"):
+                self.engine.verify()
+
+    def test_identical_waiting_requests_keep_their_own_responses_in_order(self):
+        second_patch = copy.deepcopy(self.items[1])
+        second_patch["response"]["body"] = {"state": "second"}
+        self.items = [self.items[0], self.items[1], second_patch]
+        self.engine = MODULE.Replay({"interactions": self.items,
+                                    "parallel_phases": [{"start": 1, "end": 3, "after": {}}]})
+        self.addCleanup(self.engine.close)
+        waiting = self.observe_wait()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(self.send, 1)
+            try:
+                self.assertTrue(waiting.wait(2))
+                waiting.clear()
+                second = pool.submit(self.send, 2)
+                self.assertTrue(waiting.wait(2))
+                with self.engine.lock:
+                    self.assertEqual(self.engine.pending, {1, 2})
+                with self.assertRaisesRegex(ValueError, "request mismatch"):
+                    self.send(1)
+            finally:
+                self.send(0)
+            self.assertEqual(first.result(timeout=2), self.items[1]["response"])
+            self.assertEqual(second.result(timeout=2), self.items[2]["response"])
+        self.engine.verify()
+
+    def test_proxy_failure_wakes_waiter_without_consuming_response(self):
+        self.assert_waiter_stops(lambda: self.engine.fail("protocol failure"))
+        with self.assertRaisesRegex(ValueError, "protocol failure"):
+            self.engine.verify()
+
+    def test_proxy_shutdown_wakes_waiter_without_consuming_response(self):
+        self.assert_waiter_stops(self.engine.close)
+        with self.assertRaisesRegex(ValueError, "replay stopped with pending interactions"):
+            self.engine.verify()
+
+    def assert_waiter_stops(self, stop):
+        waiting = self.observe_wait()
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(self.send, 1)
+            try:
+                self.assertTrue(waiting.wait(2))
+            finally:
+                stop()
+            with self.assertRaisesRegex(ValueError, "stopped or previously failed"):
+                pending.result(timeout=2)
+        self.assertEqual(self.engine.pending, set())
+        self.assertEqual(self.engine.position, 0)
 
 
 if __name__ == "__main__":
