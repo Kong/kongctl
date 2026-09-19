@@ -99,10 +99,12 @@ func RedactSensitiveFieldsWithExactKeys(value any, exactKeys ...string) any {
 
 // LoggingHTTPClient wraps an HTTP client to add centralized request/response logging.
 type LoggingHTTPClient struct {
-	wrapped        *http.Client
-	logger         *slog.Logger
-	requestCounter atomic.Uint64
+	wrapped *http.Client
+	logger  *slog.Logger
 }
+
+// A command can construct multiple clients that share a log file.
+var httpRequestCounter atomic.Uint64
 
 // NewLoggingHTTPClient creates a new logging HTTP client
 func NewLoggingHTTPClient(logger *slog.Logger) *LoggingHTTPClient {
@@ -145,9 +147,19 @@ func (c *LoggingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		requestBody, requestBodyErr = c.peekRequestBody(req)
 	}
 	c.logRequest(ctx, req, requestID, traceEnabled, requestBody, requestBodyErr)
+	if traceEnabled {
+		req = c.traceRequest(req, requestID, start)
+	}
 
 	resp, err := c.wrapped.Do(req)
 	duration := time.Since(start)
+	if traceEnabled {
+		outcome := "response_headers"
+		if err != nil {
+			outcome = "failed"
+		}
+		c.logHTTPPhase(req, requestID, start, "request_done", slog.String("outcome", outcome))
+	}
 	if err != nil {
 		c.logRequestError(ctx, req, requestID, duration, err)
 		return nil, err
@@ -318,7 +330,7 @@ func (c *LoggingHTTPClient) logResponse(
 }
 
 func (c *LoggingHTTPClient) nextRequestID() string {
-	return fmt.Sprintf("khttp-%06d", c.requestCounter.Add(1))
+	return fmt.Sprintf("khttp-%06d", httpRequestCounter.Add(1))
 }
 
 func requestContext(ctx context.Context, req *http.Request) context.Context {

@@ -251,7 +251,7 @@ func executeScenario(
 					strings.TrimSpace(workdir),
 					timeout,
 				)
-				diagnostics.subprocess(res, timeout)
+				diagnostics.subprocess(res, timeout, cli.LastCommandDir)
 				diagnostics.current.AttemptLimit = 1
 				diagnostics.current.RetryStop = "not_configured"
 				if err != nil {
@@ -619,7 +619,7 @@ func executeScenario(
 			diagnostics.phase = "execution"
 			if cmd.ExpectFail != nil {
 				res, err = cli.RunWithEnvTimeout(context.Background(), envOverrides, timeout, args...)
-				diagnostics.subprocess(res, timeout)
+				diagnostics.subprocess(res, timeout, cli.LastCommandDir)
 				diagnostics.current.AttemptLimit = 1
 				diagnostics.current.RetryStop = "expected_failure"
 			} else {
@@ -977,7 +977,7 @@ func runCLIWithRetry(
 	)
 	for atry := range attempts {
 		res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
-		diagnostics.subprocess(res, timeout)
+		diagnostics.subprocess(res, timeout, cli.LastCommandDir)
 		if err == nil {
 			diagnostics.current.RetryStop = "succeeded"
 			return res, nil
@@ -993,6 +993,7 @@ func runCLIWithRetry(
 		}
 
 		preserveAttemptArtifacts(cli.LastCommandDir, atry)
+		diagnostics.preservedAttempt(atry)
 		delay := harness.BackoffDelay(backoff, atry)
 		harness.Warnf(
 			"command %s attempt %d/%d failed (exit=%d, timed_out=%t): %v; retrying in %s",

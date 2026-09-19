@@ -62,6 +62,10 @@ on:
         description: Capture tcpdump traffic for Konnect endpoints on the runner
         type: boolean
         default: false
+      trace_http:
+        description: Capture HTTP connection phases with trace-level CLI logs
+        type: boolean
+        default: false
 
 env:
   DO_NOT_TRACK: "1"
@@ -821,15 +825,16 @@ jobs:
       KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_E2E_HTTP_RETRY_MAX_INTERVAL || '5s' }}
       KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_E2E_HTTP_RETRY_BACKOFF_FACTOR || '2' }}
       KONGCTL_E2E_HTTP_RETRY_JITTER: ${{ vars.KONGCTL_E2E_HTTP_RETRY_JITTER || '250ms' }}
-      # Set reset timeouts to 0s/default/off to disable reset deadlines and rely on the workflow/job timeout.
-      KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_HTTP_TIMEOUT || '0s' }}
-      KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_TIMEOUT || '0s' }}
+      # Bound each reset request to 15s and each complete reset to 3m by default.
+      # Set either timeout to 0s/default/off to explicitly disable that deadline.
+      KONGCTL_E2E_RESET_HTTP_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_HTTP_TIMEOUT || '15s' }}
+      KONGCTL_E2E_RESET_TIMEOUT: ${{ vars.KONGCTL_E2E_RESET_TIMEOUT || '3m' }}
       KONGCTL_E2E_RESET_RETRY_ATTEMPTS: ${{ vars.KONGCTL_E2E_RESET_RETRY_ATTEMPTS || '3' }}
       KONGCTL_E2E_RESET_RETRY_INTERVAL: ${{ vars.KONGCTL_E2E_RESET_RETRY_INTERVAL || '1s' }}
       KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL: ${{ vars.KONGCTL_E2E_RESET_RETRY_MAX_INTERVAL || '5s' }}
       KONGCTL_E2E_RESET_RETRY_BACKOFF_FACTOR: ${{ vars.KONGCTL_E2E_RESET_RETRY_BACKOFF_FACTOR || '2' }}
       KONGCTL_E2E_RESET_RETRY_JITTER: ${{ vars.KONGCTL_E2E_RESET_RETRY_JITTER || '250ms' }}
-      KONGCTL_E2E_LOG_LEVEL: "debug"
+      KONGCTL_E2E_LOG_LEVEL: ${{ inputs.trace_http && 'trace' || 'debug' }}
       KONGCTL_E2E_CONSOLE_LOG_LEVEL: "warn"
       KONGCTL_E2E_ARTIFACTS_DIR: ${{ github.workspace }}/.e2e-artifacts/${{ github.run_id }}-${{ matrix.org_name }}
       KONGCTL_E2E_SHARD_INDEX: ${{ strategy.job-index }}
