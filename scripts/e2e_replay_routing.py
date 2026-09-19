@@ -102,6 +102,7 @@ def main():
     parser.add_argument("--plan", type=Path, default=Path("e2e-routing.json"))
     parser.add_argument("--results", type=Path, default=Path(".e2e-artifacts/pr-replay"))
     parser.add_argument("--baseline", type=Path, help="optional frozen live observations for the run summary")
+    parser.add_argument("--summary-output", type=Path, help="write Markdown here instead of the Actions summary")
     args = parser.parse_args()
     if args.command == "allocation":
         print(allocation_id(args.root, args.mode))
@@ -132,8 +133,10 @@ def main():
         "commit": commit, "run_id": os.environ["GITHUB_RUN_ID"],
         "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]), "scenarios": summaries,
     })
-    if os.environ.get("GITHUB_STEP_SUMMARY"):
-        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+    summary_output = args.summary_output or os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary_output:
+        Path(summary_output).parent.mkdir(parents=True, exist_ok=True)
+        with open(summary_output, "a", encoding="utf-8") as output:
             output.write("## Offline replay results\n\n")
             output.write("| Scenario | Scenario seconds | Wrapper seconds | Interactions |\n")
             output.write("| --- | ---: | ---: | ---: |\n")
