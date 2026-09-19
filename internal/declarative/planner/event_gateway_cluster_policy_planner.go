@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"reflect"
+	"maps"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -426,7 +426,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	// Compare labels
 	desiredLabels := p.extractClusterPolicyLabels(desired)
 	if desiredLabels != nil {
-		if !compareMaps(current.NormalizedLabels, desiredLabels) {
+		if !maps.Equal(current.NormalizedLabels, desiredLabels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{
 				Old: current.NormalizedLabels,
@@ -535,6 +535,6 @@ func configValuesMatch(current, desired any) bool {
 		}
 		return true
 	default:
-		return reflect.DeepEqual(current, desired)
+		return current == desired
 	}
 }

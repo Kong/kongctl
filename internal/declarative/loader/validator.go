@@ -303,7 +303,7 @@ func (l *Loader) findField(v reflect.Value, name string) reflect.Value {
 	}
 
 	// Then try by YAML tag
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		yamlTag := field.Tag.Get("yaml")
 		if yamlTag == "" {
@@ -311,14 +311,14 @@ func (l *Loader) findField(v reflect.Value, name string) reflect.Value {
 		}
 
 		// Handle yaml tags like "field_name,omitempty"
-		tagParts := strings.Split(yamlTag, ",")
-		if tagParts[0] == name {
+		tagName, _, _ := strings.Cut(yamlTag, ",")
+		if tagName == name {
 			return v.Field(i)
 		}
 	}
 
 	// Special case for embedded structs (like SDK types)
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		if field.Anonymous {
 			if embeddedField := l.findField(v.Field(i), name); embeddedField.IsValid() {

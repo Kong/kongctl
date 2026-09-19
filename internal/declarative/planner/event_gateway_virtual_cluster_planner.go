@@ -1091,21 +1091,6 @@ func stringPtrValue(value *string) string {
 	return *value
 }
 
-// compareMaps compares two string maps
-func compareMaps(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for k, v := range a {
-		if bv, ok := b[k]; !ok || v != bv {
-			return false
-		}
-	}
-
-	return true
-}
-
 // stringPtrEqual compares two string pointers for equality
 func stringPtrEqual(a, b *string) bool {
 	if a == nil && b == nil {

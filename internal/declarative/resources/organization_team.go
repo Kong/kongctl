@@ -97,15 +97,8 @@ func (t OrganizationTeamResource) Validate() error {
 		}
 	}
 
-	roleRefs := make(map[string]bool)
-	for i, role := range t.Roles {
-		if err := role.Validate(); err != nil {
-			return fmt.Errorf("invalid team role %d: %w", i, err)
-		}
-		if roleRefs[role.GetRef()] {
-			return fmt.Errorf("duplicate team role ref: %s", role.GetRef())
-		}
-		roleRefs[role.GetRef()] = true
+	if err := validateNestedSlice(t.Roles, "team role"); err != nil {
+		return err
 	}
 	return nil
 }

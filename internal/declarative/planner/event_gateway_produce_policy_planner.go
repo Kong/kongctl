@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -693,7 +694,7 @@ func (p *Planner) shouldUpdateProducePolicy(
 	// Labels comparison
 	desiredLabels := p.extractProducePolicyLabels(desired)
 	if desiredLabels != nil {
-		if !compareMaps(current.Labels, desiredLabels) {
+		if !maps.Equal(current.Labels, desiredLabels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{Old: current.Labels, New: desiredLabels}
 		}

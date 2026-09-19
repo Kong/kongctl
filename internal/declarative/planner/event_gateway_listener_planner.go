@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -495,7 +496,7 @@ func (p *Planner) shouldUpdateListener(
 
 	// Compare labels
 	if desired.Labels != nil {
-		if !compareMaps(current.Labels, desired.Labels) {
+		if !maps.Equal(current.Labels, desired.Labels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,

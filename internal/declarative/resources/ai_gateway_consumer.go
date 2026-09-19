@@ -368,7 +368,7 @@ func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		),
 		explainField(
 			aiGatewayConsumerFieldCredentials,
-			explainArrayOf(aiGatewayConsumerCredentialInlineExplainNode()),
+			explainArrayOf(inlineExplainNode(aiGatewayConsumerCredentialExplainNode)),
 			false,
 			false,
 		),

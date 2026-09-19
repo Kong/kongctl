@@ -50,10 +50,6 @@ func validateOrganizationTeamRoleReferences(
 		}
 	}
 
-	if !tags.IsRefPlaceholder(role.EntityID) {
-		return nil
-	}
-
 	return ValidateRoleEntityReference(
 		ResourceTypeOrganizationTeamRole,
 		role.GetRef(),

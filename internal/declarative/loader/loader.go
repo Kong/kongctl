@@ -771,7 +771,8 @@ func (l *Loader) suggestFieldName(fieldName string) string {
 // levenshteinClose checks if two strings are close enough (simple heuristic)
 func levenshteinClose(s1, s2 string) bool {
 	// Very simple heuristic: if lengths differ by more than 2, not close
-	if abs(len(s1)-len(s2)) > 2 {
+	diff := len(s1) - len(s2)
+	if diff > 2 || diff < -2 {
 		return false
 	}
 
@@ -791,12 +792,4 @@ func levenshteinClose(s1, s2 string) bool {
 	// If more than 70% characters match in order, consider it close
 	minLen := min(len(s2), len(s1))
 	return float64(matches)/float64(minLen) > 0.7
-}
-
-// abs returns absolute value of an integer
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
 }

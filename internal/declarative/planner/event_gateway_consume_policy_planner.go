@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -678,7 +679,7 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	// Compare labels
 	desiredLabels := p.extractConsumePolicyLabels(desired)
 	if desiredLabels != nil {
-		if !compareMaps(current.NormalizedLabels, desiredLabels) {
+		if !maps.Equal(current.NormalizedLabels, desiredLabels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{Old: current.NormalizedLabels, New: desiredLabels}
 		}
