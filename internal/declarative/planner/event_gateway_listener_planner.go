@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -474,7 +475,7 @@ func (p *Planner) shouldUpdateListener(
 	}
 
 	// Compare addresses
-	if !compareStringSlices(current.Addresses, desired.Addresses) {
+	if !slices.Equal(current.Addresses, desired.Addresses) {
 		needsUpdate = true
 		changes[FieldAddresses] = FieldChange{
 			Old: current.Addresses,
@@ -486,7 +487,7 @@ func (p *Planner) shouldUpdateListener(
 	// Ports are normalized to strings during unmarshaling
 	currentPortStrings := extractPortStrings(current.Ports)
 	desiredPortStrings := extractPortStrings(desired.Ports)
-	if !compareStringSlices(currentPortStrings, desiredPortStrings) {
+	if !slices.Equal(currentPortStrings, desiredPortStrings) {
 		needsUpdate = true
 		changes[FieldPorts] = FieldChange{
 			Old: currentPortStrings,

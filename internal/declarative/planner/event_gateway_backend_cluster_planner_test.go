@@ -4,8 +4,39 @@ import (
 	"testing"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
 )
+
+func TestShouldUpdateBackendCluster_EmptyLabelKeyChanged(t *testing.T) {
+	t.Parallel()
+
+	current := state.EventGatewayBackendCluster{
+		BackendCluster: components.BackendCluster{
+			Labels: map[string]string{"old": ""},
+			Authentication: components.BackendClusterAuthenticationSensitiveDataAwareScheme{
+				Type: components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous,
+			},
+		},
+	}
+	desired := resources.EventGatewayBackendClusterResource{
+		CreateBackendClusterRequest: components.CreateBackendClusterRequest{
+			Labels: map[string]string{"new": ""},
+			Authentication: components.BackendClusterAuthenticationScheme{
+				Type: components.BackendClusterAuthenticationSchemeTypeAnonymous,
+			},
+		},
+	}
+
+	p := &Planner{}
+	needsUpdate, updates, changes := p.shouldUpdateBackendCluster(current, desired)
+	require.True(t, needsUpdate)
+	require.Equal(t, desired.Labels, updates[FieldLabels])
+	require.Equal(t, map[string]FieldChange{
+		FieldLabels: {Old: current.Labels, New: desired.Labels},
+	}, changes)
+}
 
 func TestCompareTLSSettingsTreatsOmittedVersionsAsAPIDefaults(t *testing.T) {
 	tests := []struct {

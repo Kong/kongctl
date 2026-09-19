@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 
@@ -362,7 +363,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 	}
 
 	// Compare bootstrap servers
-	if !compareStringSlices(current.BootstrapServers, desired.BootstrapServers) {
+	if !slices.Equal(current.BootstrapServers, desired.BootstrapServers) {
 		needsUpdate = true
 		changes[FieldBootstrapServers] = FieldChange{
 			Old: current.BootstrapServers,
@@ -403,7 +404,7 @@ func (p *Planner) shouldUpdateBackendCluster(
 
 	// Compare labels (user labels only, ignore KONGCTL labels)
 	if desired.Labels != nil {
-		if !compareStringMaps(current.Labels, desired.Labels) {
+		if !maps.Equal(current.Labels, desired.Labels) {
 			needsUpdate = true
 			changes[FieldLabels] = FieldChange{
 				Old: current.Labels,
@@ -477,18 +478,6 @@ func compareAuthenticationSchemes(
 	return false
 }
 
-func compareStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func compareBoolPtrs(a, b *bool) bool {
 	if a == nil && b == nil {
 		return true
@@ -507,18 +496,6 @@ func compareInt64Ptrs(a, b *int64) bool {
 		return false
 	}
 	return *a == *b
-}
-
-func compareStringMaps(a, b map[string]string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for k, v := range a {
-		if b[k] != v {
-			return false
-		}
-	}
-	return true
 }
 
 func compareTLSSettings(a, b any) bool {

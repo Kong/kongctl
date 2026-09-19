@@ -125,6 +125,23 @@ func TestDoesStaticKeyNeedChange_ValueChanged(t *testing.T) {
 	assert.True(t, p.doesStaticKeyNeedChange(current, desired))
 }
 
+func TestDoesStaticKeyNeedChange_EmptyLabelKeyChanged(t *testing.T) {
+	t.Parallel()
+
+	current := state.EventGatewayStaticKey{
+		EventGatewayStaticKey: kkComps.EventGatewayStaticKey{
+			Labels: map[string]string{"old": ""},
+		},
+	}
+	desired := resources.EventGatewayStaticKeyResource{
+		EventGatewayStaticKeyCreate: kkComps.EventGatewayStaticKeyCreate{
+			Labels: map[string]string{"new": ""},
+		},
+	}
+
+	assert.True(t, newTestStaticKeyPlanner().doesStaticKeyNeedChange(current, desired))
+}
+
 func TestDoesStaticKeyNeedChange_PlaintextValueOmittedByAPI(t *testing.T) {
 	t.Parallel()
 
