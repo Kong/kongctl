@@ -43,6 +43,56 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_distinct_team_membership_creates_can_reorder_but_duplicates_cannot(self):
+        team = "00000000-0000-4000-8000-000000000001"
+        first_user = "00000000-0000-4000-8000-000000000002"
+        second_user = "00000000-0000-4000-8000-000000000003"
+        path = f"/v3/teams/{team}/users"
+        first = {"request": MODULE.request_key("global", "POST", path, json.dumps({"id": first_user}).encode()),
+                 "response": {"status": 201, "body": None}}
+        second = copy.deepcopy(first)
+        second["request"]["body"]["id"] = second_user
+        cassette = {"interactions": [first, second], "parallel_phases": [{"start": 1, "end": 2, "after": {}}]}
+        engine = MODULE.Replay(cassette)
+        engine.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        engine.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": first_user}).encode())
+        engine.verify()
+        # Memberships still depend on their team's creation. A phase is not
+        # permission to attach users before that parent exists.
+        create_team = {"request": MODULE.request_key("global", "POST", "/v3/teams", b'{"name":"team"}'),
+                       "response": {"status": 201, "body": {"id": team}}}
+        parent = MODULE.Replay({"interactions": [create_team, first, second],
+                               "parallel_phases": [{"start": 1, "end": 3, "after": {}}]})
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+            with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        self.assertEqual(0, parent.position)
+        parent.exchange("global.api.konghq.com", "POST", "/v3/teams", b'{"name":"team"}')
+        parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": first_user}).encode())
+        parent.verify()
+        for mutation in ["duplicate", "status", "endpoint", "query", "body", "response", "path"]:
+            changed = copy.deepcopy(cassette)
+            items = changed["interactions"]
+            if mutation == "duplicate":
+                items[1] = copy.deepcopy(items[0])
+            elif mutation == "status":
+                items[1]["response"]["status"] = 200
+            elif mutation == "endpoint":
+                for item in items:
+                    item["request"]["endpoint"] = "regional"
+            elif mutation == "query":
+                items[1]["request"]["query"] = [["extra", "value"]]
+            elif mutation == "body":
+                items[1]["request"]["body"]["extra"] = True
+            elif mutation == "response":
+                items[1]["response"]["body"] = {"data": []}
+            else:
+                for item in items:
+                    item["request"]["path"] = "/v3/unreviewed"
+            with self.subTest(mutation=mutation):
+                self.assertIn(0, MODULE.parallel_phases(changed)[0][1])
+
     def test_portal_email_template_phases_preserve_read_before_write(self):
         cassette = MODULE.load_cassette(MODULE.ROOT /
             "test/e2e/scenarios/portal/email-templates/replay/cassette.json")
@@ -537,6 +587,13 @@ class ReplayTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "mid-scenario"):
             MODULE.check_scenario_controls(changed, variables)
         MODULE.check_scenario_controls(changed, variables, replay_resets=True)
+
+    def test_user_scenario_data_can_be_separate_from_verifier_code(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        with patch.object(MODULE, "ROOT", Path("/separate-verifier-checkout")):
+            MODULE.check_eligibility(directory)
+            MODULE.check_safe("replay-user-1@example.invalid", MODULE.fixture_strings(directory))
+        self.assertIsNone(MODULE.user_scenario(Path("/unrelated/org/users/get")))
 
     def test_user_recording_does_not_hide_echoed_credentials(self):
         response = MagicMock(status=200)

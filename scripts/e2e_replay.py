@@ -282,16 +282,20 @@ def check_inline_overlays(directory, scenario):
             check_safe(fields)
 
 
+def user_scenario(directory):
+    # Verifier code may live outside the scenario data checkout. Identify the
+    # bounded scenario path without binding it to this executable's ROOT.
+    return next((name for name in USER_SCENARIOS
+                 if directory.as_posix().endswith("/test/e2e/scenarios/" + name)), None)
+
+
 def check_eligibility(directory):
     # A deliberately conservative boundary for the reviewed local-input scenarios.
     # New external dependencies, custom commands or org pins require explicit
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
     scenario = parse_scenario(definition)
-    try:
-        name = directory.relative_to(ROOT / "test/e2e/scenarios").as_posix()
-    except ValueError:
-        name = None
+    name = user_scenario(directory)
     user_env = USER_SCENARIOS.get(name, ())
     check_scenario_controls(scenario, user_env, name == "dump/organization-teams")
     if user_env and not scenario.get("test"):
@@ -382,8 +386,7 @@ def fixture_strings(directory):
             spec = parse_json(content)
             if isinstance(spec, dict) and ("openapi" in spec or "swagger" in spec):
                 specs.add(canonical(spec))
-    user_scenario = directory in [ROOT / "test/e2e/scenarios" / name for name in USER_SCENARIOS]
-    return PublicFixtures(strings, specs, user_scenario)
+    return PublicFixtures(strings, specs, user_scenario(directory) is not None)
 
 
 class PublicFixtures:
@@ -530,6 +533,19 @@ def validate_cassette(cassette, directory, scenario=SCENARIO, *, allow_stale=Fal
     parallel_phases(cassette)
 
 
+def membership_create_id(item):
+    """Distinct user additions commute even though this API returns no body."""
+    request, response = item["request"], item["response"]
+    body = request["body"]
+    target = re.fullmatch(r"/v3/teams/([^/]+)/users", request["path"])
+    if (request["endpoint"] == "global" and request["method"] == "POST" and not request["query"]
+            and target and UUID.fullmatch(target[1])
+            and isinstance(body, dict) and set(body) == {"id"} and isinstance(body["id"], str)
+            and UUID.fullmatch(body["id"]) and response["status"] == 201 and response["body"] is None):
+        return body["id"]
+    return None
+
+
 def parallel_phases(cassette):
     """Compile reviewed, bounded phases with mandatory causal dependencies.
 
@@ -586,11 +602,14 @@ def parallel_phases(cassette):
                                        and isinstance(earlier_body.get("id"), str) and isinstance(current_body.get("id"), str)
                                        and owners.get(earlier_body["id"]) == j and owners.get(current_body["id"]) == i
                                        and canonical(earlier) != canonical(request))
+                earlier_member, current_member = membership_create_id(interactions[j]), membership_create_id(item)
+                independent_memberships = (earlier_member is not None and current_member is not None
+                                           and earlier_member != current_member)
                 ancestor = (earlier["path"].startswith(request["path"].rstrip("/") + "/")
                             or request["path"].startswith(earlier["path"].rstrip("/") + "/"))
                 changes_observation = ("GET" in {earlier["method"], request["method"]}
                                        and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
-                if ((same_target and not independent_creates and not independent_queries)
+                if ((same_target and not independent_creates and not independent_queries and not independent_memberships)
                         or (ancestor and changes_observation)):
                     dependencies[i].add(j)
         for index, parents in after.items():

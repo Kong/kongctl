@@ -1,0 +1,45 @@
+{
+  "cassette_sha256": "f66dd03df1ed3008a4cad4ca3f47aa7553f9a04f479ca73a31d891add5c92b3b",
+  "parallel_phases": [
+    {
+      "start": 6,
+      "end": 10,
+      "after": {}
+    },
+    {
+      "start": 21,
+      "end": 24,
+      "after": {}
+    },
+    {
+      "start": 25,
+      "end": 27,
+      "after": {}
+    },
+    {
+      "start": 32,
+      "end": 35,
+      "after": {}
+    },
+    {
+      "start": 40,
+      "end": 43,
+      "after": {}
+    },
+    {
+      "start": 47,
+      "end": 50,
+      "after": {}
+    },
+    {
+      "start": 51,
+      "end": 52,
+      "after": {}
+    },
+    {
+      "start": 56,
+      "end": 59,
+      "after": {}
+    }
+  ]
+}

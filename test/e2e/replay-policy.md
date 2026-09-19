@@ -155,7 +155,12 @@ interaction ranges of 2–64 exchanges. Outside those ranges, order stays strict
 Inside a range every method, path, query, and body must still match exactly,
 once. Generated UUID references depend on their recorded creation. Repeated
 targets keep their stream order, except distinct successful creates with
-distinct generated IDs. In a wholly read-only phase, bodyless GETs with
+distinct generated IDs. Another narrow exception permits successful, empty
+201 responses to global `POST /v3/teams/{id}/users` with distinct, exact
+`{"id": "user UUID"}` bodies and no query. These membership additions commute,
+but duplicate additions stay ordered and team creation remains a prerequisite.
+No other empty-response create is exempt. In a wholly read-only phase,
+bodyless GETs with
 different queries may also reorder (for example, publications filtered by
 different API IDs). Queries still match exactly; repeated identical requests
 retain their stream order. Ancestor reads cannot cross updates or deletes.
