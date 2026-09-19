@@ -569,6 +569,45 @@ artifact bundle containing:
 - `tcpdump.log`: tcpdump startup and shutdown output
 - `context.txt`: runner host, DNS resolution, interfaces, and routes
 
+To investigate a stalled request, enable `trace_http=true` on a manual
+workflow dispatch. This keeps console logging at `warn` and captures trace
+logs in the normal command artifacts. For a targeted local run, use:
+
+```sh
+KONGCTL_E2E_LOG_LEVEL=trace KONGCTL_E2E_CONSOLE_LOG_LEVEL=warn \
+  make test-e2e-scenarios SCENARIO=deck/multi-file
+```
+
+The CLI also supports `--log-level trace --log-file <path>` outside E2E.
+Trace verbosity includes existing redacted HTTP payload logging; connection
+phase events themselves contain no headers, bodies, query values, or raw
+network error text. Normal debug/info logging does not emit phase events.
+
+Each `log_type=http_phase` record is written as progress happens, including
+DNS, TCP connect, TLS, connection acquisition/reuse, request headers/write,
+and first response byte. `elapsed_ms` measures time since that HTTP attempt
+started. `request_done` with `outcome=response_headers` means the HTTP client
+returned response headers, not that response-body consumption completed.
+Phase callbacks may be concurrent; absent DNS/TLS events can indicate reuse
+or an unsupported transport, and are not evidence of failure.
+
+In `scenario-diagnostics.json`, each subprocess attempt includes a `log_path`
+relative to that file and `http_requests` with the last observed phase,
+elapsed time, effective HTTP timeout, and outcome. Its existing `timeout_ms`
+is the separate subprocess limit. `unfinished` means no completion event was
+observed; it does not establish a server timeout. `http_trace_status` reports
+missing or incomplete evidence explicitly. Summary metadata excludes routes,
+error text, headers, and bodies.
+
+Correlate using scenario, step, command, attempt index, log path, and request
+ID together: `khttp-000001` can recur in every process. Earlier retried
+execution logs link to their preserved `attempts/` directories; final
+execution logs remain separate from terminal assertion diagnostics. Compare
+the last observed phases and budgets against one successful execution of
+the same command. Preserve both artifact bundles; do not automatically
+rerun failed shards until they pass. Add `capture_tcpdump=true` when packet
+evidence is needed to investigate gaps left by the application trace.
+
 The default org pool is defined as JSON in the repository or organization
 variable `KONGCTL_E2E_ORGS_JSON`. Example:
 

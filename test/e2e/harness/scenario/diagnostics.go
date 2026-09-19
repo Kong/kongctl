@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/kong/kongctl/test/e2e/harness"
@@ -52,15 +53,18 @@ type commandDiagnostic struct {
 }
 
 type attemptDiagnostic struct {
-	Kind       string `json:"kind"`
-	DurationMS int64  `json:"duration_ms"`
-	TimeoutMS  int64  `json:"timeout_ms"`
-	TimedOut   bool   `json:"timed_out"`
-	ExitCode   int    `json:"exit_code,omitempty"`
-	Status     int    `json:"http_status,omitempty"`
-	Method     string `json:"http_method,omitempty"`
-	Host       string `json:"http_host,omitempty"`
-	ErrorClass string `json:"error_class,omitempty"`
+	LogPath         string                        `json:"log_path,omitempty"`
+	HTTPRequests    []harness.HTTPPhaseDiagnostic `json:"http_requests,omitempty"`
+	HTTPTraceStatus string                        `json:"http_trace_status,omitempty"`
+	Kind            string                        `json:"kind"`
+	DurationMS      int64                         `json:"duration_ms"`
+	TimeoutMS       int64                         `json:"timeout_ms"`
+	TimedOut        bool                          `json:"timed_out"`
+	ExitCode        int                           `json:"exit_code,omitempty"`
+	Status          int                           `json:"http_status,omitempty"`
+	Method          string                        `json:"http_method,omitempty"`
+	Host            string                        `json:"http_host,omitempty"`
+	ErrorClass      string                        `json:"error_class,omitempty"`
 }
 
 func newScenarioDiagnostics(path, scenario string) *scenarioDiagnostics {
@@ -81,11 +85,35 @@ func (d *scenarioDiagnostics) begin(step, command string) {
 	d.started = time.Now()
 }
 
-func (d *scenarioDiagnostics) subprocess(res harness.Result, timeout time.Duration) {
-	d.current.Attempts = append(d.current.Attempts, attemptDiagnostic{
+func (d *scenarioDiagnostics) subprocess(res harness.Result, timeout time.Duration, dirs ...string) {
+	a := attemptDiagnostic{
 		Kind: "subprocess", DurationMS: res.Duration.Milliseconds(), TimeoutMS: timeout.Milliseconds(),
 		TimedOut: res.TimedOut, ExitCode: res.ExitCode,
-	})
+	}
+	if len(dirs) > 0 && dirs[0] != "" {
+		path := filepath.Join(dirs[0], "kongctl.log")
+		if rel, err := filepath.Rel(filepath.Dir(d.path), path); err == nil && rel != ".." &&
+			!strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			a.LogPath = filepath.ToSlash(rel)
+			a.HTTPRequests, err = harness.ReadHTTPPhases(path)
+			a.HTTPTraceStatus = "recorded"
+			if err != nil {
+				a.HTTPTraceStatus = "unavailable_or_incomplete"
+			} else if len(a.HTTPRequests) == 0 {
+				a.HTTPTraceStatus = "not_observed"
+			}
+		}
+	}
+	d.current.Attempts = append(d.current.Attempts, a)
+}
+
+func (d *scenarioDiagnostics) preservedAttempt(attempt int) {
+	a := &d.current.Attempts[len(d.current.Attempts)-1]
+	if a.LogPath != "" {
+		a.LogPath = filepath.ToSlash(filepath.Join(
+			filepath.Dir(a.LogPath), "attempts", fmt.Sprintf("%03d", attempt), "kongctl.log",
+		))
+	}
 }
 
 func (d *scenarioDiagnostics) http(a harness.HTTPAttempt) {

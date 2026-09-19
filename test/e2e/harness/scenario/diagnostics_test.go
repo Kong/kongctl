@@ -142,3 +142,46 @@ func TestObservedCLIRetryPreservesBothAttempts(t *testing.T) {
 		t.Fatalf("attempt outcomes incorrect: %+v", d.current.Attempts)
 	}
 }
+
+func TestDiagnosticsLinkRecoveredAndFinalAttemptLogs(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "steps", "sync", "commands", "sync")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "kongctl.log")
+	failed := "log_type=http_phase request_id=khttp-000001 phase=request_written elapsed_ms=5 http_timeout_ms=15000\n"
+	if err := os.WriteFile(path, []byte(failed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := newScenarioDiagnostics(filepath.Join(root, "scenario-diagnostics.json"), "all")
+	d.begin("sync", "sync")
+	d.subprocess(harness.Result{ExitCode: 1}, time.Minute, dir)
+	preserveAttemptArtifacts(dir, 0)
+	d.preservedAttempt(0)
+	completed := failed + "log_type=http_phase request_id=khttp-000001 phase=request_done " +
+		"elapsed_ms=10 http_timeout_ms=15000 outcome=response_headers\n"
+	if err := os.WriteFile(path, []byte(completed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d.subprocess(harness.Result{}, time.Minute, dir)
+	d.phase = "assertion"
+	if err := d.finish(errors.New("mismatch")); err != nil {
+		t.Fatal(err)
+	}
+	attempts := d.Commands[0].Attempts
+	if attempts[0].LogPath == attempts[1].LogPath {
+		t.Fatal("attempt links collide")
+	}
+	for _, a := range attempts {
+		if _, err := os.Stat(filepath.Join(root, a.LogPath)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if attempts[0].HTTPRequests[0].Outcome != "unfinished" || attempts[1].HTTPRequests[0].Outcome != "response_headers" {
+		t.Fatalf("lost per-process trace evidence: %+v", attempts)
+	}
+	if d.Failure.Cause != "unknown" || d.Failure.Phase != "assertion" {
+		t.Fatalf("wrong terminal cause: %+v", d.Failure)
+	}
+}

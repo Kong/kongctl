@@ -124,7 +124,7 @@ func TestLoggingHTTPClient_TraceLogsBodiesAndRedactsSensitiveFields(t *testing.T
 	assert.Equal(t, responseBody, string(responseBodyRead))
 
 	logs := parseJSONLogs(t, logOutput.String())
-	require.Len(t, logs, 2)
+	require.Len(t, logs, 4)
 
 	requestLog := mustFindLogByType(t, logs, logTypeRequest)
 	responseLog := mustFindLogByType(t, logs, logTypeResponse)
