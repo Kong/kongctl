@@ -1,7 +1,7 @@
 baseInputsPath: testdata
 
 env:
-  KONGCTL_LOG_LEVEL: debug
+  KONGCTL_LOG_LEVEL: info
 
 vars:
   namespace: portal-customization

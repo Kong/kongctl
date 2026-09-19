@@ -34,7 +34,8 @@ SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
     "control-plane/sync", "control-plane/sync-groups", "event-gateway/consume-policy", "portal/api_docs_with_children",
-    "portal/email-templates", "portal/ip-allow-list", "portal/pages", "portal/sync", "portal/teams", "portal/visibility",
+    "portal/customization", "portal/email-templates", "portal/ip-allow-list", "portal/pages", "portal/sync",
+    "portal/teams", "portal/visibility",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
