@@ -33,13 +33,14 @@ from e2e_replay_users import (EMAIL, USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdenti
 # users can install the same requirements in their active Python environment.
 sys.path.insert(0, str(ROOT / ".e2e-artifacts/replay-python"))
 SCENARIO = "control-plane/get"
+RESET_SCENARIOS = {"dump/organization-teams", "dump/portal-owned"}
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
     "control-plane/sync", "control-plane/sync-groups", "event-gateway/consume-policy", "portal/api_docs_with_children",
     "portal/customization", "portal/email-templates", "portal/ip-allow-list", "portal/pages", "portal/sync",
     "portal/teams", "portal/visibility",
-    *USER_SCENARIOS,
+    *USER_SCENARIOS, "dump/portal-owned",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -181,7 +182,7 @@ def parse_scenario(definition):
     return scenario
 
 
-def check_scenario_controls(scenario, user_env=(), replay_resets=False):
+def check_scenario_controls(scenario, user_env=(), replay_resets=False, *, system_account_create=False):
     """Assertion field values are data, not executable scenario controls."""
     fields, initial_reset = [], None
     for step_index, step in enumerate(scenario["steps"]):
@@ -213,7 +214,7 @@ def check_scenario_controls(scenario, user_env=(), replay_resets=False):
                         or value.get("requiredEnvVars") != list(user_env)):
                     raise ValueError("organization user replay requires the reviewed environment and inputs")
                 allowed.update({"assignedEnvironment", "requiredEnvVars"})
-            if replay_resets and "create" in value:
+            if system_account_create and "create" in value:
                 creation = value["create"]
                 if (set(value) != {"name", "create"} or not isinstance(creation, dict)
                         or set(creation) != {"resource", "payload"}
@@ -297,7 +298,10 @@ def check_eligibility(directory):
     scenario = parse_scenario(definition)
     name = user_scenario(directory)
     user_env = USER_SCENARIOS.get(name, ())
-    check_scenario_controls(scenario, user_env, name == "dump/organization-teams")
+    replay_resets = any(directory.as_posix().endswith("/test/e2e/scenarios/" + name)
+                        for name in RESET_SCENARIOS)
+    check_scenario_controls(scenario, user_env, replay_resets,
+                            system_account_create=name == "dump/organization-teams")
     if user_env and not scenario.get("test"):
         raise ValueError("organization user replay requires its input declarations")
     if "inputOverlayOps" in definition:
@@ -324,6 +328,10 @@ def check_eligibility(directory):
         if path.is_symlink():
             raise ValueError("symlinked scenario inputs are not replay-supported")
         if not path.is_file():
+            continue
+        # Documents and binary assets are fingerprinted opaque payloads, not
+        # executable YAML. Their prose may describe tags without using them.
+        if path.suffix not in (".yaml", ".yml", ".json"):
             continue
         content = path.read_text(encoding="utf-8")
         if user_env:
@@ -906,7 +914,7 @@ def clean_environment(directory, binary, scenario=SCENARIO):
         "KONGCTL_E2E_CONSOLE_LOG_LEVEL": "warn", "KONGCTL_E2E_BETA_MODE": "fail",
     })
     env.update(replay_inputs(scenario))
-    if scenario == "dump/organization-teams":
+    if scenario in RESET_SCENARIOS:
         # Its round trip intentionally resets between dump and reconstruction.
         # Record/replay these HTTP calls rather than silently skipping the reset.
         env["KONGCTL_E2E_RESET"] = "1"

@@ -43,6 +43,28 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_portal_owned_round_trip_replays_resets_without_user_or_create_permissions(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/dump/portal-owned"
+        MODULE.check_eligibility(directory)
+        scenario = MODULE.parse_scenario((directory / "scenario.yaml").read_text())
+        self.assertEqual(2, sum(command.get("resetOrg") is True
+                                for step in scenario["steps"] for command in step["commands"]))
+        with self.assertRaisesRegex(ValueError, "mid-scenario"):
+            MODULE.check_scenario_controls(scenario)
+        MODULE.check_scenario_controls(scenario, replay_resets=True)
+        scenario["steps"][0]["commands"].append({"name": "unreviewed-create", "create": {
+            "resource": "system-account", "payload": {"inline": {
+                "name": "{{ .vars.systemAccountName }}",
+                "description": "System account for organization teams dump E2E coverage"}}}})
+        with self.assertRaisesRegex(ValueError, "unsupported command"):
+            MODULE.check_scenario_controls(scenario, replay_resets=True)
+        with patch.object(MODULE, "ROOT", Path("/separate-verifier-checkout")):
+            MODULE.check_eligibility(directory)
+        env = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/portal-owned")
+        self.assertEqual("1", env["KONGCTL_E2E_RESET"])
+        self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
+        self.assertEqual("kongctl-acceptance-3", MODULE.recording_org("dump/portal-owned"))
+
     def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
         for scenario in MODULE.USER_SCENARIOS:
@@ -754,6 +776,26 @@ class ReplayTest(unittest.TestCase):
         for value in [public + "extra", "author@example.com", {"token": public}]:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 MODULE.check_safe(value, fixtures)
+
+    def test_opaque_documents_and_binary_assets_are_fingerprinted_not_parsed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []\n")
+            inputs = root / "testdata"
+            inputs.mkdir()
+            (inputs / "portal.yaml").write_text("logo: !file logo.png\ncontent: !file guide.md\n")
+            (inputs / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            (inputs / "guide.md").write_text("The `!file` and `!env` tags are documented here.\n")
+            MODULE.check_eligibility(root)
+            digest = MODULE.scenario_digest(root)
+            (inputs / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\nchanged")
+            self.assertNotEqual(digest, MODULE.scenario_digest(root))
+            digest = MODULE.scenario_digest(root)
+            (inputs / "guide.md").write_text("Changed documentation\n")
+            self.assertNotEqual(digest, MODULE.scenario_digest(root))
+            (inputs / "portal.yaml").write_text("email: !env UNREVIEWED\n")
+            with self.assertRaisesRegex(ValueError, "external input"):
+                MODULE.check_eligibility(root)
 
     def test_yaml_spec_serialized_as_json_remains_a_public_fixture(self):
         with tempfile.TemporaryDirectory() as directory:

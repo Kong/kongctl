@@ -258,9 +258,10 @@ Normally only a standalone `resetOrg: true` as the first command of the first
 step is supported. Recording uses the existing locked before/after reset;
 replay skips that initial reset. A later reset would invalidate a stateful
 round-trip test if skipped, so it fails eligibility. The explicit exception
-is `dump/organization-teams`: all of its in-scenario reset HTTP calls are
-recorded and replayed, including the mid-round-trip reset and final cleanup.
-It also permits only its reviewed inline system-account creation commands.
+is the reviewed dump subset, `dump/organization-teams` and
+`dump/portal-owned`: all in-scenario reset HTTP calls are recorded and
+replayed, including the mid-round-trip reset. Only the organization-teams
+scenario permits its reviewed inline system-account creation commands.
 
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
@@ -269,6 +270,9 @@ exact-content public-fixture checks; another overlay is not a fallback search
 path. Remote files, parent traversal, symlinks, arbitrary environment overrides
 and custom creation commands remain unsupported. Every input, overlay and
 assertion file is fingerprinted, including document and OpenAPI content.
+Document and binary-asset bytes are opaque, fingerprinted payloads, not YAML
+configuration. Tag syntax in documentation is not an executable dependency;
+configuration files still undergo the local-input checks above.
 
 ### Pre-registered organization users
 

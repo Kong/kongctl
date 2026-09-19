@@ -1,4 +1,4 @@
-baseInputsPath: ./testdata
+baseInputsPath: testdata
 
 steps:
   - name: 000-reset-org
