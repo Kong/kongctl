@@ -27,11 +27,11 @@ class CacheTest(unittest.TestCase):
             go.write_text('#!/bin/sh\ncase "$2" in GOMODCACHE) echo /cache/modules;; '
                           'GOCACHE) echo /cache/build;; *) exit 1;; esac\n')
             go.chmod(0o755)
-            output, summary = directory / 'output', directory / 'summary'
+            output, summary = directory / 'output', directory / 'e2e-details.md'
             result = subprocess.run(
                 ['bash', '-c', self.step(name)['run']], capture_output=True, text=True,
                 env={**os.environ, 'PATH': str(directory) + os.pathsep + os.environ['PATH'],
-                     'GITHUB_OUTPUT': str(output), 'GITHUB_STEP_SUMMARY': str(summary), **environment},
+                     'GITHUB_OUTPUT': str(output), 'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent), **environment},
             )
             return result, output.read_text() if output.exists() else '', summary.read_text() if summary.exists() else ''
 

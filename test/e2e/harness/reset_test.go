@@ -615,3 +615,49 @@ func BenchmarkResetResourcesInventoryLatency(b *testing.B) {
 		})
 	}
 }
+
+func TestResetEventsRecordRecoveryWithoutSensitiveData(t *testing.T) {
+	for _, recovered := range []bool{true, false} {
+		t.Run(strconv.FormatBool(recovered), func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				calls++
+				if calls == 1 || !recovered {
+					http.Error(w, "503 Service Unavailable PRIVATE_RESPONSE_TOKEN", http.StatusServiceUnavailable)
+					return
+				}
+				_, _ = fmt.Fprint(w, `{"data":[]}`)
+			}))
+			defer server.Close()
+			session := newResetHTTPSession(time.Second, HTTPTransportOptions{})
+			defer session.Close()
+			_, err := retryListItems(t.Context(), session, server.URL+"?token=PRIVATE_QUERY", "PRIVATE_PAT", "apis",
+				HTTPRetryPolicy{Backoff: BackoffConfig{Attempts: 2, Base: time.Millisecond, Max: time.Millisecond}})
+			if (err == nil) != recovered {
+				t.Fatalf("recovered=%t, err=%v", recovered, err)
+			}
+			events := session.Metrics().Events
+			expected := "operation_failed"
+			expectedEvents := 2
+			if recovered {
+				expected = "recovered"
+				expectedEvents = 1
+			}
+			if len(events) != expectedEvents {
+				t.Fatalf("events=%+v", events)
+			}
+			for i, event := range events {
+				if event.Outcome != expected || event.Attempt != i+1 || event.Operation != "list" || event.Timestamp == "" {
+					t.Fatalf("event=%+v", event)
+				}
+			}
+			encoded, err := json.Marshal(events)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(encoded), "PRIVATE") {
+				t.Fatal("event leaked request or response data")
+			}
+		})
+	}
+}
