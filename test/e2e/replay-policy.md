@@ -7,7 +7,7 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
-`dump/organization-teams`, `event-gateway/consume-policy`,
+`dump/organization-teams`, `dump/portal-owned`, `event-gateway/consume-policy`,
 `org/users/assignments`, `org/users/get`, `org/users/plan/apply-workflow`,
 `org/users/plan/sync-workflow`, `org/users/sync`,
 `portal/api_docs_with_children`, `portal/customization`, `portal/email-templates`,
@@ -30,6 +30,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
 | portal/email-templates | [Recording][email-record], [isolated replays][email-replay] |
 | dump/organization-teams | [Recording][org-dump-record], [isolated replays][org-dump-replay] |
+| dump/portal-owned | [Recording][portal-dump-record], [isolated replays][portal-dump-replay] |
 | org/users/assignments | [Recording][user-assign-record], [isolated replays][user-assign-replay] |
 | org/users/get | [Recording and isolated replays][user-get-record] |
 | org/users/plan/apply-workflow | [Recording][user-apply-record], [isolated replays][user-apply-replay] |
@@ -59,6 +60,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
 [org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35463078546
 [org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35463672734
+[portal-dump-record]: https://github.com/Kong/kongctl/actions/runs/35470184997
+[portal-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35471335714
 [user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35463074418
 [user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35463667949
 [user-get-record]: https://github.com/Kong/kongctl/actions/runs/35463073348
@@ -417,6 +420,16 @@ matcher changes are needed. Its
 [replay review](scenarios/portal/customization/replay/README.md) records
 provenance, mutation boundaries, and timing. PR replay skips its scenario
 reset; main and force-live runs remain live.
+
+`dump/portal-owned` is enabled after live recording and three isolated replays
+of all 453 exchanges. Both resets execute through the replay proxy, including
+the reset before reconstruction from the dump. Portal children, API documents
+and publications, binary assets, no-op plans, and final deletion assertions
+remain intact. Its [replay review](scenarios/dump/portal-owned/replay/README.md)
+records command boundaries and the recording environment limitation. Isolated
+wrappers took 3.796–3.803 seconds versus a 32.925-second historical live median;
+this comparison describes execution work, not measured workflow savings.
+Main and force-live runs remain fully live.
 
 ## Measurement
 

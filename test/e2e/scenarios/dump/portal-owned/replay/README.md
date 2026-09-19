@@ -59,6 +59,11 @@ Recording therefore selects acceptance-2, without permanently pinning the
 live scenario or changing its assertions. The acceptance-3 portability
 problem is not claimed fixed by this replay addition.
 
+Three [network-isolated replays][replay] consumed all 453 exchanges each.
+Scenario execution took 3.118–3.151 seconds; wrappers took 3.796–3.803 seconds.
+The validated cassette is losslessly stored in nine hash-addressed chunks.
+Its 20 PNG payload occurrences match the checked-in fixture bytes exactly.
+
 The frozen 20-run live median is 32.925 seconds, including scenario resets.
 Recording took 140.394 scenario seconds and includes serialized proxy
 overhead; it is not the live performance baseline. Compare isolated replay
@@ -66,5 +71,6 @@ wrapper time, including setup, with the historical median as execution work,
 not as a causal estimate of parallel workflow wall-clock savings.
 
 [record]: https://github.com/Kong/kongctl/actions/runs/35470184997
+[replay]: https://github.com/Kong/kongctl/actions/runs/35471335714
 [initial]: https://github.com/Kong/kongctl/actions/runs/35469445499
 [live]: https://github.com/Kong/kongctl/actions/runs/35469673919

@@ -1,0 +1,1042 @@
+[
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/documents/00000000-0000-4000-8000-000000000059",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000059",
+        "parent_document_id": null,
+        "title": "SMS API: Getting Started",
+        "slug": "sms-getting-started",
+        "status": "published",
+        "content": "# SMS API: Getting Started\n\nWelcome to the SMS API! This guide will help you send your first SMS message in just a few minutes.\n\n## Overview\n\nThe SMS API allows you to:\n- Send SMS messages to phone numbers worldwide\n- Receive delivery receipts for sent messages\n- Handle inbound SMS messages to your virtual numbers\n- Send messages in multiple formats (text, binary, Unicode)\n\n## Prerequisites\n\nBefore you begin, you'll need:\n1. An API key and secret\n2. A sender ID or virtual number (depending on your region)\n3. The recipient's phone number in E.164 format\n\n## Quick Start\n\n### 1. Send Your First SMS\n\nHere's a simple example to send an SMS message:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello from the SMS API!\"\n```\n\n### 2. Understanding the Response\n\nA successful response looks like this:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"to\": \"447700900000\",\n    \"message-id\": \"0A0000000123ABCD1\",\n    \"status\": \"0\",\n    \"remaining-balance\": \"3.14159265\",\n    \"message-price\": \"0.03330000\",\n    \"network\": \"23430\"\n  }]\n}\n```\n\nKey fields:\n- `status`: \"0\" means success\n- `message-id`: Unique identifier for tracking\n- `remaining-balance`: Your account balance after sending\n\n## Supported Regions\n\nThe SMS API supports sending to most countries worldwide. However, some regions have specific requirements:\n\n- **USA/Canada**: Requires a Vonage virtual number as sender\n- **India**: Requires pre-registered sender IDs and templates\n- **Europe**: Alphanumeric sender IDs are generally supported\n\n## Message Types\n\n### Text Messages\nStandard SMS messages up to 160 characters:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Your verification code is: 123456\"\n```\n\n### Unicode Messages\nFor non-Latin characters (Arabic, Chinese, etc.):\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=\u4f60\u597d\u4e16\u754c\" \\\n  -d \"type=unicode\"\n```\n\n## Best Practices\n\n1. **Use E.164 Format**: Always format phone numbers with country code (e.g., 447700900000)\n2. **Handle Errors**: Check the status field in responses\n3. **Monitor Balance**: Track your remaining balance to avoid failed sends\n4. **Request Delivery Receipts**: Enable callbacks to track message delivery\n5. **Respect Rate Limits**: Default limit is 30 messages per second\n\n## Next Steps\n\n- [Authentication Guide](./authentication) - Learn about API keys and signatures\n- [Error Handling](./errors) - Understand error codes and troubleshooting\n- [Webhooks](./webhooks) - Set up delivery receipts and inbound SMS\n- [API Reference](https://rest.nexmo.com/sms) - Full API documentation\n\n## Need Help?\n\n- Email: devrel@vonage.com\n- Documentation: https://developer.nexmo.com/messaging/sms/overview\n- Status: https://api.vonage.com/status",
+        "created_at": "2026-09-19T21:33:32.604Z",
+        "updated_at": "2026-09-19T21:33:32.662Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/documents/00000000-0000-4000-8000-000000000060",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000060",
+        "parent_document_id": null,
+        "title": "SMS API: Authentication Guide",
+        "slug": "sms-authentication",
+        "status": "published",
+        "content": "# SMS API: Authentication Guide\n\nThe SMS API supports two methods of authentication to ensure secure access to your account.\n\n## Authentication Methods\n\n### 1. API Key and Secret\n\nThe simplest authentication method uses your API key and secret as request parameters.\n\n#### How to Authenticate\n\nInclude these parameters in every request:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"api_secret=abcdef0123456789\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\"\n```\n\n#### Security Considerations\n\n- **Never expose credentials**: Don't commit API secrets to version control\n- **Use environment variables**: Store credentials securely\n- **Rotate regularly**: Change your API secret periodically\n- **Use HTTPS**: Always use encrypted connections\n\n### 2. Signature Authentication\n\nFor enhanced security, you can use signature-based authentication instead of sending your API secret directly.\n\n#### How It Works\n\n1. Create a signature using your request parameters\n2. Include the signature instead of your API secret\n3. The server validates the signature using your shared secret\n\n#### Generating a Signature\n\nThe signature is an MD5 hash of:\n- All request parameters (except `sig`) in alphabetical order\n- A timestamp\n- Your signature secret\n\nExample in Python:\n\n```python\nimport hashlib\nimport time\n\ndef generate_signature(params, signature_secret):\n    # Remove sig parameter if present\n    params = {k: v for k, v in params.items() if k != 'sig'}\n    \n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    \n    # Create parameter string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Add signature secret\n    signature_string = param_string + signature_secret\n    \n    # Generate MD5 hash\n    return hashlib.md5(signature_string.encode()).hexdigest()\n\n# Example usage\nparams = {\n    'api_key': 'abcd1234',\n    'to': '447700900000',\n    'from': 'AcmeInc',\n    'text': 'Hello World',\n    'timestamp': str(int(time.time()))\n}\n\nsignature = generate_signature(params, 'your_signature_secret')\nparams['sig'] = signature\n```\n\n#### Using Signature Authentication\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=abcd1234\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"timestamp=1234567890\" \\\n  -d \"sig=7a8c1f3d4e5b6a9c8d7e6f5a4b3c2d1e\"\n```\n\n## Getting Your Credentials\n\n### API Key and Secret\n\n1. Log in to your Vonage Dashboard\n2. Navigate to Settings \u2192 API Settings\n3. Your API key is displayed\n4. Click \"Show API Secret\" to reveal your secret\n\n### Signature Secret\n\n1. In the Dashboard, go to Settings \u2192 API Settings\n2. Click \"Signature Secret\"\n3. Generate or update your signature secret\n\n## Security Best Practices\n\n### 1. Environment Variables\n\nStore credentials in environment variables:\n\n```bash\nexport VONAGE_API_KEY=\"abcd1234\"\nexport VONAGE_API_SECRET=\"abcdef0123456789\"\n```\n\nThen use them in your code:\n\n```python\nimport os\n\napi_key = os.environ.get('VONAGE_API_KEY')\napi_secret = os.environ.get('VONAGE_API_SECRET')\n```\n\n### 2. Configuration Files\n\nIf using configuration files:\n- Never commit them to version control\n- Use `.gitignore` to exclude them\n- Set appropriate file permissions (e.g., 600)\n\n### 3. Key Rotation\n\nRegularly rotate your credentials:\n1. Generate new API secret in Dashboard\n2. Update your applications\n3. Monitor for any failures\n4. Remove old credentials\n\n### 4. IP Whitelisting\n\nFor additional security:\n1. Go to Dashboard \u2192 API Settings\n2. Add trusted IP addresses\n3. Only requests from these IPs will be accepted\n\n## Troubleshooting Authentication\n\n### Common Errors\n\n#### Invalid Credentials (Status 4)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"4\",\n    \"error-text\": \"Invalid credentials\"\n  }]\n}\n```\n\n**Solution**: Verify your API key and secret are correct\n\n#### Invalid Signature (Status 14)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"14\",\n    \"error-text\": \"Invalid signature\"\n  }]\n}\n```\n\n**Solution**: Check your signature generation algorithm\n\n#### Missing Parameters (Status 2)\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing api_key\"\n  }]\n}\n```\n\n**Solution**: Ensure all required parameters are included\n\n## Next Steps\n\n- [Error Handling](./errors) - Learn about error codes\n- [Getting Started](./getting-started) - Send your first SMS\n- [Webhooks](./webhooks) - Set up callbacks",
+        "created_at": "2026-09-19T21:33:32.963Z",
+        "updated_at": "2026-09-19T21:33:33.021Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/documents/00000000-0000-4000-8000-000000000061",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000061",
+        "parent_document_id": null,
+        "title": "SMS API: Error Handling",
+        "slug": "sms-errors",
+        "status": "published",
+        "content": "# SMS API: Error Handling\n\nThis guide helps you understand and handle errors when using the SMS API.\n\n## Error Response Format\n\nWhen an error occurs, the API returns a response with a non-zero status code:\n\n```json\n{\n  \"message-count\": \"1\",\n  \"messages\": [{\n    \"status\": \"2\",\n    \"error-text\": \"Missing to param\"\n  }]\n}\n```\n\n## Common Error Codes\n\n### Request Errors (1-9)\n\n#### Status 1: Throttled\n**Description**: You are sending SMS faster than the account limit.\n\n**Solution**: \n- Implement rate limiting in your application\n- Default limit is 30 messages per second\n- Contact support to increase limits if needed\n\n#### Status 2: Missing Parameters\n**Description**: Your request is missing required parameters.\n\n**Example**:\n```json\n{\n  \"status\": \"2\",\n  \"error-text\": \"Missing to param\"\n}\n```\n\n**Solution**: Ensure all required parameters are included:\n- `api_key` - Your API key\n- `api_secret` or `sig` - Authentication\n- `from` - Sender ID or number\n- `to` - Recipient number\n- `text` - Message content\n\n#### Status 3: Invalid Parameters\n**Description**: One or more parameter values are invalid.\n\n**Common Causes**:\n- Phone number not in E.164 format\n- Message text too long\n- Invalid sender ID for destination\n\n**Solution**: Validate parameters before sending:\n```python\nimport re\n\ndef validate_phone_number(number):\n    # E.164 format: 7-15 digits\n    pattern = r'^\\d{7,15}$'\n    return re.match(pattern, number) is not None\n\ndef validate_message_length(text, encoding='text'):\n    if encoding == 'text':\n        return len(text) <= 160\n    elif encoding == 'unicode':\n        return len(text) <= 70\n    return False\n```\n\n#### Status 4: Invalid Credentials\n**Description**: Your API key and/or secret are incorrect, invalid, or disabled.\n\n**Solution**:\n- Verify credentials in Dashboard\n- Check for typos or extra spaces\n- Ensure account is active\n- Regenerate credentials if needed\n\n#### Status 5: Internal Error\n**Description**: An error occurred in the platform while processing.\n\n**Solution**:\n- Retry with exponential backoff\n- If persistent, contact support@nexmo.com\n- Include request ID in support ticket\n\n### Billing and Account Errors (8-9)\n\n#### Status 8: Partner Account Barred\n**Description**: Your Vonage account has been suspended.\n\n**Solution**: Contact support@nexmo.com immediately\n\n#### Status 9: Partner Quota Violation\n**Description**: Insufficient credit to send the message.\n\n**Solution**:\n- Check account balance\n- Top up your account\n- Implement balance monitoring\n\n### Destination Errors (6-7, 29, 33, 40)\n\n#### Status 6: Invalid Message\n**Description**: Platform unable to process the message.\n\n**Common Causes**:\n- Unrecognized number prefix\n- Invalid destination country\n\n#### Status 7: Number Barred\n**Description**: The recipient number is blacklisted.\n\n**Solution**:\n- Verify the number is correct\n- Check if recipient has opted out\n- Contact support for unblocking\n\n#### Status 29: Non-Whitelisted Destination\n**Description**: Account is in demo mode with destination restrictions.\n\n**Solution**:\n- Add number to whitelist in Dashboard\n- Or top up account to remove restrictions\n\n### Authentication Errors (14, 32)\n\n#### Status 14: Invalid Signature\n**Description**: The signature supplied could not be verified.\n\n**Solution**: Review signature generation:\n```python\n# Correct signature generation\ndef generate_signature(params, secret):\n    # Sort parameters alphabetically\n    sorted_params = sorted(params.items())\n    # Exclude 'sig' parameter\n    filtered = [(k, v) for k, v in sorted_params if k != 'sig']\n    # Create string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in filtered])\n    # Add secret and hash\n    return hashlib.md5(f\"{param_string}{secret}\".encode()).hexdigest()\n```\n\n### Regional Errors (15, 22)\n\n#### Status 15: Invalid Sender Address\n**Description**: Using non-authorized sender ID.\n\n**Common in**:\n- North America (requires long number)\n- Countries with sender ID registration\n\n**Solution**:\n- Use approved sender IDs only\n- Purchase virtual number for region\n- Check country-specific requirements\n\n## Error Handling Best Practices\n\n### 1. Implement Retry Logic\n\n```python\nimport time\nimport random\n\ndef send_sms_with_retry(params, max_retries=3):\n    retryable_errors = [1, 5]  # Throttled, Internal Error\n    \n    for attempt in range(max_retries):\n        response = send_sms(params)\n        status = int(response['messages'][0]['status'])\n        \n        if status == 0:  # Success\n            return response\n        \n        if status not in retryable_errors:\n            # Non-retryable error\n            raise Exception(f\"SMS failed: {response}\")\n        \n        # Exponential backoff with jitter\n        wait_time = (2 ** attempt) + random.uniform(0, 1)\n        time.sleep(wait_time)\n    \n    raise Exception(\"Max retries exceeded\")\n```\n\n### 2. Log Errors for Analysis\n\n```python\nimport logging\n\ndef handle_sms_error(response):\n    for message in response['messages']:\n        if message['status'] != '0':\n            logging.error(\n                \"SMS failed\",\n                extra={\n                    'status': message['status'],\n                    'error_text': message.get('error-text'),\n                    'to': message.get('to'),\n                    'message_id': message.get('message-id')\n                }\n            )\n```\n\n### 3. Monitor Error Rates\n\nTrack error patterns to identify issues:\n- Sudden increase in auth errors \u2192 credential issue\n- Regional error patterns \u2192 compliance issue\n- Consistent throttling \u2192 need rate limit adjustment\n\n## Testing Error Scenarios\n\nUse these test numbers to simulate errors:\n\n| Number | Error Simulated |\n|--------|----------------|\n| 447700900001 | Throttled (Status 1) |\n| 447700900002 | Missing Parameters (Status 2) |\n| 447700900009 | Insufficient Credit (Status 9) |\n\n## Getting Help\n\nIf you encounter persistent errors:\n\n1. Check the [API Status Page](https://api.vonage.com/status)\n2. Review your Dashboard for account issues\n3. Contact support with:\n   - Error message and status code\n   - Request parameters (excluding credentials)\n   - Message IDs if available\n   - Time of occurrence\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your requests\n- [Webhooks](./webhooks) - Handle delivery receipts",
+        "created_at": "2026-09-19T21:33:33.302Z",
+        "updated_at": "2026-09-19T21:33:33.383Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/documents/00000000-0000-4000-8000-000000000062",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "parent_document_id": null,
+        "title": "SMS API: Webhooks",
+        "slug": "sms-webhooks",
+        "status": "published",
+        "content": "# SMS API: Webhooks\n\nWebhooks allow you to receive real-time notifications about SMS events, including delivery receipts and inbound messages.\n\n## Overview\n\nThe SMS API supports two types of webhooks:\n\n1. **Delivery Receipts** - Status updates for sent messages\n2. **Inbound SMS** - Messages received on your virtual numbers\n\n## Delivery Receipts\n\n### Setting Up Delivery Receipts\n\nYou can configure delivery receipts at two levels:\n\n#### 1. Account Level (Dashboard)\nSet a default webhook URL for all SMS:\n1. Log in to Dashboard\n2. Go to Settings \u2192 Account Settings\n3. Set \"Delivery Receipt Webhook URL\"\n\n#### 2. Per Message\nOverride the default for specific messages:\n\n```bash\ncurl -X POST https://rest.nexmo.com/sms/json \\\n  -d \"api_key=YOUR_API_KEY\" \\\n  -d \"api_secret=YOUR_API_SECRET\" \\\n  -d \"to=447700900000\" \\\n  -d \"from=AcmeInc\" \\\n  -d \"text=Hello World\" \\\n  -d \"status-report-req=true\" \\\n  -d \"callback=https://example.com/webhooks/delivery\"\n```\n\n### Delivery Receipt Format\n\n```json\n{\n  \"msisdn\": \"447700900000\",\n  \"to\": \"AcmeInc\",\n  \"network-code\": \"23430\",\n  \"messageId\": \"0A0000001234567B\",\n  \"price\": \"0.03330000\",\n  \"status\": \"delivered\",\n  \"scts\": \"2001011400\",\n  \"err-code\": \"0\",\n  \"api-key\": \"abcd1234\",\n  \"client-ref\": \"my-reference\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1582650446\",\n  \"nonce\": \"ec11dd3e-1e7f-4db5-9467-82b02cd223b9\",\n  \"sig\": \"1A20E4E2069B609FDA6CECA9DE18D5CAFE99720DDB628BD6BE8B19942A336E1C\"\n}\n```\n\n### Status Values\n\n| Status | Description | Final? |\n|--------|-------------|--------|\n| `delivered` | Message delivered to handset | Yes |\n| `expired` | Delivery attempt expired | Yes |\n| `failed` | Delivery failed | Yes |\n| `rejected` | Message rejected by carrier | Yes |\n| `accepted` | Message accepted by carrier | No |\n| `buffered` | Message queued by carrier | No |\n| `unknown` | Status unknown | No |\n\n### Error Codes\n\nThe `err-code` field provides additional details:\n\n| Code | Description |\n|------|-------------|\n| `0` | Delivered successfully |\n| `1` | Unknown subscriber |\n| `2` | Subscriber busy |\n| `3` | Subscriber absent |\n| `4` | Subscriber memory full |\n| `5` | Routing error |\n| `6` | Network error |\n| `99` | General error |\n\n## Inbound SMS\n\n### Setting Up Inbound SMS\n\n1. **Purchase a Virtual Number**\n   - Use Dashboard or Number API\n   - Choose number with SMS capability\n\n2. **Configure Webhook URL**\n   - In Dashboard: Numbers \u2192 Your Number \u2192 SMS Webhook URL\n   - Or via API when purchasing\n\n### Inbound SMS Format\n\n```json\n{\n  \"api-key\": \"abcd1234\",\n  \"msisdn\": \"447700900001\",\n  \"to\": \"447700900000\",\n  \"messageId\": \"0A0000000123ABCD1\",\n  \"text\": \"Hello world\",\n  \"type\": \"text\",\n  \"keyword\": \"HELLO\",\n  \"message-timestamp\": \"2020-01-01 12:00:00\",\n  \"timestamp\": \"1578787200\",\n  \"nonce\": \"aaaaaaaa-bbbb-cccc-dddd-0123456789ab\",\n  \"concat\": \"true\",\n  \"concat-ref\": \"1\",\n  \"concat-total\": \"3\",\n  \"concat-part\": \"2\"\n}\n```\n\n### Handling Concatenated Messages\n\nLong messages are split into parts:\n\n```python\n# Store message parts\nmessage_parts = {}\n\ndef handle_inbound_sms(webhook_data):\n    if webhook_data.get('concat') == 'true':\n        # Part of a multi-part message\n        ref = webhook_data['concat-ref']\n        part = int(webhook_data['concat-part'])\n        total = int(webhook_data['concat-total'])\n        \n        if ref not in message_parts:\n            message_parts[ref] = {}\n        \n        message_parts[ref][part] = webhook_data['text']\n        \n        # Check if all parts received\n        if len(message_parts[ref]) == total:\n            # Reconstruct full message\n            full_text = ''\n            for i in range(1, total + 1):\n                full_text += message_parts[ref][i]\n            \n            # Process complete message\n            process_message(webhook_data['msisdn'], full_text)\n            \n            # Clean up\n            del message_parts[ref]\n    else:\n        # Single part message\n        process_message(webhook_data['msisdn'], webhook_data['text'])\n```\n\n## Webhook Security\n\n### 1. Validate Signatures\n\nVerify webhooks are from Vonage:\n\n```python\nimport hashlib\nimport hmac\n\ndef validate_webhook_signature(params, signature_secret):\n    # Get signature from params\n    provided_sig = params.get('sig')\n    if not provided_sig:\n        return False\n    \n    # Sort parameters (excluding sig)\n    sorted_params = sorted(\n        [(k, v) for k, v in params.items() if k != 'sig']\n    )\n    \n    # Build string\n    param_string = '&'.join([f\"{k}={v}\" for k, v in sorted_params])\n    \n    # Calculate expected signature\n    expected_sig = hashlib.md5(\n        f\"{param_string}{signature_secret}\".encode()\n    ).hexdigest()\n    \n    # Compare signatures\n    return hmac.compare_digest(provided_sig, expected_sig)\n```\n\n### 2. Implement Idempotency\n\nPrevent duplicate processing:\n\n```python\nprocessed_messages = set()\n\ndef handle_webhook(data):\n    message_id = data.get('messageId')\n    \n    if message_id in processed_messages:\n        # Already processed\n        return {'status': 'duplicate'}\n    \n    # Process webhook\n    process_webhook(data)\n    \n    # Mark as processed\n    processed_messages.add(message_id)\n    \n    return {'status': 'success'}\n```\n\n### 3. Use HTTPS\n\nAlways use HTTPS endpoints for webhooks:\n- Encrypts data in transit\n- Prevents tampering\n- Required for signature validation\n\n## Webhook Best Practices\n\n### 1. Respond Quickly\n\n- Return 2xx status code immediately\n- Process webhooks asynchronously\n- Timeout is 5 seconds\n\n```python\nfrom flask import Flask, request\nfrom queue import Queue\nimport threading\n\napp = Flask(__name__)\nwebhook_queue = Queue()\n\n@app.route('/webhooks/sms', methods=['POST'])\ndef webhook_handler():\n    # Quick validation\n    data = request.get_json()\n    if not data:\n        return '', 400\n    \n    # Queue for processing\n    webhook_queue.put(data)\n    \n    # Return immediately\n    return '', 200\n\ndef process_webhooks():\n    while True:\n        data = webhook_queue.get()\n        # Process webhook\n        handle_webhook_data(data)\n```\n\n### 2. Handle Retries\n\nVonage retries failed webhooks:\n- Retries for 24 hours\n- Exponential backoff\n- Must return 2xx to stop retries\n\n### 3. Log Everything\n\n```python\nimport logging\n\ndef log_webhook(data):\n    logging.info(\n        \"Webhook received\",\n        extra={\n            'type': 'inbound' if 'text' in data else 'delivery',\n            'message_id': data.get('messageId'),\n            'from': data.get('msisdn'),\n            'to': data.get('to'),\n            'status': data.get('status'),\n            'timestamp': data.get('message-timestamp')\n        }\n    )\n```\n\n## Testing Webhooks\n\n### Using ngrok for Local Development\n\n1. Install ngrok: `brew install ngrok`\n2. Start local server: `python app.py`\n3. Create tunnel: `ngrok http 5000`\n4. Use ngrok URL in Dashboard\n\n### Webhook Testing Service\n\nUse webhook.site for quick testing:\n1. Visit https://webhook.site\n2. Copy unique URL\n3. Use as webhook URL\n4. View incoming webhooks\n\n## Common Issues\n\n### Not Receiving Webhooks\n\n1. **Check URL is accessible**\n   ```bash\n   curl -X POST https://your-webhook-url.com/sms \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\"test\": \"data\"}'\n   ```\n\n2. **Verify webhook configuration**\n   - Check Dashboard settings\n   - Ensure URL is HTTPS\n   - No authentication required\n\n3. **Check firewall/security groups**\n   - Allow Vonage IP ranges\n   - No rate limiting on webhook endpoint\n\n### Duplicate Webhooks\n\n- Implement idempotency checking\n- Store processed message IDs\n- Return 200 quickly to prevent retries\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Send your first SMS\n- [Authentication](./authentication) - Secure your API requests\n- [Error Handling](./errors) - Handle errors gracefully",
+        "created_at": "2026-09-19T21:33:33.676Z",
+        "updated_at": "2026-09-19T21:33:33.736Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/documents",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000064",
+            "parent_document_id": null,
+            "title": "Voice API: Getting Started",
+            "slug": "voice-getting-started",
+            "status": "published",
+            "children": [],
+            "created_at": "2026-09-19T21:33:34.730Z",
+            "updated_at": "2026-09-19T21:33:34.806Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000065",
+            "parent_document_id": null,
+            "title": "Voice API: Authentication Guide",
+            "slug": "voice-authentication",
+            "status": "published",
+            "children": [],
+            "created_at": "2026-09-19T21:33:35.113Z",
+            "updated_at": "2026-09-19T21:33:35.184Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000066",
+            "parent_document_id": null,
+            "title": "Voice API: Error Handling",
+            "slug": "voice-errors",
+            "status": "published",
+            "children": [],
+            "created_at": "2026-09-19T21:33:35.539Z",
+            "updated_at": "2026-09-19T21:33:35.612Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000068",
+            "parent_document_id": null,
+            "title": "Voice API: NCCO Reference",
+            "slug": "voice-ncco",
+            "status": "published",
+            "children": [],
+            "created_at": "2026-09-19T21:33:36.673Z",
+            "updated_at": "2026-09-19T21:33:36.737Z"
+          }
+        ]
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/documents/00000000-0000-4000-8000-000000000064",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000064",
+        "parent_document_id": null,
+        "title": "Voice API: Getting Started",
+        "slug": "voice-getting-started",
+        "status": "published",
+        "content": "# Voice API: Getting Started\n\nWelcome to the Voice API! This guide will help you make your first programmable voice call.\n\n## Overview\n\nThe Voice API enables you to:\n- Make outbound calls to phone numbers worldwide\n- Control calls in real-time (mute, transfer, hang up)\n- Play audio files or text-to-speech\n- Handle inbound calls to your virtual numbers\n- Build complex call flows with NCCO\n\n## Prerequisites\n\nBefore you begin, you'll need:\n1. A Vonage account with Voice API enabled\n2. A JWT for authentication (or create one in Dashboard)\n3. A virtual number for making/receiving calls\n4. An application with voice capabilities\n\n## Quick Start\n\n### 1. Create Your First Call\n\nHere's how to make a simple outbound call that plays text-to-speech:\n\n```bash\ncurl -X POST https://api.nexmo.com/v1/calls \\\n  -H \"Authorization: Bearer YOUR_JWT\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"to\": [{\n      \"type\": \"phone\",\n      \"number\": \"447700900000\"\n    }],\n    \"from\": {\n      \"type\": \"phone\", \n      \"number\": \"447700900001\"\n    },\n    \"ncco\": [{\n      \"action\": \"talk\",\n      \"text\": \"Hello, this is a call from the Voice API\"\n    }]\n  }'\n```\n\n### 2. Understanding the Response\n\nA successful response includes:\n\n```json\n{\n  \"uuid\": \"63f61863-4a51-4f6b-86e1-46edebcf9356\",\n  \"status\": \"started\",\n  \"direction\": \"outbound\",\n  \"conversation_uuid\": \"CON-f972836a-550f-45fa-956c-12a2ab5b7d22\"\n}\n```\n\nKey fields:\n- `uuid`: Unique identifier for this call leg\n- `status`: Current state of the call\n- `conversation_uuid`: Groups related call legs\n\n## NCCO - Call Control Objects\n\nNCCO (Nexmo Call Control Objects) define what happens during a call:\n\n### Basic Actions\n\n#### Talk - Text to Speech\n```json\n{\n  \"action\": \"talk\",\n  \"text\": \"Welcome to our service. Press 1 for sales, 2 for support.\",\n  \"language\": \"en-US\",\n  \"style\": 0\n}\n```\n\n#### Stream - Play Audio\n```json\n{\n  \"action\": \"stream\",\n  \"streamUrl\": [\"https://example.com/welcome.mp3\"],\n  \"loop\": 1\n}\n```\n\n#### Input - Collect DTMF\n```json\n{\n  \"action\": \"input\",\n  \"maxDigits\": 1,\n  \"timeOut\": 10,\n  \"eventUrl\": [\"https://example.com/webhooks/dtmf\"]\n}\n```\n\n### Example: Interactive Voice Response (IVR)\n\n```json\n[\n  {\n    \"action\": \"talk\",\n    \"text\": \"Welcome to ACME company. Press 1 for sales, 2 for support.\",\n    \"bargeIn\": true\n  },\n  {\n    \"action\": \"input\",\n    \"maxDigits\": 1,\n    \"timeOut\": 5,\n    \"eventUrl\": [\"https://example.com/webhooks/ivr\"]\n  }\n]\n```\n\n## Call Flow Example\n\nHere's a complete example of an outbound call with an answer URL:\n\n```bash\ncurl -X POST https://api.nexmo.com/v1/calls \\\n  -H \"Authorization: Bearer YOUR_JWT\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"to\": [{\n      \"type\": \"phone\",\n      \"number\": \"447700900000\"\n    }],\n    \"from\": {\n      \"type\": \"phone\",\n      \"number\": \"447700900001\"\n    },\n    \"answer_url\": [\"https://example.com/webhooks/answer\"],\n    \"event_url\": [\"https://example.com/webhooks/events\"]\n  }'\n```\n\nYour answer webhook should return NCCO:\n\n```python\nfrom flask import Flask, jsonify\n\napp = Flask(__name__)\n\n@app.route('/webhooks/answer', methods=['POST'])\ndef answer_webhook():\n    ncco = [\n        {\n            \"action\": \"talk\",\n            \"text\": \"Hello, you have reached ACME company.\"\n        },\n        {\n            \"action\": \"stream\",\n            \"streamUrl\": [\"https://example.com/hold-music.mp3\"]\n        }\n    ]\n    return jsonify(ncco)\n```\n\n## Call States\n\nUnderstanding call states helps you build robust applications:\n\n| State | Description |\n|-------|-------------|\n| `started` | Call initiated |\n| `ringing` | Destination is ringing |\n| `answered` | Call was answered |\n| `completed` | Call ended normally |\n| `failed` | Call could not connect |\n| `rejected` | Call was rejected |\n| `busy` | Destination was busy |\n| `timeout` | No answer within timeout |\n\n## Making Different Types of Calls\n\n### Call a Phone Number\n```json\n{\n  \"to\": [{\n    \"type\": \"phone\",\n    \"number\": \"447700900000\"\n  }]\n}\n```\n\n### Call a SIP Endpoint\n```json\n{\n  \"to\": [{\n    \"type\": \"sip\",\n    \"uri\": \"sip:user@example.com\"\n  }]\n}\n```\n\n### Call with DTMF on Answer\n```json\n{\n  \"to\": [{\n    \"type\": \"phone\",\n    \"number\": \"447700900000\",\n    \"dtmfAnswer\": \"p*123#\"\n  }]\n}\n```\n\n## Best Practices\n\n1. **Use Answer URLs**: More flexible than inline NCCO\n2. **Handle All Events**: Monitor call progress via event webhooks\n3. **Set Timeouts**: Configure appropriate ringing and length timers\n4. **Test Locally**: Use ngrok for webhook development\n5. **Handle Errors**: Implement fallback behavior\n\n## Testing Your Implementation\n\n### 1. Test Numbers\n\nUse these numbers for testing different scenarios:\n- `447700900001`: Always answers\n- `447700900002`: Always busy  \n- `447700900003`: Always fails\n\n### 2. Using the Playground\n\nThe Voice API Playground lets you test NCCO without coding:\n1. Visit https://dashboard.nexmo.com/voice/playground\n2. Build your NCCO visually\n3. Make test calls\n\n## Next Steps\n\n- [Authentication Guide](./authentication) - Set up JWT authentication\n- [NCCO Reference](./ncco) - Build complex call flows\n- [Webhooks](./webhooks) - Handle call events\n- [Error Handling](./errors) - Troubleshoot common issues\n\n## Need Help?\n\n- Email: devrel@vonage.com\n- Documentation: https://developer.nexmo.com/voice/voice-api/overview\n- Community: https://developer.vonage.com/community",
+        "created_at": "2026-09-19T21:33:34.730Z",
+        "updated_at": "2026-09-19T21:33:34.806Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/documents/00000000-0000-4000-8000-000000000065",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000065",
+        "parent_document_id": null,
+        "title": "Voice API: Authentication Guide",
+        "slug": "voice-authentication",
+        "status": "published",
+        "content": "# Voice API: Authentication Guide\n\nThe Voice API uses JWT (JSON Web Token) authentication to secure access to your voice applications.\n\n## Overview\n\nUnlike the SMS API, the Voice API requires JWT bearer tokens for authentication. This provides:\n- Enhanced security with cryptographic signatures\n- Fine-grained access control\n- Token expiration for additional security\n\n## Creating a JWT\n\n### Method 1: Using the Dashboard\n\nThe easiest way to get started:\n\n1. Log in to your Vonage Dashboard\n2. Navigate to Voice \u2192 Applications\n3. Select your application or create a new one\n4. Click \"Generate JWT\"\n5. Copy the generated token\n\n### Method 2: Programmatic Generation\n\nFor production use, generate JWTs programmatically:\n\n#### Prerequisites\n- Your Application ID\n- Your Private Key (downloaded when creating the application)\n\n#### Python Example\n\n```python\nimport jwt\nimport time\nimport uuid\n\ndef generate_jwt(application_id, private_key_path):\n    # Read private key\n    with open(private_key_path, 'r') as f:\n        private_key = f.read()\n    \n    # JWT claims\n    claims = {\n        'iat': int(time.time()),  # Issued at\n        'exp': int(time.time()) + 3600,  # Expires in 1 hour\n        'jti': str(uuid.uuid4()),  # Unique token ID\n        'application_id': application_id\n    }\n    \n    # Generate JWT\n    token = jwt.encode(\n        claims,\n        private_key,\n        algorithm='RS256'\n    )\n    \n    return token\n\n# Usage\napp_id = 'aaaaaaaa-bbbb-cccc-dddd-0123456789ab'\ntoken = generate_jwt(app_id, 'private.key')\nprint(f\"Bearer {token}\")\n```\n\n#### Node.js Example\n\n```javascript\nconst jwt = require('jsonwebtoken');\nconst fs = require('fs');\nconst { v4: uuidv4 } = require('uuid');\n\nfunction generateJWT(applicationId, privateKeyPath) {\n    // Read private key\n    const privateKey = fs.readFileSync(privateKeyPath);\n    \n    // JWT claims\n    const claims = {\n        iat: Math.floor(Date.now() / 1000),\n        exp: Math.floor(Date.now() / 1000) + 3600,\n        jti: uuidv4(),\n        application_id: applicationId\n    };\n    \n    // Generate JWT\n    const token = jwt.sign(claims, privateKey, { algorithm: 'RS256' });\n    \n    return token;\n}\n\n// Usage\nconst appId = 'aaaaaaaa-bbbb-cccc-dddd-0123456789ab';\nconst token = generateJWT(appId, 'private.key');\nconsole.log(`Bearer ${token}`);\n```\n\n## JWT Structure\n\nA Voice API JWT contains these claims:\n\n```json\n{\n  \"iat\": 1234567890,\n  \"exp\": 1234571490,\n  \"jti\": \"abc123-def456-ghi789\",\n  \"application_id\": \"aaaaaaaa-bbbb-cccc-dddd-0123456789ab\",\n  \"sub\": \"user@example.com\",\n  \"acl\": {\n    \"paths\": {\n      \"/*/calls/**\": {},\n      \"/*/recordings/**\": {}\n    }\n  }\n}\n```\n\n### Required Claims\n\n| Claim | Description | Example |\n|-------|-------------|---------|\n| `iat` | Issued at (Unix timestamp) | `1234567890` |\n| `exp` | Expiration time (Unix timestamp) | `1234571490` |\n| `jti` | Unique token identifier | `\"abc123\"` |\n| `application_id` | Your Vonage application ID | `\"aaaa-bbbb-cccc\"` |\n\n### Optional Claims\n\n| Claim | Description | Use Case |\n|-------|-------------|----------|\n| `sub` | Subject (user identifier) | User-specific tokens |\n| `acl` | Access Control List | Restrict token permissions |\n| `nbf` | Not valid before | Delayed activation |\n\n## Using JWTs in API Calls\n\nInclude the JWT in the Authorization header:\n\n```bash\ncurl -X POST https://api.nexmo.com/v1/calls \\\n  -H \"Authorization: Bearer YOUR_JWT_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\n    \"to\": [{\n      \"type\": \"phone\",\n      \"number\": \"447700900000\"\n    }],\n    \"from\": {\n      \"type\": \"phone\",\n      \"number\": \"447700900001\"\n    },\n    \"ncco\": [{\n      \"action\": \"talk\",\n      \"text\": \"Hello from Vonage\"\n    }]\n  }'\n```\n\n## Managing Applications and Keys\n\n### Creating an Application\n\n1. **Via Dashboard**:\n   - Go to Voice \u2192 Applications\n   - Click \"Create Application\"\n   - Set capabilities (Voice, Messages, etc.)\n   - Download private key (IMPORTANT: Can't be retrieved later)\n\n2. **Via API**:\n   ```bash\n   curl -X POST https://api.nexmo.com/v2/applications \\\n     -H \"Authorization: Basic <base64(api_key:api_secret)>\" \\\n     -H \"Content-Type: application/json\" \\\n     -d '{\n       \"name\": \"My Voice App\",\n       \"capabilities\": {\n         \"voice\": {\n           \"webhooks\": {\n             \"answer_url\": {\n               \"address\": \"https://example.com/answer\",\n               \"http_method\": \"POST\"\n             },\n             \"event_url\": {\n               \"address\": \"https://example.com/events\",\n               \"http_method\": \"POST\"\n             }\n           }\n         }\n       }\n     }'\n   ```\n\n### Key Management Best Practices\n\n1. **Secure Storage**:\n   ```python\n   # Store private key securely\n   import os\n   from cryptography.fernet import Fernet\n   \n   def encrypt_private_key(key_path, password):\n       # Read key\n       with open(key_path, 'rb') as f:\n           private_key = f.read()\n       \n       # Encrypt\n       cipher = Fernet(password)\n       encrypted = cipher.encrypt(private_key)\n       \n       # Store encrypted\n       with open(f\"{key_path}.enc\", 'wb') as f:\n           f.write(encrypted)\n   ```\n\n2. **Key Rotation**:\n   - Generate new keys periodically\n   - Update application with new public key\n   - Phase out old keys gradually\n\n3. **Environment Variables**:\n   ```bash\n   export VONAGE_APPLICATION_ID=\"aaaa-bbbb-cccc\"\n   export VONAGE_PRIVATE_KEY_PATH=\"/secure/path/private.key\"\n   ```\n\n## Token Security\n\n### 1. Short Expiration Times\n\nKeep tokens short-lived:\n\n```python\ndef generate_short_lived_jwt(application_id, private_key, duration=300):\n    \"\"\"Generate JWT with 5-minute expiration\"\"\"\n    claims = {\n        'iat': int(time.time()),\n        'exp': int(time.time()) + duration,  # 5 minutes\n        'jti': str(uuid.uuid4()),\n        'application_id': application_id\n    }\n    # ...\n```\n\n### 2. Token Refresh\n\nImplement automatic token refresh:\n\n```python\nclass VoiceClient:\n    def __init__(self, app_id, private_key_path):\n        self.app_id = app_id\n        self.private_key_path = private_key_path\n        self._token = None\n        self._token_expiry = 0\n    \n    def get_token(self):\n        # Check if token needs refresh\n        if time.time() >= self._token_expiry - 60:  # Refresh 1 min early\n            self._token = generate_jwt(self.app_id, self.private_key_path)\n            self._token_expiry = time.time() + 3600\n        \n        return self._token\n```\n\n### 3. ACL Restrictions\n\nLimit token permissions:\n\n```python\ndef generate_restricted_jwt(application_id, private_key):\n    claims = {\n        'iat': int(time.time()),\n        'exp': int(time.time()) + 3600,\n        'jti': str(uuid.uuid4()),\n        'application_id': application_id,\n        'acl': {\n            'paths': {\n                '/*/calls': {\n                    'methods': ['POST']  # Only create calls\n                }\n            }\n        }\n    }\n    # ...\n```\n\n## Troubleshooting Authentication\n\n### Common Errors\n\n#### 401 Unauthorized\n```json\n{\n  \"type\": \"UNAUTHORIZED\",\n  \"error_title\": \"Unauthorized\",\n  \"detail\": \"Invalid token\"\n}\n```\n\n**Causes**:\n- Expired token\n- Malformed JWT\n- Wrong private key\n- Missing Bearer prefix\n\n**Solution**:\n```python\n# Verify token locally\ndef verify_jwt(token, public_key):\n    try:\n        decoded = jwt.decode(\n            token,\n            public_key,\n            algorithms=['RS256']\n        )\n        print(\"Token valid:\", decoded)\n    except jwt.ExpiredSignatureError:\n        print(\"Token expired\")\n    except jwt.InvalidTokenError as e:\n        print(f\"Invalid token: {e}\")\n```\n\n#### 403 Forbidden\n```json\n{\n  \"type\": \"FORBIDDEN\",\n  \"error_title\": \"Forbidden\",\n  \"detail\": \"Insufficient permissions\"\n}\n```\n\n**Cause**: Token lacks required permissions\n\n**Solution**: Check ACL claims or use full-permission token\n\n### Debugging Tips\n\n1. **Decode Token**:\n   ```bash\n   # Decode JWT header and payload (without verification)\n   echo \"YOUR_JWT\" | cut -d. -f1,2 | base64 -d\n   ```\n\n2. **Check Expiration**:\n   ```python\n   import jwt\n   \n   # Decode without verification\n   decoded = jwt.decode(token, options={\"verify_signature\": False})\n   exp_time = datetime.fromtimestamp(decoded['exp'])\n   print(f\"Token expires at: {exp_time}\")\n   ```\n\n3. **Validate Locally**:\n   Use https://jwt.io to inspect token structure\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Make your first call\n- [Error Handling](./errors) - Handle authentication errors\n- [NCCO Reference](./ncco) - Build call flows",
+        "created_at": "2026-09-19T21:33:35.113Z",
+        "updated_at": "2026-09-19T21:33:35.184Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/documents/00000000-0000-4000-8000-000000000066",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000066",
+        "parent_document_id": null,
+        "title": "Voice API: Error Handling",
+        "slug": "voice-errors",
+        "status": "published",
+        "content": "# Voice API: Error Handling\n\nThis guide helps you understand and handle errors when using the Voice API.\n\n## Error Response Format\n\nThe Voice API returns errors in a consistent JSON format:\n\n```json\n{\n  \"type\": \"https://developer.nexmo.com/api-errors#invalid-request\",\n  \"title\": \"Invalid Request\",\n  \"detail\": \"The request body did not contain valid JSON\",\n  \"instance\": \"798b8f199c45014ab7b08bfe9cc1c12c\"\n}\n```\n\n## HTTP Status Codes\n\n### Success Codes\n\n| Code | Description | Used When |\n|------|-------------|-----------|\n| 200 | OK | GET requests succeed |\n| 201 | Created | Call created successfully |\n| 204 | No Content | Call updated/deleted successfully |\n\n### Client Error Codes (4xx)\n\n#### 400 Bad Request\nInvalid request format or parameters.\n\n**Common Causes**:\n- Malformed JSON\n- Missing required fields\n- Invalid parameter values\n\n**Example**:\n```json\n{\n  \"type\": \"BAD_REQUEST\",\n  \"title\": \"Bad Request\",\n  \"detail\": \"Invalid 'to' type. Must be one of: phone, sip, websocket, vbc\"\n}\n```\n\n**Solution**:\n```python\n# Validate request before sending\ndef validate_call_request(request):\n    required_fields = ['to', 'from']\n    \n    for field in required_fields:\n        if field not in request:\n            raise ValueError(f\"Missing required field: {field}\")\n    \n    # Validate 'to' format\n    for endpoint in request['to']:\n        if endpoint['type'] not in ['phone', 'sip', 'websocket', 'vbc']:\n            raise ValueError(f\"Invalid endpoint type: {endpoint['type']}\")\n```\n\n#### 401 Unauthorized\nAuthentication failed.\n\n**Common Causes**:\n- Missing Authorization header\n- Invalid JWT token\n- Expired token\n\n**Example**:\n```json\n{\n  \"type\": \"UNAUTHORIZED\",\n  \"title\": \"Unauthorized\",\n  \"detail\": \"Token signature verification failed\"\n}\n```\n\n**Solution**:\n```python\nimport time\nimport jwt\n\nclass TokenManager:\n    def __init__(self, app_id, private_key):\n        self.app_id = app_id\n        self.private_key = private_key\n        self.token = None\n        self.expiry = 0\n    \n    def get_valid_token(self):\n        # Refresh if expired or about to expire\n        if time.time() >= self.expiry - 60:\n            self.token = self.generate_token()\n            self.expiry = time.time() + 3600\n        \n        return self.token\n    \n    def generate_token(self):\n        # Generate new JWT\n        # ... (implementation)\n```\n\n#### 403 Forbidden\nRequest not allowed.\n\n**Common Causes**:\n- Insufficient permissions\n- Feature not enabled for account\n- Restricted destination\n\n**Example**:\n```json\n{\n  \"type\": \"FORBIDDEN\",\n  \"title\": \"Forbidden\",\n  \"detail\": \"Calls to premium numbers are not allowed\"\n}\n```\n\n#### 404 Not Found\nResource doesn't exist.\n\n**Common Causes**:\n- Invalid call UUID\n- Call already ended\n- Wrong endpoint URL\n\n**Example**:\n```json\n{\n  \"type\": \"NOT_FOUND\",\n  \"title\": \"Not Found\",\n  \"detail\": \"Call 63f61863-4a51-4f6b-86e1-46edebcf9356 not found\"\n}\n```\n\n### Server Error Codes (5xx)\n\n#### 500 Internal Server Error\nUnexpected server error.\n\n**Solution**: Retry with exponential backoff\n\n#### 503 Service Unavailable\nTemporary service issue.\n\n**Solution**: Retry after delay\n\n## Common Voice API Errors\n\n### Call Creation Errors\n\n#### Invalid Number Format\n```json\n{\n  \"type\": \"INVALID_REQUEST\",\n  \"title\": \"Invalid Request\",\n  \"detail\": \"Number must be in E.164 format\"\n}\n```\n\n**Solution**:\n```python\nimport re\n\ndef format_e164(number, country_code=None):\n    # Remove all non-digits\n    number = re.sub(r'\\D', '', number)\n    \n    # Add country code if needed\n    if country_code and not number.startswith(country_code):\n        number = country_code + number\n    \n    # Validate length (7-15 digits)\n    if not 7 <= len(number) <= 15:\n        raise ValueError(f\"Invalid number length: {len(number)}\")\n    \n    return number\n```\n\n#### No Answer URL or NCCO\n```json\n{\n  \"type\": \"INVALID_REQUEST\",\n  \"title\": \"Invalid Request\",\n  \"detail\": \"Either 'answer_url' or 'ncco' must be provided\"\n}\n```\n\n**Solution**: Always provide either answer_url or ncco:\n```python\n# Option 1: Using answer_url\ncall_request = {\n    \"to\": [{\"type\": \"phone\", \"number\": \"447700900000\"}],\n    \"from\": {\"type\": \"phone\", \"number\": \"447700900001\"},\n    \"answer_url\": [\"https://example.com/answer\"]\n}\n\n# Option 2: Using inline NCCO\ncall_request = {\n    \"to\": [{\"type\": \"phone\", \"number\": \"447700900000\"}],\n    \"from\": {\"type\": \"phone\", \"number\": \"447700900001\"},\n    \"ncco\": [{\"action\": \"talk\", \"text\": \"Hello\"}]\n}\n```\n\n### Call Control Errors\n\n#### Call Not In Progress\n```json\n{\n  \"type\": \"INVALID_REQUEST\",\n  \"title\": \"Invalid Request\",\n  \"detail\": \"Call is not in progress\"\n}\n```\n\n**Solution**: Check call status before modifying:\n```python\ndef modify_call_safely(call_uuid, action):\n    # Get current call status\n    call = get_call_details(call_uuid)\n    \n    if call['status'] not in ['started', 'ringing', 'answered']:\n        raise Exception(f\"Cannot modify call in status: {call['status']}\")\n    \n    # Proceed with modification\n    update_call(call_uuid, action)\n```\n\n### Webhook Errors\n\n#### Invalid NCCO Response\nYour answer webhook must return valid NCCO:\n\n**Bad Response**:\n```python\n@app.route('/answer', methods=['POST'])\ndef answer():\n    return \"Hello\"  # Wrong - returns string\n```\n\n**Good Response**:\n```python\n@app.route('/answer', methods=['POST'])\ndef answer():\n    ncco = [\n        {\n            \"action\": \"talk\",\n            \"text\": \"Hello\"\n        }\n    ]\n    return jsonify(ncco)  # Correct - returns JSON array\n```\n\n## Error Handling Best Practices\n\n### 1. Implement Retry Logic\n\n```python\nimport time\nimport random\nfrom functools import wraps\n\ndef retry_with_backoff(max_retries=3, base_delay=1):\n    def decorator(func):\n        @wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(max_retries):\n                try:\n                    return func(*args, **kwargs)\n                except Exception as e:\n                    if attempt == max_retries - 1:\n                        raise\n                    \n                    # Check if error is retryable\n                    if hasattr(e, 'status_code'):\n                        if e.status_code in [429, 500, 502, 503, 504]:\n                            # Exponential backoff with jitter\n                            delay = base_delay * (2 ** attempt)\n                            jitter = random.uniform(0, delay * 0.1)\n                            time.sleep(delay + jitter)\n                        else:\n                            raise  # Don't retry client errors\n                    else:\n                        raise\n            \n        return wrapper\n    return decorator\n\n@retry_with_backoff(max_retries=3)\ndef create_call(call_data):\n    # API call implementation\n    pass\n```\n\n### 2. Log Errors for Analysis\n\n```python\nimport logging\nimport json\n\ndef log_api_error(error_response, request_data):\n    logging.error(\n        \"Voice API Error\",\n        extra={\n            'error_type': error_response.get('type'),\n            'error_title': error_response.get('title'),\n            'error_detail': error_response.get('detail'),\n            'instance': error_response.get('instance'),\n            'request_data': json.dumps(request_data),\n            'timestamp': time.time()\n        }\n    )\n```\n\n### 3. Handle Specific Errors\n\n```python\nclass VoiceAPIClient:\n    def handle_api_error(self, response):\n        error_data = response.json()\n        error_type = error_data.get('type', '')\n        \n        if 'invalid-request' in error_type:\n            raise InvalidRequestError(error_data['detail'])\n        elif 'unauthorized' in error_type:\n            # Refresh token and retry\n            self.refresh_token()\n            raise RetryableError(\"Token refreshed, retry request\")\n        elif 'forbidden' in error_type:\n            raise ForbiddenError(error_data['detail'])\n        elif 'not-found' in error_type:\n            raise NotFoundError(error_data['detail'])\n        else:\n            raise VoiceAPIError(error_data)\n```\n\n### 4. Graceful Degradation\n\n```python\ndef make_call_with_fallback(primary_number, fallback_number, message):\n    try:\n        # Try primary number\n        return create_call({\n            \"to\": [{\"type\": \"phone\", \"number\": primary_number}],\n            \"ncco\": [{\"action\": \"talk\", \"text\": message}]\n        })\n    except Exception as e:\n        logging.warning(f\"Primary call failed: {e}\")\n        \n        # Try fallback number\n        try:\n            return create_call({\n                \"to\": [{\"type\": \"phone\", \"number\": fallback_number}],\n                \"ncco\": [{\"action\": \"talk\", \"text\": message}]\n            })\n        except Exception as e2:\n            logging.error(f\"Fallback call also failed: {e2}\")\n            raise\n```\n\n## Debugging Tips\n\n### 1. Enable Detailed Logging\n\n```python\nimport requests\nimport logging\n\n# Enable debug logging for requests\nlogging.basicConfig(level=logging.DEBUG)\n\n# Log request/response details\nclass LoggingSession(requests.Session):\n    def request(self, *args, **kwargs):\n        logging.debug(f\"Request: {args} {kwargs}\")\n        response = super().request(*args, **kwargs)\n        logging.debug(f\"Response: {response.status_code} {response.text}\")\n        return response\n```\n\n### 2. Use Request IDs\n\nTrack requests with unique IDs:\n\n```python\nimport uuid\n\ndef make_api_call(endpoint, data):\n    request_id = str(uuid.uuid4())\n    \n    headers = {\n        'Authorization': f'Bearer {token}',\n        'Content-Type': 'application/json',\n        'X-Request-ID': request_id\n    }\n    \n    logging.info(f\"Making request {request_id} to {endpoint}\")\n    \n    try:\n        response = requests.post(endpoint, json=data, headers=headers)\n        response.raise_for_status()\n        return response.json()\n    except Exception as e:\n        logging.error(f\"Request {request_id} failed: {e}\")\n        raise\n```\n\n### 3. Test Error Scenarios\n\n```python\n# Test different error scenarios\ntest_cases = [\n    {\n        \"name\": \"Invalid number format\",\n        \"to\": [{\"type\": \"phone\", \"number\": \"invalid\"}],\n        \"expected_error\": \"INVALID_REQUEST\"\n    },\n    {\n        \"name\": \"Missing required field\",\n        \"to\": [],  # Empty 'to' array\n        \"expected_error\": \"BAD_REQUEST\"\n    },\n    {\n        \"name\": \"Expired token\",\n        \"token\": \"expired.jwt.token\",\n        \"expected_error\": \"UNAUTHORIZED\"\n    }\n]\n\nfor test in test_cases:\n    try:\n        result = test_api_call(test)\n        print(f\"Test '{test['name']}' unexpectedly succeeded\")\n    except APIError as e:\n        if test['expected_error'] in str(e):\n            print(f\"Test '{test['name']}' passed\")\n        else:\n            print(f\"Test '{test['name']}' failed: {e}\")\n```\n\n## Getting Help\n\nWhen contacting support, provide:\n\n1. **Request details**:\n   - Full request (excluding auth tokens)\n   - Response received\n   - Timestamp\n\n2. **Error information**:\n   - Error type and message\n   - Instance ID from error response\n   - Call UUID if applicable\n\n3. **Context**:\n   - What you were trying to achieve\n   - Any recent changes\n   - Frequency of the issue\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Make your first call\n- [Authentication](./authentication) - Set up JWT tokens\n- [Webhooks](./webhooks) - Handle call events",
+        "created_at": "2026-09-19T21:33:35.539Z",
+        "updated_at": "2026-09-19T21:33:35.612Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/documents/00000000-0000-4000-8000-000000000068",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000068",
+        "parent_document_id": null,
+        "title": "Voice API: NCCO Reference",
+        "slug": "voice-ncco",
+        "status": "published",
+        "content": "# Voice API: NCCO Reference\n\nNCCO (Nexmo Call Control Objects) define the flow of a voice call. This guide covers all NCCO actions and how to build complex call flows.\n\n## Overview\n\nAn NCCO is a JSON array of actions that are executed sequentially during a call:\n\n```json\n[\n  {\n    \"action\": \"talk\",\n    \"text\": \"Welcome to our service\"\n  },\n  {\n    \"action\": \"input\",\n    \"eventUrl\": [\"https://example.com/ivr\"]\n  }\n]\n```\n\n## NCCO Actions\n\n### Talk - Text to Speech\n\nConverts text to speech using advanced TTS engines.\n\n```json\n{\n  \"action\": \"talk\",\n  \"text\": \"Welcome to ACME corporation. How can we help you today?\",\n  \"language\": \"en-US\",\n  \"style\": 0,\n  \"level\": 0,\n  \"loop\": 1,\n  \"bargeIn\": true\n}\n```\n\n#### Parameters\n\n| Parameter | Type | Description | Default |\n|-----------|------|-------------|---------|\n| `text` | string | **Required** Text to speak (max 1500 chars) | - |\n| `language` | string | Language code | `en-US` |\n| `style` | integer | Voice style (0-11) | `0` |\n| `level` | string | Volume (-1 to 1) | `0` |\n| `loop` | integer | Repeat count (0 = infinite) | `1` |\n| `bargeIn` | boolean | Allow interruption by DTMF | `false` |\n\n#### Language Support\n\nCommon languages:\n- `en-US` - English (US)\n- `en-GB` - English (UK)\n- `es-ES` - Spanish (Spain)\n- `fr-FR` - French (France)\n- `de-DE` - German\n- `it-IT` - Italian\n- `ja-JP` - Japanese\n- `ko-KR` - Korean\n- `pt-BR` - Portuguese (Brazil)\n- `zh-CN` - Chinese (Mandarin)\n\n### Stream - Play Audio\n\nPlays audio files into the call.\n\n```json\n{\n  \"action\": \"stream\",\n  \"streamUrl\": [\n    \"https://example.com/welcome.mp3\",\n    \"https://example.com/fallback.mp3\"\n  ],\n  \"level\": 0.5,\n  \"loop\": 3,\n  \"bargeIn\": true\n}\n```\n\n#### Parameters\n\n| Parameter | Type | Description | Default |\n|-----------|------|-------------|---------|\n| `streamUrl` | array | **Required** URLs of audio files | - |\n| `level` | string | Volume (-1 to 1) | `0` |\n| `loop` | integer | Repeat count (0 = infinite) | `1` |\n| `bargeIn` | boolean | Allow interruption | `false` |\n\n#### Audio Requirements\n- Format: MP3, WAV, OGG\n- Sampling rate: 8kHz or 16kHz\n- Channels: Mono recommended\n- Maximum file size: 100MB\n\n### Input - Collect User Input\n\nCollects DTMF digits or speech from the caller.\n\n```json\n{\n  \"action\": \"input\",\n  \"type\": [\"dtmf\", \"speech\"],\n  \"dtmf\": {\n    \"maxDigits\": 4,\n    \"timeOut\": 10,\n    \"submitOnHash\": true\n  },\n  \"speech\": {\n    \"language\": \"en-US\",\n    \"context\": [\"sales\", \"support\", \"billing\"],\n    \"startTimeout\": 5,\n    \"endOnSilence\": 2\n  },\n  \"eventUrl\": [\"https://example.com/webhooks/input\"]\n}\n```\n\n#### Parameters\n\n| Parameter | Type | Description | Default |\n|-----------|------|-------------|---------|\n| `type` | array | Input types: `[\"dtmf\"]` or `[\"speech\"]` or both | `[\"dtmf\"]` |\n| `eventUrl` | array | **Required** Webhook for results | - |\n| `dtmf.maxDigits` | integer | Maximum digits to collect | `4` |\n| `dtmf.timeOut` | integer | Seconds to wait for input | `5` |\n| `dtmf.submitOnHash` | boolean | Submit on # key | `false` |\n| `speech.language` | string | Speech recognition language | `en-US` |\n| `speech.context` | array | Expected words/phrases | - |\n| `speech.startTimeout` | integer | Seconds before timeout | `10` |\n| `speech.endOnSilence` | number | Seconds of silence to end | `2` |\n\n### Record - Record Audio\n\nRecords the call audio.\n\n```json\n{\n  \"action\": \"record\",\n  \"format\": \"mp3\",\n  \"split\": \"conversation\",\n  \"channels\": 2,\n  \"endOnSilence\": 3,\n  \"endOnKey\": \"#\",\n  \"timeOut\": 3600,\n  \"beepStart\": true,\n  \"eventUrl\": [\"https://example.com/webhooks/recording\"],\n  \"transcription\": {\n    \"language\": \"en-US\",\n    \"eventUrl\": [\"https://example.com/webhooks/transcription\"]\n  }\n}\n```\n\n#### Parameters\n\n| Parameter | Type | Description | Default |\n|-----------|------|-------------|---------|\n| `format` | string | Audio format: `mp3`, `wav`, `ogg` | `mp3` |\n| `split` | string | Recording mode: `conversation`, `legs` | - |\n| `channels` | integer | Number of channels (1-32) | `1` |\n| `endOnSilence` | integer | Seconds of silence to stop | `0` |\n| `endOnKey` | string | DTMF key to stop recording | - |\n| `timeOut` | integer | Maximum duration (seconds) | `7200` |\n| `beepStart` | boolean | Play beep before recording | `false` |\n| `eventUrl` | array | Webhook for recording complete | - |\n| `transcription` | object | Enable speech-to-text | - |\n\n### Connect - Connect to Endpoint\n\nConnects the call to another endpoint (phone, SIP, WebSocket).\n\n```json\n{\n  \"action\": \"connect\",\n  \"endpoint\": [\n    {\n      \"type\": \"phone\",\n      \"number\": \"447700900000\",\n      \"onAnswer\": {\n        \"url\": \"https://example.com/agent-whisper\",\n        \"ringbackTone\": \"https://example.com/ringback.mp3\"\n      }\n    }\n  ],\n  \"from\": \"447700900001\",\n  \"limit\": 7200,\n  \"machineDetection\": \"continue\",\n  \"advanced_machine_detection\": {\n    \"behavior\": \"continue\",\n    \"mode\": \"detect\",\n    \"beep_timeout\": 45\n  },\n  \"eventUrl\": [\"https://example.com/webhooks/connect-status\"],\n  \"eventType\": \"synchronous\",\n  \"ringbackTone\": \"https://example.com/custom-ringback.mp3\"\n}\n```\n\n#### Endpoint Types\n\n##### Phone Endpoint\n```json\n{\n  \"type\": \"phone\",\n  \"number\": \"447700900000\",\n  \"dtmfAnswer\": \"1234#\"\n}\n```\n\n##### SIP Endpoint\n```json\n{\n  \"type\": \"sip\",\n  \"uri\": \"sip:user@example.com\",\n  \"headers\": {\n    \"X-Custom-Header\": \"value\"\n  }\n}\n```\n\n##### WebSocket Endpoint\n```json\n{\n  \"type\": \"websocket\",\n  \"uri\": \"wss://example.com/socket\",\n  \"content-type\": \"audio/l16;rate=16000\",\n  \"headers\": {\n    \"Authorization\": \"Bearer token\"\n  }\n}\n```\n\n### Conversation - Create Named Conversation\n\nCreates a reusable conversation for conference calls.\n\n```json\n{\n  \"action\": \"conversation\",\n  \"name\": \"team-standup-\" + new Date().toISOString().split('T')[0],\n  \"startOnEnter\": true,\n  \"endOnExit\": false,\n  \"record\": true,\n  \"mute\": false,\n  \"musicOnHoldUrl\": [\"https://example.com/hold-music.mp3\"],\n  \"canSpeak\": [\"everyone\"],\n  \"canHear\": [\"everyone\"]\n}\n```\n\n#### Parameters\n\n| Parameter | Type | Description | Default |\n|-----------|------|-------------|---------|\n| `name` | string | **Required** Unique conversation name | - |\n| `startOnEnter` | boolean | Start when moderator joins | `false` |\n| `endOnExit` | boolean | End when moderator leaves | `false` |\n| `record` | boolean | Record conversation | `false` |\n| `mute` | boolean | Join muted | `false` |\n| `musicOnHoldUrl` | array | Music while alone | - |\n| `canSpeak` | array | UUIDs that can speak | `[\"everyone\"]` |\n| `canHear` | array | UUIDs that can hear | `[\"everyone\"]` |\n\n### Notify - Send Event\n\nSends a custom event to your webhook during the call.\n\n```json\n{\n  \"action\": \"notify\",\n  \"payload\": {\n    \"event\": \"customer_verified\",\n    \"customer_id\": \"12345\",\n    \"verified_at\": \"2024-01-01T12:00:00Z\"\n  },\n  \"eventUrl\": [\"https://example.com/webhooks/notifications\"],\n  \"eventMethod\": \"POST\"\n}\n```\n\n## Building Complex Call Flows\n\n### Multi-Level IVR System\n\n```json\n[\n  {\n    \"action\": \"talk\",\n    \"text\": \"Welcome to ACME Bank. For account balance, press 1. For transactions, press 2. For customer service, press 3.\",\n    \"bargeIn\": true\n  },\n  {\n    \"action\": \"input\",\n    \"maxDigits\": 1,\n    \"timeOut\": 10,\n    \"eventUrl\": [\"https://example.com/ivr/main-menu\"]\n  }\n]\n```\n\nHandle the selection:\n\n```python\n@app.route('/ivr/main-menu', methods=['POST'])\ndef main_menu():\n    selection = request.json['dtmf']\n    \n    if selection == '1':\n        # Account Balance\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"Please enter your 4-digit PIN.\"\n            },\n            {\n                \"action\": \"input\",\n                \"maxDigits\": 4,\n                \"timeOut\": 10,\n                \"eventUrl\": [\"https://example.com/ivr/verify-pin\"]\n            }\n        ]\n    elif selection == '2':\n        # Transactions\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"For recent transactions, press 1. For pending transactions, press 2.\"\n            },\n            {\n                \"action\": \"input\",\n                \"maxDigits\": 1,\n                \"eventUrl\": [\"https://example.com/ivr/transactions\"]\n            }\n        ]\n    elif selection == '3':\n        # Customer Service\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"Connecting you to the next available agent.\"\n            },\n            {\n                \"action\": \"stream\",\n                \"streamUrl\": [\"https://example.com/hold-music.mp3\"],\n                \"loop\": 0\n            },\n            {\n                \"action\": \"connect\",\n                \"endpoint\": [{\n                    \"type\": \"phone\",\n                    \"number\": \"447700900123\"\n                }],\n                \"eventUrl\": [\"https://example.com/ivr/agent-connected\"]\n            }\n        ]\n    else:\n        # Invalid selection\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"Invalid selection. Please try again.\"\n            },\n            # Loop back to main menu\n            {\n                \"action\": \"input\",\n                \"maxDigits\": 1,\n                \"eventUrl\": [\"https://example.com/ivr/main-menu\"]\n            }\n        ]\n    \n    return jsonify(ncco)\n```\n\n### Call Center with Queue\n\n```json\n[\n  {\n    \"action\": \"talk\",\n    \"text\": \"All agents are busy. You are number\"\n  },\n  {\n    \"action\": \"talk\",\n    \"text\": \"5\"  // Dynamic queue position\n  },\n  {\n    \"action\": \"talk\",\n    \"text\": \"in the queue.\"\n  },\n  {\n    \"action\": \"notify\",\n    \"payload\": {\n      \"event\": \"caller_queued\",\n      \"position\": 5\n    },\n    \"eventUrl\": [\"https://example.com/queue/notify\"]\n  },\n  {\n    \"action\": \"stream\",\n    \"streamUrl\": [\"https://example.com/queue-music.mp3\"],\n    \"loop\": 0,\n    \"bargeIn\": false\n  }\n]\n```\n\n### Voice Broadcasting\n\n```python\ndef create_broadcast_ncco(message, recipient_name=None):\n    ncco = []\n    \n    # Personalized greeting if name provided\n    if recipient_name:\n        ncco.append({\n            \"action\": \"talk\",\n            \"text\": f\"Hello {recipient_name},\"\n        })\n    \n    # Main message\n    ncco.append({\n        \"action\": \"talk\",\n        \"text\": message\n    })\n    \n    # Interactive option\n    ncco.append({\n        \"action\": \"talk\",\n        \"text\": \"Press 1 to hear this message again, or 2 to speak with a representative.\"\n    })\n    \n    ncco.append({\n        \"action\": \"input\",\n        \"maxDigits\": 1,\n        \"eventUrl\": [\"https://example.com/broadcast/response\"]\n    })\n    \n    return ncco\n```\n\n### Advanced Machine Detection\n\nHandle answering machines differently:\n\n```json\n[\n  {\n    \"action\": \"connect\",\n    \"endpoint\": [{\n      \"type\": \"phone\",\n      \"number\": \"447700900000\"\n    }],\n    \"advanced_machine_detection\": {\n      \"behavior\": \"continue\",\n      \"mode\": \"detect_beep\"\n    },\n    \"eventUrl\": [\"https://example.com/amd-result\"]\n  }\n]\n```\n\nHandle the detection result:\n\n```python\n@app.route('/amd-result', methods=['POST'])\ndef handle_amd():\n    data = request.json\n    \n    if data.get('machine_detection_behavior') == 'machine':\n        # Detected answering machine\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"Hello, this is ACME company calling. Please call us back at 555-1234.\"\n            }\n        ]\n    else:\n        # Human answered\n        ncco = [\n            {\n                \"action\": \"talk\",\n                \"text\": \"Hello, may I speak with John Smith?\"\n            },\n            {\n                \"action\": \"input\",\n                \"speech\": {\n                    \"language\": \"en-US\"\n                },\n                \"eventUrl\": [\"https://example.com/verify-person\"]\n            }\n        ]\n    \n    return jsonify(ncco)\n```\n\n## Best Practices\n\n### 1. Use Conditional Logic\n\nBuild dynamic flows based on caller data:\n\n```python\ndef get_personalized_ncco(caller_number):\n    customer = lookup_customer(caller_number)\n    \n    if customer and customer.is_vip:\n        return [\n            {\n                \"action\": \"talk\",\n                \"text\": f\"Welcome back, {customer.name}. Connecting you to your dedicated agent.\"\n            },\n            {\n                \"action\": \"connect\",\n                \"endpoint\": [{\n                    \"type\": \"phone\",\n                    \"number\": customer.dedicated_agent_number\n                }]\n            }\n        ]\n    else:\n        return get_standard_ivr_ncco()\n```\n\n### 2. Handle Errors Gracefully\n\nAlways provide fallback options:\n\n```python\ndef safe_ncco_handler(func):\n    def wrapper(*args, **kwargs):\n        try:\n            return func(*args, **kwargs)\n        except Exception as e:\n            logging.error(f\"NCCO generation error: {e}\")\n            # Return safe fallback\n            return jsonify([\n                {\n                    \"action\": \"talk\",\n                    \"text\": \"We're experiencing technical difficulties. Please call back later.\"\n                }\n            ])\n    return wrapper\n```\n\n### 3. Optimize for User Experience\n\n- Keep messages concise\n- Allow barge-in for experienced users\n- Provide clear instructions\n- Offer escape options\n\n```json\n[\n  {\n    \"action\": \"talk\",\n    \"text\": \"For sales, press 1. Support, press 2. Or press 0 to speak with an operator.\",\n    \"bargeIn\": true\n  },\n  {\n    \"action\": \"input\",\n    \"maxDigits\": 1,\n    \"timeOut\": 5,\n    \"eventUrl\": [\"https://example.com/menu\"]\n  }\n]\n```\n\n## Testing NCCOs\n\n### NCCO Validator\n\nValidate your NCCO before using:\n\n```python\ndef validate_ncco(ncco):\n    valid_actions = ['talk', 'stream', 'input', 'record', \n                     'connect', 'conversation', 'notify']\n    \n    if not isinstance(ncco, list):\n        raise ValueError(\"NCCO must be an array\")\n    \n    for i, action in enumerate(ncco):\n        if 'action' not in action:\n            raise ValueError(f\"Action {i} missing 'action' field\")\n        \n        if action['action'] not in valid_actions:\n            raise ValueError(f\"Invalid action: {action['action']}\")\n        \n        # Validate required fields per action type\n        validate_action_fields(action)\n    \n    return True\n```\n\n### Voice Playground\n\nTest NCCOs without coding:\n1. Visit Dashboard \u2192 Voice \u2192 Playground\n2. Build NCCO visually\n3. Test with real calls\n4. Export as JSON\n\n## Next Steps\n\n- [Getting Started](./getting-started) - Make your first call\n- [Webhooks](./webhooks) - Handle call events\n- [Error Handling](./errors) - Handle NCCO errors",
+        "created_at": "2026-09-19T21:33:36.673Z",
+        "updated_at": "2026-09-19T21:33:36.737Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/versions",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000057",
+            "version": "1.0.11",
+            "spec": {
+              "type": "oas3"
+            },
+            "created_at": "2026-09-19T21:33:30.496Z",
+            "updated_at": "2026-09-19T21:33:30.496Z"
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000058",
+            "version": "2.0.0",
+            "spec": {
+              "type": "oas3"
+            },
+            "created_at": "2026-09-19T21:33:30.915Z",
+            "updated_at": "2026-09-19T21:33:30.915Z"
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 2,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/versions/00000000-0000-4000-8000-000000000057",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000057",
+        "version": "1.0.11",
+        "spec": {
+          "content": "{\"components\":{\"schemas\":{\"DeliveryReceipt\":{\"properties\":{\"api-key\":{\"description\":\"The API key that sent the SMS. This is useful when multiple accounts are sending webhooks to the same endpoint.\",\"example\":\"abcd1234\",\"type\":\"string\"},\"client-ref\":{\"description\":\"If the `client-ref` is set when the SMS is sent, it will be included in the delivery receipt\",\"example\":\"my-personal-reference\",\"type\":\"string\"},\"err-code\":{\"description\":\"The status of the request. Will be a non `0` value if there has been an error, or if the status is unknown. See the [Delivery Receipt documentation](/messaging/sms/guides/delivery-receipts#dlr-error-codes) for more details\",\"example\":\"0\",\"type\":\"string\"},\"message-timestamp\":{\"description\":\"The time when Vonage started to push this Delivery Receipt to your webhook endpoint.\",\"example\":\"2020-01-01 12:00:00\",\"type\":\"string\"},\"messageId\":{\"description\":\"The Vonage ID for this message.\",\"example\":\"0A0000001234567B\",\"type\":\"string\"},\"msisdn\":{\"description\":\"The number the message was sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"type\":\"string\"},\"network-code\":{\"description\":\"The Mobile Country Code Mobile Network Code (MCCMNC) of the carrier this phone number is registered with.\",\"example\":\"12345\",\"type\":\"string\"},\"nonce\":{\"description\":\"A random string to be used when calculating the signature. _Only included if you have signatures enabled_\",\"example\":\"ec11dd3e-1e7f-4db5-9467-82b02cd223b9\",\"type\":\"string\"},\"price\":{\"description\":\"The cost of the message\",\"example\":\"0.03330000\",\"type\":\"string\"},\"scts\":{\"description\":\"When the DLR was received from the carrier in the following format `YYMMDDHHMM`. For example, `2001011400` is at `2020-01-01 14:00`\",\"example\":\"2001011400\",\"type\":\"string\"},\"sig\":{\"description\":\"The signature to enable verification of the source of this webhook. Please see the [developer documentation for validating signatures](/concepts/guides/signing-messages) for more information, or use one of our published SDKs. _Only included if you have signatures enabled_\",\"example\":\"1A20E4E2069B609FDA6CECA9DE18D5CAFE99720DDB628BD6BE8B19942A336E1C\",\"type\":\"string\"},\"status\":{\"description\":\"A code that explains where the message is in the delivery process.\",\"example\":\"delivered\",\"type\":\"string\",\"x-possible-values\":[\"delivered\",\"expired\",\"failed\",\"rejected\",\"accepted\",\"buffered\",\"unknown\"]},\"timestamp\":{\"description\":\"A timestamp in Unix (seconds since the epoch) format. _Only included if you have signatures enabled_\",\"example\":\"1582650446\",\"type\":\"string\"},\"to\":{\"description\":\"The SenderID you set in `from` in your request.\",\"example\":\"AcmeInc\",\"type\":\"string\"}},\"type\":\"object\"},\"Error\":{\"description\":\"Error\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"ErrorMessage\":{\"properties\":{\"error-text\":{\"description\":\"The description of the error\",\"example\":\"Missing to param\",\"type\":\"string\"},\"status\":{\"description\":\"The error status of the message\",\"example\":\"2\",\"type\":\"string\"}},\"type\":\"object\",\"xml\":{\"name\":\"message\"}},\"ErrorXml\":{\"description\":\"Error\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}},\"InboundMessage\":{\"properties\":{\"api-key\":{\"description\":\"The Vonage API Key of the receiving account.\",\"example\":\"abcd1234\",\"type\":\"string\"},\"concat\":{\"description\":\"True - if this is a concatenated message. This field does not exist if it is a single message\",\"example\":\"true\",\"type\":\"string\"},\"concat-part\":{\"description\":\"The number of this part in the message. Counting starts at 1.\",\"example\":\"2\",\"type\":\"string\"},\"concat-ref\":{\"description\":\"The transaction reference. All parts of this message share this value.\",\"example\":\"1\",\"type\":\"string\"},\"concat-total\":{\"description\":\"The number of parts in this concatenated message.\",\"example\":\"3\",\"type\":\"string\"},\"data\":{\"description\":\"The content of this message, if type is binary.\",\"format\":\"binary\",\"type\":\"string\"},\"keyword\":{\"description\":\"The first word in the message body. Converted to upper case.\",\"example\":\"HELLO\",\"type\":\"string\"},\"message-timestamp\":{\"description\":\"The time when Vonage started to push this Delivery Receipt to your webhook endpoint.\",\"example\":\"2020-01-01 12:00:00\",\"type\":\"string\"},\"messageId\":{\"description\":\"The ID of the message\",\"example\":\"0A0000000123ABCD1\",\"type\":\"string\"},\"msisdn\":{\"description\":\"The phone number that this inbound message was sent from. Numbers are specified in E.164 format.\",\"example\":\"447700900001\",\"type\":\"string\"},\"nonce\":{\"description\":\"A random string that forms part of the signed set of parameters, it adds an extra element of unpredictability into the signature for the request. You use the nonce and timestamp parameters with your shared secret to calculate and validate the signature for inbound messages.\",\"example\":\"aaaaaaaa-bbbb-cccc-dddd-0123456789ab\",\"type\":\"string\"},\"text\":{\"description\":\"The message body for this inbound message.\",\"example\":\"Hello world\",\"type\":\"string\"},\"timestamp\":{\"description\":\"A unix timestamp representation of message-timestamp.\",\"example\":\"1578787200\",\"type\":\"string\"},\"to\":{\"description\":\"The phone number the message was sent to. **This is your virtual number**. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"type\":\"string\"},\"type\":{\"description\":\"Possible values are:\\n\\n  - `text` - standard text.\\n  - `unicode` - URLencoded   unicode  . This is valid for standard GSM, Arabic, Chinese, double-encoded characters and so on.\\n  - `binary` - a binary message.\\n\",\"example\":\"text\",\"type\":\"string\"},\"udh\":{\"description\":\"The hex encoded User Data Header, if type is binary\",\"type\":\"string\"}},\"required\":[\"msisdn\",\"to\",\"messageId\",\"text\",\"type\",\"keyword\",\"message-timestamp\",\"api-key\"],\"type\":\"object\"},\"Message\":{\"properties\":{\"account-ref\":{\"description\":\"**Advanced**: An optional string used to identify separate accounts using the SMS endpoint for billing purposes. To use this feature, please email [support@nexmo.com](mailto:support@nexmo.com)\",\"example\":\"customer1234\",\"type\":\"string\"},\"client-ref\":{\"description\":\"If a `client-ref` was included when sending the SMS, this field will be included and hold the value that was sent.\",\"example\":\"my-personal-reference\",\"type\":\"string\"},\"message-id\":{\"description\":\"The ID of the message\",\"example\":\"0A0000000123ABCD1\",\"type\":\"string\",\"xml\":{\"name\":\"messageId\"}},\"message-price\":{\"description\":\"The estimated cost of the message\",\"example\":\"0.03330000\",\"type\":\"string\",\"xml\":{\"name\":\"messagePrice\"}},\"network\":{\"description\":\"The estimated ID of the network of the recipient\",\"example\":\"12345\",\"type\":\"string\"},\"remaining-balance\":{\"description\":\"Your estimated remaining balance\",\"example\":\"3.14159265\",\"type\":\"string\",\"xml\":{\"name\":\"remainingBalance\"}},\"status\":{\"description\":\"The status of the message. See [Troubleshooting Failed SMS](/messaging/sms/guides/troubleshooting-sms).\",\"example\":\"0\",\"type\":\"string\"},\"to\":{\"description\":\"The number the message was sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"type\":\"string\"}},\"type\":\"object\"},\"NewMessage\":{\"properties\":{\"account-ref\":{\"description\":\"**Advanced**: An optional string used to identify separate accounts using the SMS endpoint for billing purposes. To use this feature, please email [support@nexmo.com](mailto:support@nexmo.com)\",\"example\":\"customer1234\",\"type\":\"string\"},\"api_key\":{\"description\":\"Your API key\",\"example\":\"abcd1234\",\"maxLength\":8,\"minLength\":8,\"type\":\"string\"},\"api_secret\":{\"description\":\"Your API secret. Required unless `sig` is provided\",\"example\":\"abcdef0123456789\",\"maxLength\":32,\"minLength\":6,\"type\":\"string\"},\"body\":{\"description\":\"**Advanced**: Hex encoded binary data. Depends on `type` parameter having the value `binary`.\",\"example\":\"0011223344556677\",\"type\":\"string\"},\"callback\":{\"description\":\"**Advanced**: The webhook endpoint the delivery receipt for this sms is sent to. This parameter overrides the webhook endpoint you set in Dashboard. Max 100 characters.\",\"example\":\"https://example.com/sms-dlr\",\"type\":\"string\"},\"client-ref\":{\"description\":\"**Advanced**: You can optionally include your own reference of up to 100 characters.\",\"example\":\"my-personal-reference\",\"type\":\"string\"},\"content-id\":{\"description\":\"**Advanced**: A string parameter that satisfies regulatory requirements when sending an SMS to specific countries. For more information please refer to the [Country-Specific Outbound SMS Features](https://help.nexmo.com/hc/en-us/articles/115011781468)\",\"example\":\"1107457532145798767\",\"type\":\"string\"},\"entity-id\":{\"description\":\"**Advanced**: A string parameter that satisfies regulatory requirements when sending an SMS to specific countries. For more information please refer to the [Country-Specific Outbound SMS Features](https://help.nexmo.com/hc/en-us/articles/115011781468)\",\"example\":\"1101456324675322134\",\"type\":\"string\"},\"from\":{\"description\":\"The name or number the message should be sent from. Alphanumeric senderID's are not supported in all countries, see [Global Messaging](/messaging/sms/guides/global-messaging#country-specific-features) for more details. If alphanumeric, spaces will be ignored. Numbers are specified in E.164 format.\",\"example\":\"AcmeInc\",\"type\":\"string\"},\"message-class\":{\"description\":\"**Advanced**: The Data Coding Scheme value of the message\",\"enum\":[0,1,2,3],\"type\":\"integer\"},\"protocol-id\":{\"description\":\"**Advanced**: The value of the [protocol identifier](https://en.wikipedia.org/wiki/GSM_03.40#Protocol_Identifier) to use. Ensure that the value is aligned with `udh`.\",\"example\":127,\"type\":\"integer\"},\"sig\":{\"description\":\"The hash of the request parameters in alphabetical order, a timestamp and the signature secret. See [Signing Requests](/concepts/guides/signing-messages) for more details.\",\"maxLength\":60,\"minLength\":16,\"type\":\"string\"},\"status-report-req\":{\"default\":true,\"description\":\"**Advanced**: Boolean indicating if you like to receive a [Delivery Receipt](/messaging/sms/building-blocks/receive-a-delivery-receipt).\",\"example\":false,\"type\":\"boolean\"},\"text\":{\"description\":\"The body of the message being sent. If your message contains characters that can be encoded according to the GSM Standard and Extended tables then you can set the `type` to `text`. If your message contains characters outside this range, then you will need to set the `type` to `unicode`.\",\"example\":\"Hello World!\",\"type\":\"string\"},\"title\":{\"description\":\"**Advanced**: The title for a wappush SMS. Depends on `type` parameter having the value `wappush`.\",\"example\":\"Welcome\",\"type\":\"string\"},\"to\":{\"description\":\"The number that the message should be sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"maxLength\":15,\"minLength\":7,\"pattern\":\"\\\\d{7,15}\",\"type\":\"string\"},\"ttl\":{\"default\":259200000,\"description\":\"**Advanced**: The duration in milliseconds the delivery of an SMS will be attempted.\u00a7\u00a7 By default Vonage attempts delivery for 72 hours, however the maximum effective value depends on the operator and is typically 24 - 48 hours. We recommend this value should be kept at its default or at least 30 minutes.\",\"example\":900000,\"maximum\":604800000,\"minimum\":20000,\"type\":\"integer\"},\"type\":{\"default\":\"text\",\"description\":\"**Advanced**: The format of the message body\",\"enum\":[\"text\",\"binary\",\"wappush\",\"unicode\",\"vcal\",\"vcard\"],\"example\":\"text\",\"type\":\"string\"},\"udh\":{\"description\":\"**Advanced**: Your custom Hex encoded [User Data Header](https://en.wikipedia.org/wiki/User_Data_Header). Depends on `type` parameter having the value `binary`.\",\"example\":\"06050415811581\",\"type\":\"string\"},\"url\":{\"description\":\"**Advanced**: The URL of your website. Depends on `type` parameter having the value `wappush`.\",\"example\":\"https://example.com\",\"type\":\"string\"},\"validity\":{\"description\":\"**Advanced**: The availability for an SMS in milliseconds. Depends on `type` parameter having the value `wappush`.\",\"example\":\"300000\",\"type\":\"string\"},\"vcal\":{\"description\":\"**Advanced**: A calendar event in [vCal format](https://en.wikipedia.org/wiki/VCal). Depends on `type` parameter having the value `vcal`.\",\"format\":\"vcal\",\"type\":\"string\"},\"vcard\":{\"description\":\"**Advanced**: A business card in [vCard format](https://en.wikipedia.org/wiki/VCard). Depends on `type` parameter having the value `vcard`.\",\"format\":\"vcard\",\"type\":\"string\"}},\"required\":[\"api_key\",\"from\",\"to\"]},\"SMS\":{\"description\":\"Message sent\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"type\":\"array\"}},\"type\":\"object\"},\"SMSXml\":{\"description\":\"Message sent\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"properties\":{\"count\":{\"example\":1,\"type\":\"integer\",\"xml\":{\"attribute\":true}}},\"type\":\"array\",\"x-skip-response-description\":true}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}}}},\"info\":{\"contact\":{\"email\":\"devrel@vonage.com\",\"name\":\"Vonage DevRel\",\"url\":\"https://developer.nexmo.com/\"},\"description\":\"With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>\",\"title\":\"SMS API\",\"version\":\"1.0.11\"},\"openapi\":\"3.0.0\",\"paths\":{\"/{format}\":{\"post\":{\"callbacks\":{\"delivery-receipt\":{\"{$request.body#/callback}\":{\"post\":{\"description\":\"The following are parameters sent in as a [delivery receipt](/messaging/sms/guides/delivery-receipts) callback. You can subscribe to [webhooks](/concepts/guides/webhooks) to receive notification when the delivery status of an SMS that you have sent with Vonage changes.\",\"operationId\":\"delivery-receipt\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/DeliveryReceipt\"}}},\"required\":true},\"responses\":{\"200\":{\"description\":\"Your server returns this code if it accepts the callback\"}},\"summary\":\"Delivery Receipt\"}}}},\"description\":\"Send an outbound SMS from your Vonage account\",\"operationId\":\"send-an-sms\",\"parameters\":[{\"description\":\"The format of the response\",\"in\":\"path\",\"name\":\"format\",\"required\":true,\"schema\":{\"default\":\"json\",\"enum\":[\"json\",\"xml\"],\"example\":\"json\",\"type\":\"string\"}}],\"requestBody\":{\"content\":{\"application/x-www-form-urlencoded\":{\"schema\":{\"$ref\":\"#/components/schemas/NewMessage\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMS\"},{\"$ref\":\"#/components/schemas/Error\"}]}},\"text/xml\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMSXml\"},{\"$ref\":\"#/components/schemas/ErrorXml\"}]}}},\"description\":\"Success\"}},\"summary\":\"Send an SMS\"}}},\"servers\":[{\"url\":\"https://rest.nexmo.com/sms\"}],\"x-errors\":{\"1\":{\"description\":\"Throttled. You are sending SMS faster than the account limit.\",\"resolution\":\"Refer to [What is the Throughput Limit for Outbound SMS?](https://help.nexmo.com/hc/en-us/articles/203993598) for more information.\"},\"2\":{\"description\":\"Missing Parameters. Your request is missing one of the required parameters `from`, `to`, `api_key`, `api_secret` or `text`.\",\"resolution\":\"Check your parameters and try again.\"},\"3\":{\"description\":\"Invalid Parameters. The value of one or more parameters is invalid.\",\"resolution\":\"Check your parameters and try again.\"},\"4\":{\"description\":\"Invalid Credentials. Your API key and/or secret are incorrect, invalid or disabled.\",\"resolution\":\"Visit the [Dashboard](https://dashboard.nexmo.com) and check your credentials.\"},\"5\":{\"description\":\"Internal Error. An error has occurred in the platform whilst processing this message.\",\"resolution\":\"If the error persists, contact support@nexmo.com.\"},\"6\":{\"description\":\"Invalid Message. The platform was unable to process this message, for example, an un-recognized number prefix.\",\"resolution\":\"N/A\"},\"7\":{\"description\":\"Number Barred. The number you are trying to send messages to is blacklisted and may not receive them.\",\"resolution\":\"N/A\"},\"8\":{\"description\":\"Partner Account Barred. Your Vonage account has been suspended.\",\"resolution\":\"Contact <support@nexmo.com>.\"},\"9\":{\"description\":\"Partner Quota Violation. You do not have sufficient credit to send the message.\",\"resolution\":\"Top-up and retry.\"},\"10\":{\"description\":\"Too Many Existing Binds. The number of simultaneous connections to the platform exceeds your account allocation.\",\"resolution\":\"Back-off and retry.\"},\"11\":{\"description\":\"Account Not Enabled For HTTP. This account is not provisioned for the SMS API.\",\"resolution\":\"This error usually indicates that you should use SMPP instead.\"},\"12\":{\"description\":\"Message Too Long. The message length exceeds the maximum allowed.\",\"resolution\":\"Send shorter messages.\"},\"14\":{\"description\":\"Invalid Signature. The signature supplied could not be verified.\",\"resolution\":\"Check the [documentation for signing messages](/concepts/guides/signing-messages) or use one of the [SDKs](/tools) to handle the signing.\"},\"15\":{\"description\":\"Invalid Sender Address. You are using a non-authorized sender ID in the `from` field.\",\"resolution\":\"This is most commonly seen in North America, where a Vonage long virtual number or short code is required.\"},\"22\":{\"description\":\"Invalid Network Code. The network code supplied was either not recognized, or does not match the country of the destination address.\",\"resolution\":\"Check the network code or remove it from your request.\"},\"23\":{\"description\":\"Invalid Callback Url. The callback URL supplied was either too long or contained illegal characters.\",\"resolution\":\"Supply a valid URL for the callback.\"},\"29\":{\"description\":\"Non-Whitelisted Destination. Your Vonage account is still in demo mode. While in demo mode you must add target numbers to your whitelisted destination list.\",\"resolution\":\"Top-up your account to remove this limitation.\"},\"32\":{\"description\":\"Signature And API Secret Disallowed. A signed request may not also present an `api_secret`.\",\"resolution\":\"Remove the API secret from your request, or don't sign the message.\"},\"33\":{\"description\":\"Number De-activated. The number you are trying to send messages to is de-activated and may not receive them.\",\"resolution\":\"N/A\"}},\"x-webhooks\":{\"inbound-sms\":{\"{$request.body#/callback}\":{\"post\":{\"description\":\"If you rent one or more virtual numbers from Vonage, inbound messages to that number are sent to your [webhook endpoint](/concepts/guides/webhooks).\\n\\nWhen you receive an inbound message, you must send a 2xx response. If you do not send a 2xx response Vonage will resend the inbound message for the next 24 hours.\\n\",\"operationId\":\"inbound-sms\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/InboundMessage\"}}},\"required\":true},\"responses\":{\"200\":{\"description\":\"Your server returns this code if it accepts the callback\"}},\"summary\":\"Inbound SMS\",\"x-example-path\":\"/webhooks/inbound-sms\"}}}}}",
+          "type": "oas3",
+          "validation_messages": []
+        },
+        "created_at": "2026-09-19T21:33:30.496Z",
+        "updated_at": "2026-09-19T21:33:30.496Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044/versions/00000000-0000-4000-8000-000000000058",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000058",
+        "version": "2.0.0",
+        "spec": {
+          "content": "{\"components\":{\"schemas\":{\"BulkMessageRequest\":{\"properties\":{\"messages\":{\"description\":\"Array of messages to send\",\"items\":{\"properties\":{\"message\":{\"example\":\"Hello World!\",\"maxLength\":1600,\"type\":\"string\"},\"message_id\":{\"description\":\"Optional client-provided message ID\",\"example\":\"client-msg-001\",\"type\":\"string\"},\"recipient\":{\"example\":\"+447700900000\",\"pattern\":\"^\\\\+?[1-9]\\\\d{1,14}$\",\"type\":\"string\"}},\"required\":[\"recipient\",\"message\"],\"type\":\"object\"},\"maxItems\":100,\"type\":\"array\"},\"sender_id\":{\"description\":\"The sender identifier for all messages\",\"example\":\"AcmeInc\",\"type\":\"string\"}},\"required\":[\"sender_id\",\"messages\"],\"type\":\"object\"},\"BulkMessageResponse\":{\"properties\":{\"accepted_messages\":{\"example\":48,\"type\":\"integer\"},\"batch_id\":{\"description\":\"Unique identifier for this batch\",\"example\":\"batch_123456\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/MessageResponseV2\"},\"type\":\"array\"},\"rejected_messages\":{\"example\":2,\"type\":\"integer\"},\"total_cost\":{\"example\":1.65,\"format\":\"decimal\",\"type\":\"number\"},\"total_messages\":{\"example\":50,\"type\":\"integer\"}},\"type\":\"object\"},\"DeliveryOptions\":{\"properties\":{\"delivery_receipt_url\":{\"description\":\"Webhook URL for delivery receipts\",\"example\":\"https://example.com/webhooks/sms-receipt\",\"format\":\"uri\",\"type\":\"string\"},\"retry_policy\":{\"default\":\"standard\",\"description\":\"Retry policy for failed deliveries\",\"enum\":[\"none\",\"standard\",\"aggressive\"],\"type\":\"string\"},\"ttl_seconds\":{\"default\":72000,\"description\":\"Time to live in seconds\",\"maximum\":259200,\"minimum\":300,\"type\":\"integer\"}},\"type\":\"object\"},\"Error\":{\"description\":\"Error\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\"},\"ErrorMessage\":{\"properties\":{\"error-text\":{\"description\":\"The description of the error\",\"example\":\"Missing to param\",\"type\":\"string\"},\"status\":{\"description\":\"The error status of the message\",\"example\":\"2\",\"type\":\"string\"}},\"type\":\"object\",\"xml\":{\"name\":\"message\"}},\"ErrorResponseV2\":{\"properties\":{\"error\":{\"properties\":{\"code\":{\"example\":\"INVALID_RECIPIENT\",\"type\":\"string\"},\"details\":{\"additionalProperties\":true,\"type\":\"object\"},\"message\":{\"example\":\"The recipient phone number is invalid\",\"type\":\"string\"}},\"type\":\"object\"},\"request_id\":{\"description\":\"Unique identifier for this request\",\"example\":\"req_123456789\",\"type\":\"string\"}},\"type\":\"object\"},\"ErrorXml\":{\"description\":\"Error\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/ErrorMessage\"},\"type\":\"array\"}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}},\"Message\":{\"properties\":{\"message-id\":{\"description\":\"The ID of the message\",\"example\":\"0A0000000123ABCD1\",\"type\":\"string\",\"xml\":{\"name\":\"messageId\"}},\"message-price\":{\"description\":\"The estimated cost of the message\",\"example\":\"0.03330000\",\"type\":\"string\",\"xml\":{\"name\":\"messagePrice\"}},\"network\":{\"description\":\"The estimated ID of the network of the recipient\",\"example\":\"12345\",\"type\":\"string\"},\"remaining-balance\":{\"description\":\"Your estimated remaining balance\",\"example\":\"3.14159265\",\"type\":\"string\",\"xml\":{\"name\":\"remainingBalance\"}},\"status\":{\"description\":\"The status of the message. See [Troubleshooting Failed SMS](/messaging/sms/guides/troubleshooting-sms).\",\"example\":\"0\",\"type\":\"string\"},\"to\":{\"description\":\"The number the message was sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"type\":\"string\"}},\"type\":\"object\"},\"MessageRequestV2\":{\"properties\":{\"delivery_options\":{\"$ref\":\"#/components/schemas/DeliveryOptions\"},\"message\":{\"description\":\"The message content to send\",\"example\":\"Hello World!\",\"maxLength\":1600,\"type\":\"string\"},\"message_type\":{\"default\":\"text\",\"description\":\"The type of message content\",\"enum\":[\"text\",\"unicode\",\"binary\"],\"type\":\"string\"},\"metadata\":{\"additionalProperties\":true,\"description\":\"Custom metadata for tracking purposes\",\"type\":\"object\"},\"priority\":{\"default\":\"normal\",\"description\":\"Message delivery priority\",\"enum\":[\"low\",\"normal\",\"high\"],\"type\":\"string\"},\"recipient\":{\"description\":\"The recipient phone number in E.164 format\",\"example\":\"+447700900000\",\"pattern\":\"^\\\\+?[1-9]\\\\d{1,14}$\",\"type\":\"string\"},\"sender_id\":{\"description\":\"The sender identifier (phone number or alphanumeric ID)\",\"example\":\"AcmeInc\",\"type\":\"string\"}},\"required\":[\"sender_id\",\"recipient\",\"message\"],\"type\":\"object\"},\"MessageResponseV2\":{\"properties\":{\"estimated_cost\":{\"example\":0.033,\"format\":\"decimal\",\"type\":\"number\"},\"message_id\":{\"description\":\"Unique identifier for the sent message\",\"example\":\"msg_123456789\",\"type\":\"string\"},\"parts_count\":{\"description\":\"Number of SMS parts for this message\",\"example\":1,\"type\":\"integer\"},\"recipient\":{\"example\":\"+447700900000\",\"type\":\"string\"},\"remaining_balance\":{\"example\":15.67,\"format\":\"decimal\",\"type\":\"number\"},\"status\":{\"enum\":[\"accepted\",\"queued\",\"sent\",\"failed\"],\"example\":\"accepted\",\"type\":\"string\"}},\"type\":\"object\"},\"MessageStatusResponse\":{\"properties\":{\"delivered_at\":{\"example\":\"2024-01-15T10:30:15Z\",\"format\":\"date-time\",\"type\":\"string\"},\"error_code\":{\"description\":\"Error code if status is failed\",\"example\":null,\"type\":\"string\"},\"error_message\":{\"description\":\"Human readable error message\",\"example\":null,\"type\":\"string\"},\"message_id\":{\"example\":\"msg_123456789\",\"type\":\"string\"},\"recipient\":{\"example\":\"+447700900000\",\"type\":\"string\"},\"sent_at\":{\"example\":\"2024-01-15T10:30:00Z\",\"format\":\"date-time\",\"type\":\"string\"},\"status\":{\"enum\":[\"queued\",\"sent\",\"delivered\",\"failed\",\"expired\",\"rejected\"],\"example\":\"delivered\",\"type\":\"string\"}},\"type\":\"object\"},\"NewMessage\":{\"properties\":{\"api_key\":{\"description\":\"Your API key\",\"example\":\"abcd1234\",\"maxLength\":8,\"minLength\":8,\"type\":\"string\"},\"api_secret\":{\"description\":\"Your API secret. Required unless `sig` is provided\",\"example\":\"abcdef0123456789\",\"maxLength\":32,\"minLength\":6,\"type\":\"string\"},\"from\":{\"description\":\"The name or number the message should be sent from. Alphanumeric senderID's are not supported in all countries, see [Global Messaging](/messaging/sms/guides/global-messaging#country-specific-features) for more details. If alphanumeric, spaces will be ignored. Numbers are specified in E.164 format.\",\"example\":\"AcmeInc\",\"type\":\"string\"},\"sig\":{\"description\":\"The hash of the request parameters in alphabetical order, a timestamp and the signature secret. See [Signing Requests](/concepts/guides/signing-messages) for more details.\",\"maxLength\":60,\"minLength\":16,\"type\":\"string\"},\"text\":{\"description\":\"The body of the message being sent. If your message contains characters that can be encoded according to the GSM Standard and Extended tables then you can set the `type` to `text`. If your message contains characters outside this range, then you will need to set the `type` to `unicode`.\",\"example\":\"Hello World!\",\"type\":\"string\"},\"to\":{\"description\":\"The number that the message should be sent to. Numbers are specified in E.164 format.\",\"example\":\"447700900000\",\"maxLength\":15,\"minLength\":7,\"pattern\":\"\\\\d{7,15}\",\"type\":\"string\"}},\"required\":[\"api_key\",\"from\",\"to\"]},\"SMS\":{\"description\":\"Message sent\",\"properties\":{\"message-count\":{\"description\":\"The amount of messages in the request\",\"example\":\"1\",\"type\":\"string\"},\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"type\":\"array\"}},\"type\":\"object\"},\"SMSXml\":{\"description\":\"Message sent\",\"properties\":{\"messages\":{\"items\":{\"$ref\":\"#/components/schemas/Message\"},\"properties\":{\"count\":{\"example\":1,\"type\":\"integer\",\"xml\":{\"attribute\":true}}},\"type\":\"array\",\"x-skip-response-description\":true}},\"type\":\"object\",\"xml\":{\"name\":\"mt-submission-response\"}}}},\"info\":{\"contact\":{\"email\":\"devrel@vonage.com\",\"name\":\"Vonage DevRel\",\"url\":\"https://developer.nexmo.com/\"},\"description\":\"Enhanced SMS API v2 with improved messaging capabilities, bulk operations, and better error handling. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>\",\"title\":\"SMS API\",\"version\":\"2.0.0\"},\"openapi\":\"3.0.0\",\"paths\":{\"/messages\":{\"post\":{\"description\":\"Send an outbound SMS message using the enhanced v2 API with improved error handling and response format\",\"operationId\":\"send-message-v2\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageRequestV2\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageResponseV2\"}}},\"description\":\"Success\"},\"400\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Bad Request\"},\"401\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Unauthorized\"},\"422\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Validation Error\"}},\"summary\":\"Send SMS Message (v2)\"}},\"/messages/bulk\":{\"post\":{\"description\":\"Send multiple SMS messages in a single request for improved efficiency\",\"operationId\":\"send-bulk-messages\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/BulkMessageRequest\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/BulkMessageResponse\"}}},\"description\":\"Success\"},\"400\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Bad Request\"}},\"summary\":\"Send Bulk SMS Messages\"}},\"/messages/{messageId}/status\":{\"get\":{\"description\":\"Retrieve the current delivery status of a sent message\",\"operationId\":\"get-message-status\",\"parameters\":[{\"in\":\"path\",\"name\":\"messageId\",\"required\":true,\"schema\":{\"example\":\"0A0000000123ABCD1\",\"type\":\"string\"}}],\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/MessageStatusResponse\"}}},\"description\":\"Success\"},\"404\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorResponseV2\"}}},\"description\":\"Message not found\"}},\"summary\":\"Get Message Status\"}},\"/{format}\":{\"post\":{\"deprecated\":true,\"description\":\"Send an outbound SMS from your Vonage account. This endpoint is deprecated in v2, use /messages instead.\",\"operationId\":\"send-an-sms\",\"parameters\":[{\"description\":\"The format of the response\",\"in\":\"path\",\"name\":\"format\",\"required\":true,\"schema\":{\"default\":\"json\",\"enum\":[\"json\",\"xml\"],\"example\":\"json\",\"type\":\"string\"}}],\"requestBody\":{\"content\":{\"application/x-www-form-urlencoded\":{\"schema\":{\"$ref\":\"#/components/schemas/NewMessage\"}}},\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMS\"},{\"$ref\":\"#/components/schemas/Error\"}]}},\"text/xml\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/SMSXml\"},{\"$ref\":\"#/components/schemas/ErrorXml\"}]}}},\"description\":\"Success\"}},\"summary\":\"Send an SMS (Deprecated - Use /messages instead)\"}}},\"servers\":[{\"url\":\"https://rest.nexmo.com/sms/v2\"}],\"x-errors\":{\"INSUFFICIENT_CREDITS\":{\"description\":\"Your account does not have enough credits to send this message.\",\"resolution\":\"Top up your account balance and try again.\"},\"INVALID_RECIPIENT\":{\"description\":\"The recipient phone number is invalid or not in E.164 format.\",\"resolution\":\"Check the phone number format and try again.\"},\"INVALID_SENDER\":{\"description\":\"The sender ID is invalid or not authorized for your account.\",\"resolution\":\"Use a valid sender ID or contact support for authorization.\"},\"MESSAGE_TOO_LONG\":{\"description\":\"The message content exceeds the maximum allowed length.\",\"resolution\":\"Shorten your message or split it into multiple messages.\"},\"RATE_LIMIT_EXCEEDED\":{\"description\":\"You have exceeded the rate limit for your account.\",\"resolution\":\"Reduce your sending rate or contact support to increase limits.\"}}}",
+          "type": "oas3",
+          "validation_messages": []
+        },
+        "created_at": "2026-09-19T21:33:30.915Z",
+        "updated_at": "2026-09-19T21:33:30.915Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/versions",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000063",
+            "version": "1.3.7",
+            "spec": {
+              "type": "oas3"
+            },
+            "created_at": "2026-09-19T21:33:34.084Z",
+            "updated_at": "2026-09-19T21:33:34.084Z"
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045/versions/00000000-0000-4000-8000-000000000063",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000063",
+        "version": "1.3.7",
+        "spec": {
+          "content": "{\"components\":{\"schemas\":{\"AddressE164\":{\"description\":\"The phone number to connect to\",\"example\":\"14155550100\",\"maxLength\":15,\"minLength\":7,\"pattern\":\"\\\\d{7,15}\",\"type\":\"string\"},\"AddressSip\":{\"description\":\"The SIP URI to connect to\",\"example\":\"sip:rebekka@sip.example.com\",\"maxLength\":50,\"minLength\":1,\"type\":\"string\"},\"AddressWebsocket\":{\"example\":\"wss://example.com/socket\",\"maxLength\":50,\"minLength\":1,\"type\":\"string\"},\"CreateCallRequestAnswerUrl\":{\"allOf\":[{\"required\":[\"answer_url\"],\"title\":\"With Answer URL\"},{\"properties\":{\"answer_method\":{\"default\":\"GET\",\"description\":\"The HTTP method used to send event information to answer_url.\",\"enum\":[\"POST\",\"GET\"],\"type\":\"string\"},\"answer_url\":{\"description\":\"The webhook endpoint where you provide the [Nexmo Call Control Object](/voice/voice-api/ncco-reference) that governs this call.\\n\",\"example\":[\"https://example.com/answer\"],\"items\":{\"type\":\"string\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true}}},{\"$ref\":\"#/components/schemas/CreateCallRequestBase\"}]},\"CreateCallRequestBase\":{\"properties\":{\"event_method\":{\"default\":\"POST\",\"description\":\"The HTTP method used to send event information to `event_url`.\",\"enum\":[\"POST\",\"GET\"],\"type\":\"string\"},\"event_url\":{\"description\":\"**Required** unless `event_url` is configured at the application\\nlevel, see [Create an Application](/api/application.v2#createApplication)\\n\\nThe webhook endpoint where call progress events are\\nsent to. For more information about the values sent, see\\n[Event webhook](/voice/voice-api/webhook-reference#event-webhook).\\n\",\"example\":[\"https://example.com/event\"],\"items\":{\"format\":\"uri\",\"type\":\"string\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true},\"from\":{\"$ref\":\"#/components/schemas/EndpointPhoneFrom\"},\"length_timer\":{\"default\":7200,\"description\":\"Set the number of seconds that elapse before Vonage hangs up after the call state changes to answered.\",\"maximum\":7200,\"minimum\":1,\"type\":\"integer\"},\"machine_detection\":{\"description\":\"Configure the behavior when Vonage detects that the call is answered by voicemail. If `continue`, Vonage sends an HTTP request to `event_url` with the Call event machine. If `hangup`, Vonage ends the call.\",\"enum\":[\"continue\",\"hangup\"],\"example\":\"continue\",\"type\":\"string\"},\"random_from_number\":{\"default\":false,\"description\":\"Set to `true` to use random phone number as `from`. The number will be selected from the list of the numbers assigned to the current application. `random_from_number: true` cannot be used together with `from`.\",\"type\":\"boolean\"},\"ringing_timer\":{\"default\":60,\"description\":\"Set the number of seconds that elapse before Vonage hangs up after the call state changes to \u2018ringing\u2019.\",\"maximum\":120,\"minimum\":1,\"type\":\"integer\"},\"to\":{\"items\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/EndpointPhoneTo\"},{\"$ref\":\"#/components/schemas/EndpointSip\"},{\"$ref\":\"#/components/schemas/EndpointWebsocket\"},{\"$ref\":\"#/components/schemas/EndpointVBCExtension\"}]},\"type\":\"array\"}},\"required\":[\"to\"],\"type\":\"object\"},\"CreateCallRequestNcco\":{\"allOf\":[{\"required\":[\"ncco\"],\"title\":\"With NCCO\"},{\"properties\":{\"ncco\":{\"description\":\"The [Nexmo Call Control Object](/voice/voice-api/ncco-reference) to use for this call.\\n\",\"example\":[{\"action\":\"talk\",\"text\":\"Hello World\"}],\"items\":{\"type\":\"object\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true}}},{\"$ref\":\"#/components/schemas/CreateCallRequestBase\"}]},\"CreateCallResponse\":{\"properties\":{\"conversation_uuid\":{\"$ref\":\"#/components/schemas/conversation_uuid\"},\"direction\":{\"$ref\":\"#/components/schemas/direction\"},\"status\":{\"$ref\":\"#/components/schemas/status\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"DTMFRequest\":{\"properties\":{\"digits\":{\"description\":\"The digits to send\",\"example\":1713,\"type\":\"string\"}},\"type\":\"object\"},\"DTMFResponse\":{\"properties\":{\"message\":{\"description\":\"Description of the action taken\",\"example\":\"DTMF sent\",\"type\":\"string\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"EndpointApp\":{\"description\":\"Connect to an App User\",\"properties\":{\"type\":{\"description\":\"The type of connection. Must be `app`\",\"example\":\"app\",\"type\":\"string\"},\"user\":{\"description\":\"The username to connect to\",\"example\":\"jamie\",\"type\":\"string\"}},\"required\":[\"type\",\"user\"],\"type\":\"object\"},\"EndpointPhoneFrom\":{\"description\":\"Connect to a Phone (PSTN) number\",\"properties\":{\"number\":{\"$ref\":\"#/components/schemas/AddressE164\"},\"type\":{\"description\":\"The type of connection. Must be `phone`\",\"example\":\"phone\",\"type\":\"string\"}},\"required\":[\"number\",\"type\"],\"type\":\"object\"},\"EndpointPhoneTo\":{\"description\":\"Connect to a Phone (PSTN) number\",\"properties\":{\"dtmfAnswer\":{\"description\":\"Provide [DTMF digits](https://developer.nexmo.com/voice/voice-api/guides/dtmf) to send when the call is answered\",\"example\":\"p*123#\",\"type\":\"string\"},\"number\":{\"$ref\":\"#/components/schemas/AddressE164\"},\"type\":{\"description\":\"The type of connection. Must be `phone`\",\"example\":\"phone\",\"type\":\"string\"}},\"required\":[\"number\",\"type\"],\"type\":\"object\"},\"EndpointSip\":{\"description\":\"Connect to a SIP Endpoint\",\"properties\":{\"type\":{\"description\":\"The type of connection. Must be `sip`\",\"example\":\"sip\",\"type\":\"string\"},\"uri\":{\"$ref\":\"#/components/schemas/AddressSip\"}},\"required\":[\"type\"],\"type\":\"object\"},\"EndpointVBCExtension\":{\"description\":\"Connect to a VBC extension\",\"properties\":{\"extension\":{\"example\":\"1234\",\"type\":\"string\"},\"type\":{\"description\":\"The type of connection. Must be `vbc`\",\"example\":\"vbc\",\"type\":\"string\"}},\"required\":[\"type\",\"extension\"],\"type\":\"object\"},\"EndpointWebsocket\":{\"description\":\"Connect to a Websocket\",\"properties\":{\"content-type\":{\"enum\":[\"audio/l16;rate=8000\",\"audio/l16;rate=16000\"],\"example\":\"audio/l16;rate=16000\",\"type\":\"string\"},\"headers\":{\"description\":\"Details of the Websocket you want to connect to\",\"properties\":{\"customer_id\":{\"description\":\"This is an example header. You can provide any headers you may need\",\"example\":\"ABC123\",\"type\":\"string\"}},\"type\":\"object\"},\"type\":{\"description\":\"The type of connection. Must be `websocket`\",\"example\":\"websocket\",\"type\":\"string\"},\"uri\":{\"$ref\":\"#/components/schemas/AddressWebsocket\"}},\"required\":[\"type\",\"content-type\"],\"type\":\"object\"},\"GetCallResponse\":{\"properties\":{\"_links\":{\"properties\":{\"self\":{\"properties\":{\"href\":{\"example\":\"/calls/63f61863-4a51-4f6b-86e1-46edebcf9356\",\"title\":\"Link to the Call Object\",\"type\":\"string\"}},\"type\":\"object\"}},\"type\":\"object\"},\"conversation_uuid\":{\"$ref\":\"#/components/schemas/conversation_uuid\"},\"direction\":{\"$ref\":\"#/components/schemas/direction\"},\"duration\":{\"$ref\":\"#/components/schemas/duration\"},\"end_time\":{\"$ref\":\"#/components/schemas/end_time\"},\"from\":{\"$ref\":\"#/components/schemas/from\"},\"network\":{\"$ref\":\"#/components/schemas/network\"},\"price\":{\"$ref\":\"#/components/schemas/price\"},\"rate\":{\"$ref\":\"#/components/schemas/rate\"},\"start_time\":{\"$ref\":\"#/components/schemas/start_time\"},\"status\":{\"$ref\":\"#/components/schemas/status\"},\"to\":{\"$ref\":\"#/components/schemas/to\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"GetCallsResponse\":{\"properties\":{\"_embedded\":{\"description\":\"A list of call objects. See the [get details of a specific call](#getCall) response fields for a description of the nested objects\",\"properties\":{\"calls\":{\"items\":{\"$ref\":\"#/components/schemas/GetCallResponse\"},\"type\":\"array\"}},\"type\":\"object\"},\"_links\":{\"properties\":{\"self\":{\"properties\":{\"href\":{\"example\":\"/calls?page_size=10&record_index=20&order=asc\",\"title\":\"Link to the object\",\"type\":\"string\"}},\"type\":\"object\"}},\"type\":\"object\"},\"count\":{\"example\":100,\"title\":\"The total number of records returned by your request.\",\"type\":\"integer\"},\"page_size\":{\"example\":10,\"title\":\"The amount of records returned in this response.\",\"type\":\"integer\"},\"record_index\":{\"example\":0,\"title\":\"The `record_index` used in your request.\",\"type\":\"integer\"}},\"type\":\"object\"},\"RequestTransferActionParam\":{\"description\":\"Transfer the call to a new NCCO\",\"enum\":[\"transfer\"],\"example\":\"transfer\",\"type\":\"string\"},\"StartStreamRequest\":{\"properties\":{\"level\":{\"default\":\"0\",\"description\":\"Set the audio level of the stream in the range `-1 >= level <= 1` with a precision of 0.1. The default value is 0.\",\"example\":\"0.4\",\"type\":\"string\"},\"loop\":{\"default\":1,\"description\":\"the number of times to play the file, 0 for infinite\",\"type\":\"integer\"},\"stream_url\":{\"example\":[\"https://example.com/waiting.mp3\"],\"items\":{\"type\":\"string\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true}},\"required\":[\"stream_url\"],\"type\":\"object\"},\"StartStreamResponse\":{\"properties\":{\"message\":{\"description\":\"Description of the action taken\",\"example\":\"Stream started\",\"type\":\"string\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"StartTalkRequest\":{\"properties\":{\"language\":{\"$ref\":\"#/components/schemas/language\"},\"level\":{\"default\":\"0\",\"description\":\"The volume level that the speech is played. This can be any value between `-1` to `1` in `0.1` increments, with `0` being the default.\",\"example\":\"0.4\",\"type\":\"string\"},\"loop\":{\"default\":1,\"description\":\"The number of times to repeat the text the file, 0 for infinite\",\"type\":\"integer\"},\"style\":{\"$ref\":\"#/components/schemas/style\"},\"text\":{\"description\":\"The text to read\",\"example\":\"Hello. How are you today?\",\"type\":\"string\"},\"voice_name\":{\"$ref\":\"#/components/schemas/voice_name\"}},\"required\":[\"text\"],\"type\":\"object\"},\"StartTalkResponse\":{\"properties\":{\"message\":{\"description\":\"Description of the action taken\",\"example\":\"Talk started\",\"type\":\"string\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"StopStreamResponse\":{\"properties\":{\"message\":{\"description\":\"Description of the action taken\",\"example\":\"Stream stopped\",\"type\":\"string\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"StopTalkResponse\":{\"properties\":{\"message\":{\"description\":\"Description of the action taken\",\"example\":\"Talk stopped\",\"type\":\"string\"},\"uuid\":{\"$ref\":\"#/components/schemas/uuid\"}},\"type\":\"object\"},\"UpdateCallRequestEarmuff\":{\"properties\":{\"action\":{\"description\":\"Prevent the specified UUID from hearing audio\",\"enum\":[\"earmuff\"],\"example\":\"earmuff\",\"type\":\"string\"}},\"title\":\"Earmuff\"},\"UpdateCallRequestHangup\":{\"properties\":{\"action\":{\"description\":\"End the call for the specified UUID\",\"enum\":[\"hangup\"],\"example\":\"hangup\",\"type\":\"string\"}},\"title\":\"Hangup\"},\"UpdateCallRequestMute\":{\"properties\":{\"action\":{\"description\":\"Mute the specified UUID\",\"enum\":[\"mute\"],\"example\":\"mute\",\"type\":\"string\"}},\"title\":\"Mute\"},\"UpdateCallRequestTransferAnswerUrl\":{\"properties\":{\"action\":{\"$ref\":\"#/components/schemas/RequestTransferActionParam\"},\"destination\":{\"properties\":{\"type\":{\"description\":\"Always `ncco`\",\"example\":\"ncco\",\"type\":\"string\",\"x-nexmo-developer-collection-description-shown\":true},\"url\":{\"description\":\"The URL that Vonage makes a request to. Must return an NCCO.\",\"example\":[\"https://example.com/ncco.json\"],\"items\":{\"type\":\"string\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true}},\"required\":[\"type\",\"url\"],\"type\":\"object\"}},\"required\":[\"action\",\"destination\"],\"title\":\"Transfer with Answer URL\",\"type\":\"object\"},\"UpdateCallRequestTransferNcco\":{\"properties\":{\"action\":{\"$ref\":\"#/components/schemas/RequestTransferActionParam\"},\"destination\":{\"properties\":{\"ncco\":{\"description\":\"Refer to the [NCCO Guide](https://developer.nexmo.com/voice/voice-api/ncco-reference) for a description of possible NCCO parameters.\",\"example\":[{\"action\":\"talk\",\"text\":\"Hello World\"}],\"items\":{\"type\":\"object\"},\"type\":\"array\",\"x-nexmo-developer-collection-description-shown\":true},\"type\":{\"description\":\"Always `ncco`\",\"example\":\"ncco\",\"type\":\"string\",\"x-nexmo-developer-collection-description-shown\":true}},\"required\":[\"type\",\"ncco\"],\"type\":\"object\"}},\"required\":[\"action\",\"destination\"],\"title\":\"Transfer with NCCO\",\"type\":\"object\"},\"UpdateCallRequestUnearmuff\":{\"properties\":{\"action\":{\"description\":\"Allow the specified UUID to hear audio\",\"enum\":[\"unearmuff\"],\"example\":\"unearmuff\",\"type\":\"string\"}},\"title\":\"Unearmuff\"},\"UpdateCallRequestUnmute\":{\"properties\":{\"action\":{\"description\":\"Unmute the specified UUID\",\"enum\":[\"mute\"],\"example\":\"unmute\",\"type\":\"string\"}},\"title\":\"Unmute\"},\"conversation_uuid\":{\"description\":\"The unique identifier for the conversation this call leg is part of.\",\"example\":\"CON-f972836a-550f-45fa-956c-12a2ab5b7d22\",\"format\":\"uuid\",\"title\":\"The UUID of the Conversation\",\"type\":\"string\"},\"direction\":{\"description\":\"Possible values are `outbound` or `inbound`\",\"enum\":[\"outbound\",\"inbound\"],\"example\":\"outbound\",\"type\":\"string\"},\"duration\":{\"description\":\"The time elapsed for the call to take place in seconds. This is only sent if `status` is `completed`.\",\"example\":\"60\",\"title\":\"The Duration of the call \",\"type\":\"string\"},\"end_time\":{\"description\":\"The time the call started in the following format: `YYYY-MM-DD HH:MM:SS`. For xample, `2020-01-01 12:00:00`. This is only sent if `status` is `completed`.\",\"example\":\"2020-01-01 12:00:00\",\"format\":\"timestamp\",\"title\":\"The End Time of the call \",\"type\":\"string\"},\"from\":{\"description\":\"The endpoint you called from. Possible values are the same as `to`.\",\"properties\":{\"number\":{\"example\":\"447700900001\",\"title\":\"The number that made the call\",\"type\":\"string\"},\"type\":{\"example\":\"phone\",\"title\":\"The type of Endpoint that made the call\",\"type\":\"string\"}},\"type\":\"object\"},\"language\":{\"default\":\"en-US\",\"description\":\"The language to use\",\"enum\":[\"ar\",\"ca-ES\",\"cmn-CN\",\"cmn-TW\",\"cs-CZ\",\"cy-GB\",\"da-DK\",\"de-DE\",\"el-GR\",\"en-AU\",\"en-GB\",\"en-GB-WLS\",\"en-IN\",\"en-US\",\"en-ZA\",\"es-ES\",\"es-MX\",\"es-US\",\"eu-ES\",\"fi-FI\",\"fil-PH\",\"fr-CA\",\"fr-FR\",\"he-IL\",\"hi-IN\",\"hu-HU\",\"id-ID\",\"is-IS\",\"it-IT\",\"ja-JP\",\"ko-KR\",\"nb-NO\",\"nl-NL\",\"no-NO\",\"pl-PL\",\"pt-BR\",\"pt-PT\",\"ro-RO\",\"ru-RU\",\"sk-SK\",\"sv-SE\",\"th-TH\",\"tr-TR\",\"uk-UA\",\"vi-VN\",\"yue-CN\"],\"type\":\"string\"},\"network\":{\"description\":\"The Mobile Country Code Mobile Network Code ([MCCMNC](https://en.wikipedia.org/wiki/Mobile_country_code)) for the carrier network used to make this call.\",\"example\":\"65512\",\"title\":\"The Network ID of the destination \",\"type\":\"string\"},\"price\":{\"description\":\"The total price charged for this call. This is only sent if `status` is `completed`.\",\"example\":\"23.40\",\"title\":\"The total price of the call \",\"type\":\"string\"},\"rate\":{\"description\":\"The price per minute for this call. This is only sent if `status` is `completed`.\",\"example\":\"0.39\",\"title\":\"The Price per minute of the called destination\",\"type\":\"string\"},\"start_time\":{\"description\":\"The time the call started in the following format: `YYYY-MM-DD HH:MM:SS`. For example, `2020-01-01 12:00:00`. This is only sent if `status` is `completed`.\",\"example\":\"2020-01-01 12:00:00\",\"format\":\"timestamp\",\"title\":\"The Start Time of the call \",\"type\":\"string\"},\"status\":{\"description\":\"The status of the call. [See possible values](https://developer.nexmo.com/voice/voice-api/guides/call-flow#event-objects)\",\"example\":\"started\",\"title\":\"The State of the call\",\"type\":\"string\"},\"style\":{\"default\":0,\"description\":\"The vocal style (vocal range, tessitura, and timbre) to use\",\"type\":\"integer\"},\"to\":{\"description\":\"The single or mixed collection of endpoint types you connected to\",\"properties\":{\"number\":{\"example\":\"447700900000\",\"title\":\"The number of the endpoint called\",\"type\":\"string\"},\"type\":{\"example\":\"phone\",\"title\":\"The Type of Endpoint Called\",\"type\":\"string\"}},\"type\":\"object\"},\"uuid\":{\"description\":\"The unique identifier for this call leg. The UUID is created when your call request is accepted by Vonage. You use the UUID in all requests for individual live calls\",\"example\":\"63f61863-4a51-4f6b-86e1-46edebcf9356\",\"format\":\"uuid\",\"title\":\"The UUID of the Call Leg\",\"type\":\"string\"},\"voice_name\":{\"default\":\"Kimberly\",\"deprecated\":true,\"description\":\"<strong>DEPRECATED</strong> The voice & language to use\",\"enum\":[\"Aditi\",\"Agnieszka\",\"Alva\",\"Amy\",\"Astrid\",\"Bianca\",\"Brian\",\"Carla\",\"Carmen\",\"Carmit\",\"Catarina\",\"Celine\",\"Cem\",\"Chantal\",\"Chipmunk\",\"Conchita\",\"Cristiano\",\"Damayanti\",\"Dora\",\"Emma\",\"Empar\",\"Enrique\",\"Eric\",\"Ewa\",\"Felipe\",\"Filiz\",\"Geraint\",\"Giorgio\",\"Gwyneth\",\"Hans\",\"Henrik\",\"Ines\",\"Ioana\",\"Iveta\",\"Ivy\",\"Jacek\",\"Jan\",\"Jennifer\",\"Joana\",\"Joanna\",\"Joey\",\"Jordi\",\"Justin\",\"Kanya\",\"Karl\",\"Kendra\",\"Kimberly\",\"Laila\",\"Laura\",\"Lea\",\"Lekha\",\"Liv\",\"Lotte\",\"Lucia\",\"Luciana\",\"Mads\",\"Maged\",\"Maja\",\"Mariska\",\"Marlene\",\"Mathieu\",\"Matthew\",\"Maxim\",\"Mei-Jia\",\"Melina\",\"Mia\",\"Miguel\",\"Miren\",\"Mizuki\",\"Montserrat\",\"Naja\",\"Nicole\",\"Nikos\",\"Nora\",\"Oskar\",\"Penelope\",\"Raveena\",\"Ricardo\",\"Ruben\",\"Russell\",\"Salli\",\"Satu\",\"Seoyeon\",\"Sin-Ji\",\"Sora\",\"Takumi\",\"Tarik\",\"Tatyana\",\"Tessa\",\"Tian-Tian\",\"Vicki\",\"Vitoria\",\"Yelda\",\"Zeina\",\"Zhiyu\",\"Zuzana\"],\"type\":\"string\"}},\"securitySchemes\":{\"bearerAuth\":{\"bearerFormat\":\"JWT\",\"scheme\":\"bearer\",\"type\":\"http\"}}},\"info\":{\"contact\":{\"email\":\"devrel@vonage.com\",\"name\":\"Vonage DevRel\",\"url\":\"https://developer.nexmo.com/\"},\"description\":\"The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.\",\"title\":\"Voice API\",\"version\":\"1.3.7\"},\"openapi\":\"3.0.0\",\"paths\":{\"/\":{\"get\":{\"description\":\"Get details of your calls\",\"operationId\":\"getCalls\",\"parameters\":[{\"description\":\"Filter by call status\",\"in\":\"query\",\"name\":\"status\",\"schema\":{\"enum\":[\"started\",\"ringing\",\"answered\",\"machine\",\"completed\",\"busy\",\"cancelled\",\"failed\",\"rejected\",\"timeout\",\"unanswered\"],\"example\":\"started\",\"type\":\"string\"}},{\"description\":\"Return the records that occurred after this point in time\",\"in\":\"query\",\"name\":\"date_start\",\"schema\":{\"example\":\"2016-11-14T07:45:14Z\",\"format\":\"date-time\",\"type\":\"string\"}},{\"description\":\"Return the records that occurred before this point in time\",\"in\":\"query\",\"name\":\"date_end\",\"schema\":{\"example\":\"2016-11-14T07:45:14Z\",\"format\":\"date-time\",\"type\":\"string\"}},{\"description\":\"Return this amount of records in the response\",\"in\":\"query\",\"name\":\"page_size\",\"schema\":{\"default\":10,\"maximum\":100,\"minimum\":1,\"type\":\"integer\"}},{\"description\":\"Return calls from this index in the response\",\"in\":\"query\",\"name\":\"record_index\",\"schema\":{\"default\":0,\"type\":\"integer\"}},{\"description\":\"Either ascending or  descending order.\",\"in\":\"query\",\"name\":\"order\",\"schema\":{\"default\":\"asc\",\"enum\":[\"asc\",\"desc\"],\"type\":\"string\"}},{\"description\":\"Return all the records associated with a specific conversation.\",\"in\":\"query\",\"name\":\"conversation_uuid\",\"schema\":{\"$ref\":\"#/components/schemas/conversation_uuid\"}}],\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/GetCallsResponse\"}}},\"description\":\"OK\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Get details of your calls\",\"tags\":[\"Calls\"]},\"post\":{\"description\":\"Create an outbound Call\",\"operationId\":\"createCall\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/CreateCallRequestNcco\"},{\"$ref\":\"#/components/schemas/CreateCallRequestAnswerUrl\"}]}}},\"description\":\"Call Details\"},\"responses\":{\"201\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/CreateCallResponse\"}}},\"description\":\"Created\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Create an outbound call\",\"tags\":[\"Calls\"]}},\"/{uuid}\":{\"get\":{\"description\":\"Get detail of a specific call\",\"operationId\":\"getCall\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/GetCallResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Get detail of a specific call\",\"tags\":[\"Calls\"]},\"parameters\":[{\"description\":\"UUID of the Call\",\"example\":\"63f61863-4a51-4f6b-86e1-46edebcf9356\",\"in\":\"path\",\"name\":\"uuid\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"put\":{\"description\":\"Modify an in progress call\",\"operationId\":\"updateCall\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"oneOf\":[{\"$ref\":\"#/components/schemas/UpdateCallRequestTransferNcco\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestTransferAnswerUrl\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestHangup\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestMute\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestUnmute\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestEarmuff\"},{\"$ref\":\"#/components/schemas/UpdateCallRequestUnearmuff\"}]}}},\"required\":true},\"responses\":{\"204\":{\"description\":\"No Content\"},\"401\":{\"description\":\"Unauthorized\"},\"404\":{\"description\":\"Not Found\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Modify an in progress call\",\"tags\":[\"Calls\"]}},\"/{uuid}/dtmf\":{\"parameters\":[{\"description\":\"UUID of the Call Leg\",\"example\":\"63f61863-4a51-4f6b-86e1-46edebcf9356\",\"in\":\"path\",\"name\":\"uuid\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"put\":{\"description\":\"Play DTMF tones into a call\",\"operationId\":\"startDTMF\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/DTMFRequest\"}}},\"description\":\"action to perform\",\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/DTMFResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Play DTMF tones into a call\",\"tags\":[\"Play DTMF\"]}},\"/{uuid}/stream\":{\"delete\":{\"description\":\"Stop playing an audio file into a call\",\"operationId\":\"stopStream\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StopStreamResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Stop playing an audio file into a call\",\"tags\":[\"Stream Audio\"]},\"parameters\":[{\"description\":\"UUID of the Call Leg\",\"example\":\"63f61863-4a51-4f6b-86e1-46edebcf9356\",\"in\":\"path\",\"name\":\"uuid\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"put\":{\"description\":\"Play an audio file into a call\",\"operationId\":\"startStream\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StartStreamRequest\"}}},\"description\":\"action to perform\",\"required\":true},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StartStreamResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Play an audio file into a call\",\"tags\":[\"Stream Audio\"]}},\"/{uuid}/talk\":{\"delete\":{\"description\":\"Stop text to speech in a call\",\"operationId\":\"stopTalk\",\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StopTalkResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Stop text to speech in a call\",\"tags\":[\"Play TTS\"]},\"parameters\":[{\"description\":\"UUID of the Call Leg\",\"example\":\"63f61863-4a51-4f6b-86e1-46edebcf9356\",\"in\":\"path\",\"name\":\"uuid\",\"required\":true,\"schema\":{\"type\":\"string\"}}],\"put\":{\"description\":\"Play text to speech into a call\",\"operationId\":\"startTalk\",\"requestBody\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StartTalkRequest\"}}},\"description\":\"Action to perform\"},\"responses\":{\"200\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/StartTalkResponse\"}}},\"description\":\"Ok\"}},\"security\":[{\"bearerAuth\":[]}],\"summary\":\"Play text to speech into a call\",\"tags\":[\"Play TTS\"]}}},\"servers\":[{\"url\":\"https://api.nexmo.com/v1/calls\"}],\"tags\":[{\"description\":\"Fetch, Create and Modify voice calls\",\"name\":\"Calls\"},{\"description\":\"Start or stop streaming audio in to an active call\",\"name\":\"Stream Audio\"},{\"description\":\"Start or stop playing Text to Speech in to an active call\",\"name\":\"Play TTS\"},{\"description\":\"Play DTMF tones in to an active call\",\"name\":\"Play DTMF\"}]}",
+          "type": "oas3",
+          "validation_messages": []
+        },
+        "created_at": "2026-09-19T21:33:34.084Z",
+        "updated_at": "2026-09-19T21:33:34.084Z"
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/api-publications",
+      "query": [
+        [
+          "filter[api_id][eq]",
+          "00000000-0000-4000-8000-000000000044"
+        ],
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "api_id": "00000000-0000-4000-8000-000000000044",
+            "entity_type": "api",
+            "visibility": "public",
+            "portal_id": "00000000-0000-4000-8000-000000000047",
+            "created_at": "2026-09-19T21:33:31.276Z",
+            "updated_at": "2026-09-19T21:33:31.276Z",
+            "form_id": null,
+            "auto_approve_registrations": false,
+            "auth_strategy_ids": [
+              "00000000-0000-4000-8000-000000000046"
+            ],
+            "warnings": []
+          }
+        ],
+        "meta": {
+          "page": {
+            "number": 1,
+            "size": 100,
+            "total": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/api-publications",
+      "query": [
+        [
+          "filter[api_id][eq]",
+          "00000000-0000-4000-8000-000000000045"
+        ],
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "api_id": "00000000-0000-4000-8000-000000000045",
+            "entity_type": "api",
+            "visibility": "public",
+            "portal_id": "00000000-0000-4000-8000-000000000047",
+            "created_at": "2026-09-19T21:33:36.299Z",
+            "updated_at": "2026-09-19T21:33:36.299Z",
+            "form_id": null,
+            "auto_approve_registrations": false,
+            "auth_strategy_ids": [
+              "00000000-0000-4000-8000-000000000046"
+            ],
+            "warnings": []
+          }
+        ],
+        "meta": {
+          "page": {
+            "number": 1,
+            "size": 100,
+            "total": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000044",
+            "name": "SMS API",
+            "version": "3.2.0",
+            "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
+            "labels": {
+              "category": "messaging",
+              "protocol": "rest",
+              "KONGCTL-namespace": "default"
+            },
+            "created_at": "2026-09-19T21:33:24.375Z",
+            "updated_at": "2026-09-19T21:33:31.276Z",
+            "slug": "sms-api-3",
+            "api_spec_ids": [
+              "00000000-0000-4000-8000-000000000057"
+            ],
+            "implementation_mode": null,
+            "current_version_summary": null,
+            "portals": [
+              {
+                "id": "00000000-0000-4000-8000-000000000047",
+                "name": "My First Portal",
+                "display_name": "A Getting Started Portal"
+              }
+            ],
+            "attributes": {},
+            "images": null
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000045",
+            "name": "Voice API",
+            "version": "1.3.7",
+            "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
+            "labels": {
+              "category": "voice",
+              "protocol": "rest",
+              "KONGCTL-namespace": "default"
+            },
+            "created_at": "2026-09-19T21:33:24.722Z",
+            "updated_at": "2026-09-19T21:33:36.299Z",
+            "slug": "voice-api",
+            "api_spec_ids": [
+              "00000000-0000-4000-8000-000000000063"
+            ],
+            "implementation_mode": null,
+            "current_version_summary": {
+              "id": "00000000-0000-4000-8000-000000000063",
+              "spec": {
+                "type": "oas3"
+              }
+            },
+            "portals": [
+              {
+                "id": "00000000-0000-4000-8000-000000000047",
+                "name": "My First Portal",
+                "display_name": "A Getting Started Portal"
+              }
+            ],
+            "attributes": {},
+            "images": null
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 2,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/portals",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000047",
+            "name": "My First Portal",
+            "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
+            "display_name": "A Getting Started Portal",
+            "authentication_enabled": false,
+            "rbac_enabled": false,
+            "sipr_enabled": false,
+            "default_api_visibility": "public",
+            "default_page_visibility": "public",
+            "default_application_auth_strategy_id": "00000000-0000-4000-8000-000000000046",
+            "notifications_developer_pii_visibility_enabled": false,
+            "ai": {
+              "enabled": false,
+              "features": {
+                "mcp_server": {
+                  "enabled": false,
+                  "write_operations_enabled": false
+                }
+              }
+            },
+            "auto_approve_developers": false,
+            "auto_approve_applications": false,
+            "canonical_domain": "d49fe82872b9.us.kongportals.com",
+            "default_domain": "d49fe82872b9.us.kongportals.com",
+            "created_at": "2026-09-19T21:33:25.450Z",
+            "updated_at": "2026-09-19T21:33:32.270Z",
+            "labels": {
+              "KONGCTL-namespace": "default"
+            }
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v2/application-auth-strategies",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000046",
+            "name": "key-auth",
+            "display_name": "API Key Authentication",
+            "configs": {
+              "key-auth": {
+                "key_names": [
+                  "X-API-Key",
+                  "apikey",
+                  "api_key"
+                ]
+              }
+            },
+            "dcr_provider": null,
+            "labels": {
+              "KONGCTL-namespace": "default"
+            },
+            "strategy_type": "key_auth",
+            "supports_multiple_credentials": true,
+            "active": true,
+            "updated_at": "2026-09-19T21:33:25.083Z",
+            "created_at": "2026-09-19T21:33:25.083Z",
+            "principals": {
+              "enabled": false
+            }
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/portals",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000047",
+            "name": "My First Portal",
+            "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
+            "display_name": "A Getting Started Portal",
+            "authentication_enabled": false,
+            "rbac_enabled": false,
+            "sipr_enabled": false,
+            "default_api_visibility": "public",
+            "default_page_visibility": "public",
+            "default_application_auth_strategy_id": "00000000-0000-4000-8000-000000000046",
+            "notifications_developer_pii_visibility_enabled": false,
+            "ai": {
+              "enabled": false,
+              "features": {
+                "mcp_server": {
+                  "enabled": false,
+                  "write_operations_enabled": false
+                }
+              }
+            },
+            "auto_approve_developers": false,
+            "auto_approve_applications": false,
+            "canonical_domain": "d49fe82872b9.us.kongportals.com",
+            "default_domain": "d49fe82872b9.us.kongportals.com",
+            "created_at": "2026-09-19T21:33:25.450Z",
+            "updated_at": "2026-09-19T21:33:32.270Z",
+            "labels": {
+              "KONGCTL-namespace": "default"
+            }
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000044",
+        "name": "SMS API",
+        "version": "3.2.0",
+        "description": "With the SMS API you can send SMS from your account and lookup messages both messages that you've sent as well as messages sent to your virtual numbers. Numbers are specified in E.164 format. More SMS API documentation is at <https://developer.nexmo.com/messaging/sms/overview>",
+        "labels": {
+          "category": "messaging",
+          "protocol": "rest",
+          "KONGCTL-namespace": "default"
+        },
+        "created_at": "2026-09-19T21:33:24.375Z",
+        "updated_at": "2026-09-19T21:33:31.276Z",
+        "slug": "sms-api-3",
+        "api_spec_ids": [
+          "00000000-0000-4000-8000-000000000057"
+        ],
+        "implementation_mode": null,
+        "current_version_summary": null,
+        "portals": [
+          {
+            "id": "00000000-0000-4000-8000-000000000047",
+            "name": "My First Portal",
+            "display_name": "A Getting Started Portal"
+          }
+        ],
+        "attributes": {},
+        "images": null
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/portals",
+      "query": [
+        [
+          "page[number]",
+          "1"
+        ],
+        [
+          "page[size]",
+          "100"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "id": "00000000-0000-4000-8000-000000000047",
+            "name": "My First Portal",
+            "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
+            "display_name": "A Getting Started Portal",
+            "authentication_enabled": false,
+            "rbac_enabled": false,
+            "sipr_enabled": false,
+            "default_api_visibility": "public",
+            "default_page_visibility": "public",
+            "default_application_auth_strategy_id": "00000000-0000-4000-8000-000000000046",
+            "notifications_developer_pii_visibility_enabled": false,
+            "ai": {
+              "enabled": false,
+              "features": {
+                "mcp_server": {
+                  "enabled": false,
+                  "write_operations_enabled": false
+                }
+              }
+            },
+            "auto_approve_developers": false,
+            "auto_approve_applications": false,
+            "canonical_domain": "d49fe82872b9.us.kongportals.com",
+            "default_domain": "d49fe82872b9.us.kongportals.com",
+            "created_at": "2026-09-19T21:33:25.450Z",
+            "updated_at": "2026-09-19T21:33:32.270Z",
+            "labels": {
+              "KONGCTL-namespace": "default"
+            }
+          }
+        ],
+        "meta": {
+          "page": {
+            "total": 1,
+            "size": 100,
+            "number": 1
+          }
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "Voice API",
+        "version": "1.3.7",
+        "description": "The Voice API lets you create outbound calls, control in-progress calls and get information about historical calls. More information about the Voice API can be found at <https://developer.nexmo.com/voice/voice-api/overview>.",
+        "labels": {
+          "category": "voice",
+          "protocol": "rest",
+          "KONGCTL-namespace": "default"
+        },
+        "created_at": "2026-09-19T21:33:24.722Z",
+        "updated_at": "2026-09-19T21:33:36.299Z",
+        "slug": "voice-api",
+        "api_spec_ids": [
+          "00000000-0000-4000-8000-000000000063"
+        ],
+        "implementation_mode": null,
+        "current_version_summary": {
+          "id": "00000000-0000-4000-8000-000000000063",
+          "spec": {
+            "type": "oas3"
+          }
+        },
+        "portals": [
+          {
+            "id": "00000000-0000-4000-8000-000000000047",
+            "name": "My First Portal",
+            "display_name": "A Getting Started Portal"
+          }
+        ],
+        "attributes": {},
+        "images": null
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "DELETE",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000044",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 204,
+      "body": null,
+      "content_type": null
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "DELETE",
+      "path": "/v3/portals/00000000-0000-4000-8000-000000000047",
+      "query": [
+        [
+          "force",
+          "true"
+        ]
+      ],
+      "body": null
+    },
+    "response": {
+      "status": 204,
+      "body": null,
+      "content_type": null
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "DELETE",
+      "path": "/v3/apis/00000000-0000-4000-8000-000000000045",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 204,
+      "body": null,
+      "content_type": null
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "GET",
+      "path": "/v2/application-auth-strategies/00000000-0000-4000-8000-000000000046",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 200,
+      "body": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "key-auth",
+        "display_name": "API Key Authentication",
+        "configs": {
+          "key-auth": {
+            "key_names": [
+              "X-API-Key",
+              "apikey",
+              "api_key"
+            ]
+          }
+        },
+        "dcr_provider": null,
+        "labels": {
+          "KONGCTL-namespace": "default"
+        },
+        "strategy_type": "key_auth",
+        "supports_multiple_credentials": true,
+        "active": false,
+        "updated_at": "2026-09-19T21:33:25.083Z",
+        "created_at": "2026-09-19T21:33:25.083Z",
+        "principals": {
+          "enabled": false
+        }
+      },
+      "content_type": "application/json"
+    }
+  },
+  {
+    "request": {
+      "endpoint": "regional",
+      "method": "DELETE",
+      "path": "/v2/application-auth-strategies/00000000-0000-4000-8000-000000000046",
+      "query": [],
+      "body": null
+    },
+    "response": {
+      "status": 204,
+      "body": null,
+      "content_type": null
+    }
+  }
+]

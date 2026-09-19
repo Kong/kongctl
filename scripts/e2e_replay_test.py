@@ -134,9 +134,9 @@ class ReplayTest(unittest.TestCase):
         self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
         self.assertEqual("kongctl-acceptance-2", MODULE.recording_org("dump/portal-owned"))
 
-    def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
+    def test_round_trip_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
-        for scenario in MODULE.USER_SCENARIOS:
+        for scenario in (*MODULE.USER_SCENARIOS, "dump/portal-owned"):
             with self.subTest(scenario=scenario):
                 cassette = MODULE.load_cassette(MODULE.ROOT / "test/e2e/scenarios" / scenario / "replay/cassette.json")
                 engine = MODULE.Replay(cassette)
