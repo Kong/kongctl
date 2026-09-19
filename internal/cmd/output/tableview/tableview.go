@@ -237,6 +237,18 @@ func formatRequestLabel(label string) string {
 	return trimmed
 }
 
+func formatChildLoadedStatus(label string, child ChildView, duration time.Duration) string {
+	label = formatRequestLabel(label)
+	if child.Mode == ChildViewModeDetail {
+		return fmt.Sprintf("%s loaded in %s", label, formatElapsed(duration))
+	}
+	unit := "items"
+	if len(child.Rows) == 1 {
+		unit = "item"
+	}
+	return fmt.Sprintf("%s: %d %s loaded in %s", label, len(child.Rows), unit, formatElapsed(duration))
+}
+
 func (pr pendingRequest) inflightMessage() string {
 	label := strings.TrimSpace(pr.label)
 	if label == "" {
@@ -4710,7 +4722,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 				} else if trimmed := strings.TrimSpace(pr.label); trimmed != "" {
 					label = trimmed
 				}
-				m.setStatus(fmt.Sprintf("%s loaded in %s", formatRequestLabel(label), formatElapsed(duration)))
+				m.setStatus(formatChildLoadedStatus(label, key.child, duration))
 			}
 		}
 		return m, tea.Batch(cmds...)
@@ -4737,7 +4749,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 				if detail != nil && key.itemIndex >= 0 && key.itemIndex < len(detail.items) {
 					label = formatRequestLabel(m.presentDetailChild(detail, key.itemIndex, key.child, key.label))
 				}
-				m.setStatus(fmt.Sprintf("%s loaded in %s", label, formatElapsed(duration)))
+				m.setStatus(formatChildLoadedStatus(label, key.child, duration))
 			}
 		}
 		return m, tea.Batch(cmds...)

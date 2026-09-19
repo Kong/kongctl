@@ -352,6 +352,7 @@ func listAIGatewayModels(
 
 	var allData []kkComps.AIGatewayModel
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	for {
 		res, err := modelAPI.ListAiGatewayModels(helper.GetContext(), kkOps.ListAiGatewayModelsRequest{
 			GatewayID: gatewayID,
@@ -363,11 +364,14 @@ func listAIGatewayModels(
 			return nil, cmd.PrepareExecutionError("Failed to list AI Gateway models", err, helper.GetCmd(), attrs...)
 		}
 		if res == nil || res.ListAIGatewayModelsResponse == nil {
-			return allData, nil
+			return nil, fmt.Errorf("failed to list AI Gateway models: empty response")
 		}
 
 		allData = append(allData, res.ListAIGatewayModelsResponse.Data...)
-		nextCursor := pagination.ExtractPageAfterCursor(res.ListAIGatewayModelsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(res.ListAIGatewayModelsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("AI Gateway model pagination failed: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
