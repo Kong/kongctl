@@ -25,6 +25,7 @@ on:
           - portal/ip-allow-list
           - portal/pages
           - portal/sync
+          - portal/teams
           - portal/visibility
       source_run:
         description: Optional prior recording run ID to validate its candidate without another live recording
