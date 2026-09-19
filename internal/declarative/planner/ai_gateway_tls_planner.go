@@ -264,6 +264,21 @@ func (p *Planner) planAIGatewayCertificateDeletes(
 	plan *Plan,
 ) error {
 	for _, pending := range deletes {
+		for _, change := range plan.Changes {
+			if change.ResourceType != ResourceTypeAIGatewaySNI ||
+				(change.Action != ActionCreate && change.Action != ActionUpdate) ||
+				change.Namespace != pending.change.Namespace ||
+				change.Parent == nil || pending.change.Parent == nil ||
+				change.Parent.ID != pending.change.Parent.ID {
+				continue
+			}
+			if change.Fields[FieldCertificate] == pending.certificate.Name {
+				return fmt.Errorf(
+					"cannot delete AI Gateway certificate %q while planned SNI %q still references it",
+					pending.certificate.Name, change.ResourceRef,
+				)
+			}
+		}
 		for _, sni := range currentSNIs {
 			if sni.Certificate != pending.certificate.Name {
 				continue

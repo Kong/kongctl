@@ -309,6 +309,101 @@ func TestAIGatewayCertificateIdentitySNIDependencies(t *testing.T) {
 	}
 }
 
+func TestAIGatewayCertificateDeleteRejectsPlannedSNIReference(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		mode             PlanMode
+		existingSNI      bool
+		certificateScope bool
+		wantError        bool
+	}{
+		{"new SNI", PlanModeSync, false, true, true},
+		{"reassigned SNI", PlanModeSync, true, true, true},
+		{"omitted certificate scope", PlanModeSync, false, false, false},
+		{"apply retains certificate", PlanModeApply, false, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := &certificateIdentityAPI{
+				certificates: []kkComps.AIGatewayCertificate{{ID: "old-cert-id", Name: "old-cert"}},
+			}
+			if tc.existingSNI {
+				api.snis = []kkComps.AIGatewaySNI{{
+					ID: "sni-id", Name: "sni", Hostname: "api.example.test", Certificate: "another-cert",
+				}}
+			}
+			rs := &resources.ResourceSet{
+				SyncScope: resources.NewSyncScope(),
+				AIGatewaySNIs: []resources.AIGatewaySNIResource{{
+					BaseResource: resources.BaseResource{Ref: "sni-ref"}, AIGateway: "gateway",
+					Name: "sni", Hostname: "api.example.test", Certificate: "old-cert",
+				}},
+			}
+			rs.SyncScope.AddChild(resources.ResourceTypeAIGateway, "gateway", resources.ResourceTypeAIGatewaySNI)
+			if tc.certificateScope {
+				rs.SyncScope.AddChild(
+					resources.ResourceTypeAIGateway, "gateway", resources.ResourceTypeAIGatewayCertificate,
+				)
+			}
+			p := NewPlanner(api.client(), slog.Default())
+			p.resources = rs
+			plan := NewPlan(CurrentPlanVersion, "test", tc.mode)
+			err := p.planAIGatewayTLSChanges(t.Context(), DefaultNamespace, "gateway", "gateway-id", "", plan)
+			if tc.wantError {
+				require.ErrorContains(t, err, `cannot delete AI Gateway certificate "old-cert"`)
+				require.ErrorContains(t, err, `planned SNI "sni-ref" still references it`)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Len(t, plan.Changes, 1)
+			sni := plan.Changes[0]
+			require.Equal(t, ResourceTypeAIGatewaySNI, sni.ResourceType)
+			require.Equal(t, "old-cert", sni.Fields[FieldCertificate])
+			if tc.existingSNI {
+				require.Equal(t, ActionUpdate, sni.Action)
+				require.Equal(t, "sni-id", sni.ResourceID)
+			} else {
+				require.Equal(t, ActionCreate, sni.Action)
+			}
+		})
+	}
+}
+
+func TestAIGatewayCertificateDeleteIgnoresOtherSNIParents(t *testing.T) {
+	for _, tc := range []struct {
+		name, namespace string
+		parent          *ParentInfo
+	}{
+		{"other gateway", DefaultNamespace, &ParentInfo{Ref: "other-gateway", ID: "other-gateway-id"}},
+		{"other namespace", "other-namespace", &ParentInfo{Ref: "gateway", ID: "gateway-id"}},
+		{"new gateway", DefaultNamespace, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := &Planner{}
+			plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+			plan.AddChange(PlannedChange{
+				ID: "create-sni", ResourceType: ResourceTypeAIGatewaySNI,
+				ResourceRef: "sni-ref", Action: ActionCreate, Namespace: tc.namespace, Parent: tc.parent,
+				Fields:     map[string]any{FieldCertificate: "old-cert"},
+				References: map[string]ReferenceInfo{FieldAIGatewayID: {Ref: "other-gateway"}},
+			})
+			pending := pendingAIGatewayCertificateDelete{
+				certificate: state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
+					ID: "old-cert-id", Name: "old-cert",
+				}},
+				change: newAIGatewayTLSDelete(p, ResourceTypeAIGatewayCertificate, DefaultNamespace,
+					"gateway", "gateway-id", "old-cert-id", "old-cert"),
+			}
+			require.NoError(t, p.planAIGatewayCertificateDeletes(
+				[]pendingAIGatewayCertificateDelete{pending}, nil, plan,
+			))
+			require.Len(t, plan.Changes, 2)
+			require.Equal(t, ActionDelete, plan.Changes[1].Action)
+			require.Equal(t, "old-cert-id", plan.Changes[1].ResourceID)
+			require.Empty(t, plan.Changes[1].DependsOn)
+		})
+	}
+}
+
 // Embedding the interfaces makes any unexpected API operation fail the test.
 type certificateIdentityAPI struct {
 	helpers.AIGatewayDataPlaneCertificatesAPI

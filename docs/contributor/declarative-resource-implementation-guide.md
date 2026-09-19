@@ -450,8 +450,9 @@ Choose identity and operation semantics before selecting a reusable strategy:
   and data-plane replacement ordering. TLS orchestration keeps SNI
   dependencies on certificate creation/updates and delays certificate
   deletion until referencing SNIs are removed or repointed; reject deletion
-  while an unchanged SNI still references it. Private keys remain deferred
-  secret writes, outside comparison and ordinary plan fields.
+  while an unchanged SNI or a planned SNI create/update in the same gateway
+  still references it. Private keys remain deferred secret writes, outside
+  comparison and ordinary plan fields.
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
