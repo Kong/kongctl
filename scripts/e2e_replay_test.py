@@ -500,6 +500,15 @@ class ReplayTest(unittest.TestCase):
         self.assertNotIn("@example.test", str(normalized))
         fixtures = MODULE.fixture_strings(MODULE.ROOT / "test/e2e/scenarios/org/users/get")
         MODULE.check_safe(normalized, fixtures)
+        MODULE.check_user_profiles(normalized)
+        for key, value in [("full_name", "Real Name"), ("created_at", "2025-02-03T00:00:00Z"),
+                           ("phone", "555-0101")]:
+            edited = copy.deepcopy(normalized)
+            edited["data"][0][key] = value
+            with self.assertRaises(ValueError):
+                MODULE.check_user_profiles(edited)
+        with self.assertRaises(ValueError):
+            MODULE.check_user_profiles({"full_name": "Real Name"})
         with self.assertRaises(ValueError):
             MODULE.check_safe(normalized)  # Only the reviewed user scenarios allow synthetic identities.
         for value in [{"email": "fixture@example.test", "phone": "sensitive"},

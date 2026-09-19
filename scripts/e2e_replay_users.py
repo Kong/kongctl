@@ -39,6 +39,26 @@ def recording_org(scenario):
     return "kongctl-acceptance" if scenario in USER_SCENARIOS else "kongctl-acceptance-3"
 
 
+def check_user_profiles(value):
+    """Reject unsanitized or expanded user records even in edited cassettes."""
+    if isinstance(value, dict):
+        if {"email", "full_name", "preferred_name"} & value.keys():
+            email = value.get("email")
+            if (set(value) - USER_FIELDS or not isinstance(email, str)
+                    or not SYNTHETIC_EMAIL.fullmatch(email)):
+                raise ValueError("unreviewed or unsanitized organization user profile")
+            label = email.split("@", 1)[0]
+            if any(value.get(key) not in (None, "", "n/a", label) for key in ("full_name", "preferred_name")):
+                raise ValueError("unsanitized organization user name")
+            if any(value.get(key) not in (None, "2026-01-01T00:00:00Z") for key in ("created_at", "updated_at")):
+                raise ValueError("unsanitized organization user timestamp")
+        for item in value.values():
+            check_user_profiles(item)
+    elif isinstance(value, list):
+        for item in value:
+            check_user_profiles(item)
+
+
 class UserIdentities:
     """Pseudonymize users without filtering collections or changing relations."""
 

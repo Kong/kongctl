@@ -28,7 +28,7 @@ from urllib.parse import parse_qsl, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from e2e_replay_users import (USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdentities,
-                              recording_inputs, recording_org, replay_inputs)
+                              check_user_profiles, recording_inputs, recording_org, replay_inputs)
 # CI installs the pinned parser here before entering network isolation. Local
 # users can install the same requirements in their active Python environment.
 sys.path.insert(0, str(ROOT / ".e2e-artifacts/replay-python"))
@@ -524,6 +524,8 @@ def validate_cassette(cassette, directory, scenario=SCENARIO, *, allow_stale=Fal
         if not 200 <= response["status"] < 500 or response["status"] == 429 or 300 <= response["status"] < 400:
             raise ValueError("redirects and transient failures are not supported in cassettes")
         check_safe(item, fixtures)
+        if scenario in USER_SCENARIOS:
+            check_user_profiles(item)
         canonical(item)
     parallel_phases(cassette)
 
@@ -710,6 +712,7 @@ class Replay:
                 raise ValueError("credential echoed in response; refusing recording")
             if self.user_identities is not None:
                 item = self.user_identities.normalize(item)
+                check_user_profiles(item)
             item = self.sanitizer.normalize(item)
             if self.token in canonical(item):
                 raise ValueError("credential echoed in response; refusing recording")
