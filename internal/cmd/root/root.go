@@ -675,6 +675,11 @@ func applyExtensionRuntimeDefaults(runtimeCtx *extensioncore.RuntimeContext, cfg
 }
 
 func initConfig() {
+	if value := os.Getenv("KONGCTL_CONFIG_FILE"); value != "" &&
+		!common.CommandTreeFlagChanged(rootCmd, common.ConfigFilePathFlagName) {
+		configFilePath = value
+	}
+
 	runtimeCtx, runtimeCtxErr := extensioncore.LoadRuntimeContextFromEnv()
 	util.CheckError(runtimeCtxErr)
 	applyExtensionRuntimeDefaultsBeforeConfig(runtimeCtx)
@@ -774,6 +779,7 @@ func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
 		if f := rootCmd.PersistentFlags().Lookup(common.ConfigFilePathFlagName); f != nil {
 			displayDefault := fmt.Sprintf("$XDG_CONFIG_HOME/%s/config.yaml", meta.CLIName)
 			f.Usage = fmt.Sprintf(`Path to the configuration file to load.
+- Environment variable: KONGCTL_CONFIG_FILE (overridden by this flag)
 - Default: [ %s ]`, displayDefault)
 			f.DefValue = ""
 		}

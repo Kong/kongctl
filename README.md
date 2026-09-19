@@ -344,6 +344,23 @@ cannot be combined with JSON or YAML output.
 configuration values. By default there is a `default` profile, but you can 
 create additional profiles for different environments or configurations.
 
+To use a different configuration file, set `KONGCTL_CONFIG_FILE`:
+
+```shell
+export KONGCTL_CONFIG_FILE="/path/to/config.yaml"
+kongctl get apis
+```
+
+The selected file contains the same named-profile YAML structure described
+below. File selection uses `--config-file` first, then `KONGCTL_CONFIG_FILE`,
+then the standard configuration path. An empty environment variable is ignored.
+A custom file must exist and be valid; an invalid path does not fall back to
+your standard configuration. This setting does not change `XDG_CONFIG_HOME`.
+
+For extension subprocesses, the config file inherited from the parent command
+takes precedence over `KONGCTL_CONFIG_FILE`. An explicit `--config-file` still
+takes precedence over the inherited file.
+
 *Note: By design `kongctl` does not write to your configuration file. The philosphy for this is that
 there should be one owner and writer of configuration data, and that is the user.*
 
