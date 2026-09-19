@@ -150,6 +150,15 @@ retain their stream order. Ancestor reads cannot cross updates or deletes.
 Additional `after` dependencies can constrain ordering but cannot remove these
 mandatory dependencies. Never annotate a whole scenario as unordered.
 
+An exact-match request within the current parallel phase may arrive before
+its prerequisites finish. The proxy reserves that exchange and waits up to
+five seconds, releasing its lock so other requests can satisfy the dependency.
+It never consumes the response early or searches a later phase. Missing
+dependencies time out with recorded interaction numbers; unexpected requests
+and duplicate consumption still fail. Proxy failure or shutdown wakes waiters.
+This accommodates concurrent CLI scheduling without relaxing matching or
+changing the cassette's dependency rules.
+
 The Portal candidate annotations separate initial inventory, initial creation,
 individual read-only planning/dump commands, and final cleanup. Publication
 removal and API deletion remain barriers; reads from later scenario states

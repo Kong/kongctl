@@ -39,6 +39,8 @@ SCENARIOS = (
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
 LIMIT = 8 * 1024 * 1024
+# Below the CLI request deadline; a missing dependency must still fail replay.
+DEPENDENCY_WAIT_SECONDS = 5.0
 UUID = re.compile(r"\b[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\b")
 SENSITIVE_KEY = re.compile(r"password|secret|token|authorization|cookie|private.?key", re.I)
 SENSITIVE_VALUE = re.compile(r"kpat_|spat_|Bearer\s|-----BEGIN|[\w.+-]+@[\w.-]+\.[a-z]{2,}", re.I)
@@ -575,32 +577,71 @@ class Replay:
         self.phases = parallel_phases(cassette) if cassette else {}
         self.errors = []
         self.lock = threading.Lock()
+        self.changed = threading.Condition(self.lock)
+        self.pending = set()
+        self.closed = False
         self.fixtures = fixtures
         self.sanitizer = Sanitizer(fixtures)
 
     def fail(self, message):
-        with self.lock:
+        with self.changed:
             self.errors.append(message)
+            self.changed.notify_all()
+
+    def close(self):
+        with self.changed:
+            self.closed = True
+            if self.pending:
+                self.errors.append("replay stopped with pending interactions "
+                                   + str(sorted(i + 1 for i in self.pending)))
+            self.changed.notify_all()
+
+    def _replay(self, request):
+        """Called under changed: reserve an exact match in the current phase only."""
+        if self.closed or self.errors:
+            raise ValueError("replay stopped or previously failed")
+        if self.position >= len(self.interactions):
+            raise ValueError("unexpected extra request")
+        phase = self.phases.get(self.position)
+        candidates = phase if phase else [self.position]
+        matches = [i for i in candidates if i not in self.completed and i not in self.pending
+                   and canonical(request) == canonical(self.interactions[i]["request"])]
+        ready = [i for i in matches if not phase or phase[i] <= self.completed]
+        if not matches or len(ready) > 1:
+            raise ValueError(f"request mismatch at interaction {self.position + 1} (method/path/query/body)")
+        # Identical requests retain their recorded stream order. Reserve the
+        # earliest match so another waiter cannot consume this exchange, or
+        # drift into a later phase while the condition lock is released.
+        index = ready[0] if ready else min(matches)
+        self.pending.add(index)
+        deadline = time.monotonic() + DEPENDENCY_WAIT_SECONDS
+        try:
+            while phase and not phase[index] <= self.completed:
+                if self.closed or self.errors:
+                    raise ValueError("replay stopped or previously failed")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    missing = sorted(i + 1 for i in phase[index] - self.completed)
+                    raise ValueError(f"dependency wait timed out for interaction {index + 1}; "
+                                     f"waiting for interactions {missing}")
+                # Other HTTP handlers must be able to satisfy the dependency.
+                self.changed.wait(remaining)
+            if self.closed or self.errors:
+                raise ValueError("replay stopped or previously failed")
+            self.completed.add(index)
+            self.position += 1
+            return self.interactions[index]["response"]
+        finally:
+            self.pending.remove(index)
+            self.changed.notify_all()
 
     def exchange(self, host, method, target, data):
-        # Serialize complete exchanges. The prototype intentionally requires a
-        # deterministic request order; future unordered groups must be explicit.
-        with self.lock:
+        # Recording remains serialized. Replay may release the lock only to
+        # wait for a dependency inside an explicitly reviewed parallel phase.
+        with self.changed:
             request = request_key(HOSTS[host], method, target, data)
             if self.token is None:
-                if self.position >= len(self.interactions):
-                    raise ValueError("unexpected extra request")
-                phase = self.phases.get(self.position)
-                candidates = ([i for i, parents in phase.items() if i not in self.completed and parents <= self.completed]
-                              if phase else [self.position])
-                matches = [i for i in candidates if canonical(request) == canonical(self.interactions[i]["request"])]
-                if len(matches) != 1:
-                    raise ValueError(f"request mismatch at interaction {self.position + 1} (method/path/query/body)")
-                index = matches[0]
-                item = self.interactions[index]
-                self.completed.add(index)
-                self.position += 1
-                return item["response"]
+                return self._replay(request)
 
             # HTTPSConnection never uses proxy environment variables. The host
             # is from the fixed CONNECT allowlist, not from a cassette or URL.
@@ -636,10 +677,11 @@ class Replay:
             return response
 
     def verify(self):
-        if self.errors:
-            raise ValueError("; ".join(self.errors[:5]) + f"; consumed {self.position}/{len(self.interactions)} exchanges")
-        if self.position != len(self.interactions):
-            raise ValueError(f"{len(self.interactions) - self.position} required interactions unused")
+        with self.lock:
+            if self.errors:
+                raise ValueError("; ".join(self.errors[:5]) + f"; consumed {self.position}/{len(self.interactions)} exchanges")
+            if self.position != len(self.interactions):
+                raise ValueError(f"{len(self.interactions) - self.position} required interactions unused")
 
 
 class QuietHandler(http.server.BaseHTTPRequestHandler):
@@ -768,6 +810,7 @@ class Server:
         return self
 
     def __exit__(self, *_):
+        self.httpd.engine.close()
         self.httpd.shutdown()
         self.httpd.server_close()
         self.thread.join()
