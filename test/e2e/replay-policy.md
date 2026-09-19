@@ -8,7 +8,7 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
 `event-gateway/consume-policy`,
-`portal/api_docs_with_children`, `portal/email-templates`,
+`portal/api_docs_with_children`, `portal/customization`, `portal/email-templates`,
 `portal/ip-allow-list`, `portal/pages`,
 `portal/sync`, `portal/teams`, and `portal/visibility`.
 
@@ -22,6 +22,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/sync | [Recording][portal-record], [isolated replays][portal-replay] |
 | portal/visibility | [Recording][visibility-record], [isolated replays][visibility-replay] |
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
+| portal/customization | [Recording and isolated replays][customization-record] |
 | portal/ip-allow-list | [Recording][ip-record], [isolated replays][ip-replay] |
 | portal/pages | [Recording and isolated replays][pages-record] |
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
@@ -40,6 +41,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
 [docs-record]: https://github.com/Kong/kongctl/actions/runs/34860627806
 [docs-replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
+[customization-record]: https://github.com/Kong/kongctl/actions/runs/35453473003
 [ip-record]: https://github.com/Kong/kongctl/actions/runs/35165520273
 [ip-replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
 [pages-record]: https://github.com/Kong/kongctl/actions/runs/35361530847
@@ -321,6 +323,16 @@ dependencies remain enforced. Its
 [replay review](scenarios/portal/email-templates/replay/README.md) records
 provenance, exact command boundaries, and measurements. Eligible PR replay
 skips its scenario reset; main remains fully live.
+
+`portal/customization` is enabled after live recording and three strict,
+isolated replays of all 71 exchanges. Theme, layout, renderer settings,
+robots, menu updates, clearing all three menu lists, no-op plans, and final
+deletion assertions remain intact. Only diagnostic logging changes from
+`debug` to the replay-supported `info` level. No ordering annotations or
+matcher changes are needed. Its
+[replay review](scenarios/portal/customization/replay/README.md) records
+provenance, mutation boundaries, and timing. PR replay skips its scenario
+reset; main and force-live runs remain live.
 
 ## Measurement
 
