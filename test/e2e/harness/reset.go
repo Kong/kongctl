@@ -301,17 +301,28 @@ func (e *httpError) Error() string {
 	return fmt.Sprintf("unexpected status %d: %s", e.status, e.body)
 }
 
+// resetHTTPEvent records failed attempts without URLs, resource IDs, or error text.
+type resetHTTPEvent struct {
+	Timestamp  string `json:"timestamp"`
+	Operation  string `json:"operation"`
+	Class      string `json:"class"`
+	DurationMS int64  `json:"duration_ms"`
+	Attempt    int    `json:"attempt"`
+	Outcome    string `json:"outcome"`
+}
+
 type resetEndpoint struct {
-	APIVersion       string `json:"api_version"`
-	Endpoint         string `json:"endpoint"`
-	Total            int    `json:"total"`
-	Deleted          int    `json:"deleted"`
-	DurationMS       int64  `json:"duration_ms"`
-	ListCalls        int    `json:"list_calls"`
-	ListDurationMS   int64  `json:"list_duration_ms"`
-	DeleteCalls      int    `json:"delete_calls"`
-	DeleteDurationMS int64  `json:"delete_duration_ms"`
-	Error            string `json:"error,omitempty"`
+	Events           []resetHTTPEvent `json:"events,omitempty"`
+	APIVersion       string           `json:"api_version"`
+	Endpoint         string           `json:"endpoint"`
+	Total            int              `json:"total"`
+	Deleted          int              `json:"deleted"`
+	DurationMS       int64            `json:"duration_ms"`
+	ListCalls        int              `json:"list_calls"`
+	ListDurationMS   int64            `json:"list_duration_ms"`
+	DeleteCalls      int              `json:"delete_calls"`
+	DeleteDurationMS int64            `json:"delete_duration_ms"`
+	Error            string           `json:"error,omitempty"`
 }
 
 type resetResult struct {
@@ -320,6 +331,7 @@ type resetResult struct {
 }
 
 type resetHTTPMetrics struct {
+	Events         []resetHTTPEvent
 	Duration       time.Duration
 	ListCalls      int
 	ListDuration   time.Duration
@@ -335,6 +347,7 @@ func resetEndpointResult(
 ) resetEndpoint {
 	return resetEndpoint{
 		APIVersion:       apiVersion,
+		Events:           metrics.Events,
 		Endpoint:         endpoint,
 		Total:            total,
 		Deleted:          deleted,
@@ -963,14 +976,12 @@ func retryListItems(
 	token string,
 	endpoint string,
 	policy HTTPRetryPolicy,
-) ([]map[string]any, error) {
+) (items []map[string]any, err error) {
+	firstEvent := len(session.metrics.Events)
+	defer func() { session.finishEvents(firstEvent, err) }()
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
-	var (
-		items []map[string]any
-		err   error
-	)
 	for atry := range attempts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -980,6 +991,7 @@ func retryListItems(
 		items, err = listItemsWithContext(ctx, client, url, token)
 		duration := time.Since(start)
 		session.RecordList(duration)
+		session.recordEvent("list", atry+1, duration, err)
 		if err == nil {
 			return items, nil
 		}
@@ -1014,11 +1026,12 @@ func retryDeleteOne(
 	endpoint string,
 	id string,
 	policy HTTPRetryPolicy,
-) error {
+) (err error) {
+	firstEvent := len(session.metrics.Events)
+	defer func() { session.finishEvents(firstEvent, err) }()
 	cfg := NormalizeBackoffConfig(policy.Backoff)
 	attempts := cfg.Attempts
 	backoff := BuildBackoffSchedule(cfg)
-	var err error
 	for atry := range attempts {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -1028,6 +1041,7 @@ func retryDeleteOne(
 		err = deleteOneWithContext(ctx, client, baseURL, token, id)
 		duration := time.Since(start)
 		session.RecordDelete(duration)
+		session.recordEvent("delete", atry+1, duration, err)
 		if err == nil {
 			return nil
 		}
@@ -1056,4 +1070,33 @@ func retryDeleteOne(
 		}
 	}
 	return err
+}
+
+func (s *resetHTTPSession) recordEvent(operation string, attempt int, duration time.Duration, err error) {
+	if err == nil {
+		return
+	}
+	class := string(ClassifyRetry(err, err.Error()))
+	if strings.Contains(strings.ToLower(err.Error()), "tls handshake timeout") {
+		class = "tls_timeout"
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "connection reset") {
+		class = "connection_reset"
+	}
+	if class == "" || class == string(RetryClassNone) {
+		return
+	}
+	s.metrics.Events = append(s.metrics.Events, resetHTTPEvent{
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano), Operation: operation, Class: class,
+		DurationMS: duration.Milliseconds(), Attempt: attempt, Outcome: "unknown",
+	})
+}
+
+func (s *resetHTTPSession) finishEvents(first int, err error) {
+	for i := first; i < len(s.metrics.Events); i++ {
+		s.metrics.Events[i].Outcome = "operation_failed"
+		if err == nil {
+			s.metrics.Events[i].Outcome = "recovered"
+		}
+	}
 }

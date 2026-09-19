@@ -17,6 +17,25 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RoutingTest(unittest.TestCase):
+    def test_explicit_summary_destination_does_not_publish_actions_card(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = root / "plan.json"
+            plan.write_text('{"replay": []}')
+            details = root / "results/details.md"
+            actions = root / "actions.md"
+            argv = ["routing", "run", "--mode", "pr", "--plan", str(plan),
+                    "--results", str(root / "results"), "--summary-output", str(details)]
+            with patch.object(sys, "argv", argv), patch.dict(os.environ, {
+                "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1", "GITHUB_STEP_SUMMARY": str(actions)
+            }), patch.object(MODULE, "make_plan", return_value={"replay": []}), patch.object(
+                MODULE.subprocess, "check_output", return_value="reviewed-head"
+            ):
+                MODULE.main()
+            self.assertIn("Offline replay results", details.read_text())
+            self.assertFalse(actions.exists())
+            self.assertTrue((root / "results/replay-results.json").exists())
+
     def test_progress_allocation_matches_weight_bytes_and_go_membership_encoding(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

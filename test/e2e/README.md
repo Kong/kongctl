@@ -863,7 +863,7 @@ the normal build to run. The fallback restore has a two-minute limit, and a
 successful job still saves its cache under the current dependency-specific
 key through setup-go. Exact hits do not perform the additional restore.
 
-The `Report Go cache status` log and job summary preserve the original
+The `Report Go cache status` log and build details artifact preserve the original
 primary-key hit field and add `dependency-fallback-v1` with `exact`, `fallback`,
 or `cold`, plus the fallback outcome and matched key. Compare these categories
 separately when measuring build time; all still belong to `cache-enabled`.
@@ -971,7 +971,7 @@ Run it locally with:
 CGO_ENABLED=0 go test -tags=e2e ./test/e2e -run '^TestWeighted' -v
 ```
 
-Each shard's workflow summary identifies the actual allocation and compares
+Each shard's detailed Markdown artifact identifies the allocation and compares
 modulo and weighted estimated totals,
 longest-shard time, and spread. Its `e2e-artifacts-*` artifact contains:
 
@@ -994,3 +994,44 @@ pre-activation baseline. Also inspect failed/cancelled workflows and beta
 scenario failures: this successful-run collector alone cannot establish
 reliability. Roll back promptly for coverage/pinning problems or reproducible
 ordering-dependent failures; do not weaken assertions to retain speedups.
+
+### Consolidated Actions run report
+
+The `E2E run summary` job publishes the workflow's main human-readable report:
+
+- Live and recorded replay assignments, passes, failures, skips, and advisory
+  failures, together with coverage verification results.
+- Scenario execution windows, individual shard runner and job durations, build
+  duration, and initial queue wait reported separately. Execution windows exclude
+  build and artifact upload, but include launch skew and waits between selected
+  attempts; parallel shard durations are not added together as elapsed time.
+- Observed request failures and subprocess deadlines by shard and scenario, with
+  evidence paths and artifact links. Reset events say `recovered` only when the
+  individual operation subsequently succeeds. `command_passed` indicates command
+  completion and does not prove that a particular HTTP request recovered.
+- Collapsed coverage, slowest scenarios, routing, cache, and artifact details.
+
+The report selects the latest available attempt for each shard. A newer job with
+missing evidence invalidates older successful evidence. Missing logs can
+undercount transient events; missing results remain incomplete. Compare runner
+measurements only across compatible scenario sets, environments, and allocation
+strategies. Windows combining partial reruns can include time between attempts.
+
+Artifacts retain the detailed evidence:
+
+- `e2e-routing-<run>`: complete routing JSON and build/cache details.
+- `e2e-report-<run>-<attempt>-<org>`: compact shard JSON and detailed Markdown.
+- `e2e-coverage-<run>-<attempt>`: detailed coverage verification output.
+- `e2e-run-summary-<run>-<attempt>`: rendered summary, combined report JSON,
+  verification job outcomes, and GitHub job timing metadata.
+- Existing `e2e-artifacts-*` and `e2e-metrics-*` artifacts retain full diagnostics
+  and metrics. The summary job downloads only compact evidence.
+
+Reset event records contain classification, timing, attempt, and outcome, without
+request URLs, resource IDs, raw errors, or response bodies. Counts represent
+observed failed attempts, not distinct network incidents. Reporting does not
+change retry eligibility, deadlines, or the required E2E gate.
+
+GitHub controls summary card ordering. Our workflow publishes one consolidated
+card instead of separate routing and shard cards. StepSecurity Harden Runner
+retains its own monitoring and summaries, which may appear before this report.

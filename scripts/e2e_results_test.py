@@ -26,11 +26,11 @@ class ResultsTest(unittest.TestCase):
     def test_setup_failure_reports_that_scenarios_did_not_run(self):
         step = self.step('e2e', 'Summarize scenario diagnostics')
         with tempfile.TemporaryDirectory() as directory:
-            summary = Path(directory) / 'summary.md'
+            summary = Path(directory) / 'e2e-details.md'
             result = subprocess.run(['bash', '-e', '-c', step['run']], capture_output=True, text=True,
                                     env={**os.environ, 'SCENARIO_ARTIFACTS_DIR': '',
                                          'SCENARIOS_OUTCOME': 'skipped', 'SETUP_DECK_OUTCOME': 'failure',
-                                         'GITHUB_STEP_SUMMARY': str(summary)})
+                                         'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent)})
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('Scenarios did not run: Setup deck failed.', summary.read_text())
             self.assertIn('Shard metrics unavailable', summary.read_text())
@@ -45,15 +45,36 @@ class ResultsTest(unittest.TestCase):
         self.assertEqual(upload['if'], "always() && steps.metrics.outcome == 'success'")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            summary = root / 'summary.md'
+            summary = root / 'e2e-details.md'
             result = subprocess.run(['bash', '-e', '-c', step['run']], cwd=ROOT,
                                     capture_output=True, text=True,
                                     env={**os.environ, 'KONGCTL_E2E_ARTIFACTS_DIR': str(root / 'missing'),
-                                         'GITHUB_STEP_SUMMARY': str(summary)})
+                                         'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent)})
             self.assertEqual(result.returncode, 1)
             self.assertIn('::warning::Shard metrics unavailable', result.stdout)
             self.assertIn('collection failed', summary.read_text())
             self.assertFalse((root / 'missing/e2e-metrics.json').exists())
+
+    def test_consolidated_report_survives_failure_and_keeps_evidence(self):
+        job = self.jobs['e2e-summary']
+        self.assertEqual(job['if'], 'always()')
+        self.assertEqual(job['permissions'], {'actions': 'read', 'contents': 'read'})
+        self.assertIn('e2e-verify', job['needs'])
+        self.assertIn('e2e-required', job['needs'])
+        publish = self.step('e2e-summary', 'Publish consolidated summary')
+        self.assertEqual(publish['if'], 'always()')
+        self.assertIn('INCOMPLETE', publish['run'])
+        upload = self.step('e2e-summary', 'Upload consolidated report')
+        self.assertEqual(upload['if'], 'always()')
+        self.assertTrue(upload['with']['include-hidden-files'])
+        routing = self.step('e2e-build', 'Upload routing plan')['with']['path'].split()
+        self.assertEqual(routing, ['e2e-routing.json', 'e2e-build-details.md'])
+        for name, other in self.jobs.items():
+            if name == 'e2e-summary':
+                continue
+            for step in other.get('steps', []):
+                self.assertNotIn('GITHUB_STEP_SUMMARY', step.get('run', ''))
+                self.assertNotIn('core.summary', step.get('with', {}).get('script', ''))
 
     def artifact_name(self, attempt, org):
         name = self.step('e2e', 'Upload scenario results and diagnostics')['with']['name']
@@ -102,13 +123,13 @@ class ResultsTest(unittest.TestCase):
                     f'duration_seconds=1\npassed_count={int(passes)}\nfailed_count={int(not passes)}\n'
                     'skipped_count=0\nbeta_failed_count=0\nobserved_count=1\n\n'
                     f'[{"passed" if passes else "failed"}]\n{result}\n')
-            summary = workspace / 'summary.md'
+            summary = workspace / 'e2e-details.md'
             completed = subprocess.run(
                 ['bash', '-c', self.step('e2e-verify', 'Verify scenario coverage and results')['run']],
                 cwd=workspace, capture_output=True, text=True,
                 env={**os.environ, 'GITHUB_WORKSPACE': str(workspace), 'GITHUB_RUN_ID': '123',
                      'GITHUB_EVENT_NAME': event, 'REPLAY_VERIFY_RESULT': 'success',
-                     'GITHUB_STEP_SUMMARY': str(summary), 'TMPDIR': str(workspace)},
+                     'GITHUB_STEP_SUMMARY': str(summary), 'RUNNER_TEMP': str(summary.parent), 'TMPDIR': str(workspace)},
             )
             return completed, summary.read_text()
 
