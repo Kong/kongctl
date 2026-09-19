@@ -473,8 +473,11 @@ Consumer Credentials, which match within their parent consumer. UUID refs
 and cached IDs do not override the declared name or retain a differently
 named resource during sync. Config Store names are immutable after creation.
 AI Gateway Data Plane Certificates use their required `title` field as the
-stable Konnect child name. Child entries inherit management scope from their
-parent resource and do not accept `kongctl` metadata.
+stable Konnect child name and match only by title within their gateway.
+UUID refs and cached IDs do not override the declared title. A changed title
+declares a different certificate and sync can delete the previous one.
+Child entries inherit management scope from their parent resource and do not
+accept `kongctl` metadata.
 
 When upgrading configurations that relied on UUID refs or display-name
 matching, explicitly set each gateway and name-bearing child's `name` to its
@@ -1120,6 +1123,14 @@ ai_gateway_data_plane_certificates:
    description: string
    cert: string required # prefer !file or !env for PEM data
 ```
+
+Runtime certificates, CA certificates, and SNIs match only by their explicit
+`name` within their gateway. UUID refs and cached IDs do not override that
+name or retain a differently named resource during sync. Keep the existing
+API name when upgrading manifests; changing it declares a different resource.
+When changing a certificate name, update referencing SNIs. Sync rejects
+deletion of a certificate still referenced by an unchanged SNI; planned SNI
+deletion or reassignment must complete before certificate deletion.
 
 Runtime certificates terminate or originate TLS traffic and are distinct from
 data plane client certificates. Private keys are write-only. Supply them with

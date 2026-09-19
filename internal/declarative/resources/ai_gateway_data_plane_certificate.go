@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/util"
 )
 
 const (
@@ -160,12 +159,6 @@ func (a *AIGatewayDataPlaneCertificateResource) TryMatchKonnectResource(konnectR
 	}
 
 	id := AIGatewayDataPlaneCertificateID(konnectResource)
-	if id != "" && (util.IsValidUUID(a.Ref) || a.GetKonnectID() != "") {
-		if a.Ref == id || a.GetKonnectID() == id {
-			a.SetKonnectID(id)
-			return true
-		}
-	}
 	if id != "" && AIGatewayDataPlaneCertificateTitle(konnectResource) == title {
 		a.SetKonnectID(id)
 		return true
