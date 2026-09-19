@@ -3,6 +3,7 @@
 package harness
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -45,5 +46,33 @@ func TestReadHTTPPhases(t *testing.T) {
 	require.Equal(t, "connect_done", requests[1].LastPhase)
 	require.EqualValues(t, 10, requests[1].ElapsedMS)
 	require.Equal(t, "failed", requests[1].Outcome)
+	require.NotNil(t, requests[1].TerminalElapsedMS)
+	require.EqualValues(t, 11, *requests[1].TerminalElapsedMS)
 	require.Equal(t, "response_headers", requests[2].Outcome)
+	require.NotNil(t, requests[2].TerminalElapsedMS)
+	require.EqualValues(t, 3, *requests[2].TerminalElapsedMS)
+}
+
+func TestHTTPPhaseTerminalTiming(t *testing.T) {
+	for _, terminal := range []string{"15000", "0", "", "invalid", "-1"} {
+		t.Run(terminal, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "kongctl.log")
+			data := "log_type=http_phase request_id=khttp-000001 phase=request_written elapsed_ms=5\n" +
+				"log_type=http_phase request_id=khttp-000001 phase=request_done outcome=failed elapsed_ms=" + terminal + "\n"
+			require.NoError(t, os.WriteFile(path, []byte(data), 0o600))
+			requests, err := ReadHTTPPhases(path)
+			require.NoError(t, err)
+			require.Len(t, requests, 1)
+			require.EqualValues(t, 5, requests[0].ElapsedMS)
+			encoded, err := json.Marshal(requests[0])
+			require.NoError(t, err)
+			if terminal == "15000" || terminal == "0" {
+				require.NotNil(t, requests[0].TerminalElapsedMS)
+				require.Contains(t, string(encoded), `"terminal_elapsed_ms":`+terminal)
+			} else {
+				require.Nil(t, requests[0].TerminalElapsedMS)
+				require.NotContains(t, string(encoded), "terminal_elapsed_ms")
+			}
+		})
+	}
 }

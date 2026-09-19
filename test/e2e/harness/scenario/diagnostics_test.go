@@ -185,3 +185,40 @@ func TestDiagnosticsLinkRecoveredAndFinalAttemptLogs(t *testing.T) {
 		t.Fatalf("wrong terminal cause: %+v", d.Failure)
 	}
 }
+
+func TestDiagnosticsTraceAvailability(t *testing.T) {
+	for _, mode := range []string{"missing", "empty", "read_error"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "command")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(dir, "kongctl.log")
+			switch mode {
+			case "empty":
+				if err := os.WriteFile(path, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+			case "read_error":
+				if err := os.Mkdir(path, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			d := newScenarioDiagnostics(filepath.Join(root, "scenario-diagnostics.json"), "example")
+			d.begin("exec", "external")
+			d.subprocess(harness.Result{}, time.Minute, dir)
+			got := d.current.Attempts[0]
+			want := "not_observed"
+			if mode == "read_error" {
+				want = "unavailable_or_incomplete"
+			}
+			if got.HTTPTraceStatus != want {
+				t.Fatalf("status=%s, want %s", got.HTTPTraceStatus, want)
+			}
+			if mode == "missing" && got.LogPath != "" {
+				t.Fatalf("link to missing log: %s", got.LogPath)
+			}
+		})
+	}
+}

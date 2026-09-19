@@ -12,11 +12,12 @@ import (
 // HTTPPhaseDiagnostic contains only allowlisted trace metadata. Request IDs
 // are scoped to the subprocess log, not unique across execution attempts.
 type HTTPPhaseDiagnostic struct {
-	RequestID     string `json:"request_id"`
-	LastPhase     string `json:"last_observed_phase"`
-	ElapsedMS     int64  `json:"last_observed_elapsed_ms"`
-	HTTPTimeoutMS int64  `json:"http_timeout_ms"`
-	Outcome       string `json:"outcome"`
+	RequestID         string `json:"request_id"`
+	LastPhase         string `json:"last_observed_phase"`
+	ElapsedMS         int64  `json:"last_observed_elapsed_ms"`
+	TerminalElapsedMS *int64 `json:"terminal_elapsed_ms,omitempty"`
+	HTTPTimeoutMS     int64  `json:"http_timeout_ms"`
+	Outcome           string `json:"outcome"`
 }
 
 // ReadHTTPPhases reads the CLI's slog text file. A missing or truncated trace
@@ -70,6 +71,9 @@ func ReadHTTPPhases(path string) ([]HTTPPhaseDiagnostic, error) {
 			switch fields["outcome"] {
 			case "failed", "response_headers":
 				r.Outcome = fields["outcome"]
+				if elapsed, err := strconv.ParseInt(fields["elapsed_ms"], 10, 64); err == nil && elapsed >= 0 {
+					r.TerminalElapsedMS = &elapsed
+				}
 			}
 		} else {
 			r.LastPhase = phase

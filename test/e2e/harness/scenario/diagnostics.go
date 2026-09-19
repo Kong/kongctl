@@ -4,6 +4,7 @@ package scenario
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -97,7 +98,10 @@ func (d *scenarioDiagnostics) subprocess(res harness.Result, timeout time.Durati
 			a.LogPath = filepath.ToSlash(rel)
 			a.HTTPRequests, err = harness.ReadHTTPPhases(path)
 			a.HTTPTraceStatus = "recorded"
-			if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				a.HTTPTraceStatus = "not_observed"
+				a.LogPath = ""
+			} else if err != nil {
 				a.HTTPTraceStatus = "unavailable_or_incomplete"
 			} else if len(a.HTTPRequests) == 0 {
 				a.HTTPTraceStatus = "not_observed"

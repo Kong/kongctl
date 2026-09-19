@@ -591,13 +591,17 @@ returned response headers, not that response-body consumption completed.
 Phase callbacks may be concurrent; absent DNS/TLS events can indicate reuse
 or an unsupported transport, and are not evidence of failure.
 
-In `scenario-diagnostics.json`, each subprocess attempt includes a `log_path`
-relative to that file and `http_requests` with the last observed phase,
-elapsed time, effective HTTP timeout, and outcome. Its existing `timeout_ms`
-is the separate subprocess limit. `unfinished` means no completion event was
-observed; it does not establish a server timeout. `http_trace_status` reports
-missing or incomplete evidence explicitly. Summary metadata excludes routes,
-error text, headers, and bodies.
+In `scenario-diagnostics.json`, each subprocess attempt with a captured log
+includes a `log_path` relative to that file and `http_requests` with the last
+observed phase, elapsed time, effective HTTP timeout, and outcome.
+`terminal_elapsed_ms` separately records the completion/error event's elapsed
+time when available; it is omitted for unfinished requests or missing/invalid
+terminal timing. Its existing `timeout_ms` is the separate subprocess limit.
+`unfinished` means no completion event was observed; it does not establish a
+server timeout. `http_trace_status` reports `not_observed` when no log exists
+or no phase events were captured, and `unavailable_or_incomplete` on
+read/scanner errors. Missing logs have no `log_path`. Summary metadata
+excludes routes, error text, headers, and bodies.
 
 Correlate using scenario, step, command, attempt index, log path, and request
 ID together: `khttp-000001` can recur in every process. Earlier retried
