@@ -36,9 +36,6 @@ steps:
       - name: 000-plan-initial-create
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-initial.json"
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -90,9 +87,6 @@ steps:
 
       - name: 001-apply-initial-create
         outputFormat: json
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - apply
           - --plan
@@ -106,9 +100,6 @@ steps:
                 failed: 0
 
       - name: 002-verify-teams-created
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
@@ -144,9 +135,6 @@ steps:
 
       - name: 003-get-single-team-by-name
         outputFormat: json
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
@@ -198,9 +186,6 @@ steps:
       - name: 001-plan-update
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -224,9 +209,6 @@ steps:
 
       - name: 002-apply-update
         outputFormat: json
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - apply
           - --plan
@@ -240,9 +222,6 @@ steps:
                 failed: 0
 
       - name: 003-verify-team-updated
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - get
           - portal
@@ -290,9 +269,6 @@ steps:
       - name: 000-plan-sync-delete
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-sync-delete.json"
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - plan
           - -f
@@ -319,9 +295,6 @@ steps:
 
       - name: 001-apply-sync-delete
         outputFormat: json
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - sync
           - --plan
@@ -466,9 +439,6 @@ steps:
 
       - name: 001-apply-team-roles
         outputFormat: json
-        env:
-          KONNECT_SDK_HTTP_DUMP_REQUEST: "true"
-          KONNECT_SDK_HTTP_DUMP_RESPONSE: "true"
         run:
           - apply
           - --plan

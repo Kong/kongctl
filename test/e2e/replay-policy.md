@@ -9,7 +9,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
 `event-gateway/consume-policy`,
 `portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/pages`,
-`portal/sync`, and `portal/visibility`.
+`portal/sync`, `portal/teams`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
 | --- | --- |
@@ -23,6 +23,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/api_docs_with_children | [Recording][docs-record], [isolated replays][docs-replay] |
 | portal/ip-allow-list | [Recording][ip-record], [isolated replays][ip-replay] |
 | portal/pages | [Recording and isolated replays][pages-record] |
+| portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -40,6 +41,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [ip-record]: https://github.com/Kong/kongctl/actions/runs/35165520273
 [ip-replay]: https://github.com/Kong/kongctl/actions/runs/35166388118
 [pages-record]: https://github.com/Kong/kongctl/actions/runs/35361530847
+[teams-record]: https://github.com/Kong/kongctl/actions/runs/35419035814
+[teams-replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
 
 ## Routing
 
@@ -295,6 +298,15 @@ no-op and malformed-frontmatter plans, and leaf deletion assertions remain
 intact. No ordering annotations or matcher changes were needed. Its
 [replay review](scenarios/portal/pages/replay/README.md) records provenance
 and the timing comparison, including the avoided scenario reset.
+
+`portal/teams` is enabled after live recording and three isolated replays
+of all 163 exchanges. Team creation, updates, sync deletion, role assignment
+and removal, no-op plans, and dump round-trip assertions remain intact.
+Only small groups of independent team operations may reorder; mutation
+and command boundaries stay strict. Its
+[replay review](scenarios/portal/teams/replay/README.md) documents those
+groups, provenance, and timing. PR replay avoids one more scenario reset;
+main continues to run the complete scenario live.
 
 ## Measurement
 

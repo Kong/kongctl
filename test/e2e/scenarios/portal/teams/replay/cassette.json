@@ -1,0 +1,56 @@
+{
+  "schema_version": 2,
+  "scenario": "portal/teams",
+  "inputs_sha256": "sha256:741602061bffb16c415dce24f057688f55a718a36657654dc3abc80fe6443537",
+  "source": {
+    "kind": "recorded",
+    "commit": "9c76a8b3a182cf4168da020e75fdf0bcbc05f33b",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35419035814"
+  },
+  "parallel_phases": [
+    {
+      "start": 3,
+      "end": 5,
+      "after": {}
+    },
+    {
+      "start": 73,
+      "end": 75,
+      "after": {}
+    },
+    {
+      "start": 78,
+      "end": 80,
+      "after": {}
+    },
+    {
+      "start": 93,
+      "end": 95,
+      "after": {}
+    },
+    {
+      "start": 103,
+      "end": 105,
+      "after": {}
+    },
+    {
+      "start": 133,
+      "end": 135,
+      "after": {}
+    },
+    {
+      "start": 142,
+      "end": 144,
+      "after": {}
+    },
+    {
+      "start": 161,
+      "end": 162,
+      "after": {}
+    }
+  ],
+  "interaction_chunks": [
+    "b4da843866cb48c56b76060051cfa5d193740886180b0cf496c16cd4db1411d4",
+    "831dea45581ec10a8644a185123bc7a195ce727f2f63ba590d94ab43db96146f"
+  ]
+}
