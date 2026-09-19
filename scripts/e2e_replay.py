@@ -26,6 +26,9 @@ from urllib.parse import parse_qsl, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from e2e_replay_users import (USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdentities,
+                              recording_inputs, recording_org, replay_inputs)
 # CI installs the pinned parser here before entering network isolation. Local
 # users can install the same requirements in their active Python environment.
 sys.path.insert(0, str(ROOT / ".e2e-artifacts/replay-python"))
@@ -36,6 +39,7 @@ SCENARIOS = (
     "control-plane/sync", "control-plane/sync-groups", "event-gateway/consume-policy", "portal/api_docs_with_children",
     "portal/customization", "portal/email-templates", "portal/ip-allow-list", "portal/pages", "portal/sync",
     "portal/teams", "portal/visibility",
+    *USER_SCENARIOS,
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -177,7 +181,7 @@ def parse_scenario(definition):
     return scenario
 
 
-def check_scenario_controls(scenario):
+def check_scenario_controls(scenario, user_env=(), replay_resets=False):
     """Assertion field values are data, not executable scenario controls."""
     fields, initial_reset = [], None
     for step_index, step in enumerate(scenario["steps"]):
@@ -203,11 +207,27 @@ def check_scenario_controls(scenario):
         if isinstance(value, dict):
             if any(value is field for field in fields):
                 return
-            if unsupported & value.keys():
+            allowed = set()
+            if user_env and value is scenario.get("test"):
+                if (value.get("assignedEnvironment") != "kongctl-acceptance"
+                        or value.get("requiredEnvVars") != list(user_env)):
+                    raise ValueError("organization user replay requires the reviewed environment and inputs")
+                allowed.update({"assignedEnvironment", "requiredEnvVars"})
+            if replay_resets and "create" in value:
+                creation = value["create"]
+                if (set(value) != {"name", "create"} or not isinstance(creation, dict)
+                        or set(creation) != {"resource", "payload"}
+                        or creation["resource"] != "system-account"
+                        or creation["payload"] != {"inline": {
+                            "name": "{{ .vars.systemAccountName }}",
+                            "description": "System account for organization teams dump E2E coverage"}}):
+                    raise ValueError("replay supports only the reviewed system-account creation")
+                allowed.add("create")
+            if (unsupported - allowed) & value.keys():
                 raise ValueError("scenario gained an unsupported command, environment dependency or organization pin")
             if "env" in value and (value is not scenario or value["env"] != {"KONGCTL_LOG_LEVEL": "info"}):
                 raise ValueError("replay does not support environment overrides")
-            if "resetOrg" in value and (value is not initial_reset or value["resetOrg"] is not True
+            if "resetOrg" in value and ((value is not initial_reset and not replay_resets) or value["resetOrg"] is not True
                                        or set(value) - {"name", "resetOrg"}):
                 raise ValueError("replay supports only a standalone initial reset; mid-scenario resets are unsupported")
             for child in value.values():
@@ -268,10 +288,19 @@ def check_eligibility(directory):
     # implementation review, not merely a refreshed fingerprint.
     definition = (directory / "scenario.yaml").read_text(encoding="utf-8")
     scenario = parse_scenario(definition)
-    check_scenario_controls(scenario)
+    try:
+        name = directory.relative_to(ROOT / "test/e2e/scenarios").as_posix()
+    except ValueError:
+        name = None
+    user_env = USER_SCENARIOS.get(name, ())
+    check_scenario_controls(scenario, user_env, name == "dump/organization-teams")
+    if user_env and not scenario.get("test"):
+        raise ValueError("organization user replay requires its input declarations")
     if "inputOverlayOps" in definition:
         check_inline_overlays(directory, scenario)
-    if not re.search(r"(?m)^baseInputsPath: testdata\s*$", definition):
+    no_inputs = ("baseInputsPath" not in scenario and scenario["steps"]
+                 and all(step.get("skipInputs") is True for step in scenario["steps"]))
+    if not no_inputs and not re.search(r"(?m)^baseInputsPath: testdata\s*$", definition):
         raise ValueError("prototype requires scenario-local testdata inputs")
     for match in re.finditer(r"(?m)^\s*stdoutFile:\s*(.+)$", definition):
         if not re.fullmatch(r'"\{\{ \.workdir \}\}/[a-zA-Z0-9_-]+\.(json|yaml)"', match[1]):
@@ -293,6 +322,10 @@ def check_eligibility(directory):
         if not path.is_file():
             continue
         content = path.read_text(encoding="utf-8")
+        if user_env:
+            # Only exact email lookup fields, never arbitrary environment tags.
+            content = re.sub(r"(?m)^(\s*email: )!env (\w+)\s*$",
+                             lambda m: m[1] + "replay-user@example.invalid" if m[2] in user_env else m[0], content)
         if any(marker in content for marker in ("../", "repo_dir", "!env", "!include", "!<", "%TAG")):
             raise ValueError("scenario gained an external input; replay dependency review is required")
         # Only plain scalar local !file references are supported. Overlays are
@@ -349,16 +382,20 @@ def fixture_strings(directory):
             spec = parse_json(content)
             if isinstance(spec, dict) and ("openapi" in spec or "swagger" in spec):
                 specs.add(canonical(spec))
-    return PublicFixtures(strings, specs)
+    user_scenario = directory in [ROOT / "test/e2e/scenarios" / name for name in USER_SCENARIOS]
+    return PublicFixtures(strings, specs, user_scenario)
 
 
 class PublicFixtures:
     """Exact whole strings or whole OpenAPI objects; never individual fields."""
 
-    def __init__(self, strings, specs):
+    def __init__(self, strings, specs, user_scenario=False):
         self.strings, self.specs = strings, specs
+        self.user_scenario = user_scenario
 
     def __contains__(self, value):
+        if self.user_scenario and SYNTHETIC_EMAIL.fullmatch(value):
+            return True
         if value in self.strings:
             return True
         if self.specs and value.lstrip().startswith("{"):
@@ -570,7 +607,7 @@ def parallel_phases(cassette):
 
 
 class Replay:
-    def __init__(self, cassette=None, token=None, fixtures=frozenset()):
+    def __init__(self, cassette=None, token=None, fixtures=frozenset(), user_inputs=None):
         self.interactions = cassette["interactions"] if cassette else []
         self.token = token
         self.position = 0
@@ -583,6 +620,7 @@ class Replay:
         self.closed = False
         self.fixtures = fixtures
         self.sanitizer = Sanitizer(fixtures)
+        self.user_identities = UserIdentities(user_inputs) if user_inputs is not None else None
 
     def fail(self, message):
         with self.changed:
@@ -667,7 +705,12 @@ class Replay:
                     raise ValueError("explicit JSON null responses are unsupported")
             finally:
                 connection.close()
-            item = self.sanitizer.normalize({"request": request, "response": response})
+            item = {"request": request, "response": response}
+            if self.token in canonical(item):
+                raise ValueError("credential echoed in response; refusing recording")
+            if self.user_identities is not None:
+                item = self.user_identities.normalize(item)
+            item = self.sanitizer.normalize(item)
             if self.token in canonical(item):
                 raise ValueError("credential echoed in response; refusing recording")
             check_safe(item, self.fixtures)
@@ -830,6 +873,11 @@ def clean_environment(directory, binary, scenario=SCENARIO):
         "KONGCTL_E2E_KONNECT_PAT": DUMMY_PAT, "KONGCTL_E2E_RESET": "0",
         "KONGCTL_E2E_CONSOLE_LOG_LEVEL": "warn", "KONGCTL_E2E_BETA_MODE": "fail",
     })
+    env.update(replay_inputs(scenario))
+    if scenario == "dump/organization-teams":
+        # Its round trip intentionally resets between dump and reconstruction.
+        # Record/replay these HTTP calls rather than silently skipping the reset.
+        env["KONGCTL_E2E_RESET"] = "1"
     return env
 
 
@@ -907,8 +955,8 @@ def main():
         # existing acceptance-3 environment and exact live shard lock.
         if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch":
             raise ValueError("record only through the manual E2E replay workflow (organization lock required)")
-        if os.environ.get("KONGCTL_E2E_MATRIX_ORG") != "kongctl-acceptance-3":
-            raise ValueError("recording requires the locked kongctl-acceptance-3 environment")
+        if os.environ.get("KONGCTL_E2E_MATRIX_ORG") != recording_org(args.scenario):
+            raise ValueError("recording requires the scenario-selected locked environment")
         token = os.environ.get("KONGCTL_E2E_KONNECT_PAT")
         if not token:
             raise ValueError("recording PAT is missing")
@@ -916,10 +964,12 @@ def main():
         if not binary.is_file():
             raise ValueError(f"missing executable: {binary}; run make build-e2e-replay")
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    engine = Replay(cassette, token, fixture_strings(directory))
+    inputs = recording_inputs(args.scenario, os.environ) if token else replay_inputs(args.scenario)
+    engine = Replay(cassette, token, fixture_strings(directory), inputs if args.scenario in USER_SCENARIOS else None)
     with tempfile.TemporaryDirectory(prefix="kongctl-replay-") as temporary:
         private = Path(temporary)
         env = clean_environment(private, args.binary.resolve(), args.scenario)
+        env.update(inputs)
         reset_env = {**env, "KONGCTL_E2E_KONNECT_PAT": token or DUMMY_PAT, "KONGCTL_E2E_RESET": "1"}
         started = time.monotonic()
         try:

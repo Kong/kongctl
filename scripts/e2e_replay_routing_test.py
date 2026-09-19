@@ -45,7 +45,7 @@ class RoutingTest(unittest.TestCase):
     def test_verifier_code_can_be_separate_from_scenario_checkout(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for name in ("e2e_replay_routing.py", "e2e_replay.py"):
+            for name in ("e2e_replay_routing.py", "e2e_replay.py", "e2e_replay_users.py"):
                 shutil.copyfile(Path(__file__).with_name(name), root / name)
             plan = root / "routing.json"
             plan.write_text(json.dumps(MODULE.make_plan(MODULE.REPLAY.ROOT, "live")))
