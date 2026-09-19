@@ -143,9 +143,9 @@ Core harness settings:
 - `KONGCTL_E2E_HTTP_RETRY_JITTER`: Jitter applied to raw Konnect HTTP helper
   retries. Default: `250ms`.
 - `KONGCTL_E2E_RESET_HTTP_TIMEOUT`: Per-request timeout for destructive org
-  reset API calls. Default: `15s`.
+  reset API calls. Local and CI default: `15s`.
 - `KONGCTL_E2E_RESET_TIMEOUT`: Total time budget for a single org reset before
-  the harness aborts the remaining reset steps. Default: `3m`.
+  the harness aborts the remaining reset steps. Local and CI default: `3m`.
 - `KONGCTL_E2E_RESET_RETRY_ATTEMPTS`: Retry attempts for reset API calls.
   Default: `3`.
 - `KONGCTL_E2E_RESET_RETRY_INTERVAL`: Base retry interval for reset API calls.
