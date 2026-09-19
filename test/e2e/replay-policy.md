@@ -8,7 +8,8 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
 `event-gateway/consume-policy`,
-`portal/api_docs_with_children`, `portal/ip-allow-list`, `portal/pages`,
+`portal/api_docs_with_children`, `portal/email-templates`,
+`portal/ip-allow-list`, `portal/pages`,
 `portal/sync`, `portal/teams`, and `portal/visibility`.
 
 | Scenario | Successful recording and three isolated replays |
@@ -24,6 +25,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/ip-allow-list | [Recording][ip-record], [isolated replays][ip-replay] |
 | portal/pages | [Recording and isolated replays][pages-record] |
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
+| portal/email-templates | [Recording][email-record], [isolated replays][email-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -43,6 +45,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [pages-record]: https://github.com/Kong/kongctl/actions/runs/35361530847
 [teams-record]: https://github.com/Kong/kongctl/actions/runs/35419035814
 [teams-replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
+[email-record]: https://github.com/Kong/kongctl/actions/runs/35446057376
+[email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
 
 ## Routing
 
@@ -307,6 +311,16 @@ and command boundaries stay strict. Its
 [replay review](scenarios/portal/teams/replay/README.md) documents those
 groups, provenance, and timing. PR replay avoids one more scenario reset;
 main continues to run the complete scenario live.
+
+`portal/email-templates` is enabled after live recording and three isolated
+replays of all 97 exchanges. The scenario and its assertions are unchanged,
+including disabled-template content updates, null fields, idempotency,
+sync removal, and the dump round trip. Five bounded phases permit only
+independent operations within individual commands; read-before-write
+dependencies remain enforced. Its
+[replay review](scenarios/portal/email-templates/replay/README.md) records
+provenance, exact command boundaries, and measurements. Eligible PR replay
+skips its scenario reset; main remains fully live.
 
 ## Measurement
 

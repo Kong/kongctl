@@ -7,6 +7,7 @@
     "control-plane/sync",
     "event-gateway/consume-policy",
     "portal/api_docs_with_children",
+    "portal/email-templates",
     "portal/ip-allow-list",
     "portal/pages",
     "portal/sync",
