@@ -357,6 +357,10 @@ then the standard configuration path. An empty environment variable is ignored.
 A custom file must exist and be valid; an invalid path does not fall back to
 your standard configuration. This setting does not change `XDG_CONFIG_HOME`.
 
+For extension subprocesses, the config file inherited from the parent command
+takes precedence over `KONGCTL_CONFIG_FILE`. An explicit `--config-file` still
+takes precedence over the inherited file.
+
 *Note: By design `kongctl` does not write to your configuration file. The philosphy for this is that
 there should be one owner and writer of configuration data, and that is the user.*
 
