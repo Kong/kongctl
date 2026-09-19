@@ -21,6 +21,12 @@ on:
           - control-plane/sync
           - control-plane/sync-groups
           - event-gateway/consume-policy
+          - dump/organization-teams
+          - org/users/assignments
+          - org/users/get
+          - org/users/plan/apply-workflow
+          - org/users/plan/sync-workflow
+          - org/users/sync
           - portal/api_docs_with_children
           - portal/customization
           - portal/email-templates
@@ -45,6 +51,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      recording_org: ${{ steps.recording-org.outputs.org }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,6 +77,12 @@ jobs:
           python3 -m unittest discover -s scripts -p e2e_replay_test.py
       - name: Build experiment binaries
         run: make build-e2e-replay
+      - name: Select the reviewed recording organization
+        id: recording-org
+        env:
+          REPLAY_SCENARIO: ${{ inputs.scenario }}
+        run: |
+          python3 -c 'import os; from scripts.e2e_replay_users import recording_org; print("org=" + recording_org(os.environ["REPLAY_SCENARIO"]))' >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: replay-binaries
@@ -84,13 +98,13 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    # EXACTLY the same group as e2e.yaml's acceptance-3 shard. Do not prefix
-    # with workflow name: recording must serialize with ordinary live runs.
+    # EXACTLY the live shard lock for the selected organization. User scenarios
+    # need the primary acceptance org where the pre-registered users exist.
     concurrency:
-      group: konnect-e2e-kongctl-acceptance-3
+      group: konnect-e2e-${{ needs.build.outputs.recording_org }}
       queue: max
       cancel-in-progress: false
-    environment: kongctl-acceptance-3
+    environment: ${{ needs.build.outputs.recording_org }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,8 +116,11 @@ jobs:
         run: make setup-e2e-replay
       - name: Record one scenario with before/after live reset
         env:
-          KONGCTL_E2E_MATRIX_ORG: kongctl-acceptance-3
+          KONGCTL_E2E_MATRIX_ORG: ${{ needs.build.outputs.recording_org }}
           KONGCTL_E2E_KONNECT_PAT: ${{ secrets.KONGCTL_E2E_KONNECT_PAT }}
+          KONGCTL_E2E_ORG_USER_EMAIL_1: ${{ vars.KONGCTL_E2E_ORG_USER_EMAIL_1 }}
+          KONGCTL_E2E_ORG_USER_EMAIL_2: ${{ vars.KONGCTL_E2E_ORG_USER_EMAIL_2 }}
+          KONGCTL_E2E_ORG_USER_EMAIL_3: ${{ vars.KONGCTL_E2E_ORG_USER_EMAIL_3 }}
           REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
           chmod +x kongctl .e2e-artifacts/replay-bin/e2e.test .e2e-artifacts/replay-bin/reset-org

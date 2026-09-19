@@ -64,7 +64,7 @@ class RoutingTest(unittest.TestCase):
     def test_verifier_code_can_be_separate_from_scenario_checkout(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            for name in ("e2e_replay_routing.py", "e2e_replay.py"):
+            for name in ("e2e_replay_routing.py", "e2e_replay.py", "e2e_replay_users.py"):
                 shutil.copyfile(Path(__file__).with_name(name), root / name)
             plan = root / "routing.json"
             plan.write_text(json.dumps(MODULE.make_plan(MODULE.REPLAY.ROOT, "live")))
@@ -110,7 +110,9 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("portal/teams/scenario.yaml", pr["replay"])
         self.assertIn("portal/email-templates/scenario.yaml", pr["replay"])
         self.assertIn("portal/customization/scenario.yaml", pr["replay"])
-        self.assertEqual(13, len(pr["replay"]))
+        for scenario in MODULE.REPLAY.USER_SCENARIOS:
+            self.assertIn(scenario + "/scenario.yaml", pr["replay"])
+        self.assertEqual(19, len(pr["replay"]))
 
     def test_stale_cassette_fails_pr_but_does_not_block_live(self):
         with tempfile.TemporaryDirectory() as temporary:

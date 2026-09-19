@@ -7,7 +7,9 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
-`event-gateway/consume-policy`,
+`dump/organization-teams`, `event-gateway/consume-policy`,
+`org/users/assignments`, `org/users/get`, `org/users/plan/apply-workflow`,
+`org/users/plan/sync-workflow`, `org/users/sync`,
 `portal/api_docs_with_children`, `portal/customization`, `portal/email-templates`,
 `portal/ip-allow-list`, `portal/pages`,
 `portal/sync`, `portal/teams`, and `portal/visibility`.
@@ -27,6 +29,12 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/pages | [Recording and isolated replays][pages-record] |
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
 | portal/email-templates | [Recording][email-record], [isolated replays][email-replay] |
+| dump/organization-teams | [Recording][org-dump-record], [isolated replays][org-dump-replay] |
+| org/users/assignments | [Recording][user-assign-record], [isolated replays][user-assign-replay] |
+| org/users/get | [Recording and isolated replays][user-get-record] |
+| org/users/plan/apply-workflow | [Recording][user-apply-record], [isolated replays][user-apply-replay] |
+| org/users/plan/sync-workflow | [Recording][user-plan-sync-record], [isolated replays][user-plan-sync-replay] |
+| org/users/sync | [Recording][user-sync-record], [isolated replays][user-sync-replay] |
 
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
@@ -49,6 +57,17 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [teams-replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
 [email-record]: https://github.com/Kong/kongctl/actions/runs/35446057376
 [email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
+[org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35463078546
+[org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35463672734
+[user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35463074418
+[user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35463667949
+[user-get-record]: https://github.com/Kong/kongctl/actions/runs/35463073348
+[user-apply-record]: https://github.com/Kong/kongctl/actions/runs/35463075604
+[user-apply-replay]: https://github.com/Kong/kongctl/actions/runs/35463669060
+[user-plan-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463076560
+[user-plan-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463670245
+[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463077601
+[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463671463
 
 ## Routing
 
@@ -83,8 +102,11 @@ the enclosing workflow still holds its environment queue slot.
 
 Use this shared procedure for new replay coverage and cassette refreshes.
 The manual `e2e-replay.yaml` workflow uses CI credentials and the existing
-acceptance-3 lock and before/after resets; no local PAT or new organization
-is needed. After pushing the scenario changes, record the complete scenario
+organization lock and before/after resets; no local PAT or new organization
+is needed. The six organization-user scenarios use `kongctl-acceptance`,
+where their pre-registered users exist; other recordings use acceptance-3.
+The selected environment, credentials, and lock always refer to the same org.
+After pushing the scenario changes, record the complete scenario
 and replay it three times in the separate network-isolated job (replace
 both placeholders):
 
@@ -152,7 +174,12 @@ interaction ranges of 2–64 exchanges. Outside those ranges, order stays strict
 Inside a range every method, path, query, and body must still match exactly,
 once. Generated UUID references depend on their recorded creation. Repeated
 targets keep their stream order, except distinct successful creates with
-distinct generated IDs. In a wholly read-only phase, bodyless GETs with
+distinct generated IDs. Another narrow exception permits successful, empty
+201 responses to global `POST /v3/teams/{id}/users` with distinct, exact
+`{"id": "user UUID"}` bodies and no query. These membership additions commute,
+but duplicate additions stay ordered and team creation remains a prerequisite.
+No other empty-response create is exempt. In a wholly read-only phase,
+bodyless GETs with
 different queries may also reorder (for example, publications filtered by
 different API IDs). Queries still match exactly; repeated identical requests
 retain their stream order. Ancestor reads cannot cross updates or deletes.
@@ -227,11 +254,13 @@ override. Actual scenario/step/command overrides remain rejected, including
 flow-style declarations. Duplicate keys, YAML aliases and custom tags are
 rejected before eligibility is evaluated.
 
-Only a standalone `resetOrg: true` as the first command of the first step is
-supported. Recording uses the existing locked before/after reset; replay
-begins with an empty recorded state. A later reset would be skipped by the
-current replay environment and could invalidate a stateful round-trip test,
-so it fails eligibility rather than silently losing that boundary.
+Normally only a standalone `resetOrg: true` as the first command of the first
+step is supported. Recording uses the existing locked before/after reset;
+replay skips that initial reset. A later reset would invalidate a stateful
+round-trip test if skipped, so it fails eligibility. The explicit exception
+is `dump/organization-teams`: all of its in-scenario reset HTTP calls are
+recorded and replayed, including the mid-round-trip reset and final cleanup.
+It also permits only its reviewed inline system-account creation commands.
 
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
@@ -240,6 +269,45 @@ exact-content public-fixture checks; another overlay is not a fallback search
 path. Remote files, parent traversal, symlinks, arbitrary environment overrides
 and custom creation commands remain unsupported. Every input, overlay and
 assertion file is fingerprinted, including document and OpenAPI content.
+
+### Pre-registered organization users
+
+`dump/organization-teams` and the five `org/users` scenarios retain their
+primary acceptance organization pin and required live email inputs. Their
+only allowed environment dependencies are the declared
+`KONGCTL_E2E_ORG_USER_EMAIL_1`, `_2`, and `_3` lookup selectors. Input tags
+must be plain `email: !env VARIABLE` fields; arbitrary environment inputs,
+shell execution, and credentials embedded in fixtures remain unsupported.
+Shell wrappers in the user scenarios are expressed as equivalent CLI argv
+commands and recorded variables, retaining their assertions and jq coverage.
+
+Live recording requires distinct, nonempty real user inputs from the selected
+CI environment. Recording normalizes those users to stable
+`replay-user-N@example.invalid` addresses. Other returned users are assigned
+additional pseudonyms; they are not removed from list responses. User IDs
+use the existing UUID normalization. Names and account timestamps are
+pseudonymized; missing/null names, active states, collection ordering,
+memberships, and roles are preserved. Unknown user profile fields fail closed
+for review. No real-to-synthetic mapping is uploaded or committed.
+
+Offline execution supplies synthetic inputs without inheriting the caller's
+email values or requiring registered users in any organization. Matching
+remains exact: only recording sanitizes identities, not incoming replay
+requests. Cassette validation rejects unsanitized user names and timestamps
+as well as real email addresses. Live main and force-live runs still require
+the pre-registered users; replay is not a way to provision those users.
+
+To run a committed user cassette locally without Konnect credentials:
+
+```sh
+make build-e2e-replay
+python3 scripts/e2e_replay.py replay --scenario org/users/get \
+  --test-binary .e2e-artifacts/replay-bin/e2e.test
+```
+
+CI additionally enforces loopback-only networking. In the dump scenario,
+the mid-run reset executes against the replay proxy, so a missing cleanup or
+an incorrect reconstruction still fails instead of silently being skipped.
 
 Public document/spec strings containing example credentials or email addresses
 are preserved only when they match a fingerprinted input file: exact text for

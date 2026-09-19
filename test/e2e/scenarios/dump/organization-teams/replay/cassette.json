@@ -1,0 +1,4949 @@
+{
+  "schema_version": 2,
+  "scenario": "dump/organization-teams",
+  "inputs_sha256": "sha256:4223e073233f650da6b9cdbf70b256e3a0b77e5fcc7ddd3baac11215e1235b1a",
+  "source": {
+    "kind": "recorded",
+    "commit": "c139ad63ed85a286fadcd71500887a674399240b",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35463078546"
+  },
+  "interactions": [
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/email-domains",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-12-02T21:10:57.70929Z",
+              "dns_validation_records": [
+                {
+                  "name": "tir6rewhx2kc4n5xipkksbrpxeszolak._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tir6rewhx2kc4n5xipkksbrpxeszolak.dkim.amazonses.com"
+                },
+                {
+                  "name": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy.dkim.amazonses.com"
+                },
+                {
+                  "name": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "rick.com",
+              "updated_at": "2025-12-02T21:10:57.709291Z",
+              "verification": {
+                "last_time_checked": "2025-12-05T21:44:15.736Z",
+                "status": "FAILED"
+              }
+            },
+            {
+              "created_at": "2025-12-12T23:17:22.758622Z",
+              "dns_validation_records": [
+                {
+                  "name": "6wtxritlgy6auli7b754fpfbdup3opbq._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "6wtxritlgy6auli7b754fpfbdup3opbq.dkim.amazonses.com"
+                },
+                {
+                  "name": "yf7dzzsy35ffw3griplosodeu2ag57q5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "yf7dzzsy35ffw3griplosodeu2ag57q5.dkim.amazonses.com"
+                },
+                {
+                  "name": "q5okpiugza7yzhahrdwsnw3gtk74jsa5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "q5okpiugza7yzhahrdwsnw3gtk74jsa5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "example-foo-2.com",
+              "updated_at": "2025-12-12T23:17:22.758622Z",
+              "verification": {
+                "last_time_checked": "2025-12-15T23:33:55.698Z",
+                "status": "FAILED"
+              }
+            }
+          ],
+          "meta": {
+            "number": 1,
+            "size": 2,
+            "total": 2
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/audit-log-destinations",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 100
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 8
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/application-auth-strategies",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dcr-providers",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dashboards",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/catalog-services",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 100
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/ai-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/system-accounts",
+        "query": [],
+        "body": {
+          "description": "System account for organization teams dump E2E coverage",
+          "name": "e2e-dump-org-system-account"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "name": "e2e-dump-org-system-account",
+          "description": "System account for organization teams dump E2E coverage",
+          "created_at": "2026-09-19T19:07:19Z",
+          "updated_at": "2026-09-19T19:07:19Z",
+          "konnect_managed": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000016",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:19Z",
+              "updated_at": "2026-09-19T19:07:19Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 8
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams",
+        "query": [],
+        "body": {
+          "description": "Alpha team for filtered organization teams dump E2E coverage",
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-alpha"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "created_at": "2026-09-19T19:07:21.643641164Z",
+          "description": "Alpha team for filtered organization teams dump E2E coverage",
+          "id": "00000000-0000-4000-8000-000000000017",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-alpha",
+          "system_team": false,
+          "updated_at": "2026-09-19T19:07:21.64364142Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams",
+        "query": [],
+        "body": {
+          "description": "Beta team for filtered organization teams dump E2E coverage",
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-beta"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "created_at": "2026-09-19T19:07:21.895091659Z",
+          "description": "Beta team for filtered organization teams dump E2E coverage",
+          "id": "00000000-0000-4000-8000-000000000018",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-beta",
+          "system_team": false,
+          "updated_at": "2026-09-19T19:07:21.895091867Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000018/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "*",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Admin"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "role_name": "Admin",
+          "entity_id": "*",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "*"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/system-accounts",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000016"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000005"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "*",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Viewer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000020",
+          "role_name": "Viewer",
+          "entity_id": "*",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "*"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:21.643641Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.643641Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:21.895091Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.895091Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000018/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "role_name": "Admin",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000018/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000016",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:19Z",
+              "updated_at": "2026-09-19T19:07:19Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000017",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:21Z",
+              "updated_at": "2026-09-19T19:07:21Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000016",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:19Z",
+              "updated_at": "2026-09-19T19:07:19Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:21.643641Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.643641Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:21.895091Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.895091Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000018/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "role_name": "Admin",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000017",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:21Z",
+              "updated_at": "2026-09-19T19:07:21Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000017",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:21Z",
+              "updated_at": "2026-09-19T19:07:21Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000017",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:21Z",
+              "updated_at": "2026-09-19T19:07:21Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users/00000000-0000-4000-8000-000000000005",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/email-domains",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-12-02T21:10:57.70929Z",
+              "dns_validation_records": [
+                {
+                  "name": "tir6rewhx2kc4n5xipkksbrpxeszolak._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tir6rewhx2kc4n5xipkksbrpxeszolak.dkim.amazonses.com"
+                },
+                {
+                  "name": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy.dkim.amazonses.com"
+                },
+                {
+                  "name": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "rick.com",
+              "updated_at": "2025-12-02T21:10:57.709291Z",
+              "verification": {
+                "last_time_checked": "2025-12-05T21:44:15.736Z",
+                "status": "FAILED"
+              }
+            },
+            {
+              "created_at": "2025-12-12T23:17:22.758622Z",
+              "dns_validation_records": [
+                {
+                  "name": "6wtxritlgy6auli7b754fpfbdup3opbq._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "6wtxritlgy6auli7b754fpfbdup3opbq.dkim.amazonses.com"
+                },
+                {
+                  "name": "yf7dzzsy35ffw3griplosodeu2ag57q5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "yf7dzzsy35ffw3griplosodeu2ag57q5.dkim.amazonses.com"
+                },
+                {
+                  "name": "q5okpiugza7yzhahrdwsnw3gtk74jsa5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "q5okpiugza7yzhahrdwsnw3gtk74jsa5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "example-foo-2.com",
+              "updated_at": "2025-12-12T23:17:22.758622Z",
+              "verification": {
+                "last_time_checked": "2025-12-15T23:33:55.698Z",
+                "status": "FAILED"
+              }
+            }
+          ],
+          "meta": {
+            "number": 1,
+            "size": 2,
+            "total": 2
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/audit-log-destinations",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 100
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000016",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:19Z",
+              "updated_at": "2026-09-19T19:07:19Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:21.643641Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.643641Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:21.895091Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:21.895091Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/application-auth-strategies",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dcr-providers",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dashboards",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/catalog-services",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 100
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/ai-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000016",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000017",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000018",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/system-accounts",
+        "query": [],
+        "body": {
+          "description": "System account for organization teams dump E2E coverage",
+          "name": "e2e-dump-org-system-account"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000021",
+          "name": "e2e-dump-org-system-account",
+          "description": "System account for organization teams dump E2E coverage",
+          "created_at": "2026-09-19T19:07:32Z",
+          "updated_at": "2026-09-19T19:07:32Z",
+          "konnect_managed": false
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:32Z",
+              "updated_at": "2026-09-19T19:07:32Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 8
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams",
+        "query": [],
+        "body": {
+          "description": "Beta team for filtered organization teams dump E2E coverage",
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-beta"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "created_at": "2026-09-19T19:07:34.956099045Z",
+          "description": "Beta team for filtered organization teams dump E2E coverage",
+          "id": "00000000-0000-4000-8000-000000000022",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-beta",
+          "system_team": false,
+          "updated_at": "2026-09-19T19:07:34.956099287Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams",
+        "query": [],
+        "body": {
+          "description": "Alpha team for filtered organization teams dump E2E coverage",
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-alpha"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "created_at": "2026-09-19T19:07:35.203437412Z",
+          "description": "Alpha team for filtered organization teams dump E2E coverage",
+          "id": "00000000-0000-4000-8000-000000000023",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "dump-org-teams-e2e"
+          },
+          "name": "e2e-dump-org-team-alpha",
+          "system_team": false,
+          "updated_at": "2026-09-19T19:07:35.203437751Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000022/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "*",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Admin"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000024",
+          "role_name": "Admin",
+          "entity_id": "*",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "*"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/users",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000005"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "*",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Viewer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000025",
+          "role_name": "Viewer",
+          "entity_id": "*",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "*"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/system-accounts",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000021"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:34.956099Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000022",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:34.956099Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:35.203437Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000023",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:35.203437Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "filter[name][eq]",
+            "e2e-dump-org-team-alpha"
+          ],
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:35.203437Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000023",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:35.203437Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000025",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "10"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:34.956099Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000022",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:34.956099Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:35.203437Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000023",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:35.203437Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000025",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000022/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000024",
+              "role_name": "Admin",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "*",
+              "entity_ids": [
+                "*"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000022/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:32Z",
+              "updated_at": "2026-09-19T19:07:32Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000023",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:35Z",
+              "updated_at": "2026-09-19T19:07:35Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 7
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "replay-user-7",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000023",
+              "name": "e2e-dump-org-team-alpha",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "created_at": "2026-09-19T19:07:35Z",
+              "updated_at": "2026-09-19T19:07:35Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023/users/00000000-0000-4000-8000-000000000005",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/portals/email-domains",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2025-12-02T21:10:57.70929Z",
+              "dns_validation_records": [
+                {
+                  "name": "tir6rewhx2kc4n5xipkksbrpxeszolak._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tir6rewhx2kc4n5xipkksbrpxeszolak.dkim.amazonses.com"
+                },
+                {
+                  "name": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "tsqmpv7kwzs5fv4nrpghg6k7yzitihmy.dkim.amazonses.com"
+                },
+                {
+                  "name": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5._domainkey.rick.com",
+                  "type": "CNAME",
+                  "value": "dnalgvcbnt2luxumzbhzxoigxsbuk6l5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "rick.com",
+              "updated_at": "2025-12-02T21:10:57.709291Z",
+              "verification": {
+                "last_time_checked": "2025-12-05T21:44:15.736Z",
+                "status": "FAILED"
+              }
+            },
+            {
+              "created_at": "2025-12-12T23:17:22.758622Z",
+              "dns_validation_records": [
+                {
+                  "name": "6wtxritlgy6auli7b754fpfbdup3opbq._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "6wtxritlgy6auli7b754fpfbdup3opbq.dkim.amazonses.com"
+                },
+                {
+                  "name": "yf7dzzsy35ffw3griplosodeu2ag57q5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "yf7dzzsy35ffw3griplosodeu2ag57q5.dkim.amazonses.com"
+                },
+                {
+                  "name": "q5okpiugza7yzhahrdwsnw3gtk74jsa5._domainkey.example-foo-2.com",
+                  "type": "CNAME",
+                  "value": "q5okpiugza7yzhahrdwsnw3gtk74jsa5.dkim.amazonses.com"
+                }
+              ],
+              "domain": "example-foo-2.com",
+              "updated_at": "2025-12-12T23:17:22.758622Z",
+              "verification": {
+                "last_time_checked": "2025-12-15T23:33:55.698Z",
+                "status": "FAILED"
+              }
+            }
+          ],
+          "meta": {
+            "number": 1,
+            "size": 2,
+            "total": 2
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/audit-log-destinations",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "next": null,
+            "previous": null,
+            "size": 100
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/system-accounts",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "name": "e2e-dump-org-system-account",
+              "description": "System account for organization teams dump E2E coverage",
+              "created_at": "2026-09-19T19:07:32Z",
+              "updated_at": "2026-09-19T19:07:32Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-19T19:07:34.956099Z",
+              "description": "Beta team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000022",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-beta",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:34.956099Z"
+            },
+            {
+              "created_at": "2026-09-19T19:07:35.203437Z",
+              "description": "Alpha team for filtered organization teams dump E2E coverage",
+              "id": "00000000-0000-4000-8000-000000000023",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "dump-org-teams-e2e"
+              },
+              "name": "e2e-dump-org-team-alpha",
+              "system_team": false,
+              "updated_at": "2026-09-19T19:07:35.203437Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000008",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000009",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000010",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/application-auth-strategies",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dcr-providers",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/control-planes",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v2/dashboards",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/catalog-services",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "total": 0,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/event-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "next": null,
+              "previous": "",
+              "size": 100
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v1/ai-gateways",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/system-accounts/00000000-0000-4000-8000-000000000021",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000022",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000023",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": null
+      }
+    }
+  ],
+  "parallel_phases": [
+    {
+      "start": 4,
+      "end": 16,
+      "after": {}
+    },
+    {
+      "start": 25,
+      "end": 30,
+      "after": {}
+    },
+    {
+      "start": 32,
+      "end": 36,
+      "after": {}
+    },
+    {
+      "start": 43,
+      "end": 46,
+      "after": {}
+    },
+    {
+      "start": 51,
+      "end": 63,
+      "after": {}
+    },
+    {
+      "start": 77,
+      "end": 82,
+      "after": {}
+    },
+    {
+      "start": 87,
+      "end": 91,
+      "after": {}
+    },
+    {
+      "start": 99,
+      "end": 111,
+      "after": {}
+    }
+  ]
+}

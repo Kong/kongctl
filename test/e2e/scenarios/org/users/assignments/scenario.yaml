@@ -1,4 +1,4 @@
-baseInputsPath: ./testdata
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -173,12 +173,14 @@ steps:
                 entity_region: "*"
 
       - name: 003-get-users-with-jq
-        exec:
-          - sh
-          - -c
+        outputFormat: json
+        run:
+          - get
+          - org
+          - users
+          - --jq
           - >-
-            {{ .bin }} get org users --profile e2e -o json
-            --jq '{"matches": ([.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'")] | length)}'
+            {"matches": ([.[] | select(.email == "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}")] | length)}
         assertions:
           - select: "@"
             expect:
@@ -186,13 +188,14 @@ steps:
                 matches: 1
 
       - name: 004-get-user-roles-by-email
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user roles --profile e2e
-            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
-            -o json
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - roles
+          - --user-email
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
         assertions:
           - select: "[?role_name=='Viewer'] | [0]"
             expect:
@@ -201,15 +204,28 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
-      - name: 005-get-user-roles-by-id
-        exec:
-          - sh
-          - -c
+      - name: 005-resolve-user-id
+        outputFormat: json
+        run:
+          - get
+          - org
+          - users
+          - --jq
           - >-
-            uid=$({{ .bin }} get org users --profile e2e -o json
-            --jq '.[] | select(.email == "'$KONGCTL_E2E_ORG_USER_EMAIL_1'") | .id'
-            -r);
-            {{ .bin }} get org user roles --profile e2e --user-id "$uid" -o json
+            .[] | select(.email == "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}")
+        recordVar:
+          name: user1ID
+          responsePath: id
+
+      - name: 005-get-user-roles-by-id
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - roles
+          - --user-id
+          - "{{ .vars.user1ID }}"
         assertions:
           - select: "[?role_name=='Viewer'] | [0]"
             expect:
@@ -414,13 +430,14 @@ steps:
                 total_changes: 0
 
       - name: 002-get-user-roles-by-email
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user roles --profile e2e
-            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
-            -o json
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - roles
+          - --user-email
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
         assertions:
           - select: "[?role_name=='Viewer' && entity_type_name=='Portals'] | [0]"
             expect:

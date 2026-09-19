@@ -1,4 +1,4 @@
-baseInputsPath: ./testdata
+baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -189,13 +189,14 @@ steps:
                 entity_region: "*"
 
       - name: 002-get-user-1-roles-after-sync
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user roles --profile e2e
-            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_1"
-            -o json
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - roles
+          - --user-email
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}"
         assertions:
           - select: "length(@)"
             expect:
@@ -216,13 +217,14 @@ steps:
                 entity_region: "*"
 
       - name: 003-get-user-2-roles-after-sync
-        exec:
-          - sh
-          - -c
-          - >-
-            {{ .bin }} get org user roles --profile e2e
-            --user-email "$KONGCTL_E2E_ORG_USER_EMAIL_2"
-            -o json
+        outputFormat: json
+        run:
+          - get
+          - org
+          - user
+          - roles
+          - --user-email
+          - "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}"
         assertions:
           - select: "length(@)"
             expect:

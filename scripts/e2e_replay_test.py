@@ -43,6 +43,93 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
+        hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
+        for scenario in MODULE.USER_SCENARIOS:
+            with self.subTest(scenario=scenario):
+                cassette = MODULE.load_cassette(MODULE.ROOT / "test/e2e/scenarios" / scenario / "replay/cassette.json")
+                engine = MODULE.Replay(cassette)
+
+                def send(index):
+                    request = cassette["interactions"][index]["request"]
+                    query = urlencode([tuple(pair) for pair in request["query"]])
+                    target = request["path"] + ("?" + query if query else "")
+                    body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+                    return engine.exchange(hosts[request["endpoint"]], request["method"], target, body)
+
+                position = 0
+                for phase in cassette.get("parallel_phases", []):
+                    start, end = phase["start"] - 1, phase["end"]
+                    for index in range(position, start):
+                        send(index)
+                    dependencies = engine.phases[start]
+                    for index in range(start, end):
+                        if (cassette["interactions"][index]["request"]["method"] != "GET"
+                                and dependencies[index] - engine.completed):
+                            with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+                                with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                                    send(index)
+                            self.assertEqual(start, engine.position)
+                    pending = set(range(start, end))
+                    while pending:
+                        index = max(i for i in pending if dependencies[i] <= engine.completed)
+                        self.assertEqual(send(index), cassette["interactions"][index]["response"])
+                        pending.remove(index)
+                    position = end
+                for index in range(position, len(cassette["interactions"])):
+                    send(index)
+                engine.verify()
+
+    def test_distinct_team_membership_creates_can_reorder_but_duplicates_cannot(self):
+        team = "00000000-0000-4000-8000-000000000001"
+        first_user = "00000000-0000-4000-8000-000000000002"
+        second_user = "00000000-0000-4000-8000-000000000003"
+        path = f"/v3/teams/{team}/users"
+        first = {"request": MODULE.request_key("global", "POST", path, json.dumps({"id": first_user}).encode()),
+                 "response": {"status": 201, "body": None}}
+        second = copy.deepcopy(first)
+        second["request"]["body"]["id"] = second_user
+        cassette = {"interactions": [first, second], "parallel_phases": [{"start": 1, "end": 2, "after": {}}]}
+        engine = MODULE.Replay(cassette)
+        engine.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        engine.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": first_user}).encode())
+        engine.verify()
+        # Memberships still depend on their team's creation. A phase is not
+        # permission to attach users before that parent exists.
+        create_team = {"request": MODULE.request_key("global", "POST", "/v3/teams", b'{"name":"team"}'),
+                       "response": {"status": 201, "body": {"id": team}}}
+        parent = MODULE.Replay({"interactions": [create_team, first, second],
+                               "parallel_phases": [{"start": 1, "end": 3, "after": {}}]})
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+            with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        self.assertEqual(0, parent.position)
+        parent.exchange("global.api.konghq.com", "POST", "/v3/teams", b'{"name":"team"}')
+        parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": second_user}).encode())
+        parent.exchange("global.api.konghq.com", "POST", path, json.dumps({"id": first_user}).encode())
+        parent.verify()
+        for mutation in ["duplicate", "status", "endpoint", "query", "body", "response", "path"]:
+            changed = copy.deepcopy(cassette)
+            items = changed["interactions"]
+            if mutation == "duplicate":
+                items[1] = copy.deepcopy(items[0])
+            elif mutation == "status":
+                items[1]["response"]["status"] = 200
+            elif mutation == "endpoint":
+                for item in items:
+                    item["request"]["endpoint"] = "regional"
+            elif mutation == "query":
+                items[1]["request"]["query"] = [["extra", "value"]]
+            elif mutation == "body":
+                items[1]["request"]["body"]["extra"] = True
+            elif mutation == "response":
+                items[1]["response"]["body"] = {"data": []}
+            else:
+                for item in items:
+                    item["request"]["path"] = "/v3/unreviewed"
+            with self.subTest(mutation=mutation):
+                self.assertIn(0, MODULE.parallel_phases(changed)[0][1])
+
     def test_portal_email_template_phases_preserve_read_before_write(self):
         cassette = MODULE.load_cassette(MODULE.ROOT /
             "test/e2e/scenarios/portal/email-templates/replay/cassette.json")
@@ -453,10 +540,140 @@ class ReplayTest(unittest.TestCase):
         live = (MODULE.ROOT / ".github/workflows/e2e.yaml").read_text()
         experiment = (MODULE.ROOT / ".github/workflows/e2e-replay.yaml").read_text()
         self.assertIn("group: konnect-e2e-${{ matrix.org_name }}", live)
-        self.assertIn("group: konnect-e2e-kongctl-acceptance-3", experiment)
-        self.assertIn("environment: kongctl-acceptance-3", experiment)
+        self.assertIn("group: konnect-e2e-${{ needs.build.outputs.recording_org }}", experiment)
+        self.assertIn("environment: ${{ needs.build.outputs.recording_org }}", experiment)
+        self.assertIn("KONGCTL_E2E_MATRIX_ORG: ${{ needs.build.outputs.recording_org }}", experiment)
+        for scenario in MODULE.SCENARIOS:
+            expected = "kongctl-acceptance" if scenario in MODULE.USER_SCENARIOS else "kongctl-acceptance-3"
+            self.assertEqual(expected, MODULE.recording_org(scenario))
         self.assertIn("cancel-in-progress: false", experiment)
         self.assertIn("queue: max", experiment)
+
+    def test_user_replay_inputs_are_synthetic_and_do_not_inherit_identity(self):
+        with patch.dict(os.environ, {"KONGCTL_E2E_ORG_USER_EMAIL_1": "private@example.test"}):
+            env = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "org/users/get")
+        self.assertEqual("replay-user-1@example.invalid", env["KONGCTL_E2E_ORG_USER_EMAIL_1"])
+        self.assertEqual("replay-user-2@example.invalid", env["KONGCTL_E2E_ORG_USER_EMAIL_2"])
+        self.assertNotIn("private@example.test", str(env))
+        self.assertEqual("0", env["KONGCTL_E2E_RESET"])
+        dump = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/organization-teams")
+        self.assertEqual("1", dump["KONGCTL_E2E_RESET"])
+
+    def test_user_recording_inputs_fail_closed(self):
+        for env in [{}, {"KONGCTL_E2E_ORG_USER_EMAIL_1": "replay-user-1@example.invalid"},
+                    {"KONGCTL_E2E_ORG_USER_EMAIL_1": "person@example.test",
+                     "KONGCTL_E2E_ORG_USER_EMAIL_2": "PERSON@example.test"}]:
+            with self.subTest(env=env), self.assertRaisesRegex(ValueError, "distinct existing"):
+                MODULE.recording_inputs("org/users/get", env)
+
+    def test_user_identity_sanitization_preserves_collections_and_states(self):
+        identities = MODULE.UserIdentities({"KONGCTL_E2E_ORG_USER_EMAIL_1": "fixture@example.test"})
+        users = {"data": [
+            {"id": "first", "email": "other@example.test", "full_name": "Other Person", "active": False},
+            {"id": "second", "email": "fixture@example.test", "full_name": "Fixture Person",
+             "preferred_name": "Fixture", "active": True, "created_at": "2025-07-12T01:02:03Z"},
+            {"id": "third", "email": "inactive@example.test", "full_name": "n/a", "preferred_name": None},
+        ]}
+        normalized = identities.normalize(users)
+        self.assertEqual(3, len(normalized["data"]))
+        self.assertEqual(["first", "second", "third"], [u["id"] for u in normalized["data"]])
+        self.assertFalse(normalized["data"][0]["active"])
+        self.assertEqual("replay-user-1@example.invalid", normalized["data"][1]["email"])
+        self.assertEqual("replay-user-1", normalized["data"][1]["full_name"])
+        self.assertEqual("n/a", normalized["data"][2]["full_name"])
+        self.assertIsNone(normalized["data"][2]["preferred_name"])
+        self.assertEqual(normalized, identities.normalize(users))
+        self.assertNotIn("Person", str(normalized))
+        self.assertNotIn("@example.test", str(normalized))
+        fixtures = MODULE.fixture_strings(MODULE.ROOT / "test/e2e/scenarios/org/users/get")
+        MODULE.check_safe(normalized, fixtures)
+        MODULE.check_user_profiles(normalized)
+        for key, value in [("full_name", "Real Name"), ("created_at", "2025-02-03T00:00:00Z"),
+                           ("phone", "555-0101")]:
+            edited = copy.deepcopy(normalized)
+            edited["data"][0][key] = value
+            with self.assertRaises(ValueError):
+                MODULE.check_user_profiles(edited)
+        with self.assertRaises(ValueError):
+            MODULE.check_user_profiles({"full_name": "Real Name"})
+        with self.assertRaises(ValueError):
+            MODULE.check_safe(normalized)  # Only the reviewed user scenarios allow synthetic identities.
+        for value in [{"email": "fixture@example.test", "phone": "sensitive"},
+                      {"email": "fixture@example.test", "secret": "sensitive"}]:  # pragma: allowlist secret
+            with self.assertRaisesRegex(ValueError, "profile schema"):
+                identities.normalize(value)
+        for value in ["real@example.test", "prefix replay-user-1@example.invalid", "Bearer private"]:
+            with self.assertRaises(ValueError):
+                MODULE.check_safe(value, fixtures)
+
+    def test_user_metadata_exceptions_are_bounded(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        scenario = MODULE.parse_scenario((directory / "scenario.yaml").read_text())
+        variables = MODULE.USER_SCENARIOS["org/users/get"]
+        MODULE.check_scenario_controls(scenario, variables)
+        with self.assertRaises(ValueError):
+            MODULE.check_scenario_controls(scenario)
+        for key, value in [("assignedEnvironment", "another-org"),
+                           ("requiredEnvVars", ["PRIVATE_PAT"])]:
+            changed = copy.deepcopy(scenario)
+            changed["test"][key] = value
+            with self.assertRaises(ValueError):
+                MODULE.check_scenario_controls(changed, variables)
+        changed = copy.deepcopy(scenario)
+        changed["steps"][-1]["commands"] = [{"resetOrg": True}]
+        with self.assertRaisesRegex(ValueError, "mid-scenario"):
+            MODULE.check_scenario_controls(changed, variables)
+        MODULE.check_scenario_controls(changed, variables, replay_resets=True)
+
+    def test_user_scenario_data_can_be_separate_from_verifier_code(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        with patch.object(MODULE, "ROOT", Path("/separate-verifier-checkout")):
+            MODULE.check_eligibility(directory)
+            MODULE.check_safe("replay-user-1@example.invalid", MODULE.fixture_strings(directory))
+        self.assertIsNone(MODULE.user_scenario(Path("/unrelated/org/users/get")))
+
+    def test_user_recording_does_not_hide_echoed_credentials(self):
+        response = MagicMock(status=200)
+        response.getheader.return_value = "application/json"
+        response.read.return_value = json.dumps({"id": "user-id", "email": "fixture@example.test",
+                                                "full_name": "private-credential"}).encode()
+        connection = MagicMock()
+        connection.getresponse.return_value = response
+        fixtures = MODULE.fixture_strings(MODULE.ROOT / "test/e2e/scenarios/org/users/get")
+        with patch.object(MODULE.http.client, "HTTPSConnection", return_value=connection):
+            engine = MODULE.Replay(token="private-credential", fixtures=fixtures,
+                                   user_inputs={"KONGCTL_E2E_ORG_USER_EMAIL_1": "fixture@example.test"})
+            with self.assertRaisesRegex(ValueError, "credential echoed"):
+                engine.exchange("global.api.konghq.com", "GET", "/v3/users", b"")
+        self.assertEqual([], engine.interactions)
+
+    def test_email_paths_fail_closed_before_recording_and_during_validation(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        cassette = MODULE.load_cassette(directory / "replay/cassette.json")
+        for path in ["/v3/users/fixture@example.test", "/v3/users/fixture%40example.test",
+                     "/v3/users/fixture%2540example.test", "/v3/users/%66ixture@%65xample%2etest",
+                     "/v3/users/fixture%40example%2Etest", "/v3/users/replay-user-1%40example.invalid"]:
+            with self.subTest(path=path):
+                engine = MODULE.Replay(token="private-credential", fixtures=MODULE.fixture_strings(directory),
+                                       user_inputs={"KONGCTL_E2E_ORG_USER_EMAIL_1": "fixture@example.test"})
+                with patch.object(MODULE.http.client, "HTTPSConnection") as connection:
+                    with self.assertRaisesRegex(ValueError, "email address in request path") as error:
+                        engine.exchange("global.api.konghq.com", "GET", path, b"")
+                    connection.assert_not_called()
+                self.assertNotIn(path, str(error.exception))
+                self.assertEqual([], engine.interactions)
+                edited = copy.deepcopy(cassette)
+                edited["interactions"][0]["request"]["path"] = path
+                with self.assertRaisesRegex(ValueError, "email address in request path"):
+                    MODULE.validate_cassette(edited, directory, "org/users/get")
+
+    def test_safe_encoded_paths_retain_exact_matching(self):
+        for path in ["/v3/teams/team%20one", "/v3/teams/team%2Fchild", "/v3/teams/team%252Fchild"]:
+            with self.subTest(path=path):
+                request = MODULE.request_key("global", "GET", path, b"")
+                self.assertEqual(path, request["path"])
+        request = MODULE.request_key("global", "GET", "/v3/users?email=fixture%40example.test", b"")
+        self.assertEqual([["email", "fixture@example.test"]], request["query"])
 
     def test_recording_forwards_with_private_pat_but_only_saves_sanitized_data(self):
         response = MagicMock(status=201)
