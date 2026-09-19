@@ -156,9 +156,6 @@ func (a *AIGatewayMCPServerResource) SetDefaults() {
 			a.Ref = name
 		}
 	}
-	if name, _ := payload[aiGatewayMCPServerFieldName].(string); name == "" && a.Ref != "" {
-		payload[aiGatewayMCPServerFieldName] = a.Ref
-	}
 	if displayName, _ := payload[aiGatewayMCPServerFieldDisplayName].(string); displayName == "" {
 		if name, _ := payload[aiGatewayMCPServerFieldName].(string); name != "" {
 			payload[aiGatewayMCPServerFieldDisplayName] = name

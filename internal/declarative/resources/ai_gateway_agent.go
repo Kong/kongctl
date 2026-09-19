@@ -126,9 +126,6 @@ func (a *AIGatewayAgentResource) SetDefaults() {
 	if a.Ref == "" {
 		a.Ref = a.Name
 	}
-	if a.Name == "" {
-		a.Name = a.Ref
-	}
 	if a.DisplayName == "" {
 		a.DisplayName = a.Name
 	}

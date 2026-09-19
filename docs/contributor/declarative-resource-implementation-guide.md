@@ -127,6 +127,12 @@ derive required values from `ref`, `name`, or another supplied field. Existing
 name-from-ref fallbacks are compatibility behavior whose removal needs
 separate scope.
 
+AI Gateway roots and name-bearing children require explicit API names in
+both nested and root-level declarations; a local `ref` never supplies a
+missing `name`. Keep this contract in resource validation, explain/scaffold,
+and dump output, including every SDK union variant. Supported generation of
+a local `ref` from an explicit name is a separate behavior.
+
 Embed generated SDK types where the declarative shape matches, using inline
 JSON/YAML tags. Handle optional pointers, enum values, unions, and label
 conversions explicitly. A custom unmarshaller must preserve accepted fields

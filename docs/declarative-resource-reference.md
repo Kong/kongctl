@@ -468,6 +468,9 @@ from `ref`. Use `display_name` for the human-readable name shown in Konnect.
 AI Gateway Model Providers, Auth Strategies, Policies, Agents, Consumers,
 Consumer Credentials, Consumer Groups, Models, MCP Servers, Config Stores,
 and Vaults use their required `name` field as the stable Konnect child name.
+Every managed declaration must supply `name`, including nested children;
+omitting it or setting it to an empty string fails validation even when `ref`
+is present. This applies to all model, MCP server, and vault variants.
 These resources match only by `name` within their parent gateway, except
 Consumer Credentials, which match within their parent consumer. UUID refs
 and cached IDs do not override the declared name or retain a differently
@@ -492,8 +495,12 @@ model providers, auth strategies, policies, MCP server sources, config stores,
 and consumer groups. Newly named config stores need secret value sources for
 their declared secrets; newly named credentials need their required creation
 fields. Existing secret values and credentials are not copied automatically.
-Legacy `name = ref` defaults for these children remain for now; use an explicit
-`name` in manifests.
+The legacy `name = ref` defaults for these children have been removed. For
+each existing declaration without a name, add `name` with the actual Konnect
+API name. If the resource was originally created using the old fallback,
+that name will normally equal the original `ref`; keep the local `ref` and
+its dependent references unchanged. Explicit names supplied by configuration
+templates remain supported. Dumps and scaffolded manifests include names.
 
 Changing a consumer `name` declares a new consumer, not a rename. In sync mode,
 deleting the old consumer also removes its credentials; existing API keys for
@@ -554,7 +561,7 @@ because they do not identify a parent resource.
 ```yaml
 ai_gateways:
  - ref: string
-   name: string
+   name: string required
    display_name: string required
    description: string
    proxy_urls: array[object]
