@@ -186,6 +186,15 @@ bodyless GETs with
 different queries may also reorder (for example, publications filtered by
 different API IDs). Queries still match exactly; repeated identical requests
 retain their stream order. Ancestor reads cannot cross updates or deletes.
+One bounded exception handles indistinguishable portal ID lookups around
+successful regional customization/authentication-settings PATCHes. It applies
+only to `GET /v3/portals?page[number]=1&page[size]=100` when responses on both
+sides of the update, within the same phase, agree in every field except the
+target portal's ISO `updated_at` timestamp. Real field changes, filters,
+other endpoints, and deletes retain their dependencies. Repeated lookups
+still consume their recorded responses in order, without changing responses
+or matching rules; parent-creation and explicit dependencies remain enforced.
+This prevents an ID lookup from waiting for the child update that needs it.
 Additional `after` dependencies can constrain ordering but cannot remove these
 mandatory dependencies. Never annotate a whole scenario as unordered.
 

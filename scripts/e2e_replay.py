@@ -564,12 +564,59 @@ def membership_create_id(item):
     return None
 
 
+def independent_portal_lookups(interactions, indices):
+    """Avoid cycles between child updates and their indistinguishable ID lookups.
+
+    Only the reviewed portal-list selector may cross customization/auth-settings
+    PATCHes. All recorded lookup responses in this phase must agree, except the
+    target portal's updated_at timestamp, with evidence before and after the
+    update. Responses themselves are never modified or matched as wildcards.
+    """
+    expected = {"endpoint": "regional", "method": "GET", "path": "/v3/portals",
+                "query": [["page[number]", "1"], ["page[size]", "100"]], "body": None}
+    lookups = [i for i in indices if interactions[i]["request"] == expected]
+    independent = set()
+    if len(lookups) < 2:
+        return independent
+    for i in indices:
+        request, response = interactions[i]["request"], interactions[i]["response"]
+        target = re.fullmatch(r"/v3/portals/([^/]+)/(customization|authentication-settings)", request["path"])
+        if (request["endpoint"] != "regional" or request["method"] != "PATCH" or request["query"]
+                or not isinstance(request["body"], dict)
+                or response["status"] != 200 or not target or not UUID.fullmatch(target[1])
+                or not lookups[0] < i < lookups[-1]):
+            continue
+        projections = []
+        for index in lookups:
+            read = interactions[index]["response"]
+            body = read["body"]
+            if (read["status"] != 200 or not isinstance(body, dict) or not isinstance(body.get("data"), list)
+                    or any(not isinstance(portal, dict) for portal in body["data"])):
+                break
+            portals = [portal for portal in body["data"] if portal.get("id") == target[1]]
+            if len(portals) != 1:
+                break
+            portal = portals[0]
+            if "updated_at" in portal and (not isinstance(portal["updated_at"], str) or not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", portal["updated_at"]
+            )):
+                break
+            data = [{**item, "updated_at": "<recorded-timestamp>"}
+                    if item is portal and "updated_at" in item else item for item in body["data"]]
+            projections.append(canonical({**read, "body": {**body, "data": data}}))
+        else:
+            if len(set(projections)) == 1:
+                independent.update((min(i, read), max(i, read)) for read in lookups)
+    return independent
+
+
 def parallel_phases(cassette):
     """Compile reviewed, bounded phases with mandatory causal dependencies.
 
     A phase is not a bag of responses: identical requests retain their stream
     order, new IDs cannot be observed before creation, and ancestor reads
-    cannot cross updates/deletes. Additional dependencies can only constrain.
+    cannot cross updates/deletes except verified portal ID lookups. Additional
+    dependencies can only constrain.
     """
     phases = cassette.get("parallel_phases", [])
     if not isinstance(phases, list):
@@ -583,6 +630,7 @@ def parallel_phases(cassette):
                 or end - start >= 64 or not isinstance(after, dict)):
             raise ValueError("parallel phases must be ordered, disjoint ranges of 2–64 exchanges")
         indices = range(start - 1, end)
+        portal_lookups = independent_portal_lookups(interactions, indices)
         read_only = all(interactions[i]["request"]["method"] == "GET"
                         and interactions[i]["request"]["body"] is None for i in indices)
         dependencies = {i: set() for i in indices}
@@ -628,7 +676,7 @@ def parallel_phases(cassette):
                 changes_observation = ("GET" in {earlier["method"], request["method"]}
                                        and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
                 if ((same_target and not independent_creates and not independent_queries and not independent_memberships)
-                        or (ancestor and changes_observation)):
+                        or (ancestor and changes_observation and (j, i) not in portal_lookups)):
                     dependencies[i].add(j)
         for index, parents in after.items():
             if not isinstance(index, str) or not index.isdecimal() or str(int(index)) != index:

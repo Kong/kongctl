@@ -43,6 +43,75 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
+    def portal_lookup_cassette(self):
+        portal = "00000000-0000-4000-8000-000000000001"
+        lookup = {"request": MODULE.request_key("regional", "GET", "/v3/portals?page[number]=1&page[size]=100", b""),
+                  "response": {"status": 200, "body": {"data": [{"id": portal, "name": "portal",
+                      "updated_at": "2026-09-19T00:00:00Z"}], "meta": {"page": {"total": 1}}}}}
+        update = {"request": MODULE.request_key("regional", "PATCH", f"/v3/portals/{portal}/customization",
+                                              b'{"layout":"topnav"}'),
+                  "response": {"status": 200, "body": {"layout": "topnav"}}}
+        after = copy.deepcopy(lookup)
+        after["response"]["body"]["data"][0]["updated_at"] = "2026-09-19T00:00:01Z"
+        return {"interactions": [lookup, update, after], "parallel_phases": [{"start": 1, "end": 3, "after": {}}]}
+
+    def test_portal_lookup_can_precede_child_update_without_a_dependency_cycle(self):
+        cassette = self.portal_lookup_cassette()
+        engine = MODULE.Replay(cassette)
+        lookup = "/v3/portals?page[number]=1&page[size]=100"
+        engine.exchange("us.api.konghq.com", "GET", lookup, b"")
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+            response = engine.exchange("us.api.konghq.com", "GET", lookup, b"")
+        self.assertEqual(cassette["interactions"][2]["response"], response)
+        update = cassette["interactions"][1]["request"]
+        engine.exchange("us.api.konghq.com", "PATCH", update["path"], json.dumps(update["body"]).encode())
+        engine.verify()
+        self.assertIn(0, engine.phases[0][2])  # Repeated lookup stream stays ordered.
+        cassette["parallel_phases"][0]["after"] = {"3": [2]}
+        self.assertIn(1, MODULE.parallel_phases(cassette)[0][2])  # Explicit constraints are never removed.
+
+    def test_portal_lookup_exception_requires_unchanged_reviewed_inventory(self):
+        for mutation in ["field", "metadata", "timestamp", "missing-portal", "duplicate-portal", "query",
+                         "body", "read-status", "write-status", "method", "path", "endpoint", "write-query",
+                         "write-body"]:
+            cassette = self.portal_lookup_cassette()
+            before, update, after = cassette["interactions"]
+            if mutation == "field":
+                after["response"]["body"]["data"][0]["name"] = "changed"
+            elif mutation == "metadata":
+                after["response"]["body"]["meta"]["page"]["total"] = 2
+            elif mutation == "timestamp":
+                after["response"]["body"]["data"][0]["updated_at"] = "unreviewed"
+            elif mutation == "missing-portal":
+                before["response"]["body"]["data"] = after["response"]["body"]["data"] = []
+            elif mutation == "duplicate-portal":
+                after["response"]["body"]["data"] *= 2
+            elif mutation == "query":
+                before["request"]["query"].append(["filter", "changed"])
+                after["request"]["query"].append(["filter", "changed"])
+            elif mutation == "body":
+                before["request"]["body"] = after["request"]["body"] = {}
+            elif mutation == "read-status":
+                after["response"]["status"] = 404
+            elif mutation == "write-status":
+                update["response"]["status"] = 400
+            elif mutation == "method":
+                update["request"]["method"] = "DELETE"
+            elif mutation == "path":
+                update["request"]["path"] = update["request"]["path"].replace("customization", "unreviewed")
+            elif mutation == "endpoint":
+                for item in cassette["interactions"]:
+                    item["request"]["endpoint"] = "global"
+            elif mutation == "write-body":
+                update["request"]["body"] = None
+            else:
+                update["request"]["query"] = [["extra", "value"]]
+            with self.subTest(mutation=mutation):
+                self.assertIn(1, MODULE.parallel_phases(cassette)[0][2])
+        cassette = self.portal_lookup_cassette()
+        cassette["parallel_phases"][0]["start"] = 2
+        self.assertIn(1, MODULE.parallel_phases(cassette)[1][2])  # No before/after evidence within this phase.
+
     def test_portal_owned_round_trip_replays_resets_without_user_or_create_permissions(self):
         directory = MODULE.ROOT / "test/e2e/scenarios/dump/portal-owned"
         MODULE.check_eligibility(directory)
