@@ -435,6 +435,14 @@ Choose identity and operation semantics before selecting a reusable strategy:
   from changes already planned. Their name index uses original observation
   order. Do not sort observations for deletion before indexing; that can
   change duplicate-name matching.
+- **Other name-matched AI Gateway children:** Config stores and consumer
+  groups match names within their gateway; credentials match within their
+  consumer. Refs and cached IDs do not override names or retain other names
+  during sync. Keep their lifecycle orchestration explicit: stores traverse
+  scoped secrets and supply creation dependencies; groups conditionally read
+  membership and depend on policies/consumers; credentials replace through
+  ordered delete/create changes. These do not all fit the detail-read
+  reconciler above. A name change declares a different resource.
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.

@@ -8,7 +8,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
-	"github.com/kong/kongctl/internal/util"
 )
 
 func (p *Planner) planAIGatewayConsumerCredentialChanges(
@@ -40,15 +39,12 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		)
 	}
 
-	currentByID, currentByName := indexAIGatewayConsumerCredentials(currentCredentials)
-	desiredKeys := make(map[string]bool)
+	currentByName := indexAIGatewayConsumerCredentials(currentCredentials)
+	desiredNames := make(map[string]bool)
 
 	for _, desiredCredential := range desired {
-		current, exists := matchCurrentAIGatewayConsumerCredential(desiredCredential, currentByID, currentByName)
-		desiredKeys[desiredCredential.Name] = true
-		if id := aiGatewayConsumerCredentialDesiredID(desiredCredential); id != "" {
-			desiredKeys[id] = true
-		}
+		current, exists := currentByName[desiredCredential.Name]
+		desiredNames[desiredCredential.Name] = true
 
 		if !exists {
 			p.planAIGatewayConsumerCredentialCreate(
@@ -107,7 +103,7 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		for _, current := range currentCredentials {
 			credentialID := resources.AIGatewayConsumerCredentialID(current.AIGatewayConsumerCredential)
 			credentialName := resources.AIGatewayConsumerCredentialName(current.AIGatewayConsumerCredential)
-			if desiredKeys[credentialID] || desiredKeys[credentialName] {
+			if desiredNames[credentialName] {
 				continue
 			}
 			resourceRef := credentialName
@@ -292,39 +288,12 @@ func shouldReplaceAIGatewayConsumerCredential(
 
 func indexAIGatewayConsumerCredentials(
 	credentials []state.AIGatewayConsumerCredential,
-) (map[string]state.AIGatewayConsumerCredential, map[string]state.AIGatewayConsumerCredential) {
-	byID := make(map[string]state.AIGatewayConsumerCredential)
+) map[string]state.AIGatewayConsumerCredential {
 	byName := make(map[string]state.AIGatewayConsumerCredential)
 	for _, credential := range credentials {
-		if id := resources.AIGatewayConsumerCredentialID(credential.AIGatewayConsumerCredential); id != "" {
-			byID[id] = credential
-		}
 		if name := resources.AIGatewayConsumerCredentialName(credential.AIGatewayConsumerCredential); name != "" {
 			byName[name] = credential
 		}
 	}
-	return byID, byName
-}
-
-func matchCurrentAIGatewayConsumerCredential(
-	desired resources.AIGatewayConsumerCredentialResource,
-	currentByID map[string]state.AIGatewayConsumerCredential,
-	currentByName map[string]state.AIGatewayConsumerCredential,
-) (state.AIGatewayConsumerCredential, bool) {
-	if id := aiGatewayConsumerCredentialDesiredID(desired); id != "" {
-		current, exists := currentByID[id]
-		return current, exists
-	}
-	current, exists := currentByName[desired.Name]
-	return current, exists
-}
-
-func aiGatewayConsumerCredentialDesiredID(desired resources.AIGatewayConsumerCredentialResource) string {
-	if id := desired.GetKonnectID(); id != "" {
-		return id
-	}
-	if util.IsValidUUID(desired.Ref) {
-		return desired.Ref
-	}
-	return ""
+	return byName
 }
