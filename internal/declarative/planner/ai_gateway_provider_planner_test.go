@@ -1,11 +1,18 @@
 package planner
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
 )
 
@@ -232,25 +239,6 @@ func TestAIGatewayProviderConfigChangedIgnoresAzureFoundryDomainDefault(t *testi
 	require.False(t, aiGatewayProviderConfigChanged(current, desired))
 }
 
-func TestAIGatewayProviderMatchPrefersIDOverName(t *testing.T) {
-	t.Parallel()
-
-	id := "11111111-1111-4111-8111-111111111111"
-	currentByID, currentByName := indexAIGatewayProviders([]state.AIGatewayProvider{
-		{ID: id, Name: "old-provider"},
-		{ID: "22222222-2222-4222-8222-222222222222", Name: "new-provider"},
-	})
-
-	current, ok := matchCurrentAIGatewayProvider(
-		resources.AIGatewayProviderResource{BaseResource: resources.BaseResource{Ref: id}, Name: "new-provider"},
-		currentByID,
-		currentByName,
-	)
-
-	require.True(t, ok)
-	require.Equal(t, id, current.ID)
-}
-
 func TestAIGatewayProviderChangedFieldsScrubWriteOnlyValues(t *testing.T) {
 	t.Parallel()
 
@@ -292,4 +280,176 @@ func TestAIGatewayProviderChangedFieldsScrubWriteOnlyValues(t *testing.T) {
 	diffConfig := configChange.New.(map[string]any)
 	diffHeader := diffConfig["auth"].(map[string]any)["headers"].([]any)[0].(map[string]any)
 	require.NotContains(t, diffHeader, "value")
+}
+
+func TestAIGatewayProviderPlannerNameIdentity(t *testing.T) {
+	t.Parallel()
+	const (
+		cachedID  = "11111111-1111-4111-8111-111111111111"
+		refID     = "22222222-2222-4222-8222-222222222222"
+		nameID    = "33333333-3333-4333-8333-333333333333"
+		missingID = "44444444-4444-4444-8444-444444444444"
+	)
+	for _, tt := range []struct {
+		name, ref, cachedID, desiredName                      string
+		action                                                ActionType
+		apply, missingDetail, readError, protected, unchanged bool
+	}{
+		{name: "name wins over UUID ref", ref: refID, desiredName: "desired-name", action: ActionUpdate},
+		{
+			name: "name wins over cached ID", ref: "local-ref", cachedID: cachedID,
+			desiredName: "desired-name", action: ActionUpdate,
+		},
+		{
+			name: "missing IDs do not hide name", ref: missingID, cachedID: missingID,
+			desiredName: "desired-name", action: ActionUpdate,
+		},
+		{name: "UUID ref does not rename or retain", ref: refID, desiredName: "new-name", action: ActionCreate},
+		{
+			name: "cached ID does not rename or retain", ref: "local-ref", cachedID: cachedID,
+			desiredName: "new-name", action: ActionCreate,
+		},
+		{
+			name: "absent detail recreates and retains declared name", ref: refID,
+			desiredName: "desired-name", action: ActionCreate, missingDetail: true,
+		},
+		{name: "detail error stops before sync", ref: refID, desiredName: "desired-name", readError: true},
+		{
+			name: "protection stops sync at first deletion", ref: refID,
+			desiredName: "desired-name", action: ActionUpdate, protected: true,
+		},
+		{name: "apply does not prune", ref: refID, desiredName: "new-name", action: ActionCreate, apply: true},
+		{name: "unchanged detail retains name", ref: refID, desiredName: "desired-name", unchanged: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			api := &nameIdentityProviderAPI{missingDetail: tt.missingDetail, readError: tt.readError}
+			for _, identity := range []struct{ id, name string }{
+				{cachedID, "cached-name"}, {refID, "ref-name"}, {nameID, "desired-name"},
+			} {
+				raw := map[string]any{
+					"id": identity.id, "name": identity.name, "type": "openai",
+					"display_name": "Original child",
+					"config":       map[string]any{"auth": map[string]any{"type": "basic"}},
+					"created_at":   "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+				}
+				if tt.protected && identity.id == cachedID {
+					raw["labels"] = map[string]string{labels.ProtectedKey: labels.TrueValue}
+				}
+				data, err := json.Marshal(raw)
+				require.NoError(t, err)
+				var child kkComps.AIGatewayModelProvider
+				require.NoError(t, json.Unmarshal(data, &child))
+				api.children = append(api.children, child)
+			}
+			desired := resources.AIGatewayProviderResource{
+				BaseResource: resources.BaseResource{Ref: tt.ref},
+				Name:         tt.desiredName, Type: "openai", DisplayName: "Updated child",
+				Config: map[string]any{"auth": map[string]any{"type": "basic"}},
+			}
+			if tt.unchanged {
+				desired.DisplayName = "Original child"
+			}
+			desired.SetKonnectID(tt.cachedID)
+			p := NewPlanner(state.NewClient(state.ClientConfig{AIGatewayProvidersAPI: api}), slog.Default())
+			mode := PlanModeSync
+			if tt.apply {
+				mode = PlanModeApply
+			}
+			plan := NewPlan(CurrentPlanVersion, "test", mode)
+			err := p.planAIGatewayProviderChanges(t.Context(), nil,
+				"test-namespace", "Gateway", "gateway-id", "gateway-ref", "",
+				[]resources.AIGatewayProviderResource{desired}, plan)
+			require.Equal(t, []string{"gateway-id"}, api.lists)
+			if tt.desiredName == "desired-name" {
+				require.Equal(t, [][2]string{{"gateway-id", nameID}}, api.reads)
+			} else {
+				require.Empty(t, api.reads)
+			}
+			if tt.readError {
+				require.ErrorContains(t, err, "failed to get AI Gateway Model Provider "+nameID)
+				require.ErrorContains(t, err, "detail unavailable")
+				require.Empty(t, plan.Changes)
+				return
+			}
+			if tt.protected {
+				require.ErrorContains(t, err, "protected")
+			} else {
+				require.NoError(t, err)
+			}
+			wantDeleteIDs := []string{cachedID, refID}
+			if tt.desiredName == "new-name" {
+				wantDeleteIDs = append(wantDeleteIDs, nameID)
+			}
+			if tt.apply || tt.protected {
+				wantDeleteIDs = nil
+			}
+			offset := 0
+			if !tt.unchanged {
+				offset = 1
+			}
+			require.Len(t, plan.Changes, offset+len(wantDeleteIDs))
+			if !tt.unchanged {
+				change := plan.Changes[0]
+				require.Equal(t, tt.action, change.Action)
+				wantID := ""
+				if tt.action == ActionUpdate {
+					wantID = nameID
+					require.Equal(t, FieldChange{Old: "Original child", New: "Updated child"},
+						change.ChangedFields[FieldDisplayName])
+				}
+				require.Equal(t, wantID, change.ResourceID)
+				require.Equal(t, tt.ref, change.ResourceRef)
+				require.Equal(t, tt.desiredName, change.Fields[FieldName])
+				require.Equal(t, "Updated child", change.Fields[FieldDisplayName])
+			}
+			for i, id := range wantDeleteIDs {
+				require.Equal(t, ActionDelete, plan.Changes[offset+i].Action)
+				require.Equal(t, id, plan.Changes[offset+i].ResourceID)
+			}
+			for _, change := range plan.Changes {
+				require.Equal(t, ResourceTypeAIGatewayProvider, change.ResourceType)
+				require.Equal(t, "test-namespace", change.Namespace)
+				require.Equal(t, &ParentInfo{Ref: "gateway-ref", ID: "gateway-id"}, change.Parent)
+			}
+		})
+	}
+}
+
+type nameIdentityProviderAPI struct {
+	helpers.AIGatewayProvidersAPI
+	children                 []kkComps.AIGatewayModelProvider
+	lists                    []string
+	reads                    [][2]string
+	missingDetail, readError bool
+}
+
+func (a *nameIdentityProviderAPI) ListAiGatewayProviders(
+	_ context.Context, req kkOps.ListAiGatewayModelProvidersRequest, _ ...kkOps.Option,
+) (*kkOps.ListAiGatewayModelProvidersResponse, error) {
+	a.lists = append(a.lists, req.GatewayID)
+	return &kkOps.ListAiGatewayModelProvidersResponse{
+		ListAIGatewayModelProvidersResponse: &kkComps.ListAIGatewayModelProvidersResponse{Data: a.children},
+	}, nil
+}
+
+func (a *nameIdentityProviderAPI) GetAiGatewayProvider(
+	_ context.Context, gatewayID, childID string, _ ...kkOps.Option,
+) (*kkOps.GetAiGatewayModelProviderResponse, error) {
+	a.reads = append(a.reads, [2]string{gatewayID, childID})
+	if a.readError {
+		return nil, errors.New("detail unavailable")
+	}
+	if a.missingDetail {
+		return &kkOps.GetAiGatewayModelProviderResponse{}, nil
+	}
+	for _, child := range a.children {
+		current, err := state.NormalizeAIGatewayProvider(child)
+		if err != nil {
+			return nil, err
+		}
+		if current.ID == childID {
+			return &kkOps.GetAiGatewayModelProviderResponse{AIGatewayModelProvider: &child}, nil
+		}
+	}
+	return &kkOps.GetAiGatewayModelProviderResponse{}, nil
 }
