@@ -422,7 +422,7 @@ Choose identity and operation semantics before selecting a reusable strategy:
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
 - **Name-matched children with detail lookup:** AI Gateway model providers,
-  auth strategies, policies, agents, models, and vaults use
+  auth strategies, policies, agents, models, vaults, and consumer groups use
   [`reconcileNameMatchedChildren`][child-reconcile] within an existing parent.
   Match only by the declared API name; UUID refs and cached IDs cannot
   override it. A changed name declares a different resource.
@@ -431,8 +431,12 @@ Choose identity and operation semantics before selecting a reusable strategy:
   at the first protected deletion. Duplicate observed names retain their last
   indexed value.
   Typed adapters own detail reads, comparison, payloads, and dependencies;
-  [agents][agent-plan] and policies also bind the observed ID before the detail
-  read. Callers retain scope checks and new-parent creation. This strategy
+  [agents][agent-plan], policies, and [consumer groups][consumer-group-plan]
+  also bind the observed ID before the detail read. Consumer groups fetch
+  membership only when declared and after a successful detail read, using the
+  listed ID. Their typed observation carries detail and membership together;
+  policy/consumer creation dependencies remain in the adapter.
+  Callers retain scope checks and new-parent creation. This strategy
   does not add child delete-mode dispatch, update protection, or child
   traversal.
 - **Dependency-ordered children:** [AI Gateway MCP servers][mcp-plan] use the
@@ -441,14 +445,13 @@ Choose identity and operation semantics before selecting a reusable strategy:
   from changes already planned. Their name index uses original observation
   order. Do not sort observations for deletion before indexing; that can
   change duplicate-name matching.
-- **Other name-matched AI Gateway children:** Config stores and consumer
-  groups match names within their gateway; credentials match within their
-  consumer. Refs and cached IDs do not override names or retain other names
-  during sync. Keep their lifecycle orchestration explicit: stores traverse
-  scoped secrets and supply creation dependencies; groups conditionally read
-  membership and depend on policies/consumers; credentials replace through
-  ordered delete/create changes. These do not all fit the detail-read
-  reconciler above. A name change declares a different resource.
+- **Other name-matched AI Gateway children:** Config stores match names
+  within their gateway; credentials match within their consumer. Refs and
+  cached IDs do not override names or retain other names during sync.
+  Keep their lifecycle orchestration explicit: stores traverse scoped secrets
+  and supply creation dependencies; credentials replace through ordered
+  delete/create changes. These do not fit the detail-read reconciler above.
+  A name change declares a different resource.
 - **AI Gateway certificate families:** Data-plane certificates match by
   required title; runtime certificates, CA certificates, and SNIs match by
   required name within their gateway. Refs and cached IDs do not select or
@@ -801,6 +804,8 @@ engine contract. Each refactoring migration should:
   ../../internal/declarative/planner/name_matched_child_reconciler.go
 [mcp-plan]: ../../internal/declarative/planner/ai_gateway_mcp_server_planner.go
 [agent-plan]: ../../internal/declarative/planner/ai_gateway_agent_planner.go
+[consumer-group-plan]:
+  ../../internal/declarative/planner/ai_gateway_consumer_group_planner.go
 [auth-plan]: ../../internal/declarative/planner/auth_strategy_planner.go
 [dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
 [dashboard-plan]: ../../internal/declarative/planner/dashboard_planner.go
