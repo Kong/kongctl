@@ -331,7 +331,8 @@ def check_eligibility(directory):
             continue
         # Documents and binary assets are fingerprinted opaque payloads, not
         # executable YAML. Their prose may describe tags without using them.
-        if path.suffix not in (".yaml", ".yml", ".json"):
+        if path.suffix.lower() not in (".yaml", ".yml", ".json"):
+            continue
             continue
         content = path.read_text(encoding="utf-8")
         if user_env:
