@@ -22,6 +22,7 @@ on:
           - control-plane/sync-groups
           - event-gateway/consume-policy
           - dump/organization-teams
+          - dump/portal-owned
           - org/users/assignments
           - org/users/get
           - org/users/plan/apply-workflow

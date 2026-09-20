@@ -6,6 +6,7 @@
     "control-plane/plan/apply-workflow",
     "control-plane/sync",
     "dump/organization-teams",
+    "dump/portal-owned",
     "event-gateway/consume-policy",
     "org/users/assignments",
     "org/users/get",

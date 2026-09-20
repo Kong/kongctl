@@ -112,7 +112,8 @@ class RoutingTest(unittest.TestCase):
         self.assertIn("portal/customization/scenario.yaml", pr["replay"])
         for scenario in MODULE.REPLAY.USER_SCENARIOS:
             self.assertIn(scenario + "/scenario.yaml", pr["replay"])
-        self.assertEqual(19, len(pr["replay"]))
+        self.assertIn("dump/portal-owned/scenario.yaml", pr["replay"])
+        self.assertEqual(20, len(pr["replay"]))
 
     def test_stale_cassette_fails_pr_but_does_not_block_live(self):
         with tempfile.TemporaryDirectory() as temporary:

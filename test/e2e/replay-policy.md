@@ -7,7 +7,7 @@ normal scenario assertions in isolation, and have a current input fingerprint.
 
 The enabled subset is `control-plane/get`, `control-plane/apply`,
 `control-plane/plan/apply-workflow`, `control-plane/sync`,
-`dump/organization-teams`, `event-gateway/consume-policy`,
+`dump/organization-teams`, `dump/portal-owned`, `event-gateway/consume-policy`,
 `org/users/assignments`, `org/users/get`, `org/users/plan/apply-workflow`,
 `org/users/plan/sync-workflow`, `org/users/sync`,
 `portal/api_docs_with_children`, `portal/customization`, `portal/email-templates`,
@@ -30,6 +30,7 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 | portal/teams | [Recording][teams-record], [isolated replays][teams-replay] |
 | portal/email-templates | [Recording][email-record], [isolated replays][email-replay] |
 | dump/organization-teams | [Recording][org-dump-record], [isolated replays][org-dump-replay] |
+| dump/portal-owned | [Recording][portal-dump-record], [isolated replays][portal-dump-replay] |
 | org/users/assignments | [Recording][user-assign-record], [isolated replays][user-assign-replay] |
 | org/users/get | [Recording and isolated replays][user-get-record] |
 | org/users/plan/apply-workflow | [Recording][user-apply-record], [isolated replays][user-apply-replay] |
@@ -59,6 +60,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
 [org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35463078546
 [org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35463672734
+[portal-dump-record]: https://github.com/Kong/kongctl/actions/runs/35470184997
+[portal-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35471335714
 [user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35463074418
 [user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35463667949
 [user-get-record]: https://github.com/Kong/kongctl/actions/runs/35463073348
@@ -104,7 +107,10 @@ Use this shared procedure for new replay coverage and cassette refreshes.
 The manual `e2e-replay.yaml` workflow uses CI credentials and the existing
 organization lock and before/after resets; no local PAT or new organization
 is needed. The six organization-user scenarios use `kongctl-acceptance`,
-where their pre-registered users exist; other recordings use acceptance-3.
+where their pre-registered users exist. `dump/portal-owned` records on
+acceptance-2, matching its successful live shard; acceptance-3 supplies a
+default auth-strategy ID that fails reconstruction after this scenario's
+reset. Other recordings use acceptance-3.
 The selected environment, credentials, and lock always refer to the same org.
 After pushing the scenario changes, record the complete scenario
 and replay it three times in the separate network-isolated job (replace
@@ -183,6 +189,15 @@ bodyless GETs with
 different queries may also reorder (for example, publications filtered by
 different API IDs). Queries still match exactly; repeated identical requests
 retain their stream order. Ancestor reads cannot cross updates or deletes.
+One bounded exception handles indistinguishable portal ID lookups around
+successful regional customization/authentication-settings PATCHes. It applies
+only to `GET /v3/portals?page[number]=1&page[size]=100` when responses on both
+sides of the update, within the same phase, agree in every field except the
+target portal's ISO `updated_at` timestamp. Real field changes, filters,
+other endpoints, and deletes retain their dependencies. Repeated lookups
+still consume their recorded responses in order, without changing responses
+or matching rules; parent-creation and explicit dependencies remain enforced.
+This prevents an ID lookup from waiting for the child update that needs it.
 Additional `after` dependencies can constrain ordering but cannot remove these
 mandatory dependencies. Never annotate a whole scenario as unordered.
 
@@ -258,9 +273,10 @@ Normally only a standalone `resetOrg: true` as the first command of the first
 step is supported. Recording uses the existing locked before/after reset;
 replay skips that initial reset. A later reset would invalidate a stateful
 round-trip test if skipped, so it fails eligibility. The explicit exception
-is `dump/organization-teams`: all of its in-scenario reset HTTP calls are
-recorded and replayed, including the mid-round-trip reset and final cleanup.
-It also permits only its reviewed inline system-account creation commands.
+is the reviewed dump subset, `dump/organization-teams` and
+`dump/portal-owned`: all in-scenario reset HTTP calls are recorded and
+replayed, including the mid-round-trip reset. Only the organization-teams
+scenario permits its reviewed inline system-account creation commands.
 
 Plain scalar `!file` references may resolve to existing files inside scenario
 `testdata`, or the referencing file's own overlay copied onto that tree.
@@ -269,6 +285,9 @@ exact-content public-fixture checks; another overlay is not a fallback search
 path. Remote files, parent traversal, symlinks, arbitrary environment overrides
 and custom creation commands remain unsupported. Every input, overlay and
 assertion file is fingerprinted, including document and OpenAPI content.
+Document and binary-asset bytes are opaque, fingerprinted payloads, not YAML
+configuration. Tag syntax in documentation is not an executable dependency;
+configuration files still undergo the local-input checks above.
 
 ### Pre-registered organization users
 
@@ -401,6 +420,16 @@ matcher changes are needed. Its
 [replay review](scenarios/portal/customization/replay/README.md) records
 provenance, mutation boundaries, and timing. PR replay skips its scenario
 reset; main and force-live runs remain live.
+
+`dump/portal-owned` is enabled after live recording and three isolated replays
+of all 453 exchanges. Both resets execute through the replay proxy, including
+the reset before reconstruction from the dump. Portal children, API documents
+and publications, binary assets, no-op plans, and final deletion assertions
+remain intact. Its [replay review](scenarios/dump/portal-owned/replay/README.md)
+records command boundaries and the recording environment limitation. Isolated
+wrappers took 3.796–3.803 seconds versus a 32.925-second historical live median;
+this comparison describes execution work, not measured workflow savings.
+Main and force-live runs remain fully live.
 
 ## Measurement
 

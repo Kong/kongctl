@@ -43,9 +43,100 @@ def cassette_refresh_scenario(env):
 
 
 class ReplayTest(unittest.TestCase):
-    def test_user_cassette_phases_preserve_dependencies_and_exact_matching(self):
+    def portal_lookup_cassette(self):
+        portal = "00000000-0000-4000-8000-000000000001"
+        lookup = {"request": MODULE.request_key("regional", "GET", "/v3/portals?page[number]=1&page[size]=100", b""),
+                  "response": {"status": 200, "body": {"data": [{"id": portal, "name": "portal",
+                      "updated_at": "2026-09-19T00:00:00Z"}], "meta": {"page": {"total": 1}}}}}
+        update = {"request": MODULE.request_key("regional", "PATCH", f"/v3/portals/{portal}/customization",
+                                              b'{"layout":"topnav"}'),
+                  "response": {"status": 200, "body": {"layout": "topnav"}}}
+        after = copy.deepcopy(lookup)
+        after["response"]["body"]["data"][0]["updated_at"] = "2026-09-19T00:00:01Z"
+        return {"interactions": [lookup, update, after], "parallel_phases": [{"start": 1, "end": 3, "after": {}}]}
+
+    def test_portal_lookup_can_precede_child_update_without_a_dependency_cycle(self):
+        cassette = self.portal_lookup_cassette()
+        engine = MODULE.Replay(cassette)
+        lookup = "/v3/portals?page[number]=1&page[size]=100"
+        engine.exchange("us.api.konghq.com", "GET", lookup, b"")
+        with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+            response = engine.exchange("us.api.konghq.com", "GET", lookup, b"")
+        self.assertEqual(cassette["interactions"][2]["response"], response)
+        update = cassette["interactions"][1]["request"]
+        engine.exchange("us.api.konghq.com", "PATCH", update["path"], json.dumps(update["body"]).encode())
+        engine.verify()
+        self.assertIn(0, engine.phases[0][2])  # Repeated lookup stream stays ordered.
+        cassette["parallel_phases"][0]["after"] = {"3": [2]}
+        self.assertIn(1, MODULE.parallel_phases(cassette)[0][2])  # Explicit constraints are never removed.
+
+    def test_portal_lookup_exception_requires_unchanged_reviewed_inventory(self):
+        for mutation in ["field", "metadata", "timestamp", "missing-portal", "duplicate-portal", "query",
+                         "body", "read-status", "write-status", "method", "path", "endpoint", "write-query",
+                         "write-body"]:
+            cassette = self.portal_lookup_cassette()
+            before, update, after = cassette["interactions"]
+            if mutation == "field":
+                after["response"]["body"]["data"][0]["name"] = "changed"
+            elif mutation == "metadata":
+                after["response"]["body"]["meta"]["page"]["total"] = 2
+            elif mutation == "timestamp":
+                after["response"]["body"]["data"][0]["updated_at"] = "unreviewed"
+            elif mutation == "missing-portal":
+                before["response"]["body"]["data"] = after["response"]["body"]["data"] = []
+            elif mutation == "duplicate-portal":
+                after["response"]["body"]["data"] *= 2
+            elif mutation == "query":
+                before["request"]["query"].append(["filter", "changed"])
+                after["request"]["query"].append(["filter", "changed"])
+            elif mutation == "body":
+                before["request"]["body"] = after["request"]["body"] = {}
+            elif mutation == "read-status":
+                after["response"]["status"] = 404
+            elif mutation == "write-status":
+                update["response"]["status"] = 400
+            elif mutation == "method":
+                update["request"]["method"] = "DELETE"
+            elif mutation == "path":
+                update["request"]["path"] = update["request"]["path"].replace("customization", "unreviewed")
+            elif mutation == "endpoint":
+                for item in cassette["interactions"]:
+                    item["request"]["endpoint"] = "global"
+            elif mutation == "write-body":
+                update["request"]["body"] = None
+            else:
+                update["request"]["query"] = [["extra", "value"]]
+            with self.subTest(mutation=mutation):
+                self.assertIn(1, MODULE.parallel_phases(cassette)[0][2])
+        cassette = self.portal_lookup_cassette()
+        cassette["parallel_phases"][0]["start"] = 2
+        self.assertIn(1, MODULE.parallel_phases(cassette)[1][2])  # No before/after evidence within this phase.
+
+    def test_portal_owned_round_trip_replays_resets_without_user_or_create_permissions(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/dump/portal-owned"
+        MODULE.check_eligibility(directory)
+        scenario = MODULE.parse_scenario((directory / "scenario.yaml").read_text())
+        self.assertEqual(2, sum(command.get("resetOrg") is True
+                                for step in scenario["steps"] for command in step["commands"]))
+        with self.assertRaisesRegex(ValueError, "mid-scenario"):
+            MODULE.check_scenario_controls(scenario)
+        MODULE.check_scenario_controls(scenario, replay_resets=True)
+        scenario["steps"][0]["commands"].append({"name": "unreviewed-create", "create": {
+            "resource": "system-account", "payload": {"inline": {
+                "name": "{{ .vars.systemAccountName }}",
+                "description": "System account for organization teams dump E2E coverage"}}}})
+        with self.assertRaisesRegex(ValueError, "unsupported command"):
+            MODULE.check_scenario_controls(scenario, replay_resets=True)
+        with patch.object(MODULE, "ROOT", Path("/separate-verifier-checkout")):
+            MODULE.check_eligibility(directory)
+        env = MODULE.clean_environment(Path("/private"), Path("/kongctl"), "dump/portal-owned")
+        self.assertEqual("1", env["KONGCTL_E2E_RESET"])
+        self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
+        self.assertEqual("kongctl-acceptance-2", MODULE.recording_org("dump/portal-owned"))
+
+    def test_round_trip_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
-        for scenario in MODULE.USER_SCENARIOS:
+        for scenario in (*MODULE.USER_SCENARIOS, "dump/portal-owned"):
             with self.subTest(scenario=scenario):
                 cassette = MODULE.load_cassette(MODULE.ROOT / "test/e2e/scenarios" / scenario / "replay/cassette.json")
                 engine = MODULE.Replay(cassette)
@@ -545,6 +636,8 @@ class ReplayTest(unittest.TestCase):
         self.assertIn("KONGCTL_E2E_MATRIX_ORG: ${{ needs.build.outputs.recording_org }}", experiment)
         for scenario in MODULE.SCENARIOS:
             expected = "kongctl-acceptance" if scenario in MODULE.USER_SCENARIOS else "kongctl-acceptance-3"
+            if scenario == "dump/portal-owned":
+                expected = "kongctl-acceptance-2"
             self.assertEqual(expected, MODULE.recording_org(scenario))
         self.assertIn("cancel-in-progress: false", experiment)
         self.assertIn("queue: max", experiment)
@@ -754,6 +847,40 @@ class ReplayTest(unittest.TestCase):
         for value in [public + "extra", "author@example.com", {"token": public}]:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 MODULE.check_safe(value, fixtures)
+
+    def test_opaque_documents_and_binary_assets_are_fingerprinted_not_parsed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []\n")
+            inputs = root / "testdata"
+            inputs.mkdir()
+            (inputs / "portal.yaml").write_text("logo: !file logo.png\ncontent: !file guide.md\n")
+            (inputs / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+            (inputs / "guide.md").write_text("The `!file` and `!env` tags are documented here.\n")
+            MODULE.check_eligibility(root)
+            digest = MODULE.scenario_digest(root)
+            (inputs / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\nchanged")
+            self.assertNotEqual(digest, MODULE.scenario_digest(root))
+            digest = MODULE.scenario_digest(root)
+            (inputs / "guide.md").write_text("Changed documentation\n")
+            self.assertNotEqual(digest, MODULE.scenario_digest(root))
+            (inputs / "portal.yaml").write_text("email: !env UNREVIEWED\n")
+            with self.assertRaisesRegex(ValueError, "external input"):
+                MODULE.check_eligibility(root)
+
+    def test_configuration_extension_scan_is_case_insensitive(self):
+        for suffix in (".yaml", ".YAML", ".YaMl", ".yml", ".YML", ".YmL", ".json", ".JSON", ".JsOn"):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []\n")
+                inputs = root / "testdata"
+                inputs.mkdir()
+                manifest = inputs / ("config" + suffix)
+                manifest.write_text("{}\n")
+                MODULE.check_eligibility(root)
+                manifest.write_text('{"email": "!env UNREVIEWED"}\n')
+                with self.assertRaisesRegex(ValueError, "external input"):
+                    MODULE.check_eligibility(root)
 
     def test_yaml_spec_serialized_as_json_remains_a_public_fixture(self):
         with tempfile.TemporaryDirectory() as directory:

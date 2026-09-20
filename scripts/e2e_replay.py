@@ -33,13 +33,14 @@ from e2e_replay_users import (EMAIL, USER_SCENARIOS, SYNTHETIC_EMAIL, UserIdenti
 # users can install the same requirements in their active Python environment.
 sys.path.insert(0, str(ROOT / ".e2e-artifacts/replay-python"))
 SCENARIO = "control-plane/get"
+RESET_SCENARIOS = {"dump/organization-teams", "dump/portal-owned"}
 SCENARIOS = (
     "control-plane/apply", "control-plane/delete-groups", "control-plane/get",
     "control-plane/groups", "control-plane/plan/apply-workflow",
     "control-plane/sync", "control-plane/sync-groups", "event-gateway/consume-policy", "portal/api_docs_with_children",
     "portal/customization", "portal/email-templates", "portal/ip-allow-list", "portal/pages", "portal/sync",
     "portal/teams", "portal/visibility",
-    *USER_SCENARIOS,
+    *USER_SCENARIOS, "dump/portal-owned",
 )
 HOSTS = {"us.api.konghq.com": "regional", "global.api.konghq.com": "global"}
 DUMMY_PAT = "replay-dummy"
@@ -181,7 +182,7 @@ def parse_scenario(definition):
     return scenario
 
 
-def check_scenario_controls(scenario, user_env=(), replay_resets=False):
+def check_scenario_controls(scenario, user_env=(), replay_resets=False, *, system_account_create=False):
     """Assertion field values are data, not executable scenario controls."""
     fields, initial_reset = [], None
     for step_index, step in enumerate(scenario["steps"]):
@@ -213,7 +214,7 @@ def check_scenario_controls(scenario, user_env=(), replay_resets=False):
                         or value.get("requiredEnvVars") != list(user_env)):
                     raise ValueError("organization user replay requires the reviewed environment and inputs")
                 allowed.update({"assignedEnvironment", "requiredEnvVars"})
-            if replay_resets and "create" in value:
+            if system_account_create and "create" in value:
                 creation = value["create"]
                 if (set(value) != {"name", "create"} or not isinstance(creation, dict)
                         or set(creation) != {"resource", "payload"}
@@ -297,7 +298,10 @@ def check_eligibility(directory):
     scenario = parse_scenario(definition)
     name = user_scenario(directory)
     user_env = USER_SCENARIOS.get(name, ())
-    check_scenario_controls(scenario, user_env, name == "dump/organization-teams")
+    replay_resets = any(directory.as_posix().endswith("/test/e2e/scenarios/" + name)
+                        for name in RESET_SCENARIOS)
+    check_scenario_controls(scenario, user_env, replay_resets,
+                            system_account_create=name == "dump/organization-teams")
     if user_env and not scenario.get("test"):
         raise ValueError("organization user replay requires its input declarations")
     if "inputOverlayOps" in definition:
@@ -324,6 +328,10 @@ def check_eligibility(directory):
         if path.is_symlink():
             raise ValueError("symlinked scenario inputs are not replay-supported")
         if not path.is_file():
+            continue
+        # Documents and binary assets are fingerprinted opaque payloads, not
+        # executable YAML. Their prose may describe tags without using them.
+        if path.suffix.lower() not in (".yaml", ".yml", ".json"):
             continue
         content = path.read_text(encoding="utf-8")
         if user_env:
@@ -556,12 +564,59 @@ def membership_create_id(item):
     return None
 
 
+def independent_portal_lookups(interactions, indices):
+    """Avoid cycles between child updates and their indistinguishable ID lookups.
+
+    Only the reviewed portal-list selector may cross customization/auth-settings
+    PATCHes. All recorded lookup responses in this phase must agree, except the
+    target portal's updated_at timestamp, with evidence before and after the
+    update. Responses themselves are never modified or matched as wildcards.
+    """
+    expected = {"endpoint": "regional", "method": "GET", "path": "/v3/portals",
+                "query": [["page[number]", "1"], ["page[size]", "100"]], "body": None}
+    lookups = [i for i in indices if interactions[i]["request"] == expected]
+    independent = set()
+    if len(lookups) < 2:
+        return independent
+    for i in indices:
+        request, response = interactions[i]["request"], interactions[i]["response"]
+        target = re.fullmatch(r"/v3/portals/([^/]+)/(customization|authentication-settings)", request["path"])
+        if (request["endpoint"] != "regional" or request["method"] != "PATCH" or request["query"]
+                or not isinstance(request["body"], dict)
+                or response["status"] != 200 or not target or not UUID.fullmatch(target[1])
+                or not lookups[0] < i < lookups[-1]):
+            continue
+        projections = []
+        for index in lookups:
+            read = interactions[index]["response"]
+            body = read["body"]
+            if (read["status"] != 200 or not isinstance(body, dict) or not isinstance(body.get("data"), list)
+                    or any(not isinstance(portal, dict) for portal in body["data"])):
+                break
+            portals = [portal for portal in body["data"] if portal.get("id") == target[1]]
+            if len(portals) != 1:
+                break
+            portal = portals[0]
+            if "updated_at" in portal and (not isinstance(portal["updated_at"], str) or not re.fullmatch(
+                r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", portal["updated_at"]
+            )):
+                break
+            data = [{**item, "updated_at": "<recorded-timestamp>"}
+                    if item is portal and "updated_at" in item else item for item in body["data"]]
+            projections.append(canonical({**read, "body": {**body, "data": data}}))
+        else:
+            if len(set(projections)) == 1:
+                independent.update((min(i, read), max(i, read)) for read in lookups)
+    return independent
+
+
 def parallel_phases(cassette):
     """Compile reviewed, bounded phases with mandatory causal dependencies.
 
     A phase is not a bag of responses: identical requests retain their stream
     order, new IDs cannot be observed before creation, and ancestor reads
-    cannot cross updates/deletes. Additional dependencies can only constrain.
+    cannot cross updates/deletes except verified portal ID lookups. Additional
+    dependencies can only constrain.
     """
     phases = cassette.get("parallel_phases", [])
     if not isinstance(phases, list):
@@ -575,6 +630,7 @@ def parallel_phases(cassette):
                 or end - start >= 64 or not isinstance(after, dict)):
             raise ValueError("parallel phases must be ordered, disjoint ranges of 2–64 exchanges")
         indices = range(start - 1, end)
+        portal_lookups = independent_portal_lookups(interactions, indices)
         read_only = all(interactions[i]["request"]["method"] == "GET"
                         and interactions[i]["request"]["body"] is None for i in indices)
         dependencies = {i: set() for i in indices}
@@ -620,7 +676,7 @@ def parallel_phases(cassette):
                 changes_observation = ("GET" in {earlier["method"], request["method"]}
                                        and bool({earlier["method"], request["method"]} & {"PUT", "PATCH", "DELETE"}))
                 if ((same_target and not independent_creates and not independent_queries and not independent_memberships)
-                        or (ancestor and changes_observation)):
+                        or (ancestor and changes_observation and (j, i) not in portal_lookups)):
                     dependencies[i].add(j)
         for index, parents in after.items():
             if not isinstance(index, str) or not index.isdecimal() or str(int(index)) != index:
@@ -906,7 +962,7 @@ def clean_environment(directory, binary, scenario=SCENARIO):
         "KONGCTL_E2E_CONSOLE_LOG_LEVEL": "warn", "KONGCTL_E2E_BETA_MODE": "fail",
     })
     env.update(replay_inputs(scenario))
-    if scenario == "dump/organization-teams":
+    if scenario in RESET_SCENARIOS:
         # Its round trip intentionally resets between dump and reconstruction.
         # Record/replay these HTTP calls rather than silently skipping the reset.
         env["KONGCTL_E2E_RESET"] = "1"

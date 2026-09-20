@@ -36,6 +36,10 @@ def recording_inputs(scenario, environ):
 
 
 def recording_org(scenario):
+    if scenario == "dump/portal-owned":
+        # Match this scenario's successful live shard. Acceptance-3 injects a
+        # default auth-strategy ID that cannot survive its reset round trip.
+        return "kongctl-acceptance-2"
     return "kongctl-acceptance" if scenario in USER_SCENARIOS else "kongctl-acceptance-3"
 
 

@@ -1,0 +1,93 @@
+{
+  "schema_version": 2,
+  "scenario": "dump/portal-owned",
+  "inputs_sha256": "sha256:78dcf980f2a6fc7db1b52909dfd88ddeebd476ba800b42caf474ed02de81d735",
+  "source": {
+    "kind": "recorded",
+    "commit": "be5fdd05ad2cacae696db1c09dfceacdd8b317c9",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35470184997"
+  },
+  "parallel_phases": [
+    {
+      "start": 1,
+      "end": 13,
+      "after": {}
+    },
+    {
+      "start": 14,
+      "end": 21,
+      "after": {}
+    },
+    {
+      "start": 22,
+      "end": 64,
+      "after": {}
+    },
+    {
+      "start": 65,
+      "end": 118,
+      "after": {}
+    },
+    {
+      "start": 119,
+      "end": 166,
+      "after": {}
+    },
+    {
+      "start": 167,
+      "end": 220,
+      "after": {}
+    },
+    {
+      "start": 221,
+      "end": 268,
+      "after": {}
+    },
+    {
+      "start": 269,
+      "end": 281,
+      "after": {}
+    },
+    {
+      "start": 287,
+      "end": 294,
+      "after": {}
+    },
+    {
+      "start": 295,
+      "end": 339,
+      "after": {}
+    },
+    {
+      "start": 340,
+      "end": 393,
+      "after": {}
+    },
+    {
+      "start": 394,
+      "end": 441,
+      "after": {}
+    },
+    {
+      "start": 442,
+      "end": 448,
+      "after": {}
+    },
+    {
+      "start": 449,
+      "end": 451,
+      "after": {}
+    }
+  ],
+  "interaction_chunks": [
+    "b597412b0d025e9c15d5870e484a09421b7686ef38a4f3e8bec282c4fc0ed93f",
+    "d5219d1819f63f757056f5907a7c143333dcdecbc7e12860b59494e50fb5fcf1",
+    "095aa2eff6b3fe93b0a03f00fa75dc1b8828ac30c45ffb9355bc7c5d82e4d729",
+    "15b0efedc6b826f115cd3ce4ce469c1effc13c0b7d01f0f7ce03eff6c94ab03f",
+    "87a8ea69231139d02387028c7ba318315914f363d6646605eb494292ebaa229e",
+    "e916cd9e885a16fdc66e52846389e386952082624e8c5b89f886918adce54820",
+    "7a7a2dd1301bb6e05566362d7ee2de45c5e670c43750c12363bee5627413e5a8",
+    "3c20fba9493c502e0922ebf5b48d78983976476f39c5548719da428bf21128fc",
+    "eaf6a7a86ca853a141e56bddc195d100f4408f4c7345ca1195958c9d710e9081"
+  ]
+}
