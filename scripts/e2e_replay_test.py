@@ -868,6 +868,20 @@ class ReplayTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "external input"):
                 MODULE.check_eligibility(root)
 
+    def test_configuration_extension_scan_is_case_insensitive(self):
+        for suffix in (".yaml", ".YAML", ".YaMl", ".yml", ".YML", ".YmL", ".json", ".JSON", ".JsOn"):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / "scenario.yaml").write_text("baseInputsPath: testdata\nsteps: []\n")
+                inputs = root / "testdata"
+                inputs.mkdir()
+                manifest = inputs / ("config" + suffix)
+                manifest.write_text("{}\n")
+                MODULE.check_eligibility(root)
+                manifest.write_text('{"email": "!env UNREVIEWED"}\n')
+                with self.assertRaisesRegex(ValueError, "external input"):
+                    MODULE.check_eligibility(root)
+
     def test_yaml_spec_serialized_as_json_remains_a_public_fixture(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

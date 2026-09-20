@@ -333,7 +333,6 @@ def check_eligibility(directory):
         # executable YAML. Their prose may describe tags without using them.
         if path.suffix.lower() not in (".yaml", ".yml", ".json"):
             continue
-            continue
         content = path.read_text(encoding="utf-8")
         if user_env:
             # Only exact email lookup fields, never arbitrary environment tags.
