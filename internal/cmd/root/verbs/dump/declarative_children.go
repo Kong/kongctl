@@ -269,101 +269,13 @@ func populateAIGatewayChildren(
 			continue
 		}
 
-		if providers, err := buildAIGatewayProviders(ctx, logger, client, gatewayID, gateway.DisplayName); err != nil {
-			logWarn(logger, "failed to load AI Gateway Model Providers", gatewayID, gateway.DisplayName, err)
-		} else if len(providers) > 0 {
-			gateway.Providers = providers
+		d := &aiGatewayChildDumpContext{
+			logger: logger, client: client, gatewayID: gatewayID, gatewayName: gateway.DisplayName,
 		}
-
-		authStrategies, err := buildAIGatewayAuthStrategies(ctx, logger, client, gatewayID, gateway.DisplayName)
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Auth Strategies", gatewayID, gateway.DisplayName, err)
-		} else if len(authStrategies) > 0 {
-			gateway.AuthStrategies = authStrategies
-		}
-
-		policies, err := buildAIGatewayPolicies(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Policies", gatewayID, gateway.DisplayName, err)
-		} else if len(policies) > 0 {
-			gateway.Policies = policies
-		}
-
-		agents, err := buildAIGatewayAgents(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Agents", gatewayID, gateway.DisplayName, err)
-		} else if len(agents) > 0 {
-			gateway.Agents = agents
-		}
-
-		consumers, err := buildAIGatewayConsumers(ctx, client, gatewayID, gateway.DisplayName, "", true)
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Consumers", gatewayID, gateway.DisplayName, err)
-		} else if len(consumers) > 0 {
-			gateway.Consumers = consumers
-		}
-
-		groups, err := buildAIGatewayConsumerGroups(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Consumer Groups", gatewayID, gateway.DisplayName, err)
-		} else if len(groups) > 0 {
-			gateway.ConsumerGroups = groups
-		}
-
-		models, err := buildAIGatewayModels(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway models", gatewayID, gateway.DisplayName, err)
-		} else if len(models) > 0 {
-			gateway.Models = models
-		}
-
-		servers, err := buildAIGatewayMCPServers(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway MCP Servers", gatewayID, gateway.DisplayName, err)
-		} else if len(servers) > 0 {
-			gateway.MCPServers = servers
-		}
-
-		configStores, err := buildAIGatewayConfigStores(ctx, client, gatewayID, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Config Stores", gatewayID, gateway.DisplayName, err)
-		} else if len(configStores) > 0 {
-			gateway.ConfigStores = configStores
-		}
-
-		vaults, err := buildAIGatewayVaults(ctx, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway Vaults", gatewayID, gateway.DisplayName, err)
-		} else if len(vaults) > 0 {
-			gateway.Vaults = vaults
-		}
-
-		certs, err := buildAIGatewayDataPlaneCertificates(ctx, logger, client, gatewayID, gateway.DisplayName, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway data plane certificates", gatewayID, gateway.DisplayName, err)
-		} else if len(certs) > 0 {
-			gateway.DataPlaneCertificates = certs
-		}
-
-		certificates, err := buildAIGatewayCertificates(ctx, client, gatewayID, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway certificates", gatewayID, gateway.DisplayName, err)
-		} else if len(certificates) > 0 {
-			gateway.Certificates = certificates
-		}
-
-		caCertificates, err := buildAIGatewayCACertificates(ctx, client, gatewayID, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway CA certificates", gatewayID, gateway.DisplayName, err)
-		} else if len(caCertificates) > 0 {
-			gateway.CACertificates = caCertificates
-		}
-
-		snis, err := buildAIGatewaySNIs(ctx, client, gatewayID, "")
-		if err != nil {
-			logWarn(logger, "failed to load AI Gateway SNIs", gatewayID, gateway.DisplayName, err)
-		} else if len(snis) > 0 {
-			gateway.SNIs = snis
+		for _, collector := range aiGatewayChildCollectors {
+			if err := collector.collect(ctx, d, gateway); err != nil {
+				logWarn(logger, collector.warning, gatewayID, gateway.DisplayName, err)
+			}
 		}
 	}
 }
@@ -809,7 +721,10 @@ func buildAIGatewayConfigStores(
 		for _, secret := range secrets {
 			resource.Secrets = append(
 				resource.Secrets,
-				declresources.AIGatewayConfigStoreSecretResourceFromResponse(resource.Ref, secret.AIGatewayConfigStoreSecret),
+				declresources.AIGatewayConfigStoreSecretResourceFromResponse(
+					resource.Ref,
+					secret.AIGatewayConfigStoreSecret,
+				),
 			)
 		}
 		slices.SortFunc(resource.Secrets, func(a, b declresources.AIGatewayConfigStoreSecretResource) int {

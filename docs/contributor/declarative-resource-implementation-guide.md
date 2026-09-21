@@ -45,10 +45,10 @@ The [root planner inventory][roots] drives root construction and dispatch.
 payload validation for SDK resource operations. [Coverage checks][coverage]
 tie root planners, SDK executors, and dump dispositions to managed scope.
 The [dump collector inventory][dump-collectors] supplies supported selectors,
-help, and dispatch. Grouped loading,
-specialized namespace selection, relationships,
-pre-execution validation, state-client wiring, and child dump traversal remain
-separate steps.
+help, and dispatch; the [AI Gateway child inventory][ai-child-dump] guards
+child export coverage. Grouped loading, specialized namespace selection,
+relationships, pre-execution validation, state-client wiring, and other child
+dump traversal remain separate steps.
 Registering a declaration does not complete those steps automatically.
 
 ## 1. Define and register the resource
@@ -690,6 +690,20 @@ for empty results. Organization collection stays explicit because it also
 derives user/system-account selectors after exporting teams. Preserve request
 order, fatal Portal child errors, and other families' warning/skip policies.
 
+AI Gateway child export uses the [typed child inventory][ai-child-dump].
+Add one `aiGatewayChild` entry with its builder, typed destination, and warning
+message; inventory order controls requests. Declare nested kinds on the
+collector that actually exports them: consumers own credentials, and config
+stores own secrets. Assembly checks every managed descendant against registered
+sync ownership, rejecting missing/duplicate kinds and incorrect owners.
+Do not add a separate dispatch branch or a second expected-kind list.
+
+Builders retain conversion, sorting, and nested reads. The shared adapter
+assigns only non-empty successful results; errors retain existing values and
+warn before continuing to the next collector. Nil clients and blank gateway
+refs skip traversal. Preserve empty parent selectors for nested output and
+the existing secret omission rules.
+
 Keep API-to-declarative conversion in [dump][dump] and child traversal in
 [child dump][dump-children]. Preserve valid reloadable YAML, parent
 relationships, user labels, and secret omission. Update the
@@ -868,3 +882,5 @@ engine contract. Each refactoring migration should:
 [dump-default-tests]:
   ../../internal/declarative/resources/dump_defaults_test.go
 [e2e]: ../../test/e2e/scenarios/README.md
+[ai-child-dump]:
+  ../../internal/cmd/root/verbs/dump/declarative_ai_child_collectors.go
