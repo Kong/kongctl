@@ -704,6 +704,11 @@ class ReplayTest(unittest.TestCase):
         scenario = MODULE.parse_scenario((directory / "scenario.yaml").read_text())
         variables = MODULE.USER_SCENARIOS["org/users/get"]
         MODULE.check_scenario_controls(scenario, variables)
+        unpinned = copy.deepcopy(scenario)
+        unpinned["test"].pop("assignedEnvironment", None)
+        MODULE.check_scenario_controls(unpinned, variables)
+        with self.assertRaises(ValueError):
+            MODULE.check_scenario_controls(unpinned)
         with self.assertRaises(ValueError):
             MODULE.check_scenario_controls(scenario)
         for key, value in [("assignedEnvironment", "another-org"),

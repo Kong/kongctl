@@ -210,9 +210,9 @@ def check_scenario_controls(scenario, user_env=(), replay_resets=False, *, syste
                 return
             allowed = set()
             if user_env and value is scenario.get("test"):
-                if (value.get("assignedEnvironment") != "kongctl-acceptance"
+                if (value.get("assignedEnvironment") not in (None, "kongctl-acceptance")
                         or value.get("requiredEnvVars") != list(user_env)):
-                    raise ValueError("organization user replay requires the reviewed environment and inputs")
+                    raise ValueError("organization user replay requires the reviewed inputs and an optional acceptance pin")
                 allowed.update({"assignedEnvironment", "requiredEnvVars"})
             if system_account_create and "create" in value:
                 creation = value["create"]
