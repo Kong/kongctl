@@ -163,6 +163,9 @@ func (d *scenarioDiagnostics) finish(err error) error {
 					f.Cause = "http_status"
 				}
 			}
+			if d.current.RetryStop == "outcome_unknown" {
+				f.Cause = "create_outcome_unknown"
+			}
 		}
 		// Assertion failures can include reads as well as comparisons. Do not
 		// attribute them to an earlier command's recovered transport error.

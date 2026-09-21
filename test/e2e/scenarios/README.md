@@ -299,3 +299,23 @@ Notes
 
 - Assertions attach to commands so you can validate state in-between changes.
 - If a needed resource isn’t supported by kongctl get yet, add that coverage to the CLI so scenarios don’t need HTTP fallbacks.
+
+Synthetic Create Recovery
+
+- A synthetic `create:` POST that times out, loses its response, or returns a
+  server error has an unknown outcome. The harness does not repeat it, because
+  the server may already have committed the mutation. This differs from sync
+  recovery, which replans against remote state.
+- For organization teams, opt into `recoverTeam: true` inside `create:`. The
+  harness adds a reserved `e2e-create-id` label with a unique value before POST.
+  After an ambiguous failure it polls the paginated team inventory for up to
+  30 seconds. Exactly one matching team with all requested fields recovers its
+  ID for `recordVar`; conflicting or duplicate matches fail. Absence at the
+  deadline remains unknown and never authorizes another POST.
+- The label remains on the team, so opt-in scenarios must tolerate its presence
+  in readbacks/dumps. Existing labels are preserved; supplying the reserved key
+  is an error. Other resource types have no automatic create reconciliation.
+- Failed requests retain duration/status/timeout metadata in `failure.json`.
+  With `KONGCTL_E2E_LOG_LEVEL=trace` (the workflow's `trace_http` option), synthetic
+  requests also write `http-phases.jsonl` as phases occur. Phase completion does
+  not imply success; these records omit URLs, credentials, bodies and addresses.

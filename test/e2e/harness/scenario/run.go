@@ -334,6 +334,7 @@ func executeScenario(
 						cmd.Create.Resource,
 						payload,
 						harness.CreateResourceOptions{
+							RecoverTeam:  cmd.Create.RecoverTeam,
 							Slug:         cmdName,
 							ExpectStatus: cmd.Create.ExpectStatus,
 							PathParams:   pathParams,
@@ -358,6 +359,10 @@ func executeScenario(
 							strings.TrimSpace(cmd.Create.Resource),
 							result.Status,
 						)
+						break
+					}
+					if harness.IsCreateOutcomeUnknown(lastErr) {
+						diagnostics.current.RetryStop = "outcome_unknown"
 						break
 					}
 					if atry+1 < attempts {

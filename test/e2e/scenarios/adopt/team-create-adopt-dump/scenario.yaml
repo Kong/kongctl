@@ -16,6 +16,7 @@ steps:
       - name: 000-create-org-team-via-api
         create:
           resource: organization_team
+          recoverTeam: true
           payload:
             inline:
               name: "{{ .vars.team_name }}"
