@@ -31,6 +31,7 @@ type Step struct {
 }
 
 type CreateResourceOptions struct {
+	RecoverTeam  bool
 	Slug         string
 	ExpectStatus int
 	PathParams   map[string]string
@@ -481,25 +482,44 @@ func defaultStatusForMethod(method string) int {
 }
 
 type resourceRequestOptions struct {
-	Slug         string
-	ExpectStatus int
-	PathParams   map[string]string
-	SlugPrefix   string
+	// DiagnosticsOnly reuses ArtifactDir and omits inventory payload artifacts.
+	DiagnosticsOnly bool
+	ArtifactDir     string
+	Context         context.Context
+	Slug            string
+	ExpectStatus    int
+	PathParams      map[string]string
+	SlugPrefix      string
 }
 
 type resourceRequestResult struct {
-	Status   int
-	Body     []byte
-	Parsed   any
-	Method   string
-	URL      string
-	Duration time.Duration
-	TimedOut bool
+	BodyReadFailed bool
+	Status         int
+	Body           []byte
+	Parsed         any
+	Method         string
+	URL            string
+	Duration       time.Duration
+	TimedOut       bool
 }
 
 // CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
 // records artifacts under the current step similar to CLI commands.
 func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceOptions) (CreateResourceResult, error) {
+	var desired map[string]any
+	var marker string
+	endpoint := createResourceEndpoints[strings.ToLower(strings.TrimSpace(resource))]
+	if opts.RecoverTeam {
+		if endpoint.Path != "/v3/teams" {
+			return CreateResourceResult{}, fmt.Errorf("recoverTeam is only supported for organization teams")
+		}
+		var err error
+		body, desired, marker, err = markTeamCreate(body)
+		if err != nil {
+			return CreateResourceResult{}, err
+		}
+	}
+
 	result, err := s.requestResource(
 		resource,
 		body,
@@ -511,10 +531,20 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 			SlugPrefix:   "create",
 		},
 	)
-	if err != nil {
-		return CreateResourceResult{}, err
+	if err != nil && result.Method == http.MethodPost && (result.Status == 0 || result.Status >= 500 ||
+		(result.Status >= 200 && result.Status < 300 && result.BodyReadFailed)) {
+		if marker != "" {
+			recovered, recoveryErr := s.recoverTeamCreate(desired, marker, 30*time.Second)
+			if recoveryErr == nil {
+				result = recovered
+				err = nil
+			} else {
+				err = &CreateOutcomeUnknownError{Cause: recoveryErr}
+			}
+		} else {
+			err = &CreateOutcomeUnknownError{Cause: err}
+		}
 	}
-
 	return CreateResourceResult{
 		Status:   result.Status,
 		Body:     result.Body,
@@ -523,7 +553,7 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 		URL:      result.URL,
 		Duration: result.Duration,
 		TimedOut: result.TimedOut,
-	}, nil
+	}, err
 }
 
 // DeleteResource issues an authenticated Konnect API call to delete an unmanaged resource and
@@ -560,8 +590,7 @@ func (s *Step) requestResource(
 	body []byte,
 	endpoints map[string]resourceEndpoint,
 	opts resourceRequestOptions,
-) (resourceRequestResult, error) {
-	var result resourceRequestResult
+) (result resourceRequestResult, err error) {
 	if s == nil || s.cli == nil {
 		return result, fmt.Errorf("nil step/cli")
 	}
@@ -585,9 +614,12 @@ func (s *Step) requestResource(
 		}
 		slug = fmt.Sprintf("%s-%s", slugPrefix, sanitizeName(resource))
 	}
-	dir, err := s.cli.allocateCommandDir(slug)
-	if err != nil {
-		return result, err
+	dir := opts.ArtifactDir
+	if !opts.DiagnosticsOnly {
+		dir, err = s.cli.allocateCommandDir(slug)
+		if err != nil {
+			return result, err
+		}
 	}
 	baseURL, err := KonnectBaseURL()
 	if err != nil {
@@ -605,7 +637,12 @@ func (s *Step) requestResource(
 		return result, fmt.Errorf("KONGCTL_E2E_KONNECT_PAT not set")
 	}
 	timeout := HTTPRequestTimeout()
-	ctx := context.Background()
+	ctx := opts.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, finishTrace := traceSyntheticRequest(ctx, dir)
+	defer finishTrace()
 	req, err := http.NewRequestWithContext(ctx, endpoint.Method, fullURL, bytes.NewReader(body))
 	if err != nil {
 		return result, err
@@ -616,7 +653,23 @@ func (s *Step) requestResource(
 		req.Header.Set("Content-Type", "application/json")
 	}
 	client := newHTTPClient(timeout)
+	defer client.CloseIdleConnections()
+	result.Method = endpoint.Method
+	result.URL = fullURL
 	start := time.Now()
+	defer func() {
+		result.Duration = time.Since(start)
+		if err != nil {
+			result.TimedOut = IsTimeoutRetry(err, err.Error())
+			metadata, _ := json.Marshal(map[string]any{
+				"method": result.Method, "http_status": result.Status,
+				"duration_ms": result.Duration.Milliseconds(), "timed_out": result.TimedOut,
+			})
+			if dir != "" {
+				_ = os.WriteFile(filepath.Join(dir, "failure.json"), metadata, 0o600)
+			}
+		}
+	}()
 	resp, err := client.Do(req)
 	defer func() { s.cli.observeHTTP(req, resp, err, start, timeout) }()
 	result.Duration = time.Since(start)
@@ -629,8 +682,10 @@ func (s *Step) requestResource(
 		return result, err
 	}
 	defer resp.Body.Close()
+	result.Status = resp.StatusCode
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		result.BodyReadFailed = true
 		return result, fmt.Errorf("failed to read response body: %w", err)
 	}
 	duration := result.Duration
@@ -660,6 +715,9 @@ func (s *Step) requestResource(
 			expect,
 			&httpError{status: resp.StatusCode, body: snippet, header: resp.Header.Clone()},
 		)
+	}
+	if opts.DiagnosticsOnly {
+		return result, nil
 	}
 	if dir != "" {
 		_ = os.WriteFile(

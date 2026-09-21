@@ -18,10 +18,9 @@ func TestObserveHTTPPreservesFailedResourceEvidence(t *testing.T) {
 	var observations []HTTPAttempt
 	cli := &CLI{TestDir: t.TempDir(), ObserveHTTP: func(a HTTPAttempt) { observations = append(observations, a) }}
 	step := &Step{cli: cli}
-	// The public helper intentionally still discards failure results. Observing
-	// the request must not change inputs to the existing retry policy.
+	// Failed creates preserve request metadata and report ambiguous outcomes.
 	result, err := step.CreateResource("portal", nil, CreateResourceOptions{})
-	if err == nil || result.Status != 0 {
+	if !IsCreateOutcomeUnknown(err) || result.Status != 503 || result.Duration <= 0 {
 		t.Fatalf("resource helper behavior changed: %+v, %v", result, err)
 	}
 	if len(observations) != 1 {

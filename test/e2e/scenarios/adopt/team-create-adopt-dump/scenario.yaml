@@ -16,6 +16,7 @@ steps:
       - name: 000-create-org-team-via-api
         create:
           resource: organization_team
+          recoverTeam: true
           payload:
             inline:
               name: "{{ .vars.team_name }}"
@@ -99,7 +100,32 @@ steps:
   - name: 002-delete-cleanup
     skipInputs: true
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[0]
+            expect:
+              fields:
+                action: DELETE
+                resource_type: organization_team
+                resource_id: "{{ .vars.team_id }}"
+
+      - name: 001-delete
         run:
           - delete
           - -f
@@ -110,13 +136,16 @@ steps:
             expect:
               fields:
                 mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 1
-                by_action.DELETE: 1
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.team_id }}']"
+            expect:
+              fields:
+                "length(@)": 0

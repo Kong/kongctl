@@ -89,6 +89,7 @@ type Command struct {
 }
 
 type CreateSpec struct {
+	RecoverTeam    bool              `yaml:"recoverTeam"`
 	Resource       string            `yaml:"resource"`
 	Payload        CreatePayload     `yaml:"payload"`
 	ExpectStatus   int               `yaml:"expectStatus"`
