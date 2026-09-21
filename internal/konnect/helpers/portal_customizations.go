@@ -61,12 +61,12 @@ func (p *PortalCustomizationAPIImpl) GetPortalCustomization(
 }
 
 type portalCustomizationPayload struct {
-	Theme        *kkComponents.Theme        `json:"theme,omitempty"`
-	Layout       *string                    `json:"layout,omitempty"`
-	CSS          *string                    `json:"css,omitempty"`
-	Menu         *portalCustomizationMenu   `json:"menu,omitempty"`
-	SpecRenderer *kkComponents.SpecRenderer `json:"spec_renderer,omitempty"`
-	Robots       *string                    `json:"robots,omitempty"`
+	Theme        *kkComponents.Theme                           `json:"theme,omitempty"`
+	Layout       *string                                       `json:"layout,omitempty"`
+	CSS          *string                                       `json:"css,omitempty"`
+	Menu         *portalCustomizationMenu                      `json:"menu,omitempty"`
+	SpecRenderer *kkComponents.PortalCustomizationSpecRenderer `json:"spec_renderer,omitempty"`
+	Robots       *string                                       `json:"robots,omitempty"`
 }
 
 type portalCustomizationMenu struct {

@@ -1356,7 +1356,7 @@ func buildPortalMenuItemFields(item kkComps.PortalMenuItem) map[string]any {
 	}
 }
 
-func (p *Planner) buildSpecRendererFields(specRenderer *kkComps.SpecRenderer) map[string]any {
+func (p *Planner) buildSpecRendererFields(specRenderer *kkComps.PortalCustomizationSpecRenderer) map[string]any {
 	specRendererFields := make(map[string]any)
 
 	if specRenderer.TryItUI != nil {
@@ -1465,7 +1465,7 @@ func comparePortalMenuItems(current, desired []kkComps.PortalMenuItem) bool {
 	return true
 }
 
-func (p *Planner) compareSpecRenderer(current, desired *kkComps.SpecRenderer) bool {
+func (p *Planner) compareSpecRenderer(current, desired *kkComps.PortalCustomizationSpecRenderer) bool {
 	if current == nil && desired == nil {
 		return true
 	}
