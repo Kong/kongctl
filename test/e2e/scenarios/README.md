@@ -220,6 +220,37 @@ Stateful Commands and Retries
   artifacts belong to the final command output or the fresh readback attempt.
   Each assertion's `source.json` records its source kind and final attempt.
 
+Retry-Safe Assertion Review
+
+- Classify each assertion as an initial planning contract, an execution result,
+  or a final-state contract. Read-only `plan`/`diff` output remains a valid
+  assertion source when the starting state is controlled. Do not ban output
+  assertions wholesale.
+- Assert exact CREATE/UPDATE/DELETE actions and counts before mutation. After
+  retried apply/sync/delete, require successful completion, but do not treat the
+  last attempt's action list or applied count as the complete operation history.
+  Earlier attempts may already have applied some changes. Retain those attempts
+  for diagnosis; summing their output cannot prove final remote state when a
+  response was lost.
+- Reuse existing convergence and deletion checks. A fresh read-only no-op plan
+  verifies fields the planner compares without potentially repairing drift.
+  Use independent readbacks for critical relationships and fields that this
+  cannot establish; query a collection once and check multiple fields from it.
+  Avoid adding a separate read per field or duplicating every planner check.
+- Validate deletion with a pre-deletion plan, then read back absent targets and
+  surviving parents. Fixed final-attempt DELETE counts are unsafe for the same
+  reason as CREATE counts. A test specifically about single-attempt execution
+  counts must explicitly control its initial state and retry behavior.
+- `external/api-parent` is a focused example: initial create/delete plans,
+  retryable sync completion, grouped version/publication/team-role readbacks,
+  read-only convergence, and existing deletion readbacks. Its scoped `get`
+  commands produce immutable snapshots; they do not poll assertion mismatches.
+  The current `source.get` supports a single resource argument, not a command
+  with flags. Do not imply that a standalone `get` assertion polls fresh state.
+- Before extending the pattern, record the command-count delta and compare
+  HTTP request counts and runner time in comparable live runs. Extra plans can
+  perform many inventory reads; command count is not network-request count.
+
 Selectors and Sources
 
 - Use JMESPath to target the object/array/scalar you want to compare.

@@ -53,95 +53,131 @@ steps:
 
   - name: 002-sync-version-under-external-api
     commands:
-      - name: 000-sync
+      - name: 000-plan-create
+        outputFormat: disable
         run:
-          - sync
+          - plan
           - -f
           - "{{ .workdir }}/external-api.yaml"
-          - --auto-approve
+          - --mode
+          - sync
         assertions:
-          - select: "plan.changes[?resource_type=='api']"
+          - select: "changes[?resource_type=='api']"
             expect:
               fields:
                 "length(@)": 0
-          - select: "plan.changes[?resource_type=='api_version'] | [0]"
+          - select: "changes[?resource_type=='api_version'] | [0]"
             expect:
               fields:
                 action: CREATE
                 parent.id: "{{ .vars.api_id }}"
-          - select: "plan.changes[?resource_type=='api_publication'] | [0]"
+          - select: "changes[?resource_type=='api_publication'] | [0]"
             expect:
               fields:
                 action: CREATE
                 parent.id: "{{ .vars.api_id }}"
                 "fields.auth_strategy_ids[0]": "{{ .vars.auth_strategy_id }}"
-          - select: "plan.changes[?resource_type=='organization_team_role'] | [0]"
+          - select: "changes[?resource_type=='organization_team_role'] | [0]"
             expect:
               fields:
                 action: CREATE
                 fields.entity_id: "{{ .vars.api_id }}"
                 fields.entity_type_name: APIs
+
+      - name: 001-sync
+        run: ["sync", "-f", "{{ .workdir }}/external-api.yaml", "--auto-approve"]
+        assertions:
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
 
-  - name: 003-sync-idempotent
-    commands:
-      - name: 000-sync
-        run:
-          - sync
-          - -f
-          - "{{ .workdir }}/external-api.yaml"
-          - --auto-approve
+      - name: 002-get-api-versions
+        run: ["get", "api", "versions", "--api-id", "{{ .vars.api_id }}", "-o", "json"]
         assertions:
-          - select: plan.summary
+          - select: "@"
             expect:
               fields:
-                total_changes: 0
+                "length(@)": 1
+                "[0].version": v1
+
+      - name: 003-get-api-publications
+        run: ["get", "api", "publications", "--api-id", "{{ .vars.api_id }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].portal_id": "{{ .vars.portal_id }}"
+                "[0].visibility": public
+                "length([0].auth_strategy_ids)": 1
+                "[0].auth_strategy_ids[0]": "{{ .vars.auth_strategy_id }}"
+
+      - name: 004-get-team-roles
+        run: ["get", "org", "team", "roles", "--team-name", "{{ .vars.team_name }}", "-o", "json"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].role_name": Viewer
+                "[0].entity_id": "{{ .vars.api_id }}"
+                "[0].entity_type_name": APIs
+                "[0].entity_region": us
+
+  - name: 003-sync-idempotent
+    commands:
+      - name: 000-plan-noop
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/external-api.yaml", "--mode", "sync"]
+        assertions:
           - select: summary
             expect:
               fields:
-                failed: 0
-                status: success
+                total_changes: 0
 
   - name: 004-sync-delete-children-under-external-api
     inputOverlayDirs:
       - overlays/002-empty-api-children
     commands:
-      - name: 000-sync
+      - name: 000-plan-delete
+        outputFormat: disable
         run:
-          - sync
+          - plan
           - -f
           - "{{ .workdir }}/external-api.yaml"
-          - --auto-approve
+          - --mode
+          - sync
         assertions:
-          - select: "plan.changes[?resource_type=='api']"
+          - select: "changes[?resource_type=='api']"
             expect:
               fields:
                 "length(@)": 0
-          - select: "plan.changes[?resource_type=='api_version' && action=='DELETE']"
+          - select: "changes[?resource_type=='api_version' && action=='DELETE']"
             expect:
               fields:
                 "length(@)": 1
-          - select: "plan.changes[?resource_type=='api_publication' && action=='DELETE']"
+          - select: "changes[?resource_type=='api_publication' && action=='DELETE']"
             expect:
               fields:
                 "length(@)": 1
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 2
                 by_action.DELETE: 2
+
+      - name: 001-sync
+        run: ["sync", "-f", "{{ .workdir }}/external-api.yaml", "--auto-approve"]
+        assertions:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
                 status: success
 
-      - name: 001-get-api-versions
+      - name: 002-get-api-versions
         run: ["get", "api", "versions", "--api-name", "{{ .vars.api_name }}", "-o", "json"]
         assertions:
           - select: "@"
@@ -149,7 +185,7 @@ steps:
               fields:
                 "length(@)": 0
 
-      - name: 002-get-api-publications
+      - name: 003-get-api-publications
         run: ["get", "api", "publications", "--api-name", "{{ .vars.api_name }}", "-o", "json"]
         assertions:
           - select: "@"
@@ -157,12 +193,13 @@ steps:
               fields:
                 "length(@)": 0
 
-      - name: 003-get-external-api
+      - name: 004-get-external-api
         run: ["get", "apis", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.api_name }}'] | [0]"
             expect:
               fields:
+                id: "{{ .vars.api_id }}"
                 name: "{{ .vars.api_name }}"
 
   - name: 005-reset-org
