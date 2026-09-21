@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     # EXACTLY the live shard lock for the selected organization. User scenarios
-    # need the primary acceptance org where the pre-registered users exist.
+    # record on the primary acceptance org; live shard allocation is independent.
     concurrency:
       group: konnect-e2e-${{ needs.build.outputs.recording_org }}
       queue: max

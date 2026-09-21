@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "org/users/plan/apply-workflow",
-  "inputs_sha256": "sha256:849a155f9274a220d8dd0e92ebf4073ae96417ee8cb0bd61d66265985d685d45",
+  "inputs_sha256": "sha256:c8860bdcaa1fa719ca80d2710712ad0e4bb552cbdb52af8858da27ca574a5ba0",
   "source": {
     "kind": "recorded",
-    "commit": "c139ad63ed85a286fadcd71500887a674399240b",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35463075604"
+    "commit": "c0b9803621148ef870afb2415ac1850d7227a782",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35553695006"
   },
   "interactions": [
     {
@@ -64,7 +64,7 @@
             "page": {
               "number": 1,
               "size": 100,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -97,28 +97,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -126,6 +126,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -160,7 +187,7 @@
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
               "description": "Allow managing all objects, users and roles in the organization.",
-              "id": "00000000-0000-4000-8000-000000000008",
+              "id": "00000000-0000-4000-8000-000000000011",
               "konnect_managed": false,
               "labels": {},
               "name": "organization-admin",
@@ -170,7 +197,7 @@
             {
               "created_at": "2025-09-02T15:25:34.394711Z",
               "description": "Allow viewing all entities and configuration in the organization.",
-              "id": "00000000-0000-4000-8000-000000000009",
+              "id": "00000000-0000-4000-8000-000000000012",
               "konnect_managed": false,
               "labels": {},
               "name": "organization-admin-readonly",
@@ -180,7 +207,7 @@
             {
               "created_at": "2025-09-02T15:25:34.476556Z",
               "description": "Allow creating and managing control planes.",
-              "id": "00000000-0000-4000-8000-000000000010",
+              "id": "00000000-0000-4000-8000-000000000013",
               "konnect_managed": false,
               "labels": {},
               "name": "control-plane-admin",
@@ -190,7 +217,7 @@
             {
               "created_at": "2025-09-02T15:25:34.608382Z",
               "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
-              "id": "00000000-0000-4000-8000-000000000011",
+              "id": "00000000-0000-4000-8000-000000000014",
               "konnect_managed": false,
               "labels": {},
               "name": "api-product-admin",
@@ -200,7 +227,7 @@
             {
               "created_at": "2025-09-02T15:25:34.903552Z",
               "description": "Allow creating and managing versions of API products.",
-              "id": "00000000-0000-4000-8000-000000000012",
+              "id": "00000000-0000-4000-8000-000000000015",
               "konnect_managed": false,
               "labels": {},
               "name": "api-product-developer",
@@ -210,7 +237,7 @@
             {
               "created_at": "2025-09-02T15:25:35.120888Z",
               "description": "Allow managing all developer portals and publishing any API products to portals.",
-              "id": "00000000-0000-4000-8000-000000000013",
+              "id": "00000000-0000-4000-8000-000000000016",
               "konnect_managed": false,
               "labels": {},
               "name": "portal-admin",
@@ -220,7 +247,7 @@
             {
               "created_at": "2025-09-02T15:25:35.443089Z",
               "description": "Allow viewing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000014",
+              "id": "00000000-0000-4000-8000-000000000017",
               "konnect_managed": false,
               "labels": {},
               "name": "analytics-viewer",
@@ -230,7 +257,7 @@
             {
               "created_at": "2025-09-02T15:25:35.484824Z",
               "description": "Allow managing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000015",
+              "id": "00000000-0000-4000-8000-000000000018",
               "konnect_managed": false,
               "labels": {},
               "name": "analytics-admin",
@@ -245,6 +272,38 @@
               "total": 8
             }
           }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
         },
         "content_type": "application/json"
       }
@@ -285,39 +344,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [],
         "body": null
       },
@@ -353,15 +380,15 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000016",
+          "id": "00000000-0000-4000-8000-000000000019",
           "name": "user-plan-apply-api",
           "version": null,
           "description": "API used by the user plan apply workflow E2E scenario",
           "labels": {
             "KONGCTL-namespace": "user-plan-apply"
           },
-          "created_at": "2026-09-19T19:09:13.219Z",
-          "updated_at": "2026-09-19T19:09:13.219Z",
+          "created_at": "2026-09-21T02:23:10.777Z",
+          "updated_at": "2026-09-21T02:23:10.777Z",
           "slug": "user-plan-apply-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -391,9 +418,9 @@
       "response": {
         "status": 201,
         "body": {
-          "created_at": "2026-09-19T19:09:13.595912549Z",
+          "created_at": "2026-09-21T02:23:11.116815185Z",
           "description": "Team used by the user plan apply workflow E2E scenario",
-          "id": "00000000-0000-4000-8000-000000000017",
+          "id": "00000000-0000-4000-8000-000000000020",
           "konnect_managed": false,
           "labels": {
             "KONGCTL-namespace": "user-plan-apply",
@@ -401,7 +428,7 @@
           },
           "name": "User Plan Apply Team",
           "system_team": false,
-          "updated_at": "2026-09-19T19:09:13.5959127Z"
+          "updated_at": "2026-09-21T02:23:11.116815453Z"
         },
         "content_type": "application/json"
       }
@@ -410,7 +437,23 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000004"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
         "query": [],
         "body": {
           "id": "00000000-0000-4000-8000-000000000005"
@@ -426,10 +469,10 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/assigned-roles",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [],
         "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000016",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
           "entity_region": "us",
           "entity_type_name": "APIs",
           "role_name": "Viewer"
@@ -438,13 +481,13 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000018",
+          "id": "00000000-0000-4000-8000-000000000021",
           "role_name": "Viewer",
-          "entity_id": "00000000-0000-4000-8000-000000000016",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
           "entity_type_name": "APIs",
           "entity_region": "us",
           "entity_ids": [
-            "00000000-0000-4000-8000-000000000016"
+            "00000000-0000-4000-8000-000000000019"
           ]
         },
         "content_type": "application/json"
@@ -454,10 +497,10 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000016",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
           "entity_region": "us",
           "entity_type_name": "APIs",
           "role_name": "Viewer"
@@ -465,1304 +508,1343 @@
       },
       "response": {
         "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000022",
+          "role_name": "Viewer",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000019"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "user-plan-apply-api",
+              "version": null,
+              "description": "API used by the user plan apply workflow E2E scenario",
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:10.777Z",
+              "updated_at": "2026-09-21T02:23:10.777Z",
+              "slug": "user-plan-apply-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-21T02:23:11.116815Z",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "id": "00000000-0000-4000-8000-000000000020",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "name": "User Plan Apply Team",
+              "system_team": false,
+              "updated_at": "2026-09-21T02:23:11.116815Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000016",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 9
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "User Plan Apply Team",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:11Z",
+              "updated_at": "2026-09-21T02:23:11Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "User Plan Apply Team",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:11Z",
+              "updated_at": "2026-09-21T02:23:11Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "user-plan-apply-api",
+              "version": null,
+              "description": "API used by the user plan apply workflow E2E scenario",
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:10.777Z",
+              "updated_at": "2026-09-21T02:23:10.777Z",
+              "slug": "user-plan-apply-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-21T02:23:11.116815Z",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "id": "00000000-0000-4000-8000-000000000020",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "name": "User Plan Apply Team",
+              "system_team": false,
+              "updated_at": "2026-09-21T02:23:11.116815Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000016",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 9
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "User Plan Apply Team",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:11Z",
+              "updated_at": "2026-09-21T02:23:11Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "User Plan Apply Team",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:11Z",
+              "updated_at": "2026-09-21T02:23:11Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users/00000000-0000-4000-8000-000000000005",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000021",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users/00000000-0000-4000-8000-000000000004",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles/00000000-0000-4000-8000-000000000021",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "user-plan-apply-api",
+              "version": null,
+              "description": "API used by the user plan apply workflow E2E scenario",
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply"
+              },
+              "created_at": "2026-09-21T02:23:10.777Z",
+              "updated_at": "2026-09-21T02:23:10.777Z",
+              "slug": "user-plan-apply-api",
+              "api_spec_ids": [],
+              "implementation_mode": null,
+              "current_version_summary": null,
+              "portals": [],
+              "attributes": {},
+              "images": null
+            }
+          ],
+          "meta": {
+            "page": {
+              "total": 1,
+              "size": 100,
+              "number": 1
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 10
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "email": "replay-user-4@example.invalid",
+              "full_name": "replay-user-4",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000002",
+              "email": "replay-user-5@example.invalid",
+              "full_name": "replay-user-5",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "email": "replay-user-6@example.invalid",
+              "full_name": "replay-user-6",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000004",
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000006",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
+              "preferred_name": "",
+              "active": false,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000007",
+              "email": "replay-user-8@example.invalid",
+              "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "data": [
+            {
+              "created_at": "2026-09-21T02:23:11.116815Z",
+              "description": "Team used by the user plan apply workflow E2E scenario",
+              "id": "00000000-0000-4000-8000-000000000020",
+              "konnect_managed": false,
+              "labels": {
+                "KONGCTL-namespace": "user-plan-apply",
+                "scenario": "user-plan-apply"
+              },
+              "name": "User Plan Apply Team",
+              "system_team": false,
+              "updated_at": "2026-09-21T02:23:11.116815Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.312498Z",
+              "description": "Allow managing all objects, users and roles in the organization.",
+              "id": "00000000-0000-4000-8000-000000000011",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin",
+              "system_team": true,
+              "updated_at": "2026-01-22T12:43:15.965093Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.394711Z",
+              "description": "Allow viewing all entities and configuration in the organization.",
+              "id": "00000000-0000-4000-8000-000000000012",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "organization-admin-readonly",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.394711Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.476556Z",
+              "description": "Allow creating and managing control planes.",
+              "id": "00000000-0000-4000-8000-000000000013",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "control-plane-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.476556Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.608382Z",
+              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
+              "id": "00000000-0000-4000-8000-000000000014",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.608382Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:34.903552Z",
+              "description": "Allow creating and managing versions of API products.",
+              "id": "00000000-0000-4000-8000-000000000015",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "api-product-developer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:34.903552Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.120888Z",
+              "description": "Allow managing all developer portals and publishing any API products to portals.",
+              "id": "00000000-0000-4000-8000-000000000016",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "portal-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.120889Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.443089Z",
+              "description": "Allow viewing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000017",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-viewer",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.443089Z"
+            },
+            {
+              "created_at": "2025-09-02T15:25:35.484824Z",
+              "description": "Allow managing all content in Analytics.",
+              "id": "00000000-0000-4000-8000-000000000018",
+              "konnect_managed": false,
+              "labels": {},
+              "name": "analytics-admin",
+              "system_team": true,
+              "updated_at": "2025-09-02T15:25:35.484824Z"
+            }
+          ],
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 9
+            }
+          }
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
+        "method": "GET",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
         "body": {
           "id": "00000000-0000-4000-8000-000000000019",
-          "role_name": "Viewer",
-          "entity_id": "00000000-0000-4000-8000-000000000016",
-          "entity_type_name": "APIs",
-          "entity_region": "us",
-          "entity_ids": [
-            "00000000-0000-4000-8000-000000000016"
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users",
-        "query": [],
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000006"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/apis",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000016",
-              "name": "user-plan-apply-api",
-              "version": null,
-              "description": "API used by the user plan apply workflow E2E scenario",
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13.219Z",
-              "updated_at": "2026-09-19T19:09:13.219Z",
-              "slug": "user-plan-apply-api",
-              "api_spec_ids": [],
-              "implementation_mode": null,
-              "current_version_summary": null,
-              "portals": [],
-              "attributes": {},
-              "images": null
-            }
-          ],
-          "meta": {
-            "page": {
-              "total": 1,
-              "size": 100,
-              "number": 1
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 7
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000001",
-              "email": "replay-user-4@example.invalid",
-              "full_name": "replay-user-4",
-              "preferred_name": "",
-              "active": false,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000002",
-              "email": "replay-user-5@example.invalid",
-              "full_name": "replay-user-5",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000003",
-              "email": "replay-user-6@example.invalid",
-              "full_name": "replay-user-6",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000007",
-              "email": "replay-user-8@example.invalid",
-              "full_name": "replay-user-8",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "created_at": "2026-09-19T19:09:13.595912Z",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000017",
-              "konnect_managed": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "name": "User Plan Apply Team",
-              "system_team": false,
-              "updated_at": "2026-09-19T19:09:13.595912Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.312498Z",
-              "description": "Allow managing all objects, users and roles in the organization.",
-              "id": "00000000-0000-4000-8000-000000000008",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin",
-              "system_team": true,
-              "updated_at": "2026-01-22T12:43:15.965093Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.394711Z",
-              "description": "Allow viewing all entities and configuration in the organization.",
-              "id": "00000000-0000-4000-8000-000000000009",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin-readonly",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.394711Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.476556Z",
-              "description": "Allow creating and managing control planes.",
-              "id": "00000000-0000-4000-8000-000000000010",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "control-plane-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.476556Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.608382Z",
-              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
-              "id": "00000000-0000-4000-8000-000000000011",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.608382Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.903552Z",
-              "description": "Allow creating and managing versions of API products.",
-              "id": "00000000-0000-4000-8000-000000000012",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-developer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.903552Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.120888Z",
-              "description": "Allow managing all developer portals and publishing any API products to portals.",
-              "id": "00000000-0000-4000-8000-000000000013",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "portal-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.120889Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.443089Z",
-              "description": "Allow viewing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000014",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-viewer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.443089Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.484824Z",
-              "description": "Allow managing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000015",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.484824Z"
-            }
-          ],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 9
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000018",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000016",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000016"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000017",
-              "name": "User Plan Apply Team",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13Z",
-              "updated_at": "2026-09-19T19:09:13Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000017",
-              "name": "User Plan Apply Team",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13Z",
-              "updated_at": "2026-09-19T19:09:13Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000016",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000016"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 0
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/apis",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000016",
-              "name": "user-plan-apply-api",
-              "version": null,
-              "description": "API used by the user plan apply workflow E2E scenario",
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13.219Z",
-              "updated_at": "2026-09-19T19:09:13.219Z",
-              "slug": "user-plan-apply-api",
-              "api_spec_ids": [],
-              "implementation_mode": null,
-              "current_version_summary": null,
-              "portals": [],
-              "attributes": {},
-              "images": null
-            }
-          ],
-          "meta": {
-            "page": {
-              "total": 1,
-              "size": 100,
-              "number": 1
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 7
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000001",
-              "email": "replay-user-4@example.invalid",
-              "full_name": "replay-user-4",
-              "preferred_name": "",
-              "active": false,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000002",
-              "email": "replay-user-5@example.invalid",
-              "full_name": "replay-user-5",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000003",
-              "email": "replay-user-6@example.invalid",
-              "full_name": "replay-user-6",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000007",
-              "email": "replay-user-8@example.invalid",
-              "full_name": "replay-user-8",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "created_at": "2026-09-19T19:09:13.595912Z",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000017",
-              "konnect_managed": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "name": "User Plan Apply Team",
-              "system_team": false,
-              "updated_at": "2026-09-19T19:09:13.595912Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.312498Z",
-              "description": "Allow managing all objects, users and roles in the organization.",
-              "id": "00000000-0000-4000-8000-000000000008",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin",
-              "system_team": true,
-              "updated_at": "2026-01-22T12:43:15.965093Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.394711Z",
-              "description": "Allow viewing all entities and configuration in the organization.",
-              "id": "00000000-0000-4000-8000-000000000009",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin-readonly",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.394711Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.476556Z",
-              "description": "Allow creating and managing control planes.",
-              "id": "00000000-0000-4000-8000-000000000010",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "control-plane-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.476556Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.608382Z",
-              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
-              "id": "00000000-0000-4000-8000-000000000011",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.608382Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.903552Z",
-              "description": "Allow creating and managing versions of API products.",
-              "id": "00000000-0000-4000-8000-000000000012",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-developer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.903552Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.120888Z",
-              "description": "Allow managing all developer portals and publishing any API products to portals.",
-              "id": "00000000-0000-4000-8000-000000000013",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "portal-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.120889Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.443089Z",
-              "description": "Allow viewing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000014",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-viewer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.443089Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.484824Z",
-              "description": "Allow managing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000015",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.484824Z"
-            }
-          ],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 9
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000017",
-              "name": "User Plan Apply Team",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13Z",
-              "updated_at": "2026-09-19T19:09:13Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000017",
-              "name": "User Plan Apply Team",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13Z",
-              "updated_at": "2026-09-19T19:09:13Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 0
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000016",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000016"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users/00000000-0000-4000-8000-000000000006",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000016",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000016"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017/users/00000000-0000-4000-8000-000000000005",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles/00000000-0000-4000-8000-000000000019",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/apis",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000016",
-              "name": "user-plan-apply-api",
-              "version": null,
-              "description": "API used by the user plan apply workflow E2E scenario",
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply"
-              },
-              "created_at": "2026-09-19T19:09:13.219Z",
-              "updated_at": "2026-09-19T19:09:13.219Z",
-              "slug": "user-plan-apply-api",
-              "api_spec_ids": [],
-              "implementation_mode": null,
-              "current_version_summary": null,
-              "portals": [],
-              "attributes": {},
-              "images": null
-            }
-          ],
-          "meta": {
-            "page": {
-              "total": 1,
-              "size": 100,
-              "number": 1
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 7
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000001",
-              "email": "replay-user-4@example.invalid",
-              "full_name": "replay-user-4",
-              "preferred_name": "",
-              "active": false,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000002",
-              "email": "replay-user-5@example.invalid",
-              "full_name": "replay-user-5",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000003",
-              "email": "replay-user-6@example.invalid",
-              "full_name": "replay-user-6",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000007",
-              "email": "replay-user-8@example.invalid",
-              "full_name": "replay-user-8",
-              "preferred_name": "",
-              "active": true,
-              "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "data": [
-            {
-              "created_at": "2026-09-19T19:09:13.595912Z",
-              "description": "Team used by the user plan apply workflow E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000017",
-              "konnect_managed": false,
-              "labels": {
-                "KONGCTL-namespace": "user-plan-apply",
-                "scenario": "user-plan-apply"
-              },
-              "name": "User Plan Apply Team",
-              "system_team": false,
-              "updated_at": "2026-09-19T19:09:13.595912Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.312498Z",
-              "description": "Allow managing all objects, users and roles in the organization.",
-              "id": "00000000-0000-4000-8000-000000000008",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin",
-              "system_team": true,
-              "updated_at": "2026-01-22T12:43:15.965093Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.394711Z",
-              "description": "Allow viewing all entities and configuration in the organization.",
-              "id": "00000000-0000-4000-8000-000000000009",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "organization-admin-readonly",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.394711Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.476556Z",
-              "description": "Allow creating and managing control planes.",
-              "id": "00000000-0000-4000-8000-000000000010",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "control-plane-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.476556Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.608382Z",
-              "description": "Allow creating and managing API products, including publishing API products to developer portals and enabling application registration.",
-              "id": "00000000-0000-4000-8000-000000000011",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.608382Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:34.903552Z",
-              "description": "Allow creating and managing versions of API products.",
-              "id": "00000000-0000-4000-8000-000000000012",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "api-product-developer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:34.903552Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.120888Z",
-              "description": "Allow managing all developer portals and publishing any API products to portals.",
-              "id": "00000000-0000-4000-8000-000000000013",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "portal-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.120889Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.443089Z",
-              "description": "Allow viewing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000014",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-viewer",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.443089Z"
-            },
-            {
-              "created_at": "2025-09-02T15:25:35.484824Z",
-              "description": "Allow managing all content in Analytics.",
-              "id": "00000000-0000-4000-8000-000000000015",
-              "konnect_managed": false,
-              "labels": {},
-              "name": "analytics-admin",
-              "system_team": true,
-              "updated_at": "2025-09-02T15:25:35.484824Z"
-            }
-          ],
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 9
-            }
-          }
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "created_at": "2026-09-19T19:09:13.595912Z",
-          "description": "Team used by the user plan apply workflow E2E scenario",
-          "id": "00000000-0000-4000-8000-000000000017",
-          "konnect_managed": false,
-          "labels": {
-            "KONGCTL-namespace": "user-plan-apply",
-            "scenario": "user-plan-apply"
-          },
-          "name": "User Plan Apply Team",
-          "system_team": false,
-          "updated_at": "2026-09-19T19:09:13.595912Z"
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "GET",
-        "path": "/v3/apis/00000000-0000-4000-8000-000000000016",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000016",
           "name": "user-plan-apply-api",
           "version": null,
           "description": "API used by the user plan apply workflow E2E scenario",
           "labels": {
             "KONGCTL-namespace": "user-plan-apply"
           },
-          "created_at": "2026-09-19T19:09:13.219Z",
-          "updated_at": "2026-09-19T19:09:13.219Z",
+          "created_at": "2026-09-21T02:23:10.777Z",
+          "updated_at": "2026-09-21T02:23:10.777Z",
           "slug": "user-plan-apply-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -1777,8 +1859,34 @@
     {
       "request": {
         "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "created_at": "2026-09-21T02:23:11.116815Z",
+          "description": "Team used by the user plan apply workflow E2E scenario",
+          "id": "00000000-0000-4000-8000-000000000020",
+          "konnect_managed": false,
+          "labels": {
+            "KONGCTL-namespace": "user-plan-apply",
+            "scenario": "user-plan-apply"
+          },
+          "name": "User Plan Apply Team",
+          "system_team": false,
+          "updated_at": "2026-09-21T02:23:11.116815Z"
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "regional",
         "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000017",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
         "query": [],
         "body": null
       },
@@ -1790,9 +1898,9 @@
     },
     {
       "request": {
-        "endpoint": "regional",
+        "endpoint": "global",
         "method": "DELETE",
-        "path": "/v3/apis/00000000-0000-4000-8000-000000000016",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020",
         "query": [],
         "body": null
       },
