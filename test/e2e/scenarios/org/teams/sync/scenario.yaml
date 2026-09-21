@@ -28,28 +28,39 @@ steps:
 
   - name: 001-bootstrap-sync-state
     commands:
-      - name: 000-sync-initial
+      - name: 000-plan-sync
+        outputFormat: disable
         run:
-          - sync
+          - plan
           - -f
           - "{{ .workdir }}/teams.yaml"
-          - --auto-approve
+          - --mode
+          - sync
         assertions:
-          - select: plan.metadata
+          - select: metadata
             expect:
               fields:
                 mode: sync
           - select: summary
             expect:
               fields:
-                applied: 3
-                failed: 0
-          - select: execution.applied_changes
+                total_changes: 3
+                by_action.CREATE: 3
+
+      - name: 001-sync-initial
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
             expect:
               fields:
-                "length(@)": 3
+                failed: 0
+                status: success
 
-      - name: 001-get-teams
+      - name: 002-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
           - select: "[?name=='Platform Team'] | [0]"
@@ -76,28 +87,41 @@ steps:
     inputOverlayDirs:
       - overlays/002-sync-update
     commands:
-      - name: 000-sync-update
+      - name: 000-plan-sync
+        outputFormat: disable
         run:
-          - sync
+          - plan
           - -f
           - "{{ .workdir }}/teams.yaml"
-          - --auto-approve
+          - --mode
+          - sync
         assertions:
-          - select: plan.summary
+          - select: metadata
+            expect:
+              fields:
+                mode: sync
+          - select: summary
             expect:
               fields:
                 total_changes: 4
                 by_action.CREATE: 1
                 by_action.UPDATE: 2
                 by_action.DELETE: 1
+
+      - name: 001-sync-update
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
                 status: success
 
-      - name: 001-get-teams
+      - name: 002-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
           - select: "[?name=='Platform Team'] | [0]"
@@ -124,46 +148,55 @@ steps:
               fields:
                 "length(@)": 0
 
-      - name: 002-sync-no-changes
-        run:
-          - sync
-          - -f
-          - "{{ .workdir }}/teams.yaml"
-          - --auto-approve
+      - name: 003-plan-no-changes
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/teams.yaml", "--mode", "sync"]
         assertions:
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 0
           - select: summary
             expect:
               fields:
-                applied: 0
-                failed: 0
-                status: success
+                total_changes: 0
 
   - name: 003-delete-cleanup
     inputOverlayDirs:
       - overlays/002-sync-update
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+
+      - name: 001-delete
         run:
           - delete
           - -f
           - "{{ .workdir }}/teams.yaml"
           - --auto-approve
         assertions:
-          - select: plan.metadata
-            expect:
-              fields:
-                mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 3
-                by_action.DELETE: 3
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Platform Team' || name=='Security Team' || name=='Data Engineering Team' || name=='Legacy Systems Team']"
+            expect:
+              fields:
+                "length(@)": 0

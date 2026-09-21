@@ -163,7 +163,40 @@ steps:
   # Step 2: Delete all resources using delete -f
   - name: 002-delete-resources
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/portal.yaml"
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - -f
+          - "{{ .workdir }}/auth-strategies.yaml"
+          - -f
+          - "{{ .workdir }}/ai-gateways.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 7
+                by_action.DELETE: 7
+          - select: "changes[?resource_type=='application_auth_strategy'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-delete
         run:
           - delete
           - -f
@@ -180,19 +213,6 @@ steps:
           - "{{ .workdir }}/ai-gateways.yaml"
           - --auto-approve
         assertions:
-          - select: plan.metadata
-            expect:
-              fields:
-                mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 7
-                by_action.DELETE: 7
-          - select: "plan.changes[?resource_type=='application_auth_strategy'] | [0]"
-            expect:
-              fields:
-                action: DELETE
           - select: summary
             expect:
               fields:
