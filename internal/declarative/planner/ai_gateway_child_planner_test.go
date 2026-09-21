@@ -33,6 +33,10 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 			providerAPI := &nameIdentityProviderAPI{}
 			rs := &resources.ResourceSet{
 				AIGateways: []resources.AIGatewayResource{gateway},
+				AIGatewayConfigStores: []resources.AIGatewayConfigStoreResource{{
+					BaseResource: resources.BaseResource{Ref: "store-ref"},
+					AIGateway:    gateway.Ref, Name: "support-store",
+				}},
 				AIGatewayProviders: []resources.AIGatewayProviderResource{{
 					BaseResource: resources.BaseResource{Ref: "provider-ref"},
 					AIGateway:    gateway.Ref, Name: "support-openai", Type: "openai", DisplayName: "OpenAI",
@@ -44,7 +48,8 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 			}
 			p := NewPlanner(state.NewClient(state.ClientConfig{
 				AIGatewayAPI: gatewayAPI, AIGatewayProvidersAPI: providerAPI,
-				AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{}, AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{},
+				AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{},
+				AIGatewayPoliciesAPI:     &testAIGatewayPolicyAPI{}, AIGatewayConsumersAPI: &testAIGatewayConsumerAPI{},
 				AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{}, AIGatewayModelAPI: &testAIGatewayModelAPI{},
 			}), slog.Default())
 			p.resources = rs
@@ -55,7 +60,7 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 			children := plan.Changes
 			gatewayChangeID := ""
 			if parent == "new" {
-				require.Len(t, children, 6)
+				require.Len(t, children, 7)
 				require.Equal(t, ResourceTypeAIGateway, children[0].ResourceType)
 				gatewayChangeID = children[0].ID
 				children = children[1:]
@@ -64,7 +69,7 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 				require.Equal(t, []string{"gateway-id"}, providerAPI.lists)
 			}
 			wantKinds := []string{
-				ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayPolicy,
+				ResourceTypeAIGatewayConfigStore, ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayPolicy,
 				ResourceTypeAIGatewayConsumer, ResourceTypeAIGatewayConsumerGroup, ResourceTypeAIGatewayModel,
 			}
 			require.Len(t, children, len(wantKinds))
@@ -80,10 +85,17 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 					require.Equal(t, &ParentInfo{Ref: gateway.Ref, ID: "gateway-id"}, change.Parent)
 				}
 			}
-			require.Contains(t, children[2].DependsOn, children[1].ID)
-			require.Contains(t, children[3].DependsOn, children[1].ID)
+			require.Equal(t, "store-ref", children[0].ResourceRef)
+			require.Equal(t, "support-store", children[0].Fields[FieldName])
+			if parent == "new" {
+				require.Equal(t, []string{gatewayChangeID}, children[0].DependsOn)
+			} else {
+				require.Empty(t, children[0].DependsOn)
+			}
 			require.Contains(t, children[3].DependsOn, children[2].ID)
-			require.Contains(t, children[4].DependsOn, children[0].ID)
+			require.Contains(t, children[4].DependsOn, children[2].ID)
+			require.Contains(t, children[4].DependsOn, children[3].ID)
+			require.Contains(t, children[5].DependsOn, children[1].ID)
 		})
 	}
 }
