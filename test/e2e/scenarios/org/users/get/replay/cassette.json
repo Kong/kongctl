@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "org/users/get",
-  "inputs_sha256": "sha256:aeaa31d6ae224f255d238de4f97fb425bd3648780e8c9ca54809247d8ba257c5",
+  "inputs_sha256": "sha256:5de4a716a8541e2eb694515ff29d1771af0b072c97c731113b2735028c797262",
   "source": {
     "kind": "recorded",
-    "commit": "c139ad63ed85a286fadcd71500887a674399240b",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35463073348"
+    "commit": "4f017c3c34e48c026abfe1df781605d6aafd0969",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/35553891533"
   },
   "interactions": [
     {
@@ -32,7 +32,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -65,28 +65,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -94,6 +94,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -128,7 +155,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -161,28 +188,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -190,6 +217,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -224,7 +278,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -257,28 +311,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -286,6 +340,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -320,7 +401,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -353,28 +434,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -382,6 +463,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -396,18 +504,18 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004",
         "query": [],
         "body": null
       },
       "response": {
         "status": 200,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000005",
+          "id": "00000000-0000-4000-8000-000000000004",
           "email": "replay-user-1@example.invalid",
           "full_name": "replay-user-1",
           "preferred_name": "",
-          "active": true,
+          "active": false,
           "created_at": "2026-01-01T00:00:00Z",
           "updated_at": "2026-01-01T00:00:00Z"
         },
@@ -438,7 +546,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -471,28 +579,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -500,6 +608,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
@@ -534,7 +669,7 @@
             "page": {
               "number": 1,
               "size": 10,
-              "total": 7
+              "total": 10
             }
           },
           "data": [
@@ -567,28 +702,28 @@
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
-              "email": "replay-user-7@example.invalid",
-              "full_name": "replay-user-7",
-              "preferred_name": "replay-user-7",
-              "active": true,
+              "email": "replay-user-1@example.invalid",
+              "full_name": "replay-user-1",
+              "preferred_name": "",
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000005",
-              "email": "replay-user-1@example.invalid",
-              "full_name": "replay-user-1",
+              "email": "replay-user-2@example.invalid",
+              "full_name": "replay-user-2",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
             {
               "id": "00000000-0000-4000-8000-000000000006",
-              "email": "replay-user-2@example.invalid",
-              "full_name": "replay-user-2",
+              "email": "replay-user-7@example.invalid",
+              "full_name": "replay-user-7",
               "preferred_name": "",
-              "active": true,
+              "active": false,
               "created_at": "2026-01-01T00:00:00Z",
               "updated_at": "2026-01-01T00:00:00Z"
             },
@@ -596,6 +731,33 @@
               "id": "00000000-0000-4000-8000-000000000007",
               "email": "replay-user-8@example.invalid",
               "full_name": "replay-user-8",
+              "preferred_name": "replay-user-8",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000008",
+              "email": "replay-user-9@example.invalid",
+              "full_name": "replay-user-9",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000009",
+              "email": "replay-user-10@example.invalid",
+              "full_name": "replay-user-10",
+              "preferred_name": "",
+              "active": true,
+              "created_at": "2026-01-01T00:00:00Z",
+              "updated_at": "2026-01-01T00:00:00Z"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000010",
+              "email": "replay-user-11@example.invalid",
+              "full_name": "replay-user-11",
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",

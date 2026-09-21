@@ -58,19 +58,19 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [teams-replay]: https://github.com/Kong/kongctl/actions/runs/35419655877
 [email-record]: https://github.com/Kong/kongctl/actions/runs/35446057376
 [email-replay]: https://github.com/Kong/kongctl/actions/runs/35446555297
-[org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35463078546
-[org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35463672734
+[org-dump-record]: https://github.com/Kong/kongctl/actions/runs/35553690971
+[org-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35554100472
 [portal-dump-record]: https://github.com/Kong/kongctl/actions/runs/35470184997
 [portal-dump-replay]: https://github.com/Kong/kongctl/actions/runs/35471335714
-[user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35463074418
-[user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35463667949
-[user-get-record]: https://github.com/Kong/kongctl/actions/runs/35463073348
-[user-apply-record]: https://github.com/Kong/kongctl/actions/runs/35463075604
-[user-apply-replay]: https://github.com/Kong/kongctl/actions/runs/35463669060
-[user-plan-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463076560
-[user-plan-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463670245
-[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/35463077601
-[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35463671463
+[user-assign-record]: https://github.com/Kong/kongctl/actions/runs/35553692188
+[user-assign-replay]: https://github.com/Kong/kongctl/actions/runs/35554060757
+[user-get-record]: https://github.com/Kong/kongctl/actions/runs/35553891533
+[user-apply-record]: https://github.com/Kong/kongctl/actions/runs/35553695006
+[user-apply-replay]: https://github.com/Kong/kongctl/actions/runs/35554062188
+[user-plan-sync-record]: https://github.com/Kong/kongctl/actions/runs/35553696438
+[user-plan-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35554143695
+[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/35553697766
+[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35554145336
 
 ## Routing
 

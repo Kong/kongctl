@@ -30,17 +30,17 @@ ordering, and read-before-delete dependencies remain enforced. The sole
 empty-response create exception is distinct users added to the same team;
 matching still checks the exact user ID, method, endpoint, path, and body.
 
-Ten consecutive local replays passed. [Isolated validation][replay] runs
-all assertions three times with only loopback networking. Candidate data
-is sanitized before publication; no real user emails, profile names, or
+The refreshed recording passed [isolated validation][replay] three times
+with only loopback networking. Candidate data is sanitized before
+publication; no real user emails, profile names, or
 real-to-synthetic mappings are committed. Full user collections, active
 states, memberships, and roles remain represented.
 
 ## Measurements
 
 The three isolated replays matched all 65 exchanges. Scenario durations
-were 1.712, 1.706, 1.747 seconds; wrapper durations were
-2.592, 2.285, 2.541 seconds. Recording timings include proxy overhead
+were 2.420, 2.428, 2.389 seconds; wrapper durations were
+2.993, 3.072, 2.985 seconds. Recording timings include proxy overhead
 and are not a normal live baseline. These numbers measure execution work,
 not workflow wall-clock savings; setup and shared live-shard resets remain.
 
@@ -49,5 +49,5 @@ live and still require the registered users. Changes to inputs, commands,
 or assertions require a new recording in the same PR. See the repository
 replay policy for the identity and environment-input restrictions.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/35463077601
-[replay]: https://github.com/Kong/kongctl/actions/runs/35463671463
+[record]: https://github.com/Kong/kongctl/actions/runs/35553697766
+[replay]: https://github.com/Kong/kongctl/actions/runs/35554145336
