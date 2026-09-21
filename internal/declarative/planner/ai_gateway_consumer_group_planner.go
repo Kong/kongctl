@@ -49,123 +49,87 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 		return fmt.Errorf("failed to list AI Gateway Consumer Groups for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByName := indexAIGatewayConsumerGroups(currentGroups)
-	desiredNames := make(map[string]bool)
+	type observation struct {
+		group     state.AIGatewayConsumerGroup
+		consumers []state.AIGatewayConsumer
+	}
+	current := make([]observation, len(currentGroups))
+	for i, group := range currentGroups {
+		current[i].group = group
+	}
 	consumerCreateDepsByRefOrName := aiGatewayConsumerCreateDependencies(plan, namespace, gatewayRef)
-
-	for _, desiredGroup := range desired {
-		current, exists := currentByName[desiredGroup.Name]
-		desiredNames[desiredGroup.Name] = true
-
-		if !exists {
-			dependsOn := aiGatewayConsumerGroupPolicyCreateDependencies(
-				desiredGroup,
-				policyCreateDepsByRefOrName,
-			)
-			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
-				dependsOn = appendDependsOn(dependsOn, dep)
-			}
-			p.planAIGatewayConsumerGroupCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredGroup,
-				dependsOn,
-				plan,
-			)
-			continue
+	dependencies := func(group resources.AIGatewayConsumerGroupResource) []string {
+		deps := aiGatewayConsumerGroupPolicyCreateDependencies(group, policyCreateDepsByRefOrName)
+		for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(group, consumerCreateDepsByRefOrName) {
+			deps = appendDependsOn(deps, dep)
 		}
-
-		groupID := resources.AIGatewayConsumerGroupID(current.AIGatewayConsumerGroup)
-		if group := p.resources.GetAIGatewayConsumerGroupByRef(desiredGroup.Ref); group != nil {
-			group.SetKonnectID(groupID)
-		}
-		fullGroup, err := p.client.GetAIGatewayConsumerGroup(ctx, gatewayID, groupID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Consumer Group %s: %w", groupID, err)
-		}
-		if fullGroup == nil {
-			dependsOn := aiGatewayConsumerGroupPolicyCreateDependencies(
-				desiredGroup,
-				policyCreateDepsByRefOrName,
-			)
-			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
-				dependsOn = appendDependsOn(dependsOn, dep)
-			}
-			p.planAIGatewayConsumerGroupCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredGroup,
-				dependsOn,
-				plan,
-			)
-			continue
-		}
-
-		var currentConsumers []state.AIGatewayConsumer
-		if _, managesConsumers, err := desiredGroup.ConsumerNames(); err != nil {
-			return err
-		} else if managesConsumers {
-			currentConsumers, err = p.client.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, groupID)
-			if err != nil {
-				return fmt.Errorf("failed to list AI Gateway Consumers in Consumer Group %s: %w", groupID, err)
-			}
-		}
-
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumerGroup(
-			*fullGroup,
-			desiredGroup,
-			currentConsumers,
-		)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			dependsOn := aiGatewayConsumerGroupPolicyCreateDependencies(
-				desiredGroup,
-				policyCreateDepsByRefOrName,
-			)
-			for _, dep := range aiGatewayConsumerGroupConsumerCreateDependencies(desiredGroup, consumerCreateDepsByRefOrName) {
-				dependsOn = appendDependsOn(dependsOn, dep)
-			}
-			p.planAIGatewayConsumerGroupUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				groupID,
-				desiredGroup,
-				updateFields,
-				changedFields,
-				dependsOn,
-				plan,
-			)
-		}
+		return deps
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentGroups {
-			groupID := resources.AIGatewayConsumerGroupID(current.AIGatewayConsumerGroup)
-			groupName := resources.AIGatewayConsumerGroupName(current.AIGatewayConsumerGroup)
-			if desiredNames[groupName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(
-				ResourceTypeAIGatewayConsumerGroup,
-				groupName,
-				isProtected,
-				ActionDelete,
-			); err != nil {
-				return err
-			}
-			p.planAIGatewayConsumerGroupDelete(namespace, gatewayRef, gatewayID, groupID, groupName, plan)
-		}
-	}
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayConsumerGroup, desired, current,
+		nameMatchedChildOperations[resources.AIGatewayConsumerGroupResource, observation]{
+			desiredName: func(desired resources.AIGatewayConsumerGroupResource) string {
+				return desired.Name
+			},
+			currentName: func(current observation) string {
+				return resources.AIGatewayConsumerGroupName(current.group.AIGatewayConsumerGroup)
+			},
+			fetch: func(
+				desired resources.AIGatewayConsumerGroupResource,
+				current observation,
+			) (*observation, error) {
+				groupID := resources.AIGatewayConsumerGroupID(current.group.AIGatewayConsumerGroup)
+				if group := p.resources.GetAIGatewayConsumerGroupByRef(desired.Ref); group != nil {
+					group.SetKonnectID(groupID)
+				}
+				full, err := p.client.GetAIGatewayConsumerGroup(ctx, gatewayID, groupID)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway Consumer Group %s: %w", groupID, err)
+				}
+				if full == nil {
+					return nil, nil
+				}
 
-	return nil
+				observed := &observation{group: *full}
+				if _, managesConsumers, err := desired.ConsumerNames(); err != nil {
+					return nil, err
+				} else if managesConsumers {
+					observed.consumers, err = p.client.ListAIGatewayConsumersInConsumerGroup(ctx, gatewayID, groupID)
+					if err != nil {
+						return nil, fmt.Errorf("failed to list AI Gateway Consumers in Consumer Group %s: %w", groupID, err)
+					}
+				}
+				return observed, nil
+			},
+			diff: func(
+				current observation,
+				desired resources.AIGatewayConsumerGroupResource,
+			) (bool, map[string]any, map[string]FieldChange, error) {
+				return p.shouldUpdateAIGatewayConsumerGroup(current.group, desired, current.consumers)
+			},
+			create: func(desired resources.AIGatewayConsumerGroupResource) {
+				p.planAIGatewayConsumerGroupCreate(namespace, gatewayRef, gatewayName, gatewayID,
+					desired, dependencies(desired), plan)
+			},
+			update: func(
+				current observation,
+				desired resources.AIGatewayConsumerGroupResource,
+				fields map[string]any,
+				changed map[string]FieldChange,
+			) {
+				groupID := resources.AIGatewayConsumerGroupID(current.group.AIGatewayConsumerGroup)
+				p.planAIGatewayConsumerGroupUpdate(namespace, gatewayRef, gatewayID, groupID,
+					desired, fields, changed, dependencies(desired), plan)
+			},
+			protected: func(current observation) bool {
+				return labels.IsProtectedResource(current.group.NormalizedLabels)
+			},
+			remove: func(current observation) {
+				groupID := resources.AIGatewayConsumerGroupID(current.group.AIGatewayConsumerGroup)
+				groupName := resources.AIGatewayConsumerGroupName(current.group.AIGatewayConsumerGroup)
+				p.planAIGatewayConsumerGroupDelete(namespace, gatewayRef, gatewayID, groupID, groupName, plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayConsumerGroupCreatesForNewGateway(
@@ -344,18 +308,6 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 		updateFields[FieldConsumers] = normalizedAIGatewayConsumerGroupConsumers(desiredConsumers)
 	}
 	return true, updateFields, changedFields, nil
-}
-
-func indexAIGatewayConsumerGroups(
-	groups []state.AIGatewayConsumerGroup,
-) map[string]state.AIGatewayConsumerGroup {
-	byName := make(map[string]state.AIGatewayConsumerGroup)
-	for _, group := range groups {
-		if name := resources.AIGatewayConsumerGroupName(group.AIGatewayConsumerGroup); name != "" {
-			byName[name] = group
-		}
-	}
-	return byName
 }
 
 func aiGatewayConsumerGroupPolicyCreateDependencies(
