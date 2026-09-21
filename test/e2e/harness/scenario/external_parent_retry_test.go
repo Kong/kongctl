@@ -4,6 +4,7 @@ package scenario
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -13,6 +14,10 @@ import (
 )
 
 func TestExternalParentRecoversPartialSync(t *testing.T) {
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skipf("python3 is required for the CLI fixture: %v", err)
+	}
+
 	for _, tc := range []struct{ name, failure string }{
 		{"recovered", ""},
 		{"wrong-initial-action", "000-plan-create"},
