@@ -134,6 +134,45 @@ class ReplayTest(unittest.TestCase):
         self.assertFalse(any("ORG_USER_EMAIL" in key for key in env))
         self.assertEqual("kongctl-acceptance-2", MODULE.recording_org("dump/portal-owned"))
 
+    def test_portal_owned_cleanup_allows_deletes_before_an_independent_lookup(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/dump/portal-owned/replay"
+        cassette = MODULE.load_cassette(directory / "cassette.json")
+        annotations = MODULE.parse_json((directory / "parallel-phases.json").read_bytes())
+        self.assertEqual(annotations["parallel_phases"], cassette["parallel_phases"])
+        hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
+        for early_deletes in ((449, 450), (450, 449)):
+            with self.subTest(early_deletes=early_deletes):
+                engine = MODULE.Replay(cassette)
+
+                def send(number):
+                    item = cassette["interactions"][number - 1]
+                    request = item["request"]
+                    query = urlencode([tuple(pair) for pair in request["query"]])
+                    target = request["path"] + ("?" + query if query else "")
+                    body = json.dumps(request["body"]).encode() if request["body"] is not None else b""
+                    self.assertEqual(item["response"], engine.exchange(
+                        hosts[request["endpoint"]], request["method"], target, body))
+
+                for number in range(1, 448):
+                    send(number)
+                # Hold the second API's protection lookup (448) until the
+                # independent first-API and portal deletes have completed.
+                for number in early_deletes:
+                    send(number)
+                self.assertNotIn(447, engine.completed)
+                with patch.object(MODULE, "DEPENDENCY_WAIT_SECONDS", 0):
+                    with self.assertRaisesRegex(ValueError, "dependency wait timed out"):
+                        send(451)  # This API still requires its own lookup.
+                with self.assertRaisesRegex(ValueError, "request mismatch"):
+                    send(452)  # Auth-strategy cleanup remains a later barrier.
+                with self.assertRaisesRegex(ValueError, "request mismatch"):
+                    send(early_deletes[0])  # No exchange can be consumed twice.
+                for number in (448, 451, 452, 453):
+                    send(number)
+                engine.verify()
+                for number in (*range(282, 287), 452, 453):
+                    self.assertNotIn(number - 1, engine.phases)
+
     def test_round_trip_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
         for scenario in (*MODULE.USER_SCENARIOS, "dump/portal-owned"):
