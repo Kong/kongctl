@@ -487,6 +487,16 @@ components; add child orchestration to the owning parent planner.
 Assembly checks that this inventory covers every registered managed root
 exactly once. Do not add a second list of expected planner kinds.
 
+AI Gateway's [child traversal][ai-child-plan] is shared by new, existing,
+and resolved external parents. Add child dispatch there once, preserving
+scope checks, empty-sync handling, and order: config stores, vaults,
+data-plane certificates, TLS, providers, auth strategies, policies, agents,
+consumers, consumer groups, models, then MCP servers. Provider and policy
+dependency snapshots follow their respective planning steps; consumers
+precede groups. TLS retains its own certificate/SNI scope and ordering.
+The root planner supplies parent IDs or create-change dependencies and skips
+unresolved external parents with a warning. Child lifecycles remain separate.
+
 When comparing fields, distinguish omission, explicit empty values, and
 literal defaults. Normalize equivalent API representations. Compare only
 observable fields; [write-only secrets](#write-only-secrets) have separate
@@ -803,6 +813,7 @@ engine contract. Each refactoring migration should:
 [child-reconcile]:
   ../../internal/declarative/planner/name_matched_child_reconciler.go
 [mcp-plan]: ../../internal/declarative/planner/ai_gateway_mcp_server_planner.go
+[ai-child-plan]: ../../internal/declarative/planner/ai_gateway_child_planner.go
 [agent-plan]: ../../internal/declarative/planner/ai_gateway_agent_planner.go
 [consumer-group-plan]:
   ../../internal/declarative/planner/ai_gateway_consumer_group_planner.go
