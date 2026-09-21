@@ -45,9 +45,21 @@ rule: the recorded lookup responses differ solely in the target portal's
 `updated_at` timestamp. Actual response bytes and repeated-request ordering
 remain unchanged. This avoids assigning a concurrent child's lookup to an
 update that is waiting for that very lookup.
-Final deletion permits independent lookups (442-448) and API/portal deletes
-(449-451). Authentication-strategy lookup/deletion (452-453) remains a strict
-barrier after those deletes. No annotation crosses a command or reset boundary.
+Final deletion groups planning/protection lookups and API/portal deletes in
+one phase (442-451). Independent resources execute concurrently: the first
+API or portal can be deleted while the second API's protection lookup is
+still pending. Splitting reads (442-448) from deletes (449-451) incorrectly
+rejected that valid schedule at interaction 448 in PRs #2261 and #2262.
+Each delete still depends on its own lookup, and ancestor inventory reads
+remain prerequisites. Authentication-strategy lookup/deletion (452-453)
+remains a strict barrier after those deletes. No annotation crosses a command
+or reset boundary; reset inventory/deletion barriers are unchanged.
+
+The regression test deliberately holds lookup 448 while consuming deletes
+449 and 450 in either order. It also rejects deletion 451 before its lookup,
+early authentication-strategy cleanup, and duplicate consumption. All 453
+original request/response exchanges, chunk hashes, and input fingerprints
+are unchanged; only the reviewed cleanup phase is corrected.
 
 ## Environment and measurement limitations
 
