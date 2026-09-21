@@ -482,21 +482,25 @@ func defaultStatusForMethod(method string) int {
 }
 
 type resourceRequestOptions struct {
-	Context      context.Context
-	Slug         string
-	ExpectStatus int
-	PathParams   map[string]string
-	SlugPrefix   string
+	// DiagnosticsOnly reuses ArtifactDir and omits inventory payload artifacts.
+	DiagnosticsOnly bool
+	ArtifactDir     string
+	Context         context.Context
+	Slug            string
+	ExpectStatus    int
+	PathParams      map[string]string
+	SlugPrefix      string
 }
 
 type resourceRequestResult struct {
-	Status   int
-	Body     []byte
-	Parsed   any
-	Method   string
-	URL      string
-	Duration time.Duration
-	TimedOut bool
+	BodyReadFailed bool
+	Status         int
+	Body           []byte
+	Parsed         any
+	Method         string
+	URL            string
+	Duration       time.Duration
+	TimedOut       bool
 }
 
 // CreateResource issues an authenticated Konnect API call to create an unmanaged resource and
@@ -527,7 +531,8 @@ func (s *Step) CreateResource(resource string, body []byte, opts CreateResourceO
 			SlugPrefix:   "create",
 		},
 	)
-	if err != nil && result.Method == http.MethodPost && (result.Status >= 500 || result.Status < 300) {
+	if err != nil && result.Method == http.MethodPost && (result.Status == 0 || result.Status >= 500 ||
+		(result.Status >= 200 && result.Status < 300 && result.BodyReadFailed)) {
 		if marker != "" {
 			recovered, recoveryErr := s.recoverTeamCreate(desired, marker, 30*time.Second)
 			if recoveryErr == nil {
@@ -609,9 +614,12 @@ func (s *Step) requestResource(
 		}
 		slug = fmt.Sprintf("%s-%s", slugPrefix, sanitizeName(resource))
 	}
-	dir, err := s.cli.allocateCommandDir(slug)
-	if err != nil {
-		return result, err
+	dir := opts.ArtifactDir
+	if !opts.DiagnosticsOnly {
+		dir, err = s.cli.allocateCommandDir(slug)
+		if err != nil {
+			return result, err
+		}
 	}
 	baseURL, err := KonnectBaseURL()
 	if err != nil {
@@ -657,7 +665,9 @@ func (s *Step) requestResource(
 				"method": result.Method, "http_status": result.Status,
 				"duration_ms": result.Duration.Milliseconds(), "timed_out": result.TimedOut,
 			})
-			_ = os.WriteFile(filepath.Join(dir, "failure.json"), metadata, 0o600)
+			if dir != "" {
+				_ = os.WriteFile(filepath.Join(dir, "failure.json"), metadata, 0o600)
+			}
 		}
 	}()
 	resp, err := client.Do(req)
@@ -675,6 +685,7 @@ func (s *Step) requestResource(
 	result.Status = resp.StatusCode
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
+		result.BodyReadFailed = true
 		return result, fmt.Errorf("failed to read response body: %w", err)
 	}
 	duration := result.Duration
@@ -704,6 +715,9 @@ func (s *Step) requestResource(
 			expect,
 			&httpError{status: resp.StatusCode, body: snippet, header: resp.Header.Clone()},
 		)
+	}
+	if opts.DiagnosticsOnly {
+		return result, nil
 	}
 	if dir != "" {
 		_ = os.WriteFile(

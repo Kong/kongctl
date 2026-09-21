@@ -56,6 +56,10 @@ func (s *Step) recoverTeamCreate(
 ) (resourceRequestResult, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
+	dir, err := s.cli.allocateCommandDir("recover-team-create")
+	if err != nil {
+		return resourceRequestResult{}, err
+	}
 	for {
 		var matches []map[string]any
 		var last resourceRequestResult
@@ -68,7 +72,7 @@ func (s *Step) recoverTeamCreate(
 				Method: http.MethodGet, Path: fmt.Sprintf("/v3/teams?page[number]=%d&page[size]=100", page), UseGlobal: true,
 			}}
 			result, err := s.requestResource("recovery", nil, endpoints, resourceRequestOptions{
-				Context: ctx, Slug: "recover-team-create", ExpectStatus: http.StatusOK,
+				Context: ctx, DiagnosticsOnly: true, ArtifactDir: dir, ExpectStatus: http.StatusOK,
 			})
 			last = result
 			if err != nil {
@@ -110,8 +114,10 @@ func (s *Step) recoverTeamCreate(
 			last.Parsed = team
 			last.Body, _ = json.Marshal(team)
 			evidence, _ := json.Marshal(map[string]any{"outcome": "recovered", "id": id, "marker": marker})
-			if err := os.WriteFile(filepath.Join(s.cli.LastCommandDir, "create-recovery.json"), evidence, 0o600); err != nil {
-				return last, fmt.Errorf("record team recovery: %w", err)
+			if dir != "" {
+				if err := os.WriteFile(filepath.Join(dir, "create-recovery.json"), evidence, 0o600); err != nil {
+					return last, fmt.Errorf("record team recovery: %w", err)
+				}
 			}
 			return last, nil
 		}

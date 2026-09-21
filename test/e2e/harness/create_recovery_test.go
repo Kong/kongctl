@@ -72,6 +72,14 @@ func TestTeamCreateRecoversWithoutRepeatingPost(t *testing.T) {
 			if posts.Load() != 1 {
 				t.Fatalf("POST count=%d", posts.Load())
 			}
+			commands, _ := os.ReadDir(filepath.Join(dir, "commands"))
+			if len(commands) != 2 {
+				t.Fatalf("expected one POST and one recovery directory, got %d", len(commands))
+			}
+			inventories, _ := filepath.Glob(filepath.Join(dir, "commands", "*", "response.json"))
+			if len(inventories) != 0 {
+				t.Fatal("recovery saved full inventory payloads")
+			}
 			if mode == "recovered" || mode == "delayed" {
 				if err != nil {
 					t.Fatal(err)
@@ -96,6 +104,79 @@ func TestTeamCreateRecoversWithoutRepeatingPost(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateUnexpectedSuccessStatusDoesNotRecover(t *testing.T) {
+	for _, recoverTeam := range []bool{false, true} {
+		t.Run(fmt.Sprint(recoverTeam), func(t *testing.T) {
+			var gets atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet {
+					gets.Add(1)
+				}
+				w.WriteHeader(http.StatusCreated)
+				_, _ = fmt.Fprint(w, `{}`)
+			}))
+			defer server.Close()
+			t.Setenv(KonnectBaseAuthURLEnvName, server.URL)
+			t.Setenv("KONGCTL_E2E_KONNECT_PAT", "secret")
+			s := &Step{cli: &CLI{TestDir: t.TempDir()}}
+			result, err := s.CreateResource("organization_team", []byte(`{"name":"team"}`),
+				CreateResourceOptions{RecoverTeam: recoverTeam, ExpectStatus: http.StatusOK})
+			if err == nil || IsCreateOutcomeUnknown(err) || !strings.Contains(err.Error(), "unexpected status 201") ||
+				result.Status != http.StatusCreated || gets.Load() != 0 {
+				t.Fatalf("status mismatch was masked: %+v %v, GETs=%d", result, err, gets.Load())
+			}
+		})
+	}
+}
+
+func TestCreateBodyReadFailureIsUnknownWithoutCapture(t *testing.T) {
+	t.Chdir(t.TempDir())
+	previous := captureEnabled
+	captureEnabled = false
+	t.Cleanup(func() { captureEnabled = previous })
+	t.Setenv("KONGCTL_E2E_LOG_LEVEL", "trace")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = fmt.Fprint(w, `{}`)
+	}))
+	defer server.Close()
+	t.Setenv(KonnectBaseAuthURLEnvName, server.URL)
+	t.Setenv("KONGCTL_E2E_KONNECT_PAT", "secret")
+	s := &Step{cli: &CLI{TestDir: t.TempDir()}}
+	result, err := s.CreateResource("organization_team", []byte(`{"name":"team"}`), CreateResourceOptions{})
+	if !IsCreateOutcomeUnknown(err) || result.Status != http.StatusCreated {
+		t.Fatalf("body read failure was not unknown: %+v %v", result, err)
+	}
+	files, err := os.ReadDir(".")
+	if err != nil || len(files) != 0 {
+		t.Fatalf("capture disabled wrote artifacts: %v %v", files, err)
+	}
+}
+
+func TestTeamRecoveryWithoutCapture(t *testing.T) {
+	t.Chdir(t.TempDir())
+	previous := captureEnabled
+	captureEnabled = false
+	t.Cleanup(func() { captureEnabled = previous })
+	t.Setenv("KONGCTL_E2E_LOG_LEVEL", "trace")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprint(w, `{"data":[{"id":"one","name":"team","labels":{"e2e-create-id":"marker"}}]}`)
+	}))
+	defer server.Close()
+	t.Setenv(KonnectBaseAuthURLEnvName, server.URL)
+	t.Setenv("KONGCTL_E2E_KONNECT_PAT", "secret")
+	s := &Step{cli: &CLI{TestDir: t.TempDir()}}
+	_, err := s.recoverTeamCreate(map[string]any{"name": "team"}, "marker", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := os.ReadDir(".")
+	if err != nil || len(files) != 0 {
+		t.Fatalf("capture disabled wrote recovery artifacts: %v %v", files, err)
 	}
 }
 

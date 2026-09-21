@@ -15,7 +15,7 @@ import (
 
 // Capture phase progress before completion; omit URLs, headers, addresses and errors.
 func traceSyntheticRequest(ctx context.Context, dir string) (context.Context, func()) {
-	if os.Getenv("KONGCTL_E2E_LOG_LEVEL") != "trace" {
+	if dir == "" || os.Getenv("KONGCTL_E2E_LOG_LEVEL") != "trace" {
 		return ctx, func() {}
 	}
 	f, err := os.OpenFile(filepath.Join(dir, "http-phases.jsonl"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)

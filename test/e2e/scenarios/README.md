@@ -319,3 +319,6 @@ Synthetic Create Recovery
   With `KONGCTL_E2E_LOG_LEVEL=trace` (the workflow's `trace_http` option), synthetic
   requests also write `http-phases.jsonl` as phases occur. Phase completion does
   not imply success; these records omit URLs, credentials, bodies and addresses.
+- Recovery polls share one artifact directory with phase traces, the latest
+  failed-read metadata, and `create-recovery.json` on success. Full team
+  inventories are not saved. Disabling capture also disables these artifacts.
