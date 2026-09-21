@@ -748,6 +748,10 @@ class ReplayTest(unittest.TestCase):
     def test_email_paths_fail_closed_before_recording_and_during_validation(self):
         directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
         cassette = MODULE.load_cassette(directory / "replay/cassette.json")
+        # This deliberately corrupted in-memory fixture tests path sanitization,
+        # independently of a pending recording refresh. Repository freshness is
+        # checked separately against the unchanged cassette on disk.
+        cassette["inputs_sha256"] = MODULE.scenario_digest(directory)
         for path in ["/v3/users/fixture@example.test", "/v3/users/fixture%40example.test",
                      "/v3/users/fixture%2540example.test", "/v3/users/%66ixture@%65xample%2etest",
                      "/v3/users/fixture%40example%2Etest", "/v3/users/replay-user-1%40example.invalid"]:
