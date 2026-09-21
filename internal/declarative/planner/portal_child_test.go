@@ -428,7 +428,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 	stringPtr := func(v string) *string { return &v }
 
 	current := &kkComps.PortalCustomization{
-		SpecRenderer: &kkComps.SpecRenderer{
+		SpecRenderer: &kkComps.PortalCustomizationSpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(true),
 			InfiniteScroll:        boolPtr(true),
@@ -441,7 +441,7 @@ func TestShouldUpdatePortalCustomizationDetectsSpecRendererAndRobots(t *testing.
 	}
 	desired := resources.PortalCustomizationResource{
 		PortalCustomization: kkComps.PortalCustomization{
-			SpecRenderer: &kkComps.SpecRenderer{
+			SpecRenderer: &kkComps.PortalCustomizationSpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(false),
 				InfiniteScroll:        boolPtr(false),
@@ -478,7 +478,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 	stringPtr := func(v string) *string { return &v }
 
 	current := &kkComps.PortalCustomization{
-		SpecRenderer: &kkComps.SpecRenderer{
+		SpecRenderer: &kkComps.PortalCustomizationSpecRenderer{
 			TryItUI:               boolPtr(true),
 			TryItInsomnia:         boolPtr(false),
 			InfiniteScroll:        boolPtr(true),
@@ -491,7 +491,7 @@ func TestShouldUpdatePortalCustomizationIgnoresMatchingSpecRendererAndRobots(t *
 	}
 	desired := resources.PortalCustomizationResource{
 		PortalCustomization: kkComps.PortalCustomization{
-			SpecRenderer: &kkComps.SpecRenderer{
+			SpecRenderer: &kkComps.PortalCustomizationSpecRenderer{
 				TryItUI:               boolPtr(true),
 				TryItInsomnia:         boolPtr(false),
 				InfiniteScroll:        boolPtr(true),
@@ -518,7 +518,7 @@ func TestBuildAllCustomizationFieldsIncludesSpecRendererAndRobots(t *testing.T) 
 
 	fields := planner.buildAllCustomizationFields(resources.PortalCustomizationResource{
 		PortalCustomization: kkComps.PortalCustomization{
-			SpecRenderer: &kkComps.SpecRenderer{
+			SpecRenderer: &kkComps.PortalCustomizationSpecRenderer{
 				TryItUI:               boolPtr(false),
 				TryItInsomnia:         boolPtr(true),
 				InfiniteScroll:        boolPtr(false),

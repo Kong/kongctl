@@ -75,7 +75,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 	}
 
 	if specRendererData, ok := fields[planner.FieldSpecRenderer].(map[string]any); ok {
-		specRenderer := &kkComps.SpecRenderer{}
+		specRenderer := &kkComps.PortalCustomizationSpecRenderer{}
 
 		if tryItUI, ok := specRendererData[planner.FieldTryItUI].(bool); ok {
 			specRenderer.TryItUI = &tryItUI
