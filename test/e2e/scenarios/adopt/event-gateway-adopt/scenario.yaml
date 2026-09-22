@@ -143,24 +143,52 @@ steps:
   - name: 006-cleanup
     skipInputs: true
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .scenario_dir }}/cleanup.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: "changes[?resource_id=='{{ .vars.egw1_id }}'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_type: event_gateway
+          - select: "changes[?resource_id=='{{ .vars.egw2_id }}'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_type: event_gateway
+
+      - name: 001-delete
         run:
           - delete
           - -f
           - "{{ .scenario_dir }}/cleanup.yaml"
           - --auto-approve
         assertions:
-          - select: plan.metadata
-            expect:
-              fields:
-                mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 2
-                by_action.DELETE: 2
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-event-gateways
+        run: ["get", "event-gateways", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.egw1_id }}' || id=='{{ .vars.egw2_id }}']"
+            expect:
+              fields:
+                "length(@)": 0
