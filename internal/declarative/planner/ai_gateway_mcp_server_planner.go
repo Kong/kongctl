@@ -48,85 +48,52 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		return fmt.Errorf("failed to list AI Gateway MCP Servers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByName := indexAIGatewayMCPServers(currentServers)
-	desiredNames := make(map[string]bool)
-
-	for _, desiredServer := range orderAIGatewayMCPServersForPlanning(desired) {
-		current, exists := currentByName[desiredServer.Name()]
-		desiredNames[desiredServer.Name()] = true
-
-		dependsOn := aiGatewayMCPServerCreateDependencies(
-			desiredServer,
-			policyCreateDepsByName,
+	dependencies := func(server resources.AIGatewayMCPServerResource) []string {
+		return aiGatewayMCPServerCreateDependencies(
+			server, policyCreateDepsByName,
 			aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
 		)
-
-		if !exists {
-			p.planAIGatewayMCPServerCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredServer,
-				dependsOn,
-				plan,
-			)
-			continue
-		}
-
-		serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
-		fullServer, err := p.client.GetAIGatewayMCPServer(ctx, gatewayID, serverID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway MCP Server %s: %w", serverID, err)
-		}
-		if fullServer == nil {
-			p.planAIGatewayMCPServerCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredServer,
-				dependsOn,
-				plan,
-			)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayMCPServer(*fullServer, desiredServer)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			p.planAIGatewayMCPServerUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				serverID,
-				desiredServer,
-				updateFields,
-				changedFields,
-				dependsOn,
-				plan,
-			)
-		}
 	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range orderCurrentAIGatewayMCPServersForDeletion(currentServers) {
-			serverID := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
-			serverName := resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
-			if desiredNames[serverName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayMCPServer, serverName, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayMCPServerDelete(namespace, gatewayRef, gatewayID, serverID, serverName, plan)
-		}
-	}
-
-	return nil
+	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayMCPServer,
+		orderAIGatewayMCPServersForPlanning(desired), currentServers,
+		nameMatchedChildOperations[resources.AIGatewayMCPServerResource, state.AIGatewayMCPServer]{
+			desiredName: func(desired resources.AIGatewayMCPServerResource) string { return desired.Name() },
+			currentName: func(current state.AIGatewayMCPServer) string {
+				return resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
+			},
+			fetch: func(_ resources.AIGatewayMCPServerResource, current state.AIGatewayMCPServer) (
+				*state.AIGatewayMCPServer, error,
+			) {
+				id := resources.AIGatewayMCPServerID(current.AIGatewayMCPServer)
+				full, err := p.client.GetAIGatewayMCPServer(ctx, gatewayID, id)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get AI Gateway MCP Server %s: %w", id, err)
+				}
+				return full, nil
+			},
+			diff: p.shouldUpdateAIGatewayMCPServer,
+			create: func(desired resources.AIGatewayMCPServerResource) {
+				p.planAIGatewayMCPServerCreate(
+					namespace, gatewayRef, gatewayName, gatewayID, desired, dependencies(desired), plan,
+				)
+			},
+			update: func(current state.AIGatewayMCPServer, desired resources.AIGatewayMCPServerResource,
+				fields map[string]any, changed map[string]FieldChange,
+			) {
+				p.planAIGatewayMCPServerUpdate(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayMCPServerID(current.AIGatewayMCPServer),
+					desired, fields, changed, dependencies(desired), plan)
+			},
+			protected: func(current state.AIGatewayMCPServer) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayMCPServer) {
+				p.planAIGatewayMCPServerDelete(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayMCPServerID(current.AIGatewayMCPServer),
+					resources.AIGatewayMCPServerName(current.AIGatewayMCPServer), plan)
+			},
+			pruneOrder: orderCurrentAIGatewayMCPServersForDeletion,
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(
@@ -321,18 +288,6 @@ func emptyAIGatewayMCPACLs(value any) bool {
 		}
 	}
 	return true
-}
-
-func indexAIGatewayMCPServers(
-	servers []state.AIGatewayMCPServer,
-) map[string]state.AIGatewayMCPServer {
-	byName := make(map[string]state.AIGatewayMCPServer)
-	for _, server := range servers {
-		if name := resources.AIGatewayMCPServerName(server.AIGatewayMCPServer); name != "" {
-			byName[name] = server
-		}
-	}
-	return byName
 }
 
 func aiGatewayMCPServerCreateDependencies(

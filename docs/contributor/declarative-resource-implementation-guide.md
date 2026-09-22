@@ -424,14 +424,16 @@ Choose identity and operation semantics before selecting a reusable strategy:
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
 - **Name-matched children with detail lookup:** AI Gateway model providers,
-  auth strategies, policies, agents, models, vaults, and consumer groups use
-  [`reconcileNameMatchedChildren`][child-reconcile] within an existing parent.
+  auth strategies, policies, agents, models, vaults, consumer groups, and MCP
+  servers use [`reconcileNameMatchedChildren`][child-reconcile] within an
+  existing parent.
   Match only by the declared API name; UUID refs and cached IDs cannot
   override it. A changed name declares a different resource.
   Missing detail responses schedule creation; read or comparison errors stop
-  planning. Sync retains declared names and prunes in observed order, stopping
-  at the first protected deletion. Duplicate observed names retain their last
-  indexed value.
+  planning. Sync retains declared names and stops at the first protected
+  deletion. Pruning defaults to observed order; an optional `pruneOrder`
+  adapter reorders the same observations only when pruning begins. Matching
+  always indexes original observation order, with the last duplicate winning.
   Typed adapters own detail reads, comparison, payloads, and dependencies;
   [agents][agent-plan], policies, and [consumer groups][consumer-group-plan]
   also bind the observed ID before the detail read. Consumer groups fetch
@@ -441,12 +443,11 @@ Choose identity and operation semantics before selecting a reusable strategy:
   Callers retain scope checks and new-parent creation. This strategy
   does not add child delete-mode dispatch, update protection, or child
   traversal.
-- **Dependency-ordered children:** [AI Gateway MCP servers][mcp-plan] use the
-  same name-only identity, with separate orchestration: plan sources before
-  listeners, delete listeners before sources, and derive creation dependencies
-  from changes already planned. Their name index uses original observation
-  order. Do not sort observations for deletion before indexing; that can
-  change duplicate-name matching.
+- **Dependency-ordered children:** [AI Gateway MCP servers][mcp-plan] pass
+  sources before listeners to the shared reconciler and provide `pruneOrder`
+  to delete listeners before sources. Write adapters derive dependencies from
+  changes already planned. Keep the original observations as matching input;
+  sorting them for deletion before indexing changes duplicate-name matching.
 - **Other name-matched AI Gateway children:** Config stores match names
   within their gateway; credentials match within their consumer. Refs and
   cached IDs do not override names or retain other names during sync.
