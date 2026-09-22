@@ -25,6 +25,8 @@ type declarativeCollector struct {
 	selector      string
 	collect       func(context.Context, *declarativeDumpContext, *declresources.ResourceSet) error
 	omittedReason string
+	// Managed kinds exported (or explicitly omitted) by this root's child traversal.
+	children []declresources.ResourceType
 }
 
 // Keep supported selectors, collection dispatch, and deliberate omissions in
@@ -42,6 +44,7 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 			func(ctx context.Context, d *declarativeDumpContext, values []declresources.PortalResource) error {
 				return populatePortalChildren(ctx, d.logger, d.stateClient, values)
 			},
+			childExportKinds(portalChildCollectors, portalChildOmissions...)...,
 		),
 		rootCollector(
 			resourceAPIs,
@@ -53,6 +56,7 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 				populateAPIChildren(ctx, d.logger, d.stateClient, values)
 				return nil
 			},
+			childExportKinds(apiChildCollectors)...,
 		),
 		rootCollector(
 			"application_auth_strategies",
@@ -83,6 +87,7 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 				populateControlPlaneChildren(ctx, d.logger, d.stateClient, values)
 				return nil
 			},
+			childExportKinds(controlPlaneChildCollectors)...,
 		),
 		rootCollector(
 			resourceAnalyticsDashboards,
@@ -113,6 +118,7 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 				populateEventGatewayChildren(ctx, d.logger, d.stateClient, values)
 				return nil
 			},
+			childExportKinds(eventGatewayChildCollectors)...,
 		),
 		rootCollector(
 			"ai_gateways",
@@ -124,40 +130,50 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 				populateAIGatewayChildren(ctx, d.logger, d.stateClient, values)
 				return nil
 			},
+			childExportKinds(aiGatewayChildCollectors)...,
 		),
-		{
-			kind:     declresources.ResourceTypeOrganizationTeam,
-			selector: "organization.teams",
-			collect:  collectOrganizationForDump,
-		},
+		organizationCollector(),
 		{
 			kind:          declresources.ResourceTypeCatalogService,
 			omittedReason: "Catalog services do not yet support declarative dump",
 		},
 	}
+	collectors, err := indexDeclarativeCollectors(registrations)
+	if err != nil {
+		panic(err)
+	}
+	return collectors
+}
 
+func indexDeclarativeCollectors(registrations []declarativeCollector) (map[string]declarativeCollector, error) {
 	collectors := make(map[string]declarativeCollector)
 	kinds := make([]declresources.ResourceType, 0, len(registrations))
+	var allKinds []declresources.ResourceType
 	for _, registration := range registrations {
 		kinds = append(kinds, registration.kind)
+		allKinds = append(allKinds, registration.kind)
+		allKinds = append(allKinds, registration.children...)
 		if strings.TrimSpace(registration.omittedReason) != "" {
-			if registration.selector != "" || registration.collect != nil {
-				panic("declarative dump omission conflicts with collector: " + string(registration.kind))
+			if registration.selector != "" || registration.collect != nil || len(registration.children) != 0 {
+				return nil, fmt.Errorf("declarative dump omission conflicts with collector: %s", registration.kind)
 			}
 			continue
 		}
 		if registration.selector == "" || registration.collect == nil {
-			panic("declarative dump requires a selector and collector: " + string(registration.kind))
+			return nil, fmt.Errorf("declarative dump requires a selector and collector: %s", registration.kind)
 		}
 		if _, exists := collectors[registration.selector]; exists {
-			panic("duplicate declarative dump selector: " + registration.selector)
+			return nil, fmt.Errorf("duplicate declarative dump selector: %s", registration.selector)
 		}
 		collectors[registration.selector] = registration
 	}
 	if err := declresources.ValidateManagedRootCoverage("declarative dump", kinds); err != nil {
-		panic(err)
+		return nil, err
 	}
-	return collectors
+	if err := declresources.ValidateManagedResourceCoverage("declarative dump", allKinds); err != nil {
+		return nil, err
+	}
+	return collectors, nil
 }
 
 func rootCollector[R any, RPtr interface {
@@ -168,13 +184,18 @@ func rootCollector[R any, RPtr interface {
 	collect func(context.Context, *declarativeDumpContext) ([]R, error),
 	destination func(*declresources.ResourceSet) *[]R,
 	populate func(context.Context, *declarativeDumpContext, []R) error,
+	children ...declresources.ResourceType,
 ) declarativeCollector {
 	if collect == nil || destination == nil {
 		panic(fmt.Sprintf("declarative dump %s requires collection and storage", selector))
 	}
+	if len(children) > 0 && populate == nil {
+		panic(fmt.Sprintf("declarative dump %s requires child population for child coverage", selector))
+	}
 	return declarativeCollector{
 		kind:     RPtr(new(R)).GetType(),
 		selector: selector,
+		children: children,
 		collect: func(ctx context.Context, d *declarativeDumpContext, rs *declresources.ResourceSet) error {
 			values, err := collect(ctx, d)
 			if err != nil {
@@ -188,6 +209,23 @@ func rootCollector[R any, RPtr interface {
 			target := destination(rs)
 			*target = append(*target, values...)
 			return nil
+		},
+	}
+}
+
+func organizationCollector() declarativeCollector {
+	return declarativeCollector{
+		kind:     declresources.ResourceTypeOrganizationTeam,
+		selector: "organization.teams",
+		collect:  collectOrganizationForDump,
+		// Users/system accounts are selectors, not managed roots. Their assignments
+		// are exported through membership discovery, not team child ownership.
+		children: []declresources.ResourceType{
+			declresources.ResourceTypeOrganizationTeamRole,
+			declresources.ResourceTypeOrganizationUserTeamMembership,
+			declresources.ResourceTypeOrganizationUserRole,
+			declresources.ResourceTypeOrganizationSystemAccountTeamMembership,
+			declresources.ResourceTypeOrganizationSystemAccountRole,
 		},
 	}
 }

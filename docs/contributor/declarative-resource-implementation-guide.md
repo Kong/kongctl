@@ -43,11 +43,11 @@ and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
 payload validation for SDK resource operations. [Coverage checks][coverage]
-tie root planners, SDK executors, and dump dispositions to managed scope.
+tie root planners, SDK executors, and all managed dump dispositions to scope.
 The [dump collector inventory][dump-collectors] supplies supported selectors,
 help, and dispatch. The [API][api-child-dump], [AI Gateway][ai-child-dump],
-[Event Gateway][eg-child-dump], and [Portal][portal-child-dump] child
-inventories guard export coverage.
+[Event Gateway][eg-child-dump], [Portal][portal-child-dump], and
+[control-plane][cp-child-dump] child inventories guard export ownership.
 Grouped loading, specialized namespace selection,
 relationships, pre-execution validation, state-client wiring, and other child
 dump traversal remain separate steps.
@@ -699,18 +699,21 @@ return a value-free error when it is missing.
 
 Register each managed root in the [dump collector inventory][dump-collectors]
 with a supported selector and collector, or an explicit omission reason.
-Catalog services retain their existing omission. Registration checks exact
-managed-root coverage and rejects duplicate kinds/selectors or conflicting
-dispositions. Supported selectors, CLI help, and dispatch derive from it;
-adding a declaration alone does not add dump support.
+Catalog services retain their existing omission. Registration checks both
+root coverage and exact coverage of all managed kinds, including children and
+selector assignments. Missing/duplicate kinds, duplicate selectors, and
+conflicting dispositions fail assembly. Supported selectors, CLI help, and
+dispatch derive from it; adding a declaration alone does not add dump support.
 
 Use `rootCollector` for typed collection, optional child population, and
-append-to-output behavior. Grouped destinations must preserve allocation even
-for empty results. Organization collection stays explicit because it also
-derives user/system-account selectors after exporting teams. Preserve request
+append-to-output behavior. Supply child coverage through `childExportKinds`
+from the family's actual inventory, including explicit omissions; do not copy
+its kind list. Child coverage requires a population function. Grouped
+destinations must preserve allocation even for empty results. Preserve request
 order, fatal Portal child errors, and other families' warning/skip policies.
 
-APIs, AI Gateways, Event Gateways, and Portals use ordered child inventories.
+APIs, AI Gateways, Event Gateways, Portals, and control planes use ordered
+managed-child inventories.
 Use `childCollection` for slices, `childSingleton` for pointers, and `childMap`
 for named entries. Each connects a builder, typed destination, and warning
 message. The [shared adapter and guard][child-collectors] derive the root
@@ -741,6 +744,19 @@ exported kinds sharing the root sync owner: Portal team roles nest under teams,
 and logo/favicon share an asset bundle. Do not change sync ownership to match
 export nesting.
 Team group mappings remain explicitly omitted until dump support is added.
+
+Control-plane certificates use the shared child adapter. Gateway services
+remain an explicit earlier export step because they are outside managed sync
+scope. Do not change sync ownership or add services to managed coverage merely
+to fit the adapter.
+
+Organization collection remains explicit: team roles precede membership-derived
+users and system accounts. `organizationCollector` accounts for its managed
+assignment kinds beside that traversal. Users/system accounts are
+selectors, not managed roots, and their assignments are not team-owned children.
+Preserve membership filtering, request order, sorting, and partial-error
+behavior in the existing builders. When adding an assignment, update its
+builder and this coverage declaration; global validation detects omissions.
 
 Builders retain conversion, sorting, and nested reads. The shared adapters
 assign only non-empty collections/maps or non-nil singleton results; empty
@@ -936,6 +952,8 @@ engine contract. Each refactoring migration should:
   ../../internal/cmd/root/verbs/dump/declarative_api_child_collectors.go
 [portal-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_portal_child_collectors.go
+[cp-child-dump]:
+  ../../internal/cmd/root/verbs/dump/declarative_control_plane_child_collectors.go
 
 [portal-child-plan]:
   ../../internal/declarative/planner/portal_child_traversal.go
