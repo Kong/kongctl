@@ -98,16 +98,20 @@ func populateControlPlaneChildren(
 			continue
 		}
 
+		// Services are exported before managed children but do not have managed sync scope.
 		if gatewayServices, err := buildGatewayServices(ctx, client, controlPlaneID); err != nil {
 			logWarn(logger, "failed to load gateway services", controlPlaneID, cp.Name, err)
 		} else if len(gatewayServices) > 0 {
 			cp.GatewayServices = gatewayServices
 		}
 
-		if dataPlaneCertificates, err := buildDataPlaneCertificates(ctx, client, controlPlaneID); err != nil {
-			logWarn(logger, "failed to load data plane certificates", controlPlaneID, cp.Name, err)
-		} else if len(dataPlaneCertificates) > 0 {
-			cp.DataPlaneCertificates = dataPlaneCertificates
+		d := &childDumpContext{
+			logger: logger, client: client, parentID: controlPlaneID, parentName: cp.Name,
+		}
+		for _, collector := range controlPlaneChildCollectors {
+			if err := collector.collect(ctx, d, cp); err != nil {
+				logWarn(logger, collector.warning, controlPlaneID, cp.Name, err)
+			}
 		}
 	}
 }

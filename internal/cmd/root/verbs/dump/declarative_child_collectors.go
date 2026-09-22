@@ -28,6 +28,28 @@ type childCollector[P any] struct {
 	coScoped []declresources.ResourceType
 }
 
+func (c childCollector[P]) coveredKinds() []declresources.ResourceType {
+	kinds := []declresources.ResourceType{c.kind}
+	kinds = append(kinds, c.coScoped...)
+	return append(kinds, c.nested...)
+}
+
+// Root registration reuses the child inventory, including its explicit omissions.
+func childExportKinds[C interface {
+	coveredKinds() []declresources.ResourceType
+}](
+	collectors []C, omissions ...childExportOmission,
+) []declresources.ResourceType {
+	var kinds []declresources.ResourceType
+	for _, collector := range collectors {
+		kinds = append(kinds, collector.coveredKinds()...)
+	}
+	for _, omission := range omissions {
+		kinds = append(kinds, omission.kind)
+	}
+	return kinds
+}
+
 func childCollection[P, R any, RPtr interface {
 	*R
 	declresources.Resource
