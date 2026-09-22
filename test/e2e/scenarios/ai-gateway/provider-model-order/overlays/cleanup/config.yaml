@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: ai-provider-model-order-e2e
+ai_gateways: []

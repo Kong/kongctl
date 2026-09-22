@@ -1,0 +1,53 @@
+_defaults:
+  kongctl:
+    namespace: ai-provider-model-order-e2e
+
+ai_gateways:
+  - ref: ai-provider-model-order-e2e
+    name: ai-provider-model-order-e2e
+    display_name: "Provider Model Ordering E2E"
+    description: "AI Gateway Model e2e"
+    proxy_urls:
+      - host: ai-provider-model-order-e2e.example.com
+        port: 443
+        protocol: https
+    labels:
+      owner: platform
+      lifecycle: dev
+    model_providers:
+      - ref: replacement-openai
+        name: replacement-openai
+        type: openai
+        display_name: "Support OpenAI"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_KEY}
+    models:
+      - ref: support-gpt
+        type: model
+        name: support-gpt
+        display_name: "Support GPT"
+        enabled: true
+        config:
+          route:
+            model:
+              body_param: model
+              values:
+                - support-gpt
+        formats:
+          - type: openai
+        targets:
+          - name: gpt-4o
+            provider: replacement-openai
+            config:
+              type: openai
+          - name: gpt-4o-mini
+            provider: replacement-openai
+            config:
+              type: openai
+        policies: []
+        capabilities:
+          - generate

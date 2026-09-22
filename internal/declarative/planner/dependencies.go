@@ -2,6 +2,7 @@ package planner
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -127,7 +128,6 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 	allChanges := make(map[string]bool)                // set of all change IDs
 	changeDetails := make(map[string]string)           // change_id -> description for errors
 	allDepsPerNode := make(map[string]map[string]bool) // change_id -> set of its dependencies
-	previousAIGatewayChildByParent := make(map[string]string)
 
 	for _, change := range changes {
 		id := change.ID
@@ -164,12 +164,26 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 				addEdge(parentDep)
 			}
 		}
-		if parentKey := aiGatewayChildSerializationParentKey(change); parentKey != "" {
-			if previousID := previousAIGatewayChildByParent[parentKey]; previousID != "" {
-				addEdge(previousID)
-			}
-			previousAIGatewayChildByParent[parentKey] = id
+	}
+
+	// Derive a dependency-compatible order before adding serialization edges.
+	// Serializing raw plan order can reverse deletion dependencies and create cycles.
+	order, err := d.aiGatewaySerializationOrder(changes, graph, inDegree, allChanges, changeDetails)
+	if err != nil {
+		return nil, err
+	}
+	previousByParent := make(map[string]string)
+	for _, change := range order {
+		key := aiGatewayChildSerializationParentKey(change)
+		if key == "" {
+			continue
 		}
+		if previous := previousByParent[key]; previous != "" && !allDepsPerNode[change.ID][previous] {
+			allDepsPerNode[change.ID][previous] = true
+			graph[previous] = append(graph[previous], change.ID)
+			inDegree[change.ID]++
+		}
+		previousByParent[key] = change.ID
 	}
 
 	// Kahn's algorithm — process one level at a time to produce both a flat order
@@ -229,6 +243,46 @@ func (d *DependencyResolver) ResolveDependenciesWithGroups(
 		ExecutionGroups: executionGroups,
 		FullDepsMap:     fullDepsMap,
 	}, nil
+}
+
+// Preserve plan order among changes at the same topological level.
+func (d *DependencyResolver) aiGatewaySerializationOrder(
+	changes []PlannedChange,
+	graph map[string][]string,
+	inDegree map[string]int,
+	allChanges map[string]bool,
+	details map[string]string,
+) ([]PlannedChange, error) {
+	degrees := maps.Clone(inDegree)
+	positions := make(map[string]int, len(changes))
+	var ready []int
+	for i, change := range changes {
+		positions[change.ID] = i
+		if degrees[change.ID] == 0 {
+			ready = append(ready, i)
+		}
+	}
+	ordered := make([]PlannedChange, 0, len(changes))
+	for len(ready) > 0 {
+		var next []int
+		for _, i := range ready {
+			change := changes[i]
+			ordered = append(ordered, change)
+			for _, dependent := range graph[change.ID] {
+				degrees[dependent]--
+				if degrees[dependent] == 0 {
+					next = append(next, positions[dependent])
+				}
+			}
+		}
+		slices.Sort(next)
+		ready = next
+	}
+	if len(ordered) != len(allChanges) {
+		return nil, fmt.Errorf("circular dependency detected in plan: %s",
+			d.findCycleDetails(graph, degrees, allChanges, details))
+	}
+	return ordered, nil
 }
 
 func aiGatewayChildSerializationParentKey(change PlannedChange) string {

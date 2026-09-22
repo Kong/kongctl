@@ -329,21 +329,8 @@ func aiGatewayModelProviderCreateDependencies(
 	if err != nil {
 		return nil
 	}
-	targetModels, ok := payload[FieldTargets].([]any)
-	if !ok {
-		return nil
-	}
-
 	var deps []string
-	for _, targetModel := range targetModels {
-		target, ok := targetModel.(map[string]any)
-		if !ok {
-			continue
-		}
-		providerName, ok := target[FieldProvider].(string)
-		if !ok || providerName == "" {
-			continue
-		}
+	for _, providerName := range aiGatewayModelProviderNames(payload) {
 		if dep := providerCreateDepsByName[providerName]; dep != "" {
 			deps = appendDependsOn(deps, dep)
 		}

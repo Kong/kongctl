@@ -213,6 +213,8 @@ const (
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
 	FieldMinRuntimeVersion                          = "min_runtime_version"
 	FieldPorts                                      = "ports"
+	FieldBalancer                                   = "balancer"
+	FieldEmbeddings                                 = "embeddings"
 	FieldProvider                                   = "provider"
 	FieldProxyURLs                                  = "proxy_urls"
 	FieldFormats                                    = "formats"
