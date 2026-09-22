@@ -442,19 +442,33 @@ Choose identity and operation semantics before selecting a reusable strategy:
   policy/consumer creation dependencies remain in the adapter.
   Callers retain scope checks and new-parent creation. This strategy
   does not add child delete-mode dispatch, update protection, or child
-  traversal.
+  traversal. Collection matching and pruning delegate to the strategy below.
 - **Dependency-ordered children:** [AI Gateway MCP servers][mcp-plan] pass
   sources before listeners to the shared reconciler and provide `pruneOrder`
   to delete listeners before sources. Write adapters derive dependencies from
   changes already planned. Keep the original observations as matching input;
   sorting them for deletion before indexing changes duplicate-name matching.
-- **Other name-matched AI Gateway children:** Config stores match names
-  within their gateway; credentials match within their consumer. Refs and
-  cached IDs do not override names or retain other names during sync.
-  Keep their lifecycle orchestration explicit: stores traverse scoped secrets
-  and supply creation dependencies; credentials replace through ordered
-  delete/create changes. These do not fit the detail-read reconciler above.
-  A name change declares a different resource.
+- **Name-matched collections with resource-specific reconciliation:**
+  [Consumers][consumer-plan] and [config stores][config-store-plan] use
+  [`reconcileNameMatchedCollection`][collection-reconcile]. It owns indexing,
+  desired-order traversal, sync retention/pruning, and optional deletion
+  protection. The typed `reconcile` callback receives the listed match or nil;
+  it owns parent actions and nested child planning, including after a no-op.
+  Errors stop traversal before subsequent desired resources or pruning.
+  Consumer adapters bind IDs before detail reads and recreate missing details
+  with credential creation dependencies. Stores use list results, sparse
+  display-name updates, and scoped secret planning; they have no deletion
+  protection. Keep new-parent creation and child scope checks with callers.
+  The `currentName` boolean controls matching eligibility only: consumers
+  exclude empty observed names from matching; stores retain their existing
+  empty-name behavior. Both still consider those observations during pruning.
+  Matching uses the last eligible observation per name; pruning uses original
+  order unless explicitly overridden. The detail-read strategy above delegates
+  to this collection traversal; prefer it when its narrower contract fits.
+- **Replacement-only credentials:** Credentials match names within their
+  consumer. Refs and cached IDs do not override names or retain other names
+  during sync. Keep ordered delete/create replacement and its dependencies
+  explicit; this is not a mutable detail-read lifecycle.
 - **AI Gateway certificate families:** Data-plane certificates match by
   required title; runtime certificates, CA certificates, and SNIs match by
   required name within their gateway. Refs and cached IDs do not select or
@@ -885,6 +899,12 @@ engine contract. Each refactoring migration should:
 [roots]: ../../internal/declarative/planner/root_planners.go
 [constants]: ../../internal/declarative/planner/constants.go
 [reconcile]: ../../internal/declarative/planner/managed_root_reconciler.go
+[collection-reconcile]:
+  ../../internal/declarative/planner/name_matched_collection.go
+[consumer-plan]:
+  ../../internal/declarative/planner/ai_gateway_consumer_planner.go
+[config-store-plan]:
+  ../../internal/declarative/planner/ai_gateway_config_store_planner.go
 [child-reconcile]:
   ../../internal/declarative/planner/name_matched_child_reconciler.go
 [mcp-plan]: ../../internal/declarative/planner/ai_gateway_mcp_server_planner.go
