@@ -11,44 +11,44 @@ import (
 	declstate "github.com/kong/kongctl/internal/declarative/state"
 )
 
-type gatewayChildDumpContext struct {
-	logger      *slog.Logger
-	client      *declstate.Client
-	gatewayID   string
-	gatewayName string
+type childDumpContext struct {
+	logger     *slog.Logger
+	client     *declstate.Client
+	parentID   string
+	parentName string
 }
 
-type gatewayChildCollector[P any] struct {
+type childCollector[P any] struct {
 	kind    declresources.ResourceType
 	warning string
-	collect func(context.Context, *gatewayChildDumpContext, *P) error
-	// These kinds are exported inside this collector, not by separate gateway calls.
+	collect func(context.Context, *childDumpContext, *P) error
+	// These kinds are exported inside this collector, not by separate parent calls.
 	nested []declresources.ResourceType
 }
 
-func gatewayChild[P, R any, RPtr interface {
+func childCollection[P, R any, RPtr interface {
 	*R
 	declresources.Resource
 }](
 	warning string,
-	collect func(context.Context, *gatewayChildDumpContext) ([]R, error),
+	collect func(context.Context, *childDumpContext) ([]R, error),
 	destination func(*P) *[]R,
 	nested ...declresources.ResourceType,
-) gatewayChildCollector[P] {
+) childCollector[P] {
 	if collect == nil || destination == nil || strings.TrimSpace(warning) == "" {
-		panic("gateway child dump requires collection, storage, and a warning")
+		panic("child dump requires collection, storage, and a warning")
 	}
-	return gatewayChildCollector[P]{
+	return childCollector[P]{
 		kind:    RPtr(new(R)).GetType(),
 		warning: warning,
 		nested:  nested,
-		collect: func(ctx context.Context, d *gatewayChildDumpContext, gateway *P) error {
+		collect: func(ctx context.Context, d *childDumpContext, parent *P) error {
 			values, err := collect(ctx, d)
 			if err != nil {
 				return err
 			}
 			if len(values) > 0 {
-				*destination(gateway) = values
+				*destination(parent) = values
 			}
 			return nil
 		},
@@ -57,10 +57,10 @@ func gatewayChild[P, R any, RPtr interface {
 
 // Derive completeness from registered ownership, including grandchildren.
 // SyncCollections validates owner chains before returning this metadata.
-func validateGatewayChildCollectors[P any, PPtr interface {
+func validateChildCollectors[P any, PPtr interface {
 	*P
 	declresources.Resource
-}](consumer string, collectors []gatewayChildCollector[P]) error {
+}](consumer string, collectors []childCollector[P]) error {
 	root := PPtr(new(P)).GetType()
 	parents := make(map[declresources.ResourceType]declresources.ResourceType)
 	for _, collection := range declresources.SyncCollections() {
