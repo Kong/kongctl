@@ -208,46 +208,13 @@ func populateEventGatewayChildren(
 			continue
 		}
 
-		if clusters, err := buildEventGatewayBackendClusters(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway backend clusters", gatewayID, gateway.Name, err)
-		} else if len(clusters) > 0 {
-			gateway.BackendClusters = clusters
+		d := &gatewayChildDumpContext{
+			logger: logger, client: client, gatewayID: gatewayID, gatewayName: gateway.Name,
 		}
-
-		if vclusters, err := buildEventGatewayVirtualClusters(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway virtual clusters", gatewayID, gateway.Name, err)
-		} else if len(vclusters) > 0 {
-			gateway.VirtualClusters = vclusters
-		}
-
-		if listeners, err := buildEventGatewayListeners(ctx, logger, client, gatewayID); err != nil {
-			logWarn(logger, "failed to load event gateway listeners", gatewayID, gateway.Name, err)
-		} else if len(listeners) > 0 {
-			gateway.Listeners = listeners
-		}
-
-		if certs, err := buildEventGatewayDataPlaneCertificates(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway data plane certificates", gatewayID, gateway.Name, err)
-		} else if len(certs) > 0 {
-			gateway.DataPlaneCertificates = certs
-		}
-
-		if regs, err := buildEventGatewaySchemaRegistries(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway schema registries", gatewayID, gateway.Name, err)
-		} else if len(regs) > 0 {
-			gateway.SchemaRegistries = regs
-		}
-
-		if keys, err := buildEventGatewayStaticKeys(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway static keys", gatewayID, gateway.Name, err)
-		} else if len(keys) > 0 {
-			gateway.StaticKeys = keys
-		}
-
-		if bundles, err := buildEventGatewayTLSTrustBundles(ctx, logger, client, gatewayID, gateway.Name); err != nil {
-			logWarn(logger, "failed to load event gateway TLS trust bundles", gatewayID, gateway.Name, err)
-		} else if len(bundles) > 0 {
-			gateway.TrustBundles = bundles
+		for _, collector := range eventGatewayChildCollectors {
+			if err := collector.collect(ctx, d, gateway); err != nil {
+				logWarn(logger, collector.warning, gatewayID, gateway.Name, err)
+			}
 		}
 	}
 }
@@ -269,7 +236,7 @@ func populateAIGatewayChildren(
 			continue
 		}
 
-		d := &aiGatewayChildDumpContext{
+		d := &gatewayChildDumpContext{
 			logger: logger, client: client, gatewayID: gatewayID, gatewayName: gateway.DisplayName,
 		}
 		for _, collector := range aiGatewayChildCollectors {

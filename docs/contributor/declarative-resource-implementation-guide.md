@@ -45,8 +45,9 @@ The [root planner inventory][roots] drives root construction and dispatch.
 payload validation for SDK resource operations. [Coverage checks][coverage]
 tie root planners, SDK executors, and dump dispositions to managed scope.
 The [dump collector inventory][dump-collectors] supplies supported selectors,
-help, and dispatch; the [AI Gateway child inventory][ai-child-dump] guards
-child export coverage. Grouped loading, specialized namespace selection,
+help, and dispatch. The [AI Gateway][ai-child-dump] and
+[Event Gateway][eg-child-dump] child inventories guard export coverage.
+Grouped loading, specialized namespace selection,
 relationships, pre-execution validation, state-client wiring, and other child
 dump traversal remain separate steps.
 Registering a declaration does not complete those steps automatically.
@@ -690,13 +691,20 @@ for empty results. Organization collection stays explicit because it also
 derives user/system-account selectors after exporting teams. Preserve request
 order, fatal Portal child errors, and other families' warning/skip policies.
 
-AI Gateway child export uses the [typed child inventory][ai-child-dump].
-Add one `aiGatewayChild` entry with its builder, typed destination, and warning
-message; inventory order controls requests. Declare nested kinds on the
-collector that actually exports them: consumers own credentials, and config
-stores own secrets. Assembly checks every managed descendant against registered
-sync ownership, rejecting missing/duplicate kinds and incorrect owners.
-Do not add a separate dispatch branch or a second expected-kind list.
+AI Gateway and Event Gateway use ordered child inventories linked above.
+Add one `gatewayChild` entry with its builder, typed destination, and warning
+message. The [shared adapter and guard][gateway-child-dump] derive the root
+and child kinds from those types, and check all managed descendants against
+registered sync ownership. Missing/duplicate kinds, incorrect owners, and
+incomplete collectors fail assembly. No separate dispatch or expected-kind
+list is needed.
+
+Declare nested kinds on the collector that actually exports them: AI consumers
+own credentials and config stores own secrets; Event virtual clusters own
+cluster/produce/consume policies and listeners own listener policies.
+Inventory order controls requests. Nested Event policy failures warn and leave
+the parent in output; malformed individual resources may be skipped by their
+builder. Keep these partial-export boundaries in the builders.
 
 Builders retain conversion, sorting, and nested reads. The shared adapter
 assigns only non-empty successful results; errors retain existing values and
@@ -884,3 +892,7 @@ engine contract. Each refactoring migration should:
 [e2e]: ../../test/e2e/scenarios/README.md
 [ai-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_ai_child_collectors.go
+[eg-child-dump]:
+  ../../internal/cmd/root/verbs/dump/declarative_event_child_collectors.go
+[gateway-child-dump]:
+  ../../internal/cmd/root/verbs/dump/declarative_gateway_child_collectors.go
