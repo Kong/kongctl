@@ -35,40 +35,55 @@ func (p *Planner) resolveAIGatewayProviderDeletes(
 	if err != nil {
 		return fmt.Errorf("failed to inspect AI Gateway models before deleting providers: %w", err)
 	}
+
+	type modelProviderReferences struct {
+		id, name  string
+		providers []string
+	}
+	var plannedModels []modelProviderReferences
+	for _, change := range plan.Changes {
+		if change.ResourceType != ResourceTypeAIGatewayModel ||
+			(change.Action != ActionCreate && change.Action != ActionUpdate) ||
+			change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(change, gatewayRef) {
+			continue
+		}
+		plannedModels = append(plannedModels, modelProviderReferences{
+			name: change.ResourceRef, providers: aiGatewayModelProviderNames(change.Fields),
+		})
+	}
+	observedModels := make([]modelProviderReferences, 0, len(current))
+	for _, model := range current {
+		payload, err := resources.AIGatewayModelMutablePayloadMap(model.AIGatewayModel)
+		if err != nil {
+			return fmt.Errorf("failed to inspect AI Gateway model %q in gateway %q before deleting providers: %w",
+				resources.AIGatewayModelName(model.AIGatewayModel), gatewayRef, err)
+		}
+		observedModels = append(observedModels, modelProviderReferences{
+			id:        resources.AIGatewayModelID(model.AIGatewayModel),
+			name:      resources.AIGatewayModelName(model.AIGatewayModel),
+			providers: aiGatewayModelProviderNames(payload),
+		})
+	}
 	for _, index := range deletes {
 		deletion := &plan.Changes[index]
 		providerName, _ := deletion.Fields[FieldName].(string)
-		for _, change := range plan.Changes {
-			if change.ResourceType != ResourceTypeAIGatewayModel ||
-				(change.Action != ActionCreate && change.Action != ActionUpdate) ||
-				change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(change, gatewayRef) {
-				continue
-			}
-			if slices.Contains(aiGatewayModelProviderNames(change.Fields), providerName) {
+		for _, model := range plannedModels {
+			if slices.Contains(model.providers, providerName) {
 				return fmt.Errorf(
 					"cannot delete AI Gateway Model Provider %q in gateway %q while planned model %q still references it",
-					providerName,
-					gatewayRef,
-					change.ResourceRef,
+					providerName, gatewayRef, model.name,
 				)
 			}
 		}
-		for _, model := range current {
-			payload, err := resources.AIGatewayModelMutablePayloadMap(model.AIGatewayModel)
-			if err != nil {
-				return fmt.Errorf("failed to inspect AI Gateway model %q before deleting provider %q: %w",
-					resources.AIGatewayModelName(model.AIGatewayModel), providerName, err)
-			}
-			if !slices.Contains(aiGatewayModelProviderNames(payload), providerName) {
+		for _, model := range observedModels {
+			if !slices.Contains(model.providers, providerName) {
 				continue
 			}
-			change := modelChanges[resources.AIGatewayModelID(model.AIGatewayModel)]
+			change := modelChanges[model.id]
 			if change == nil || (change.Action != ActionDelete && change.Action != ActionUpdate) {
 				return fmt.Errorf(
 					"cannot delete AI Gateway Model Provider %q in gateway %q while model %q still references it",
-					providerName,
-					gatewayRef,
-					resources.AIGatewayModelName(model.AIGatewayModel),
+					providerName, gatewayRef, model.name,
 				)
 			}
 			deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
