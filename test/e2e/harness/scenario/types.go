@@ -64,6 +64,7 @@ type InlineOp struct {
 }
 
 type Command struct {
+	ReplanOnRetry  []string          `yaml:"replanOnRetry"`
 	Name           string            `yaml:"name"`
 	Run            []string          `yaml:"run"`
 	Exec           []string          `yaml:"exec"`

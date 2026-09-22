@@ -81,7 +81,7 @@ func TestObservedCLITimeoutKeepsRetryPolicy(t *testing.T) {
 	d.begin("sync", "sync-all")
 	cli := &harness.CLI{BinPath: "/bin/sh", Env: os.Environ()}
 	res, err := runCLIWithRetry(cli, "sync-all", Retry{}, []string{"-c", "exec sleep 10"}, nil,
-		20*time.Millisecond, d)
+		20*time.Millisecond, d, nil)
 	if err == nil || !res.TimedOut {
 		t.Fatalf("expected timeout, got %+v, %v", res, err)
 	}
@@ -131,7 +131,7 @@ func TestObservedCLIRetryPreservesBothAttempts(t *testing.T) {
 	}
 	res, err := runCLIWithRetry(cli, "read-resource", Retry{
 		Attempts: 2, Interval: "1ms", MaxInterval: "1ms", Only: []string{"transient"},
-	}, args, nil, time.Second, d)
+	}, args, nil, time.Second, d, nil)
 	if err != nil || res.ExitCode != 0 {
 		t.Fatalf("expected recovery: %+v, %v", res, err)
 	}

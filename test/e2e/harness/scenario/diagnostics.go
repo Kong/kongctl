@@ -181,3 +181,15 @@ func (d *scenarioDiagnostics) finish(err error) error {
 	}
 	return nil
 }
+
+// successfulReplan records preparation separately from the bounded apply attempts.
+func (d *scenarioDiagnostics) successfulReplan(name string, res harness.Result, timeout time.Duration, dir string) {
+	preparation := &scenarioDiagnostics{path: d.path, current: &commandDiagnostic{
+		Step: d.step, Command: name, DurationMS: res.Duration.Milliseconds(),
+		Outcome: "passed", AttemptLimit: 1, RetryStop: "succeeded",
+	}}
+	preparation.subprocess(res, timeout, dir)
+	d.Commands = append(d.Commands, *preparation.current)
+	// The parent command's elapsed time already includes preparation.
+	d.started = d.started.Add(res.Duration)
+}

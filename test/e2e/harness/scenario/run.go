@@ -191,6 +191,9 @@ func executeScenario(
 			diagnostics.begin(stepName, cmdName)
 			isLastCmdInStep := j == len(st.Commands)-1
 			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
+			if len(cmd.ReplanOnRetry) > 0 && (cmd.ResetOrg || len(cmd.Exec) > 0 || cmd.Create != nil || cmd.Delete != nil) {
+				return fmt.Errorf("command %s: replanOnRetry requires a run command using apply --plan", cmdName)
+			}
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
 				diagnostics.phase = "reset"
@@ -621,6 +624,10 @@ func executeScenario(
 			if err != nil {
 				return err
 			}
+			retryPlan, err := commandRetryPlan(cmd, args, tmplCtx)
+			if err != nil {
+				return fmt.Errorf("command %s: %w", cmdName, err)
+			}
 			diagnostics.phase = "execution"
 			if cmd.ExpectFail != nil {
 				res, err = cli.RunWithEnvTimeout(context.Background(), envOverrides, timeout, args...)
@@ -629,7 +636,7 @@ func executeScenario(
 				diagnostics.current.RetryStop = "expected_failure"
 			} else {
 				retryCfg := effectiveRetry(s.Defaults.Retry, st.Retry, cmd.Retry, Retry{})
-				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout, diagnostics)
+				res, err = runCLIWithRetry(cli, cmdName, retryCfg, args, envOverrides, timeout, diagnostics, retryPlan)
 			}
 			if cmd.ExpectFail != nil {
 				diagnostics.phase = "expected_failure"
@@ -971,6 +978,7 @@ func runCLIWithRetry(
 	env map[string]string,
 	timeout time.Duration,
 	diagnostics *scenarioDiagnostics,
+	plan *retryPlan,
 ) (harness.Result, error) {
 	backoffCfg := harness.NormalizeBackoffConfig(backoffConfigFromRetry(retryCfg))
 	attempts := backoffCfg.Attempts
@@ -981,7 +989,26 @@ func runCLIWithRetry(
 		err error
 	)
 	for atry := range attempts {
-		res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
+		// A saved CREATE plan cannot be replayed after partial execution.
+		// Replanning failures consume an attempt without executing the stale plan.
+		err = nil
+		if atry > 0 && plan != nil {
+			cli.DisableNextOutput()
+			replanName := fmt.Sprintf("%s-replan-%03d", cmdName, atry)
+			cli.OverrideNextCommandSlug(replanName)
+			res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, plan.args...)
+			if err == nil {
+				diagnostics.successfulReplan(replanName, res, timeout, cli.LastCommandDir)
+			}
+		}
+		if err == nil {
+			if plan != nil {
+				if err := configureCommandOutput(cli, plan.outputFormat); err != nil {
+					return res, err
+				}
+			}
+			res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, args...)
+		}
 		diagnostics.subprocess(res, timeout, cli.LastCommandDir)
 		if err == nil {
 			diagnostics.current.RetryStop = "succeeded"
