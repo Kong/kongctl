@@ -20,25 +20,21 @@ steps:
 
   - name: 001-apply-create
     commands:
-      - name: 000-apply-create
+      - name: 000-plan-apply
+        outputFormat: disable
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/teams.yaml"
-          - --auto-approve
+          - --mode
+          - apply
         assertions:
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 2
                 by_action.CREATE: 2
-          - select: summary
-            expect:
-              fields:
-                applied: 2
-                failed: 0
-                status: success
-          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
+          - select: "changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
             expect:
               fields:
                 action: CREATE
@@ -46,7 +42,7 @@ steps:
                 fields.description: "Team responsible for backend services and APIs"
                 fields.labels.department: "engineering"
                 fields.labels.focus: "backend"
-          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
+          - select: "changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
             expect:
               fields:
                 action: CREATE
@@ -55,7 +51,20 @@ steps:
                 fields.labels.department: "engineering"
                 fields.labels.focus: "frontend"
 
-      - name: 001-get-teams
+      - name: 001-apply-create
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
           - select: "[?name=='Backend Engineering Team'] | [0]"
@@ -79,31 +88,27 @@ steps:
     inputOverlayDirs:
       - overlays/002-update-fields
     commands:
-      - name: 000-apply-update
+      - name: 000-plan-apply
+        outputFormat: disable
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/teams.yaml"
-          - --auto-approve
+          - --mode
+          - apply
         assertions:
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 2
                 by_action.UPDATE: 2
-          - select: summary
-            expect:
-              fields:
-                applied: 2
-                failed: 0
-                status: success
-          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
+          - select: "changes[?resource_type=='organization_team' && resource_ref=='backend-team'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 fields.description: "Updated: Team managing backend infrastructure, services, APIs, and databases"
                 fields.labels.tier: "core"
-          - select: "plan.changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
+          - select: "changes[?resource_type=='organization_team' && resource_ref=='frontend-team'] | [0]"
             expect:
               fields:
                 action: UPDATE
@@ -111,7 +116,20 @@ steps:
                 fields.labels.tier: "core"
                 fields.labels.platform: "web-mobile"
 
-      - name: 001-get-teams
+      - name: 001-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
           - select: "[?name=='Backend Engineering Team'] | [0]"
@@ -134,7 +152,7 @@ steps:
                 labels.platform: "web-mobile"
                 labels."KONGCTL-namespace": "teams-e2e"
 
-      - name: 002-get-teams-skip-system
+      - name: 003-get-teams-skip-system
         run: ["get", "org", "teams", "--skip-system-teams", "-o", "json"]
         assertions:
           - select: "[?system_team==`true`]"
@@ -161,24 +179,42 @@ steps:
     inputOverlayDirs:
       - overlays/002-update-fields
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/teams.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: delete
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+
+      - name: 001-delete
         run:
           - delete
           - -f
           - "{{ .workdir }}/teams.yaml"
           - --auto-approve
         assertions:
-          - select: plan.metadata
-            expect:
-              fields:
-                mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 2
-                by_action.DELETE: 2
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-teams
+        run: ["get", "org", "teams", "-o", "json"]
+        assertions:
+          - select: "[?name=='Backend Engineering Team' || name=='Frontend Engineering Team']"
+            expect:
+              fields:
+                "length(@)": 0

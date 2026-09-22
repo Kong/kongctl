@@ -16,26 +16,37 @@ steps:
 
   - name: 001-apply-control-plane-implementation
     commands:
-      - name: 000-apply
+      - name: 000-plan-apply
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/resources.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: >-
+              changes[?resource_type=='api_implementation' &&
+                           resource_ref=='control-plane-implementation'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                "length(fields.control_plane.control_plane_id) > `0`": true
+
+      - name: 001-apply
         run:
           - apply
           - -f
           - "{{ .workdir }}/resources.yaml"
           - --auto-approve
         assertions:
-          - select: >-
-              plan.changes[?resource_type=='api_implementation' &&
-                           resource_ref=='control-plane-implementation'] | [0]
-            expect:
-              fields:
-                action: CREATE
-                "length(fields.control_plane.control_plane_id) > `0`": true
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
-      - name: 001-get-control-plane
+
+      - name: 002-get-control-plane
         run:
           - get
           - gateway
@@ -45,7 +56,7 @@ steps:
         recordVar:
           name: apiImplementationCPID
           responsePath: "[?name=='e2e-api-implementation-cp'] | [0].id"
-      - name: 002-list-implementations
+      - name: 003-list-implementations
         run:
           - get
           - api
@@ -67,7 +78,7 @@ steps:
               fields:
                 "length(id) > `0`": true
                 control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
-      - name: 003-get-implementation-by-id
+      - name: 004-get-implementation-by-id
         run:
           - get
           - api
@@ -83,7 +94,7 @@ steps:
               fields:
                 id: "{{ .vars.apiImplementationID }}"
                 control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
-      - name: 004-get-implementation-not-found
+      - name: 005-get-implementation-not-found
         run:
           - get
           - api
@@ -99,14 +110,11 @@ steps:
 
   - name: 002-repeat-is-noop
     commands:
-      - name: 000-apply
-        run:
-          - apply
-          - -f
-          - "{{ .workdir }}/resources.yaml"
-          - --auto-approve
+      - name: 000-plan-noop
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/resources.yaml", "--mode", "apply"]
         assertions:
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 0
@@ -148,28 +156,39 @@ steps:
     inputOverlayDirs:
       - overlays/001-remove-implementation
     commands:
-      - name: 000-sync-delete
+      - name: 000-plan-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/resources.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "changes[?resource_type=='api_implementation'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+
+      - name: 001-sync-delete
         run:
           - sync
           - -f
           - "{{ .workdir }}/resources.yaml"
           - --auto-approve
         assertions:
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 1
-                by_action.DELETE: 1
-          - select: "plan.changes[?resource_type=='api_implementation'] | [0]"
-            expect:
-              fields:
-                action: DELETE
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
-      - name: 001-get-implementations
+
+      - name: 002-get-implementations
         run:
           - get
           - api
@@ -183,7 +202,7 @@ steps:
             expect:
               fields:
                 "length(@)": 0
-      - name: 002-get-api
+      - name: 003-get-api
         run:
           - get
           - apis
@@ -194,7 +213,7 @@ steps:
             expect:
               fields:
                 "length(@)": 1
-      - name: 003-get-control-plane
+      - name: 004-get-control-plane
         run:
           - get
           - gateway

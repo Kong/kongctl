@@ -174,10 +174,244 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
   }
 ]`},
 		},
+		{
+			"team-apply-create", "org/teams/apply", 1, 2,
+			`{
+  "summary": {
+    "total_changes": 2,
+    "by_action": {
+      "CREATE": 2
+    }
+  },
+  "changes": [
+    {
+      "resource_type": "organization_team",
+      "resource_ref": "backend-team",
+      "action": "CREATE",
+      "fields": {
+        "name": "Backend Engineering Team",
+        "description": "Team responsible for backend services and APIs",
+        "labels": {
+          "department": "engineering",
+          "focus": "backend",
+          "KONGCTL-namespace": "teams-e2e"
+        }
+      }
+    },
+    {
+      "resource_type": "organization_team",
+      "resource_ref": "frontend-team",
+      "action": "CREATE",
+      "fields": {
+        "name": "Frontend Engineering Team",
+        "description": "Team responsible for web and mobile frontends",
+        "labels": {
+          "department": "engineering",
+          "focus": "frontend",
+          "KONGCTL-namespace": "teams-e2e"
+        }
+      }
+    }
+  ]
+}`,
+			[]string{`[
+  {
+    "name": "Backend Engineering Team",
+    "description": "Team responsible for backend services and APIs",
+    "labels": {
+      "department": "engineering",
+      "focus": "backend",
+      "KONGCTL-namespace": "teams-e2e"
+    }
+  },
+  {
+    "name": "Frontend Engineering Team",
+    "description": "Team responsible for web and mobile frontends",
+    "labels": {
+      "department": "engineering",
+      "focus": "frontend",
+      "KONGCTL-namespace": "teams-e2e"
+    }
+  }
+]`},
+		},
+		{
+			"team-apply-update", "org/teams/apply", 2, 3,
+			`{
+  "summary": {
+    "total_changes": 2,
+    "by_action": {
+      "UPDATE": 2
+    }
+  },
+  "changes": [
+    {
+      "resource_type": "organization_team",
+      "resource_ref": "backend-team",
+      "action": "UPDATE",
+      "fields": {
+        "name": "Backend Engineering Team",
+        "description": "Updated: Team managing backend infrastructure, services, APIs, and databases",
+        "labels": {
+          "department": "engineering",
+          "focus": "backend",
+          "KONGCTL-namespace": "teams-e2e",
+          "tier": "core"
+        },
+        "system_team": false
+      }
+    },
+    {
+      "resource_type": "organization_team",
+      "resource_ref": "frontend-team",
+      "action": "UPDATE",
+      "fields": {
+        "name": "Frontend Engineering Team",
+        "description": "Updated: Team building responsive web applications and mobile experiences",
+        "labels": {
+          "department": "engineering",
+          "focus": "frontend",
+          "KONGCTL-namespace": "teams-e2e",
+          "tier": "core",
+          "platform": "web-mobile"
+        },
+        "system_team": false
+      }
+    }
+  ]
+}`,
+			[]string{`[
+  {
+    "name": "Backend Engineering Team",
+    "description": "Updated: Team managing backend infrastructure, services, APIs, and databases",
+    "labels": {
+      "department": "engineering",
+      "focus": "backend",
+      "KONGCTL-namespace": "teams-e2e",
+      "tier": "core"
+    },
+    "system_team": false
+  },
+  {
+    "name": "Frontend Engineering Team",
+    "description": "Updated: Team building responsive web applications and mobile experiences",
+    "labels": {
+      "department": "engineering",
+      "focus": "frontend",
+      "KONGCTL-namespace": "teams-e2e",
+      "tier": "core",
+      "platform": "web-mobile"
+    },
+    "system_team": false
+  }
+]`, `[
+  {
+    "name": "Backend Engineering Team",
+    "description": "Updated: Team managing backend infrastructure, services, APIs, and databases",
+    "labels": {
+      "department": "engineering",
+      "focus": "backend",
+      "KONGCTL-namespace": "teams-e2e",
+      "tier": "core"
+    },
+    "system_team": false
+  },
+  {
+    "name": "Frontend Engineering Team",
+    "description": "Updated: Team building responsive web applications and mobile experiences",
+    "labels": {
+      "department": "engineering",
+      "focus": "frontend",
+      "KONGCTL-namespace": "teams-e2e",
+      "tier": "core",
+      "platform": "web-mobile"
+    },
+    "system_team": false
+  }
+]`},
+		},
+		{
+			"team-apply-delete", "org/teams/apply", 3, 4,
+			`{
+  "metadata": {
+    "mode": "delete"
+  },
+  "summary": {
+    "total_changes": 2,
+    "by_action": {
+      "DELETE": 2
+    }
+  }
+}`,
+			[]string{`[]`},
+		},
+		{
+			"cp-implementation-create", "apis/control-plane-implementation", 1, 3,
+			`{
+  "changes": [
+    {
+      "resource_type": "api_implementation",
+      "resource_ref": "control-plane-implementation",
+      "action": "CREATE",
+      "fields": {
+        "control_plane": {
+          "control_plane_id": "cp-id"
+        }
+      }
+    }
+  ]
+}`,
+			[]string{`[
+  {
+    "id": "cp-id",
+    "name": "e2e-api-implementation-cp"
+  }
+]`, `[
+  {
+    "id": "impl-id",
+    "control_plane": {
+      "control_plane_id": "cp-id"
+    }
+  }
+]`, `[
+  {
+    "id": "impl-id",
+    "control_plane": {
+      "control_plane_id": "cp-id"
+    }
+  }
+]`},
+		},
+		{
+			"cp-implementation-delete", "apis/control-plane-implementation", 4, 5,
+			`{
+  "summary": {
+    "total_changes": 1,
+    "by_action": {
+      "DELETE": 1
+    }
+  },
+  "changes": [
+    {
+      "resource_type": "api_implementation",
+      "action": "DELETE"
+    }
+  ]
+}`,
+			[]string{`[]`, `[
+  {
+    "name": "E2E Control Plane Implementation API"
+  }
+]`, `[
+  {
+    "name": "e2e-api-implementation-cp"
+  }
+]`},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			faults := []string{"", "plan", "readback"}
-			if tc.name == "team-update" {
+			if tc.name == "team-update" || tc.name == "cp-implementation-create" {
 				faults = append(faults, "convergence")
 			}
 			for _, fault := range faults {
@@ -201,6 +435,9 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
 						reads[i] = json.RawMessage(r)
 					}
 					faultRead := 1
+					if tc.name == "cp-implementation-create" {
+						faultRead = 2
+					}
 					if tc.name == "deck-create" {
 						faultRead = 3
 					}
@@ -271,7 +508,7 @@ if verb == 'plan':
  n = count('plans')
  noop = {'summary': {'total_changes': 1 if fault == 'convergence' else 0}}
  emit({} if fault == 'plan' else data['plan'] if n == 1 else noop)
-elif verb in ('sync', 'delete'):
+elif verb in ('apply', 'sync', 'delete'):
  if count('mutations') == 1:
   # Model a committed mutation whose response was lost. Retry has no work left.
   print('context deadline exceeded', file=sys.stderr)
@@ -279,14 +516,20 @@ elif verb in ('sync', 'delete'):
  emit({'summary': {'failed': 0, 'status': 'success', 'applied': 0},
        'plan': {'changes': [], 'summary': {'total_changes': 0, 'by_action': {}}}})
 elif verb == 'get':
+ if 'nonexistent-impl-xyz' in sys.argv:
+  print('not found', file=sys.stderr)
+  sys.exit(1)
  n = count('reads')
  value = data['reads'][n-1]
  if fault == 'readback' and n == data['fault_read']:
   # Reject missing created resources, incorrect bindings, and surviving deletions.
   if value and 'service' in value[0]:
    value[0]['service']['id'] = 'wrong-service'
+  elif value and 'control_plane' in value[0]:
+   value[0]['control_plane']['control_plane_id'] = 'wrong-cp'
   else:
-   value = [{'name': 'Platform Team'}, {'name': 'delete-test-portal'}] if not value else []
+   value = [{'name': 'Platform Team'}, {'name': 'Backend Engineering Team'},
+            {'name': 'delete-test-portal'}] if not value else []
  emit(value)
 else:
  sys.exit(2)
