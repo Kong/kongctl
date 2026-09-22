@@ -340,3 +340,19 @@ func (t *idleClosingTransport) RoundTrip(*http.Request) (*http.Response, error) 
 func (t *idleClosingTransport) CloseIdleConnections() {
 	t.closed++
 }
+
+func TestResetHTTPStatusRetryPolicy(t *testing.T) {
+	for _, status := range []int{408, 429, 500, 502, 503, 504, 400, 401, 403, 404, 409, 422, 501} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			want := status == 408 || status == 429 || status == 500 || status == 502 || status == 503 || status == 504
+			for _, body := range []string{
+				"", "An invalid response was received from the upstream server", "bad gateway context deadline exceeded",
+			} {
+				err := fmt.Errorf("reset failed: %w", &httpError{status: status, body: body})
+				if got := ShouldRetryResetHTTPAttempt(err, err.Error()); got != want {
+					t.Fatalf("status=%d body=%q: retry=%v, want %v", status, body, got, want)
+				}
+			}
+		})
+	}
+}

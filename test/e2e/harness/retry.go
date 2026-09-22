@@ -191,8 +191,10 @@ func ClassifyRetry(err error, detail string) RetryClass {
 		switch httpErr.status {
 		case http.StatusTooManyRequests, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 			return RetryClassThrottle
-		case http.StatusBadGateway:
+		case http.StatusInternalServerError, http.StatusBadGateway:
 			return RetryClassTransient
+		case http.StatusRequestTimeout:
+			return RetryClassTimeout
 		}
 	}
 
@@ -303,11 +305,22 @@ func ShouldRetryHTTPAttempt(
 	return ratio < DefaultTimeoutRetryThreshold
 }
 
-// ShouldRetryResetHTTPAttempt applies the generic retry patterns for reset HTTP
-// operations without the near-full-timeout suppression used by scenario command
-// retries. Reset has its own total timeout budget, so it should use the full
-// configured attempt count before giving up on a flaky endpoint.
+// ShouldRetryResetHTTPAttempt uses structured statuses for reset GET/DELETE
+// operations and the generic transport-error policy otherwise. Permanent HTTP
+// failures must not become retryable because of incidental response body text.
+// Reset retains its own total deadline and bounded attempt count.
 func ShouldRetryResetHTTPAttempt(err error, detail string) bool {
+	var httpErr *httpError
+	if errors.As(err, &httpErr) && httpErr != nil {
+		switch httpErr.status {
+		case http.StatusRequestTimeout, http.StatusTooManyRequests,
+			http.StatusInternalServerError, http.StatusBadGateway,
+			http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return true
+		default:
+			return false
+		}
+	}
 	return ShouldRetry(err, detail, nil, nil, Result{}, 0)
 }
 
