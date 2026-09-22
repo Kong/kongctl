@@ -135,6 +135,7 @@ type Assertion struct {
 }
 
 type AssertionSrc struct {
+	Plan     []string                 `yaml:"plan"`
 	Get      string                   `yaml:"get"`
 	Artifact *AssertionArtifactSource `yaml:"artifact"`
 }

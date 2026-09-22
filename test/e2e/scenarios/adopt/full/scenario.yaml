@@ -248,16 +248,14 @@ steps:
             expect:
               fields:
                 namespace: "{{ .vars.overwrite_namespace }}"
-      - name: plan-from-dump
-        outputFormat: disable
-        run:
-          - plan
-          - -f
-          - "{{ .workdir }}/dump.yaml"
-          - --mode
-          - apply
-        assertions:
-          - select: summary
+          - name: plan-converges
+            source:
+              plan: ["-f", "{{ .workdir }}/dump.yaml", "--mode", "apply"]
+            retry:
+              attempts: 3
+              interval: 1s
+              maxInterval: 2s
+            select: summary
             expect:
               fields:
                 total_changes: 0
