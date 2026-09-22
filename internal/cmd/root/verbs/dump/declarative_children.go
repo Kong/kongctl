@@ -37,80 +37,16 @@ func populatePortalChildren(
 			continue
 		}
 
-		if pages, err := buildPortalPages(ctx, logger, client, portalID, portal.Name); err != nil {
-			return err
-		} else if len(pages) > 0 {
-			portal.Pages = pages
+		d := &childDumpContext{
+			logger: logger, client: client, parentID: portalID, parentName: portal.Name,
 		}
-
-		if snippets, err := buildPortalSnippets(ctx, logger, client, portalID, portal.Name); err != nil {
-			logWarn(logger, "failed to load portal snippets", portalID, portal.Name, err)
-		} else if len(snippets) > 0 {
-			portal.Snippets = snippets
-		}
-
-		if teams, err := buildPortalTeams(ctx, logger, client, portalID, portal.Name); err != nil {
-			logWarn(logger, "failed to load portal teams", portalID, portal.Name, err)
-		} else if len(teams) > 0 {
-			portal.Teams = teams
-		}
-
-		if identityProviders, err := buildPortalIdentityProviders(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal identity providers", portalID, portal.Name, err)
-		} else if len(identityProviders) > 0 {
-			portal.IdentityProviders = identityProviders
-		}
-
-		if authSettings, err := buildPortalAuthSettings(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal auth settings", portalID, portal.Name, err)
-		} else if authSettings != nil {
-			portal.AuthSettings = authSettings
-		}
-
-		if allowList, err := buildPortalIPAllowList(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal IP allow list", portalID, portal.Name, err)
-		} else if allowList != nil {
-			portal.IPAllowList = allowList
-		}
-
-		if integration, err := buildPortalIntegration(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal integrations", portalID, portal.Name, err)
-		} else if integration != nil {
-			portal.Integrations = integration
-		}
-
-		if customization, err := buildPortalCustomization(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal customization", portalID, portal.Name, err)
-		} else if customization != nil {
-			portal.Customization = customization
-		}
-
-		if customDomain, err := buildPortalCustomDomain(ctx, logger, client, portalID, portal.Name); err != nil {
-			logWarn(logger, "failed to load portal custom domain", portalID, portal.Name, err)
-		} else if customDomain != nil {
-			portal.CustomDomain = customDomain
-		}
-
-		if emailConfig, err := buildPortalEmailConfig(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal email config", portalID, portal.Name, err)
-		} else if emailConfig != nil {
-			portal.EmailConfig = emailConfig
-		}
-
-		if emailTemplates, err := buildPortalEmailTemplates(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal email templates", portalID, portal.Name, err)
-		} else if len(emailTemplates) > 0 {
-			portal.EmailTemplates = emailTemplates
-		}
-
-		if auditLogWebhook, err := buildPortalAuditLogWebhook(ctx, client, portalID); err != nil {
-			logWarn(logger, "failed to load portal audit log webhook", portalID, portal.Name, err)
-		} else if auditLogWebhook != nil {
-			portal.AuditLogWebhook = auditLogWebhook
-		}
-
-		if assets := buildPortalAssets(ctx, logger, client, portalID, portal.Name); assets != nil {
-			portal.Assets = assets
+		for _, collector := range portalChildCollectors {
+			if err := collector.collect(ctx, d, portal); err != nil {
+				if collector.fatal {
+					return fmt.Errorf("portal %q (%s): %w", portal.Name, portalID, err)
+				}
+				logWarn(logger, collector.warning, portalID, portal.Name, err)
+			}
 		}
 	}
 
