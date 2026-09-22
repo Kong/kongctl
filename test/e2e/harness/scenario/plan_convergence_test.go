@@ -107,3 +107,57 @@ stale = mode == 'persistent' or (mode == 'stale' and n == 1)
 print(json.dumps({'summary': {'total_changes': 1 if stale else 0},
  'changes': [{'action': 'CREATE', 'resource_type': 'control_plane'}] if stale else []}))
 `
+
+func TestReadAssertionWithoutNewCaptureDirectory(t *testing.T) {
+	for _, kind := range []string{"get", "plan"} {
+		for _, capture := range []string{"skipped", "failed"} {
+			for _, outcome := range []string{"success", "failure"} {
+				t.Run(kind+"/"+capture+"/"+outcome, func(t *testing.T) {
+					dir := t.TempDir()
+					parent := filepath.Join(dir, "parent")
+					if err := os.Mkdir(parent, 0o755); err != nil {
+						t.Fatal(err)
+					}
+					bin := filepath.Join(dir, "fixture")
+					script := "#!/bin/sh\nprintf '%s\\n' '{\"summary\":{\"total_changes\":0}}'\n"
+					if outcome == "failure" {
+						script = "#!/bin/sh\nexit 7\n"
+					}
+					//nolint:gosec // Executable test fixture.
+					if err := os.WriteFile(bin, []byte(script), 0o700); err != nil {
+						t.Fatal(err)
+					}
+					cli := &harness.CLI{BinPath: bin, LastCommandDir: parent, Timeout: time.Second, Env: os.Environ()}
+					if capture == "failed" {
+						cli.TestDir = dir
+						// A regular file prevents allocation of a command artifact directory.
+						if err := os.WriteFile(filepath.Join(dir, "commands"), nil, 0o600); err != nil {
+							t.Fatal(err)
+						}
+					}
+					source := AssertionSrc{Get: "apis"}
+					if kind == "plan" {
+						source = AssertionSrc{Plan: []string{"-f", "config.yaml"}}
+					}
+					value, err := resolveAssertionSource(cli, Assertion{Source: source}, nil, "read", 0, parent, nil, nil)
+					if outcome == "failure" {
+						if err == nil || !strings.Contains(err.Error(), "source."+kind+" failed: exit status 7") {
+							t.Fatalf("command error masked: %v", err)
+						}
+					} else if err != nil || value == nil {
+						t.Fatalf("successful read lost: %v %v", value, err)
+					}
+					if cli.LastCommandDir != parent {
+						t.Fatal("parent capture directory changed")
+					}
+					if _, err := os.Stat(parent); err != nil {
+						t.Fatalf("parent moved: %v", err)
+					}
+					if _, err := os.Stat(filepath.Join(parent, "assertions")); !os.IsNotExist(err) {
+						t.Fatalf("attempted to relocate unchanged capture directory: %v", err)
+					}
+				})
+			}
+		}
+	}
+}

@@ -1847,7 +1847,7 @@ func resolveAssertionSource(
 		_, err := cli.RunJSONWithEnv(context.Background(), env, &raw, args...)
 		readCmdDir := cli.LastCommandDir
 		// Keep each read attempt beneath its parent assertion.
-		if readCmdDir != "" && parentDir != "" {
+		if readCmdDir != "" && parentDir != "" && readCmdDir != prevCmdDir {
 			dstBase := filepath.Join(parentDir, "assertions", asName, "retries", fmt.Sprintf("%03d", attempt))
 			if err := os.MkdirAll(dstBase, 0o755); err != nil {
 				return nil, fmt.Errorf("create assertion retry directory: %w", err)
