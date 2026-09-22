@@ -499,6 +499,16 @@ precede groups. TLS retains its own certificate/SNI scope and ordering.
 The root planner supplies parent IDs or create-change dependencies and skips
 unresolved external parents with a warning. Child lifecycles remain separate.
 
+Portal's [child traversal][portal-child-plan] is shared by new, existing,
+and external parents. Add collection filtering, scope checks, and dispatch
+there once. Keep identity providers before auth settings, and teams before
+group mappings and roles. New or unresolved external parents use create-only
+policy: child errors are logged and later children still run. Existing parents
+return the first child error; resolved external parents outside sync only
+visit declared collections. Preserve scoped empty collections during sync.
+Nested assets skip external parents, compare remote content only for existing
+parents, and avoid duplicating already-planned asset changes.
+
 When comparing fields, distinguish omission, explicit empty values, and
 literal defaults. Normalize equivalent API representations. Compare only
 observable fields; [write-only secrets](#write-only-secrets) have separate
@@ -926,3 +936,6 @@ engine contract. Each refactoring migration should:
   ../../internal/cmd/root/verbs/dump/declarative_api_child_collectors.go
 [portal-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_portal_child_collectors.go
+
+[portal-child-plan]:
+  ../../internal/declarative/planner/portal_child_traversal.go
