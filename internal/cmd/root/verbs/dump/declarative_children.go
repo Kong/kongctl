@@ -134,28 +134,13 @@ func populateAPIChildren(
 			continue
 		}
 
-		if versions, err := buildAPIVersions(ctx, logger, client, apiID, api.Name); err != nil {
-			logWarn(logger, "failed to load API versions", apiID, api.Name, err)
-		} else if len(versions) > 0 {
-			api.Versions = versions
+		d := &childDumpContext{
+			logger: logger, client: client, parentID: apiID, parentName: api.Name,
 		}
-
-		if documents, err := buildAPIDocuments(ctx, logger, client, apiID, api.Name); err != nil {
-			logWarn(logger, "failed to load API documents", apiID, api.Name, err)
-		} else if len(documents) > 0 {
-			api.Documents = documents
-		}
-
-		if publications, err := buildAPIPublications(ctx, client, apiID); err != nil {
-			logWarn(logger, "failed to load API publications", apiID, api.Name, err)
-		} else if len(publications) > 0 {
-			api.Publications = publications
-		}
-
-		if implementations, err := buildAPIImplementations(ctx, logger, client, apiID, api.Name); err != nil {
-			logWarn(logger, "failed to load API implementations", apiID, api.Name, err)
-		} else if len(implementations) > 0 {
-			api.Implementations = implementations
+		for _, collector := range apiChildCollectors {
+			if err := collector.collect(ctx, d, api); err != nil {
+				logWarn(logger, collector.warning, apiID, api.Name, err)
+			}
 		}
 	}
 }
@@ -208,8 +193,8 @@ func populateEventGatewayChildren(
 			continue
 		}
 
-		d := &gatewayChildDumpContext{
-			logger: logger, client: client, gatewayID: gatewayID, gatewayName: gateway.Name,
+		d := &childDumpContext{
+			logger: logger, client: client, parentID: gatewayID, parentName: gateway.Name,
 		}
 		for _, collector := range eventGatewayChildCollectors {
 			if err := collector.collect(ctx, d, gateway); err != nil {
@@ -236,8 +221,8 @@ func populateAIGatewayChildren(
 			continue
 		}
 
-		d := &gatewayChildDumpContext{
-			logger: logger, client: client, gatewayID: gatewayID, gatewayName: gateway.DisplayName,
+		d := &childDumpContext{
+			logger: logger, client: client, parentID: gatewayID, parentName: gateway.DisplayName,
 		}
 		for _, collector := range aiGatewayChildCollectors {
 			if err := collector.collect(ctx, d, gateway); err != nil {

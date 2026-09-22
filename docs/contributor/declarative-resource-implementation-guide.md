@@ -45,7 +45,7 @@ The [root planner inventory][roots] drives root construction and dispatch.
 payload validation for SDK resource operations. [Coverage checks][coverage]
 tie root planners, SDK executors, and dump dispositions to managed scope.
 The [dump collector inventory][dump-collectors] supplies supported selectors,
-help, and dispatch. The [AI Gateway][ai-child-dump] and
+help, and dispatch. The [API][api-child-dump], [AI Gateway][ai-child-dump], and
 [Event Gateway][eg-child-dump] child inventories guard export coverage.
 Grouped loading, specialized namespace selection,
 relationships, pre-execution validation, state-client wiring, and other child
@@ -691,9 +691,9 @@ for empty results. Organization collection stays explicit because it also
 derives user/system-account selectors after exporting teams. Preserve request
 order, fatal Portal child errors, and other families' warning/skip policies.
 
-AI Gateway and Event Gateway use ordered child inventories linked above.
-Add one `gatewayChild` entry with its builder, typed destination, and warning
-message. The [shared adapter and guard][gateway-child-dump] derive the root
+APIs, AI Gateways, and Event Gateways use ordered child inventories.
+Add one `childCollection` entry with its builder, typed destination, and warning
+message. The [shared adapter and guard][child-collectors] derive the root
 and child kinds from those types, and check all managed descendants against
 registered sync ownership. Missing/duplicate kinds, incorrect owners, and
 incomplete collectors fail assembly. No separate dispatch or expected-kind
@@ -706,9 +706,16 @@ Inventory order controls requests. Nested Event policy failures warn and leave
 the parent in output; malformed individual resources may be skipped by their
 builder. Keep these partial-export boundaries in the builders.
 
+API inventory order is versions, documents, publications, then implementations.
+Version specs and document content still require detail reads; missing or
+failed details warn and skip that item. Document nesting preserves observed
+order and promotes children to roots when their parent is unavailable.
+Recursion stays in the document builder, not in another registration.
+Preserve publication ref generation and implementation reference mapping.
+
 Builders retain conversion, sorting, and nested reads. The shared adapter
 assigns only non-empty successful results; errors retain existing values and
-warn before continuing to the next collector. Nil clients and blank gateway
+warn before continuing to the next collector. Nil clients and blank parent
 refs skip traversal. Preserve empty parent selectors for nested output and
 the existing secret omission rules.
 
@@ -894,5 +901,7 @@ engine contract. Each refactoring migration should:
   ../../internal/cmd/root/verbs/dump/declarative_ai_child_collectors.go
 [eg-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_event_child_collectors.go
-[gateway-child-dump]:
-  ../../internal/cmd/root/verbs/dump/declarative_gateway_child_collectors.go
+[child-collectors]:
+  ../../internal/cmd/root/verbs/dump/declarative_child_collectors.go
+[api-child-dump]:
+  ../../internal/cmd/root/verbs/dump/declarative_api_child_collectors.go

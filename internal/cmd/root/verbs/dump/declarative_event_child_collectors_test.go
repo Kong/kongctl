@@ -21,7 +21,7 @@ import (
 
 func TestEventGatewayChildCollectorCoverage(t *testing.T) {
 	validate := func(c []eventGatewayChildCollector) error {
-		return validateGatewayChildCollectors("Event Gateway child dump", c)
+		return validateChildCollectors("Event Gateway child dump", c)
 	}
 	require.NoError(t, validate(eventGatewayChildCollectors))
 	for _, tt := range []struct {
@@ -75,8 +75,8 @@ func TestEventGatewayChildCollectorCoverage(t *testing.T) {
 		})
 	}
 	t.Run("child used as root", func(t *testing.T) {
-		err := validateGatewayChildCollectors("invalid root",
-			[]gatewayChildCollector[declresources.EventGatewayListenerResource]{})
+		err := validateChildCollectors("invalid root",
+			[]childCollector[declresources.EventGatewayListenerResource]{})
 		require.ErrorContains(t, err, "requires a managed root")
 	})
 }
