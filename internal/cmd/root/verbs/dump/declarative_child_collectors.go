@@ -24,6 +24,8 @@ type childCollector[P any] struct {
 	collect func(context.Context, *childDumpContext, *P) error
 	// These kinds are exported inside this collector, not by separate parent calls.
 	nested []declresources.ResourceType
+	// Additional kinds exported here that share the root sync owner.
+	coScoped []declresources.ResourceType
 }
 
 func childCollection[P, R any, RPtr interface {
@@ -35,24 +37,73 @@ func childCollection[P, R any, RPtr interface {
 	destination func(*P) *[]R,
 	nested ...declresources.ResourceType,
 ) childCollector[P] {
-	if collect == nil || destination == nil || strings.TrimSpace(warning) == "" {
+	c := childValue(RPtr(new(R)).GetType(), warning, collect, destination, func(v []R) bool { return len(v) > 0 })
+	c.nested = nested
+	return c
+}
+
+func withCoScopedChildren[P any](c childCollector[P], kinds ...declresources.ResourceType) childCollector[P] {
+	c.coScoped = append(c.coScoped, kinds...)
+	return c
+}
+
+func childSingleton[P, R any, RPtr interface {
+	*R
+	declresources.Resource
+}](
+	warning string,
+	collect func(context.Context, *childDumpContext) (*R, error),
+	destination func(*P) **R,
+) childCollector[P] {
+	return childValue(RPtr(new(R)).GetType(), warning, collect, destination, func(v *R) bool { return v != nil })
+}
+
+func childMap[P, R any, RPtr interface {
+	*R
+	declresources.Resource
+}](
+	warning string,
+	collect func(context.Context, *childDumpContext) (map[string]R, error),
+	destination func(*P) *map[string]R,
+) childCollector[P] {
+	return childValue(
+		RPtr(new(R)).GetType(),
+		warning,
+		collect,
+		destination,
+		func(v map[string]R) bool { return len(v) > 0 },
+	)
+}
+
+func childValue[P, V any](
+	kind declresources.ResourceType,
+	warning string,
+	collect func(context.Context, *childDumpContext) (V, error),
+	destination func(*P) *V,
+	present func(V) bool,
+) childCollector[P] {
+	if collect == nil || destination == nil || present == nil || strings.TrimSpace(warning) == "" {
 		panic("child dump requires collection, storage, and a warning")
 	}
 	return childCollector[P]{
-		kind:    RPtr(new(R)).GetType(),
+		kind:    kind,
 		warning: warning,
-		nested:  nested,
 		collect: func(ctx context.Context, d *childDumpContext, parent *P) error {
-			values, err := collect(ctx, d)
+			value, err := collect(ctx, d)
 			if err != nil {
 				return err
 			}
-			if len(values) > 0 {
-				*destination(parent) = values
+			if present(value) {
+				*destination(parent) = value
 			}
 			return nil
 		},
 	}
+}
+
+type childExportOmission struct {
+	kind   declresources.ResourceType
+	reason string
 }
 
 // Derive completeness from registered ownership, including grandchildren.
@@ -60,7 +111,7 @@ func childCollection[P, R any, RPtr interface {
 func validateChildCollectors[P any, PPtr interface {
 	*P
 	declresources.Resource
-}](consumer string, collectors []childCollector[P]) error {
+}](consumer string, collectors []childCollector[P], omissions ...childExportOmission) error {
 	root := PPtr(new(P)).GetType()
 	parents := make(map[declresources.ResourceType]declresources.ResourceType)
 	for _, collection := range declresources.SyncCollections() {
@@ -87,10 +138,23 @@ func validateChildCollectors[P any, PPtr interface {
 		if err := record(collector.kind, root); err != nil {
 			return err
 		}
+		for _, kind := range collector.coScoped {
+			if err := record(kind, root); err != nil {
+				return err
+			}
+		}
 		for _, kind := range collector.nested {
 			if err := record(kind, collector.kind); err != nil {
 				return err
 			}
+		}
+	}
+	for _, omission := range omissions {
+		if strings.TrimSpace(omission.reason) == "" {
+			return fmt.Errorf("%s requires an omission reason for %s", consumer, omission.kind)
+		}
+		if err := record(omission.kind, root); err != nil {
+			return err
 		}
 	}
 	var missing []declresources.ResourceType
