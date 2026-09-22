@@ -3,6 +3,7 @@ package dump
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,6 +20,14 @@ import (
 )
 
 func TestPortalChildCollectorCoverage(t *testing.T) {
+	collectorIndex := func(kind declresources.ResourceType) int {
+		t.Helper()
+		index := slices.IndexFunc(portalChildCollectors, func(c portalChildCollector) bool { return c.kind == kind })
+		require.NotEqual(t, -1, index, "missing collector for %s", kind)
+		return index
+	}
+	teams := collectorIndex(declresources.ResourceTypePortalTeam)
+	assets := collectorIndex(declresources.ResourceTypePortalAssetLogo)
 	require.NoError(t, validatePortalChildCollectors(portalChildCollectors, portalChildOmissions))
 	for _, tt := range []struct {
 		name   string
@@ -59,7 +68,7 @@ func TestPortalChildCollectorCoverage(t *testing.T) {
 		{
 			"missing team roles",
 			func(c []portalChildCollector, o []childExportOmission) ([]portalChildCollector, []childExportOmission) {
-				c[2].coScoped = nil
+				c[teams].coScoped = nil
 				return c, o
 			},
 			"missing resource types [portal_team_role]",
@@ -67,7 +76,7 @@ func TestPortalChildCollectorCoverage(t *testing.T) {
 		{
 			"incorrect role ownership",
 			func(c []portalChildCollector, o []childExportOmission) ([]portalChildCollector, []childExportOmission) {
-				c[2].nested, c[2].coScoped = c[2].coScoped, nil
+				c[teams].nested, c[teams].coScoped = c[teams].coScoped, nil
 				return c, o
 			},
 			"is not a managed child of portal_team",
@@ -75,7 +84,7 @@ func TestPortalChildCollectorCoverage(t *testing.T) {
 		{
 			"missing favicon",
 			func(c []portalChildCollector, o []childExportOmission) ([]portalChildCollector, []childExportOmission) {
-				c[len(c)-1].coScoped = nil
+				c[assets].coScoped = nil
 				return c, o
 			},
 			"missing resource types [portal_asset_favicon]",
@@ -83,7 +92,7 @@ func TestPortalChildCollectorCoverage(t *testing.T) {
 		{
 			"duplicate shared owner",
 			func(c []portalChildCollector, o []childExportOmission) ([]portalChildCollector, []childExportOmission) {
-				c[2].coScoped = []declresources.ResourceType{declresources.ResourceTypePortalTeam}
+				c[teams].coScoped = []declresources.ResourceType{declresources.ResourceTypePortalTeam}
 				return c, o
 			},
 			"more than once",
@@ -91,7 +100,7 @@ func TestPortalChildCollectorCoverage(t *testing.T) {
 		{
 			"foreign shared owner",
 			func(c []portalChildCollector, o []childExportOmission) ([]portalChildCollector, []childExportOmission) {
-				c[2].coScoped = []declresources.ResourceType{declresources.ResourceTypeAPIVersion}
+				c[teams].coScoped = []declresources.ResourceType{declresources.ResourceTypeAPIVersion}
 				return c, o
 			},
 			"is not a managed child",
@@ -223,13 +232,15 @@ func TestPopulatePortalChildrenExportContract(t *testing.T) {
 			require.Empty(t, calls)
 			err := populatePortalChildren(t.Context(), logger, client, portals)
 			if tt.fatal {
-				require.Error(t, err)
+				require.ErrorContains(t, err, "portal \"Portal name\" (portal-id): ")
+				cause := errors.Unwrap(err)
+				require.Error(t, cause)
 				want := []string{"pages"}
 				if tt.invalidPage {
 					want = append(want, "pages/page-id")
 					require.EqualError(
 						t,
-						err,
+						cause,
 						"portal page \"page-id\" in portal \"Portal name\": slug must be a single path segment (got \"bad/path\")",
 					)
 					require.ErrorContains(t, err, "Portal name")

@@ -715,12 +715,13 @@ order and promotes children to roots when their parent is unavailable.
 Recursion stays in the document builder, not in another registration.
 Preserve publication ref generation and implementation reference mapping.
 
-Portal's inventory marks page-builder errors as fatal: preserve the original
-error and stop before subsequent collectors or Portals. Other collectors warn
-and continue. Detail-read failures and partial team-role/asset exports remain
-builder-local. Use `withCoScopedChildren` for exported kinds sharing the root
-sync owner: Portal team roles nest under teams, and logo/favicon share an
-asset bundle. Do not change sync ownership to match export nesting.
+Portal's inventory marks page-builder errors as fatal: wrap the original error
+with the Portal name and ID using `%w`, then stop before subsequent collectors or
+Portals. Other collectors warn and continue. Detail-read failures and partial
+team-role/asset exports remain builder-local. Use `withCoScopedChildren` for
+exported kinds sharing the root sync owner: Portal team roles nest under teams,
+and logo/favicon share an asset bundle. Do not change sync ownership to match
+export nesting.
 Team group mappings remain explicitly omitted until dump support is added.
 
 Builders retain conversion, sorting, and nested reads. The shared adapters

@@ -43,7 +43,7 @@ func populatePortalChildren(
 		for _, collector := range portalChildCollectors {
 			if err := collector.collect(ctx, d, portal); err != nil {
 				if collector.fatal {
-					return err
+					return fmt.Errorf("portal %q (%s): %w", portal.Name, portalID, err)
 				}
 				logWarn(logger, collector.warning, portalID, portal.Name, err)
 			}
