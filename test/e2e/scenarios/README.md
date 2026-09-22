@@ -208,6 +208,14 @@ Stateful Commands and Retries
   CREATE actions, references, dependencies, and planned fields before mutation.
 - Run `sync -f` normally so each execution retry replans against current state.
   Do not replay the original CREATE plan after a partially successful execution.
+- For explicit `apply --plan` coverage, set `replanOnRetry` to the same input
+  file paths used to generate the original apply plan. The first attempt uses
+  the asserted saved plan; retries regenerate that file with `plan --mode
+  apply` before executing it. A failed replan consumes an attempt without
+  applying the old plan. Both commands keep their existing per-command
+  deadlines and artifacts. The retry attempt limit is shared; no nested retry
+  loop is added. This option is for apply-mode plans without extra planning
+  flags; it does not implement general saved-plan resume in the product.
 - Check successful execution, then verify remote resources and fields with
   readbacks, no-op convergence, and deletion checks. A recovered plan can omit
   resources already created; fixed/minimum change counts or CREATE-or-UPDATE

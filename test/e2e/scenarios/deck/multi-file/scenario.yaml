@@ -39,6 +39,11 @@ steps:
               fields:
                 "length(@)": 1
       - name: 002-apply-plan-file
+        replanOnRetry:
+          - "{{ .workdir }}/apis.yaml"
+          - "{{ .workdir }}/control-plane.yaml"
+          - "{{ .workdir }}/gateway-service-one.yaml"
+          - "{{ .workdir }}/gateway-service-two.yaml"
         outputFormat: json
         run:
           - apply
@@ -54,6 +59,7 @@ steps:
             expect:
               fields:
                 failed: 0
+                status: success
       - name: 003-get-gateway-services
         run:
           - get
@@ -64,7 +70,20 @@ steps:
           - "e2e-cp"
           - -o
           - json
+        recordVars:
+          - name: service_one_id
+            responsePath: "[?name=='e2e-gw-svc-one'] | [0].id"
+          - name: service_two_id
+            responsePath: "[?name=='e2e-gw-svc-two'] | [0].id"
         assertions:
+          - select: "[?name=='e2e-gw-svc-one']"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[?name=='e2e-gw-svc-two']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='e2e-gw-svc-one'] | [0]"
             expect:
               fields:
@@ -73,6 +92,41 @@ steps:
             expect:
               fields:
                 name: "e2e-gw-svc-two"
+
+      - name: 004-get-control-plane
+        run: [get, gateway, control-planes, -o, json]
+        recordVar:
+          name: control_plane_id
+          responsePath: "[?name=='e2e-cp'] | [0].id"
+        assertions:
+          - select: "[?name=='e2e-cp']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 005-get-implementation-one
+        run: [get, api, implementations, --api-name, e2e-api-one, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                service.id: "{{ .vars.service_one_id }}"
+                service.control_plane_id: "{{ .vars.control_plane_id }}"
+      - name: 006-get-implementation-two
+        run: [get, api, implementations, --api-name, e2e-api-two, -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                service.id: "{{ .vars.service_two_id }}"
+                service.control_plane_id: "{{ .vars.control_plane_id }}"
 
   - name: 002-delete-cleanup
     commands:
