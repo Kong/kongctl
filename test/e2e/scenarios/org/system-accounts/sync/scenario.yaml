@@ -56,35 +56,30 @@ steps:
     inputOverlayDirs:
       - overlays/001-config
     commands:
-      - name: 000-apply
-        outputFormat: json
+      - name: 000-plan-apply
+        outputFormat: disable
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/config.yaml"
-          - --auto-approve
+          - --mode
+          - apply
         assertions:
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 5
                 by_action.CREATE: 5
-          - select: summary
-            expect:
-              fields:
-                applied: 5
-                failed: 0
-                status: success
-          - select: plan.changes[?resource_type=='organization_system_account_team_membership']
+          - select: changes[?resource_type=='organization_system_account_team_membership']
             expect:
               fields:
                 "length(@)": 1
-          - select: plan.changes[?resource_type=='organization_system_account_role']
+          - select: changes[?resource_type=='organization_system_account_role']
             expect:
               fields:
                 "length(@)": 1
           - select: >-
-              plan.changes[?resource_type=='organization_system_account_role' &&
+              changes[?resource_type=='organization_system_account_role' &&
                             resource_ref=='{{ .vars.saRoleRef }}'] | [0]
             expect:
               fields:
@@ -94,7 +89,46 @@ steps:
                 fields.entity_type_name: APIs
                 fields.entity_region: us
 
-      - name: 001-diff-noop
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-sa-roles
+        run: [get, org, system-account, roles, --system-account-name, "{{ .vars.systemAccountName }}", -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+      - name: 003-get-sa-teams
+        run: [get, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}", -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+
+      - name: 004-diff-noop
         run:
           - diff
           - -f
@@ -111,42 +145,37 @@ steps:
     inputOverlayDirs:
       - overlays/002-update
     commands:
-      - name: 000-sync
-        outputFormat: json
+      - name: 000-plan-sync
+        outputFormat: disable
         run:
-          - sync
+          - plan
           - -f
           - "{{ .workdir }}/config.yaml"
-          - --auto-approve
+          - --mode
+          - sync
         assertions:
-          - select: plan.summary
+          - select: summary
             expect:
               fields:
                 total_changes: 4
                 by_action.CREATE: 2
                 by_action.DELETE: 2
-          - select: summary
-            expect:
-              fields:
-                applied: 4
-                failed: 0
-                status: success
           - select: >-
-              plan.changes[?resource_type=='organization_system_account_team_membership' &&
+              changes[?resource_type=='organization_system_account_team_membership' &&
                             action=='DELETE'] | [0]
             expect:
               fields:
                 action: DELETE
                 namespace: "{{ .vars.namespace }}"
           - select: >-
-              plan.changes[?resource_type=='organization_system_account_role' &&
+              changes[?resource_type=='organization_system_account_role' &&
                             action=='DELETE'] | [0]
             expect:
               fields:
                 action: DELETE
                 namespace: "{{ .vars.namespace }}"
           - select: >-
-              plan.changes[?resource_type=='organization_team_role' &&
+              changes[?resource_type=='organization_team_role' &&
                             resource_ref=='org-sa-sync-team-wildcard-admin'] | [0]
             expect:
               fields:
@@ -157,7 +186,7 @@ steps:
                 fields.entity_type_name: APIs
                 fields.entity_region: "*"
           - select: >-
-              plan.changes[?resource_type=='organization_system_account_role' &&
+              changes[?resource_type=='organization_system_account_role' &&
                             action=='CREATE'] | [0]
             expect:
               fields:
@@ -168,7 +197,21 @@ steps:
                 fields.entity_type_name: APIs
                 fields.entity_region: "*"
 
-      - name: 001-get-sa-roles
+      - name: 001-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-sa-roles
         run:
           - get
           - org
@@ -191,7 +234,15 @@ steps:
                 entity_type_name: APIs
                 entity_region: "*"
 
-      - name: 002-diff-noop
+      - name: 003-get-sa-teams
+        run: [get, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}", -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 004-diff-noop
         run:
           - diff
           - -f
@@ -208,7 +259,21 @@ steps:
     inputOverlayDirs:
       - overlays/003-cleanup
     commands:
-      - name: 000-sync-remove-assignments
+      - name: 000-plan-sync
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: changes[?resource_type=='organization_system_account_role']
+            expect:
+              fields:
+                "length(@)": 1
+
+      - name: 001-sync-remove-assignments
         outputFormat: json
         run:
           - sync
@@ -221,12 +286,31 @@ steps:
               fields:
                 failed: 0
                 status: success
-          - select: plan.changes[?resource_type=='organization_system_account_role']
+
+      - name: 002-get-sa-roles
+        run: [get, org, system-account, roles, --system-account-name, "{{ .vars.systemAccountName }}", -o, json]
+        assertions:
+          - select: "@"
             expect:
               fields:
-                "length(@)": 1
+                "length(@)": 0
+      - name: 003-get-sa-teams
+        run: [get, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}", -o, json]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
 
-      - name: 001-delete-cleanup-api
+      - name: 004-diff-cleanup-noop
+        run: [diff, -f, "{{ .workdir }}/config.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 005-delete-cleanup-api
         outputFormat: json
         run:
           - delete
@@ -239,3 +323,11 @@ steps:
               fields:
                 failed: 0
                 status: success
+
+      - name: 006-get-apis-after-delete
+        run: [get, apis, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.apiRef }}']"
+            expect:
+              fields:
+                "length(@)": 0
