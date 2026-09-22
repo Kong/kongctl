@@ -661,3 +661,77 @@ func TestResetEventsRecordRecoveryWithoutSensitiveData(t *testing.T) {
 		})
 	}
 }
+
+func TestResetRetriesStructuredGatewayFailures(t *testing.T) {
+	for _, operation := range []string{"list", "delete"} {
+		for _, recovered := range []bool{true, false} {
+			t.Run(operation+"/"+strconv.FormatBool(recovered), func(t *testing.T) {
+				calls := 0
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					calls++
+					if operation == "delete" && r.Method != http.MethodDelete {
+						t.Errorf("method=%s", r.Method)
+					}
+					if calls == 1 || !recovered {
+						http.Error(w, `{"message":"An invalid response was received from the upstream server"}`, http.StatusBadGateway)
+						return
+					}
+					if operation == "list" {
+						_, _ = fmt.Fprint(w, `{"data":[]}`)
+					} else {
+						w.WriteHeader(http.StatusNoContent)
+					}
+				}))
+				defer server.Close()
+				session := newResetHTTPSession(time.Second, HTTPTransportOptions{})
+				defer session.Close()
+				policy := HTTPRetryPolicy{Backoff: BackoffConfig{Attempts: 3, Base: time.Millisecond, Max: time.Millisecond}}
+				var err error
+				if operation == "list" {
+					_, err = retryListItems(t.Context(), session, server.URL, "token", "audit-log-destinations", policy)
+				} else {
+					err = retryDeleteOne(t.Context(), session, server.URL, "token", "audit-log-destinations", "id", policy)
+				}
+				if (err == nil) != recovered {
+					t.Fatalf("recovered=%v err=%v", recovered, err)
+				}
+				wantCalls, wantEvents, outcome := 3, 3, "operation_failed"
+				if recovered {
+					wantCalls, wantEvents, outcome = 2, 1, "recovered"
+				}
+				if calls != wantCalls {
+					t.Fatalf("calls=%d want %d", calls, wantCalls)
+				}
+				events := session.Metrics().Events
+				if len(events) != wantEvents {
+					t.Fatalf("events=%+v", events)
+				}
+				for _, event := range events {
+					if event.Class != string(RetryClassTransient) || event.Outcome != outcome || event.Operation != operation {
+						t.Fatalf("incorrect event: %+v", event)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestResetHTTPRetryRespectsTotalDeadline(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "60")
+		http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+	session := newResetHTTPSession(time.Second, HTTPTransportOptions{})
+	defer session.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	_, err := retryListItems(ctx, session, server.URL, "token", "apis",
+		HTTPRetryPolicy{Backoff: BackoffConfig{Attempts: 3}})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want deadline exceeded, got %v", err)
+	}
+	if len(session.Metrics().Events) != 1 {
+		t.Fatalf("retry escaped deadline: %+v", session.Metrics().Events)
+	}
+}
