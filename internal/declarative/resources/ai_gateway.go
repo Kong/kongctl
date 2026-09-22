@@ -97,6 +97,9 @@ func (a AIGatewayResource) MarshalYAML() (any, error) {
 }
 
 type aiGatewayAlias struct {
+	MinRuntimeVersion  *string `json:"min_runtime_version,omitempty" yaml:"min_runtime_version,omitempty"`
+	RuntimeAutoUpgrade *bool   `json:"runtime_auto_upgrade,omitempty" yaml:"runtime_auto_upgrade,omitempty"`
+
 	Ref         string                      `json:"ref"                   yaml:"ref"`
 	Kongctl     *KongctlMeta                `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`
 	External    *ExternalBlock              `json:"_external,omitempty"   yaml:"_external,omitempty"`
@@ -126,6 +129,8 @@ type aiGatewayAlias struct {
 
 func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 	return aiGatewayAlias{
+		MinRuntimeVersion:     a.MinRuntimeVersion,
+		RuntimeAutoUpgrade:    a.RuntimeAutoUpgrade,
 		Ref:                   a.Ref,
 		Kongctl:               a.Kongctl,
 		External:              a.External,
@@ -330,6 +335,9 @@ func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.Creat
 	if err := json.Unmarshal(data, &request); err != nil {
 		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf("failed to decode AI Gateway request fields: %w", err)
 	}
+	if _, present := fields["runtime_auto_upgrade"]; !present {
+		request.RuntimeAutoUpgrade = nil
+	}
 	return request, nil
 }
 
@@ -461,6 +469,8 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("display_name", explainStringNode("My AI Gateway"), true, true),
 		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
 		explainField("deployment_type", explainStringNode("hybrid"), false, false),
+		explainField("min_runtime_version", explainStringNode("2.1"), false, false),
+		explainField("runtime_auto_upgrade", explainBoolNode("true"), false, false),
 		explainField("proxy_urls", explainArrayOf(explainObject(
 			explainField("host", explainStringNode("proxy.example.com"), true, true),
 			explainField("port", &ExplainNode{Kind: explainKindInteger, Literal: "443"}, true, true),

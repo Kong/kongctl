@@ -8,6 +8,20 @@ including nested children. `ref` is a local reference identifier and does not
 supply a missing API name. When upgrading a manifest that relied on this
 legacy default, add the existing Konnect API name and keep the local `ref`.
 
+For AI Gateway 2.1 features, set `min_runtime_version: "2.1"` on the
+gateway. Set `runtime_auto_upgrade: false` to keep that minimum under
+explicit control. Runtime upgrades are applied before child changes that
+can require the newer version; downgrades follow child changes.
+
+Model targets accept `input_cost_list`, `output_cost_list`, and
+`cache_read_cost_list` under `targets[].config`. Each entry has a `modal`
+(such as `text` or `audio`) and a `cost` per million tokens. Policies accept
+an optional `condition` expression. MCP `listener` and
+`conversion-listener` resources accept `config.allowed_versions` and
+`config.cache`, with `tools_list` and `discover` cache hints containing
+`ttl_ms` and `cache_scope`. MCP `upstream-server` resources accept
+`config.server.upstream_protocol_version`.
+
 - [ai-gateway.yaml](ai-gateway.yaml) defines a root AI Gateway resource with
   a nested OpenAI provider, env vault, data plane certificate, policies,
   consumer, agent, consumer group, model that targets that provider, and a

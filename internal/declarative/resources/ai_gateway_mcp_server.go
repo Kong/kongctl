@@ -469,6 +469,14 @@ func aiGatewayMCPServerStringField(value any, key string) string {
 }
 
 func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	cache, err := autoExplainConcreteNode[kkComps.AIGatewayMCPServerListenerCache](nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build MCP server cache schema: %w", err)
+	}
+	upstreamServerConfig, err := autoExplainConcreteNode[kkComps.AIGatewayMCPServerUpstreamServerServerConfig](nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build upstream MCP server schema: %w", err)
+	}
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
@@ -500,7 +508,15 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		slices.Clone(commonFields),
 		explainField("access", aiGatewayMCPServerAccessExplainNode(), false, false),
 	)
-	listenerFields := slices.Clone(accessFields)
+	listenerConfig := aiGatewayMCPServerConfigExplainNode()
+	listenerConfig.addField(explainField(
+		"allowed_versions", explainArrayOf(explainStringNode("2026-07-28")), false, false,
+	))
+	listenerConfig.addField(explainField("cache", cache, false, false))
+	listenerAccess := explainObject(slices.Clone(accessFields)...)
+	explainReplaceField(listenerAccess, explainField("config", listenerConfig, true, true))
+	listenerAccessFields := listenerAccess.Properties
+	listenerFields := slices.Clone(listenerAccessFields)
 	listenerFields = append(
 		listenerFields,
 		explainField("sources", explainArrayOf(explainStringNode("source-server-name")), true, true),
@@ -510,11 +526,14 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		aiGatewayMCPUpstreamToolsExplainField(),
 		explainField("type", explainConstStringNode("upstream-server"), true, true),
 	)...)
+	upstreamConfig := aiGatewayMCPServerConfigExplainNode()
+	explainReplaceField(upstreamConfig, explainField("server", upstreamServerConfig, false, false))
+	explainReplaceField(upstreamServer, explainField("config", upstreamConfig, true, true))
 	upstreamServer.rejectLoadField("access", aiGatewayMCPServerUpstreamServerAccessMessage)
 	return explainUnionNode(
 		conversionOnly,
 		explainObject(append(
-			slices.Clone(accessFields),
+			slices.Clone(listenerAccessFields),
 			aiGatewayMCPConversionToolsExplainField(),
 			explainField("type", explainConstStringNode("conversion-listener"), true, true),
 		)...),

@@ -1,11 +1,11 @@
 module github.com/kong/kongctl/docs/examples/extensions/go
 
-go 1.26.2
+go 1.26.8
 
 require github.com/kong/kongctl v1.16.0
 
 require (
-	github.com/Kong/sdk-konnect-go v0.66.1-0.20260920143011-f6b929490fdc // indirect
+	github.com/Kong/sdk-konnect-go v0.68.1-0.20260922124854-7a55f3a483c9 // indirect
 	github.com/ajg/form v1.9.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
@@ -31,7 +31,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

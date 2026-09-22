@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -107,6 +108,7 @@ func (p *Planner) planAIGatewayChanges(
 		current, exists := currentByName[desiredGateway.Name]
 		gatewayID := ""
 		gatewayChangeID := ""
+		gatewayUpdateID := ""
 		if !exists {
 			gatewayChangeID = p.planAIGatewayCreate(desiredGateway, plan)
 		} else {
@@ -131,7 +133,7 @@ func (p *Planner) planAIGatewayChanges(
 				); err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
-					p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+					gatewayUpdateID = p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
 				}
 			} else if needsUpdate {
 				if err := p.validateProtection(
@@ -142,15 +144,21 @@ func (p *Planner) planAIGatewayChanges(
 				); err != nil {
 					protectionErrors = append(protectionErrors, err)
 				} else {
-					p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
+					gatewayUpdateID = p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
 				}
 			}
 		}
 
+		childStart := len(plan.Changes)
 		if err := p.planAIGatewayChildren(
 			ctx, plannerCtx, namespace, desiredGateway, gatewayID, gatewayChangeID, plan,
 		); err != nil {
 			return err
+		}
+		if gatewayUpdateID != "" && desiredGateway.MinRuntimeVersion != nil &&
+			getString(current.MinRuntimeVersion) != *desiredGateway.MinRuntimeVersion {
+			orderAIGatewayRuntimeChange(plan, gatewayUpdateID, childStart,
+				getString(current.MinRuntimeVersion), *desiredGateway.MinRuntimeVersion)
 		}
 	}
 
@@ -201,6 +209,19 @@ func (p *Planner) shouldUpdateAIGateway(
 ) (bool, map[string]any, map[string]FieldChange) {
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
+	if desired.MinRuntimeVersion != nil && getString(current.MinRuntimeVersion) != *desired.MinRuntimeVersion {
+		updates[FieldMinRuntimeVersion] = *desired.MinRuntimeVersion
+		changedFields[FieldMinRuntimeVersion] = FieldChange{
+			Old: getString(current.MinRuntimeVersion), New: *desired.MinRuntimeVersion,
+		}
+	}
+	if desired.RuntimeAutoUpgrade != nil &&
+		(current.RuntimeAutoUpgrade == nil || *current.RuntimeAutoUpgrade != *desired.RuntimeAutoUpgrade) {
+		updates[FieldRuntimeAutoUpgrade] = *desired.RuntimeAutoUpgrade
+		changedFields[FieldRuntimeAutoUpgrade] = FieldChange{
+			Old: current.RuntimeAutoUpgrade, New: *desired.RuntimeAutoUpgrade,
+		}
+	}
 
 	if current.DisplayName != desired.DisplayName {
 		updates[FieldDisplayName] = desired.DisplayName
@@ -274,10 +295,13 @@ func (p *Planner) planAIGatewayUpdate(
 	updateFields map[string]any,
 	changedFields map[string]FieldChange,
 	plan *Plan,
-) {
+) string {
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
 	fields := make(map[string]any)
 	maps.Copy(fields, updateFields)
+	if _, changed := fields[FieldRuntimeAutoUpgrade]; !changed && current.RuntimeAutoUpgrade != nil {
+		fields[FieldRuntimeAutoUpgrade] = *current.RuntimeAutoUpgrade
+	}
 	fields[FieldName] = current.Name
 	if fields[FieldName] == "" {
 		fields[FieldName] = desired.Name
@@ -304,6 +328,27 @@ func (p *Planner) planAIGatewayUpdate(
 		Protection:    protection,
 	}
 	plan.AddChange(change)
+	return change.ID
+}
+
+// Runtime upgrades must precede new features; downgrades must follow their removal.
+func orderAIGatewayRuntimeChange(plan *Plan, gatewayChangeID string, childStart int, oldVersion, newVersion string) {
+	oldRuntime, oldErr := semver.NewVersion(oldVersion)
+	newRuntime, newErr := semver.NewVersion(newVersion)
+	downgrade := oldErr == nil && newErr == nil && newRuntime.LessThan(oldRuntime)
+	for i := childStart; i < len(plan.Changes); i++ {
+		child := &plan.Changes[i]
+		if downgrade {
+			for j := range plan.Changes[:childStart] {
+				if plan.Changes[j].ID == gatewayChangeID {
+					plan.Changes[j].DependsOn = append(plan.Changes[j].DependsOn, child.ID)
+					break
+				}
+			}
+		} else if child.Action != ActionDelete {
+			child.DependsOn = append(child.DependsOn, gatewayChangeID)
+		}
+	}
 }
 
 func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
@@ -332,6 +377,12 @@ func (p *Planner) planAIGatewayDelete(current state.AIGateway, plan *Plan) {
 
 func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any {
 	fields := make(map[string]any)
+	if resource.MinRuntimeVersion != nil {
+		fields[FieldMinRuntimeVersion] = *resource.MinRuntimeVersion
+	}
+	if resource.RuntimeAutoUpgrade != nil {
+		fields[FieldRuntimeAutoUpgrade] = *resource.RuntimeAutoUpgrade
+	}
 	fields[FieldName] = resource.Name
 	fields[FieldDisplayName] = resource.DisplayName
 	if resource.DeploymentType != nil {

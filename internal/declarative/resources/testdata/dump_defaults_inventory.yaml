@@ -1,4 +1,4 @@
-sdk_version: v0.66.1-0.20260920143011-f6b929490fdc
+sdk_version: v0.68.1-0.20260922124854-7a55f3a483c9
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -54,6 +54,14 @@ resources:
       - path: deployment_type
         type: string
         value: hybrid
+        source: sdk
+      - path: mcp_servers.config.cache.discover.cache_scope
+        type: string
+        value: private
+        source: sdk
+      - path: mcp_servers.config.cache.tools_list.cache_scope
+        type: string
+        value: private
         source: sdk
       - path: mcp_servers.config.logging.audits
         type: boolean
@@ -435,6 +443,10 @@ resources:
         type: boolean
         value: false
         source: sdk
+      - path: runtime_auto_upgrade
+        type: boolean
+        value: true
+        source: sdk
       - path: vaults.config.api_token_file
         type: string
         value: /run/secrets/kubernetes.io/serviceaccount/token
@@ -603,6 +615,14 @@ resources:
     exclusions: []
   - resource_type: ai_gateway_mcp_server
     defaults:
+      - path: config.cache.discover.cache_scope
+        type: string
+        value: private
+        source: sdk
+      - path: config.cache.tools_list.cache_scope
+        type: string
+        value: private
+        source: sdk
       - path: config.logging.audits
         type: boolean
         value: false

@@ -212,6 +212,7 @@ const (
 	FieldMembers                                    = "members"
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
 	FieldMinRuntimeVersion                          = "min_runtime_version"
+	FieldRuntimeAutoUpgrade                         = "runtime_auto_upgrade"
 	FieldPorts                                      = "ports"
 	FieldBalancer                                   = "balancer"
 	FieldEmbeddings                                 = "embeddings"
