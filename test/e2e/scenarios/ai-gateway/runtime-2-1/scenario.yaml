@@ -60,6 +60,7 @@ steps:
                 "min_runtime_version": "2.1"
                 "runtime_auto_upgrade": false
                 "models[?name=='cost-model'] | [0].targets[0].config.input_cost_list": [{"modal": "text", "cost": 2.5}]
+                "models[?name=='cost-model'] | [0].config.route.model.values": [cost-model, cost-model-alias]
                 "models[?name=='cost-model'] | [0].targets[0].config.output_cost_list": [{"modal": "audio", "cost": 10}]
                 "models[?name=='cost-model'] | [0].targets[0].config.cache_read_cost_list": [{"modal": "image", "cost": 0.5}]
                 "policies[?name=='conditional-policy'] | [0].condition": "http.path == '/v1/chat/completions'"
@@ -142,6 +143,7 @@ steps:
                 "min_runtime_version": "2.1"
                 "runtime_auto_upgrade": false
                 "models[?name=='cost-model'] | [0].targets[0].config.input_cost_list": [{"modal": "text", "cost": 3.5}]
+                "models[?name=='cost-model'] | [0].config.route.model.values": [cost-model, updated-model-alias]
                 "models[?name=='cost-model'] | [0].targets[0].config.output_cost_list": [{"modal": "audio", "cost": 11}]
                 "models[?name=='cost-model'] | [0].targets[0].config.cache_read_cost_list": [{"modal": "image", "cost": 0.75}]
                 "policies[?name=='conditional-policy'] | [0].condition": "http.method == 'POST'"

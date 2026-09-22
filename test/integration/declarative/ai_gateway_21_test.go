@@ -41,11 +41,14 @@ func TestAIGateway21FieldsSurviveDeclarativeMapping(t *testing.T) {
 		require.Equal(t, gateway.RuntimeAutoUpgrade, update.RuntimeAutoUpgrade)
 	})
 
-	t.Run("model costs", func(t *testing.T) {
+	t.Run("model costs and selector aliases", func(t *testing.T) {
 		fields, err := set.AIGatewayModels[0].MutablePayloadMap()
 		require.NoError(t, err)
 		check := func(value any) {
 			payload := aiGateway21Payload(t, value)
+			modelConfig := payload["config"].(map[string]any)
+			selector := modelConfig["route"].(map[string]any)["model"].(map[string]any)
+			require.Equal(t, []any{"cost-model", "cost-model-alias"}, selector["values"])
 			config := payload["targets"].([]any)[0].(map[string]any)["config"].(map[string]any)
 			require.Equal(t, []any{map[string]any{"modal": "text", "cost": 2.5}}, config["input_cost_list"])
 			require.Equal(t, []any{map[string]any{"modal": "audio", "cost": float64(10)}}, config["output_cost_list"])

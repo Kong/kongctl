@@ -22,6 +22,9 @@ an optional `condition` expression. MCP `listener` and
 `ttl_ms` and `cache_scope`. MCP `upstream-server` resources accept
 `config.server.upstream_protocol_version`.
 
+Models can expose multiple selector aliases through
+`config.route.model.values`, for example `[support, support-alias]`.
+
 - [ai-gateway.yaml](ai-gateway.yaml) defines a root AI Gateway resource with
   a nested OpenAI provider, env vault, data plane certificate, policies,
   consumer, agent, consumer group, model that targets that provider, and a

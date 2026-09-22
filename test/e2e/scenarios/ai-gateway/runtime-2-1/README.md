@@ -4,6 +4,7 @@ This scenario creates and updates a runtime 2.1 gateway with the new API
 fields, then checks their exact remote values through declarative dumps:
 
 - Model `input_cost_list`, `output_cost_list`, and `cache_read_cost_list`.
+- Multiple model selector aliases, supported by the SDK 0.68.1 spec.
 - Policy `condition`.
 - MCP listener and conversion-listener `allowed_versions` and both cache
   hints, including zero TTLs and public/private cache scopes.

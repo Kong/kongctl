@@ -24,7 +24,9 @@ ai_gateways:
         type: model
         display_name: Cost model
         config:
-          route: {}
+          route:
+            model:
+              values: [cost-model, updated-model-alias]
         formats: [{type: openai}]
         capabilities: [generate]
         targets:
