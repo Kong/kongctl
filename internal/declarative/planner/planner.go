@@ -553,6 +553,28 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 	if rs == nil {
 		return
 	}
+	// Root deletes use remote names as ResourceRef, while implementations refer
+	// to declaration refs. Match names within their namespace to recover aliases.
+	for i := range rs.ControlPlanes {
+		resource := &rs.ControlPlanes[i]
+		for j := range changes {
+			change := &changes[j]
+			if change.Action == ActionDelete && change.ResourceType == ResourceTypeControlPlane &&
+				change.Namespace == resources.GetNamespace(resource.Kongctl) && change.Fields[FieldName] == resource.Name {
+				controlPlaneDeletes[resource.Ref] = change
+			}
+		}
+	}
+	for i := range rs.APIs {
+		resource := &rs.APIs[i]
+		for j := range changes {
+			change := &changes[j]
+			if change.Action == ActionDelete && change.ResourceType == ResourceTypeAPI &&
+				change.Namespace == resources.GetNamespace(resource.Kongctl) && change.Fields[FieldName] == resource.Name {
+				apiDeletes[resource.Ref] = change
+			}
+		}
+	}
 	for i := range rs.APIImplementations {
 		implementation := &rs.APIImplementations[i]
 		var controlPlaneID string

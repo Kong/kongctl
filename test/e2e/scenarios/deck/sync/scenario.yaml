@@ -116,7 +116,26 @@ steps:
 
   - name: 003-delete-cleanup
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/konnect/"
+          - --base-dir
+          - "{{ .workdir }}"
+          - --mode
+          - delete
+        recordVar:
+          name: api_delete_change_id
+          responsePath: "changes[?resource_type=='api'] | [0].id"
+        assertions:
+          - select: "changes[?resource_type=='control_plane'] | [0]"
+            expect:
+              fields:
+                "contains(depends_on, '{{ .vars.api_delete_change_id }}')": true
+
+      - name: 001-delete
         outputFormat: json
         run:
           - delete
@@ -135,3 +154,19 @@ steps:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-control-planes
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.control_plane_id }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 003-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='code-breakers']"
+            expect:
+              fields:
+                "length(@)": 0

@@ -103,3 +103,59 @@ func TestAdjustControlPlaneAPIImplementationDeleteDependencies(t *testing.T) {
 		require.Equal(t, []string{"implementation-delete"}, changes[1].DependsOn)
 	})
 }
+
+func TestControlPlaneDeleteDependenciesWithDifferentDeclarationRefs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name, namespace       string
+		controlPlaneReference bool
+	}{
+		{"service reference", DefaultNamespace, false},
+		{"control plane reference", DefaultNamespace, true},
+		{"unrelated namespace", "other", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			changes := []PlannedChange{
+				{
+					ID: "cp-delete", ResourceType: ResourceTypeControlPlane, ResourceRef: "code-breakers", ResourceID: "cp-id",
+					Action: ActionDelete, Namespace: tc.namespace, Fields: map[string]any{FieldName: "code-breakers"},
+				},
+				{
+					ID: "api-delete", ResourceType: ResourceTypeAPI, ResourceRef: "code-breakers", ResourceID: "api-id",
+					Action: ActionDelete, Namespace: tc.namespace, Fields: map[string]any{FieldName: "code-breakers"},
+				},
+			}
+			implementation := kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
+				Service: &kkComps.APIImplementationService{ID: "service-id", ControlPlaneID: "__REF__:code-breakers-cp#id"},
+			})
+			if tc.controlPlaneReference {
+				implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
+					ControlPlane: &kkComps.APIImplementationControlPlaneInput{ID: "__REF__:code-breakers-cp#id"},
+				})
+			}
+			rs := &resources.ResourceSet{
+				ControlPlanes: []resources.ControlPlaneResource{{
+					BaseResource:              resources.BaseResource{Ref: "code-breakers-cp"},
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "code-breakers"},
+				}},
+				APIs: []resources.APIResource{{
+					BaseResource:     resources.BaseResource{Ref: "code-breakers-api"},
+					CreateAPIRequest: kkComps.CreateAPIRequest{Name: "code-breakers"},
+				}},
+				APIImplementations: []resources.APIImplementationResource{{
+					Ref: "implementation", API: "code-breakers-api", APIImplementation: implementation,
+				}},
+			}
+			adjustControlPlaneAPIImplementationDeleteDependencies(changes, rs)
+			if tc.namespace != DefaultNamespace {
+				require.Empty(t, changes[0].DependsOn)
+				return
+			}
+			require.Equal(t, []string{"api-delete"}, changes[0].DependsOn)
+			result, err := NewDependencyResolver().ResolveDependenciesWithGroups(changes)
+			require.NoError(t, err)
+			require.Equal(t, [][]string{{"api-delete"}, {"cp-delete"}}, result.ExecutionGroups)
+		})
+	}
+}
