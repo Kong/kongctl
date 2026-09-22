@@ -16,6 +16,7 @@ import (
 )
 
 func TestAdoptPlanConvergence(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_UPDATE_EXPECT", "0")
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skipf("python3 required: %v", err)
 	}
