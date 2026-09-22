@@ -43,7 +43,12 @@ generate_certs() {
   fi
   umask 027
   mkdir -p "${cert_dir}" "$(dirname "${key_file}")"
-  openssl req -config /dev/null -new -x509 -nodes -newkey rsa:2048 -days 365 \
+  # LibreSSL requires a distinguished_name section even with -subj.
+  # Supply our own config so host OPENSSL_CONF settings cannot change it.
+  openssl req -config <(printf '%s\n' \
+    '[req]' 'distinguished_name = req_distinguished_name' \
+    '[req_distinguished_name]') \
+    -new -x509 -nodes -newkey rsa:2048 -days 365 \
     -subj "/CN=ai-demo-data-plane/C=US" \
     -keyout "${key_file}" -out "${cert_file}"
   chgrp "$(id -g)" "${key_file}"

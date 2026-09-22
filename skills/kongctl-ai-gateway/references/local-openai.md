@@ -25,6 +25,14 @@ certs/*.key
 
 An `.env.example` may contain empty values and descriptions. Do not assume
 kongctl automatically loads `.env`; document how the shell supplies inputs.
+For a trusted, shell-compatible local `.env`, load it in each shell that
+needs its values without printing them:
+
+```sh
+set -a
+. ./.env
+set +a
+```
 
 Required inputs and tools:
 
@@ -34,6 +42,7 @@ Required inputs and tools:
 | `OPENAI_API_KEY` | At apply | OpenAI provider credential |
 | Konnect login or PAT | Plan, apply, discovery | Intended org and region |
 | Docker and OpenSSL | Local data plane | Container and mTLS key pair |
+| curl and jq | Inference check | HTTP request and completion assertion |
 
 `demo-chat` is the client-facing alias; `OPENAI_MODEL` is its upstream
 target. Keep the alias stable when changing provider models. For CI, prefer
@@ -51,6 +60,9 @@ plane to Konnect; it is distinct from a proxy's public HTTPS certificate.
 The helper checks and reuses an existing pair. It refuses mismatched or
 incomplete pairs without replacing either file. Run
 `bash data-plane.sh check` to check a pair without starting Docker.
+If a failed generation left only a key, preserve it and explicitly repair
+the pair or authorize a fresh pair before retrying. Do not replace a
+certificate that has already been planned or registered without replanning.
 
 By default the key is `certs/data-plane.key`. For an existing key outside
 the checkout, set `AIGW_DATA_PLANE_KEY` to its absolute path on the laptop.
@@ -110,12 +122,15 @@ does not. Do not use repeated paid chat requests as a readiness loop.
 Send an OpenAI-format chat request through the local gateway using the
 configured alias and path:
 
-```sh
+```bash
+set -o pipefail
 curl --fail-with-body --silent --show-error --max-time 60 \
   http://127.0.0.1:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"model":"demo-chat","messages":[
-    {"role":"user","content":"Reply with a short greeting."}]}'
+    {"role":"user","content":"Reply with a short greeting."}]}' \
+  | jq -e '.choices[0].message.content |
+      select(type == "string" and length > 0)'
 ```
 
 Verify a successful HTTP response with a nonempty assistant completion

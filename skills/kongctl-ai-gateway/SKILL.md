@@ -44,15 +44,16 @@ does not authorize Konnect mutations, Docker startup or paid inference.
 Start with `kongctl version --full` and targeted schema discovery:
 
 ```sh
-kongctl explain ai_gateways
-kongctl explain ai_gateways.model_providers
-kongctl explain ai_gateways.models
-kongctl explain ai_gateways.data_plane_certificates
+kongctl explain ai_gateways -o text
 ```
 
-Narrow large results to the field being authored, for example
-`kongctl explain ai_gateways.models.access`. Use `kongctl scaffold --help`
-when a different resource shape needs a starter. Read the schema's required
+Then inspect only the children and fields needed for the requested setup,
+using `-o text` for summaries. Request JSON or extended output only for a
+specific field that needs detail; a full gateway schema includes all nested
+resources and can overwhelm the useful context. For example, use
+`kongctl explain ai_gateways.models.access -o text` for access controls.
+Use `kongctl scaffold --help` when a different resource shape needs a
+starter. Read the schema's required
 fields, union branches and relationship annotations; do not infer required
 names from `ref`. If the installed CLI lacks these subjects, report that
 capability gap and arrange a compatible CLI before attempting deployment.
@@ -97,16 +98,20 @@ Once the target and execution are authorized, produce and inspect a saved
 plan, then execute that same file:
 
 ```sh
-mkdir -p .plans
+mkdir -p .plans .artifacts
 kongctl plan --mode apply -f ai-gateway.yaml \
   --require-namespace ai-demo --output-file .plans/apply.json
 kongctl diff --plan .plans/apply.json
-kongctl apply --plan .plans/apply.json
+kongctl apply --plan .plans/apply.json \
+  --execution-report-file .artifacts/apply-report.json
 ```
 
 Adapt the namespace and use the same explicit profile and region/base URL
-for planning and execution. Changes to inputs or target require a new plan
-and review. Secrets referenced in that plan must be supplied to execution.
+for planning and execution. Record the target organization ID using
+`kongctl get organization -o json --jq '.id' --jq-raw-output` with that
+same context; a profile or organization name alone is not its identity.
+Changes to inputs or target require a new plan and review. Secrets
+referenced in that plan must be supplied to execution.
 
 ## Finish with evidence and a usable handoff
 
@@ -126,5 +131,8 @@ Report what was actually checked:
 A plan, container startup, node listing or HTTP status alone does not prove
 inference. Record remaining steps when live execution is unavailable. For a
 repeatable demo, inspect an unchanged follow-up plan and rehearse scoped
-cleanup. Determinism here concerns deployment inputs and approved actions;
+cleanup. Keep the execution report, follow-up plan and sanitized node and
+inference check results as local evidence; do not rely only on a transcript
+summary. Inspect artifacts for secrets before sharing them.
+Determinism here concerns deployment inputs and approved actions;
 model replies and remote state can vary.
