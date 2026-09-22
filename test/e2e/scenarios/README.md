@@ -221,12 +221,36 @@ Stateful Commands and Retries
   resources already created; fixed/minimum change counts or CREATE-or-UPDATE
   assertions on that plan are not reliable coverage.
 - Assertions on command stdout and captured artifacts run once: those sources
-  are immutable. Only `source.get` assertions poll fresh remote state using the
+  are immutable. Only `source.get` and `source.plan` assertions poll fresh state using the
   configured bounded retry policy. A standalone `get` command's stdout is also
   immutable; use `source.get` when eventual-consistency polling is needed.
 - Failed execution artifacts remain in their attempt directories. Assertion
   artifacts belong to the final command output or the fresh readback attempt.
   Each assertion's `source.json` records its source kind and final attempt.
+
+Read-only convergence polling
+
+Use `source.plan` only when an assertion intentionally waits for inventory to
+reflect a completed mutation. Its argument list is passed to `kongctl plan`;
+other verbs cannot be executed through this source. Set a bounded assertion
+retry policy and retain strict expected fields. Each attempt reruns the plan
+and preserves its command artifacts under the assertion retry directory.
+Persistent differences still fail. This does not retry mutations or recheck
+unchanging command stdout. For example, an assertion on a dump command can use:
+
+```yaml
+- name: plan-converges
+  source:
+    plan: ["-f", "{{ .workdir }}/dump.yaml", "--mode", "apply"]
+  retry:
+    attempts: 3
+    interval: 1s
+    maxInterval: 2s
+  select: summary
+  expect:
+    fields:
+      total_changes: 0
+```
 
 Retry-Safe Assertion Review
 

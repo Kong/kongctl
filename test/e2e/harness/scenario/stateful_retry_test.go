@@ -265,12 +265,25 @@ func TestAssertionSourceDiagnostics(t *testing.T) {
 		source    AssertionSrc
 		wantError string
 	}{
+		{
+			name:      "ambiguous",
+			source:    AssertionSrc{Plan: []string{"-f", "config.yaml"}, Get: "portals"},
+			wantError: "assertion source supports only one of get, plan or artifact",
+		},
+		{
+			name: "ambiguous",
+			source: AssertionSrc{
+				Plan:     []string{"-f", "config.yaml"},
+				Artifact: &AssertionArtifactSource{Path: "output.json"},
+			},
+			wantError: "assertion source supports only one of get, plan or artifact",
+		},
 		{name: "stdout", source: AssertionSrc{Get: " "}},
 		{name: "artifact", source: AssertionSrc{Artifact: &AssertionArtifactSource{Path: "output.json"}}},
 		{
 			name:      "ambiguous",
 			source:    AssertionSrc{Get: "portals", Artifact: &AssertionArtifactSource{Path: "output.json"}},
-			wantError: "assertion source supports only one of get or artifact",
+			wantError: "assertion source supports only one of get, plan or artifact",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
