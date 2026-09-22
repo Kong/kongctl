@@ -15,10 +15,12 @@ import (
 )
 
 func TestSystemAccountSyncRetryContracts(t *testing.T) {
+	t.Setenv("KONGCTL_E2E_UPDATE_EXPECT", "0")
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skipf("python3 required: %v", err)
 	}
 	for phase := 2; phase <= 4; phase++ {
+		// Both zero and nonzero final-attempt counts must satisfy the same state contract.
 		faults := []string{"", "plan", "roles", "teams", "convergence", "remaining"}
 		if phase == 4 {
 			faults = append(faults, "api-survives")
