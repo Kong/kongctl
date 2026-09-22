@@ -18,7 +18,8 @@ func TestDeckMultiFilePartialApplyRecovery(t *testing.T) {
 		t.Skipf("python3 required: %v", err)
 	}
 	for _, fault := range []string{
-		"", "replan-transient", "replan-terminal", "replan-exhausted", "binding", "missing-service", "stale-plan",
+		"", "replan-transient", "replan-terminal", "replan-exhausted", "binding", "missing-service",
+		"stale-plan", "apply-transient",
 	} {
 		t.Run(fault, func(t *testing.T) {
 			path := "../../scenarios/deck/multi-file/scenario.yaml"
@@ -61,6 +62,9 @@ func TestDeckMultiFilePartialApplyRecovery(t *testing.T) {
 			if strings.HasPrefix(fault, "replan-") && fault != "replan-transient" {
 				expected = "1"
 			}
+			if fault == "apply-transient" {
+				expected = "3"
+			}
 			if string(b) != expected {
 				t.Fatalf("apply count = %s, want %s", b, expected)
 			}
@@ -69,11 +73,33 @@ func TestDeckMultiFilePartialApplyRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantPlans := "2"
-			if fault == "replan-transient" || fault == "replan-exhausted" {
+			if fault == "replan-transient" || fault == "replan-exhausted" || fault == "apply-transient" {
 				wantPlans = "3"
 			}
 			if fault == "stale-plan" {
 				wantPlans = "1"
+			}
+			if fault == "apply-transient" {
+				for _, command := range d.Commands {
+					if command.Command == "002-apply-plan-file" && (len(command.Attempts) != 3 || command.AttemptLimit != 3) {
+						t.Fatalf("replans changed apply attempt accounting: %+v", command)
+					}
+				}
+				for _, name := range []string{"002-apply-plan-file-replan-001", "002-apply-plan-file-replan-002"} {
+					found := false
+					for _, command := range d.Commands {
+						if command.Command == name && len(command.Attempts) == 1 && command.Outcome == "passed" {
+							found = true
+						}
+					}
+					if !found {
+						t.Fatalf("missing successful replan diagnostic: %s", name)
+					}
+					matches, err := filepath.Glob(filepath.Join(dir, "steps", "*", "commands", name, "stdout.txt"))
+					if err != nil || len(matches) != 1 {
+						t.Fatalf("missing replan artifacts %s: %v %v", name, matches, err)
+					}
+				}
 			}
 			if string(plans) != wantPlans {
 				t.Fatalf("plan count = %s, want %s", plans, wantPlans)
@@ -117,6 +143,7 @@ elif args[0] == 'apply':
   # Control plane, APIs and decK services committed before ID lookup timed out.
   fail('context deadline exceeded; read: connection reset by peer')
  if not plan['remaining']: fail('409 Conflict: resource already exists')
+ if fault == 'apply-transient' and n == 2: fail('context deadline exceeded')
  emit({'plan': {'metadata': {'mode': 'apply'}},
        'summary': {'failed': 0, 'status': 'success', 'applied': 2}})
 elif args[0] == 'get':
@@ -163,5 +190,27 @@ func TestCommandRetryPlanValidation(t *testing.T) {
 				t.Fatalf("unexpected replan args: %v", plan.args)
 			}
 		})
+	}
+}
+
+func TestReplanRejectsSyntheticAndExecCommands(t *testing.T) {
+	for _, cmd := range []Command{
+		{Exec: []string{"false"}},
+		{Create: &CreateSpec{}},
+		{Delete: &DeleteSpec{}},
+		{ResetOrg: true},
+	} {
+		cmd.ReplanOnRetry = []string{"a.yaml"}
+		dir := t.TempDir()
+		s := Scenario{Steps: []Step{{Name: "invalid", SkipInputs: true, Commands: []Command{cmd}}}}
+		cli := &harness.CLI{BinPath: "/bin/false", TestDir: dir}
+		d := newScenarioDiagnostics(filepath.Join(dir, "diagnostics.json"), "invalid.yaml")
+		err := executeScenario(t, "invalid.yaml", s, cli, d)
+		if err == nil || !strings.Contains(err.Error(), "replanOnRetry requires a run command") {
+			t.Fatalf("invalid combination not rejected: %v", err)
+		}
+		if len(d.current.Attempts) != 0 {
+			t.Fatal("invalid command executed")
+		}
 	}
 }

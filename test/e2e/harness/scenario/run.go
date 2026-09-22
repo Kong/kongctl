@@ -191,6 +191,9 @@ func executeScenario(
 			diagnostics.begin(stepName, cmdName)
 			isLastCmdInStep := j == len(st.Commands)-1
 			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
+			if len(cmd.ReplanOnRetry) > 0 && (cmd.ResetOrg || len(cmd.Exec) > 0 || cmd.Create != nil || cmd.Delete != nil) {
+				return fmt.Errorf("command %s: replanOnRetry requires a run command using apply --plan", cmdName)
+			}
 			// Handle resetOrg synthetic command
 			if cmd.ResetOrg {
 				diagnostics.phase = "reset"
@@ -991,8 +994,12 @@ func runCLIWithRetry(
 		err = nil
 		if atry > 0 && plan != nil {
 			cli.DisableNextOutput()
-			cli.OverrideNextCommandSlug(cmdName + "-replan")
+			replanName := fmt.Sprintf("%s-replan-%03d", cmdName, atry)
+			cli.OverrideNextCommandSlug(replanName)
 			res, err = cli.RunWithEnvTimeout(context.Background(), env, timeout, plan.args...)
+			if err == nil {
+				diagnostics.successfulReplan(replanName, res, timeout, cli.LastCommandDir)
+			}
 		}
 		if err == nil {
 			if plan != nil {
