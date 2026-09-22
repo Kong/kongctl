@@ -34,13 +34,23 @@ on:
       prev_remaining:
         description: Unchecked boxes seen by the predecessor, with empty distinct from zero
         required: false
+      comment_id:
+        description: Comment a dispatched request answers, read back from GitHub rather than believed
+        required: false
+      comment_kind:
+        description: Which space comment_id came from, issue, review or submitted_review
+        required: false
+      record_id:
+        description: Dispatch record written for this run, read back over the run's own OIDC token
+        required: false
 
 jobs:
   ksai:
     name: run
     if: >-
       (github.event_name == 'workflow_dispatch' &&
-      (inputs.pr != '' || inputs.issue_number != '' || inputs.work_ref != '')) ||
+      (inputs.pr != '' || inputs.issue_number != '' || inputs.work_ref != '' ||
+      inputs.comment_id != '' || inputs.comment_kind != '')) ||
       ((github.event_name == 'issue_comment' ||
       github.event_name == 'pull_request_review_comment') &&
       github.event.comment.user.type != 'Bot' &&
@@ -51,13 +61,17 @@ jobs:
       github.event.comment.user.type != 'Bot' &&
       github.event.issue.pull_request &&
       github.event.issue.user.type == 'Bot') ||
+      (github.event_name == 'pull_request_review_comment' &&
+      github.event.comment.user.type != 'Bot' &&
+      github.event.comment.in_reply_to_id &&
+      github.event.pull_request.head.repo.full_name == github.repository) ||
       (github.event_name == 'pull_request_review' &&
       github.event.action == 'submitted' &&
       github.event.review.user.type != 'Bot' &&
       github.event.pull_request.draft == true &&
       github.event.pull_request.user.type == 'Bot' &&
       github.event.pull_request.head.repo.full_name == github.repository)
-    uses: Kong/ksai-public/.github/workflows/ksai.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
+    uses: Kong/ksai-public/.github/workflows/ksai.yml@b48732f9f399390aac5145e83f55fef27dfee884 # v3.104.1
     permissions:
       contents: write      # checked out by every command, and pushed by one that changes code
       issues: write        # every command answers with a comment, and reacts to the one that asked
@@ -82,6 +96,9 @@ jobs:
       attempt: ${{ inputs.attempt }}
       stall: ${{ inputs.stall }}
       prev_remaining: ${{ inputs.prev_remaining }}
+      comment_id: ${{ inputs.comment_id }}
+      comment_kind: ${{ inputs.comment_kind }}
+      record_id: ${{ inputs.record_id }}
       job_timeout_minutes: 35
       require_plan_approval: true
       client_id: ${{ vars.API_OPS_APP_CLIENT_ID }}
@@ -105,7 +122,7 @@ jobs:
       (github.event_name == 'pull_request' &&
       contains(fromJSON('["opened", "ready_for_review"]'), github.event.action) &&
       github.event.pull_request.head.repo.full_name == github.repository)
-    uses: Kong/ksai-public/.github/workflows/ksai-request.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
+    uses: Kong/ksai-public/.github/workflows/ksai-request.yml@b48732f9f399390aac5145e83f55fef27dfee884 # v3.104.1
     permissions:
       actions: write # dispatch this workflow onto the default branch
       contents: read # download the actions this call runs, which live in a private repository
@@ -129,9 +146,9 @@ jobs:
       contains(fromJSON('["opened", "synchronize", "reopened", "edited"]'), github.event.action) &&
       (github.event.action != 'edited' || github.event.changes.base.ref.from != '')) ||
       (github.event_name == 'pull_request_review' &&
-      github.event.sender.type != 'Bot' &&
+      (github.event.sender.type != 'Bot' || github.event.action == 'dismissed') &&
       github.event.review.state != 'commented'))
-    uses: Kong/ksai-public/.github/workflows/ksai-hold.yml@6d8dfcb76f5fdbb76bbcbe9629d8d705d98dbebd # v3.42.1
+    uses: Kong/ksai-public/.github/workflows/ksai-hold.yml@b48732f9f399390aac5145e83f55fef27dfee884 # v3.104.1
     permissions:
       contents: read       # download the action this call runs, which lives in a private repository
       pull-requests: write # dismiss an approval from somebody who contributed to the pull request
