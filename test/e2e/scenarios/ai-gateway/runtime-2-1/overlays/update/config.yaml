@@ -1,0 +1,84 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-runtime-2-1-e2e
+
+ai_gateways:
+  - ref: runtime-2-1-gateway
+    name: runtime-2-1-gateway
+    display_name: AI Gateway Runtime 2.1 E2E
+    min_runtime_version: "2.1"
+    runtime_auto_upgrade: false
+    proxy_urls: [{host: runtime-2-1.example.com, port: 443, protocol: https}]
+    model_providers:
+      - ref: openai
+        name: openai
+        type: openai
+        display_name: OpenAI
+        config:
+          auth:
+            type: basic
+            headers: []
+    models:
+      - ref: cost-model
+        name: cost-model
+        type: model
+        display_name: Cost model
+        config:
+          route: {}
+        formats: [{type: openai}]
+        capabilities: [generate]
+        targets:
+          - name: gpt-4o
+            provider: openai
+            config:
+              type: openai
+              input_cost_list: [{modal: text, cost: 3.5}]
+              output_cost_list: [{modal: audio, cost: 11}]
+              cache_read_cost_list: [{modal: image, cost: 0.75}]
+    policies:
+      - ref: conditional-policy
+        name: conditional-policy
+        display_name: Conditional policy
+        type: rate-limiting
+        config: {minute: 10}
+        condition: "http.method == 'POST'"
+    mcp_servers:
+      - ref: conversion
+        name: conversion
+        display_name: Conversion listener
+        type: conversion-listener
+        tools:
+          - name: lookup
+            description: Look up a record
+            method: GET
+            path: /records
+        config:
+          url: https://example.com
+          route: {paths: [/conversion], protocols: [http, https]}
+          server: {forward_client_headers: true, timeout: 10000}
+          allowed_versions: ['2026-07-28']
+          cache:
+            tools_list: {ttl_ms: 0, cache_scope: private}
+            discover: {ttl_ms: 120000, cache_scope: private}
+      - ref: listener
+        name: listener
+        display_name: Listener
+        type: listener
+        sources: [upstream]
+        config:
+          route: {paths: [/listener], protocols: [http, https]}
+          server: {forward_client_headers: true, timeout: 10000}
+          allowed_versions: ['2025-11-25']
+          cache:
+            tools_list: {ttl_ms: 120000, cache_scope: public}
+            discover: {ttl_ms: 0, cache_scope: public}
+      - ref: upstream
+        name: upstream
+        display_name: Upstream
+        type: upstream-server
+        config:
+          url: https://example.com/mcp
+          route: {paths: [/upstream]}
+          tools_cache_ttl_seconds: 60
+          server:
+            upstream_protocol_version: '2026-07-28'
