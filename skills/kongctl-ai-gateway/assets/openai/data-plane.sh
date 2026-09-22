@@ -7,6 +7,8 @@ cert_file="${cert_dir}/data-plane.crt"
 key_file="${AIGW_DATA_PLANE_KEY:-${cert_dir}/data-plane.key}"
 container_name="${AIGW_CONTAINER_NAME:-ai-demo-data-plane}"
 image="${KONG_AI_GATEWAY_IMAGE:-kong/kong-ai-gateway:2.0.3}"
+proxy_port="${AIGW_PROXY_PORT:-8000}"
+proxy_tls_port="${AIGW_PROXY_TLS_PORT:-8443}"
 
 fail() {
   echo "Error: $*" >&2
@@ -55,8 +57,56 @@ generate_certs() {
   chmod 640 "${key_file}"
 }
 
-run_data_plane() {
+check_ports() {
+  local port
+  for port in "${proxy_port}" "${proxy_tls_port}"; do
+    [[ "${port}" =~ ^[1-9][0-9]{0,4}$ ]] ||
+      fail "Proxy host ports must be integers from 1 to 65535"
+    (( port <= 65535 )) ||
+      fail "Proxy host ports must be integers from 1 to 65535"
+  done
+  [[ "${proxy_port}" != "${proxy_tls_port}" ]] ||
+    fail "HTTP and HTTPS host ports must differ"
+}
+
+show_status() {
   require_command docker
+  check_ports
+  docker context show
+  docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+  printf 'Requested container: %s; loopback ports: %s / %s\n' \
+    "${container_name}" "${proxy_port}" "${proxy_tls_port}"
+}
+
+preflight() {
+  require_command docker
+  check_ports
+  local names published name ports port
+  # Failed daemon access is an error, not evidence of a clean host.
+  names="$(docker ps -a --format '{{.Names}}')"
+  while IFS= read -r name; do
+    [[ "${name}" != "${container_name}" ]] ||
+      fail "Container ${container_name} already exists; inspect status and choose resume or scoped reset"
+  done <<< "${names}"
+  published="$(docker ps --format '{{.Names}} {{.Ports}}')"
+  while read -r name ports; do
+    for port in "${proxy_port}" "${proxy_tls_port}"; do
+      [[ "${ports}" != *":${port}->"* ]] ||
+        fail "Host port ${port} is published by ${name}; reset its deployment or choose ports before planning"
+    done
+  done <<< "${published}"
+  if command -v lsof >/dev/null 2>&1; then
+    for port in "${proxy_port}" "${proxy_tls_port}"; do
+      if lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1; then
+        fail "Host port ${port} has a listener; inspect its owner before proceeding"
+      fi
+    done
+  fi
+  echo "Preflight passed; Docker will check port availability again at startup"
+}
+
+run_data_plane() {
+  preflight
   check_certificates
   local key_group
   key_group="$(stat -c '%g' "${key_file}" 2>/dev/null || \
@@ -69,6 +119,7 @@ run_data_plane() {
       fail "Endpoints must be hostnames, without a scheme, port or path"
   done
   docker run --detach --rm --name "${container_name}" \
+    --label "com.kongctl.ai-gateway.project=${project_dir}" \
     --group-add "${key_group}" \
     --env KONG_ROLE=data_plane --env KONG_DATABASE=off \
     --env KONG_VITALS=off --env KONG_CLUSTER_MTLS=pki \
@@ -82,18 +133,20 @@ run_data_plane() {
     --env KONG_KONNECT_MODE=on \
     --volume "${cert_file}:/etc/kong/certs/data-plane.crt:ro" \
     --volume "${key_file}:/etc/kong/certs/data-plane.key:ro" \
-    --publish 127.0.0.1:8000:8000 \
-    --publish 127.0.0.1:8443:8443 \
+    --publish "127.0.0.1:${proxy_port}:8000" \
+    --publish "127.0.0.1:${proxy_tls_port}:8443" \
     "${image}"
 }
 
 case "${1:-}" in
   certs) generate_certs ;;
   check) check_certificates ;;
+  status) show_status ;;
+  preflight) preflight ;;
   run) run_data_plane ;;
   stop)
     require_command docker
     docker stop "${container_name}"
     ;;
-  *) fail "Usage: bash data-plane.sh certs|check|run|stop" ;;
+  *) fail "Usage: bash data-plane.sh certs|check|status|preflight|run|stop" ;;
 esac

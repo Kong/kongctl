@@ -6,7 +6,25 @@ helper adapt the native [OpenAI quickstart][quickstart] and use the
 record a compatible image for the user's environment; pin its digest for a
 rehearsed deployment.
 
-## Prepare the project before authentication
+## Discover existing state before planning
+
+A fresh project can share Docker and Konnect with a previous rehearsal.
+Before generating a certificate, inspect existing project files and the
+intended gateway under the selected profile, organization and region.
+Inspect `docker context show` and `docker ps -a` for existing containers
+and published ports. A permission or network error is not an empty result.
+
+If state remains and intent is unclear, resolve one choice with the user:
+resume that deployment, perform a scoped reset, or run a parallel demo.
+For resume, preserve the namespace, gateway identity and certificate pair;
+verify the container's Konnect endpoints, certificate mounts, image and
+port mappings before reusing it. A matching name alone is insufficient.
+For reset, follow the [rehearsal checklist](rehearsal-reset.md). For a
+parallel demo, choose distinct identities and free ports before planning.
+Do not silently switch namespaces or replace certificates to escape a
+collision. If access is unavailable, record this preflight as pending.
+
+## Prepare the project
 
 Copy `assets/openai/ai-gateway.yaml` and `assets/openai/data-plane.sh` from
 this skill into the project root. Adapt their names to the user's project.
@@ -33,6 +51,21 @@ set -a
 . ./.env
 set +a
 ```
+
+Persist the chosen container name, `AIGW_PROXY_PORT` and
+`AIGW_PROXY_TLS_PORT` in the project's local settings and document them in
+`.env.example`. Defaults are 8000 and 8443; both remain loopback-only.
+Set the manifest's `proxy_urls[].port` and all request URLs to the chosen
+HTTP host port before generating the saved plan. Host port overrides do
+not change the container's internal listeners or update Konnect for you.
+
+Run `bash data-plane.sh status` to inspect local containers, then
+`bash data-plane.sh preflight` before planning a new deployment. Preflight
+rejects an existing container name and Docker port conflicts, and checks
+host listeners when `lsof` is available. It is read-only and needs neither
+certificates nor Konnect endpoints. Docker still checks for port races
+when starting. On a resume, inspect and reuse the matching running node
+instead of calling `run` again; the helper never replaces it automatically.
 
 Required inputs and tools:
 
@@ -125,7 +158,7 @@ configured alias and path:
 ```bash
 set -o pipefail
 curl --fail-with-body --silent --show-error --max-time 60 \
-  http://127.0.0.1:8000/v1/chat/completions \
+  "http://127.0.0.1:${AIGW_PROXY_PORT:-8000}/v1/chat/completions" \
   -H 'Content-Type: application/json' \
   -d '{"model":"demo-chat","messages":[
     {"role":"user","content":"Reply with a short greeting."}]}' \
@@ -154,6 +187,9 @@ If the provider rejects the request, stop and fix that cause; switching
 models or weakening access controls silently is not a valid verification.
 
 ## Cleanup and repeatability
+
+For a full rehearsal reset, follow the
+[reset checklist](rehearsal-reset.md) before starting a fresh agent session.
 
 Stop only this project's container with `bash data-plane.sh stop`. This
 does not remove Konnect resources. For requested teardown, generate a

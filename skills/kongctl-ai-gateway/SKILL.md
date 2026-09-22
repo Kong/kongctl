@@ -31,6 +31,9 @@ checkout or another skill is unnecessary.
   with model access only when that expansion is requested.
 - For a failure, use the diagnostic table in the local setup reference;
   inspect the relevant installed schema before changing configuration.
+- For repeat rehearsals or cleanup, use the
+  [reset checklist](references/rehearsal-reset.md). A new agent session
+  does not reset Docker or Konnect.
 
 Use the user's chosen provider, CI system and hosting model. The local
 OpenAI example is a starting point, not a prerequisite for other use cases.
@@ -102,7 +105,7 @@ mkdir -p .plans .artifacts
 kongctl plan --mode apply -f ai-gateway.yaml \
   --require-namespace ai-demo --output-file .plans/apply.json
 kongctl diff --plan .plans/apply.json
-kongctl apply --plan .plans/apply.json \
+kongctl apply --plan .plans/apply.json -o json --auto-approve \
   --execution-report-file .artifacts/apply-report.json
 ```
 
@@ -112,6 +115,12 @@ for planning and execution. Record the target organization ID using
 same context; a profile or organization name alone is not its identity.
 Changes to inputs or target require a new plan and review. Secrets
 referenced in that plan must be supplied to execution.
+Use `--auto-approve` only after the saved plan's execution is authorized;
+it avoids a second interactive CLI prompt in an agent's noninteractive
+shell. Explicit JSON output also works around versions that skip writing
+`--execution-report-file` with text output. Verify that the report exists
+and inspect its summary; a missing report does not mean apply failed and
+is not a reason to repeat mutations.
 
 ## Finish with evidence and a usable handoff
 
