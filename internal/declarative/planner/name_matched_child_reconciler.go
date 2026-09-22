@@ -11,10 +11,12 @@ type nameMatchedChildOperations[D, C any] struct {
 	update      func(C, D, map[string]any, map[string]FieldChange)
 	protected   func(C) bool
 	remove      func(C)
+	// Optional ordering of the same observations, used only for sync pruning.
+	pruneOrder func([]C) []C
 }
 
 // reconcileNameMatchedChildren matches names within the caller's parent scope,
-// refreshes matched observations, and prunes in observed order. An absent detail
+// refreshes matched observations, and prunes in observed order unless overridden. An absent detail
 // response recreates the desired child; an observation or protection error stops reconciliation.
 func reconcileNameMatchedChildren[D, C any](
 	p *Planner,
@@ -59,7 +61,11 @@ func reconcileNameMatchedChildren[D, C any](
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
-		for _, child := range current {
+		pruning := current
+		if ops.pruneOrder != nil {
+			pruning = ops.pruneOrder(current)
+		}
+		for _, child := range pruning {
 			name := ops.currentName(child)
 			if desiredNames[name] {
 				continue
