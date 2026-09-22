@@ -8,19 +8,19 @@ rehearsed deployment.
 
 ## Discover existing state before planning
 
-A fresh project can share Docker and Konnect with a previous rehearsal.
+A fresh project can share Docker and Konnect with an existing deployment.
 Before generating a certificate, inspect existing project files and the
 intended gateway under the selected profile, organization and region.
 Inspect `docker context show` and `docker ps -a` for existing containers
 and published ports. A permission or network error is not an empty result.
 
 If state remains and intent is unclear, resolve one choice with the user:
-resume that deployment, perform a scoped reset, or run a parallel demo.
+resume that deployment, replace it after scoped cleanup, or run in parallel.
 For resume, preserve the namespace, gateway identity and certificate pair;
 verify the container's Konnect endpoints, certificate mounts, image and
 port mappings before reusing it. A matching name alone is insufficient.
-For reset, follow the [rehearsal checklist](rehearsal-reset.md). For a
-parallel demo, choose distinct identities and free ports before planning.
+For replacement, review the intended removals before cleanup. For a
+parallel deployment, choose distinct identities and free ports before planning.
 Do not silently switch namespaces or replace certificates to escape a
 collision. If access is unavailable, record this preflight as pending.
 
@@ -187,9 +187,6 @@ If the provider rejects the request, stop and fix that cause; switching
 models or weakening access controls silently is not a valid verification.
 
 ## Cleanup and repeatability
-
-For a full rehearsal reset, follow the
-[reset checklist](rehearsal-reset.md) before starting a fresh agent session.
 
 Stop only this project's container with `bash data-plane.sh stop`. This
 does not remove Konnect resources. For requested teardown, generate a

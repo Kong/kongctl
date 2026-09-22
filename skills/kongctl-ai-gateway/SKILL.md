@@ -31,9 +31,6 @@ checkout or another skill is unnecessary.
   with model access only when that expansion is requested.
 - For a failure, use the diagnostic table in the local setup reference;
   inspect the relevant installed schema before changing configuration.
-- For repeat rehearsals or cleanup, use the
-  [reset checklist](references/rehearsal-reset.md). A new agent session
-  does not reset Docker or Konnect.
 
 Use the user's chosen provider, CI system and hosting model. The local
 OpenAI example is a starting point, not a prerequisite for other use cases.
