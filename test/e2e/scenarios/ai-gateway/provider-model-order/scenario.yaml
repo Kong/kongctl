@@ -1,0 +1,92 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+  KONGCTL_E2E_MODEL_PROVIDER_KEY: placeholder
+
+steps:
+  - name: create
+    commands:
+      - name: apply
+        outputFormat: json
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+
+  - name: retained-model
+    inputOverlayDirs: [overlays/retained]
+    commands:
+      - name: reject-provider-delete
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        expectFailure:
+          exitCode: 1
+          contains: still references it
+
+  - name: replacement
+    inputOverlayDirs: [overlays/replacement]
+    commands:
+      - name: plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 3, by_action.CREATE: 1, by_action.UPDATE: 1, by_action.DELETE: 1}
+          - select: "@"
+            expect:
+              fields:
+                "execution_order[0] == (changes[?action=='CREATE'].id | [0])": true
+                "execution_order[1] == (changes[?resource_type=='ai_gateway_model'].id | [0])": true
+                "execution_order[2] == (changes[?action=='DELETE'].id | [0])": true
+      - name: apply
+        outputFormat: json
+        run: [sync, --plan, "{{ .workdir }}/plan.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+
+  - name: combined-delete
+    inputOverlayDirs: [overlays/empty]
+    commands:
+      - name: plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 2, by_action.DELETE: 2}
+          - select: "@"
+            expect:
+              fields:
+                "execution_order[0] == (changes[?resource_type=='ai_gateway_model'].id | [0])": true
+                "execution_order[1] == (changes[?resource_type=='ai_gateway_model_provider'].id | [0])": true
+      - name: apply
+        outputFormat: json
+        run: [sync, --plan, "{{ .workdir }}/plan.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 2, failed: 0, status: success}
+      - name: verify-empty
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+
+  - name: cleanup
+    inputOverlayDirs: [overlays/cleanup]
+    commands:
+      - name: remove-test-gateway
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 1, failed: 0, status: success}

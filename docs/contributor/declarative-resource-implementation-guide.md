@@ -510,6 +510,14 @@ its creation dependency and a resolvable parent reference. Preserve delete
 dependency ordering and API cascade semantics. Let the planner's dependency
 resolver produce execution order and groups.
 
+AI Gateway child serialization follows a topological order of semantic
+dependencies, not raw planning order. Provider deletion inspects all observed
+models, including unscoped models: reject retained references and wait for
+model deletion or updates that release them. Provider names occur in both
+targets and semantic-balancer embeddings. Replacement providers must exist
+before model updates. Add these edges before serialization so deletion and
+runtime-version dependencies cannot be reversed by the gateway's chain.
+
 Preserve namespace and protection behavior, including inherited protection.
 Planner validation accumulates protection failures before execution.
 [Inherited protection planning][plan-protection] records protecting parents;
