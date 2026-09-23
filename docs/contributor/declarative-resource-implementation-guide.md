@@ -486,9 +486,17 @@ Choose identity and operation semantics before selecting a reusable strategy:
   `control_plane_data_plane_certificate_planner.go` demonstrates fingerprint
   matching and replacement ordering. Do not manufacture an update operation
   for an immutable resource.
-- **Singletons:** Portal customization uses an update-only API. Portal custom
-  domains are optional and delete-capable. Both appear in
-  [portal child planning][portal-children]; their empty-input behavior differs.
+- **Optional Portal singletons:** Custom domains, email configuration, and
+  audit-log webhooks use
+  [`reconcileOptionalPortalSingleton`][singleton-reconcile]. It selects the
+  first declaration without an existing plan change, skips observation for a
+  new parent, and deletes an absent declaration only in sync. Only the
+  resource's matching `APIClientError` permits assuming creation with a
+  warning; other read errors remain fatal. Typed adapters normalize empty
+  webhook responses and retain hostname replacement and field comparison.
+  Callers own scope, payloads, references, and parent dependencies.
+  Portal customization remains update-only; do not apply optional-singleton
+  deletion semantics to it.
 - **Assignments and selectors:** [organization planning][organization-plan]
   includes role/membership operations and broader organization scope.
 - **Tool-local configuration:** `control_planes[]._deck` is validated by its
@@ -916,6 +924,8 @@ engine contract. Each refactoring migration should:
 [dcr-plan]: ../../internal/declarative/planner/dcr_provider_planner.go
 [dashboard-plan]: ../../internal/declarative/planner/dashboard_planner.go
 [api-plan]: ../../internal/declarative/planner/api_planner.go
+[singleton-reconcile]:
+  ../../internal/declarative/planner/optional_singleton_reconciler.go
 [portal-children]: ../../internal/declarative/planner/portal_child_planner.go
 [planner-package]: ../../internal/declarative/planner
 [organization-plan]:

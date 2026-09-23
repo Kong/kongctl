@@ -1541,93 +1541,41 @@ func (p *Planner) planPortalCustomDomainsChanges(
 	desired []resources.PortalCustomDomainResource,
 	plan *Plan,
 ) error {
-	var desiredDomain *resources.PortalCustomDomainResource
-	for i := range desired {
-		if plan.HasChange(ResourceTypePortalCustomDomain, desired[i].GetRef()) {
-			continue
-		}
-		desiredDomain = &desired[i]
-		break
-	}
-
 	portalName := p.findPortalName(portalRef)
-
-	// If the portal does not yet exist, schedule creation based on desired state only.
-	if portalID == "" {
-		if desiredDomain != nil {
-			p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
-		}
-		return nil
-	}
-
-	currentDomain, err := p.client.GetPortalCustomDomain(ctx, portalID)
-	if err != nil {
-		var apiErr *state.APIClientError
-		if errors.As(err, &apiErr) && apiErr.ClientType == "portal custom domain API" {
-			if desiredDomain != nil {
-				changeID := p.planPortalCustomDomainCreate(
-					parentNamespace,
-					*desiredDomain,
-					portalID,
-					portalRef,
-					portalName,
-					plan,
+	return reconcileOptionalPortalSingleton(ResourceTypePortalCustomDomain, portalID, portalRef, desired,
+		optionalPortalSingletonOperations[resources.PortalCustomDomainResource, state.PortalCustomDomain]{
+			desiredRef: func(desired resources.PortalCustomDomainResource) string { return desired.GetRef() },
+			fetch: func() (*state.PortalCustomDomain, error) {
+				return p.client.GetPortalCustomDomain(ctx, portalID)
+			},
+			create: func(desired resources.PortalCustomDomainResource) string {
+				return p.planPortalCustomDomainCreate(
+					parentNamespace, desired, portalID, portalRef, portalName, plan,
 				)
-				plan.AddWarning(
-					changeID,
-					"unable to inspect existing portal custom domain – assuming create is required",
-				)
-			}
-			return nil
-		}
-
-		identifier := portalRef
-		if identifier == "" {
-			identifier = portalID
-		}
-
-		return fmt.Errorf("failed to get portal custom domain for portal %q: %w", identifier, err)
-	}
-
-	if desiredDomain == nil {
-		if currentDomain != nil && plan.Metadata.Mode == PlanModeSync {
-			p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, currentDomain, "", plan)
-		}
-		return nil
-	}
-
-	if currentDomain == nil {
-		p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan)
-		return nil
-	}
-
-	if p.portalCustomDomainNeedsReplacement(currentDomain, *desiredDomain) {
-		deleteID := p.planPortalCustomDomainDelete(
-			parentNamespace,
-			portalRef,
-			portalID,
-			portalName,
-			currentDomain,
-			desiredDomain.Ref,
-			plan,
-		)
-		p.planPortalCustomDomainCreate(parentNamespace, *desiredDomain, portalID, portalRef, portalName, plan, deleteID)
-		return nil
-	}
-
-	if currentDomain.Enabled != desiredDomain.Enabled {
-		p.planPortalCustomDomainUpdate(
-			parentNamespace,
-			currentDomain,
-			*desiredDomain,
-			portalID,
-			portalRef,
-			portalName,
-			plan,
-		)
-	}
-
-	return nil
+			},
+			reconcile: func(current *state.PortalCustomDomain, desired resources.PortalCustomDomainResource) {
+				if p.portalCustomDomainNeedsReplacement(current, desired) {
+					deleteID := p.planPortalCustomDomainDelete(
+						parentNamespace, portalRef, portalID, portalName, current, desired.Ref, plan,
+					)
+					p.planPortalCustomDomainCreate(
+						parentNamespace, desired, portalID, portalRef, portalName, plan, deleteID,
+					)
+					return
+				}
+				if current.Enabled != desired.Enabled {
+					p.planPortalCustomDomainUpdate(
+						parentNamespace, current, desired, portalID, portalRef, portalName, plan,
+					)
+				}
+			},
+			remove: func(current *state.PortalCustomDomain) {
+				p.planPortalCustomDomainDelete(parentNamespace, portalRef, portalID, portalName, current, "", plan)
+			},
+			clientType:         "portal custom domain API",
+			description:        "portal custom domain",
+			unavailableWarning: "unable to inspect existing portal custom domain – assuming create is required",
+		}, plan)
 }
 
 func (p *Planner) planPortalCustomDomainCreate(
@@ -2226,81 +2174,33 @@ func (p *Planner) planPortalEmailConfigsChanges(
 	desired []resources.PortalEmailConfigResource,
 	plan *Plan,
 ) error {
-	var desiredCfg *resources.PortalEmailConfigResource
-	for i := range desired {
-		if plan.HasChange(ResourceTypePortalEmailConfig, desired[i].GetRef()) {
-			continue
-		}
-		desiredCfg = &desired[i]
-		break
-	}
-
 	portalName := p.findPortalName(portalRef)
-
-	if portalID == "" {
-		if desiredCfg != nil {
-			p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
-		}
-		return nil
-	}
-
-	currentCfg, err := p.client.GetPortalEmailConfig(ctx, portalID)
-	if err != nil {
-		var apiErr *state.APIClientError
-		if errors.As(err, &apiErr) && apiErr.ClientType == "portal emails API" {
-			if desiredCfg != nil {
-				changeID := p.planPortalEmailConfigCreate(
-					parentNamespace,
-					*desiredCfg,
-					portalID,
-					portalRef,
-					portalName,
-					plan,
+	return reconcileOptionalPortalSingleton(ResourceTypePortalEmailConfig, portalID, portalRef, desired,
+		optionalPortalSingletonOperations[resources.PortalEmailConfigResource, kkComps.PortalEmailConfig]{
+			desiredRef: func(desired resources.PortalEmailConfigResource) string { return desired.GetRef() },
+			fetch: func() (*kkComps.PortalEmailConfig, error) {
+				return p.client.GetPortalEmailConfig(ctx, portalID)
+			},
+			create: func(desired resources.PortalEmailConfigResource) string {
+				return p.planPortalEmailConfigCreate(
+					parentNamespace, desired, portalID, portalRef, portalName, plan,
 				)
-				plan.AddWarning(
-					changeID,
-					"unable to inspect existing portal email config – assuming create is required",
-				)
-			}
-			return nil
-		}
-
-		identifier := portalRef
-		if identifier == "" {
-			identifier = portalID
-		}
-
-		return fmt.Errorf("failed to get portal email config for portal %q: %w", identifier, err)
-	}
-
-	if desiredCfg == nil {
-		if currentCfg != nil && plan.Metadata.Mode == PlanModeSync {
-			p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
-		}
-		return nil
-	}
-
-	if currentCfg == nil {
-		p.planPortalEmailConfigCreate(parentNamespace, *desiredCfg, portalID, portalRef, portalName, plan)
-		return nil
-	}
-
-	needsUpdate, updateFields, changedFields := p.shouldUpdatePortalEmailConfig(currentCfg, *desiredCfg)
-	if needsUpdate {
-		p.planPortalEmailConfigUpdate(
-			parentNamespace,
-			*desiredCfg,
-			portalID,
-			portalRef,
-			portalName,
-			currentCfg.ID,
-			updateFields,
-			changedFields,
-			plan,
-		)
-	}
-
-	return nil
+			},
+			reconcile: func(current *kkComps.PortalEmailConfig, desired resources.PortalEmailConfigResource) {
+				needsUpdate, fields, changed := p.shouldUpdatePortalEmailConfig(current, desired)
+				if needsUpdate {
+					p.planPortalEmailConfigUpdate(
+						parentNamespace, desired, portalID, portalRef, portalName, current.ID, fields, changed, plan,
+					)
+				}
+			},
+			remove: func(_ *kkComps.PortalEmailConfig) {
+				p.planPortalEmailConfigDelete(parentNamespace, portalRef, portalID, portalName, plan)
+			},
+			clientType:         "portal emails API",
+			description:        "portal email config",
+			unavailableWarning: "unable to inspect existing portal email config – assuming create is required",
+		}, plan)
 }
 
 // Portal Audit Log Webhook planning
@@ -2313,91 +2213,40 @@ func (p *Planner) planPortalAuditLogWebhooksChanges(
 	desired []resources.PortalAuditLogWebhookResource,
 	plan *Plan,
 ) error {
-	var desiredWebhook *resources.PortalAuditLogWebhookResource
-	for i := range desired {
-		if plan.HasChange(ResourceTypePortalAuditLogWebhook, desired[i].GetRef()) {
-			continue
-		}
-		desiredWebhook = &desired[i]
-		break
-	}
-
 	portalName := p.findPortalName(portalRef)
-
-	if portalID == "" {
-		if desiredWebhook != nil {
-			p.planPortalAuditLogWebhookCreate(
-				parentNamespace,
-				*desiredWebhook,
-				portalID,
-				portalRef,
-				portalName,
-				plan,
-			)
-		}
-		return nil
-	}
-
-	currentWebhook, err := p.client.GetPortalAuditLogWebhook(ctx, portalID)
-	if err != nil {
-		var apiErr *state.APIClientError
-		if errors.As(err, &apiErr) && apiErr.ClientType == "portal audit logs API" {
-			if desiredWebhook != nil {
-				changeID := p.planPortalAuditLogWebhookCreate(
-					parentNamespace,
-					*desiredWebhook,
-					portalID,
-					portalRef,
-					portalName,
-					plan,
+	return reconcileOptionalPortalSingleton(ResourceTypePortalAuditLogWebhook, portalID, portalRef, desired,
+		optionalPortalSingletonOperations[resources.PortalAuditLogWebhookResource, kkComps.PortalAuditLogWebhook]{
+			desiredRef: func(desired resources.PortalAuditLogWebhookResource) string { return desired.GetRef() },
+			fetch: func() (*kkComps.PortalAuditLogWebhook, error) {
+				current, err := p.client.GetPortalAuditLogWebhook(ctx, portalID)
+				if err != nil {
+					return nil, err
+				}
+				if !portalAuditLogWebhookConfigured(current) {
+					return nil, nil
+				}
+				return current, nil
+			},
+			create: func(desired resources.PortalAuditLogWebhookResource) string {
+				return p.planPortalAuditLogWebhookCreate(
+					parentNamespace, desired, portalID, portalRef, portalName, plan,
 				)
-				plan.AddWarning(
-					changeID,
-					"unable to inspect existing portal audit-log webhook - assuming create is required",
-				)
-			}
-			return nil
-		}
-
-		identifier := portalRef
-		if identifier == "" {
-			identifier = portalID
-		}
-
-		return fmt.Errorf("failed to get portal audit-log webhook for portal %q: %w", identifier, err)
-	}
-
-	if !portalAuditLogWebhookConfigured(currentWebhook) {
-		currentWebhook = nil
-	}
-
-	if desiredWebhook == nil {
-		if currentWebhook != nil && plan.Metadata.Mode == PlanModeSync {
-			p.planPortalAuditLogWebhookDelete(parentNamespace, portalRef, portalID, portalName, plan)
-		}
-		return nil
-	}
-
-	if currentWebhook == nil {
-		p.planPortalAuditLogWebhookCreate(parentNamespace, *desiredWebhook, portalID, portalRef, portalName, plan)
-		return nil
-	}
-
-	needsUpdate, updateFields, changedFields := p.shouldUpdatePortalAuditLogWebhook(currentWebhook, *desiredWebhook)
-	if needsUpdate {
-		p.planPortalAuditLogWebhookUpdate(
-			parentNamespace,
-			*desiredWebhook,
-			portalID,
-			portalRef,
-			portalName,
-			updateFields,
-			changedFields,
-			plan,
-		)
-	}
-
-	return nil
+			},
+			reconcile: func(current *kkComps.PortalAuditLogWebhook, desired resources.PortalAuditLogWebhookResource) {
+				needsUpdate, fields, changed := p.shouldUpdatePortalAuditLogWebhook(current, desired)
+				if needsUpdate {
+					p.planPortalAuditLogWebhookUpdate(
+						parentNamespace, desired, portalID, portalRef, portalName, fields, changed, plan,
+					)
+				}
+			},
+			remove: func(_ *kkComps.PortalAuditLogWebhook) {
+				p.planPortalAuditLogWebhookDelete(parentNamespace, portalRef, portalID, portalName, plan)
+			},
+			clientType:         "portal audit logs API",
+			description:        "portal audit-log webhook",
+			unavailableWarning: "unable to inspect existing portal audit-log webhook - assuming create is required",
+		}, plan)
 }
 
 func (p *Planner) planPortalAuditLogWebhookCreate(
