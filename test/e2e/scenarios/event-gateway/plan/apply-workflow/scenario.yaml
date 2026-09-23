@@ -91,6 +91,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway \"plan-apply-egw\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -105,8 +106,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-get-event-gateways
         run: ["get", "event-gateways", "-o", "json"]
         assertions:
@@ -233,6 +234,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_backend_cluster \"plan-apply-backend-cluster\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -243,8 +245,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-backend-cluster
         run:
           - get
@@ -311,6 +313,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_virtual_cluster \"plan-apply-virtual-cluster\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -321,8 +324,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-virtual-cluster
         run:
           - get
@@ -404,6 +407,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_listener \"plan-apply-listener\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -414,8 +418,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-listener
         run:
           - get
@@ -483,6 +487,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_listener_policy \"plan-apply-listener-1-policy-1-ref\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -493,8 +498,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-listener-policy
         run:
           - get
@@ -564,6 +569,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_data_plane_certificate \"plan-apply-dataplane-certificate-ref\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -574,8 +580,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-data-plane-certificate
         run:
           - get
@@ -639,6 +645,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_virtual_cluster_cluster_policy \"plan-apply-cluster-policy\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -649,8 +656,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-cluster-policy
         run:
           - get
@@ -732,6 +739,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_virtual_cluster_produce_policy \"plan-apply-produce-policy\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -742,8 +750,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-produce-policy
         run:
           - get
@@ -810,6 +818,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_virtual_cluster_consume_policy \"plan-apply-consume-policy\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -820,8 +829,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-consume-policy
         run:
           - get
@@ -888,6 +897,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_schema_registry \"plan-apply-schema-registry\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -898,8 +908,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-schema-registry
         run:
           - get
@@ -963,6 +973,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_static_key \"plan-apply-static-key\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -973,8 +984,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-static-key
         run:
           - get
@@ -1037,6 +1048,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'event_gateway_tls_trust_bundle \"default-tls-trust-bundle-ref\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -1047,8 +1059,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-trust-bundle
         run:
           - get

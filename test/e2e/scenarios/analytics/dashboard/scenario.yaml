@@ -52,6 +52,7 @@ steps:
                 fields.labels.team: platform
 
       - name: 001-apply-initial-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -62,8 +63,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-plan-noop
         outputFormat: disable

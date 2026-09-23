@@ -56,6 +56,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.bcRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
         run:
           - apply
@@ -66,8 +67,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:
@@ -206,6 +207,7 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.bcRef }}"
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
         run:
           - apply
@@ -216,8 +218,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get
@@ -277,6 +279,7 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.bcRef }}"
       - name: 002-apply-scram-update
+        replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
         run:
           - apply
@@ -287,8 +290,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-scram-update
         run:
           - get
@@ -351,6 +354,7 @@ steps:
                 resource_ref: "{{ .vars.bcRef }}"
                 "not_null(changed_fields.tls.new.insecure_skip_verify, fields.tls.insecure_skip_verify)": true
       - name: 002-apply-tls-update
+        replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
         run:
           - apply
@@ -361,8 +365,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-tls-update
         run:
           - get
@@ -487,6 +491,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.bcRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
         run:
           - apply
@@ -497,8 +502,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get

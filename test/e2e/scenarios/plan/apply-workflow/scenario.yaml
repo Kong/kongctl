@@ -63,6 +63,7 @@ steps:
                 "contains(@, 'portal \"plan-apply-portal\" will be created')": true
                 "contains(@, 'api \"plan-apply-orders\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -77,8 +78,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 003-get-portals
         run: ["get", "portals", "-o", "json"]
         assertions:

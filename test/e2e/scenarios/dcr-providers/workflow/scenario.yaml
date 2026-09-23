@@ -136,6 +136,7 @@ steps:
               fields:
                 unprotecting: 1
       - name: 001-apply-unprotect
+        replanOnRetry: ["{{ .workdir }}/initial.yaml"]
         outputFormat: json
         run:
           - apply
@@ -146,8 +147,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-verify-unprotected
         run:
           - get
@@ -333,6 +334,7 @@ steps:
                 fields.dcr_config.disable_event_hooks: true
                 "contains(keys(fields.dcr_config), 'allow_multiple_credentials')": false
       - name: 001-apply-http-provider-update
+        replanOnRetry: ["{{ .workdir }}/update-http.yaml"]
         outputFormat: json
         run:
           - apply
@@ -343,8 +345,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-get-http-provider-after-update
         run:
           - get

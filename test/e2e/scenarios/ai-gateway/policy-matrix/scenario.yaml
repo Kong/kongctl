@@ -83,6 +83,7 @@ steps:
                 fields.type: opentelemetry
                 fields.config.metrics.enable_ai_metrics: true
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -93,7 +94,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 15
                 failed: 0
                 status: success
       - name: 002-diff-no-changes

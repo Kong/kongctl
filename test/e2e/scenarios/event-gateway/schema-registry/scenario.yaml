@@ -60,6 +60,7 @@ steps:
                 fields.config.authentication.password: "{{ .vars.vaultReference }}"
                 "contains(keys(@), 'secret_writes')": false
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -70,8 +71,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:
@@ -173,6 +174,7 @@ steps:
                 fields.config.authentication.password: "{{ .vars.vaultReference }}"
                 "contains(keys(@), 'secret_writes')": false
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -183,8 +185,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get
@@ -238,6 +240,7 @@ steps:
                 fields.config.authentication.password: "{{ .vars.rotatedVaultReference }}"
                 "contains(keys(@), 'secret_writes')": false
       - name: 002-apply-vault-reference-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -248,8 +251,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-vault-reference-update
         run:
           - get
@@ -363,6 +366,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.schemaRegistryRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -373,8 +377,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get

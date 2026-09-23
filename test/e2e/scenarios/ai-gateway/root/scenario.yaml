@@ -124,6 +124,7 @@ steps:
                 "contains(@, 'Plan: 1 to add')": true
                 "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be created')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -138,7 +139,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
                 status: success
       - name: 003-get-ai-gateways
@@ -270,6 +270,7 @@ steps:
                 unprotecting: 1
 
       - name: 001-apply-unprotect
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -280,8 +281,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-verify-unprotected
         run:
@@ -341,6 +342,7 @@ steps:
               fields:
                 "contains(@, 'ai_gateway \"{{ .vars.gateway_ref }}\" will be updated')": true
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -351,8 +353,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw

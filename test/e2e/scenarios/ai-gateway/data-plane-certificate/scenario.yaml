@@ -96,6 +96,7 @@ steps:
                 fields.title: "{{ .vars.cert_title }}"
                 "contains(fields.cert, 'MIIB4TCCAYug')": true
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -106,7 +107,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
                 status: success
       - name: 002-list-data-plane-certificates

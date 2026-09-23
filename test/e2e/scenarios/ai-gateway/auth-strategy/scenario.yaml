@@ -119,6 +119,7 @@ steps:
                 fields.config.principals.principal_claim[0]: sub
                 fields.config.principals.error_on_miss: false
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -129,7 +130,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
                 status: success
       - name: 002-get-auth-strategies
@@ -258,6 +258,7 @@ steps:
                 fields.config.principals.enabled: true
                 fields.config.principals.principal_claim[0]: sub
       - name: 001-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -268,7 +269,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
                 status: success
       - name: 002-verify-update

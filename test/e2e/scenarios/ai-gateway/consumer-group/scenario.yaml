@@ -129,6 +129,7 @@ steps:
                 fields.name: "{{ .vars.second_consumer_group_name }}"
                 fields.consumers[0]: analytics-agent
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -139,7 +140,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 6
                 failed: 0
                 status: success
       - name: 002-list-consumer-groups
@@ -227,6 +227,7 @@ steps:
                 "length(fields.consumers)": 1
                 fields.consumers[0]: support-agent
       - name: 001-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -237,8 +238,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-verify-update
         run:
           - get

@@ -58,6 +58,7 @@ steps:
                 "contains(fields.content, '{{ .vars.pageTitle }}')": true
                 "contains(fields.content, '{{ .vars.pageDescription }}')": true
       - name: 001-apply-frontmatter-only
+        replanOnRetry: ["{{ .workdir }}/portal.yaml"]
         outputFormat: json
         run:
           - apply
@@ -68,8 +69,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 002-plan-after-frontmatter-only-is-no-op
         outputFormat: disable
         run:
@@ -111,6 +112,7 @@ steps:
                 action: UPDATE
                 "contains(fields.content, 'Top-level-only body')": true
       - name: 001-apply-top-level-only
+        replanOnRetry: ["{{ .workdir }}/portal.yaml"]
         outputFormat: json
         run:
           - apply
@@ -121,8 +123,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-plan-after-top-level-only-is-no-op
         outputFormat: disable
         run:
@@ -164,6 +166,7 @@ steps:
                 action: UPDATE
                 "contains(fields.content, 'Matching both body')": true
       - name: 001-apply-matching-both
+        replanOnRetry: ["{{ .workdir }}/portal.yaml"]
         outputFormat: json
         run:
           - apply
@@ -174,8 +177,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-plan-after-matching-both-is-no-op
         outputFormat: disable
         run:

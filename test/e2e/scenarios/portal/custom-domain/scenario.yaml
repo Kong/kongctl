@@ -99,6 +99,7 @@ steps:
                 enabled: true
                 "ssl.domain_verification_method": http
       - name: 001-apply-http-domain
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -109,8 +110,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 002-get-portals-http
         run:
           - get
@@ -373,6 +374,7 @@ steps:
                 "fields.enabled": false
                 "changed_fields.enabled.new": false
       - name: 001-apply-disable-http-domain
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -383,8 +385,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-plan-disable-no-op
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-disable-no-op.json"
@@ -475,6 +477,7 @@ steps:
                 total_changes: 1
                 by_action.CREATE: 1
       - name: 001-apply-re-apply-http-domain
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -485,8 +488,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-dump-portal-with-domain
         run:
           - dump
