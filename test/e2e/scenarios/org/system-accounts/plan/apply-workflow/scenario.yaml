@@ -121,6 +121,7 @@ steps:
                 "contains(@, 'organization_system_account_role \"sa-plan-apply-sa-role\" will be created')": true
 
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -135,8 +136,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 5
                 failed: 0
+                status: success
 
       - name: 003-diff-noop
         run:

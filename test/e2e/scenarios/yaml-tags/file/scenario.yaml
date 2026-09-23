@@ -66,6 +66,7 @@ steps:
               fields:
                 "contains(fields.content, 'Portal 1 Home')": true
       - name: 001-apply-plan
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -76,8 +77,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
+                status: success
       - name: 002-get-portals
         run: ["get", "portals", "-o", "json"]
         assertions:
@@ -110,6 +111,15 @@ steps:
               fields:
                 version: "1.2.3"
                 "spec.type": "oas3"
+
+      - name: 005-plan-converged
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 002-missing-file-error
     inputOverlayDirs:
