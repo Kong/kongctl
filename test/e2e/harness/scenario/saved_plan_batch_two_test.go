@@ -3,6 +3,7 @@
 package scenario
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -84,19 +85,34 @@ func TestSavedPlanBatchTwoRecovery(t *testing.T) {
 							sc.BaseInputsPath = ""
 							sc.Steps = []Step{{Name: step.Name, SkipInputs: true, Commands: []Command{command}}}
 							sc.Defaults.Retry = Retry{Attempts: 2, Interval: "1ms", MaxInterval: "1ms", Jitter: "0s"}
+							var expectedInputs []string
+							for _, input := range command.ReplanOnRetry {
+								rel, ok := strings.CutPrefix(input, "{{ .workdir }}/")
+								if !ok {
+									t.Fatalf("unsupported replan input: %q", input)
+								}
+								expectedInputs = append(expectedInputs, filepath.Join(dir, "steps", step.Name, "inputs", rel))
+							}
+							inputsJSON, err := json.Marshal(expectedInputs)
+							if err != nil {
+								t.Fatal(err)
+							}
 							cli := &harness.CLI{
 								BinPath: bin, TestDir: dir, Timeout: 5 * time.Second,
-								Env: append(os.Environ(), "STATE="+dir, "OUTCOME="+outcome),
+								Env: append(os.Environ(), "STATE="+dir, "OUTCOME="+outcome, "EXPECT_INPUTS="+string(inputsJSON)),
 							}
 							d := newScenarioDiagnostics(filepath.Join(dir, "diagnostics.json"), path)
-							err := executeScenario(t, path, sc, cli, d)
+							err = executeScenario(t, path, sc, cli, d)
 							if outcome == "replan-failure" {
 								if err == nil || !strings.Contains(err.Error(), "invalid manifest") {
 									t.Fatalf("replan failure lost: %v", err)
 								}
 								data, err := os.ReadFile(filepath.Join(dir, "applies"))
-								if err != nil || string(data) != "1" {
-									t.Fatalf("stale plan executed: %s %v", data, err)
+								if err != nil {
+									t.Fatalf("read apply counter: %v", err)
+								}
+								if string(data) != "1" {
+									t.Fatalf("stale plan executed: applies=%s", data)
 								}
 								return
 							}
@@ -148,9 +164,10 @@ if args[0] == 'apply':
                    'summary': {'applied': 0 if mode == 'zero' else 1,
                                'failed': 0, 'status': 'success'}}))
 elif args[0] == 'plan':
- if mode == 'replan-failure': fail('invalid manifest')
  assert args[args.index('--mode')+1] == 'apply'
- assert '-f' in args
+ inputs = [args[i+1] for i, arg in enumerate(args) if arg == '-f']
+ assert inputs == json.loads(os.environ['EXPECT_INPUTS']), inputs
+ if mode == 'replan-failure': fail('invalid manifest')
  path = pathlib.Path(args[args.index('--output-file')+1])
  assert str(path) == (root / 'plan-path').read_text()
  path.write_text(json.dumps({'remaining': True}))
