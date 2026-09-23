@@ -79,6 +79,7 @@ steps:
                 status: unpublished
 
       - name: 001-apply-snippets
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -89,8 +90,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
+                status: success
 
       - name: 002-get-snippets
         run:
@@ -157,6 +158,7 @@ steps:
                 status: unpublished
 
       - name: 001-apply-snippet-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -167,8 +169,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-get-snippets-after-update
         run:

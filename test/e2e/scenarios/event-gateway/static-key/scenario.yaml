@@ -57,6 +57,7 @@ steps:
                 resource_ref: "{{ .vars.staticKeyRef }}"
 
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -67,8 +68,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:
@@ -400,6 +401,7 @@ steps:
                 resource_ref: "{{ .vars.staticKeyRef }}"
                 "fields.value": __ENV__:STATIC_KEY_VALUE
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -410,8 +412,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:

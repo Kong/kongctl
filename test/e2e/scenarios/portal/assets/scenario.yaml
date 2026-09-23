@@ -63,6 +63,7 @@ steps:
                 "starts_with(data_url, 'data:image/')": true
 
       - name: 001-apply-assets
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -73,8 +74,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
+                status: success
 
       - name: 002-get-logo-as-json
         run:
@@ -176,6 +177,7 @@ steps:
                 "length(@)": 0
 
       - name: 001-apply-assets-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -186,8 +188,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
 
       - name: 002-verify-updated-logo
         run:

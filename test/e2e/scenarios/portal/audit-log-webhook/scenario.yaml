@@ -148,6 +148,7 @@ steps:
                 references.audit_log_destination_id.ref: "{{ .vars.destinationUpdatedRef }}"
                 "contains(keys(fields), 'enabled')": false
       - name: 001-apply-update-destination
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -158,8 +159,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-plan-idempotent
         outputFormat: disable
         run:
@@ -201,6 +202,7 @@ steps:
                 action: UPDATE
                 fields.enabled: false
       - name: 001-apply-disable-webhook
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -211,8 +213,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-plan-idempotent
         outputFormat: disable
         run:

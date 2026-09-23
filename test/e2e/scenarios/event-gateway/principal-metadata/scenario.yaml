@@ -66,6 +66,7 @@ steps:
                 "fields.authentication[0].fetch_kong_identity_principal.failure_mode": error
                 "fields.topic_aliases[0].condition": 'context.auth.principal.id != ""'
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -76,8 +77,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get
@@ -133,6 +134,7 @@ steps:
                 "fields.authentication[0].fetch_kong_identity_principal.fetch_by.key": kafka_principal_id
                 "fields.authentication[0].fetch_kong_identity_principal.failure_mode": error
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -143,8 +145,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get

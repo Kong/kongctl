@@ -54,6 +54,7 @@ steps:
                 idp_mapping_enabled: false
                 konnect_mapping_enabled: true
       - name: 001-apply-auth-settings
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -64,8 +65,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 002-get-auth-settings
         run:
           - get

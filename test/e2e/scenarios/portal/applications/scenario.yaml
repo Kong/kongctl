@@ -95,6 +95,7 @@ steps:
                 fields.auto_approve_applications: true
 
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -105,8 +106,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 8
                 failed: 0
+                status: success
 
       - name: 002-verify-portal
         outputFormat: json

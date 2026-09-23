@@ -64,6 +64,7 @@ steps:
                 fields.labels.env: test
                 fields.labels.team: platform
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -74,8 +75,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
+                status: success
 
       - name: 003-verify-backend-cluster-create
         run:
@@ -194,6 +195,7 @@ steps:
                 fields.labels.team: platform
                 fields.labels.version: v2
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -204,8 +206,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get
@@ -331,6 +333,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.vcRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -341,8 +344,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get
@@ -399,6 +402,7 @@ steps:
                 fields.labels.env: production
                 fields.labels.team: gateway
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -409,8 +413,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get

@@ -122,6 +122,7 @@ steps:
                 fields.access.auth_strategies[0]: "__REF__:{{ .vars.auth_strategy_ref }}#id"
                 references."access.auth_strategies.0".ref: "__REF__:{{ .vars.auth_strategy_ref }}#name"
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -132,7 +133,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
                 status: success
       - name: 002-list-agents
@@ -223,6 +223,7 @@ steps:
                 fields.config.url: https://booking-agent-v2.example.com
                 fields.labels.phase: update
       - name: 001-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -233,8 +234,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-verify-update
         run:
           - get

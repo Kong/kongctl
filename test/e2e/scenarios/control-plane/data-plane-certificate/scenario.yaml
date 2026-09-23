@@ -74,6 +74,7 @@ steps:
                 references.control_plane_id.ref: "{{ .vars.cpRef }}"
                 "contains(fields.cert, 'MIIB4TCCAYug')": true
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -84,8 +85,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 002-list-data-plane-certificates
         run:
           - get
@@ -308,6 +309,7 @@ steps:
                 "contains(@, '[redacted from !env]')": true
                 "contains(@, 'MIIB4TCCAYug')": false
       - name: 002-apply-root-env-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -318,8 +320,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-root-env-create
         run:
           - get

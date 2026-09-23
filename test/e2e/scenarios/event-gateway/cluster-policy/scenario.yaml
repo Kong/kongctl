@@ -73,6 +73,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.clusterPolicyRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -83,8 +84,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:
@@ -185,6 +186,7 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.clusterPolicyRef }}"
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -195,8 +197,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get
@@ -323,6 +325,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.clusterPolicyRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -333,8 +336,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get

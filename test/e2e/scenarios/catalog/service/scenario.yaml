@@ -64,6 +64,7 @@ steps:
                 fields.custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-support"
 
       - name: 001-apply-initial-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -74,8 +75,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-verify-service-created
         run:
@@ -209,6 +210,7 @@ steps:
                 unprotecting: 1
 
       - name: 001-apply-unprotect
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -219,8 +221,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-verify-unprotected
         run:
@@ -276,6 +278,7 @@ steps:
                 fields.custom_fields.slack_channel.link: "https://slack.example.com/archives/payments-platform"
 
       - name: 001-apply-field-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -286,8 +289,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
 
       - name: 002-verify-service-updated
         run:

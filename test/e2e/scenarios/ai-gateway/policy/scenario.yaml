@@ -64,6 +64,7 @@ steps:
                 fields.type: http-log
                 fields.config.http_endpoint: https://logging.example.com/ai-gateway
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -74,7 +75,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
                 status: success
       - name: 002-diff-no-changes

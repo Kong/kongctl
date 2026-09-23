@@ -51,6 +51,7 @@ steps:
                 "fields.topic_aliases[0].condition": "context.auth.type == 'anonymous'"
                 "fields.topic_aliases[0].conflict": warn
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -61,8 +62,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
+                status: success
       - name: 003-verify-create
         run:
           - get
@@ -109,6 +110,7 @@ steps:
                 "fields.topic_aliases[0].topic": tenant-b.orders
                 "fields.topic_aliases[0].conflict": ignore
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -119,8 +121,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get

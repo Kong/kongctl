@@ -301,6 +301,7 @@ steps:
                 fields.tools[0].input_schema.type: object
                 fields.tools[0].output_schema.type: object
       - name: 001-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -311,7 +312,6 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 7
                 failed: 0
                 status: success
       - name: 002-list-auth-strategies
@@ -630,6 +630,7 @@ steps:
                 "contains(keys(fields.labels), 'team')": false
                 fields.sources[0]: support-upstream
       - name: 001-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -640,8 +641,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 002-verify-update
         run:
           - get

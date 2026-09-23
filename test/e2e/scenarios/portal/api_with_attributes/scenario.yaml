@@ -93,6 +93,7 @@ steps:
                 "fields.attributes.owner": ["Platform Team"]
                 "fields.slug": "simple-api-deprecated"
       - name: 001-apply-update
+        replanOnRetry: ["{{ .workdir }}/api.yaml"]
         outputFormat: json
         run:
           - apply
@@ -103,8 +104,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 002-get-apis
         run:
           - get

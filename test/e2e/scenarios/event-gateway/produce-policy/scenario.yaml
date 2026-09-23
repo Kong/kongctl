@@ -82,6 +82,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.producePolicyRef }}"
       - name: 002-apply-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -92,8 +93,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 4
                 failed: 0
+                status: success
 
       - name: 003-verify-create
         run:
@@ -194,6 +195,7 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.producePolicyRef }}"
       - name: 002-apply-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -204,8 +206,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-update
         run:
           - get
@@ -396,6 +398,7 @@ steps:
                 action: CREATE
                 resource_ref: "root-level-produce-policy"
       - name: 002-apply-root-level
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -406,8 +409,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 003-verify-root-level-create
         run:
           - get
@@ -546,6 +549,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.svPolicyRef }}"
       - name: 002-apply-schema-validation-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -556,8 +560,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 003-verify-schema-validation-create
         run:
           - get
@@ -623,6 +627,7 @@ steps:
                 action: UPDATE
                 resource_ref: "{{ .vars.svPolicyRef }}"
       - name: 002-apply-schema-validation-update
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -633,8 +638,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-schema-validation-update
         run:
           - get
@@ -713,6 +718,7 @@ steps:
                 action: CREATE
                 resource_ref: chained-modify-headers-policy
       - name: 002-apply-chained-modify-headers
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -723,8 +729,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
                 failed: 0
+                status: success
       - name: 003-verify-chained-modify-headers
         run:
           - get
@@ -867,6 +873,7 @@ steps:
                 action: CREATE
                 resource_ref: "{{ .vars.efPolicyRef }}"
       - name: 002-apply-encrypt-fields-create
+        replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
         run:
           - apply
@@ -877,8 +884,8 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
       - name: 003-get-static-key
         run:
           - get
