@@ -94,51 +94,55 @@ func (p *Planner) planClusterPolicyChangesForExistingVirtualCluster(
 	}
 
 	// 3. Compare desired vs current
-	desiredNames := make(map[string]bool)
-	for _, desiredPolicy := range desired {
-		policyName := desiredPolicy.GetMoniker()
-		desiredNames[policyName] = true
-		current, exists := currentByName[policyName]
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning cluster policy CREATE",
-				"policy_name", policyName,
-				"virtual_cluster_ref", virtualClusterRef,
-			)
-			p.planClusterPolicyCreate(
-				namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-				desiredPolicy, []string{}, plan,
-			)
-		} else {
-			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if cluster policy needs update",
-				"policy_name", policyName,
-				"policy_id", current.ID,
-			)
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayClusterPolicyResource, state.EventGatewayClusterPolicyInfo]{
+			desiredName: func(desired resources.EventGatewayClusterPolicyResource) string { return desired.GetMoniker() },
+			create: func(desiredPolicy resources.EventGatewayClusterPolicyResource) error {
+				policyName := desiredPolicy.GetMoniker()
 
-			needsUpdate, updateFields, changedFields := p.shouldUpdateClusterPolicy(current, desiredPolicy)
-			if needsUpdate {
+				// CREATE
 				p.logger.Debug(
-					"Planning cluster policy UPDATE",
+					"Planning cluster policy CREATE",
+					"policy_name", policyName,
+					"virtual_cluster_ref", virtualClusterRef,
+				)
+				p.planClusterPolicyCreate(
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+					desiredPolicy, []string{}, plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredPolicy resources.EventGatewayClusterPolicyResource,
+				current state.EventGatewayClusterPolicyInfo,
+			) error {
+				policyName := desiredPolicy.GetMoniker()
+
+				// CHECK UPDATE
+				p.logger.Debug(
+					"Checking if cluster policy needs update",
 					"policy_name", policyName,
 					"policy_id", current.ID,
-					"update_fields", updateFields,
-					"changed_fields", changedFields,
 				)
-				p.planClusterPolicyUpdate(
-					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-					current.ID, desiredPolicy, updateFields, changedFields, plan,
-				)
-			}
-		}
-	}
 
-	// 4. SYNC MODE: Delete unmanaged policies
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields, changedFields := p.shouldUpdateClusterPolicy(current, desiredPolicy)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning cluster policy UPDATE",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+						"update_fields", updateFields,
+						"changed_fields", changedFields,
+					)
+					p.planClusterPolicyUpdate(
+						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+						current.ID, desiredPolicy, updateFields, changedFields, plan,
+					)
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayClusterPolicyInfo) {
 				p.logger.Debug(
 					"Planning cluster policy DELETE (sync mode)",
 					"policy_name", name,
@@ -148,11 +152,8 @@ func (p *Planner) planClusterPolicyChangesForExistingVirtualCluster(
 					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planClusterPolicyCreatesForNewVirtualCluster plans creates for cluster policies

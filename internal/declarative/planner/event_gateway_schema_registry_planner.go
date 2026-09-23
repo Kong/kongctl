@@ -80,59 +80,57 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 		currentByName[sr.Name] = sr
 	}
 
-	desiredNames := make(map[string]bool)
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewaySchemaRegistryResource, state.EventGatewaySchemaRegistry]{
+			desiredName: func(desired resources.EventGatewaySchemaRegistryResource) string { return desired.GetMoniker() },
+			create: func(desiredSR resources.EventGatewaySchemaRegistryResource) error {
+				name := desiredSR.GetMoniker()
 
-	for _, desiredSR := range desired {
-		name := desiredSR.GetMoniker()
-		desiredNames[name] = true
-
-		current, exists := currentByName[name]
-
-		if !exists {
-			p.logger.Debug(
-				"Planning schema registry CREATE",
-				"registry_name", name,
-				"gateway_ref", gatewayRef,
-			)
-			p.planSchemaRegistryCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredSR, []string{}, plan)
-		} else {
-			p.logger.Debug(
-				"Checking if schema registry needs update",
-				"registry_name", name,
-				"registry_id", current.ID,
-			)
-
-			needsUpdate, updateFields, changedFields := p.shouldUpdateSchemaRegistry(current, desiredSR)
-			if needsUpdate {
 				p.logger.Debug(
-					"Planning schema registry UPDATE",
+					"Planning schema registry CREATE",
+					"registry_name", name,
+					"gateway_ref", gatewayRef,
+				)
+				p.planSchemaRegistryCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredSR, []string{}, plan)
+				return nil
+			},
+			matched: func(
+				desiredSR resources.EventGatewaySchemaRegistryResource,
+				current state.EventGatewaySchemaRegistry,
+			) error {
+				name := desiredSR.GetMoniker()
+
+				p.logger.Debug(
+					"Checking if schema registry needs update",
 					"registry_name", name,
 					"registry_id", current.ID,
-					"update_fields", updateFields,
 				)
-				p.planSchemaRegistryUpdate(
-					namespace, gatewayRef, gatewayID,
-					current.ID, desiredSR, updateFields, changedFields, plan,
-				)
-			}
-		}
-	}
 
-	// SYNC MODE: Delete unmanaged registries
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields, changedFields := p.shouldUpdateSchemaRegistry(current, desiredSR)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning schema registry UPDATE",
+						"registry_name", name,
+						"registry_id", current.ID,
+						"update_fields", updateFields,
+					)
+					p.planSchemaRegistryUpdate(
+						namespace, gatewayRef, gatewayID,
+						current.ID, desiredSR, updateFields, changedFields, plan,
+					)
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewaySchemaRegistry) {
 				p.logger.Debug(
 					"Planning schema registry DELETE (sync mode)",
 					"registry_name", name,
 					"registry_id", current.ID,
 				)
 				p.planSchemaRegistryDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planSchemaRegistryCreatesForNewGateway plans creates for schema registries when the gateway

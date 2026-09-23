@@ -95,51 +95,55 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 	}
 
 	// 3. Compare desired vs current
-	desiredNames := make(map[string]bool)
-	for _, desiredPolicy := range desired {
-		policyName := desiredPolicy.GetMoniker()
-		desiredNames[policyName] = true
-		current, exists := currentByName[policyName]
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning listener policy CREATE",
-				"policy_name", policyName,
-				"listener_ref", listenerRef,
-			)
-			p.planListenerPolicyCreate(
-				namespace, gatewayID, gatewayRef, listenerID, listenerRef, listenerName,
-				desiredPolicy, []string{}, plan,
-			)
-		} else {
-			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if listener policy needs update",
-				"policy_name", policyName,
-				"policy_id", current.ID,
-			)
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayListenerPolicyResource, state.EventGatewayListenerPolicyInfo]{
+			desiredName: func(desired resources.EventGatewayListenerPolicyResource) string { return desired.GetMoniker() },
+			create: func(desiredPolicy resources.EventGatewayListenerPolicyResource) error {
+				policyName := desiredPolicy.GetMoniker()
 
-			needsUpdate, updateFields, changedFields := p.shouldUpdateListenerPolicy(current, desiredPolicy)
-			if needsUpdate {
+				// CREATE
 				p.logger.Debug(
-					"Planning listener policy UPDATE",
+					"Planning listener policy CREATE",
+					"policy_name", policyName,
+					"listener_ref", listenerRef,
+				)
+				p.planListenerPolicyCreate(
+					namespace, gatewayID, gatewayRef, listenerID, listenerRef, listenerName,
+					desiredPolicy, []string{}, plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredPolicy resources.EventGatewayListenerPolicyResource,
+				current state.EventGatewayListenerPolicyInfo,
+			) error {
+				policyName := desiredPolicy.GetMoniker()
+
+				// CHECK UPDATE
+				p.logger.Debug(
+					"Checking if listener policy needs update",
 					"policy_name", policyName,
 					"policy_id", current.ID,
-					"update_fields", updateFields,
-					"changed_fields", changedFields,
 				)
-				p.planListenerPolicyUpdate(
-					namespace, gatewayID, gatewayRef, listenerID, listenerRef,
-					current.ID, desiredPolicy, updateFields, changedFields, plan,
-				)
-			}
-		}
-	}
 
-	// 4. SYNC MODE: Delete unmanaged policies
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields, changedFields := p.shouldUpdateListenerPolicy(current, desiredPolicy)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning listener policy UPDATE",
+						"policy_name", policyName,
+						"policy_id", current.ID,
+						"update_fields", updateFields,
+						"changed_fields", changedFields,
+					)
+					p.planListenerPolicyUpdate(
+						namespace, gatewayID, gatewayRef, listenerID, listenerRef,
+						current.ID, desiredPolicy, updateFields, changedFields, plan,
+					)
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayListenerPolicyInfo) {
 				p.logger.Debug(
 					"Planning listener policy DELETE (sync mode)",
 					"policy_name", name,
@@ -149,11 +153,8 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 					namespace, gatewayID, gatewayRef, listenerID, listenerRef,
 					current.ID, name, plan,
 				)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planListenerPolicyCreatesForNewListener plans creates for listener policies

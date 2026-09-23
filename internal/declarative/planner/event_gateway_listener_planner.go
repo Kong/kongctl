@@ -82,100 +82,101 @@ func (p *Planner) planListenerChangesForExistingGateway(
 	}
 
 	// 3. Compare desired vs current
-	desiredNames := make(map[string]bool)
-	for _, desiredListener := range desired {
-		desiredNames[desiredListener.Name] = true
-		current, exists := currentByName[desiredListener.Name]
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning listener CREATE",
-				"listener_name", desiredListener.Name,
-				"gateway_ref", gatewayRef,
-			)
-			listenerChangeID := p.planListenerCreate(
-				namespace, gatewayRef, gatewayName, gatewayID, desiredListener, []string{}, plan,
-			)
-
-			// Plan listener policies for this new listener (depends on listener creation)
-			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if p.shouldPlanChild(
-				plan,
-				resources.ResourceTypeEventGatewayListener,
-				desiredListener.Ref,
-				resources.ResourceTypeEventGatewayListenerPolicy,
-			) && len(listenerPolicies) > 0 {
-				if err := p.planEventGatewayListenerPolicyChanges(
-					ctx, nil, namespace, gatewayID, gatewayRef,
-					desiredListener.Name, "", desiredListener.Ref,
-					listenerChangeID, listenerPolicies, plan,
-				); err != nil {
-					return err
-				}
-			}
-		} else {
-			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if listener needs update",
-				"listener_name", desiredListener.Name,
-				"listener_id", current.ID,
-			)
-
-			// Fetch full details if needed
-			fullListener, err := p.client.GetEventGatewayListener(ctx, gatewayID, current.ID)
-			if err != nil {
-				return fmt.Errorf("failed to get listener %s: %w", current.ID, err)
-			}
-
-			needsUpdate, updateFields, changedFields := p.shouldUpdateListener(*fullListener, desiredListener)
-			if needsUpdate {
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayListenerResource, state.EventGatewayListener]{
+			desiredName: func(desired resources.EventGatewayListenerResource) string { return desired.Name },
+			create: func(desiredListener resources.EventGatewayListenerResource) error {
+				// CREATE
 				p.logger.Debug(
-					"Planning listener UPDATE",
+					"Planning listener CREATE",
+					"listener_name", desiredListener.Name,
+					"gateway_ref", gatewayRef,
+				)
+				listenerChangeID := p.planListenerCreate(
+					namespace, gatewayRef, gatewayName, gatewayID, desiredListener, []string{}, plan,
+				)
+
+				// Plan listener policies for this new listener (depends on listener creation)
+				listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
+				if p.shouldPlanChild(
+					plan,
+					resources.ResourceTypeEventGatewayListener,
+					desiredListener.Ref,
+					resources.ResourceTypeEventGatewayListenerPolicy,
+				) && len(listenerPolicies) > 0 {
+					if err := p.planEventGatewayListenerPolicyChanges(
+						ctx, nil, namespace, gatewayID, gatewayRef,
+						desiredListener.Name, "", desiredListener.Ref,
+						listenerChangeID, listenerPolicies, plan,
+					); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			matched: func(
+				desiredListener resources.EventGatewayListenerResource,
+				current state.EventGatewayListener,
+			) error {
+				// CHECK UPDATE
+				p.logger.Debug(
+					"Checking if listener needs update",
 					"listener_name", desiredListener.Name,
 					"listener_id", current.ID,
-					"update_fields", updateFields,
-					"changed_fields", changedFields,
 				)
-				p.planListenerUpdate(
-					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredListener, updateFields, changedFields, plan,
-				)
-			}
 
-			// Plan listener policies for this existing listener
-			listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
-			if p.shouldPlanChild(
-				plan,
-				resources.ResourceTypeEventGatewayListener,
-				desiredListener.Ref,
-				resources.ResourceTypeEventGatewayListenerPolicy,
-			) && (len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
-				if err := p.planEventGatewayListenerPolicyChanges(
-					ctx, nil, namespace, gatewayID, gatewayRef,
-					desiredListener.Name, current.ID, desiredListener.Ref,
-					"", listenerPolicies, plan,
-				); err != nil {
-					return err
+				// Fetch full details if needed
+				fullListener, err := p.client.GetEventGatewayListener(ctx, gatewayID, current.ID)
+				if err != nil {
+					return fmt.Errorf("failed to get listener %s: %w", current.ID, err)
 				}
-			}
-		}
-	}
+				if fullListener == nil {
+					return fmt.Errorf("listener %s (%s) not found", desiredListener.Name, current.ID)
+				}
 
-	// 4. SYNC MODE: Delete unmanaged listeners
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields, changedFields := p.shouldUpdateListener(*fullListener, desiredListener)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning listener UPDATE",
+						"listener_name", desiredListener.Name,
+						"listener_id", current.ID,
+						"update_fields", updateFields,
+						"changed_fields", changedFields,
+					)
+					p.planListenerUpdate(
+						namespace, gatewayRef, gatewayName, gatewayID,
+						current.ID, desiredListener, updateFields, changedFields, plan,
+					)
+				}
+
+				// Plan listener policies for this existing listener
+				listenerPolicies := p.resources.GetPoliciesForListener(desiredListener.Ref)
+				if p.shouldPlanChild(
+					plan,
+					resources.ResourceTypeEventGatewayListener,
+					desiredListener.Ref,
+					resources.ResourceTypeEventGatewayListenerPolicy,
+				) && (len(listenerPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+					if err := p.planEventGatewayListenerPolicyChanges(
+						ctx, nil, namespace, gatewayID, gatewayRef,
+						desiredListener.Name, current.ID, desiredListener.Ref,
+						"", listenerPolicies, plan,
+					); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayListener) {
 				p.logger.Debug(
 					"Planning listener DELETE (sync mode)",
 					"listener_name", name,
 					"listener_id", current.ID,
 				)
 				p.planListenerDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planListenerCreatesForNewGateway plans creates for listeners when the gateway doesn't exist yet

@@ -78,59 +78,57 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 		currentByName[tb.Name] = tb
 	}
 
-	desiredNames := make(map[string]bool)
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayTLSTrustBundleResource, state.EventGatewayTLSTrustBundle]{
+			desiredName: func(desired resources.EventGatewayTLSTrustBundleResource) string { return desired.GetMoniker() },
+			create: func(desiredTB resources.EventGatewayTLSTrustBundleResource) error {
+				name := desiredTB.GetMoniker()
 
-	for _, desiredTB := range desired {
-		name := desiredTB.GetMoniker()
-		desiredNames[name] = true
-
-		current, exists := currentByName[name]
-
-		if !exists {
-			p.logger.Debug(
-				"Planning TLS trust bundle CREATE",
-				"bundle_name", name,
-				"gateway_ref", gatewayRef,
-			)
-			p.planTrustBundleCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredTB, []string{}, plan)
-		} else {
-			p.logger.Debug(
-				"Checking if TLS trust bundle needs update",
-				"bundle_name", name,
-				"bundle_id", current.ID,
-			)
-
-			needsUpdate, updateFields, changedFields := p.shouldUpdateTrustBundle(current, desiredTB)
-			if needsUpdate {
 				p.logger.Debug(
-					"Planning TLS trust bundle UPDATE",
+					"Planning TLS trust bundle CREATE",
+					"bundle_name", name,
+					"gateway_ref", gatewayRef,
+				)
+				p.planTrustBundleCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredTB, []string{}, plan)
+				return nil
+			},
+			matched: func(
+				desiredTB resources.EventGatewayTLSTrustBundleResource,
+				current state.EventGatewayTLSTrustBundle,
+			) error {
+				name := desiredTB.GetMoniker()
+
+				p.logger.Debug(
+					"Checking if TLS trust bundle needs update",
 					"bundle_name", name,
 					"bundle_id", current.ID,
-					"update_fields", updateFields,
 				)
-				p.planTrustBundleUpdate(
-					namespace, gatewayRef, gatewayID,
-					current.ID, desiredTB, updateFields, changedFields, plan,
-				)
-			}
-		}
-	}
 
-	// SYNC MODE: Delete unmanaged trust bundles
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields, changedFields := p.shouldUpdateTrustBundle(current, desiredTB)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning TLS trust bundle UPDATE",
+						"bundle_name", name,
+						"bundle_id", current.ID,
+						"update_fields", updateFields,
+					)
+					p.planTrustBundleUpdate(
+						namespace, gatewayRef, gatewayID,
+						current.ID, desiredTB, updateFields, changedFields, plan,
+					)
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayTLSTrustBundle) {
 				p.logger.Debug(
 					"Planning TLS trust bundle DELETE (sync mode)",
 					"bundle_name", name,
 					"bundle_id", current.ID,
 				)
 				p.planTrustBundleDelete(namespace, gatewayRef, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planTrustBundleCreatesForNewGateway plans creates for trust bundles when the gateway doesn't exist yet.
