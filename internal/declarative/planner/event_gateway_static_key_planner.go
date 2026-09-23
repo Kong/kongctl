@@ -80,57 +80,51 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 		currentByName[sk.Name] = sk
 	}
 
-	desiredNames := make(map[string]bool)
-
-	// 3. Compare desired vs current
-	for _, desiredKey := range desired {
-		desiredNames[desiredKey.Name] = true
-
-		current, exists := currentByName[desiredKey.Name]
-
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning static key CREATE",
-				"key_name", desiredKey.Name,
-				"gateway_ref", gatewayRef,
-			)
-			p.planStaticKeyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredKey, []string{}, plan)
-		} else {
-			// Static keys do not support update – detect changes and plan DELETE + CREATE instead.
-			needsChange := p.doesStaticKeyNeedChange(current, desiredKey)
-			if needsChange {
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayStaticKeyResource, state.EventGatewayStaticKey]{
+			desiredName: func(desired resources.EventGatewayStaticKeyResource) string { return desired.Name },
+			create: func(desiredKey resources.EventGatewayStaticKeyResource) error {
+				// CREATE
 				p.logger.Debug(
-					"Planning static key DELETE+CREATE (no update supported)",
+					"Planning static key CREATE",
 					"key_name", desiredKey.Name,
-					"key_id", current.ID,
 					"gateway_ref", gatewayRef,
 				)
-				deleteChangeID := p.planStaticKeyDelete(
-					namespace, gatewayRef, gatewayName, gatewayID, current.ID, desiredKey.Name, plan,
-				)
-				// CREATE depends on the DELETE being applied first
-				p.planStaticKeyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredKey,
-					[]string{deleteChangeID}, plan)
-			}
-		}
-	}
+				p.planStaticKeyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredKey, []string{}, plan)
+				return nil
+			},
+			matched: func(
+				desiredKey resources.EventGatewayStaticKeyResource,
+				current state.EventGatewayStaticKey,
+			) error {
+				// Static keys do not support update – detect changes and plan DELETE + CREATE instead.
+				needsChange := p.doesStaticKeyNeedChange(current, desiredKey)
+				if needsChange {
+					p.logger.Debug(
+						"Planning static key DELETE+CREATE (no update supported)",
+						"key_name", desiredKey.Name,
+						"key_id", current.ID,
+						"gateway_ref", gatewayRef,
+					)
+					deleteChangeID := p.planStaticKeyDelete(
+						namespace, gatewayRef, gatewayName, gatewayID, current.ID, desiredKey.Name, plan,
+					)
+					// CREATE depends on the DELETE being applied first
+					p.planStaticKeyCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredKey,
+						[]string{deleteChangeID}, plan)
+				}
 
-	// 4. SYNC MODE: Delete unmanaged static keys
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayStaticKey) {
 				p.logger.Debug(
 					"Planning static key DELETE (sync mode)",
 					"key_name", name,
 					"key_id", current.ID,
 				)
 				p.planStaticKeyDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planStaticKeyCreatesForNewGateway plans creates for static keys when the gateway doesn't exist yet.

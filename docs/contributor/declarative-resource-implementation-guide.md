@@ -468,6 +468,19 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
+- **Map-indexed Event Gateway children:** Backend clusters, listeners, schema
+  registries, trust bundles, static keys, and cluster/listener/produce/consume
+  policies use [`reconcileMappedChildren`][mapped-reconcile]. Adapters supply
+  the existing name/moniker index, retaining duplicate collapse and eligibility:
+  cluster/listener/consume policies exclude nil names; produce policies also
+  exclude empty names. Desired traversal retains input order; create or matched
+  reconciliation errors stop before pruning. Sync prunes the index, with no
+  deletion-order guarantee, and visits only its retained value per name.
+  Keep observation, missing-detail behavior, static-key and policy replacement,
+  listener child scope, and dependency construction in typed adapters.
+  Produce/consume parent-reference preparation runs before reconciliation,
+  against the same index. New-parent creation and external virtual-cluster
+  traversal stay separate.
 - **Create/delete collections:** In the [planner package][planner-package],
   `control_plane_data_plane_certificate_planner.go` demonstrates fingerprint
   matching and replacement ordering. Do not manufacture an update operation
@@ -916,6 +929,8 @@ engine contract. Each refactoring migration should:
 [runtime-executors]:
   ../../internal/declarative/executor/resource_executors.go
 [ai-executors]: ../../internal/declarative/executor/ai_gateway_executors.go
+[mapped-reconcile]:
+  ../../internal/declarative/planner/mapped_child_reconciler.go
 [egw-executors]: ../../internal/declarative/executor/event_gateway_executors.go
 [cp-executors]: ../../internal/declarative/executor/control_plane_executors.go
 [org-executors]: ../../internal/declarative/executor/organization_executors.go

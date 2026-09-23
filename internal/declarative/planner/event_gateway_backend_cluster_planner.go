@@ -83,68 +83,70 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 		currentByName[cluster.Name] = cluster
 	}
 
-	desiredNames := make(map[string]bool)
-
-	// 3. Compare desired vs current
-	for _, desiredCluster := range desired {
-		desiredNames[desiredCluster.Name] = true
-
-		current, exists := currentByName[desiredCluster.Name]
-
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning backend cluster CREATE",
-				"cluster_name", desiredCluster.Name,
-				"gateway_ref", gatewayRef,
-			)
-			p.planBackendClusterCreate(namespace, gatewayRef, gatewayName, gatewayID, desiredCluster, []string{}, plan)
-		} else {
-			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if backend cluster needs update",
-				"cluster_name", desiredCluster.Name,
-				"cluster_id", current.ID,
-			)
-
-			// Fetch full details if needed
-			fullCluster, err := p.client.GetEventGatewayBackendCluster(ctx, gatewayID, current.ID)
-			if err != nil {
-				return fmt.Errorf("failed to get backend cluster %s: %w", current.ID, err)
-			}
-
-			needsUpdate, updateFields, changedFields := p.shouldUpdateBackendCluster(*fullCluster, desiredCluster)
-			if needsUpdate {
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayBackendClusterResource, state.EventGatewayBackendCluster]{
+			desiredName: func(desired resources.EventGatewayBackendClusterResource) string { return desired.Name },
+			create: func(desiredCluster resources.EventGatewayBackendClusterResource) error {
+				// CREATE
 				p.logger.Debug(
-					"Planning backend cluster UPDATE",
+					"Planning backend cluster CREATE",
+					"cluster_name", desiredCluster.Name,
+					"gateway_ref", gatewayRef,
+				)
+				p.planBackendClusterCreate(
+					namespace,
+					gatewayRef,
+					gatewayName,
+					gatewayID,
+					desiredCluster,
+					[]string{},
+					plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredCluster resources.EventGatewayBackendClusterResource,
+				current state.EventGatewayBackendCluster,
+			) error {
+				// CHECK UPDATE
+				p.logger.Debug(
+					"Checking if backend cluster needs update",
 					"cluster_name", desiredCluster.Name,
 					"cluster_id", current.ID,
-					"update_field_count", len(updateFields),
-					"changed_field_count", len(changedFields),
 				)
-				p.planBackendClusterUpdate(
-					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCluster, updateFields, changedFields, plan,
-				)
-			}
-		}
-	}
 
-	// 4. SYNC MODE: Delete unmanaged clusters
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				// Fetch full details if needed
+				fullCluster, err := p.client.GetEventGatewayBackendCluster(ctx, gatewayID, current.ID)
+				if err != nil {
+					return fmt.Errorf("failed to get backend cluster %s: %w", current.ID, err)
+				}
+
+				needsUpdate, updateFields, changedFields := p.shouldUpdateBackendCluster(*fullCluster, desiredCluster)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning backend cluster UPDATE",
+						"cluster_name", desiredCluster.Name,
+						"cluster_id", current.ID,
+						"update_field_count", len(updateFields),
+						"changed_field_count", len(changedFields),
+					)
+					p.planBackendClusterUpdate(
+						namespace, gatewayRef, gatewayName, gatewayID,
+						current.ID, desiredCluster, updateFields, changedFields, plan,
+					)
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayBackendCluster) {
 				p.logger.Debug(
 					"Planning backend cluster DELETE (sync mode)",
 					"cluster_name", name,
 					"cluster_id", current.ID,
 				)
 				p.planBackendClusterDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planBackendClusterCreatesForNewGateway plans creates for clusters when the gateway doesn't exist yet

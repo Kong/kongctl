@@ -91,58 +91,65 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		return err
 	}
 
-	desiredNames := make(map[string]bool)
-	for _, desiredPolicy := range desired {
-		policyName := desiredPolicy.GetMoniker()
-		desiredNames[policyName] = true
-		current, exists := currentByName[policyName]
-		if !exists {
-			p.logger.Debug(
-				"Planning produce policy CREATE",
-				"policy_name", policyName,
-				"virtual_cluster_ref", virtualClusterRef,
-			)
-			p.planProducePolicyCreate(
-				namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-				desiredPolicy, []string{}, plan,
-			)
-		} else {
-			needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desiredPolicy)
-			if needsUpdate {
-				if producePolicyRequiresRecreate(changedFields) {
-					// Type and parent-policy changes are not supported by the API; force DELETE + CREATE.
-					p.logger.Debug(
-						"Planning produce policy DELETE+CREATE due to immutable field change",
-						"policy_name", policyName,
-						"policy_id", current.ID,
-					)
-					deleteID := p.planProducePolicyDelete(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-						current.ID, policyName, plan,
-					)
-					p.planProducePolicyCreate(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-						desiredPolicy, []string{deleteID}, plan,
-					)
-				} else {
-					p.logger.Debug(
-						"Planning produce policy UPDATE",
-						"policy_name", policyName,
-						"policy_id", current.ID,
-						"update_fields", updateFields,
-					)
-					p.planProducePolicyUpdate(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-						current.ID, desiredPolicy, updateFields, changedFields, plan,
-					)
-				}
-			}
-		}
-	}
+	return reconcileMappedChildren(
+		desired,
+		currentByName,
+		mappedChildOperations[resources.EventGatewayProducePolicyResource, state.EventGatewayVirtualClusterProducePolicyInfo]{
+			desiredName: func(desired resources.EventGatewayProducePolicyResource) string { return desired.GetMoniker() },
+			create: func(desiredPolicy resources.EventGatewayProducePolicyResource) error {
+				policyName := desiredPolicy.GetMoniker()
 
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				p.logger.Debug(
+					"Planning produce policy CREATE",
+					"policy_name", policyName,
+					"virtual_cluster_ref", virtualClusterRef,
+				)
+				p.planProducePolicyCreate(
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+					desiredPolicy, []string{}, plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredPolicy resources.EventGatewayProducePolicyResource,
+				current state.EventGatewayVirtualClusterProducePolicyInfo,
+			) error {
+				policyName := desiredPolicy.GetMoniker()
+
+				needsUpdate, updateFields, changedFields := p.shouldUpdateProducePolicy(current, desiredPolicy)
+				if needsUpdate {
+					if producePolicyRequiresRecreate(changedFields) {
+						// Type and parent-policy changes are not supported by the API; force DELETE + CREATE.
+						p.logger.Debug(
+							"Planning produce policy DELETE+CREATE due to immutable field change",
+							"policy_name", policyName,
+							"policy_id", current.ID,
+						)
+						deleteID := p.planProducePolicyDelete(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+							current.ID, policyName, plan,
+						)
+						p.planProducePolicyCreate(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+							desiredPolicy, []string{deleteID}, plan,
+						)
+					} else {
+						p.logger.Debug(
+							"Planning produce policy UPDATE",
+							"policy_name", policyName,
+							"policy_id", current.ID,
+							"update_fields", updateFields,
+						)
+						p.planProducePolicyUpdate(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+							current.ID, desiredPolicy, updateFields, changedFields, plan,
+						)
+					}
+				}
+
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayVirtualClusterProducePolicyInfo) {
 				p.logger.Debug(
 					"Planning produce policy DELETE (sync mode)",
 					"policy_name", name,
@@ -152,11 +159,10 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
-			}
-		}
-	}
-
-	return nil
+			},
+		},
+		plan.Metadata.Mode,
+	)
 }
 
 func (p *Planner) planProducePolicyCreatesForNewVirtualCluster(

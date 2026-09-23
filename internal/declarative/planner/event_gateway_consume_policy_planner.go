@@ -100,65 +100,69 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	}
 
 	// 3. Compare desired vs current
-	desiredNames := make(map[string]bool)
-	for _, desiredPolicy := range desired {
-		policyName := desiredPolicy.GetMoniker()
-		desiredNames[policyName] = true
-		current, exists := currentByName[policyName]
-		if !exists {
-			p.logger.Debug(
-				"Planning consume policy CREATE",
-				"policy_name", policyName,
-				"virtual_cluster_ref", virtualClusterRef,
-			)
-			p.planConsumePolicyCreate(
-				namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-				desiredPolicy, []string{}, plan,
-			)
-		} else {
-			p.logger.Debug(
-				"Checking if consume policy needs update",
-				"policy_name", policyName,
-				"policy_id", current.ID,
-			)
+	return reconcileMappedChildren(desired, currentByName,
+		mappedChildOperations[resources.EventGatewayConsumePolicyResource, state.EventGatewayConsumePolicyInfo]{
+			desiredName: func(desired resources.EventGatewayConsumePolicyResource) string { return desired.GetMoniker() },
+			create: func(desiredPolicy resources.EventGatewayConsumePolicyResource) error {
+				policyName := desiredPolicy.GetMoniker()
 
-			needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desiredPolicy)
-			if needsUpdate {
-				if consumePolicyRequiresRecreate(changedFields) {
-					p.logger.Debug(
-						"Planning consume policy DELETE+CREATE due to immutable field change",
-						"policy_name", policyName,
-						"policy_id", current.ID,
-						"changed_fields", changedFields,
-					)
-					deleteID := p.planConsumePolicyDelete(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-						current.ID, policyName, plan,
-					)
-					p.planConsumePolicyCreate(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
-						desiredPolicy, []string{deleteID}, plan,
-					)
-				} else {
-					p.logger.Debug(
-						"Planning consume policy UPDATE",
-						"policy_name", policyName,
-						"policy_id", current.ID,
-						"changed_fields", changedFields,
-					)
-					p.planConsumePolicyUpdate(
-						namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
-						current.ID, desiredPolicy, updateFields, changedFields, plan,
-					)
+				p.logger.Debug(
+					"Planning consume policy CREATE",
+					"policy_name", policyName,
+					"virtual_cluster_ref", virtualClusterRef,
+				)
+				p.planConsumePolicyCreate(
+					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+					desiredPolicy, []string{}, plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredPolicy resources.EventGatewayConsumePolicyResource,
+				current state.EventGatewayConsumePolicyInfo,
+			) error {
+				policyName := desiredPolicy.GetMoniker()
+
+				p.logger.Debug(
+					"Checking if consume policy needs update",
+					"policy_name", policyName,
+					"policy_id", current.ID,
+				)
+
+				needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desiredPolicy)
+				if needsUpdate {
+					if consumePolicyRequiresRecreate(changedFields) {
+						p.logger.Debug(
+							"Planning consume policy DELETE+CREATE due to immutable field change",
+							"policy_name", policyName,
+							"policy_id", current.ID,
+							"changed_fields", changedFields,
+						)
+						deleteID := p.planConsumePolicyDelete(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+							current.ID, policyName, plan,
+						)
+						p.planConsumePolicyCreate(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef, virtualClusterName,
+							desiredPolicy, []string{deleteID}, plan,
+						)
+					} else {
+						p.logger.Debug(
+							"Planning consume policy UPDATE",
+							"policy_name", policyName,
+							"policy_id", current.ID,
+							"changed_fields", changedFields,
+						)
+						p.planConsumePolicyUpdate(
+							namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
+							current.ID, desiredPolicy, updateFields, changedFields, plan,
+						)
+					}
 				}
-			}
-		}
-	}
 
-	// 4. SYNC MODE: Delete policies no longer in desired state
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayConsumePolicyInfo) {
 				p.logger.Debug(
 					"Planning consume policy DELETE (sync mode)",
 					"policy_name", name,
@@ -168,11 +172,8 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 					namespace, gatewayID, gatewayRef, virtualClusterID, virtualClusterRef,
 					current.ID, name, plan,
 				)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode)
 }
 
 // planConsumePolicyCreatesForNewVirtualCluster plans creates for consume policies
