@@ -26,55 +26,37 @@ func reconcileNameMatchedChildren[D, C any](
 	ops nameMatchedChildOperations[D, C],
 	plan *Plan,
 ) error {
-	byName := make(map[string]C)
-	for _, child := range current {
-		if name := ops.currentName(child); name != "" {
-			byName[name] = child
-		}
-	}
-
-	desiredNames := make(map[string]bool)
-	for _, child := range desired {
-		name := ops.desiredName(child)
-		observed, exists := byName[name]
-		desiredNames[name] = true
-		if !exists {
-			ops.create(child)
-			continue
-		}
-
-		full, err := ops.fetch(child, observed)
-		if err != nil {
-			return err
-		}
-		if full == nil {
-			ops.create(child)
-			continue
-		}
-		needsUpdate, fields, changed, err := ops.diff(*full, child)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			ops.update(observed, child, fields, changed)
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		pruning := current
-		if ops.pruneOrder != nil {
-			pruning = ops.pruneOrder(current)
-		}
-		for _, child := range pruning {
-			name := ops.currentName(child)
-			if desiredNames[name] {
-				continue
-			}
-			if err := p.validateProtection(resourceType, name, ops.protected(child), ActionDelete); err != nil {
-				return err
-			}
-			ops.remove(child)
-		}
-	}
-	return nil
+	return reconcileNameMatchedCollection(p, resourceType, desired, current,
+		nameMatchedCollectionOperations[D, C]{
+			desiredName: ops.desiredName,
+			currentName: func(current C) (string, bool) {
+				name := ops.currentName(current)
+				return name, name != ""
+			},
+			reconcile: func(child D, observed *C) error {
+				if observed == nil {
+					ops.create(child)
+					return nil
+				}
+				full, err := ops.fetch(child, *observed)
+				if err != nil {
+					return err
+				}
+				if full == nil {
+					ops.create(child)
+					return nil
+				}
+				needsUpdate, fields, changed, err := ops.diff(*full, child)
+				if err != nil {
+					return err
+				}
+				if needsUpdate {
+					ops.update(*observed, child, fields, changed)
+				}
+				return nil
+			},
+			protected:  ops.protected,
+			remove:     ops.remove,
+			pruneOrder: ops.pruneOrder,
+		}, plan)
 }

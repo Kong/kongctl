@@ -48,134 +48,74 @@ func (p *Planner) planAIGatewayConsumerChanges(
 		return fmt.Errorf("failed to list AI Gateway Consumers for gateway %s: %w", gatewayID, err)
 	}
 
-	currentByName := indexAIGatewayConsumers(currentConsumers)
-	desiredKeys := make(map[string]bool)
-
-	for _, desiredConsumer := range desired {
-		current, exists := currentByName[desiredConsumer.Name]
-		desiredKeys[desiredConsumer.Name] = true
-
-		if !exists {
-			dependsOn := aiGatewayConsumerPolicyCreateDependencies(
-				desiredConsumer,
-				policyCreateDepsByRefOrName,
-			)
-			consumerCreateID := p.planAIGatewayConsumerCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredConsumer,
-				dependsOn,
-				plan,
-			)
-			p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				desiredConsumer.Ref,
-				desiredConsumer.Name,
-				consumerCreateID,
-				p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref),
-				plan,
-			)
-			continue
-		}
-
-		consumerID := resources.AIGatewayConsumerID(current.AIGatewayConsumer)
-		if consumer := p.resources.GetAIGatewayConsumerByRef(desiredConsumer.Ref); consumer != nil {
-			consumer.SetKonnectID(consumerID)
-		}
-		fullConsumer, err := p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
-		if err != nil {
-			return fmt.Errorf("failed to get AI Gateway Consumer %s: %w", consumerID, err)
-		}
-		if fullConsumer == nil {
-			dependsOn := aiGatewayConsumerPolicyCreateDependencies(
-				desiredConsumer,
-				policyCreateDepsByRefOrName,
-			)
-			consumerCreateID := p.planAIGatewayConsumerCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredConsumer,
-				dependsOn,
-				plan,
-			)
-			p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				desiredConsumer.Ref,
-				desiredConsumer.Name,
-				consumerCreateID,
-				p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref),
-				plan,
-			)
-			continue
-		}
-
-		needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumer(*fullConsumer, desiredConsumer)
-		if err != nil {
-			return err
-		}
-		if needsUpdate {
-			p.planAIGatewayConsumerUpdate(
-				namespace,
-				gatewayRef,
-				gatewayID,
-				consumerID,
-				desiredConsumer,
-				updateFields,
-				changedFields,
-				aiGatewayConsumerPolicyCreateDependencies(
+	create := func(consumer resources.AIGatewayConsumerResource) {
+		consumerCreateID := p.planAIGatewayConsumerCreate(
+			namespace, gatewayRef, gatewayName, gatewayID, consumer,
+			aiGatewayConsumerPolicyCreateDependencies(consumer, policyCreateDepsByRefOrName), plan,
+		)
+		p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
+			namespace, gatewayRef, gatewayID, consumer.Ref, consumer.Name, consumerCreateID,
+			p.resources.GetAIGatewayConsumerCredentialsForConsumer(consumer.Ref), plan,
+		)
+	}
+	return reconcileNameMatchedCollection(p, ResourceTypeAIGatewayConsumer, desired, currentConsumers,
+		nameMatchedCollectionOperations[resources.AIGatewayConsumerResource, state.AIGatewayConsumer]{
+			desiredName: func(consumer resources.AIGatewayConsumerResource) string { return consumer.Name },
+			currentName: func(consumer state.AIGatewayConsumer) (string, bool) {
+				name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
+				return name, name != ""
+			},
+			reconcile: func(desiredConsumer resources.AIGatewayConsumerResource, current *state.AIGatewayConsumer) error {
+				if current == nil {
+					create(desiredConsumer)
+					return nil
+				}
+				consumerID := resources.AIGatewayConsumerID(current.AIGatewayConsumer)
+				if consumer := p.resources.GetAIGatewayConsumerByRef(desiredConsumer.Ref); consumer != nil {
+					consumer.SetKonnectID(consumerID)
+				}
+				fullConsumer, err := p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
+				if err != nil {
+					return fmt.Errorf("failed to get AI Gateway Consumer %s: %w", consumerID, err)
+				}
+				if fullConsumer == nil {
+					create(desiredConsumer)
+					return nil
+				}
+				needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumer(
+					*fullConsumer,
 					desiredConsumer,
-					policyCreateDepsByRefOrName,
-				),
-				plan,
-			)
-		}
-		credentials := p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref)
-		if p.shouldPlanChild(
-			plan,
-			resources.ResourceTypeAIGatewayConsumer,
-			desiredConsumer.Ref,
-			resources.ResourceTypeAIGatewayConsumerCredential,
-		) && (len(credentials) > 0 || plan.Metadata.Mode == PlanModeSync) {
-			if err := p.planAIGatewayConsumerCredentialChanges(
-				ctx,
-				namespace,
-				gatewayRef,
-				gatewayID,
-				desiredConsumer.Ref,
-				desiredConsumer.Name,
-				consumerID,
-				credentials,
-				plan,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentConsumers {
-			consumerID := resources.AIGatewayConsumerID(current.AIGatewayConsumer)
-			consumerName := resources.AIGatewayConsumerName(current.AIGatewayConsumer)
-			if desiredKeys[consumerName] {
-				continue
-			}
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGatewayConsumer, consumerName, isProtected, ActionDelete); err != nil {
-				return err
-			}
-			p.planAIGatewayConsumerDelete(namespace, gatewayRef, gatewayID, consumerID, consumerName, plan)
-		}
-	}
-
-	return nil
+				)
+				if err != nil {
+					return err
+				}
+				if needsUpdate {
+					p.planAIGatewayConsumerUpdate(
+						namespace, gatewayRef, gatewayID, consumerID, desiredConsumer, updateFields, changedFields,
+						aiGatewayConsumerPolicyCreateDependencies(desiredConsumer, policyCreateDepsByRefOrName), plan,
+					)
+				}
+				credentials := p.resources.GetAIGatewayConsumerCredentialsForConsumer(desiredConsumer.Ref)
+				if p.shouldPlanChild(
+					plan, resources.ResourceTypeAIGatewayConsumer, desiredConsumer.Ref,
+					resources.ResourceTypeAIGatewayConsumerCredential,
+				) && (len(credentials) > 0 || plan.Metadata.Mode == PlanModeSync) {
+					return p.planAIGatewayConsumerCredentialChanges(
+						ctx, namespace, gatewayRef, gatewayID, desiredConsumer.Ref, desiredConsumer.Name,
+						consumerID, credentials, plan,
+					)
+				}
+				return nil
+			},
+			protected: func(current state.AIGatewayConsumer) bool {
+				return labels.IsProtectedResource(current.NormalizedLabels)
+			},
+			remove: func(current state.AIGatewayConsumer) {
+				p.planAIGatewayConsumerDelete(namespace, gatewayRef, gatewayID,
+					resources.AIGatewayConsumerID(current.AIGatewayConsumer),
+					resources.AIGatewayConsumerName(current.AIGatewayConsumer), plan)
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayConsumerCreatesForNewGateway(
@@ -339,16 +279,6 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 	}
 
 	return true, updateFields, changedFields, nil
-}
-
-func indexAIGatewayConsumers(consumers []state.AIGatewayConsumer) map[string]state.AIGatewayConsumer {
-	byName := make(map[string]state.AIGatewayConsumer, len(consumers))
-	for _, consumer := range consumers {
-		if name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer); name != "" {
-			byName[name] = consumer
-		}
-	}
-	return byName
 }
 
 func aiGatewayConsumerPolicyCreateDependencies(

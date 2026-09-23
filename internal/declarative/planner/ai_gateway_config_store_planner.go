@@ -47,80 +47,61 @@ func (p *Planner) planAIGatewayConfigStoreChanges(
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Config Stores for gateway %s: %w", gatewayID, err)
 	}
-	currentByName := indexAIGatewayConfigStores(currentStores)
-	desiredNames := make(map[string]bool)
-
-	for _, desiredStore := range desired {
-		current, exists := currentByName[desiredStore.Name]
-		desiredNames[desiredStore.Name] = true
-		if !exists {
-			storeChangeID := p.planAIGatewayConfigStoreCreate(
-				namespace,
-				gatewayRef,
-				gatewayName,
-				gatewayID,
-				desiredStore,
-				nil,
-				plan,
-			)
-			if err := p.planAIGatewayConfigStoreSecretChangesIfNeeded(
-				ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, "", storeChangeID, plan,
-			); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if resource := p.resources.GetAIGatewayConfigStoreByRef(desiredStore.Ref); resource != nil {
-			resource.SetKonnectID(current.ID)
-		}
-		if desiredStore.DisplayName != nil && !stringPointersEqual(desiredStore.DisplayName, current.DisplayName) {
-			fields := map[string]any{FieldDisplayName: *desiredStore.DisplayName}
-			var oldDisplayName any
-			if current.DisplayName != nil {
-				oldDisplayName = *current.DisplayName
-			}
-			changed := map[string]FieldChange{
-				FieldDisplayName: {Old: oldDisplayName, New: *desiredStore.DisplayName},
-			}
-			plan.AddChange(PlannedChange{
-				ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGatewayConfigStore, desiredStore.Ref),
-				ResourceType:  ResourceTypeAIGatewayConfigStore,
-				ResourceRef:   desiredStore.Ref,
-				ResourceID:    current.ID,
-				Action:        ActionUpdate,
-				Fields:        fields,
-				ChangedFields: changed,
-				Namespace:     namespace,
-				Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
-			})
-		}
-
-		if err := p.planAIGatewayConfigStoreSecretChangesIfNeeded(
-			ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, current.ID, "", plan,
-		); err != nil {
-			return err
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, current := range currentStores {
-			if desiredNames[current.Name] {
-				continue
-			}
-			plan.AddChange(PlannedChange{
-				ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGatewayConfigStore, current.Name),
-				ResourceType: ResourceTypeAIGatewayConfigStore,
-				ResourceRef:  current.Name,
-				ResourceID:   current.ID,
-				Action:       ActionDelete,
-				Namespace:    namespace,
-				Fields:       map[string]any{FieldName: current.Name},
-				Parent:       &ParentInfo{Ref: gatewayRef, ID: gatewayID},
-			})
-		}
-	}
-	return nil
+	return reconcileNameMatchedCollection(p, ResourceTypeAIGatewayConfigStore, desired, currentStores,
+		nameMatchedCollectionOperations[resources.AIGatewayConfigStoreResource, state.AIGatewayConfigStore]{
+			desiredName: func(store resources.AIGatewayConfigStoreResource) string { return store.Name },
+			currentName: func(store state.AIGatewayConfigStore) (string, bool) { return store.Name, true },
+			reconcile: func(desiredStore resources.AIGatewayConfigStoreResource, current *state.AIGatewayConfigStore) error {
+				if current == nil {
+					storeChangeID := p.planAIGatewayConfigStoreCreate(
+						namespace, gatewayRef, gatewayName, gatewayID, desiredStore, nil, plan,
+					)
+					return p.planAIGatewayConfigStoreSecretChangesIfNeeded(
+						ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, "", storeChangeID, plan,
+					)
+				}
+				if resource := p.resources.GetAIGatewayConfigStoreByRef(desiredStore.Ref); resource != nil {
+					resource.SetKonnectID(current.ID)
+				}
+				if desiredStore.DisplayName != nil &&
+					!stringPointersEqual(desiredStore.DisplayName, current.DisplayName) {
+					fields := map[string]any{FieldDisplayName: *desiredStore.DisplayName}
+					var oldDisplayName any
+					if current.DisplayName != nil {
+						oldDisplayName = *current.DisplayName
+					}
+					changed := map[string]FieldChange{
+						FieldDisplayName: {Old: oldDisplayName, New: *desiredStore.DisplayName},
+					}
+					plan.AddChange(PlannedChange{
+						ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGatewayConfigStore, desiredStore.Ref),
+						ResourceType:  ResourceTypeAIGatewayConfigStore,
+						ResourceRef:   desiredStore.Ref,
+						ResourceID:    current.ID,
+						Action:        ActionUpdate,
+						Fields:        fields,
+						ChangedFields: changed,
+						Namespace:     namespace,
+						Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
+					})
+				}
+				return p.planAIGatewayConfigStoreSecretChangesIfNeeded(
+					ctx, namespace, gatewayRef, gatewayID, desiredStore.Ref, current.ID, "", plan,
+				)
+			},
+			remove: func(current state.AIGatewayConfigStore) {
+				plan.AddChange(PlannedChange{
+					ID:           p.nextChangeID(ActionDelete, ResourceTypeAIGatewayConfigStore, current.Name),
+					ResourceType: ResourceTypeAIGatewayConfigStore,
+					ResourceRef:  current.Name,
+					ResourceID:   current.ID,
+					Action:       ActionDelete,
+					Namespace:    namespace,
+					Fields:       map[string]any{FieldName: current.Name},
+					Parent:       &ParentInfo{Ref: gatewayRef, ID: gatewayID},
+				})
+			},
+		}, plan)
 }
 
 func (p *Planner) planAIGatewayConfigStoreSecretChangesIfNeeded(
@@ -188,16 +169,6 @@ func (p *Planner) planAIGatewayConfigStoreCreate(
 	}
 	plan.AddChange(change)
 	return change.ID
-}
-
-func indexAIGatewayConfigStores(
-	stores []state.AIGatewayConfigStore,
-) map[string]state.AIGatewayConfigStore {
-	byName := make(map[string]state.AIGatewayConfigStore, len(stores))
-	for _, store := range stores {
-		byName[store.Name] = store
-	}
-	return byName
 }
 
 func stringPointersEqual(left, right *string) bool {
