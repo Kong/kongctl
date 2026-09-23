@@ -28,7 +28,11 @@ checkout or another skill is unnecessary.
   and preserve its namespace, refs, names, public certificate and model
   aliases unless the requested change requires otherwise.
 - For a deployment pipeline, read [CI/CD](references/cicd.md). Combine it
-  with model access only when that expansion is requested.
+  with model access only when that expansion is requested. Start with the
+  bundled single-workflow example and one existing gateway; for a
+  speed-focused task, get the first CI deployment working before expanding
+  models or callers. Keep the user's required approval boundary, but do not
+  add enterprise controls or custom audit machinery by default.
 - For a failure, use the diagnostic table in the local setup reference;
   inspect the relevant installed schema before changing configuration.
 
