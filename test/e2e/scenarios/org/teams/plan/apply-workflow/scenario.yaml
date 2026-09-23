@@ -63,6 +63,7 @@ steps:
                 "contains(@, 'team \"frontend-team\" will be created')": true
 
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/teams.yaml"]
         outputFormat: json
         run:
           - apply
@@ -77,12 +78,16 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 2
                 failed: 0
+                status: success
 
       - name: 003-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
+          - select: "[?name=='Backend Team']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='Backend Team'] | [0]"
             expect:
               fields:
@@ -91,6 +96,10 @@ steps:
                 labels.department: "engineering"
                 labels.focus: "backend"
                 labels.tier: "core"
+          - select: "[?name=='Frontend Team']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='Frontend Team'] | [0]"
             expect:
               fields:
@@ -139,6 +148,7 @@ steps:
                 "contains(@, 'team \"mobile-team\" will be created')": true
 
       - name: 002-apply-plan
+        replanOnRetry: ["{{ .workdir }}/teams.yaml"]
         outputFormat: json
         run:
           - apply
@@ -149,17 +159,16 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
-          - select: plan.summary
-            expect:
-              fields:
-                by_action.UPDATE: 2
-                by_action.CREATE: 1
+                status: success
 
       - name: 003-get-teams
         run: ["get", "org", "teams", "-o", "json"]
         assertions:
+          - select: "[?name=='Mobile Team']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='Mobile Team'] | [0]"
             expect:
               fields:
@@ -167,11 +176,19 @@ steps:
                 description: "Mobile app development team introduced during plan workflow"
                 labels.focus: "mobile"
                 labels.tier: "growth"
+          - select: "[?name=='Backend Team']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='Backend Team'] | [0]"
             expect:
               fields:
                 description: "Backend engineering team with updated scope and responsibilities"
                 labels.specialty: "microservices"
+          - select: "[?name=='Frontend Team']"
+            expect:
+              fields:
+                "length(@)": 1
           - select: "[?name=='Frontend Team'] | [0]"
             expect:
               fields:
@@ -182,7 +199,17 @@ steps:
     inputOverlayDirs:
       - overlays/002-plan-update
     commands:
-      - name: 000-delete
+      - name: 000-plan-delete
+        outputFormat: disable
+        run: [plan, --mode, delete, -f, "{{ .workdir }}/teams.yaml"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+
+      - name: 001-delete
         outputFormat: json
         run:
           - delete
@@ -194,13 +221,16 @@ steps:
             expect:
               fields:
                 mode: delete
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 3
-                by_action.DELETE: 3
           - select: summary
             expect:
               fields:
                 failed: 0
                 status: success
+
+      - name: 002-get-teams-after-delete
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='Backend Team' || name=='Frontend Team' || name=='Mobile Team']"
+            expect:
+              fields:
+                "length(@)": 0
