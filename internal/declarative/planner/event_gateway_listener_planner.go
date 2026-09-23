@@ -130,6 +130,9 @@ func (p *Planner) planListenerChangesForExistingGateway(
 				if err != nil {
 					return fmt.Errorf("failed to get listener %s: %w", current.ID, err)
 				}
+				if fullListener == nil {
+					return fmt.Errorf("listener %s (%s) not found", desiredListener.Name, current.ID)
+				}
 
 				needsUpdate, updateFields, changedFields := p.shouldUpdateListener(*fullListener, desiredListener)
 				if needsUpdate {

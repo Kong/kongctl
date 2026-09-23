@@ -147,6 +147,87 @@ func (a *mappedLifecycleAPI) FetchEventGatewayListener(
 	return nil, errors.New("unexpected detail read")
 }
 
+func TestEventMappedLifecycleMissingDetailStopsPlanning(t *testing.T) {
+	for _, family := range []struct {
+		name string
+		run  func(context.Context, *Planner, *Plan) error
+	}{
+		{
+			name: "backend cluster",
+			run: func(ctx context.Context, p *Planner, plan *Plan) error {
+				return p.planBackendClusterChangesForExistingGateway(
+					ctx, "default", "gateway-id", "gateway-ref", "Gateway",
+					[]resources.EventGatewayBackendClusterResource{
+						{
+							Ref: "matched-ref", CreateBackendClusterRequest: kkComps.CreateBackendClusterRequest{Name: "duplicate"},
+						},
+						{
+							Ref: "later-ref", CreateBackendClusterRequest: kkComps.CreateBackendClusterRequest{Name: "later"},
+						},
+					}, plan,
+				)
+			},
+		},
+		{
+			name: "listener",
+			run: func(ctx context.Context, p *Planner, plan *Plan) error {
+				return p.planListenerChangesForExistingGateway(
+					ctx, "default", "gateway-id", "gateway-ref", "Gateway",
+					[]resources.EventGatewayListenerResource{
+						{
+							Ref:                               "matched-ref",
+							CreateEventGatewayListenerRequest: kkComps.CreateEventGatewayListenerRequest{Name: "duplicate"},
+						},
+						{
+							Ref:                               "later-ref",
+							CreateEventGatewayListenerRequest: kkComps.CreateEventGatewayListenerRequest{Name: "later"},
+						},
+					}, plan,
+				)
+			},
+		},
+	} {
+		t.Run(family.name, func(t *testing.T) {
+			for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+				t.Run(string(mode), func(t *testing.T) {
+					api := &mappedMissingDetailAPI{}
+					p := NewPlanner(state.NewClient(state.ClientConfig{
+						EventGatewayBackendClusterAPI: api,
+						EventGatewayListenerAPI:       api,
+					}), slog.Default())
+					p.resources = &resources.ResourceSet{}
+					plan := NewPlan(CurrentPlanVersion, "test", mode)
+					require.NotPanics(t, func() {
+						err := family.run(t.Context(), p, plan)
+						require.EqualError(t, err, family.name+" duplicate (last) not found")
+					})
+					require.Equal(t, []string{"gateway-id/last"}, api.detailReads)
+					require.Empty(t, plan.Changes, "missing detail must stop before later creates or sync pruning")
+				})
+			}
+		})
+	}
+}
+
+type mappedMissingDetailAPI struct {
+	mappedLifecycleAPI
+	detailReads []string
+}
+
+func (a *mappedMissingDetailAPI) FetchEventGatewayBackendCluster(
+	_ context.Context, gatewayID, id string, _ ...kkOps.Option,
+) (*kkOps.GetEventGatewayBackendClusterResponse, error) {
+	a.detailReads = append(a.detailReads, gatewayID+"/"+id)
+	return &kkOps.GetEventGatewayBackendClusterResponse{}, nil
+}
+
+func (a *mappedMissingDetailAPI) FetchEventGatewayListener(
+	_ context.Context, gatewayID, id string, _ ...kkOps.Option,
+) (*kkOps.GetEventGatewayListenerResponse, error) {
+	a.detailReads = append(a.detailReads, gatewayID+"/"+id)
+	return &kkOps.GetEventGatewayListenerResponse{}, nil
+}
+
 func TestEventMappedLifecyclePrunesEligibleIndexOnly(t *testing.T) {
 	for _, family := range []struct {
 		kind      string

@@ -478,6 +478,8 @@ Choose identity and operation semantics before selecting a reusable strategy:
   deletion-order guarantee, and visits only its retained value per name.
   Keep observation, missing-detail behavior, static-key and policy replacement,
   listener child scope, and dependency construction in typed adapters.
+  Backend cluster and listener adapters return a planning error if a listed
+  resource has no detail response body; they do not recreate it or keep pruning.
   Produce/consume parent-reference preparation runs before reconciliation,
   against the same index. New-parent creation and external virtual-cluster
   traversal stay separate.

@@ -120,6 +120,9 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 				if err != nil {
 					return fmt.Errorf("failed to get backend cluster %s: %w", current.ID, err)
 				}
+				if fullCluster == nil {
+					return fmt.Errorf("backend cluster %s (%s) not found", desiredCluster.Name, current.ID)
+				}
 
 				needsUpdate, updateFields, changedFields := p.shouldUpdateBackendCluster(*fullCluster, desiredCluster)
 				if needsUpdate {
