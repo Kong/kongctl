@@ -79,8 +79,11 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 
 	return reconcileManagedRoots(p.BasePlanner, ResourceTypeApplicationAuthStrategy, desiredRoots, currentRoots,
 		managedRootOperations[resources.ApplicationAuthStrategyResource, state.ApplicationAuthStrategy]{
-			diff:             p.shouldUpdateAuthStrategy,
-			create:           p.planAuthStrategyCreate,
+			diff: p.shouldUpdateAuthStrategy,
+			create: func(desired resources.ApplicationAuthStrategyResource, plan *Plan) string {
+				p.planAuthStrategyCreate(desired, plan)
+				return ""
+			},
 			update:           p.planAuthStrategyUpdateWithFields,
 			changeProtection: p.planAuthStrategyProtectionChangeWithFields,
 			remove:           p.planAuthStrategyDelete,

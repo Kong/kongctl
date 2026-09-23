@@ -60,8 +60,11 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 
 	return reconcileManagedRoots(p.BasePlanner, ResourceTypeDCRProvider, desiredRoots, currentRoots,
 		managedRootOperations[resources.DCRProviderResource, state.DCRProvider]{
-			diff:             p.shouldUpdateDCRProvider,
-			create:           p.planDCRProviderCreate,
+			diff: p.shouldUpdateDCRProvider,
+			create: func(desired resources.DCRProviderResource, plan *Plan) string {
+				p.planDCRProviderCreate(desired, plan)
+				return ""
+			},
 			update:           p.planDCRProviderUpdateWithFields,
 			changeProtection: p.planDCRProviderProtectionChangeWithFields,
 			remove:           p.planDCRProviderDelete,

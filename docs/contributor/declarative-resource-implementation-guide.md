@@ -420,6 +420,16 @@ Choose identity and operation semantics before selecting a reusable strategy:
   and sync pruning. Diffing and change construction remain resource-specific.
   Its existing `FieldError` handling applies to ordinary updates; changing
   protection-transition validation is separate compatibility work.
+- **Managed roots owning children:** Control planes and Portals use the same
+  [`managedRootReconciler`][reconcile] decisions one parent at a time. Creation
+  returns the change ID for child dependencies. Adapters retain observation,
+  traversal, external-parent handling and sync retention; do not move children
+  into a post-pass. Children still run after parent no-ops and blocked updates.
+  Protection errors accumulate, but a child error returns immediately before
+  later parents or pruning. Portal delete observation remains uncached and
+  external page deletion stays local. Control-plane group membership reads
+  precede reconciliation. External Portal names retain matching observations
+  during sync; external control-plane names do not.
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
