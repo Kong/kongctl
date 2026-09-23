@@ -125,7 +125,7 @@ func (p *Planner) planAIGatewayChanges(
 		); err != nil {
 			return err
 		}
-		if gatewayUpdateID != "" && desiredGateway.MinRuntimeVersion != nil &&
+		if current != nil && gatewayUpdateID != "" && desiredGateway.MinRuntimeVersion != nil &&
 			getString(current.resource.MinRuntimeVersion) != *desiredGateway.MinRuntimeVersion {
 			orderAIGatewayRuntimeChange(plan, gatewayUpdateID, childStart,
 				getString(current.resource.MinRuntimeVersion), *desiredGateway.MinRuntimeVersion)
