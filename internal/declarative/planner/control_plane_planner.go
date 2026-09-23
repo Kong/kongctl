@@ -48,7 +48,7 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		}
 	}
 
-	currentByName := make(map[string]state.ControlPlane)
+	currentByName := make(map[string]managedRoot[state.ControlPlane])
 	for i := range currentControlPlanes {
 		cp := currentControlPlanes[i]
 		if cp.Config.ClusterType == kkComps.ControlPlaneClusterTypeClusterTypeControlPlaneGroup {
@@ -58,10 +58,12 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			}
 			cp.GroupMembers = normalizers.NormalizeMemberIDs(memberIDs)
 		}
-		currentByName[cp.Name] = cp
+		currentByName[cp.Name] = managedRoot[state.ControlPlane]{
+			resource: cp, name: cp.Name, protected: labels.IsProtectedResource(cp.NormalizedLabels),
+		}
 	}
 
-	protectionErrors := &ProtectionErrorCollector{}
+	reconciler := p.rootReconciler(plan)
 
 	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
@@ -70,26 +72,10 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				continue
 			}
 
-			current, exists := currentByName[desiredCP.Name]
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"control_plane %q not found in Konnect, skipping delete", desiredCP.Name,
-				))
-				continue
-			}
-
-			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionDelete)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneDelete(current, plan)
-			}
+			reconciler.deleteDesired(desiredCP.Name, findManagedRoot(currentByName, desiredCP.Name))
 		}
 
-		if protectionErrors.HasErrors() {
-			return protectionErrors.Error()
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
 	for _, desiredCP := range desired {
@@ -97,45 +83,15 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 			p.planner.logger.Debug("Skipping external control plane", "ref", desiredCP.GetRef(), "name", desiredCP.Name)
 			continue
 		}
-		current, exists := currentByName[desiredCP.Name]
-		desiredProtected := isProtected(desiredCP)
-		var controlPlaneChangeID string
-
-		if !exists {
-			controlPlaneChangeID = p.planControlPlaneCreate(desiredCP, desiredProtected, plan)
-		} else {
-			currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			needsUpdate, updateFields, changedFields := p.shouldUpdateControlPlane(current, desiredCP)
-
-			if currentProtected != desiredProtected {
-				protectionChange := &ProtectionChange{Old: currentProtected, New: desiredProtected}
-				err := p.ValidateProtectionWithChange(
-					ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate, protectionChange, needsUpdate,
-				)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planControlPlaneProtectionChangeWithFields(
-						current,
-						desiredCP,
-						protectionChange,
-						updateFields,
-						changedFields,
-						plan,
-					)
-				}
-			} else if needsUpdate {
-				err := p.ValidateProtection(ResourceTypeControlPlane, desiredCP.Name, currentProtected, ActionUpdate)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planControlPlaneUpdate(current, desiredCP, updateFields, changedFields, plan)
-				}
-			}
-		}
+		current := findManagedRoot(currentByName, desiredCP.Name)
+		controlPlaneChangeID := reconciler.reconcile(managedRoot[resources.ControlPlaneResource]{
+			resource: desiredCP, name: desiredCP.Name, protected: isProtected(desiredCP),
+		}, current)
 
 		dataPlaneCerts := p.planner.resources.GetDataPlaneCertificatesForControlPlane(desiredCP.Ref)
 		controlPlaneID := ""
-		if exists {
-			controlPlaneID = current.ID
+		if current != nil {
+			controlPlaneID = current.resource.ID
 		}
 
 		if p.planner.shouldPlanChild(
@@ -173,20 +129,33 @@ func (p *controlPlanePlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 				continue
 			}
 
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			err := p.ValidateProtection(ResourceTypeControlPlane, name, isProtected, ActionDelete)
-			protectionErrors.Add(err)
-			if err == nil {
-				p.planControlPlaneDelete(current, plan)
-			}
+			reconciler.remove(current)
 		}
 	}
 
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
+	return reconciler.errors.Error()
+}
 
-	return nil
+func (p *controlPlanePlannerImpl) rootReconciler(
+	plan *Plan,
+) *managedRootReconciler[resources.ControlPlaneResource, state.ControlPlane] {
+	return newManagedRootReconciler(p.BasePlanner, ResourceTypeControlPlane,
+		managedRootOperations[resources.ControlPlaneResource, state.ControlPlane]{
+			diff: p.shouldUpdateControlPlane,
+			create: func(desired resources.ControlPlaneResource, plan *Plan) string {
+				return p.planControlPlaneCreate(desired, isProtected(desired), plan)
+			},
+			update: p.planControlPlaneUpdate,
+			changeProtection: func(
+				current state.ControlPlane, desired resources.ControlPlaneResource,
+				oldProtected, newProtected bool, fields map[string]any, changed map[string]FieldChange, plan *Plan,
+			) {
+				p.planControlPlaneProtectionChangeWithFields(
+					current, desired, &ProtectionChange{Old: oldProtected, New: newProtected}, fields, changed, plan,
+				)
+			},
+			remove: p.planControlPlaneDelete,
+		}, plan)
 }
 
 func (p *controlPlanePlannerImpl) planControlPlaneCreate(

@@ -61,13 +61,14 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 	}
 
 	// Index current portals by name
-	currentByName := make(map[string]state.Portal)
+	currentByName := make(map[string]managedRoot[state.Portal])
 	for _, portal := range currentPortals {
-		currentByName[portal.GetName()] = portal
+		currentByName[portal.GetName()] = managedRoot[state.Portal]{
+			resource: portal, name: portal.GetName(), protected: labels.IsProtectedResource(portal.NormalizedLabels),
+		}
 	}
 
-	// Collect protection validation errors
-	protectionErrors := &ProtectionErrorCollector{}
+	reconciler := p.rootReconciler(plan)
 
 	// Compare each desired portal
 	for _, desiredPortal := range desired {
@@ -114,66 +115,18 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 			continue
 		}
 
-		current, exists := currentByName[desiredPortal.Name]
-
-		if !exists {
-			// CREATE action
-			portalChangeID := p.planPortalCreate(desiredPortal, plan)
-			// Plan child resources after portal creation
+		current := findManagedRoot(currentByName, desiredPortal.Name)
+		portalChangeID := reconciler.reconcile(managedRoot[resources.PortalResource]{
+			resource: desiredPortal, name: desiredPortal.Name,
+			protected: desiredPortal.Kongctl != nil &&
+				desiredPortal.Kongctl.Protected != nil && *desiredPortal.Kongctl.Protected,
+		}, current)
+		if current == nil {
 			if err := p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, portalChangeID, plan); err != nil {
 				return err
 			}
 		} else {
-			// Check if update needed
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-
-			// Get protection status from desired configuration
-			shouldProtect := false
-			if desiredPortal.Kongctl != nil && desiredPortal.Kongctl.Protected != nil && *desiredPortal.Kongctl.Protected {
-				shouldProtect = true
-			}
-
-			// Handle protection changes
-			if isProtected != shouldProtect {
-				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields, changedFields := p.shouldUpdatePortal(current, desiredPortal)
-
-				// Create protection change object
-				protectionChange := &ProtectionChange{
-					Old: isProtected,
-					New: shouldProtect,
-				}
-
-				// Validate protection change
-				err := p.ValidateProtectionWithChange(ResourceTypePortal, desiredPortal.Name, isProtected, ActionUpdate,
-					protectionChange, needsUpdate)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planPortalProtectionChangeWithFields(
-						current,
-						desiredPortal,
-						isProtected,
-						shouldProtect,
-						updateFields,
-						changedFields,
-						plan,
-					)
-				}
-			} else {
-				// Check if update needed based on configuration
-				needsUpdate, updateFields, changedFields := p.shouldUpdatePortal(current, desiredPortal)
-				if needsUpdate {
-					// Regular update - check protection
-					err := p.ValidateProtection(ResourceTypePortal, desiredPortal.Name, isProtected, ActionUpdate)
-					protectionErrors.Add(err)
-					if err == nil {
-						p.planPortalUpdateWithFields(current, desiredPortal, updateFields, changedFields, plan)
-					}
-				}
-			}
-
-			// Plan child resource changes for existing portal
-			if err := p.planPortalChildResourceChanges(ctx, plannerCtx, current, desiredPortal, plan); err != nil {
+			if err := p.planPortalChildResourceChanges(ctx, plannerCtx, current.resource, desiredPortal, plan); err != nil {
 				return err
 			}
 		}
@@ -190,26 +143,25 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		// Find managed portals not in desired state
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				// Validate protection before adding DELETE
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := p.ValidateProtection(ResourceTypePortal, name, isProtected, ActionDelete)
-				protectionErrors.Add(err)
-				if err == nil {
-					p.planPortalDelete(current, plan)
-				}
+				reconciler.remove(current)
 			}
 		}
 	}
 
-	// Fail fast if any protected resources would be modified
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
+	return reconciler.errors.Error()
+}
 
-	// Note: Portal child resources are already planned when processing each portal above
-	// No need to plan them again here
-
-	return nil
+func (p *portalPlannerImpl) rootReconciler(
+	plan *Plan,
+) *managedRootReconciler[resources.PortalResource, state.Portal] {
+	return newManagedRootReconciler(p.BasePlanner, ResourceTypePortal,
+		managedRootOperations[resources.PortalResource, state.Portal]{
+			diff:             p.shouldUpdatePortal,
+			create:           p.planPortalCreate,
+			update:           p.planPortalUpdateWithFields,
+			changeProtection: p.planPortalProtectionChangeWithFields,
+			remove:           p.planPortalDelete,
+		}, plan)
 }
 
 // planPortalDeletes handles delete mode by planning DELETE for desired portals that exist in Konnect.
@@ -231,12 +183,14 @@ func (p *portalPlannerImpl) planPortalDeletes(
 		}
 	}
 
-	currentByName := make(map[string]state.Portal)
+	currentByName := make(map[string]managedRoot[state.Portal])
 	for _, portal := range currentPortals {
-		currentByName[portal.GetName()] = portal
+		currentByName[portal.GetName()] = managedRoot[state.Portal]{
+			resource: portal, name: portal.GetName(), protected: labels.IsProtectedResource(portal.NormalizedLabels),
+		}
 	}
 
-	protectionErrors := &ProtectionErrorCollector{}
+	reconciler := p.rootReconciler(plan)
 
 	for _, desiredPortal := range desired {
 		// External portals are not deleted, but their explicitly declared pages are.
@@ -270,27 +224,9 @@ func (p *portalPlannerImpl) planPortalDeletes(
 			continue
 		}
 
-		current, exists := currentByName[desiredPortal.Name]
-		if !exists {
-			plan.AddWarning("", fmt.Sprintf(
-				"portal %q not found in Konnect, skipping delete", desiredPortal.Name,
-			))
-			continue
-		}
-
-		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		err := p.ValidateProtection(ResourceTypePortal, desiredPortal.Name, isProtected, ActionDelete)
-		protectionErrors.Add(err)
-		if err == nil {
-			p.planPortalDelete(current, plan)
-		}
+		reconciler.deleteDesired(desiredPortal.Name, findManagedRoot(currentByName, desiredPortal.Name))
 	}
-
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 // extractPortalFields extracts fields from a portal resource for planner operations
