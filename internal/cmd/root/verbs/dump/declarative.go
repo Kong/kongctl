@@ -870,11 +870,13 @@ func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 	result := declresources.AIGatewayResource{
 		BaseResource: declresources.BaseResource{Ref: gateway.ID},
 		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-			Name:           gateway.Name,
-			DisplayName:    gateway.DisplayName,
-			DeploymentType: deploymentType,
-			Description:    gateway.Description,
-			ProxyUrls:      gateway.ProxyUrls,
+			MinRuntimeVersion:  gateway.MinRuntimeVersion,
+			RuntimeAutoUpgrade: gateway.RuntimeAutoUpgrade,
+			Name:               gateway.Name,
+			DisplayName:        gateway.DisplayName,
+			DeploymentType:     deploymentType,
+			Description:        gateway.Description,
+			ProxyUrls:          gateway.ProxyUrls,
 		},
 	}
 

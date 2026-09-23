@@ -9,6 +9,17 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
+func TestAIGatewayResourcePreservesOmittedRuntimeSettings(t *testing.T) {
+	var resource AIGatewayResource
+	require.NoError(t, json.Unmarshal([]byte(`{"ref":"gateway","name":"gateway","display_name":"Gateway"}`), &resource))
+	require.Nil(t, resource.MinRuntimeVersion)
+	require.Nil(t, resource.RuntimeAutoUpgrade)
+	data, err := json.Marshal(resource)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "min_runtime_version")
+	require.NotContains(t, string(data), "runtime_auto_upgrade")
+}
+
 func TestAIGatewayResourceMarshalPreservesCreateFields(t *testing.T) {
 	t.Parallel()
 

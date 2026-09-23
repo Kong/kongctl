@@ -20,9 +20,11 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 		AIGateways: []resources.AIGatewayResource{{
 			BaseResource: resources.BaseResource{Ref: "local-support-gateway"},
 			CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
-				DeploymentType: &deploymentType,
-				Name:           "support-gateway",
-				DisplayName:    "Support Gateway",
+				DeploymentType:     &deploymentType,
+				Name:               "support-gateway",
+				DisplayName:        "Support Gateway",
+				MinRuntimeVersion:  new("2.1"),
+				RuntimeAutoUpgrade: new(false),
 			},
 		}},
 	}
@@ -38,6 +40,69 @@ func TestAIGatewayPlannerCreateUsesExplicitNameNotRef(t *testing.T) {
 	require.Equal(t, "support-gateway", change.Fields[FieldName])
 	require.Equal(t, "Support Gateway", change.Fields[FieldDisplayName])
 	require.Equal(t, kkComps.CreateAIGatewayRequestDeploymentTypeManaged, change.Fields[FieldDeploymentType])
+	require.Equal(t, "2.1", change.Fields[FieldMinRuntimeVersion])
+	require.Equal(t, false, change.Fields[FieldRuntimeAutoUpgrade])
+}
+
+func TestAIGatewayPlannerRuntimeSettings(t *testing.T) {
+	current := state.AIGateway{AIGateway: kkComps.AIGateway{
+		Name: "gateway", DisplayName: "Gateway",
+		MinRuntimeVersion: new("2.0"), RuntimeAutoUpgrade: new(false),
+	}}
+	desired := resources.AIGatewayResource{
+		BaseResource:           resources.BaseResource{Ref: "gateway"},
+		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{Name: "gateway", DisplayName: "Gateway"},
+	}
+	p := &Planner{}
+	changed, _, _ := p.shouldUpdateAIGateway(current, desired)
+	require.False(t, changed, "omitted runtime settings must preserve the remote values")
+	desired.MinRuntimeVersion = new("2.1")
+	desired.RuntimeAutoUpgrade = new(true)
+	changed, fields, diff := p.shouldUpdateAIGateway(current, desired)
+	require.True(t, changed)
+	require.Equal(t, "2.1", fields[FieldMinRuntimeVersion])
+	require.Equal(t, true, fields[FieldRuntimeAutoUpgrade])
+	require.Contains(t, diff, FieldMinRuntimeVersion)
+	require.Contains(t, diff, FieldRuntimeAutoUpgrade)
+	current.MinRuntimeVersion = new("2.1")
+	current.RuntimeAutoUpgrade = new(true)
+	changed, _, _ = p.shouldUpdateAIGateway(current, desired)
+	require.False(t, changed)
+
+	current.RuntimeAutoUpgrade = new(false)
+	plan := &Plan{}
+	p.planAIGatewayUpdate(current, desired, map[string]any{FieldDisplayName: "Renamed"}, nil, plan)
+	require.Equal(t, false, plan.Changes[0].Fields[FieldRuntimeAutoUpgrade],
+		"an unrelated update must not apply the SDK's runtime auto-upgrade default")
+}
+
+func TestAIGatewayRuntimeChangeOrdering(t *testing.T) {
+	for _, downgrade := range []bool{false, true} {
+		t.Run(map[bool]string{false: "upgrade", true: "downgrade"}[downgrade], func(t *testing.T) {
+			plan := &Plan{Changes: []PlannedChange{
+				{ID: "gateway", Action: ActionUpdate},
+				{ID: "create", Action: ActionCreate},
+				{ID: "update", Action: ActionUpdate},
+				{ID: "delete", Action: ActionDelete},
+			}}
+			oldVersion, newVersion := "2.1", "2.10"
+			if downgrade {
+				oldVersion, newVersion = newVersion, oldVersion
+			}
+			orderAIGatewayRuntimeChange(plan, "gateway", 1, oldVersion, newVersion)
+			if downgrade {
+				require.Equal(t, []string{"create", "update", "delete"}, plan.Changes[0].DependsOn)
+				for _, child := range plan.Changes[1:] {
+					require.Empty(t, child.DependsOn)
+				}
+			} else {
+				require.Empty(t, plan.Changes[0].DependsOn)
+				require.Equal(t, []string{"gateway"}, plan.Changes[1].DependsOn)
+				require.Equal(t, []string{"gateway"}, plan.Changes[2].DependsOn)
+				require.Empty(t, plan.Changes[3].DependsOn)
+			}
+		})
+	}
 }
 
 func TestAIGatewayPlannerMatchesByNameWhenDisplayNameChanges(t *testing.T) {

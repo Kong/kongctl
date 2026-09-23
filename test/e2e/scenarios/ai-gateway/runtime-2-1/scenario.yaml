@@ -1,0 +1,220 @@
+baseInputsPath: testdata
+steps:
+  - name: 000-check-isolation
+    skipInputs: true
+    commands:
+      - name: no-existing-test-gateway
+        run:
+          - "get"
+          - "ai-gateways"
+        outputFormat: "json"
+        assertions:
+          - select: "length([?name=='runtime-2-1-gateway'])"
+            expect:
+              fields:
+                "@": 0
+  - name: 001-create
+    commands:
+      - name: plan-create
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 7
+                "by_action.CREATE": 7
+      - name: sync-create
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        outputFormat: "json"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "failed": 0
+                "status": "success"
+      - name: verify-dump
+        run:
+          - "dump"
+          - "declarative"
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--filter-name=runtime-2-1-gateway"
+          - "--default-namespace=ai-gateway-runtime-2-1-e2e"
+        outputFormat: "none"
+        parseAs: "yaml"
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "ai_gateways[?name=='runtime-2-1-gateway'] | [0]"
+            expect:
+              fields:
+                "min_runtime_version": "2.1"
+                "runtime_auto_upgrade": false
+                "models[?name=='cost-model'] | [0].targets[0].config.input_cost_list": [{"modal": "text", "cost": 2.5}]
+                "models[?name=='cost-model'] | [0].config.route.model.values": [cost-model, cost-model-alias]
+                "models[?name=='cost-model'] | [0].targets[0].config.output_cost_list": [{"modal": "audio", "cost": 10}]
+                "models[?name=='cost-model'] | [0].targets[0].config.cache_read_cost_list": [{"modal": "image", "cost": 0.5}]
+                "policies[?name=='conditional-policy'] | [0].condition": "http.path == '/v1/chat/completions'"
+                "mcp_servers[?name=='conversion'] | [0].config.allowed_versions": ["2026-07-28", "2025-11-25"]
+                "mcp_servers[?name=='conversion'] | [0].config.cache": {"tools_list": {"ttl_ms": 0, "cache_scope": "private"}, "discover": {"ttl_ms": 60000, "cache_scope": "public"}}
+                "mcp_servers[?name=='listener'] | [0].config.allowed_versions": ["2026-07-28"]
+                "mcp_servers[?name=='listener'] | [0].config.cache": {"tools_list": {"ttl_ms": 60000, "cache_scope": "private"}, "discover": {"ttl_ms": 0, "cache_scope": "public"}}
+                "mcp_servers[?name=='upstream'] | [0].config.server.upstream_protocol_version": "2025-11-25"
+      - name: manifest-no-changes
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 0
+      - name: dump-no-changes
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/dump.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 0
+  - name: 002-update
+    inputOverlayDirs: ["overlays/update"]
+    commands:
+      - name: plan-update
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 5
+                "by_action.UPDATE": 5
+      - name: sync-update
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        outputFormat: "json"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "failed": 0
+                "status": "success"
+      - name: verify-dump
+        run:
+          - "dump"
+          - "declarative"
+          - "--resources=ai_gateways"
+          - "--include-child-resources"
+          - "--filter-name=runtime-2-1-gateway"
+          - "--default-namespace=ai-gateway-runtime-2-1-e2e"
+        outputFormat: "none"
+        parseAs: "yaml"
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: "ai_gateways[?name=='runtime-2-1-gateway'] | [0]"
+            expect:
+              fields:
+                "min_runtime_version": "2.1"
+                "runtime_auto_upgrade": false
+                "models[?name=='cost-model'] | [0].targets[0].config.input_cost_list": [{"modal": "text", "cost": 3.5}]
+                "models[?name=='cost-model'] | [0].config.route.model.values": [cost-model, updated-model-alias]
+                "models[?name=='cost-model'] | [0].targets[0].config.output_cost_list": [{"modal": "audio", "cost": 11}]
+                "models[?name=='cost-model'] | [0].targets[0].config.cache_read_cost_list": [{"modal": "image", "cost": 0.75}]
+                "policies[?name=='conditional-policy'] | [0].condition": "http.method == 'POST'"
+                "mcp_servers[?name=='conversion'] | [0].config.allowed_versions": ["2026-07-28"]
+                "mcp_servers[?name=='conversion'] | [0].config.cache": {"tools_list": {"ttl_ms": 0, "cache_scope": "private"}, "discover": {"ttl_ms": 120000, "cache_scope": "private"}}
+                "mcp_servers[?name=='listener'] | [0].config.allowed_versions": ["2025-11-25"]
+                "mcp_servers[?name=='listener'] | [0].config.cache": {"tools_list": {"ttl_ms": 120000, "cache_scope": "public"}, "discover": {"ttl_ms": 0, "cache_scope": "public"}}
+                "mcp_servers[?name=='upstream'] | [0].config.server.upstream_protocol_version": "2026-07-28"
+      - name: manifest-no-changes
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 0
+      - name: dump-no-changes
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/dump.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 0
+  - name: 003-cleanup
+    inputOverlayDirs: ["overlays/cleanup"]
+    commands:
+      - name: plan-delete
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        outputFormat: "disable"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "total_changes": 1
+                "by_action.DELETE": 1
+      - name: delete-test-gateway
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        outputFormat: "json"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                "failed": 0
+                "status": "success"
+      - name: verify-cleanup
+        run:
+          - "get"
+          - "ai-gateways"
+        outputFormat: "json"
+        assertions:
+          - select: "length([?name=='runtime-2-1-gateway'])"
+            expect:
+              fields:
+                "@": 0

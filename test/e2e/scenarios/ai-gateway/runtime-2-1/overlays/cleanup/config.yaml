@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-runtime-2-1-e2e
+ai_gateways: []

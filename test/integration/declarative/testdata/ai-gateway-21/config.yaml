@@ -1,0 +1,80 @@
+ai_gateways:
+  - ref: sdk-68
+    name: sdk-68
+    display_name: SDK 68 validation
+    min_runtime_version: '2.1'
+    runtime_auto_upgrade: false
+    proxy_urls: []
+    model_providers:
+      - ref: openai
+        name: openai
+        type: openai
+        display_name: OpenAI
+        config:
+          auth:
+            type: basic
+            headers: []
+    models:
+      - ref: cost-model
+        name: cost-model
+        type: model
+        display_name: Cost model
+        config:
+          route:
+            model:
+              values: [cost-model, cost-model-alias]
+        formats: [{type: openai}]
+        capabilities: [generate]
+        targets:
+          - name: gpt-4o
+            provider: openai
+            config:
+              type: openai
+              input_cost_list: [{modal: text, cost: 2.5}]
+              output_cost_list: [{modal: audio, cost: 10}]
+              cache_read_cost_list: [{modal: image, cost: 0}]
+    policies:
+      - ref: conditional-policy
+        name: conditional-policy
+        display_name: Conditional policy
+        type: rate-limiting
+        config: {minute: 10}
+        condition: "http.path == '/v1/chat/completions'"
+    mcp_servers:
+      - ref: conversion
+        name: conversion
+        display_name: Conversion listener
+        type: conversion-listener
+        tools:
+          - name: lookup
+            description: Look up a record
+            method: GET
+            path: /records
+        config:
+          url: https://example.com
+          route: {paths: [/conversion]}
+          allowed_versions: ['2026-07-28', '2025-11-25']
+          cache:
+            tools_list: {ttl_ms: 0, cache_scope: private}
+            discover: {ttl_ms: 60000, cache_scope: public}
+      - ref: listener
+        name: listener
+        display_name: Listener
+        type: listener
+        sources: [upstream]
+        config:
+          route: {paths: [/listener]}
+          allowed_versions: ['2026-07-28']
+          cache:
+            tools_list: {ttl_ms: 60000, cache_scope: private}
+            discover: {ttl_ms: 0, cache_scope: public}
+      - ref: upstream
+        name: upstream
+        display_name: Upstream
+        type: upstream-server
+        config:
+          url: https://example.com/mcp
+          route: {paths: [/upstream]}
+          tools_cache_ttl_seconds: 60
+          server:
+            upstream_protocol_version: '2025-11-25'
