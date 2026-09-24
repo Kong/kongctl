@@ -21,8 +21,26 @@ func IsRelationshipPath(resource Resource, path string) bool {
 		if strings.HasPrefix(path, "/"+aiGatewayAgentFieldPolicies+"/") {
 			return true
 		}
-	// These relationships use specialized Event Gateway planner/executor
-	// handlers rather than the relationship descriptor registry.
+	}
+	if resource.GetType() == ResourceTypeAIGatewayConsumerGroup &&
+		strings.HasPrefix(path, "/"+aiGatewayConsumerGroupFieldConsumers+"/") {
+		return true
+	}
+	for _, descriptor := range RelationshipDescriptorsFor(resource) {
+		prefix := "/" + strings.ReplaceAll(descriptor.FieldPath, ".", "/")
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// IsEventGatewayReferencePath identifies payload fields handled by specialized
+// Event Gateway reference handlers. This applies to !ref binding only: typed
+// !lookup values still resolve through the generic payload lookup path.
+func IsEventGatewayReferencePath(resource Resource, path string) bool {
+	//exhaustive:ignore
+	switch resource.GetType() {
 	case ResourceTypeEventGatewayVirtualCluster:
 		if path == "/destination/id" {
 			return true
@@ -43,16 +61,6 @@ func IsRelationshipPath(resource Resource, path string) bool {
 		}
 	case ResourceTypeEventGatewayConsumePolicy:
 		if path == "/parent_policy_id" {
-			return true
-		}
-	}
-	if resource.GetType() == ResourceTypeAIGatewayConsumerGroup &&
-		strings.HasPrefix(path, "/"+aiGatewayConsumerGroupFieldConsumers+"/") {
-		return true
-	}
-	for _, descriptor := range RelationshipDescriptorsFor(resource) {
-		prefix := "/" + strings.ReplaceAll(descriptor.FieldPath, ".", "/")
-		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return true
 		}
 	}

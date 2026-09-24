@@ -81,7 +81,8 @@ func (p *Planner) bindPayloadReferences(plan *Plan, rs *resources.ResourceSet) e
 				change.LiteralPaths = append(change.LiteralPaths, path)
 				return expression, nil
 			}
-			if !tags.IsRefPlaceholder(expression) || (source != nil && resources.IsRelationshipPath(source, path)) {
+			if !tags.IsRefPlaceholder(expression) || (source != nil &&
+				(resources.IsRelationshipPath(source, path) || resources.IsEventGatewayReferencePath(source, path))) {
 				return expression, nil
 			}
 			ref, selector, ok := tags.ParseRefPlaceholder(expression)

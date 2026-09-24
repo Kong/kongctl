@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"testing"
@@ -8,7 +9,10 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/declarative/values"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag tests
 )
 
 func TestPayloadBinderPreservesExistingEventGatewayBackendReference(t *testing.T) {
@@ -130,4 +134,42 @@ func TestPayloadBinderCreatesDependencyOnNestedEventGatewayTarget(t *testing.T) 
 	require.Equal(t, []PayloadReference{{
 		Path: "/config/target", ResourceType: ResourceTypeEventGatewayVirtualCluster, Ref: "virtual", Selector: FieldID,
 	}}, plan.Changes[1].PayloadReferences)
+}
+
+func TestEventGatewaySpecializedReferencePathStillAcceptsTypedLookup(t *testing.T) {
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal([]byte(`value: !lookup
+  resource_type: event_gateway_virtual_cluster
+  name: remote-virtual
+  parent: !lookup {resource_type: event_gateway, id: gateway-id}
+`), &doc))
+	value, err := tags.NewExternalTagResolver(tags.TagLookup).Resolve(doc.Content[0].Content[1])
+	require.NoError(t, err)
+	var policy resources.EventGatewayListenerPolicyResource
+	require.NoError(t, json.Unmarshal([]byte(`{
+  "ref": "forward", "name": "forward", "type": "forward_to_virtual_cluster",
+  "config": {"type": "port_mapping", "advertised_host": "example.com", "destination": {"id": "placeholder"}}
+}`), &policy))
+	// Use the same SDK traversal as loading to replace the destination expression.
+	require.NoError(t, values.Transform(&policy, func(_ string, s string) (any, error) {
+		if s == "placeholder" {
+			return value, nil
+		}
+		return s, nil
+	}))
+	rs := &resources.ResourceSet{EventGatewayListenerPolicies: []resources.EventGatewayListenerPolicyResource{policy}}
+	p := NewPlanner(nil, slog.Default())
+	p.externalResolver = newExternalLookupResolver(p)
+	p.externalResolver.adapters[resources.ResourceTypeEventGatewayVirtualCluster] = func(
+		_ context.Context, req externalLookupRequest,
+	) (string, error) {
+		require.Equal(t, "gateway-id", req.ParentID)
+		return "virtual-id", nil
+	}
+	_, err = p.resolveKnownPayloadReferences(t.Context(), rs)
+	require.NoError(t, err)
+	data, err := json.Marshal(rs.EventGatewayListenerPolicies[0])
+	require.NoError(t, err)
+	require.Contains(t, string(data), `"id":"virtual-id"`)
+	require.NotContains(t, string(data), tags.ExternalPlaceholderPrefix)
 }
