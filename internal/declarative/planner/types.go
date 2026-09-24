@@ -71,12 +71,24 @@ type PlannedChange struct {
 	ChangedFields         map[string]FieldChange   `json:"changed_fields,omitempty"`
 	PostResolutionTargets []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
 	References            map[string]ReferenceInfo `json:"references,omitempty"`
+	PayloadReferences     []PayloadReference       `json:"payload_references,omitempty"`
+	LiteralPaths          []string                 `json:"literal_paths,omitempty"`
 	Parent                *ParentInfo              `json:"parent,omitempty"`
 	ProtectingParent      *ProtectingParentInfo    `json:"protecting_parent,omitempty"`
 	Protection            any                      `json:"protection,omitempty"` // bool or ProtectionChange
 	Namespace             string                   `json:"namespace"`
 	DependsOn             []string                 `json:"depends_on,omitempty"`
 	SecretWrites          []SecretWriteIntent      `json:"secret_writes,omitempty"`
+}
+
+// PayloadReference binds an explicit payload expression to its declaration.
+// Path is a JSON Pointer into Fields, separate from legacy dotted references.
+type PayloadReference struct {
+	Path         string `json:"path"`
+	ResourceType string `json:"resource_type"`
+	Ref          string `json:"ref"`
+	Selector     string `json:"selector"`
+	ID           string `json:"id,omitempty"`
 }
 
 // SecretWriteIntent records a write-only field and its deferred value expression.

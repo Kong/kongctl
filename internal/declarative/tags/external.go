@@ -15,6 +15,8 @@ const ExternalPlaceholderPrefix = "__EXTERNAL__:"
 
 // ExternalLookup describes a lookup parsed from !external or !lookup.
 type ExternalLookup struct {
+	ResourceType    string            `json:"resource_type,omitempty"`
+	ParentRef       string            `json:"parent_ref,omitempty"`
 	MatchFields     map[string]string `json:"match_fields"`
 	SensitiveFields []string          `json:"sensitive_fields,omitempty"`
 	Line            int               `json:"line,omitempty"`
@@ -85,6 +87,20 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 		return nil, fmt.Errorf("%s cannot resolve unsupported YAML node kind %d", r.tag, node.Kind)
 	}
 
+	// Explicit type metadata supplies the context missing from arbitrary payload
+	// locations. Without resource_type, all keys retain legacy selector meaning.
+	if resourceType, ok := lookup.MatchFields["resource_type"]; ok {
+		if slices.Contains(lookup.SensitiveFields, "resource_type") || slices.Contains(lookup.SensitiveFields, "parent_ref") {
+			return nil, fmt.Errorf("%s resource_type and parent_ref must be literal strings", r.tag)
+		}
+		lookup.ResourceType = resourceType
+		lookup.ParentRef = lookup.MatchFields["parent_ref"]
+		delete(lookup.MatchFields, "resource_type")
+		delete(lookup.MatchFields, "parent_ref")
+		if len(lookup.MatchFields) == 0 {
+			return nil, fmt.Errorf("%s requires at least one match selector", r.tag)
+		}
+	}
 	if _, hasID := lookup.MatchFields["id"]; hasID && len(lookup.MatchFields) != 1 {
 		return nil, fmt.Errorf("%s id cannot be combined with other selectors", r.tag)
 	}

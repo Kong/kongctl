@@ -148,6 +148,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Initialize resolver with populated ResourceSet
 	p.resolver = NewReferenceResolver(p.client, rs)
+	if _, err := p.resolveKnownPayloadReferences(ctx, rs); err != nil {
+		return nil, err
+	}
 
 	// Extract all unique namespaces from desired resources
 	namespaces := p.getResourceNamespaces(rs)
@@ -262,6 +265,15 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
+	// Child matching discovers identities during resource planning. If these
+	// make additional payload references concrete, compare again with the new
+	// values. Each repeat consumes expressions, so this converges.
+	if changed, err := p.resolveKnownPayloadReferences(ctx, rs); err != nil {
+		return nil, err
+	} else if changed {
+		return p.GeneratePlan(ctx, rs, opts)
+	}
+
 	if err := p.planDeckDependencies(
 		withPlannerHTTPLogContext(ctx, opts, plannerComponentDeck, ""),
 		rs,
@@ -285,6 +297,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	// are now handled within each namespace's processing using the namespace-filtered
 	// resource access methods.
 
+	if err := p.bindPayloadReferences(basePlan, rs); err != nil {
+		return nil, err
+	}
 	// Resolve references for all changes
 	resolveResult, err := p.resolver.ResolveReferences(
 		withPlannerHTTPLogContext(ctx, opts, plannerComponentReferenceResolution, ""),
@@ -325,6 +340,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
+		var paths []string
+		for _, change := range basePlan.Changes {
+			for _, binding := range change.PayloadReferences {
+				paths = append(paths, fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path))
+			}
+		}
+		if len(paths) > 0 {
+			return nil, fmt.Errorf("failed to resolve dependencies for payload references (%s): %w",
+				strings.Join(paths, ", "), err)
+		}
 		return nil, fmt.Errorf("failed to resolve dependencies: %w", err)
 	}
 

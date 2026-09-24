@@ -697,9 +697,34 @@ placeholder; the loader resolves locally available values, the
 executor hydrates them using remote state or earlier execution results.
 Preserve requested fields, list references, and nested/scoped paths.
 
+Arbitrary payload values use the shared `values.Transform` traversal, including
+map values, lists, embedded structs, and SDK union members. Keep map keys
+literal. `ResourceSet.ResolvePayloadReference` resolves configuration-known
+scalar selectors and validates target uniqueness. Preserve environment source
+paths when copying values; write-only secrets cannot be reference sources.
+Registered relationship fields retain their existing routing/name semantics.
+
+Resolve known payload identities before resource comparison. Child matching
+can discover additional IDs; planning repeats comparison when these consume
+remaining expressions. Deferred IDs are persisted in `PayloadReferences`,
+with JSON Pointer destinations, target type/ref, and source selector. Only
+unresolved creation outputs add dependencies. Never infer a payload target
+type from an arbitrary destination key. Plan format 1.1 carries these bindings;
+1.0 plans remain accepted, and legacy dotted `References` paths are unchanged.
+The executor hydrates bindings from completed dependencies and checks mapped
+SDK requests before mutations. Deferred environment and secret paths are
+exempt from expression interpretation after their values are injected.
+Tag processing protects ordinary strings resembling internal expressions;
+loading records their provenance and plans carry `LiteralPaths` so the request
+guard preserves them. Keep this provenance through saved-plan serialization.
+
 `!external` and `!lookup` are aliases. Their tag resolver validates syntax
 and emits an opaque placeholder without making Konnect calls.
 [Planner external lookup][external] resolves identity before managed matching.
+In arbitrary values, lookup mappings require `resource_type` and may supply
+`parent_ref` for an existing scoped parent. Reuse the external capability
+registry, adapters, cache, and sensitivity metadata. Relationships continue
+to infer the type; explicit type metadata must agree with that inference.
 
 External-capable resource types must implement `ExternallyResolvableResource`,
 use external registration, declare selectors and parent scope, and supply

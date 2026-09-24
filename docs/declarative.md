@@ -521,6 +521,76 @@ Lookups run during planning with the active Konnect profile. Equivalent
 lookups, including `_external` declarations, are cached for that plan. Saved
 plans contain resolved IDs rather than tag placeholders.
 
+### References and lookups in payload values
+
+Explicit `!ref` tags also work in payload fields, arbitrary map values, and
+list elements, including SDK-backed configuration structures. Map keys are
+never interpreted as references. Keys containing dots, slashes, or numbers
+retain their meaning.
+
+```yaml
+ai_gateways:
+  - ref: telemetry-gateway
+    name: telemetry-gateway
+    display_name: Telemetry Gateway
+    deployment_type: hybrid
+    policies:
+      - ref: observability
+        name: observability
+        display_name: Observability
+        type: opentelemetry
+        enabled: true
+        global: true
+        config:
+          headers:
+            X-Control-Plane-Id: !ref telemetry-gateway
+            X-Gateway-Name: !ref telemetry-gateway#name
+            X-Shared-Gateway-Id: !lookup
+              resource_type: ai_gateway
+              name: shared-gateway
+```
+
+`!ref target` and `!ref target#id` both select the Konnect ID. Existing IDs
+resolve during planning. New resources are created before operations that
+need their IDs, including a policy referencing its own parent. Other
+selectors address scalar fields present in the declaration, using JSON field
+names and dot-separated nested selectors. For example, `#display_name`
+selects the declared display name. Configuration-known selectors do not
+require a creation dependency. Boolean and numeric values retain their types
+in arbitrary value slots; incompatible string destinations are rejected.
+Unavailable selectors, missing or ambiguous declarations, and dependency
+cycles fail with resource context. Write-only secrets cannot be selected.
+
+An arbitrary destination does not imply a lookup resource type. Supply the
+canonical singular `resource_type` in a lookup mapping, as above. For scoped
+lookups, also supply `parent_ref` naming a declaration with an existing
+Konnect ID. For example:
+
+```yaml
+service_id: !lookup
+  resource_type: gateway_service
+  parent_ref: shared-control-plane
+  name: shared-service
+```
+
+The normal lookup capability, selector, uniqueness, and scope rules apply.
+`!external` accepts the same syntax. Lookups locate existing resources during
+planning; they do not wait for a new parent to be created. For new resources,
+use `!ref`. Relationship fields retain their existing type inference and
+parent scope rules.
+
+References replace whole values; string interpolation and references in map
+keys are unsupported. `!env` values retain deferred evaluation when copied
+through a configuration-known reference. Ordinary strings, including strings
+that resemble internal reference encodings, remain literal. Unresolved
+tag expressions are rejected before a mutation request is sent.
+
+Saved plans retain deferred ID bindings and dependencies. New plans use
+format 1.1, which requires a matching or newer executor; this version also
+accepts format 1.0 plans. Direct apply and saved-plan apply use the same
+resolution path. Replanning compares resolved values to avoid repeated
+reference-induced updates.
+
 ## Resources managed by decK
 
 [Deck](https://developer.konghq.com/deck/) integration is configured on control planes via the `_deck` pseudo-resource. kongctl runs deck once per

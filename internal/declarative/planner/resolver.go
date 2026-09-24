@@ -84,6 +84,9 @@ func (r *ReferenceResolver) ResolveReferences(ctx context.Context, changes []Pla
 
 		// Check fields that might contain references
 		for _, fieldRef := range r.extractReferencesFromFields(change.Fields) {
+			if payloadReferenceOwnsField(change, fieldRef.Field) {
+				continue
+			}
 			// Determine resource type from field name and role entity metadata.
 			if aiGatewayPolicyReferenceField(change.ResourceType, fieldRef.Field) {
 				fieldRef.Ref = aiGatewayPolicyNameReference(fieldRef.Ref)

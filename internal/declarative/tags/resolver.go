@@ -122,7 +122,11 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 				}
 			}
 		}
-	case yaml.ScalarNode, yaml.AliasNode:
+	case yaml.ScalarNode:
+		if node.Tag == "!!str" || node.Tag == "" {
+			node.Value = ProtectReferenceLiteral(node.Value)
+		}
+	case yaml.AliasNode:
 		// Scalar and alias nodes don't have children to process
 		// Nothing to do here
 	}
