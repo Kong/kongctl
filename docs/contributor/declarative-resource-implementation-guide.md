@@ -703,6 +703,9 @@ literal. `ResourceSet.ResolvePayloadReference` resolves configuration-known
 scalar selectors and validates target uniqueness. Preserve environment source
 paths when copying values; write-only secrets cannot be reference sources.
 Registered relationship fields retain their existing routing/name semantics.
+Validate explicit relationship reference targets and selectors before
+deferring their values. An existing declaration with an unresolved ID is a
+valid forward reference; a missing declaration must fail loading or planning.
 Reference target discovery includes resources retained inside parent
 declarations. Specialized Event Gateway relationships also keep their existing
 handlers, including backend destinations, schema registries, encryption keys,

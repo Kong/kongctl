@@ -44,8 +44,12 @@ func (p *Planner) resolveKnownPayloadReferences(ctx context.Context, rs *resourc
 				return p.resolvePayloadLookup(ctx, rs, lookup,
 					fmt.Sprintf("%s %q field %s", resource.GetType(), resource.GetRef(), path))
 			}
-			if !tags.IsRefPlaceholder(value) || resources.IsRelationshipPath(resource, path) {
+			if !tags.IsRefPlaceholder(value) {
 				return value, nil
+			}
+			if resources.IsRelationshipPath(resource, path) {
+				_, err := rs.ResolvePayloadReference(value)
+				return value, err
 			}
 			if source := rs.PayloadReferenceLiteralSource(value); source != "" {
 				rs.AddLiteralSource(resource.GetRef(), path, source)

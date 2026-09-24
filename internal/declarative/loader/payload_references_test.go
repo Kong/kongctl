@@ -1,12 +1,49 @@
 package loader
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestRelationshipReferencesValidateBeforeDeferring(t *testing.T) {
+	const manifest = `
+portals:
+  - ref: portal
+    name: portal
+    display_name: Portal
+    default_application_auth_strategy_id: !ref TARGET
+application_auth_strategies:
+  - ref: auth
+    name: auth
+    display_name: Auth
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names: [apikey]
+`
+	for _, tc := range []struct{ expression, wantErr string }{
+		{"missing-auth#id", "resource not found: missing-auth"},
+		{"auth#missing", "unknown or unavailable selector"},
+		{"auth#id", ""},
+		{"auth", ""},
+	} {
+		t.Run(tc.expression, func(t *testing.T) {
+			rs, err := loadPayloadReferences(t, strings.Replace(manifest, "TARGET", tc.expression, 1))
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				require.ErrorContains(t, err, "/default_application_auth_strategy_id")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "__REF__:auth#id", *rs.Portals[0].DefaultApplicationAuthStrategyID)
+			require.Empty(t, rs.ApplicationAuthStrategies[0].GetKonnectID())
+		})
+	}
+}
 
 func TestPayloadReferencesLoadMapsListsAndSDKFields(t *testing.T) {
 	t.Setenv("PAYLOAD_REF_DESCRIPTION", "do-not-persist-this-value")

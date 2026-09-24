@@ -120,9 +120,15 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	logger.Debug("Starting reference resolution")
 	for _, resource := range rs.AllResources() {
 		err := values.Transform(resource, func(path string, value string) (any, error) {
-			if !tags.IsRefPlaceholder(value) || resources.IsRelationshipPath(resource, path) ||
+			if !tags.IsRefPlaceholder(value) ||
 				rs.GetEnvSources(resource.GetRef())[path] != "" || rs.LiteralSources[resource.GetRef()][path] != "" {
 				return value, nil
+			}
+			if resources.IsRelationshipPath(resource, path) {
+				// Preserve relationship-specific resolution, but validate the explicit
+				// target and selector before deferring its value to the planner.
+				_, err := rs.ResolvePayloadReference(value)
+				return value, err
 			}
 			logger.Debug("Found reference placeholder", "resource_ref", resource.GetRef())
 			if source := rs.PayloadReferenceLiteralSource(value); source != "" {

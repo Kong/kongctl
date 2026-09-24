@@ -57,6 +57,36 @@ func TestPayloadReferencesNewAndExistingGateway(t *testing.T) {
 	}
 }
 
+func TestRelationshipReferenceValidationPreservesForwardReferences(t *testing.T) {
+	portal := resources.PortalResource{BaseResource: resources.BaseResource{Ref: "portal"}}
+	portal.DefaultApplicationAuthStrategyID = new("__REF__:auth#id")
+	rs := &resources.ResourceSet{Portals: []resources.PortalResource{portal}}
+	p := NewPlanner(nil, slog.Default())
+	_, err := p.resolveKnownPayloadReferences(t.Context(), rs)
+	require.ErrorContains(t, err, "resource not found: auth")
+	require.ErrorContains(t, err, "/default_application_auth_strategy_id")
+
+	rs.ApplicationAuthStrategies = []resources.ApplicationAuthStrategyResource{{
+		BaseResource: resources.BaseResource{Ref: "auth"},
+	}}
+	changed, err := p.resolveKnownPayloadReferences(t.Context(), rs)
+	require.NoError(t, err)
+	require.False(t, changed)
+	require.Equal(t, "__REF__:auth#id", *rs.Portals[0].DefaultApplicationAuthStrategyID)
+	changes := []PlannedChange{
+		{ID: "create-auth", ResourceType: ResourceTypeApplicationAuthStrategy, ResourceRef: "auth", Action: ActionCreate},
+		{
+			ID: "create-portal", ResourceType: ResourceTypePortal, ResourceRef: "portal", Action: ActionCreate,
+			Fields: map[string]any{FieldDefaultApplicationStrategyID: *rs.Portals[0].DefaultApplicationAuthStrategyID},
+		},
+	}
+	resolved, err := NewReferenceResolver(nil, rs).ResolveReferences(t.Context(), changes)
+	require.NoError(t, err)
+	require.Empty(t, resolved.Errors)
+	require.Equal(t, resources.UnknownReferenceID,
+		resolved.ChangeReferences["create-portal"][FieldDefaultApplicationStrategyID].ID)
+}
+
 func TestPayloadLookupsRequireExplicitContext(t *testing.T) {
 	for _, tc := range []struct{ name, expression, want, err string }{
 		{"id", "!lookup {resource_type: ai_gateway, id: known-id}", "known-id", ""},
