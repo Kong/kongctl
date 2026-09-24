@@ -65,6 +65,15 @@ func TestPayloadLookupsRequireExplicitContext(t *testing.T) {
 		{"unsupported type", "!lookup {resource_type: nonexistent, name: gateway}", "", "does not support"},
 		{"missing scope", "!lookup {resource_type: gateway_service, name: service}", "", "requires resolved"},
 		{"scoped", "!lookup {resource_type: gateway_service, parent_ref: cp, name: service}", "service-id", ""},
+		{"inline parent", `!lookup {resource_type: gateway_service, name: service,
+            parent: !lookup {resource_type: control_plane, id: cp-id}}`, "service-id", ""},
+		{
+			"wrong parent type", `!lookup {resource_type: gateway_service, name: service,
+            parent: !lookup {resource_type: ai_gateway, name: gateway}}`,
+			"", "parent resource_type must be control_plane",
+		},
+		{"unscoped parent", `!lookup {resource_type: ai_gateway, name: gateway,
+            parent: !lookup {resource_type: control_plane, id: cp-id}}`, "", "does not accept parent scope"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var doc yaml.Node
@@ -95,6 +104,68 @@ func TestPayloadLookupsRequireExplicitContext(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, []any{tc.want}, rs.AIGatewayPolicies[0].Config["key.with.dots"])
+			}
+		})
+	}
+}
+
+func TestPayloadLookupRemoteParentFailures(t *testing.T) {
+	t.Setenv("REMOTE_PARENT_NAME", "sensitive-parent")
+	for _, tc := range []struct {
+		name              string
+		parents, children int
+		want              string
+	}{
+		{"missing parent", 0, 1, "no control_plane matched"},
+		{"ambiguous parent", 2, 1, "matched 2 control_plane"},
+		{"missing child", 1, 0, "no gateway_service matched"},
+		{"ambiguous child", 1, 2, "matched 2 gateway_service"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(`value: !lookup
+  resource_type: gateway_service
+  name: billing
+  parent: !external
+    resource_type: control_plane
+    name: !env REMOTE_PARENT_NAME
+`), &doc))
+			value, err := tags.NewExternalTagResolver(tags.TagLookup).Resolve(doc.Content[0].Content[1])
+			require.NoError(t, err)
+			lookup, ok := tags.ParseExternalPlaceholder(value.(string))
+			require.True(t, ok)
+			p := NewPlanner(nil, slog.Default())
+			p.externalResolver = newExternalLookupResolver(p)
+			calls := []string{}
+			p.externalResolver.adapters[resources.ResourceTypeControlPlane] = func(
+				_ context.Context, req externalLookupRequest,
+			) (string, error) {
+				calls = append(calls, "parent")
+				candidates := make([]state.ControlPlane, tc.parents)
+				for i := range candidates {
+					candidates[i] = state.ControlPlane{ControlPlane: kkComps.ControlPlane{Name: "sensitive-parent", ID: "cp-id"}}
+				}
+				return matchExternalCandidates(req, candidates, func(c state.ControlPlane) string { return c.ID })
+			}
+			p.externalResolver.adapters[resources.ResourceTypeGatewayService] = func(
+				_ context.Context, req externalLookupRequest,
+			) (string, error) {
+				calls = append(calls, "child")
+				require.Equal(t, "cp-id", req.ParentID)
+				candidates := make([]state.GatewayService, tc.children)
+				for i := range candidates {
+					candidates[i] = state.GatewayService{Name: "billing", ID: "service-id"}
+				}
+				return matchExternalCandidates(req, candidates, func(c state.GatewayService) string { return c.ID })
+			}
+			_, err = p.resolvePayloadLookup(t.Context(), &resources.ResourceSet{}, lookup, "/config/service_id")
+			require.ErrorContains(t, err, tc.want)
+			require.ErrorContains(t, err, "/config/service_id")
+			require.NotContains(t, err.Error(), "sensitive-parent")
+			if tc.parents == 1 {
+				require.Equal(t, []string{"parent", "child"}, calls)
+			} else {
+				require.Equal(t, []string{"parent"}, calls)
 			}
 		})
 	}

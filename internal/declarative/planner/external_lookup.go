@@ -318,8 +318,9 @@ func (r *externalLookupResolver) resolveInlineLookups(
 				if lookup.ResourceType != "" && lookup.ResourceType != string(targetType) {
 					return fmt.Errorf("lookup resource_type must be %s for this relationship", targetType)
 				}
-				if lookup.ParentRef != "" {
-					return fmt.Errorf("relationship lookups inherit parent scope; parent_ref is only supported in payload values")
+				if lookup.ParentRef != "" || lookup.Parent != nil {
+					return fmt.Errorf("relationship lookups inherit parent scope; " +
+						"parent and parent_ref are only supported in payload values")
 				}
 
 				parent, err := r.inlineLookupParent(rs, resource, relationship)

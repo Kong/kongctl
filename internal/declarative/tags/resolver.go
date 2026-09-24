@@ -176,6 +176,15 @@ func validateNestedContent(node *yaml.Node, outerTag string, direct bool) error 
 				continue
 			}
 
+			value := node.Content[i+1]
+			if direct && (outerTag == TagLookup || outerTag == TagExternal) &&
+				key.Value == "parent" && (value.Tag == TagLookup || value.Tag == TagExternal) {
+				if err := validateNestedTags(value); err != nil {
+					return err
+				}
+				continue
+			}
+
 			location := nestedTagLocationOther
 			if direct {
 				location = nestedTagLocationDirectMappingValue

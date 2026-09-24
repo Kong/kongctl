@@ -33,9 +33,16 @@ func TestPayloadReferencesApplySavedPlanAndReplan(t *testing.T) {
 			s := sdk.New(sdk.WithClient(remote), sdk.WithServerURL("https://konnect.example.test"))
 			client := state.NewClient(state.ClientConfig{
 				AIGatewayAPI: s.AIGateways, AIGatewayPoliciesAPI: s.AIGatewayPolicies,
+				ControlPlaneAPI: s.ControlPlanes, GatewayServiceAPI: s.Services,
 			})
 			file := filepath.Join(t.TempDir(), "config.yaml")
 			config := `
+control_planes:
+  - ref: remote-cp
+    _external:
+      selector:
+        matchFields:
+          name: production
 ai_gateways:
   - ref: gateway
     name: gateway
@@ -53,6 +60,14 @@ ai_gateways:
           headers:
             X-Control-Plane-Id: !ref gateway
             other.gateway: !lookup {resource_type: ai_gateway, name: remote}
+            inline.service: !lookup
+              resource_type: gateway_service
+              name: billing
+              parent: !lookup {resource_type: control_plane, name: production}
+            declared.service: !lookup
+              resource_type: gateway_service
+              name: billing
+              parent_ref: remote-cp
           nested:
             - "0": !ref gateway#id
               display: !ref gateway#display_name
@@ -115,6 +130,13 @@ func (c *payloadReferenceHTTPClient) Do(req *http.Request) (*http.Response, erro
 				items = append(items, c.gateway)
 			}
 			response = map[string]any{"data": items}
+		case strings.HasSuffix(req.URL.Path, "/control-planes"):
+			response = map[string]any{"data": []any{map[string]any{"id": "cp-id", "name": "production"}}}
+		case strings.HasSuffix(req.URL.Path, "/services"):
+			if !strings.Contains(req.URL.Path, "/control-planes/cp-id/") {
+				return nil, fmt.Errorf("service lookup used incorrect parent scope")
+			}
+			response = map[string]any{"data": []any{map[string]any{"id": "service-id", "name": "billing"}}}
 		case strings.HasSuffix(req.URL.Path, "/policies"):
 			items := []any{}
 			if c.policy != nil {
@@ -150,6 +172,9 @@ func (c *payloadReferenceHTTPClient) Do(req *http.Request) (*http.Response, erro
 				headers := config["headers"].(map[string]any)
 				if headers["X-Control-Plane-Id"] != "gateway-id" || headers["other.gateway"] != "remote-id" {
 					return nil, fmt.Errorf("incorrect resolved outgoing headers")
+				}
+				if headers["inline.service"] != "service-id" || headers["declared.service"] != "service-id" {
+					return nil, fmt.Errorf("incorrect remote child lookup result")
 				}
 				item := config["nested"].([]any)[0].(map[string]any)
 				if item["0"] != "gateway-id" || item["display"] != "Gateway" {

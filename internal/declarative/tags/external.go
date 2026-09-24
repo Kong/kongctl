@@ -17,6 +17,7 @@ const ExternalPlaceholderPrefix = "__EXTERNAL__:"
 type ExternalLookup struct {
 	ResourceType    string            `json:"resource_type,omitempty"`
 	ParentRef       string            `json:"parent_ref,omitempty"`
+	Parent          *ExternalLookup   `json:"parent,omitempty"`
 	MatchFields     map[string]string `json:"match_fields"`
 	SensitiveFields []string          `json:"sensitive_fields,omitempty"`
 	Line            int               `json:"line,omitempty"`
@@ -66,6 +67,21 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 				return nil, fmt.Errorf("%s mapping keys must be strings", r.tag)
 			}
 			field := strings.TrimSpace(key.Value)
+			if field == "parent" && (value.Tag == TagLookup || value.Tag == TagExternal) {
+				if lookup.Parent != nil {
+					return nil, fmt.Errorf("%s parent cannot be repeated", r.tag)
+				}
+				resolved, err := NewExternalTagResolver(value.Tag).Resolve(value)
+				if err != nil {
+					return nil, fmt.Errorf("%s parent: %w", r.tag, err)
+				}
+				parent, ok := ParseExternalPlaceholder(resolved.(string))
+				if !ok {
+					return nil, fmt.Errorf("%s parent must be a lookup", r.tag)
+				}
+				lookup.Parent = &parent
+				continue
+			}
 			match, sensitive, err := resolveExternalSelectorValue(value)
 			if err != nil {
 				return nil, fmt.Errorf("%s selector %q: %w", r.tag, field, err)
@@ -99,6 +115,14 @@ func (r *ExternalTagResolver) Resolve(node *yaml.Node) (any, error) {
 		delete(lookup.MatchFields, "parent_ref")
 		if len(lookup.MatchFields) == 0 {
 			return nil, fmt.Errorf("%s requires at least one match selector", r.tag)
+		}
+	}
+	if lookup.Parent != nil {
+		if lookup.ParentRef != "" {
+			return nil, fmt.Errorf("%s parent and parent_ref are mutually exclusive", r.tag)
+		}
+		if _, exists := lookup.MatchFields["parent"]; exists {
+			return nil, fmt.Errorf("%s parent cannot be repeated", r.tag)
 		}
 	}
 	if _, hasID := lookup.MatchFields["id"]; hasID && len(lookup.MatchFields) != 1 {

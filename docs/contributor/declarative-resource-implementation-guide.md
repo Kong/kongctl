@@ -722,9 +722,12 @@ guard preserves them. Keep this provenance through saved-plan serialization.
 and emits an opaque placeholder without making Konnect calls.
 [Planner external lookup][external] resolves identity before managed matching.
 In arbitrary values, lookup mappings require `resource_type` and may supply
-`parent_ref` for an existing scoped parent. Reuse the external capability
-registry, adapters, cache, and sensitivity metadata. Relationships continue
-to infer the type; explicit type metadata must agree with that inference.
+`parent_ref` for an existing scoped parent or a nested `parent: !lookup`.
+These are mutually exclusive. Nested lookups require an explicit type matching
+the child's registered parent type and resolve before the child. Reuse the
+external capability registry, adapters, cache, and sensitivity metadata.
+Relationships continue to infer the type; explicit type metadata must agree
+with that inference.
 
 External-capable resource types must implement `ExternallyResolvableResource`,
 use external registration, declare selectors and parent scope, and supply
@@ -736,7 +739,8 @@ Override the base `IsExternal` behavior where needed so matching and lifecycle
 code recognize the resource as external.
 
 [The nested-tag allowlist][tag-registry] supports `!env` directly inside
-external/lookup mapping selectors, and `!env`/`!file` inside `!secret`.
+external/lookup mapping selectors, nested `!lookup`/`!external` in their
+`parent` field, and `!env`/`!file` inside `!secret`.
 External selectors from environment values retain sensitivity metadata:
 cache keys use real selectors, while diagnostics redact them.
 For new compositions, define resolution phase, location, result type,

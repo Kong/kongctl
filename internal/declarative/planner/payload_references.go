@@ -41,30 +41,8 @@ func (p *Planner) resolveKnownPayloadReferences(ctx context.Context, rs *resourc
 				if !ok {
 					return nil, fmt.Errorf("invalid lookup expression")
 				}
-				if lookup.ResourceType == "" {
-					return nil, fmt.Errorf("lookup in an arbitrary payload value requires resource_type")
-				}
-				resourceType := resources.ResourceType(lookup.ResourceType)
-				capability, ok := resources.ExternalResolutionFor(resourceType)
-				if !ok {
-					return nil, fmt.Errorf("resource type %q does not support external lookup", resourceType)
-				}
-				parentID := ""
-				if lookup.ParentRef != "" {
-					parent, err := rs.ReferenceTarget(lookup.ParentRef)
-					if err != nil {
-						return nil, err
-					}
-					if parent.GetType() != capability.ParentType {
-						return nil, fmt.Errorf("lookup parent_ref must identify a %s declaration", capability.ParentType)
-					}
-					parentID = parent.GetKonnectID()
-				}
-				return p.externalResolver.resolve(ctx, externalLookupRequest{
-					ResourceType: resourceType, MatchFields: lookup.MatchFields,
-					SensitiveFields: lookup.SensitiveFields, ParentID: parentID,
-					Source: fmt.Sprintf("%s %q field %s", resource.GetType(), resource.GetRef(), path),
-				})
+				return p.resolvePayloadLookup(ctx, rs, lookup,
+					fmt.Sprintf("%s %q field %s", resource.GetType(), resource.GetRef(), path))
 			}
 			if !tags.IsRefPlaceholder(value) || resources.IsRelationshipPath(resource, path) {
 				return value, nil
@@ -141,4 +119,50 @@ func (p *Planner) bindPayloadReferences(plan *Plan, rs *resources.ResourceSet) e
 		}
 	}
 	return nil
+}
+
+// Resolve a parent lookup before its child so each request retains its own scope
+// and selector sensitivity in the shared lookup resolver.
+func (p *Planner) resolvePayloadLookup(
+	ctx context.Context, rs *resources.ResourceSet, lookup tags.ExternalLookup, source string,
+) (string, error) {
+	if lookup.ResourceType == "" {
+		return "", fmt.Errorf("%s: lookup in an arbitrary payload value requires resource_type", source)
+	}
+	resourceType := resources.ResourceType(lookup.ResourceType)
+	capability, ok := resources.ExternalResolutionFor(resourceType)
+	if !ok {
+		return "", fmt.Errorf("%s: resource type %q does not support external lookup", source, resourceType)
+	}
+	if lookup.Parent != nil && lookup.ParentRef != "" {
+		return "", fmt.Errorf("%s: lookup parent and parent_ref are mutually exclusive", source)
+	}
+	parentID := ""
+	if lookup.Parent != nil {
+		if capability.ParentType == "" {
+			return "", fmt.Errorf("%s: lookup resource type %s does not accept parent scope", source, resourceType)
+		}
+		if lookup.Parent.ResourceType != string(capability.ParentType) {
+			return "", fmt.Errorf("%s: lookup parent resource_type must be %s", source, capability.ParentType)
+		}
+		var err error
+		parentID, err = p.resolvePayloadLookup(ctx, rs, *lookup.Parent, source+" parent")
+		if err != nil {
+			return "", err
+		}
+	}
+	if lookup.ParentRef != "" {
+		parent, err := rs.ReferenceTarget(lookup.ParentRef)
+		if err != nil {
+			return "", err
+		}
+		if parent.GetType() != capability.ParentType {
+			return "", fmt.Errorf("lookup parent_ref must identify a %s declaration", capability.ParentType)
+		}
+		parentID = parent.GetKonnectID()
+	}
+	return p.externalResolver.resolve(ctx, externalLookupRequest{
+		ResourceType: resourceType, MatchFields: lookup.MatchFields,
+		SensitiveFields: lookup.SensitiveFields, ParentID: parentID, Source: source,
+	})
 }

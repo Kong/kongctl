@@ -573,6 +573,24 @@ service_id: !lookup
   name: shared-service
 ```
 
+To look up both a remote parent and its child without declaring either,
+use a nested `parent` lookup:
+
+```yaml
+service_id: !lookup
+  resource_type: gateway_service
+  name: billing
+  parent: !lookup
+    resource_type: control_plane
+    name: production
+```
+
+The parent resolves first, then its ID scopes the child lookup. Both lookups
+must match exactly one resource. Supply `resource_type` at each level; the
+parent type must match the child's required scope. Use either `parent` or
+`parent_ref`, never both. Nested parents also accept the `!external` alias
+and `!env` selector values. Neither remote object becomes managed by kongctl.
+
 The normal lookup capability, selector, uniqueness, and scope rules apply.
 `!external` accepts the same syntax. Lookups locate existing resources during
 planning; they do not wait for a new parent to be created. For new resources,
