@@ -42,6 +42,10 @@ func TestAIGatewayPolicyDeleteOrdering(t *testing.T) {
 				fields: map[string]any{FieldPolicies: nil}, wantError: "still references it",
 			},
 			{
+				name: "malformed list does not prove detachment", action: ActionUpdate,
+				fields: map[string]any{FieldPolicies: []any{"replacement", 42}}, wantError: "still references it",
+			},
+			{
 				name: "update retains reference", action: ActionUpdate,
 				fields: map[string]any{FieldPolicies: []string{"old-policy"}}, wantError: "planned",
 			},
@@ -275,5 +279,111 @@ func policyOrderClientConfig(t *testing.T, kind, policyReference string) state.C
 		AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{policies: []kkComps.AIGatewayPolicy{policy}},
 		AIGatewayAgentsAPI:   agents, AIGatewayConsumersAPI: consumers, AIGatewayConsumerGroupsAPI: groups,
 		AIGatewayModelAPI: models, AIGatewayMCPServersAPI: servers,
+	}
+}
+
+// Exercise SDK serialization and the real diff builders instead of supplying an
+// empty policies field that omitempty removes in production.
+func TestAIGatewayPolicyFullDetachFromDesiredPayload(t *testing.T) {
+	for _, kind := range []string{
+		ResourceTypeAIGatewayAgent, ResourceTypeAIGatewayConsumer, ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayModel, ResourceTypeAIGatewayMCPServer,
+	} {
+		for _, explicitEmpty := range []bool{false, true} {
+			name := "omitted"
+			if explicitEmpty {
+				name = "empty"
+			}
+			t.Run(kind+"/"+name, func(t *testing.T) {
+				cfg := policyOrderClientConfig(t, kind, "old-policy")
+				p := NewPlanner(state.NewClient(cfg), slog.Default())
+				p.resources = &resources.ResourceSet{}
+				payload := map[string]any{
+					"ref": "old-user", "ai_gateway": "support-gateway",
+					FieldName: "old-user", FieldDisplayName: "Updated User",
+				}
+				if explicitEmpty {
+					payload[FieldPolicies] = []string{}
+				}
+				var fields map[string]any
+				var changed map[string]FieldChange
+				var needsUpdate bool
+				var err error
+				switch kind {
+				case ResourceTypeAIGatewayAgent:
+					payload[FieldType] = "a2a"
+					payload[FieldConfig] = map[string]any{"url": "https://example.com"}
+					data, marshalErr := json.Marshal(payload)
+					require.NoError(t, marshalErr)
+					var desired resources.AIGatewayAgentResource
+					require.NoError(t, json.Unmarshal(data, &desired))
+					current := cfg.AIGatewayAgentsAPI.(*testAIGatewayAgentAPI).agents[0]
+					observed := state.AIGatewayAgent{AIGatewayAgent: current}
+					needsUpdate, fields, changed, err = p.shouldUpdateAIGatewayAgent(observed, desired)
+				case ResourceTypeAIGatewayConsumer:
+					payload[FieldType] = "api-key"
+					data, marshalErr := json.Marshal(payload)
+					require.NoError(t, marshalErr)
+					var desired resources.AIGatewayConsumerResource
+					require.NoError(t, json.Unmarshal(data, &desired))
+					current := cfg.AIGatewayConsumersAPI.(*testAIGatewayConsumerAPI).consumers[0]
+					observed := state.AIGatewayConsumer{AIGatewayConsumer: current}
+					needsUpdate, fields, changed, err = p.shouldUpdateAIGatewayConsumer(observed, desired)
+				case ResourceTypeAIGatewayConsumerGroup:
+					data, marshalErr := json.Marshal(payload)
+					require.NoError(t, marshalErr)
+					var desired resources.AIGatewayConsumerGroupResource
+					require.NoError(t, json.Unmarshal(data, &desired))
+					current := cfg.AIGatewayConsumerGroupsAPI.(*testAIGatewayConsumerGroupAPI).groups[0]
+					observed := state.AIGatewayConsumerGroup{AIGatewayConsumerGroup: current}
+					needsUpdate, fields, changed, err = p.shouldUpdateAIGatewayConsumerGroup(observed, desired, nil)
+				case ResourceTypeAIGatewayModel:
+					payload[FieldType] = "model"
+					payload[FieldCapabilities] = []string{"generate"}
+					payload[FieldConfig] = map[string]any{FieldRoute: map[string]any{}, FieldModel: map[string]any{}}
+					payload[FieldTargets] = []any{map[string]any{
+						FieldName: "gpt-4o", FieldProvider: "support-openai",
+						FieldConfig: map[string]any{FieldType: "openai"},
+					}}
+					payload[FieldFormats] = []any{map[string]any{FieldType: "openai"}}
+					data, marshalErr := json.Marshal(payload)
+					require.NoError(t, marshalErr)
+					var desired resources.AIGatewayModelResource
+					require.NoError(t, json.Unmarshal(data, &desired))
+					current := cfg.AIGatewayModelAPI.(*testAIGatewayModelAPI).models[0]
+					observed := state.AIGatewayModel{AIGatewayModel: current}
+					needsUpdate, fields, changed, err = p.shouldUpdateAIGatewayModel(observed, desired)
+				case ResourceTypeAIGatewayMCPServer:
+					payload[FieldType] = "conversion-only"
+					payload[FieldTools] = []any{map[string]any{FieldName: "tool", FieldDescription: "Lookup", "method": "GET"}}
+					payload[FieldConfig] = map[string]any{"url": "https://example.com"}
+					data, marshalErr := json.Marshal(payload)
+					require.NoError(t, marshalErr)
+					var desired resources.AIGatewayMCPServerResource
+					require.NoError(t, json.Unmarshal(data, &desired))
+					current := cfg.AIGatewayMCPServersAPI.(*testAIGatewayMCPServerAPI).servers[0]
+					observed := state.AIGatewayMCPServer{AIGatewayMCPServer: current}
+					needsUpdate, fields, changed, err = p.shouldUpdateAIGatewayMCPServer(observed, desired)
+				}
+				require.NoError(t, err)
+				require.True(t, needsUpdate)
+				require.NotContains(t, fields, FieldPolicies)
+				require.Contains(t, changed, FieldPolicies)
+				require.Nil(t, changed[FieldPolicies].New)
+				plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+				plan.AddChange(PlannedChange{
+					ID: "delete-policy", ResourceType: ResourceTypeAIGatewayPolicy, Action: ActionDelete,
+					ResourceID: "policy-id", Fields: map[string]any{FieldName: "old-policy"},
+					Namespace: "default", Parent: &ParentInfo{Ref: "support-gateway"},
+				})
+				plan.AddChange(PlannedChange{
+					ID: "detach-user", ResourceType: kind, Action: ActionUpdate, ResourceID: "user-id",
+					Fields: fields, ChangedFields: changed,
+					Namespace: "default", Parent: &ParentInfo{Ref: "support-gateway"},
+				})
+				require.NoError(t, p.resolveAIGatewayPolicyDeletes(t.Context(), "default", "support-gateway", "gateway-id", plan))
+				require.Contains(t, plan.Changes[0].DependsOn, "detach-user")
+			})
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/util"
 )
 
 type aiGatewayPolicyUser struct {
@@ -35,7 +36,9 @@ func (p *Planner) resolveAIGatewayPolicyDeletes(
 		if !aiGatewayResourceUsesPolicies(change.ResourceType) {
 			continue
 		}
-		changes[resourceKey{change.ResourceType, change.ResourceID}] = change
+		if change.ResourceID != "" {
+			changes[resourceKey{change.ResourceType, change.ResourceID}] = change
+		}
 		if change.Action == ActionCreate || change.Action == ActionUpdate {
 			plannedUsers = append(plannedUsers, change)
 		}
@@ -58,7 +61,7 @@ func (p *Planner) resolveAIGatewayPolicyDeletes(
 			})
 		}
 		for _, change := range plannedUsers {
-			if referencesPolicy(aiGatewayPolicyNames(change.Fields)) {
+			if referencesPolicy(stringSliceFromField(change.Fields, FieldPolicies)) {
 				return fmt.Errorf(
 					"cannot delete AI Gateway Policy %q in gateway %q while planned %s %q still references it",
 					policyName, gatewayRef, change.ResourceType, change.ResourceRef,
@@ -74,13 +77,9 @@ func (p *Planner) resolveAIGatewayPolicyDeletes(
 				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
 				continue
 			}
-			if change != nil && change.Action == ActionUpdate {
-				// An unrelated update that omits policies does not detach them.
-				if policies, present := change.Fields[FieldPolicies]; present && policies != nil &&
-					!referencesPolicy(aiGatewayPolicyNames(change.Fields)) {
-					deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
-					continue
-				}
+			if change != nil && change.Action == ActionUpdate && aiGatewayPolicyUpdateDetaches(*change, referencesPolicy) {
+				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
+				continue
 			}
 			return fmt.Errorf(
 				"cannot delete AI Gateway Policy %q in gateway %q while %s %q still references it",
@@ -101,30 +100,27 @@ func aiGatewayResourceUsesPolicies(resourceType string) bool {
 	}
 }
 
-func aiGatewayPolicyNames(payload map[string]any) []string {
-	if values, ok := payload[FieldPolicies].([]string); ok {
-		return values
+func aiGatewayPolicyUpdateDetaches(change PlannedChange, referencesPolicy func([]string) bool) bool {
+	if raw, present := change.Fields[FieldPolicies]; present {
+		policies, valid := util.StringSliceFromAny(raw)
+		return valid && !referencesPolicy(policies)
 	}
-	values, _ := payload[FieldPolicies].([]any)
-	var policies []string
-	for _, value := range values {
-		if policy, ok := value.(string); ok {
-			policies = append(policies, policy)
-		}
-	}
-	return policies
+	// SDK omitempty removes empty policies from the desired PUT payload. The
+	// diff records that removal; payload absence alone does not establish it.
+	field, changed := change.ChangedFields[FieldPolicies]
+	return changed && field.New == nil
 }
 
 func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string) ([]aiGatewayPolicyUser, error) {
 	var users []aiGatewayPolicyUser
-	agents, err := p.client.ListAIGatewayAgents(ctx, gatewayID)
+	agents, err := p.listAIGatewayAgents(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
 	for _, agent := range agents {
 		users = append(users, aiGatewayPolicyUser{ResourceTypeAIGatewayAgent, agent.ID, agent.Name, agent.Policies})
 	}
-	consumers, err := p.client.ListAIGatewayConsumers(ctx, gatewayID)
+	consumers, err := p.listAIGatewayConsumers(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list consumers: %w", err)
 	}
@@ -133,14 +129,14 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 			ResourceTypeAIGatewayConsumer, consumer.ID, consumer.Name, consumer.Policies,
 		})
 	}
-	groups, err := p.client.ListAIGatewayConsumerGroups(ctx, gatewayID)
+	groups, err := p.listAIGatewayConsumerGroups(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list consumer groups: %w", err)
 	}
 	for _, group := range groups {
 		users = append(users, aiGatewayPolicyUser{ResourceTypeAIGatewayConsumerGroup, group.ID, group.Name, group.Policies})
 	}
-	models, err := p.client.ListAIGatewayModels(ctx, gatewayID)
+	models, err := p.listAIGatewayModels(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list models: %w", err)
 	}
@@ -151,10 +147,10 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 		}
 		users = append(users, aiGatewayPolicyUser{
 			ResourceTypeAIGatewayModel, resources.AIGatewayModelID(model.AIGatewayModel),
-			resources.AIGatewayModelName(model.AIGatewayModel), aiGatewayPolicyNames(payload),
+			resources.AIGatewayModelName(model.AIGatewayModel), stringSliceFromField(payload, FieldPolicies),
 		})
 	}
-	servers, err := p.client.ListAIGatewayMCPServers(ctx, gatewayID)
+	servers, err := p.listAIGatewayMCPServers(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list MCP servers: %w", err)
 	}
@@ -165,7 +161,7 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 		}
 		users = append(users, aiGatewayPolicyUser{
 			ResourceTypeAIGatewayMCPServer, resources.AIGatewayMCPServerID(server.AIGatewayMCPServer),
-			resources.AIGatewayMCPServerName(server.AIGatewayMCPServer), aiGatewayPolicyNames(payload),
+			resources.AIGatewayMCPServerName(server.AIGatewayMCPServer), stringSliceFromField(payload, FieldPolicies),
 		})
 	}
 	return users, nil

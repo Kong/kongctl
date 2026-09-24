@@ -31,7 +31,7 @@ func (p *Planner) resolveAIGatewayProviderDeletes(
 		return nil
 	}
 
-	current, err := p.client.ListAIGatewayModels(ctx, gatewayID)
+	current, err := p.listAIGatewayModels(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to inspect AI Gateway models before deleting providers: %w", err)
 	}

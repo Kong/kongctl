@@ -20,11 +20,13 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 		replace, retain, unscoped, plannedReference, inspectFailure bool
 		wantError                                                   string
 		embeddings                                                  bool
+		unrelatedUpdate                                             bool
 	}{
 		{name: "delete model before provider"},
 		{name: "delete semantic model before embedding provider", embeddings: true},
 		{name: "replacement provider then model update then old provider", replace: true},
 		{name: "retained model blocks deletion", retain: true, wantError: "still references it"},
+		{name: "unrelated model update retains provider", unrelatedUpdate: true, wantError: "planned model"},
 		{name: "unscoped model blocks deletion", unscoped: true, wantError: "still references it"},
 		{name: "new model cannot reference deleted provider", plannedReference: true, wantError: "planned model"},
 		{name: "failed observation blocks deletion", unscoped: true, inspectFailure: true, wantError: "failed to inspect"},
@@ -92,7 +94,16 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 				require.NoError(t, err)
 				require.NoError(t, json.Unmarshal(data, &desiredModel))
 			}
-			if tt.replace || tt.retain || tt.plannedReference {
+			if tt.unrelatedUpdate {
+				payload, err := desiredModel.MutablePayloadMap()
+				require.NoError(t, err)
+				payload[FieldDisplayName] = "Updated Model"
+				payload["ref"], payload["ai_gateway"] = desiredModel.Ref, desiredModel.AIGateway
+				data, err = json.Marshal(payload)
+				require.NoError(t, err)
+				require.NoError(t, json.Unmarshal(data, &desiredModel))
+			}
+			if tt.replace || tt.retain || tt.plannedReference || tt.unrelatedUpdate {
 				rs.AIGatewayModels = []resources.AIGatewayModelResource{desiredModel}
 			}
 			p := NewPlanner(state.NewClient(state.ClientConfig{
