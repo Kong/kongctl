@@ -39,6 +39,14 @@ func (r *EnvTagResolver) Tag() string {
 
 // Resolve processes a YAML node with the !env tag.
 func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
+	options, err := ParseEnvOptions(node)
+	if err != nil {
+		return nil, err
+	}
+	if options.Store {
+		// Keep the declaration until templates have a concrete destination type.
+		return node, nil
+	}
 	varRef, extractPath, err := parseEnvNode(node)
 	if err != nil {
 		return nil, err

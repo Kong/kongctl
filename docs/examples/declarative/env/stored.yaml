@@ -1,0 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: env-stored-example
+
+portals:
+  - ref: env-stored-portal
+    name: env-stored-portal
+    description: !env
+      var: PORTAL_DESCRIPTION
+      store: true
+    auto_approve_developers: !env_store PORTAL_AUTO_APPROVE
+    labels: !env_store {var: PORTAL_METADATA, extract: labels, type: object}
