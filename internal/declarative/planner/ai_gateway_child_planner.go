@@ -250,5 +250,8 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
-	return p.resolveAIGatewayProviderDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
+	if err := p.resolveAIGatewayProviderDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
+		return err
+	}
+	return p.resolveAIGatewayPolicyDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
 }

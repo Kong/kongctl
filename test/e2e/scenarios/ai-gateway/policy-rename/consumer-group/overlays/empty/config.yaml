@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-group-policy-rename-e2e
+
+ai_gateways:
+  - ref: consumer-group-policy-rename-e2e
+    name: consumer-group-policy-rename-e2e
+    display_name: "Consumer-Group Policy Rename E2E"
+    proxy_urls:
+      - host: consumer-group-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    policies: []
+    consumer_groups: []

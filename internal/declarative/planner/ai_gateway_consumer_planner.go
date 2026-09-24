@@ -43,7 +43,7 @@ func (p *Planner) planAIGatewayConsumerChanges(
 		return nil
 	}
 
-	currentConsumers, err := p.client.ListAIGatewayConsumers(ctx, gatewayID)
+	currentConsumers, err := p.listAIGatewayConsumers(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Consumers for gateway %s: %w", gatewayID, err)
 	}

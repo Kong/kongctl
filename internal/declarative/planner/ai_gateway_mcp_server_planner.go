@@ -43,7 +43,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 		return nil
 	}
 
-	currentServers, err := p.client.ListAIGatewayMCPServers(ctx, gatewayID)
+	currentServers, err := p.listAIGatewayMCPServers(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway MCP Servers for gateway %s: %w", gatewayID, err)
 	}

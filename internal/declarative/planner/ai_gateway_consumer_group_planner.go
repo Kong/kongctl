@@ -44,7 +44,7 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 		return nil
 	}
 
-	currentGroups, err := p.client.ListAIGatewayConsumerGroups(ctx, gatewayID)
+	currentGroups, err := p.listAIGatewayConsumerGroups(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Consumer Groups for gateway %s: %w", gatewayID, err)
 	}

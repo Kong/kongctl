@@ -1,0 +1,178 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  retry:
+    attempts: 1
+
+steps:
+  - name: create
+    commands:
+      - name: sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+      - name: verify-policy
+        outputFormat: json
+        run: [get, ai-gateway, policies, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": pass-listener-policy
+      - name: verify-resource-and-attachment
+        outputFormat: json
+        run: [get, ai-gateway, agents, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": pass-listener
+                "[0].policies": [pass-listener-policy]
+
+  - name: rename
+    inputOverlayDirs: [overlays/rename]
+    commands:
+      - name: capture-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/rename-plan.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 2
+                by_action.DELETE: 2
+      - name: single-sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 4, failed: 0, status: success}
+      - name: verify-policy
+        outputFormat: json
+        run: [get, ai-gateway, policies, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": pass-list-policy
+      - name: verify-resource-and-attachment
+        outputFormat: json
+        run: [get, ai-gateway, agents, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": pass-list
+                "[0].policies": [pass-list-policy]
+      - name: converged-plan
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+
+  - name: detach-and-delete-policy
+    inputOverlayDirs: [overlays/detach]
+    commands:
+      - name: single-sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields: {total_changes: 2, by_action.UPDATE: 1, by_action.DELETE: 1}
+          - select: summary
+            expect:
+              fields: {applied: 2, failed: 0, status: success}
+      - name: verify-detachment
+        outputFormat: json
+        run: [get, ai-gateway, agents, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].name": pass-list
+                "[0].policies || `[]`": []
+      - name: verify-policy-absent
+        outputFormat: json
+        run: [get, ai-gateway, policies, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields: {"@": 0}
+      - name: converged-plan
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+
+  - name: reattach-for-combined-cleanup
+    inputOverlayDirs: [overlays/rename]
+    commands:
+      - name: sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 2, failed: 0, status: success}
+
+  - name: delete-children
+    inputOverlayDirs: [overlays/empty]
+    commands:
+      - name: sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 2, failed: 0, status: success}
+      - name: verify-resources-absent
+        outputFormat: json
+        run: [get, ai-gateway, agents, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields: {"@": 0}
+      - name: verify-policies-absent
+        outputFormat: json
+        run: [get, ai-gateway, policies, --gateway-name, "Agent Policy Rename E2E"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields: {"@": 0}
+
+  - name: cleanup
+    inputOverlayDirs: [overlays/cleanup]
+    commands:
+      - name: remove-gateway
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 1, failed: 0, status: success}
+      - name: verify-gateway-absent
+        outputFormat: json
+        run: [get, ai-gateways]
+        assertions:
+          - select: "[?name=='agent-policy-rename-e2e'] | length(@)"
+            expect:
+              fields: {"@": 0}

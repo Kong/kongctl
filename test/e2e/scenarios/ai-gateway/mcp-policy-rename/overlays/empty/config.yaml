@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-policy-rename-e2e
+
+ai_gateways:
+  - ref: mcp-policy-rename-e2e
+    name: mcp-policy-rename-e2e
+    display_name: "MCP Policy Rename E2E"
+    proxy_urls:
+      - host: mcp-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    policies: []
+    mcp_servers: []

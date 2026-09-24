@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-policy-rename-e2e
+
+ai_gateways:
+  - ref: consumer-policy-rename-e2e
+    name: consumer-policy-rename-e2e
+    display_name: "Consumer Policy Rename E2E"
+    proxy_urls:
+      - host: consumer-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    policies: []
+    consumers: []

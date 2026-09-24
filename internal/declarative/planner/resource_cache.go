@@ -11,6 +11,12 @@ import (
 )
 
 type planningResourceCache struct {
+	aiGatewayAgents         map[string][]state.AIGatewayAgent
+	aiGatewayConsumers      map[string][]state.AIGatewayConsumer
+	aiGatewayConsumerGroups map[string][]state.AIGatewayConsumerGroup
+	aiGatewayModels         map[string][]state.AIGatewayModel
+	aiGatewayMCPServers     map[string][]state.AIGatewayMCPServer
+
 	managedControlPlanes             observationCache[state.ControlPlane]
 	managedEventGatewayControlPlanes observationCache[state.EventGatewayControlPlane]
 	managedPortals                   observationCache[state.Portal]
@@ -29,6 +35,12 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		aiGatewayAgents:         make(map[string][]state.AIGatewayAgent),
+		aiGatewayConsumers:      make(map[string][]state.AIGatewayConsumer),
+		aiGatewayConsumerGroups: make(map[string][]state.AIGatewayConsumerGroup),
+		aiGatewayModels:         make(map[string][]state.AIGatewayModel),
+		aiGatewayMCPServers:     make(map[string][]state.AIGatewayMCPServer),
+
 		managedControlPlanes:              newObservationCache[state.ControlPlane](),
 		managedEventGatewayControlPlanes:  newObservationCache[state.EventGatewayControlPlane](),
 		managedPortals:                    newObservationCache[state.Portal](),

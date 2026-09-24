@@ -365,6 +365,11 @@ func TestAIGatewayPolicyPlannerSyncDeletesScopedPolicies(t *testing.T) {
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayPolicy)
 	client := state.NewClient(state.ClientConfig{
+		AIGatewayAgentsAPI:         &testAIGatewayAgentAPI{},
+		AIGatewayConsumersAPI:      &testAIGatewayConsumerAPI{},
+		AIGatewayConsumerGroupsAPI: &testAIGatewayConsumerGroupAPI{},
+		AIGatewayModelAPI:          &testAIGatewayModelAPI{},
+		AIGatewayMCPServersAPI:     &testAIGatewayMCPServerAPI{},
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
 		},
