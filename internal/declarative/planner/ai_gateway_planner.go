@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
-	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -64,37 +63,39 @@ func (p *Planner) planAIGatewayChanges(
 
 	currentByName := indexAIGateways(currentGateways)
 
+	// The adapter tracks the actual update change for runtime/child ordering.
+	// Reset it for each parent; blocked updates must not inherit a prior ID.
+	var gatewayUpdateID string
+	updateGateway := func(
+		current state.AIGateway, desired resources.AIGatewayResource,
+		fields map[string]any, changed map[string]FieldChange, plan *Plan,
+	) {
+		gatewayUpdateID = p.planAIGatewayUpdate(current, desired, fields, changed, plan)
+	}
+	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeAIGateway,
+		managedRootOperations[resources.AIGatewayResource, state.AIGateway]{
+			diff:   p.shouldUpdateAIGateway,
+			create: p.planAIGatewayCreate,
+			update: updateGateway,
+			changeProtection: func(
+				current state.AIGateway, desired resources.AIGatewayResource,
+				_, _ bool, fields map[string]any, changed map[string]FieldChange, plan *Plan,
+			) {
+				updateGateway(current, desired, fields, changed, plan)
+			},
+			remove: p.planAIGatewayDelete,
+		}, plan)
+
 	if plan.Metadata.Mode == PlanModeDelete {
-		var protectionErrors []error
 		for _, desiredGateway := range desired {
 			if desiredGateway.IsExternal() {
 				continue
 			}
-			current, exists := currentByName[desiredGateway.Name]
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"ai_gateway %q not found in Konnect, skipping delete", desiredGateway.Name,
-				))
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(
-				ResourceTypeAIGateway, desiredGateway.Name, isProtected, ActionDelete,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planAIGatewayDelete(current, plan)
-			}
+			reconciler.deleteDesired(desiredGateway.Name, findManagedRoot(currentByName, desiredGateway.Name))
 		}
-
-		if len(protectionErrors) > 0 {
-			return aiGatewayProtectionError(protectionErrors)
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
-	var protectionErrors []error
 	matchedCurrent := make(map[string]bool)
 
 	for _, desiredGateway := range desired {
@@ -105,49 +106,18 @@ func (p *Planner) planAIGatewayChanges(
 			continue
 		}
 
-		current, exists := currentByName[desiredGateway.Name]
+		current := findManagedRoot(currentByName, desiredGateway.Name)
 		gatewayID := ""
-		gatewayChangeID := ""
-		gatewayUpdateID := ""
-		if !exists {
-			gatewayChangeID = p.planAIGatewayCreate(desiredGateway, plan)
-		} else {
-			gatewayID = current.ID
-			matchedCurrent[aiGatewayIdentity(current)] = true
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			shouldProtect := desiredGateway.Kongctl != nil &&
-				desiredGateway.Kongctl.Protected != nil &&
-				*desiredGateway.Kongctl.Protected
-
-			needsUpdate, updateFields, changedFields := p.shouldUpdateAIGateway(current, desiredGateway)
-			if isProtected != shouldProtect {
-				protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
-				if err := p.validateProtectionWithChange(
-					ResourceTypeAIGateway,
-					desiredGateway.Name,
-					isProtected,
-					ActionUpdate,
-					protectionChange,
-					needsUpdate,
-				); err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					gatewayUpdateID = p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
-				}
-			} else if needsUpdate {
-				if err := p.validateProtection(
-					ResourceTypeAIGateway,
-					desiredGateway.Name,
-					isProtected,
-					ActionUpdate,
-				); err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					gatewayUpdateID = p.planAIGatewayUpdate(current, desiredGateway, updateFields, changedFields, plan)
-				}
-			}
+		if current != nil {
+			gatewayID = current.resource.ID
+			matchedCurrent[aiGatewayIdentity(current.resource)] = true
 		}
+		gatewayUpdateID = ""
+		gatewayChangeID := reconciler.reconcile(managedRoot[resources.AIGatewayResource]{
+			resource: desiredGateway, name: desiredGateway.Name,
+			protected: desiredGateway.Kongctl != nil &&
+				desiredGateway.Kongctl.Protected != nil && *desiredGateway.Kongctl.Protected,
+		}, current)
 
 		childStart := len(plan.Changes)
 		if err := p.planAIGatewayChildren(
@@ -155,10 +125,10 @@ func (p *Planner) planAIGatewayChanges(
 		); err != nil {
 			return err
 		}
-		if gatewayUpdateID != "" && desiredGateway.MinRuntimeVersion != nil &&
-			getString(current.MinRuntimeVersion) != *desiredGateway.MinRuntimeVersion {
+		if current != nil && gatewayUpdateID != "" && desiredGateway.MinRuntimeVersion != nil &&
+			getString(current.resource.MinRuntimeVersion) != *desiredGateway.MinRuntimeVersion {
 			orderAIGatewayRuntimeChange(plan, gatewayUpdateID, childStart,
-				getString(current.MinRuntimeVersion), *desiredGateway.MinRuntimeVersion)
+				getString(current.resource.MinRuntimeVersion), *desiredGateway.MinRuntimeVersion)
 		}
 	}
 
@@ -168,20 +138,10 @@ func (p *Planner) planAIGatewayChanges(
 				continue
 			}
 
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAIGateway, current.Name, isProtected, ActionDelete); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planAIGatewayDelete(current, plan)
-			}
+			reconciler.remove(observedAIGatewayRoot(current))
 		}
 	}
-
-	if len(protectionErrors) > 0 {
-		return aiGatewayProtectionError(protectionErrors)
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 func (p *Planner) planExternalAIGatewayChildren(
@@ -252,14 +212,20 @@ func (p *Planner) shouldUpdateAIGateway(
 	return len(updates) > 0, updates, changedFields
 }
 
-func indexAIGateways(gateways []state.AIGateway) map[string]state.AIGateway {
-	byName := make(map[string]state.AIGateway, len(gateways))
+func indexAIGateways(gateways []state.AIGateway) map[string]managedRoot[state.AIGateway] {
+	byName := make(map[string]managedRoot[state.AIGateway], len(gateways))
 	for _, gateway := range gateways {
 		if gateway.Name != "" {
-			byName[gateway.Name] = gateway
+			byName[gateway.Name] = observedAIGatewayRoot(gateway)
 		}
 	}
 	return byName
+}
+
+func observedAIGatewayRoot(gateway state.AIGateway) managedRoot[state.AIGateway] {
+	return managedRoot[state.AIGateway]{
+		resource: gateway, name: gateway.Name, protected: labels.IsProtectedResource(gateway.NormalizedLabels),
+	}
 }
 
 func aiGatewayIdentity(gateway state.AIGateway) string {
@@ -411,14 +377,4 @@ func aiGatewayNamespaceAndProtection(resource resources.AIGatewayResource) (stri
 		protection = *resource.Kongctl.Protected
 	}
 	return namespace, protection
-}
-
-func aiGatewayProtectionError(protectionErrors []error) error {
-	var errMsg strings.Builder
-	errMsg.WriteString("Cannot generate plan due to protected resources:\n")
-	for _, err := range protectionErrors {
-		fmt.Fprintf(&errMsg, "- %s\n", err.Error())
-	}
-	errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-	return fmt.Errorf("%s", errMsg.String())
 }
