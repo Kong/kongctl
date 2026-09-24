@@ -66,3 +66,18 @@ The complete model scenario passed in
 Every rename applied all four changes with zero failures or skips; remote
 checks verified the old resources were absent, the new resources existed
 with the intended attachment, and a subsequent sync plan had zero changes.
+
+## Full-detach review regressions
+
+All four scenarios now additionally detach the surviving resource and delete
+its policy in one sync, check remote detachment and policy absence, and require
+a no-op plan. A later reattachment preserves combined child-deletion coverage.
+
+Before the review fix, all four passed the rename then failed planning at
+`detach-and-delete-policy/single-sync` with `still references it`. Production
+revision: `2784a312`. Red artifacts:
+`/home/rspurgeon/go/e2e-artifacts/20260924-120157`.
+
+All four complete scenarios passed after the fix, including the detach sync,
+remote checks, convergence, and cleanup. Green artifacts:
+`/home/rspurgeon/go/e2e-artifacts/20260924-120608`.

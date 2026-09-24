@@ -42,7 +42,8 @@ policy.id: constraint failed (type: foreign) as another entity references this v
 
 Local artifacts:
 `/home/rspurgeon/go/e2e-artifacts/20260924-094744`.
-Under `tests/Test_Scenarios_scenarios_ai-gateway_mcp-policy-rename_scenario.yaml`,
+Within the run's `tests` directory, open
+`Test_Scenarios_scenarios_ai-gateway_mcp-policy-rename_scenario.yaml`:
 the `steps/create/commands` artifacts contain the successful setup checks;
 `steps/rename/commands/capture-plan` contains the plan;
 `steps/rename/commands/single-sync` contains the failed execution and plan.
@@ -61,3 +62,19 @@ Child deletion and gateway cleanup also passed.
 
 The unchanged `ai-gateway/mcp-server` lifecycle scenario passed separately:
 `/home/rspurgeon/go/e2e-artifacts/20260924-103759`.
+
+## Full-detach review regression
+
+PR review identified that SDK `omitempty` drops an empty desired policy list.
+The scenario now also removes the attachment and policy in one sync, verifies
+the remote detachment and policy absence, and requires another no-op plan.
+It then reattaches the policy to preserve combined child-deletion coverage.
+
+Against production revision `2784a312`, the rename passed but the added
+`detach-and-delete-policy/single-sync` failed during planning with
+`still references it`. Red artifacts:
+`/home/rspurgeon/go/e2e-artifacts/20260924-120134`.
+
+After recognizing the removal recorded in `ChangedFields`, the full scenario
+passed, including remote detachment, convergence, and cleanup. Green artifacts:
+`/home/rspurgeon/go/e2e-artifacts/20260924-120601`.
