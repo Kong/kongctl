@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Operator defaults must not alter confirmation and fault-injection cases.
+unset KONGCTL_SMOKE_YES FAKE_FAIL_ON FAKE_FAIL_DELETE FAKE_BAD_SCAFFOLD FAKE_FAULT
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SMOKE_SCRIPT="$ROOT/scripts/smoke-test.sh"
 
@@ -59,219 +62,7 @@ PY
 
 write_fake_kongctl() {
   local path="$1"
-  cat >"$path" <<'PY'
-#!/usr/bin/env python3
-import json
-import os
-import pathlib
-import re
-import sys
-
-args = sys.argv[1:]
-if args[:1] == ["--profile"]:
-    args = args[2:]
-log_path = pathlib.Path(os.environ["FAKE_KONGCTL_LOG"])
-with log_path.open("a", encoding="utf-8") as handle:
-    handle.write(" ".join(args) + "\n")
-
-joined = " ".join(args)
-fail_on = os.environ.get("FAKE_FAIL_ON", "")
-if fail_on and fail_on in joined:
-    print(f"injected failure for {fail_on}", file=sys.stderr)
-    raise SystemExit(1)
-if os.environ.get("FAKE_FAIL_DELETE") == "1" and args[:1] == ["delete"]:
-    print("injected delete failure", file=sys.stderr)
-    raise SystemExit(1)
-
-state_path = pathlib.Path(os.environ["FAKE_KONGCTL_STATE"])
-state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
-
-def save_state():
-    state_path.write_text(json.dumps(state, sort_keys=True), encoding="utf-8")
-
-def option(name, default=""):
-    if name not in args:
-        return default
-    return args[args.index(name) + 1]
-
-def resource_from_path(path):
-    value = str(path)
-    for key in ("control_plane", "ai_gateway", "portal", "api"):
-        if f"/{key}/" in value:
-            return key
-    raise RuntimeError(f"unknown fixture path: {value}")
-
-def parse_fixture(path):
-    text = pathlib.Path(path).read_text(encoding="utf-8")
-    key = resource_from_path(path)
-    root = {"api": "apis", "portal": "portals", "control_plane": "control_planes", "ai_gateway": "ai_gateways"}[key]
-    def scalar(field):
-        match = re.search(rf"^    {field}: (.+)$", text, re.MULTILINE)
-        if not match:
-            return ""
-        raw = match.group(1)
-        try:
-            return json.loads(raw)
-        except json.JSONDecodeError:
-            return raw.strip('"')
-    ref_match = re.search(r"^  - ref: (.+)$", text, re.MULTILINE)
-    ref = json.loads(ref_match.group(1))
-    return key, {
-        "ref": ref,
-        "name": scalar("name") or ref,
-        "display_name": scalar("display_name"),
-        "description": scalar("description"),
-        "root": root,
-    }
-
-def resource_from_command():
-    if "control-plane" in args or "control-planes" in args:
-        return "control_plane"
-    if "ai-gateway" in args or "ai-gateways" in args:
-        return "ai_gateway"
-    if "portal" in args or "portals" in args:
-        return "portal"
-    return "api"
-
-def print_execution(changes=1):
-    print(json.dumps({"summary": {"status": "success", "failed": 0, "applied": changes, "total_changes": changes}}))
-
-if args == ["--help"]:
-    print("kongctl fake help")
-elif args[:2] == ["version", "--full"]:
-    print(json.dumps({"version": "1.2.3", "commit": "abcdef123456", "date": "2026-08-21T00:00:00Z"}))
-elif args[:1] == ["explain"]:
-    subject = args[1]
-    roots = {"api": "apis", "portal": "portals", "control_plane": "control_planes", "ai_gateway": "ai_gateways",
-             "api.versions": "api_versions", "api.documents": "api_documents"}
-    properties = {
-        "api": ["ref", "name", "description", "version", "slug"],
-        "portal": ["ref", "name", "display_name", "description"],
-        "control_plane": ["ref", "name", "description", "cluster_type"],
-        "ai_gateway": ["ref", "name", "display_name", "description"],
-        "api.versions": ["ref", "version", "spec"],
-        "api.documents": ["ref", "content", "title", "slug"],
-    }[subject]
-    print(json.dumps({
-        "type": "object",
-        "title": f"kongctl declarative schema: {subject}",
-        "x-kongctl-root-key": roots[subject],
-        "x-kongctl-maturity": {"level": "ga"},
-        "required": ["ref"],
-        "properties": {field: {"type": "string"} for field in properties},
-    }))
-elif args[:1] == ["scaffold"]:
-    subject = args[1]
-    bad = os.environ.get("FAKE_BAD_SCAFFOLD", "")
-    outputs = {
-        "api": """apis:
-  - ref: my-resource
-    name: my-resource
-    description: Example description
-    version: v1.0.0
-    slug: my-resource
-    # labels: {}
-""",
-        "portal": """portals:
-  - ref: my-resource
-    name: my-resource
-    display_name: My Resource
-    description: Example description
-""",
-        "control_plane": """control_planes:
-  - ref: my-resource
-    name: my-resource
-    description: Example description
-    # cluster_type: value
-""",
-        "ai_gateway": """ai_gateways:
-  - ref: my-resource
-    name: my-ai-gateway
-    display_name: My AI Gateway
-    # description:
-""",
-        "api.versions": """apis:
-  - ref: my-resource
-    versions:
-      - version: v1.0.0
-        spec: !file ./specs/api.yaml
-        ref: my-resource
-""",
-        "api.documents": """apis:
-  - ref: my-resource
-    documents:
-      - content: !file ./content.txt
-        # title: value
-        slug: my-resource
-        ref: my-resource
-""",
-    }
-    output = outputs[subject]
-    if bad == subject:
-        output = output.replace(output.splitlines()[0], "wrong_root:", 1)
-    print(output, end="")
-elif args[:1] == ["plan"]:
-    fixture = option("-f")
-    key, desired = parse_fixture(fixture)
-    mode = option("--mode", "sync")
-    action = "DELETE" if mode == "delete" else ("CREATE" if key not in state else "UPDATE")
-    changes = []
-    if mode == "delete" and key in state or mode != "delete" and state.get(key) != desired:
-        changes = [{"action": action, "resource_type": key, "resource_ref": desired["ref"], "fields": desired}]
-    plan = {"metadata": {"mode": mode}, "summary": {"total_changes": len(changes)}, "changes": changes}
-    pathlib.Path(option("--output-file")).write_text(json.dumps(plan), encoding="utf-8")
-    print(json.dumps(plan))
-elif args[:1] == ["diff"]:
-    plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-    print("\n".join(change["resource_ref"] for change in plan["changes"]) or "No changes")
-elif args[:1] == ["apply"]:
-    plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-    for change in plan["changes"]:
-        state[change["resource_type"]] = change["fields"]
-    save_state()
-    print_execution(len(plan["changes"]))
-elif args[:1] == ["sync"]:
-    key, desired = parse_fixture(option("-f"))
-    state[key] = desired
-    save_state()
-    print_execution(1)
-elif args[:2] == ["dump", "declarative"]:
-    resources = option("--resources")
-    keys = {
-        "apis": "api", "portals": "portal", "control_planes": "control_plane", "ai_gateways": "ai_gateway",
-    }
-    key = keys[resources]
-    item = state[key]
-    text = f"{item['root']}:\n  - ref: {item['ref']}\n    name: {item['name']}\n"
-    if key == "api":
-        text += "    versions:\n      - version: v1.0.0\n    documents:\n      - slug: guide\n"
-    pathlib.Path(option("--output-file")).write_text(text, encoding="utf-8")
-elif args[:1] == ["delete"]:
-    dry_run = "--dry-run" in args
-    if "--plan" in args:
-        plan = json.loads(pathlib.Path(option("--plan")).read_text(encoding="utf-8"))
-        key = plan["changes"][0]["resource_type"]
-    else:
-        key = resource_from_path(option("-f"))
-    changes = 1 if key in state else 0
-    if not dry_run:
-        state.pop(key, None)
-        save_state()
-    print_execution(changes)
-elif args[:1] in (["get"], ["list"]):
-    key = resource_from_command()
-    item = state.get(key)
-    if args[0] == "list":
-        print(json.dumps([item] if item else []))
-    elif not item:
-        print("not found", file=sys.stderr)
-        raise SystemExit(1)
-    else:
-        print(json.dumps(item))
-else:
-    print(f"unsupported fake command: {joined}", file=sys.stderr)
-    raise SystemExit(2)
-PY
+  cp "$ROOT/test/smoke/fake_kongctl.py" "$path"
   chmod 755 "$path"
 }
 
@@ -326,7 +117,7 @@ test_full_lifecycle() {
   assert_contains "$FAKE_LOG" "get gateway control-plane" "full run exercises imperative get"
   assert_contains "$FAKE_LOG" "--include-child-resources" "dump requests nested child resources"
   local report_condition="value['status'] == 'passed' and value['cleanup']['status'] == 'passed' "
-  report_condition+="and len(value['resources']) == 4 and value['known_issues'] == [] "
+  report_condition+="and len(value['resources']) == 5 and value['known_issues'] == [] "
   report_condition+="and value['known_issue_checks'] == []"
   assert_json "$RUN_DIR/report.json" "$report_condition" "full report records lifecycle and cleanup"
   pass "full lifecycle covers resources and per-resource delete"
@@ -419,6 +210,48 @@ test_scaffold_contract_failure_is_safe() {
   pass "explain and scaffold disagreement fails safely"
 }
 
+test_runtime21_lifecycle() {
+  new_case runtime21
+  run_smoke --yes --ai-runtime-2-1
+  [[ "$STATUS" -eq 0 ]] || fail "runtime 2.1 smoke succeeds" "$OUTPUT"
+  assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"cost": 3.5' "runtime costs are updated"
+  assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"ttl_ms": 0' "zero cache TTL is covered"
+  assert_contains "$FAKE_LOG" "ai_gateway-replacement.json" "replacement uses a saved plan"
+  assert_contains "$FAKE_LOG" "event_gateway-prune.json" "Event Gateway children are pruned"
+  assert_json "$FAKE_STATE" "value == {}" "runtime suite cleans up"
+  pass "runtime 2.1 and dependency lifecycle"
+}
+
+test_fault_is_rejected() {
+  local fault="$1" check="$2" mode="${3:---yes}"
+  new_case "$fault"
+  export FAKE_FAULT="$fault"
+  run_smoke "$mode"
+  unset FAKE_FAULT
+  [[ "$STATUS" -eq 1 ]] || fail "$fault must fail" "$OUTPUT"
+  assert_json "$RUN_DIR/report.json" \
+    "any(c['name'] == '$check' and c['status'] == 'failed' for c in value['checks'])" \
+    "$fault fails at the expected check"
+  assert_json "$FAKE_STATE" "value == {}" "$fault leaves no resources"
+  pass "$fault is rejected"
+}
+
+test_resource_selection() {
+  new_case selected
+  run_smoke --yes --resources ai_gateway
+  [[ "$STATUS" -eq 0 ]] || fail "selected resource lifecycle succeeds" "$OUTPUT"
+  assert_json "$RUN_DIR/report.json" \
+    "len(value['resources']) == 1 and value['resources'][0]['key'] == 'ai_gateway'" \
+    "report lists only selected resources"
+  assert_not_contains "$FAKE_LOG" "scaffold portal" "unselected fixtures are not prepared"
+  assert_json "$FAKE_STATE" "value == {}" "selected resource is cleaned"
+  for selection in 'api,unknown' 'api,api' 'api,' ',api' 'api,,portal'; do
+    run_smoke --quick --resources "$selection"
+    [[ "$STATUS" -eq 2 ]] || fail "invalid selection $selection is rejected" "$OUTPUT"
+  done
+  pass "resource selection and validation"
+}
+
 test_quick_uses_explain_and_scaffold
 test_full_lifecycle
 test_apply_failure_stops_lifecycle
@@ -427,3 +260,14 @@ test_keep_on_failure
 test_cleanup_failure_is_reported
 test_prompt_refusal_is_non_mutating
 test_scaffold_contract_failure_is_safe
+test_runtime21_lifecycle
+test_fault_is_rejected bad-list list-api-quick --quick
+test_fault_is_rejected lost-tags patch-preserves-tags --quick
+test_fault_is_rejected false-zero plan-zero-api-updated-apply
+test_fault_is_rejected unsafe-order plan-replacement-ai_gateway
+test_fault_is_rejected wrong-not-found get-absent-event_gateway
+test_fault_is_rejected missing-child plan-create-api
+test_fault_is_rejected bad-namespace plan-create-api
+test_fault_is_rejected bad-dump plan-zero-portal-dump-sync
+test_resource_selection
+python3 "$ROOT/test/smoke/plan_test.py" "$TMP_ROOT"

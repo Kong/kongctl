@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2317 # Resource loaders and exit handlers are invoked indirectly.
+# shellcheck disable=SC2317,SC2329 # Resource loaders and exit handlers are invoked indirectly.
 set -uo pipefail
 
 usage() {
@@ -13,6 +13,9 @@ Options:
   --binary PATH             kongctl executable (default: KONGCTL_BIN or kongctl on PATH)
   --profile NAME            kongctl profile to use
   --quick                   Run non-mutating discovery, scaffold, and list checks
+  --ai-runtime-2-1           Include AI Gateway 2.1 model and MCP fields
+  --resources LIST          Comma-separated subset of api,portal,control_plane,
+                            ai_gateway,event_gateway (default: all five)
   --expect-version VERSION  Require the reported version (a leading v is ignored)
   --expect-commit SHA       Require the reported commit to start with SHA
   --artifacts-dir PATH      Parent directory for the timestamped run directory
@@ -24,7 +27,8 @@ Environment:
   KONGCTL_BIN               Default binary override
   KONGCTL_SMOKE_YES         1, true, or yes skips the confirmation prompt
 
-The full suite creates isolated APIs, portals, control planes, and AI gateways,
+The full suite creates isolated APIs, portals, control planes, Event Gateways,
+and AI gateways with representative child resources,
 then deletes each resource with kongctl delete. Authentication is taken from the
 selected profile and the existing kongctl environment.
 EOF
@@ -55,6 +59,9 @@ expect_commit=""
 artifacts_parent=""
 assume_yes="false"
 keep_on_failure="false"
+ai_runtime21="false"
+resource_selection="api,portal,control_plane,ai_gateway,event_gateway"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -66,6 +73,15 @@ while [[ $# -gt 0 ]]; do
     --profile)
       [[ $# -ge 2 ]] || die_usage "--profile requires a value"
       profile_arg="$2"
+      shift 2
+      ;;
+    --ai-runtime-2-1)
+      ai_runtime21="true"
+      shift
+      ;;
+    --resources)
+      [[ $# -ge 2 && -n "$2" ]] || die_usage "--resources requires a non-empty list"
+      resource_selection="$2"
       shift 2
       ;;
     --quick)
@@ -103,6 +119,19 @@ while [[ $# -gt 0 ]]; do
       die_usage "unknown option: $1"
       ;;
   esac
+done
+
+declare -a resource_registry=()
+IFS=',' read -r -a resource_registry <<<"$resource_selection"
+[[ "$resource_selection" != *, ]] || die_usage "--resources cannot contain empty entries"
+selected_keys=" "
+for key in "${resource_registry[@]}"; do
+  case "$key" in
+    api | portal | control_plane | ai_gateway | event_gateway) ;;
+    *) die_usage "unknown resource: $key" ;;
+  esac
+  [[ "$selected_keys" != *" $key "* ]] || die_usage "duplicate resource: $key"
+  selected_keys+="$key "
 done
 
 if ! command -v python3 >/dev/null 2>&1; then
@@ -454,11 +483,13 @@ assert_plan() {
   local action="$3"
   local resource_type="$4"
   local resource_ref="$5"
-  if ! python3 - "$plan_file" "$mode_name" "$action" "$resource_type" "$resource_ref" <<'PY'
+  if ! python3 - "$plan_file" "$mode_name" "$action" "$resource_type" "$resource_ref" \
+    "$ai_runtime21" "$resource_namespace" <<'PY'
+import collections
 import json
 import sys
 
-path, mode, action, resource_type, resource_ref = sys.argv[1:]
+path, mode, action, resource_type, resource_ref, runtime21, namespace = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
     plan = json.load(handle)
 if plan.get("metadata", {}).get("mode") != mode:
@@ -469,8 +500,27 @@ matches = [
     and change.get("resource_type") == resource_type
     and change.get("resource_ref") == resource_ref
 ]
-if not matches:
-    raise SystemExit("expected resource change is absent")
+if len(matches) != 1:
+    raise SystemExit("expected exactly one resource change")
+changes = plan.get("changes", [])
+if plan.get("summary", {}).get("total_changes") != len(changes):
+    raise SystemExit("plan summary does not match changes")
+if any(change.get("action") != action for change in changes):
+    raise SystemExit("plan contains unexpected actions")
+if any(change.get("namespace") != namespace for change in changes):
+    raise SystemExit("plan contains a change outside the smoke namespace")
+if action == "CREATE":
+    children = {
+        "api": ["api_version", "api_document"],
+        "portal": ["portal_snippet"],
+        "control_plane": [],
+        "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
+        "ai_gateway": ["ai_gateway_model_provider", "ai_gateway_model", "ai_gateway_policy"],
+    }[resource_type]
+    if resource_type == "ai_gateway" and runtime21 == "true":
+        children.append("ai_gateway_mcp_server")
+    if collections.Counter(c["resource_type"] for c in changes) != collections.Counter([resource_type] + children):
+        raise SystemExit("create plan does not contain exactly the expected root and children")
 PY
   then
     fail_current "plan did not contain the expected $action for $resource_ref"
@@ -484,7 +534,7 @@ import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     plan = json.load(handle)
-if plan.get("summary", {}).get("total_changes") != 0:
+if plan.get("summary", {}).get("total_changes") != 0 or plan.get("changes") != []:
     raise SystemExit("plan has changes")
 PY
   then
@@ -520,7 +570,7 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     value = json.load(handle)
 current = value
 for part in sys.argv[2].split("."):
-    current = current[part]
+    current = current[int(part)] if isinstance(current, list) else current[part]
 if str(current) != sys.argv[3]:
     raise SystemExit(f"{current!r} != {sys.argv[3]!r}")
 PY
@@ -539,7 +589,9 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     values = json.load(handle)
 if isinstance(values, dict):
-    values = values.get("data", values.get("items", []))
+    values = values.get("data", values.get("items"))
+if not isinstance(values, list) or any(not isinstance(item, dict) for item in values):
+    raise SystemExit("expected a collection of objects")
 found = any(str(item.get(sys.argv[2], "")) == sys.argv[3] for item in values)
 if found != (sys.argv[4] == "present"):
     raise SystemExit("collection presence assertion failed")
@@ -667,6 +719,9 @@ EOF
 Generated by ${run_id} from kongctl scaffold output.
 EOF
   fi
+  if ! python3 "$script_dir/smoke/fixtures.py" "$key" "$resource_dir" "$ai_runtime21"; then
+    fail_current "could not enrich smoke fixtures"
+  fi
   pass_current "generated $initial_file"
 
   printf -v "${key}_type" '%s' "$type_name"
@@ -716,6 +771,15 @@ load_resource_ai_gateway() {
   list_args=(list ai-gateways -o json); match_field="name"
 }
 
+load_resource_event_gateway() {
+  resource_key="event_gateway"; resource_type="$event_gateway_type"; resource_root="$event_gateway_root"
+  resource_namespace="$event_gateway_namespace"; resource_ref="$event_gateway_ref"
+  resource_name="$event_gateway_name"; resource_description="$event_gateway_description"
+  resource_initial="$event_gateway_initial"; resource_updated="$event_gateway_updated"; dump_type="event_gateways"
+  detail_args=(get event-gateway "$resource_name" -o json)
+  list_args=(list konnect event-gateways -o json); match_field="name"
+}
+
 declare -a detail_args=()
 declare -a list_args=()
 resource_key=""; resource_type=""; resource_root=""; resource_namespace=""; resource_ref=""; resource_name=""
@@ -727,12 +791,77 @@ control_plane_type=""; control_plane_root=""; control_plane_namespace=""; contro
 control_plane_description=""; control_plane_initial=""; control_plane_updated=""
 ai_gateway_type=""; ai_gateway_root=""; ai_gateway_namespace=""; ai_gateway_ref=""; ai_gateway_name=""
 ai_gateway_description=""; ai_gateway_initial=""; ai_gateway_updated=""
+event_gateway_type=""; event_gateway_root=""; event_gateway_namespace=""; event_gateway_ref=""
+event_gateway_name=""; event_gateway_description=""; event_gateway_initial=""; event_gateway_updated=""
 
 check_detail_present() {
   start_check "get-${resource_key}" "$resource_key" "read"
   run_kongctl "${detail_args[@]}"
   require_success
   assert_object_field "$match_field" "$resource_name"
+  pass_current
+}
+
+check_local_features() {
+  local fixture="$fixtures_dir/tagged.yaml"
+  cat >"$fixture" <<'YAML'
+resource:
+  name: before
+  parent: !ref smoke-parent
+  content: !file ./does-not-exist.txt
+  environment: !env KONGCTL_SMOKE_UNSET
+  secret: !secret {source: !env KONGCTL_SMOKE_UNSET}
+YAML
+  start_check "patch-preserves-tags" "" "local"
+  run_kongctl patch file "$fixture" -s '$.resource' -v 'name:"after"' -o text
+  require_success
+  local expected
+  for expected in 'name: after' '!ref smoke-parent' '!file ./does-not-exist.txt' \
+    '!env KONGCTL_SMOKE_UNSET' '!secret'; do
+    assert_text_contains "$current_stdout" "$expected"
+  done
+  assert_text_contains "$fixture" "name: before"
+  pass_current
+
+  start_check "explain-provider-auth" "ai_gateway" "discovery"
+  run_kongctl explain ai_gateway.model_providers --extended -o text
+  require_success
+  assert_text_contains "$current_stdout" "type=openai"
+  assert_text_contains "$current_stdout" "type=azure"
+  assert_text_contains "$current_stdout" "allowed: basic"
+  pass_current
+
+  start_check "explain-vault-auth" "ai_gateway" "discovery"
+  run_kongctl explain ai_gateway.vaults --extended -o text
+  require_success
+  assert_text_contains "$current_stdout" "auth_method=approle"
+  assert_text_contains "$current_stdout" "auth_method=kubernetes"
+  pass_current
+
+  local config_file="$fixtures_dir/config file.yaml"
+  printf 'smoke-env:\n  output: json\n' >"$config_file"
+  start_check "config-file-environment" "" "local"
+  KONGCTL_CONFIG_FILE="$config_file" run_kongctl get profiles --profile smoke-env -o json
+  current_command="KONGCTL_CONFIG_FILE=$(shell_join "$config_file") $current_command"
+  require_success
+  assert_text_contains "$current_stdout" '"smoke-env"'
+  pass_current
+
+  start_check "config-file-flag-precedence" "" "local"
+  KONGCTL_CONFIG_FILE="$fixtures_dir/missing.yaml" run_kongctl get profiles \
+    --profile smoke-env --config-file "$config_file" -o json
+  current_command="KONGCTL_CONFIG_FILE=$(shell_join "$fixtures_dir/missing.yaml") $current_command"
+  require_success
+  assert_text_contains "$current_stdout" '"smoke-env"'
+  pass_current
+
+  start_check "config-file-missing" "" "local"
+  KONGCTL_CONFIG_FILE="$fixtures_dir/missing.yaml" run_kongctl get profiles --profile smoke-env -o json
+  current_command="KONGCTL_CONFIG_FILE=$(shell_join "$fixtures_dir/missing.yaml") $current_command"
+  if [[ "$current_exit" -eq 0 ]]; then
+    fail_current "missing custom config unexpectedly succeeded"
+  fi
+  assert_text_contains "$current_stderr" "provided config file path does not exist"
   pass_current
 }
 
@@ -749,7 +878,6 @@ smoke_resource() {
   local key="$1"
   "load_resource_${key}"
   local create_plan="$plans_dir/${key}-create.json"
-  local zero_plan="$plans_dir/${key}-zero.json"
   local dump_file="$dumps_dir/${key}.yaml"
 
   start_check "collision-${key}" "$key" "preflight"
@@ -781,6 +909,16 @@ smoke_resource() {
   check_detail_present
   check_list_presence "present"
 
+  start_check "list-text-${key}" "$key" "read"
+  run_kongctl "${list_args[@]}" -o text --no-trunc
+  require_success
+  if [[ "$key" == "ai_gateway" ]]; then
+    assert_text_contains "$current_stdout" "Smoke AI Gateway ${run_suffix}"
+  else
+    assert_text_contains "$current_stdout" "$resource_name"
+  fi
+  pass_current
+
   start_check "sync-update-${key}" "$key" "update"
   run_kongctl sync -f "$resource_updated" --require-namespace "$resource_namespace" --auto-approve -o json
   require_success
@@ -791,14 +929,12 @@ smoke_resource() {
   run_kongctl "${detail_args[@]}"
   require_success
   assert_object_field "description" "$resource_description updated"
+  assert_object_field "labels.smoke-phase" "updated"
   pass_current
 
-  start_check "plan-zero-${key}" "$key" "update"
-  run_kongctl plan -f "$resource_updated" --mode apply --require-namespace "$resource_namespace" \
-    --output-file "$zero_plan"
-  require_success
-  assert_zero_plan "$zero_plan"
-  pass_current
+  check_updated_children
+
+  check_zero_plans "$resource_updated" "updated"
 
   start_check "dump-${key}" "$key" "dump"
   run_kongctl dump declarative --resources "$dump_type" --filter-name "$resource_name" \
@@ -811,6 +947,110 @@ smoke_resource() {
     assert_text_contains "$dump_file" "documents:"
   fi
   pass_current
+  check_zero_plans "$dump_file" "dump"
+
+  if [[ "$key" == "event_gateway" ]]; then
+    start_check "dump-root-only-${key}" "$key" "dump"
+    run_kongctl dump declarative --resources "$dump_type" --filter-name "$resource_name" \
+      --default-namespace "$resource_namespace"
+    require_success
+    if grep -Eq '^[[:space:]]*(backend_clusters|virtual_clusters):' "$current_stdout"; then
+      fail_current "default dump unexpectedly includes children"
+    fi
+    assert_text_contains "$current_stdout" "$resource_name"
+    pass_current
+  fi
+
+  if [[ "$key" == "ai_gateway" ]]; then
+    check_child_transition "$fixtures_dir/$key/replacement.yaml" "replacement"
+  fi
+  if [[ -f "$fixtures_dir/$key/pruned.yaml" ]]; then
+    check_child_transition "$fixtures_dir/$key/pruned.yaml" "prune"
+    # Restore children so root deletion also exercises populated roots.
+    start_check "restore-children-${key}" "$key" "update"
+    run_kongctl sync -f "$resource_updated" --require-namespace "$resource_namespace" --auto-approve -o json
+    require_success
+    assert_execution 1
+    pass_current
+    check_zero_plans "$resource_updated" "restored"
+  fi
+}
+
+check_zero_plans() {
+  local fixture="$1" stage="$2" plan_mode plan_file
+  for plan_mode in apply sync; do
+    plan_file="$plans_dir/${resource_key}-${stage}-${plan_mode}-zero.json"
+    start_check "plan-zero-${resource_key}-${stage}-${plan_mode}" "$resource_key" "idempotency"
+    run_kongctl plan -f "$fixture" --mode "$plan_mode" --require-namespace "$resource_namespace" \
+      --output-file "$plan_file"
+    require_success
+    assert_zero_plan "$plan_file"
+    pass_current
+  done
+}
+
+check_updated_children() {
+  if [[ "$resource_key" == "ai_gateway" ]]; then
+    start_check "get-updated-model" "$resource_key" "read"
+    run_kongctl get ai-gateway models --gateway-name "$resource_name" --model-name smoke-model -o json
+    require_success
+    assert_object_field "name" "smoke-model"
+    assert_object_field "display_name" "Smoke model updated"
+    assert_object_field "targets.0.provider" "smoke-provider"
+    assert_object_field "policies.0" "smoke-policy"
+    if [[ "$ai_runtime21" == "true" ]]; then
+      assert_object_field "targets.0.config.input_cost_list.0.cost" "3.5"
+      assert_object_field "targets.0.config.output_cost_list.0.cost" "10"
+      assert_object_field "targets.0.config.cache_read_cost_list.0.cost" "0.5"
+      assert_object_field "config.route.model.values.1" "smoke-alias"
+    fi
+    pass_current
+
+    start_check "get-updated-policy" "$resource_key" "read"
+    run_kongctl get ai-gateway policies --gateway-name "$resource_name" smoke-policy -o json
+    require_success
+    assert_object_field "config.minute" "20"
+    if [[ "$ai_runtime21" == "true" ]]; then
+      assert_object_field "condition" "http.method == 'POST'"
+    fi
+    pass_current
+
+    if [[ "$ai_runtime21" == "true" ]]; then
+      start_check "get-updated-mcp" "$resource_key" "read"
+      run_kongctl get ai-gateway mcp-servers --gateway-name "$resource_name" smoke-mcp -o json
+      require_success
+      assert_object_field "config.allowed_versions.0" "2025-11-25"
+      assert_object_field "config.cache.tools_list.ttl_ms" "0"
+      assert_object_field "config.cache.discover.ttl_ms" "120000"
+      assert_object_field "config.cache.discover.cache_scope" "public"
+      pass_current
+    fi
+  elif [[ "$resource_key" == "portal" ]]; then
+    start_check "get-updated-snippet" "$resource_key" "read"
+    run_kongctl get portal snippets --portal-name "$resource_name" smoke-snippet -o json
+    require_success
+    assert_object_field "content" "Smoke snippet updated content"
+    pass_current
+  fi
+}
+
+check_child_transition() {
+  local fixture="$1" stage="$2" plan_file="$plans_dir/${resource_key}-$2.json"
+  start_check "plan-${stage}-${resource_key}" "$resource_key" "update"
+  run_kongctl plan -f "$fixture" --mode sync --require-namespace "$resource_namespace" --output-file "$plan_file"
+  require_success
+  if ! python3 "$script_dir/smoke/assert-plan.py" "$plan_file" "$resource_key" "$stage" \
+    "$resource_namespace" "$ai_runtime21" 2>>"$current_stderr"; then
+    fail_current "unexpected child transition or dependency order"
+  fi
+  pass_current
+  start_check "sync-${stage}-${resource_key}" "$resource_key" "update"
+  run_kongctl sync --plan "$plan_file" --auto-approve -o json
+  require_success
+  assert_execution 1
+  pass_current
+  check_detail_present
+  check_zero_plans "$fixture" "$stage"
 }
 
 best_effort_cleanup_resource() {
@@ -865,6 +1105,9 @@ cleanup_resource() {
   run_kongctl "${detail_args[@]}"
   if [[ "$current_exit" -eq 0 ]]; then
     fail_current "resource still exists after delete"
+  fi
+  if ! grep -Eiq 'not found' "$current_stderr"; then
+    fail_current "get failed without a not-found diagnostic"
   fi
   pass_current "expected not-found response"
   check_list_presence "absent"
@@ -1002,17 +1245,29 @@ require_success
 assert_text_contains "$current_stdout" "kongctl"
 pass_current
 
-resource_token="${run_suffix}"
-prepare_resource "api" "api" "apis" "ga" "smoke-api-${resource_token}" "Smoke API ${resource_token}" \
-  "kongctl smoke API" name description version slug
-prepare_resource "portal" "portal" "portals" "ga" "smoke-portal-${resource_token}" "Smoke Portal ${resource_token}" \
-  "kongctl smoke portal" name display_name description
-prepare_resource "control_plane" "control_plane" "control_planes" "ga" "smoke-cp-${resource_token}" \
-  "Smoke Control Plane ${resource_token}" "kongctl smoke control plane" name description cluster_type
-prepare_resource "ai_gateway" "ai_gateway" "ai_gateways" "ga" "smoke-aigw-${resource_token}" \
-  "Smoke AI Gateway ${resource_token}" "kongctl smoke AI gateway" name display_name description
+check_local_features
 
-resource_registry=(api portal control_plane ai_gateway)
+resource_token="${run_suffix}"
+if [[ "$selected_keys" == *" api "* ]]; then
+  prepare_resource "api" "api" "apis" "ga" "smoke-api-${resource_token}" "Smoke API ${resource_token}" \
+    "kongctl smoke API" name description version slug
+fi
+if [[ "$selected_keys" == *" portal "* ]]; then
+  prepare_resource "portal" "portal" "portals" "ga" "smoke-portal-${resource_token}" "Smoke Portal ${resource_token}" \
+    "kongctl smoke portal" name display_name description
+fi
+if [[ "$selected_keys" == *" control_plane "* ]]; then
+  prepare_resource "control_plane" "control_plane" "control_planes" "ga" "smoke-cp-${resource_token}" \
+    "Smoke Control Plane ${resource_token}" "kongctl smoke control plane" name description cluster_type
+fi
+if [[ "$selected_keys" == *" ai_gateway "* ]]; then
+  prepare_resource "ai_gateway" "ai_gateway" "ai_gateways" "ga" "smoke-aigw-${resource_token}" \
+    "Smoke AI Gateway ${resource_token}" "kongctl smoke AI gateway" name display_name description
+fi
+if [[ "$selected_keys" == *" event_gateway "* ]]; then
+  prepare_resource "event_gateway" "event_gateway" "event_gateways" "" "smoke-egw-${resource_token}" \
+    "Smoke Event Gateway ${resource_token}" "kongctl smoke Event Gateway" name description
+fi
 
 if [[ "$mode" == "quick" ]]; then
   for key in "${resource_registry[@]}"; do
@@ -1020,6 +1275,7 @@ if [[ "$mode" == "quick" ]]; then
     start_check "list-${key}-quick" "$key" "read"
     run_kongctl "${list_args[@]}"
     require_success
+    assert_collection "$match_field" "$resource_name" "absent"
     pass_current
   done
   cleanup_state="not_needed"
@@ -1034,7 +1290,7 @@ if [[ "$assume_yes" != "true" ]] && ! is_truthy "${KONGCTL_SMOKE_YES:-}"; then
   echo
   echo "Binary:    $kongctl_bin ($binary_version)"
   echo "Profile:   $effective_profile"
-  echo "Resources: APIs, portals, control planes, AI gateways"
+  echo "Resources: $resource_selection"
   echo "Artifacts: $artifacts_dir"
   printf 'Continue with remote resource creation? [y/N] '
   read -r answer
