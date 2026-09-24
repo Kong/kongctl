@@ -21,6 +21,30 @@ func IsRelationshipPath(resource Resource, path string) bool {
 		if strings.HasPrefix(path, "/"+aiGatewayAgentFieldPolicies+"/") {
 			return true
 		}
+	// These relationships use specialized Event Gateway planner/executor
+	// handlers rather than the relationship descriptor registry.
+	case ResourceTypeEventGatewayVirtualCluster:
+		if path == "/destination/id" {
+			return true
+		}
+	case ResourceTypeEventGatewayListenerPolicy:
+		if path == "/config/destination/id" {
+			return true
+		}
+	case ResourceTypeEventGatewayProducePolicy:
+		if path == "/config/schema_registry/id" || path == "/config/encryption_key/key/id" ||
+			path == "/parent_policy_id" {
+			return true
+		}
+		parts := strings.Split(path, "/")
+		if len(parts) == 7 && parts[1] == "config" && parts[2] == "encrypt_fields" &&
+			parts[4] == "encryption_key" && parts[5] == "key" && parts[6] == "id" {
+			return true
+		}
+	case ResourceTypeEventGatewayConsumePolicy:
+		if path == "/parent_policy_id" {
+			return true
+		}
 	}
 	if resource.GetType() == ResourceTypeAIGatewayConsumerGroup &&
 		strings.HasPrefix(path, "/"+aiGatewayConsumerGroupFieldConsumers+"/") {
@@ -39,7 +63,7 @@ func IsRelationshipPath(resource Resource, path string) bool {
 // declarations that share a ref in different scopes or resource types.
 func (rs *ResourceSet) ReferenceTarget(ref string) (Resource, error) {
 	var found Resource
-	for _, resource := range rs.AllResources() {
+	for _, resource := range rs.referenceResources() {
 		if resource.GetRef() != ref {
 			continue
 		}
@@ -52,6 +76,32 @@ func (rs *ResourceSet) ReferenceTarget(ref string) (Resource, error) {
 		return nil, fmt.Errorf("resource not found: %s", ref)
 	}
 	return found, nil
+}
+
+// Some declarations retain children in their parent instead of extracting them
+// into registered root collections. Include those resources without copying
+// them, so callers see the same identities as the resource-specific planners.
+func (rs *ResourceSet) referenceResources() []Resource {
+	result := rs.AllResources()
+	for i := 0; i < len(result); i++ {
+		v := reflect.ValueOf(result[i]).Elem()
+		for j := range v.NumField() {
+			field := v.Type().Field(j)
+			children := v.Field(j)
+			if !field.IsExported() || children.Kind() != reflect.Slice {
+				continue
+			}
+			for k := range children.Len() {
+				child := children.Index(k)
+				if child.CanAddr() {
+					if resource, ok := child.Addr().Interface().(Resource); ok {
+						result = append(result, resource)
+					}
+				}
+			}
+		}
+	}
+	return result
 }
 
 // ResolvePayloadReference resolves configuration-known scalar selectors and

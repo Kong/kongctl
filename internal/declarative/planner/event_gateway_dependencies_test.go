@@ -250,6 +250,14 @@ func TestEventGatewayExplicitRefsRemainDependencies(t *testing.T) {
 	require.Equal(t, "__REF__:backend#id", backendRef.Ref)
 	require.Equal(t, resources.UnknownReferenceID, backendRef.ID)
 	require.Equal(t, "backend-name", backendRef.LookupFields[FieldName])
+
+	resourceSet.EventGatewayVirtualClusters = []resources.EventGatewayVirtualClusterResource{{Ref: "virtual"}}
+	require.NoError(t, planner.bindPayloadReferences(plan, resourceSet))
+	require.Empty(t, planChange(t, plan, virtualClusterID).PayloadReferences)
+	result, err := NewDependencyResolver().ResolveDependenciesWithGroups(plan.Changes)
+	require.NoError(t, err)
+	backendID := plannedChangeID(t, plan, ResourceTypeEventGatewayBackendCluster, "backend")
+	require.Contains(t, result.FullDepsMap[virtualClusterID], backendID)
 }
 
 func plannedChangeID(t *testing.T, plan *Plan, resourceType, resourceRef string) string {

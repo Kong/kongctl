@@ -49,3 +49,21 @@ func TestPayloadReferenceAmbiguousAndSecretTargets(t *testing.T) {
 	require.ErrorContains(t, err, "write-only secret")
 	require.NotContains(t, err.Error(), "do-not-disclose")
 }
+
+func TestPayloadReferenceNestedTargetAmbiguity(t *testing.T) {
+	rs := &ResourceSet{
+		EventGatewayControlPlanes: []EventGatewayControlPlaneResource{{
+			BaseResource: BaseResource{Ref: "gateway"},
+			VirtualClusters: []EventGatewayVirtualClusterResource{{
+				Ref:             "virtual",
+				ProducePolicies: []EventGatewayProducePolicyResource{{Ref: "policy"}},
+			}},
+		}},
+	}
+	target, err := rs.ReferenceTarget("policy")
+	require.NoError(t, err)
+	require.Same(t, &rs.EventGatewayControlPlanes[0].VirtualClusters[0].ProducePolicies[0], target)
+	rs.EventGatewayProducePolicies = []EventGatewayProducePolicyResource{{Ref: "policy"}}
+	_, err = rs.ReferenceTarget("policy")
+	require.ErrorContains(t, err, "ambiguous reference target")
+}

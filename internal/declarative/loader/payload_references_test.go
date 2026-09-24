@@ -74,3 +74,55 @@ func loadPayloadReferences(t *testing.T, content string) (*resources.ResourceSet
 	t.Helper()
 	return New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, content), Type: SourceTypeFile}}, false)
 }
+
+func TestPayloadReferencesFindNestedEventGatewayTargets(t *testing.T) {
+	rs, err := loadPayloadReferences(t, `
+event_gateways:
+  - ref: gateway
+    name: gateway
+    virtual_clusters:
+      - ref: virtual
+        name: virtual-name
+        destination:
+          name: remote-backend
+        authentication:
+          - type: anonymous
+        acl_mode: passthrough
+        dns_label: virtual
+    listeners:
+      - ref: listener
+        name: listener
+        ports: [9092]
+        policies:
+          - ref: forward
+            name: forward
+            type: forward_to_virtual_cluster
+            config:
+              type: port_mapping
+              advertised_host: example.com
+              destination:
+                id: !ref virtual
+ai_gateways:
+  - ref: ai
+    name: ai
+    display_name: AI
+    deployment_type: hybrid
+    policies:
+      - ref: policy
+        name: policy
+        display_name: Policy
+        type: opentelemetry
+        config:
+          nested_target_name: !ref virtual#name
+          nested_target_id: !ref virtual
+`)
+	require.NoError(t, err)
+	require.Equal(t, "virtual-name", rs.AIGatewayPolicies[0].Config["nested_target_name"])
+	require.Equal(t, "__REF__:virtual#id", rs.AIGatewayPolicies[0].Config["nested_target_id"])
+	target, err := rs.ReferenceTarget("virtual")
+	require.NoError(t, err)
+	require.Same(t, &rs.EventGatewayControlPlanes[0].VirtualClusters[0], target)
+	policy, err := rs.ReferenceTarget("forward")
+	require.NoError(t, err)
+	require.Equal(t, resources.ResourceTypeEventGatewayListenerPolicy, policy.GetType())
+}

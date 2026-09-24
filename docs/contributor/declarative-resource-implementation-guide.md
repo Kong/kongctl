@@ -703,6 +703,12 @@ literal. `ResourceSet.ResolvePayloadReference` resolves configuration-known
 scalar selectors and validates target uniqueness. Preserve environment source
 paths when copying values; write-only secrets cannot be reference sources.
 Registered relationship fields retain their existing routing/name semantics.
+Reference target discovery includes resources retained inside parent
+declarations. Specialized Event Gateway relationships also keep their existing
+handlers, including backend destinations, schema registries, encryption keys,
+and parent policies. These handlers may resolve an existing target without
+caching its ID on the declaration; the payload binder must not require a
+CREATE operation for such a relationship.
 
 Resolve known payload identities before resource comparison. Child matching
 can discover additional IDs; planning repeats comparison when these consume

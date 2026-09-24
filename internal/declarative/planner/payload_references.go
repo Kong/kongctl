@@ -72,7 +72,7 @@ func (p *Planner) bindPayloadReferences(plan *Plan, rs *resources.ResourceSet) e
 		if change.Action != ActionCreate && change.Action != ActionUpdate {
 			continue
 		}
-		source, _ := rs.GetResourceByRef(change.ResourceRef)
+		source, _ := rs.ReferenceTarget(change.ResourceRef)
 		err := values.Transform(change.Fields, func(path, expression string) (any, error) {
 			if rs.GetEnvSources(change.ResourceRef)[path] != "" {
 				return expression, nil
