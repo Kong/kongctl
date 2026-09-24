@@ -111,6 +111,24 @@ steps:
             expect:
               fields: {"@": 0}
 
+  - name: delete-provider
+    inputOverlayDirs: [overlays/without-provider]
+    commands:
+      - name: sync
+        outputFormat: json
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 1, failed: 0, status: success}
+      - name: verify-provider-absent
+        outputFormat: json
+        run: [get, ai-gateway, model-providers, --gateway-name, "Model Policy Rename E2E"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields: {"@": 0}
+
   - name: cleanup
     inputOverlayDirs: [overlays/cleanup]
     commands:
@@ -120,7 +138,7 @@ steps:
         assertions:
           - select: summary
             expect:
-              fields: {applied: 2, failed: 0, status: success}
+              fields: {applied: 1, failed: 0, status: success}
       - name: verify-gateway-absent
         outputFormat: json
         run: [get, ai-gateways]

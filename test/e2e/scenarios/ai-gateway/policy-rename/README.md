@@ -13,6 +13,7 @@ Production code was unchanged from
 `a3e431cba39a603bb7235f3dbccd3bbb7629f645`; HEAD was the MCP reproduction
 commit `7da01c11`. Run date: September 24, 2026. Environment: Konnect `.com`,
 Go 1.26.8, Linux amd64, locally built `kongctl/dev`, CGO disabled.
+The additional test-only scenarios were committed as `77aaf922`.
 
 ```sh
 CGO_ENABLED=0 KONGCTL_E2E_BIN="$PWD/kongctl" \
@@ -49,3 +50,19 @@ the three controlled deletion checks.
 
 No production fix was introduced before these live red tests. Existing
 lifecycle scenarios and replay eligibility remain unchanged.
+
+## Post-fix live validation
+
+Agents, consumers, and consumer groups passed completely in
+`/home/rspurgeon/go/e2e-artifacts/20260924-103522`. The model rename, remote
+attachment checks, no-op plan, and child deletion also passed in that run;
+its final cleanup assertion incorrectly counted gateway cascade deletion
+as two changes. The model scenario now explicitly deletes and verifies the
+remaining provider before deleting the gateway. Rename assertions and the
+single-sync transition are unchanged.
+
+The complete model scenario passed in
+`/home/rspurgeon/go/e2e-artifacts/20260924-103611`.
+Every rename applied all four changes with zero failures or skips; remote
+checks verified the old resources were absent, the new resources existed
+with the intended attachment, and a subsequent sync plan had zero changes.

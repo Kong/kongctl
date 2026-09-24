@@ -11,6 +11,7 @@ The existing MCP lifecycle scenario remains unchanged.
 
 Production revision: `a3e431cba39a603bb7235f3dbccd3bbb7629f645`.
 Only this new scenario was added before running the reproduction.
+Test-only revision: `7da01c11`.
 Environment: Konnect `.com`, Go 1.26.8, Linux amd64, locally built
 `kongctl/dev`, CGO disabled. Run date: September 24, 2026.
 
@@ -48,3 +49,15 @@ the `steps/create/commands` artifacts contain the successful setup checks;
 
 The expected success assertion was not weakened to accept this error.
 No production code was modified for this reproduction.
+
+## Post-fix live validation
+
+The same scenario passed on September 24, 2026 with the dependency fix.
+Artifacts: `/home/rspurgeon/go/e2e-artifacts/20260924-103516`.
+One rename sync applied all four changes with zero failures or skips.
+Remote checks confirmed only `pass-list` and `pass-list-policy` remained,
+with the expected attachment; the following sync plan had zero changes.
+Child deletion and gateway cleanup also passed.
+
+The unchanged `ai-gateway/mcp-server` lifecycle scenario passed separately:
+`/home/rspurgeon/go/e2e-artifacts/20260924-103759`.
