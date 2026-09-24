@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-agent-policy-rename-e2e
+
+ai_gateways:
+  - ref: agent-policy-rename-e2e
+    name: agent-policy-rename-e2e
+    display_name: "Agent Policy Rename E2E"
+    proxy_urls:
+      - host: agent-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    policies:
+      - ref: pass-listener-policy
+        name: pass-listener-policy
+        type: http-log
+        display_name: "Request log"
+        enabled: true
+        global: false
+        config:
+          http_endpoint: https://logging.example.com/mcp
+    agents:
+      - ref: pass-listener
+        name: pass-listener
+        display_name: "Policy Consumer"
+        type: a2a
+        enabled: true
+        config:
+          url: https://agent.example.com
+          route:
+            paths: [/policy-rename-agent]
+        policies:
+          - !ref pass-listener-policy#name

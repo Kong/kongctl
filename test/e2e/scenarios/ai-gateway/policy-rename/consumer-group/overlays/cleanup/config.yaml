@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-group-policy-rename-e2e
+ai_gateways: []

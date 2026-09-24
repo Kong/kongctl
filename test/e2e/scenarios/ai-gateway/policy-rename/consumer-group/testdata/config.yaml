@@ -1,0 +1,27 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-consumer-group-policy-rename-e2e
+
+ai_gateways:
+  - ref: consumer-group-policy-rename-e2e
+    name: consumer-group-policy-rename-e2e
+    display_name: "Consumer-Group Policy Rename E2E"
+    proxy_urls:
+      - host: consumer-group-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    policies:
+      - ref: pass-listener-policy
+        name: pass-listener-policy
+        type: http-log
+        display_name: "Request log"
+        enabled: true
+        global: false
+        config:
+          http_endpoint: https://logging.example.com/mcp
+    consumer_groups:
+      - ref: pass-listener
+        name: pass-listener
+        display_name: "Policy Consumer"
+        policies:
+          - !ref pass-listener-policy#name

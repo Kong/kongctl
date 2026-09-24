@@ -1,0 +1,53 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-policy-rename-e2e
+
+ai_gateways:
+  - ref: model-policy-rename-e2e
+    name: model-policy-rename-e2e
+    display_name: "Model Policy Rename E2E"
+    proxy_urls:
+      - host: model-policy-rename-e2e.example.com
+        port: 443
+        protocol: https
+    model_providers:
+      - ref: rename-provider
+        name: rename-provider
+        type: openai
+        display_name: "Rename Provider"
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_KEY}
+    policies:
+      - ref: pass-list-policy
+        name: pass-list-policy
+        type: http-log
+        display_name: "Request log"
+        enabled: true
+        global: false
+        config:
+          http_endpoint: https://logging.example.com/mcp
+    models:
+      - ref: pass-list
+        name: pass-list
+        display_name: "Policy Consumer"
+        type: model
+        enabled: true
+        config:
+          route:
+            model:
+              body_param: model
+              values: [policy-rename-model]
+        formats:
+          - type: openai
+        targets:
+          - name: gpt-4o
+            provider: rename-provider
+            config:
+              type: openai
+        capabilities: [generate]
+        policies:
+          - !ref pass-list-policy#name
