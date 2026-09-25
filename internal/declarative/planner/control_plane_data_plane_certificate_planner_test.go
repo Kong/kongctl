@@ -185,7 +185,7 @@ func newControlPlaneDataPlaneCertificateStateClient(
 		Labels: map[string]string{
 			labels.NamespaceKey: "default",
 		},
-		Config: kkComps.ControlPlaneConfig{
+		Config: kkComps.Config{
 			ClusterType: kkComps.ControlPlaneClusterTypeClusterTypeControlPlane,
 		},
 	}

@@ -67,8 +67,9 @@ type AIGatewayResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	kkComps.CreateAIGatewayRequest
 	External              *ExternalBlock                          `yaml:"_external,omitempty" json:"_external,omitempty"`
-	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"` //nolint:lll
-	AuthStrategies        []AIGatewayAuthStrategyResource         `yaml:"auth_strategies,omitempty" json:"auth_strategies,omitempty"` //nolint:lll
+	Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty" json:"model_providers,omitempty"`         //nolint:lll
+	AuthStrategies        []AIGatewayAuthStrategyResource         `yaml:"auth_strategies,omitempty" json:"auth_strategies,omitempty"`         //nolint:lll
+	CustomPolicies        []AIGatewayCustomPolicyResource         `yaml:"custom_policies,omitempty"         json:"custom_policies,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty" json:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty" json:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty" json:"consumers,omitempty"`
@@ -111,8 +112,9 @@ type aiGatewayAlias struct {
 
 	DeploymentType *kkComps.CreateAIGatewayRequestDeploymentType `json:"deployment_type,omitempty" yaml:"deployment_type,omitempty"` //nolint:lll
 
-	Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty" yaml:"model_providers,omitempty"` //nolint:lll
-	AuthStrategies        []AIGatewayAuthStrategyResource         `json:"auth_strategies,omitempty" yaml:"auth_strategies,omitempty"` //nolint:lll
+	Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty" yaml:"model_providers,omitempty"`         //nolint:lll
+	AuthStrategies        []AIGatewayAuthStrategyResource         `json:"auth_strategies,omitempty" yaml:"auth_strategies,omitempty"`         //nolint:lll
+	CustomPolicies        []AIGatewayCustomPolicyResource         `json:"custom_policies,omitempty"         yaml:"custom_policies,omitempty"` //nolint:lll
 	Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"    yaml:"policies,omitempty"`
 	Agents                []AIGatewayAgentResource                `json:"agents,omitempty"      yaml:"agents,omitempty"`
 	Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"   yaml:"consumers,omitempty"`
@@ -142,6 +144,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Labels:                a.Labels,
 		Providers:             a.Providers,
 		AuthStrategies:        a.AuthStrategies,
+		CustomPolicies:        a.CustomPolicies,
 		Policies:              a.Policies,
 		Agents:                a.Agents,
 		Consumers:             a.Consumers,
@@ -191,6 +194,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		Labels                map[string]string                       `yaml:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `yaml:"model_providers,omitempty"`
 		AuthStrategies        []AIGatewayAuthStrategyResource         `yaml:"auth_strategies,omitempty"`
+		CustomPolicies        []AIGatewayCustomPolicyResource         `yaml:"custom_policies,omitempty"`
 		Policies              []AIGatewayPolicyResource               `yaml:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `yaml:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `yaml:"consumers,omitempty"`
@@ -216,6 +220,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
 	a.AuthStrategies = raw.AuthStrategies
+	a.CustomPolicies = raw.CustomPolicies
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -262,6 +267,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		Labels                map[string]string                       `json:"labels,omitempty"`
 		Providers             []AIGatewayProviderResource             `json:"model_providers,omitempty"`
 		AuthStrategies        []AIGatewayAuthStrategyResource         `json:"auth_strategies,omitempty"`
+		CustomPolicies        []AIGatewayCustomPolicyResource         `json:"custom_policies,omitempty"`
 		Policies              []AIGatewayPolicyResource               `json:"policies,omitempty"`
 		Agents                []AIGatewayAgentResource                `json:"agents,omitempty"`
 		Consumers             []AIGatewayConsumerResource             `json:"consumers,omitempty"`
@@ -287,6 +293,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.CreateAIGatewayRequest = request
 	a.Providers = raw.Providers
 	a.AuthStrategies = raw.AuthStrategies
+	a.CustomPolicies = raw.CustomPolicies
 	a.Policies = raw.Policies
 	a.Agents = raw.Agents
 	a.Consumers = raw.Consumers
@@ -311,6 +318,7 @@ func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.Creat
 		"_external",
 		aiGatewayModelProvidersField,
 		SchemaFieldAuthStrategies,
+		"custom_policies",
 		"policies",
 		"agents",
 		"consumers",
@@ -398,6 +406,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	}
 	for i := range a.Providers {
 		a.Providers[i].SetDefaults()
+	}
+	for i := range a.CustomPolicies {
+		a.CustomPolicies[i].SetDefaults()
 	}
 	for i := range a.Policies {
 		a.Policies[i].SetDefaults()
@@ -487,10 +498,21 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			false,
 		),
+		explainField(
+			"custom_policies",
+			explainArrayOf(inlineExplainNode(aiGatewayCustomPolicyExplainNode)),
+			false,
+			false,
+		),
 		explainField("policies", explainArrayOf(inlineExplainNode(aiGatewayPolicyExplainNode)), false, false),
 		explainField("agents", explainArrayOf(inlineExplainNode(aiGatewayAgentExplainNode)), false, false),
 		explainField("consumers", explainArrayOf(inlineExplainNode(aiGatewayConsumerExplainNode)), false, false),
-		explainField("consumer_groups", explainArrayOf(inlineExplainNode(aiGatewayConsumerGroupExplainNode)), false, false),
+		explainField(
+			"consumer_groups",
+			explainArrayOf(inlineExplainNode(aiGatewayConsumerGroupExplainNode)),
+			false,
+			false,
+		),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 		explainField("mcp_servers", explainArrayOf(inlineExplainNode(aiGatewayMCPServerExplainNode)), false, false),
 		explainField("config_stores", explainArrayOf(inlineExplainNode(aiGatewayConfigStoreExplainNode)), false, false),

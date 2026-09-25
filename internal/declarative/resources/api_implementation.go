@@ -63,10 +63,10 @@ func (i APIImplementationResource) GetMoniker() string {
 }
 
 func (i APIImplementationResource) getService() *kkComps.APIImplementationService {
-	if i.ServiceReference == nil {
+	if i.ServiceReferenceInput == nil {
 		return nil
 	}
-	return i.ServiceReference.GetService()
+	return i.ServiceReferenceInput.GetService()
 }
 
 func (i APIImplementationResource) getControlPlane() *kkComps.APIImplementationControlPlaneInput {
@@ -136,7 +136,7 @@ func (i APIImplementationResource) Validate() error {
 			return fmt.Errorf("API implementation service.control_plane_id is required")
 		}
 
-		if i.Type != "" && i.Type != kkComps.APIImplementationTypeServiceReference {
+		if i.Type != "" && i.Type != kkComps.APIImplementationTypeServiceReferenceInput {
 			return fmt.Errorf("API implementation type does not match service payload")
 		}
 	}
@@ -253,7 +253,7 @@ func (i APIImplementationResource) GetParentRef() *ResourceRef {
 // MarshalJSON ensures implementation metadata (ref, api) are included.
 // Without this, the embedded APIImplementation's MarshalJSON is promoted and drops metadata fields.
 func (i APIImplementationResource) MarshalJSON() ([]byte, error) {
-	if i.ServiceReference != nil && i.ControlPlaneReference != nil {
+	if i.ServiceReferenceInput != nil && i.ControlPlaneReference != nil {
 		return nil, fmt.Errorf("API implementation must define exactly one of service or control_plane")
 	}
 
@@ -271,7 +271,7 @@ func (i APIImplementationResource) MarshalJSON() ([]byte, error) {
 	if i.API != "" {
 		payload["api"] = i.API
 	}
-	if i.ServiceReference != nil {
+	if i.ServiceReferenceInput != nil {
 		payload["type"] = apiImplementationTypeService
 	}
 	if i.ControlPlaneReference != nil {
@@ -328,7 +328,7 @@ func (i *APIImplementationResource) UnmarshalJSON(data []byte) error {
 		if temp.Type == apiImplementationTypeControlPlane {
 			return fmt.Errorf("API implementation type control_plane does not match service payload")
 		}
-		i.APIImplementation = kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
+		i.APIImplementation = kkComps.CreateAPIImplementationServiceReferenceInput(kkComps.ServiceReferenceInput{
 			Service: &kkComps.APIImplementationService{
 				ID:             temp.Service.ID,
 				ControlPlaneID: temp.Service.ControlPlaneID,

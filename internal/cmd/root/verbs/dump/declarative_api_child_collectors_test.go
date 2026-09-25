@@ -222,8 +222,8 @@ func TestPopulateAPIChildrenExportContract(t *testing.T) {
 			} else {
 				require.Len(t, api.Implementations, 2)
 				require.Equal(t, "service-impl", api.Implementations[0].Ref)
-				require.Equal(t, "service-id", api.Implementations[0].ServiceReference.Service.ID)
-				require.Equal(t, "cp-id", api.Implementations[0].ServiceReference.Service.ControlPlaneID)
+				require.Equal(t, "service-id", api.Implementations[0].ServiceReferenceInput.Service.ID)
+				require.Equal(t, "cp-id", api.Implementations[0].ServiceReferenceInput.Service.ControlPlaneID)
 				require.Equal(t, "cp-impl", api.Implementations[1].Ref)
 				require.Equal(t, "cp-id", api.Implementations[1].ControlPlaneReference.ControlPlane.ID)
 				require.Empty(t, api.Implementations[0].API)

@@ -1892,8 +1892,8 @@ func apiImplementationResourceFromState(
 			ID:             impl.Service.ID,
 			ControlPlaneID: impl.Service.ControlPlaneID,
 		}
-		implementation = kkComps.CreateAPIImplementationServiceReference(
-			kkComps.ServiceReference{Service: &service},
+		implementation = kkComps.CreateAPIImplementationServiceReferenceInput(
+			kkComps.ServiceReferenceInput{Service: &service},
 		)
 	case impl.ControlPlane != nil && strings.TrimSpace(impl.ControlPlane.ID) != "":
 		implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
@@ -2720,4 +2720,37 @@ func isNotFound(err error) bool {
 	}
 	var notFound *kkErrors.NotFoundError
 	return errors.As(err, &notFound)
+}
+
+func buildAIGatewayCustomPolicies(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayCustomPolicyResource, error) {
+	policies, err := client.ListAIGatewayCustomPolicies(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayCustomPolicyResource, 0, len(policies))
+	for _, policy := range policies {
+		resource, err := declresources.AIGatewayCustomPolicyResourceFromResponse(
+			gatewayRef,
+			policy.AIGatewayCustomPolicy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Custom Policy for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayCustomPolicyResource) int {
+		if a.Name == b.Name {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	return result, nil
 }

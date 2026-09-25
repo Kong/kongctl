@@ -24,6 +24,7 @@ func TestExecutorAIGatewayRegistry(t *testing.T) {
 		{planner.ResourceTypeAIGateway, true},
 		{planner.ResourceTypeAIGatewayProvider, true},
 		{planner.ResourceTypeAIGatewayAuthStrategy, true},
+		{planner.ResourceTypeAIGatewayCustomPolicy, true},
 		{planner.ResourceTypeAIGatewayPolicy, true},
 		{planner.ResourceTypeAIGatewayAgent, true},
 		{planner.ResourceTypeAIGatewayConsumer, true},

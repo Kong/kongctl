@@ -88,7 +88,7 @@ func TestPortalCustomizationAPIImplUpdateUsesSDKForNonEmptyMenuLists(t *testing.
 			Main: []kkComponents.PortalMenuItem{{
 				Path:       "/docs",
 				Title:      "Docs",
-				Visibility: kkComponents.PortalMenuItemVisibilityPublic,
+				Visibility: kkComponents.VisibilityPublic,
 			}},
 		},
 	})

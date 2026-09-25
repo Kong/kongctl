@@ -29,7 +29,7 @@ func GetControlPlaneID(ctx context.Context, kkClient ControlPlaneAPI, cpName str
 		PageSize:   new(requestPageSize),
 		PageNumber: new(pageNumber),
 		Filter: &kkCOM.ControlPlaneFilterParameters{
-			Name: &kkCOM.ControlPlaneFilterParametersName{
+			Name: &kkCOM.Name{
 				Eq: new(cpName),
 			},
 		},

@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
@@ -8,6 +9,22 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
 )
+
+func TestInternalSDKBackendAuthenticationPreservesAWSIAM(t *testing.T) {
+	input := `{"type":"sasl_aws_iam","sasl_aws_iam":{"type":"assume_role",
+		"assume_role":{"arn":"arn:aws:iam::123456789012:role/example"}}}`
+	var current components.BackendClusterAuthenticationSensitiveDataAwareScheme
+	var desired components.BackendClusterAuthenticationScheme
+	require.NoError(t, json.Unmarshal([]byte(input), &current))
+	require.NoError(t, json.Unmarshal([]byte(input), &desired))
+	require.True(t, compareAuthenticationSchemes(current, desired))
+	data, err := json.Marshal(backendClusterAuthenticationFields(desired))
+	require.NoError(t, err)
+	require.JSONEq(t, input, string(data))
+	desired.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam.
+		BackendClusterAuthenticationSaslAwsIamAssumeRole.AssumeRole.Arn = "arn:aws:iam::123456789012:role/changed"
+	require.False(t, compareAuthenticationSchemes(current, desired))
+}
 
 func TestShouldUpdateBackendCluster_EmptyLabelKeyChanged(t *testing.T) {
 	t.Parallel()

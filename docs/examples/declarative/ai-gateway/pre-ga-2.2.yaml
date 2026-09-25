@@ -1,0 +1,51 @@
+# Requires a backend/runtime that enables the pre-GA AI Gateway 2.2 features.
+# Feature reference: AIGW OAS 2.1.15; ai-deck-converter v0.19.0.
+ai_gateways:
+  - ref: aigw-22
+    name: aigw-22
+    display_name: AI Gateway 2.2 Development
+    min_runtime_version: "2.2"
+    model_providers:
+      - ref: jev
+        name: jev
+        display_name: Jev
+        type: typesafe
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !env JEV_AUTHORIZATION
+    models:
+      - ref: decisions
+        name: decisions
+        display_name: Decisions
+        type: model
+        formats:
+          - type: typesafe
+        capabilities: [decisions]
+        config:
+          route:
+            model:
+              body_param: model
+              values: [decisions, decisions-alias]
+          model: {}
+        targets:
+          - name: decisions
+            provider: jev
+            config:
+              type: typesafe
+      - ref: skills
+        name: skills
+        display_name: Skills API
+        type: api
+        formats:
+          - type: passthrough
+        capabilities: [skills]
+        config:
+          route: {}
+        targets:
+          - name: skills
+            provider: jev
+            config:
+              type: typesafe

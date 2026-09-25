@@ -162,7 +162,7 @@ func TestBackendOrdinaryUpdateStripsDeferredPasswords(t *testing.T) {
 					} else {
 						current.Authentication = kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 							kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
-								Username: "user", Algorithm: kkComps.AlgorithmSha256,
+								Username: "user", Algorithm: kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAwareAlgorithmSha256,
 							},
 						)
 						desired.Authentication = kkComps.CreateBackendClusterAuthenticationSchemeSaslScram(
@@ -175,14 +175,24 @@ func TestBackendOrdinaryUpdateStripsDeferredPasswords(t *testing.T) {
 					p := &Planner{}
 					needed, fields, changed := p.shouldUpdateBackendCluster(current, desired)
 					require.True(t, needed)
-					rs := &resources.ResourceSet{EventGatewayBackendClusters: []resources.EventGatewayBackendClusterResource{desired}}
-					rs.AddSecretSource(desired.Ref, "/authentication/password", expression, tags.IsEnvPlaceholder(placeholder))
+					rs := &resources.ResourceSet{
+						EventGatewayBackendClusters: []resources.EventGatewayBackendClusterResource{desired},
+					}
+					rs.AddSecretSource(
+						desired.Ref,
+						"/authentication/password",
+						expression,
+						tags.IsEnvPlaceholder(placeholder),
+					)
 					plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
 					plan.AddChange(PlannedChange{
 						ID: "update", Action: ActionUpdate, ResourceRef: desired.Ref,
 						ResourceType: ResourceTypeEventGatewayBackendCluster, Fields: fields, ChangedFields: changed,
 					})
-					require.NoError(t, p.applySecretWriteIntents(t.Context(), plan, rs, Options{WriteSecrets: selected}))
+					require.NoError(
+						t,
+						p.applySecretWriteIntents(t.Context(), plan, rs, Options{WriteSecrets: selected}),
+					)
 					change := plan.Changes[0]
 					if selected {
 						require.Len(t, change.SecretWrites, 1)

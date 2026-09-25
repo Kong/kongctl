@@ -19,6 +19,11 @@ func init() {
 		common.ViewFieldAuthStrategies,
 		loadAIGatewayAuthStrategies,
 	)
+	tableview.RegisterChildLoader(
+		common.ViewParentAIGateway,
+		common.ViewFieldCustomPolicies,
+		loadAIGatewayCustomPolicies,
+	)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldPolicies, loadAIGatewayPolicies)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldAgents, loadAIGatewayAgents)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumers, loadAIGatewayConsumers)
@@ -27,7 +32,11 @@ func init() {
 		common.ViewFieldCredentials,
 		loadAIGatewayConsumerCredentials,
 	)
-	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConsumerGroups, loadAIGatewayConsumerGroups)
+	tableview.RegisterChildLoader(
+		common.ViewParentAIGateway,
+		common.ViewFieldConsumerGroups,
+		loadAIGatewayConsumerGroups,
+	)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldModels, loadAIGatewayModels)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldMCPServers, loadAIGatewayMCPServers)
 	tableview.RegisterChildLoader(common.ViewParentAIGateway, common.ViewFieldConfigStores, loadAIGatewayConfigStores)
@@ -553,4 +562,35 @@ func aiGatewayIDFromParent(parent any) (string, error) {
 	default:
 		return "", fmt.Errorf("unexpected parent type %T", parent)
 	}
+}
+
+func loadAIGatewayCustomPolicies(_ context.Context, helper cmd.Helper, parent any) (tableview.ChildView, error) {
+	gatewayID, err := aiGatewayIDFromParent(parent)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	cfg, err := helper.GetConfig()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	logger, err := helper.GetLogger()
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	sdk, err := helper.GetKonnectSDK(cfg, logger)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+
+	policyAPI := sdk.GetAIGatewayCustomPoliciesAPI()
+	if policyAPI == nil {
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Policies client is not available")
+	}
+
+	policies, err := fetchAIGatewayCustomPolicies(helper, policyAPI, gatewayID, cfg)
+	if err != nil {
+		return tableview.ChildView{}, err
+	}
+	return buildAIGatewayCustomPolicyChildView(policies), nil
 }

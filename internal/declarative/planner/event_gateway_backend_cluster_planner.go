@@ -456,6 +456,9 @@ func compareAuthenticationSchemes(
 	}
 
 	switch a.Type {
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslAwsIam:
+		return a.BackendClusterAuthenticationSaslAwsIam != nil &&
+			reflect.DeepEqual(a.BackendClusterAuthenticationSaslAwsIam, b.BackendClusterAuthenticationSaslAwsIam)
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous:
 		// Nothing to compare within anonymous
 		return true
@@ -571,6 +574,10 @@ func sameBackendPassword(current *string, desired string) bool {
 func backendClusterAuthenticationFields(auth components.BackendClusterAuthenticationScheme) map[string]any {
 	fields := map[string]any{FieldType: string(auth.Type)}
 	switch auth.Type {
+	case components.BackendClusterAuthenticationSchemeTypeSaslAwsIam:
+		if auth.BackendClusterAuthenticationSaslAwsIam != nil {
+			fields["sasl_aws_iam"] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
+		}
 	case components.BackendClusterAuthenticationSchemeTypeAnonymous:
 	case components.BackendClusterAuthenticationSchemeTypeSaslPlain:
 		if auth.BackendClusterAuthenticationSaslPlain != nil {

@@ -1511,7 +1511,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 			switch change.Action {
 			case planner.ActionCreate:
-				header := fmt.Sprintf("+ [%s] %s %q will be created", change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf(
+					"+ [%s] %s %q will be created",
+					change.ID,
+					change.ResourceType,
+					change.ResourceRef,
+				)
 				fmt.Fprintln(out, out.paint(theme.ColorDiffAdded, header))
 
 				// Show key fields
@@ -1530,7 +1535,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 				}
 
 			case planner.ActionUpdate:
-				header := fmt.Sprintf("~ [%s] %s %q will be updated", change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf(
+					"~ [%s] %s %q will be updated",
+					change.ID,
+					change.ResourceType,
+					change.ResourceRef,
+				)
 				fmt.Fprintln(out, out.paint(theme.ColorDiffChanged, header))
 
 				// Check if this is a protection change
@@ -1573,7 +1583,12 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 
 			case planner.ActionDelete:
 				// DELETE action (future implementation)
-				header := fmt.Sprintf("- [%s] %s %q will be deleted", change.ID, change.ResourceType, change.ResourceRef)
+				header := fmt.Sprintf(
+					"- [%s] %s %q will be deleted",
+					change.ID,
+					change.ResourceType,
+					change.ResourceRef,
+				)
 				fmt.Fprintln(out, out.paint(theme.ColorDiffRemoved, header))
 			case planner.ActionExternalTool:
 				fmt.Fprintf(out, "> [%s] %s %q will run external tool steps\n",
@@ -2735,6 +2750,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		AIGatewayAPI:                      kkClient.GetAIGatewayAPI(),
 		AIGatewayProvidersAPI:             kkClient.GetAIGatewayProvidersAPI(),
 		AIGatewayAuthStrategiesAPI:        kkClient.GetAIGatewayAuthStrategiesAPI(),
+		AIGatewayCustomPoliciesAPI:        kkClient.GetAIGatewayCustomPoliciesAPI(),
 		AIGatewayPoliciesAPI:              kkClient.GetAIGatewayPoliciesAPI(),
 		AIGatewayAgentsAPI:                kkClient.GetAIGatewayAgentsAPI(),
 		AIGatewayConsumersAPI:             kkClient.GetAIGatewayConsumersAPI(),

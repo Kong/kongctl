@@ -35,7 +35,7 @@ func TestAIGatewayChildCollectorCoverage(t *testing.T) {
 		{
 			name: "missing nested child",
 			change: func(c []aiGatewayChildCollector) []aiGatewayChildCollector {
-				c[4].nested = nil
+				c[5].nested = nil
 				return c
 			},
 			want: fmt.Sprintf("missing resource types [%s]", declresources.ResourceTypeAIGatewayConsumerCredential),
@@ -48,7 +48,7 @@ func TestAIGatewayChildCollectorCoverage(t *testing.T) {
 		{
 			name: "duplicate nested child",
 			change: func(c []aiGatewayChildCollector) []aiGatewayChildCollector {
-				c[4].nested = append(c[4].nested, c[4].nested[0])
+				c[5].nested = append(c[5].nested, c[5].nested[0])
 				return c
 			},
 			want: "more than once",
@@ -56,7 +56,7 @@ func TestAIGatewayChildCollectorCoverage(t *testing.T) {
 		{
 			name: "wrong nested owner",
 			change: func(c []aiGatewayChildCollector) []aiGatewayChildCollector {
-				c[0].nested, c[4].nested = c[4].nested, nil
+				c[0].nested, c[5].nested = c[5].nested, nil
 				return c
 			},
 			want: fmt.Sprintf("%s is not a managed child of %s",
@@ -121,6 +121,10 @@ func TestPopulateAIGatewayChildrenExportContract(t *testing.T) {
 				calls = append(calls, path)
 				data := "[]"
 				switch path {
+				case "custom-policies":
+					data = `[{"id":"custom-id","name":"plugin","type":"streaming","display_name":"Plugin",
+"schema":"return {}","handler":"return { VERSION = 1 }",
+"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]`
 				case "consumers":
 					data = `[{"id":"consumer-id","name":"consumer-name","type":"api-key","display_name":"Consumer",` +
 						`"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]`
@@ -154,6 +158,7 @@ func TestPopulateAIGatewayChildrenExportContract(t *testing.T) {
 				AIGatewayProvidersAPI:             sdk.GetAIGatewayProvidersAPI(),
 				AIGatewayAuthStrategiesAPI:        sdk.GetAIGatewayAuthStrategiesAPI(),
 				AIGatewayPoliciesAPI:              sdk.GetAIGatewayPoliciesAPI(),
+				AIGatewayCustomPoliciesAPI:        sdk.GetAIGatewayCustomPoliciesAPI(),
 				AIGatewayAgentsAPI:                sdk.GetAIGatewayAgentsAPI(),
 				AIGatewayConsumersAPI:             sdk.GetAIGatewayConsumersAPI(),
 				AIGatewayConsumerGroupsAPI:        sdk.GetAIGatewayConsumerGroupsAPI(),
@@ -183,12 +188,17 @@ func TestPopulateAIGatewayChildrenExportContract(t *testing.T) {
 			require.Empty(t, calls, "nil client must skip traversal")
 			populateAIGatewayChildren(t.Context(), logger, client, gateways)
 			require.Equal(t, []string{
-				"model-providers", "auth-strategies", "policies", "agents",
+				"model-providers", "auth-strategies", "custom-policies", "policies", "agents",
 				"consumers", "consumers/consumer-id/credentials", "consumer-groups", "models", "mcp-servers",
 				"config-stores", "config-stores/store-id/secrets", "vaults", "data-plane-certificates",
 				"certificates", "ca-certificates", "snis",
 			}, calls, logs.String())
 			gateway := gateways[1]
+			require.Len(t, gateway.CustomPolicies, 1)
+			require.Equal(t, "plugin", gateway.CustomPolicies[0].Ref)
+			require.Equal(t, "return {}", gateway.CustomPolicies[0].Schema)
+			require.Equal(t, "return { VERSION = 1 }", *gateway.CustomPolicies[0].Handler)
+			require.Empty(t, gateway.CustomPolicies[0].AIGateway)
 			require.Equal(t, retained, gateway.Providers, "empty or failed reads must preserve existing output")
 			require.Nil(t, gateway.Agents, "empty reads must not allocate destination slices")
 			require.Len(t, gateway.Consumers, 1)

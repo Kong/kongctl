@@ -1194,14 +1194,14 @@ apis:
 	implementation := rs.APIImplementations[0]
 	assert.Equal(t, "users-api-impl", implementation.GetRef())
 	assert.Equal(t, "users-api", implementation.API)
-	require.NotNil(t, implementation.ServiceReference)
-	service := implementation.ServiceReference.GetService()
+	require.NotNil(t, implementation.ServiceReferenceInput)
+	service := implementation.ServiceReferenceInput.GetService()
 	require.NotNil(t, service)
 	assert.Equal(t, "users-service", service.ID)
 	assert.Equal(t, "users-control-plane", service.ControlPlaneID)
 }
 
-func TestLoader_LoadFile_APIImplementationRejectsServiceReference(t *testing.T) {
+func TestLoader_LoadFile_APIImplementationRejectsServiceReferenceInput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`
