@@ -110,8 +110,8 @@ steps:
             expect:
               fields:
                 'config.headers."X-Control-Plane-Id"': "{{ .vars.gateway_id }}"
-                'config.headers."X-Gateway.Id"': "{{ .vars.gateway_id }}"
-                'config.headers."X-Gateway.Name"': "{{ .vars.gateway_ref }}"
+                'config.headers."X-Gateway-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Name"': "{{ .vars.gateway_ref }}"
 
   - name: 001c-update-policy-with-unchanged-gateway
     inputOverlayOps:
@@ -141,8 +141,8 @@ steps:
               fields:
                 config.http_endpoint: https://logging.example.com/ai-gateway-updated
                 'config.headers."X-Control-Plane-Id"': "{{ .vars.gateway_id }}"
-                'config.headers."X-Gateway.Id"': "{{ .vars.gateway_id }}"
-                'config.headers."X-Gateway.Name"': "{{ .vars.gateway_ref }}"
+                'config.headers."X-Gateway-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Name"': "{{ .vars.gateway_ref }}"
       - name: 002-plan-no-changes
         run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
         assertions:
