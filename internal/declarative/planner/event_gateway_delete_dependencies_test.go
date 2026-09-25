@@ -11,8 +11,16 @@ import (
 )
 
 func TestPlannerEventGatewayChildPruning(t *testing.T) {
-	for _, mode := range []PlanMode{PlanModeSync, PlanModeApply} {
-		t.Run(string(mode), func(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		mode        PlanMode
+		destination components.BackendClusterReference
+	}{
+		{"sync by ID", PlanModeSync, components.BackendClusterReference{ID: "backend-id"}},
+		{"sync by name", PlanModeSync, components.BackendClusterReference{Name: "backend"}},
+		{"apply", PlanModeApply, components.BackendClusterReference{Name: "backend"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			gateway := externalEventGatewayResource()
 			rs := &resources.ResourceSet{
 				EventGatewayControlPlanes: []resources.EventGatewayControlPlaneResource{gateway},
@@ -32,14 +40,14 @@ func TestPlannerEventGatewayChildPruning(t *testing.T) {
 				},
 				EventGatewayVirtualClusterAPI: &stubExternalEventGatewayVirtualClusterAPI{
 					clusters: []components.VirtualCluster{
-						{ID: "virtual-one", Name: "one", Destination: components.BackendClusterReference{ID: "backend-id"}},
-						{ID: "virtual-two", Name: "two", Destination: components.BackendClusterReference{ID: "backend-id"}},
+						{ID: "virtual-one", Name: "one", Destination: test.destination},
+						{ID: "virtual-two", Name: "two", Destination: test.destination},
 					},
 				},
 			})
-			plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+			plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: test.mode})
 			require.NoError(t, err)
-			if mode == PlanModeApply {
+			if test.mode == PlanModeApply {
 				require.Empty(t, plan.Changes)
 				return
 			}
@@ -51,7 +59,11 @@ func TestPlannerEventGatewayChildPruning(t *testing.T) {
 				if change.ResourceType == ResourceTypeEventGatewayBackendCluster {
 					backend = change
 				} else {
-					require.Equal(t, "backend-id", change.References[FieldEventGatewayBackendClusterID].ID)
+					reference := change.References[FieldEventGatewayBackendClusterID]
+					require.Equal(t, test.destination.ID, reference.ID)
+					if test.destination.ID == "" {
+						require.Equal(t, test.destination.Name, reference.LookupFields[FieldName])
+					}
 					virtualIDs = append(virtualIDs, change.ID)
 				}
 			}
@@ -65,25 +77,32 @@ func TestPlannerEventGatewayChildPruning(t *testing.T) {
 
 func TestEventGatewayDeleteDependenciesRespectScope(t *testing.T) {
 	for _, test := range []struct {
-		name, namespace, gatewayID, backendID string
-		action                                ActionType
+		name, namespace, gatewayID, backendID, backendName string
+		action                                             ActionType
 	}{
-		{"other namespace", "other", "gateway", "backend", ActionDelete},
-		{"other gateway", "namespace", "other", "backend", ActionDelete},
-		{"other backend", "namespace", "gateway", "other", ActionDelete},
-		{"update", "namespace", "gateway", "backend", ActionUpdate},
-		{"missing destination", "namespace", "gateway", "", ActionDelete},
+		{"other namespace", "other", "gateway", "backend", "", ActionDelete},
+		{"other gateway", "namespace", "other", "backend", "", ActionDelete},
+		{"other backend", "namespace", "gateway", "other", "", ActionDelete},
+		{"update", "namespace", "gateway", "backend", "", ActionUpdate},
+		{"missing destination", "namespace", "gateway", "", "", ActionDelete},
+		{"name in other namespace", "other", "gateway", "", "backend-name", ActionDelete},
+		{"name in other gateway", "namespace", "other", "", "backend-name", ActionDelete},
+		{"other name", "namespace", "gateway", "", "other", ActionDelete},
+		{"name on update", "namespace", "gateway", "", "backend-name", ActionUpdate},
+		{"ID takes precedence over name", "namespace", "gateway", "other", "backend-name", ActionDelete},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			changes := []PlannedChange{
 				{
 					ID: "backend-delete", ResourceType: ResourceTypeEventGatewayBackendCluster, Action: ActionDelete,
-					ResourceID: "backend", Namespace: "namespace", Parent: &ParentInfo{ID: "gateway"},
+					ResourceID: "backend", ResourceRef: "backend-name", Namespace: "namespace", Parent: &ParentInfo{ID: "gateway"},
 				},
 				{
 					ID: "virtual-change", ResourceType: ResourceTypeEventGatewayVirtualCluster, Action: test.action,
 					Namespace: test.namespace, Parent: &ParentInfo{ID: test.gatewayID},
-					References: map[string]ReferenceInfo{FieldEventGatewayBackendClusterID: {ID: test.backendID}},
+					References: map[string]ReferenceInfo{FieldEventGatewayBackendClusterID: {
+						ID: test.backendID, LookupFields: map[string]string{FieldName: test.backendName},
+					}},
 				},
 			}
 			adjustEventGatewayBackendClusterDeleteDependencies(changes)

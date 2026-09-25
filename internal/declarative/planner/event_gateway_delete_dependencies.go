@@ -5,14 +5,18 @@ package planner
 // resources (which no longer contain the deleted children).
 func adjustEventGatewayBackendClusterDeleteDependencies(changes []PlannedChange) {
 	type backendKey struct {
-		namespace, gatewayID, backendID string
+		namespace, gatewayID, backend string
 	}
 	backends := make(map[backendKey]int)
+	backendsByName := make(map[backendKey]int)
 	for i := range changes {
 		change := &changes[i]
 		if change.Action == ActionDelete && change.ResourceType == ResourceTypeEventGatewayBackendCluster &&
 			change.Parent != nil && change.Parent.ID != "" && change.ResourceID != "" {
 			backends[backendKey{change.Namespace, change.Parent.ID, change.ResourceID}] = i
+			if change.ResourceRef != "" {
+				backendsByName[backendKey{change.Namespace, change.Parent.ID, change.ResourceRef}] = i
+			}
 		}
 	}
 	for _, change := range changes {
@@ -20,8 +24,13 @@ func adjustEventGatewayBackendClusterDeleteDependencies(changes []PlannedChange)
 			change.Parent == nil {
 			continue
 		}
-		backendID := change.References[FieldEventGatewayBackendClusterID].ID
-		if i, ok := backends[backendKey{change.Namespace, change.Parent.ID, backendID}]; ok {
+		reference := change.References[FieldEventGatewayBackendClusterID]
+		i, ok := backends[backendKey{change.Namespace, change.Parent.ID, reference.ID}]
+		// An observed ID is authoritative; only name-only destinations use the fallback.
+		if reference.ID == "" {
+			i, ok = backendsByName[backendKey{change.Namespace, change.Parent.ID, reference.LookupFields[FieldName]}]
+		}
+		if ok {
 			changes[i].DependsOn = appendDependsOn(changes[i].DependsOn, change.ID)
 		}
 	}

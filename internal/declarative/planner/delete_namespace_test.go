@@ -161,7 +161,7 @@ func TestDeleteBuildersSetNamespace(t *testing.T) {
 			resourceType: ResourceTypeEventGatewayVirtualCluster,
 			planDelete: func(p *Planner, plan *Plan) {
 				p.planVirtualClusterDelete(
-					namespace, "gateway", "Gateway", "gateway-id", "cluster-id", "cluster", "backend-id", plan,
+					namespace, "gateway", "Gateway", "gateway-id", "cluster-id", "cluster", "backend-id", "backend", plan,
 				)
 			},
 		},

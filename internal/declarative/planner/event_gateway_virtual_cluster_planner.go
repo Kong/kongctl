@@ -329,7 +329,8 @@ func (p *Planner) planVirtualClusterChangesForExistingGateway(
 					"cluster_id", current.ID,
 				)
 				p.planVirtualClusterDelete(
-					namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, current.Destination.ID, plan,
+					namespace, gatewayRef, gatewayName, gatewayID, current.ID, name,
+					current.Destination.ID, current.Destination.Name, plan,
 				)
 			}
 		}
@@ -615,6 +616,7 @@ func (p *Planner) planVirtualClusterDelete(
 	clusterID string,
 	clusterName string,
 	backendClusterID string,
+	backendClusterName string,
 	plan *Plan,
 ) {
 	change := PlannedChange{
@@ -633,6 +635,10 @@ func (p *Planner) planVirtualClusterDelete(
 	if backendClusterID != "" {
 		change.References = map[string]ReferenceInfo{
 			FieldEventGatewayBackendClusterID: {ID: backendClusterID},
+		}
+	} else if backendClusterName != "" {
+		change.References = map[string]ReferenceInfo{
+			FieldEventGatewayBackendClusterID: {LookupFields: map[string]string{FieldName: backendClusterName}},
 		}
 	}
 
