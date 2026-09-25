@@ -11,6 +11,8 @@ import (
 	"github.com/kong/kongctl/internal/declarative/deck"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -354,4 +356,58 @@ func TestResolveGatewayServiceIdentitiesDeckConfigMatchesExisting(t *testing.T) 
 	err := p.resolveGatewayServiceIdentities(context.Background(), services, controlPlanes)
 	require.NoError(t, err)
 	require.Equal(t, serviceID, services[0].GetKonnectID())
+}
+
+func TestPlanDeckExternalControlPlaneUsesResolvedKonnectName(t *testing.T) {
+	const (
+		controlPlaneID   = "11111111-1111-1111-1111-111111111111"
+		controlPlaneName = "konnect-cp-name"
+	)
+
+	mockAPI := helpers.NewMockControlPlaneAPI(t)
+	mockAPI.EXPECT().
+		GetControlPlane(mock.Anything, controlPlaneID).
+		Return(&kkOps.GetControlPlaneResponse{
+			ControlPlane: &kkComps.ControlPlane{ID: controlPlaneID, Name: controlPlaneName},
+		}, nil).
+		Once()
+
+	cp := resources.ControlPlaneResource{
+		BaseResource: resources.BaseResource{Ref: "external-control-plane"},
+		External: &resources.ExternalBlock{
+			Selector: &resources.ExternalSelector{
+				MatchFields: map[string]string{"id": controlPlaneID},
+			},
+		},
+		Deck: &resources.DeckConfig{Files: []string{"deck.yaml"}},
+	}
+	// The loader applies defaults to every resource, external ones included.
+	cp.SetDefaults()
+	cp.SetKonnectID(controlPlaneID)
+	cp.SetDeckBaseDir(t.TempDir())
+
+	rs := &resources.ResourceSet{ControlPlanes: []resources.ControlPlaneResource{cp}}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	runner := &stubDeckRunner{result: &deck.RunResult{
+		Stdout: `{"summary":{"creating":1,"updating":0,"deleting":0,"total":1},"errors":[]}`,
+	}}
+	planner := NewPlanner(
+		state.NewClient(state.ClientConfig{ControlPlaneAPI: mockAPI}),
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	err := planner.planDeckDependencies(context.Background(), rs, plan, Options{
+		Mode: PlanModeApply,
+		Deck: DeckOptions{
+			Runner: runner, KonnectToken: "token", KonnectAddress: "https://api.konghq.com",
+		},
+	})
+	require.NoError(t, err)
+
+	// deck resolves the control plane by name, so it must receive the name from
+	// Konnect rather than the declarative ref.
+	require.Len(t, runner.calls, 1)
+	require.Equal(t, controlPlaneName, runner.calls[0].KonnectControlPlaneName)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, controlPlaneName, plan.Changes[0].Fields[FieldControlPlaneName])
 }

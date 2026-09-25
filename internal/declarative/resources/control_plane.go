@@ -111,8 +111,11 @@ func (c ControlPlaneResource) Validate() error {
 
 // SetDefaults applies default values to control plane resource
 func (c *ControlPlaneResource) SetDefaults() {
-	// If Name is not set, use ref as default
-	if c.Name == "" {
+	// If Name is not set, use ref as default. External control planes are
+	// resolved by ID or selector and their name is owned by Konnect, so
+	// defaulting it here would shadow the real name for consumers that need
+	// it, such as the deck integration.
+	if !c.IsExternal() && c.Name == "" {
 		c.Name = c.Ref
 	}
 
