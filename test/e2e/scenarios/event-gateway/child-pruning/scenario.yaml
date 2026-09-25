@@ -1,0 +1,131 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 001-create
+    commands:
+      - name: create-dependency-pair
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --require-namespace
+          - event-gateway-child-pruning-test
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+
+  - name: 002-prune
+    inputOverlayDirs:
+      - overlays/pruned
+    commands:
+      - name: plan-prune
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/prune.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+          - --require-namespace
+          - event-gateway-child-pruning-test
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: "length(execution_groups)"
+            expect:
+              fields:
+                "@": 2
+          - select: "changes[?resource_type == 'event_gateway_backend_cluster'] | [0].depends_on"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: execute-saved-prune
+        outputFormat: json
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/prune.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                skipped: 0
+                status: success
+      - name: verify-gateway-retained
+        outputFormat: json
+        run:
+          - get
+          - event-gateways
+        assertions:
+          - select: "length([?name == 'event-gateway-child-pruning-test'])"
+            expect:
+              fields:
+                "@": 1
+      - name: verify-backends-absent
+        outputFormat: json
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - event-gateway-child-pruning-test
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+      - name: verify-virtual-clusters-absent
+        outputFormat: json
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - event-gateway-child-pruning-test
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+      - name: idempotent-follow-up
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: cleanup-gateway
+        outputFormat: json
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --require-namespace
+          - event-gateway-child-pruning-test
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success

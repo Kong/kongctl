@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-child-pruning-test
+
+event_gateways:
+  - ref: pruning-gateway
+    name: event-gateway-child-pruning-test
+    backend_clusters: []
+    virtual_clusters: []
