@@ -6,7 +6,8 @@ import json
 import sys
 
 path, resource, stage, namespace = sys.argv[1:]
-plan = json.load(open(path, encoding="utf-8"))
+with open(path, encoding="utf-8") as handle:
+    plan = json.load(handle)
 changes = plan.get("changes", [])
 if plan.get("metadata", {}).get("mode") != "sync":
     raise SystemExit("expected a sync plan")

@@ -270,4 +270,4 @@ test_fault_is_rejected missing-child plan-create-api
 test_fault_is_rejected bad-namespace plan-create-api
 test_fault_is_rejected bad-dump plan-zero-portal-dump-sync
 test_resource_selection
-python3 "$ROOT/test/smoke/plan_test.py" "$TMP_ROOT"
+python3 "$ROOT/test/smoke/plan_test.py" --temp-root "$TMP_ROOT"

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regression cases for transition-plan safety checks, without Konnect access."""
 
+import argparse
 import copy
 import json
 import pathlib
@@ -9,7 +10,7 @@ import sys
 import tempfile
 import unittest
 
-TEMP_ROOT = sys.argv.pop(1)
+TEMP_ROOT = None
 CHECKER = pathlib.Path(__file__).resolve().parents[2] / "scripts/smoke/assert-plan.py"
 
 
@@ -93,4 +94,8 @@ class PlanChecks(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--temp-root", help="Parent directory for temporary test files")
+    options, unittest_args = parser.parse_known_args()
+    TEMP_ROOT = options.temp_root
+    unittest.main(argv=[sys.argv[0], *unittest_args])
