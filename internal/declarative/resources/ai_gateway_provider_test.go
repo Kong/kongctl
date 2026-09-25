@@ -158,7 +158,7 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 	expected := []string{
 		"anthropic", "azure", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
 		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "sagemaker", "vercel",
-		"vllm", "xai",
+		"typesafe", "vllm", "xai",
 	}
 	require.ElementsMatch(t, expected, providerTypes)
 
@@ -207,7 +207,13 @@ func aiGatewayProviderAuthExplainBranch(
 				return authBranch
 			}
 		}
-		require.Failf(t, "missing auth explain branch", "provider %q does not have auth type %q", providerType, authType)
+		require.Failf(
+			t,
+			"missing auth explain branch",
+			"provider %q does not have auth type %q",
+			providerType,
+			authType,
+		)
 	}
 
 	require.Failf(t, "missing provider explain branch", "provider type %q was not found", providerType)

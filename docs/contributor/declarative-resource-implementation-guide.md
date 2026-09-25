@@ -196,7 +196,7 @@ Supply `nested`/`setParent` with an optional `beforeAppend`, or a
 typed `extract` handler for exceptional sources. Custom extraction receives
 the registered destination; preserve each source's copying and storage rules.
 
-All 16 AI Gateway child kinds pair extraction with validation. Direct children
+All 17 AI Gateway child kinds pair extraction with validation. Direct children
 use [`registerAIGatewayChildResource`][ai-child-load] for gateway-local moniker
 uniqueness; data-plane certificates retain `title` diagnostics.
 

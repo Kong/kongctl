@@ -222,6 +222,14 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 		processCount++
 	}
 
+	for i := range rs.AIGatewayCustomPolicies {
+		if err := resolveResourceFields(
+			ctx, &rs.AIGatewayCustomPolicies[i], rs, resolver, resolutionPath, logger,
+		); err != nil {
+			return fmt.Errorf("resolving AI gateway custom policy %s: %w", rs.AIGatewayCustomPolicies[i].GetRef(), err)
+		}
+		processCount++
+	}
 	for i := range rs.AIGatewayPolicies {
 		if err := resolveResourceFields(ctx, &rs.AIGatewayPolicies[i], rs, resolver, resolutionPath, logger); err != nil {
 			return fmt.Errorf("resolving AI gateway policy %s: %w", rs.AIGatewayPolicies[i].GetRef(), err)
@@ -469,7 +477,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 	implCount := len(rs.APIImplementations)
 	implMissingPayload := 0
 	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].ServiceReference.GetService() == nil &&
+		if rs.APIImplementations[i].ServiceReferenceInput.GetService() == nil &&
 			rs.APIImplementations[i].ControlPlaneReference.GetControlPlane() == nil {
 			implMissingPayload++
 		}

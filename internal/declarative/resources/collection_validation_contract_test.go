@@ -19,6 +19,7 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeAIGateway,
 		ResourceTypeAIGatewayProvider,
 		ResourceTypeAIGatewayAuthStrategy,
+		ResourceTypeAIGatewayCustomPolicy,
 		ResourceTypeAIGatewayPolicy,
 		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,

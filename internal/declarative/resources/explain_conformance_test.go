@@ -153,7 +153,7 @@ func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
 	allowOverlay := func(path, name string) bool {
 		return path == "logging" && name == "statistics"
 	}
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.Config](t, config.Node, allowOverlay)
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.CreateAIGatewayAgentRequestConfig](t, config.Node, allowOverlay)
 }
 
 func TestAIGatewayMCPServerConfigExplainIncludesUpstreamAuthentication(t *testing.T) {
@@ -184,10 +184,20 @@ func TestAIGatewayModelProviderExplainBranchesTrackSDKRequestShapes(t *testing.T
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderCerebras](t, node, "cerebras", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderCohere](t, node, "cohere", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderDashscope](t, node, "dashscope", allowOverlay)
-	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderDatabricks](t, node, "databricks", allowOverlay)
+	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderDatabricks](
+		t,
+		node,
+		"databricks",
+		allowOverlay,
+	)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderDeepseek](t, node, "deepseek", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderGemini](t, node, "gemini", allowOverlay)
-	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderHuggingface](t, node, "huggingface", allowOverlay)
+	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderHuggingface](
+		t,
+		node,
+		"huggingface",
+		allowOverlay,
+	)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderKimi](t, node, "kimi", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderLlama2](t, node, "llama2", allowOverlay)
 	assertAIGatewayProviderExplainSDKShape[kkComps.AIGatewayModelProviderMistral](t, node, "mistral", allowOverlay)
@@ -245,7 +255,12 @@ func assertExplainNodeDeeplySupportsSDKShape(
 	for _, expectedField := range expected.Properties {
 		expectedNames[expectedField.Name] = struct{}{}
 		actualField, ok := actual.property(expectedField.Name)
-		require.Truef(t, ok, "custom Explain schema is missing SDK field %q", joinExplainTestPath(path, expectedField.Name))
+		require.Truef(
+			t,
+			ok,
+			"custom Explain schema is missing SDK field %q",
+			joinExplainTestPath(path, expectedField.Name),
+		)
 		if expectedField.Required {
 			require.Truef(
 				t,
@@ -412,7 +427,13 @@ func assertExplainFieldShapeCompatible(t *testing.T, path string, expected, actu
 		)
 	}
 	if len(expected.OneOf) > 0 {
-		require.Lenf(t, actual.OneOf, len(expected.OneOf), "custom explain union field %q has incompatible branches", path)
+		require.Lenf(
+			t,
+			actual.OneOf,
+			len(expected.OneOf),
+			"custom explain union field %q has incompatible branches",
+			path,
+		)
 		for i := range expected.OneOf {
 			assert.Equalf(
 				t,

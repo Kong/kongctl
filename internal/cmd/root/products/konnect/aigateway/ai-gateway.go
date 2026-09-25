@@ -2,6 +2,7 @@ package aigateway
 
 import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
+	"github.com/kong/kongctl/internal/maturity"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -31,6 +32,15 @@ func NewAIGatewayCmd(
 		root := newGetAIGatewayCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command
 		root.AddCommand(newGetAIGatewayProvidersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayAuthStrategiesCmd(verb, addParentFlags, parentPreRun))
+		customPolicies := newGetAIGatewayCustomPoliciesCmd(verb, addParentFlags, parentPreRun)
+		metadata := maturity.Metadata{
+			Level:   maturity.LevelBeta,
+			Message: "Requires an AI Gateway backend with custom-policy support enabled.",
+		}
+		if err := maturity.AnnotateCommand(customPolicies, metadata); err != nil {
+			return nil, err
+		}
+		root.AddCommand(customPolicies)
 		root.AddCommand(newGetAIGatewayPoliciesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayAgentsCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayConsumersCmd(verb, addParentFlags, parentPreRun))

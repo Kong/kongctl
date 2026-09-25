@@ -128,7 +128,11 @@ func TestAIGatewayCommandsAreGA(t *testing.T) {
 			for _, child := range rootCmd.Commands() {
 				childResolved, err := maturity.ResolveCommand(child)
 				require.NoError(t, err)
-				require.Equal(t, maturity.LevelGA, childResolved.Effective.Level, child.Name())
+				expected := maturity.LevelGA
+				if child.Name() == "custom-policies" {
+					expected = maturity.LevelBeta
+				}
+				require.Equal(t, expected, childResolved.Effective.Level, child.Name())
 			}
 		})
 	}

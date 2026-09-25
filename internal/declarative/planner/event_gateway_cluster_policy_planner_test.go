@@ -54,8 +54,8 @@ func TestShouldUpdateClusterPolicy_NoChanges(t *testing.T) {
 				Config: kkComps.EventGatewayACLPolicyConfig{
 					Rules: []kkComps.EventGatewayACLRule{
 						{
-							Action:       kkComps.ActionDeny,
-							ResourceType: kkComps.ResourceTypeTopic,
+							Action:       kkComps.EventGatewayACLRuleActionDeny,
+							ResourceType: kkComps.EventGatewayACLRuleResourceTypeTopic,
 							Operations:   []kkComps.EventGatewayACLOperation{},
 							ResourceNames: kkComps.CreateResourceNamesArrayOfEventGatewayACLResourceName(
 								[]kkComps.EventGatewayACLResourceName{
@@ -115,8 +115,8 @@ func TestShouldUpdateClusterPolicy_DescriptionChanged(t *testing.T) {
 				Config: kkComps.EventGatewayACLPolicyConfig{
 					Rules: []kkComps.EventGatewayACLRule{
 						{
-							Action:       kkComps.ActionDeny,
-							ResourceType: kkComps.ResourceTypeTopic,
+							Action:       kkComps.EventGatewayACLRuleActionDeny,
+							ResourceType: kkComps.EventGatewayACLRuleResourceTypeTopic,
 							Operations:   []kkComps.EventGatewayACLOperation{},
 							ResourceNames: kkComps.CreateResourceNamesArrayOfEventGatewayACLResourceName(
 								[]kkComps.EventGatewayACLResourceName{},
@@ -184,10 +184,10 @@ func TestShouldUpdateClusterPolicy_ConfigChangedNestedField(t *testing.T) {
 				Config: kkComps.EventGatewayACLPolicyConfig{
 					Rules: []kkComps.EventGatewayACLRule{
 						{
-							Action:       kkComps.ActionAllow, // Changed from deny to allow
-							ResourceType: kkComps.ResourceTypeTopic,
+							Action:       kkComps.EventGatewayACLRuleActionAllow, // Changed from deny to allow
+							ResourceType: kkComps.EventGatewayACLRuleResourceTypeTopic,
 							Operations: []kkComps.EventGatewayACLOperation{
-								{Name: kkComps.NameWrite}, // Changed from read to write
+								{Name: kkComps.EventGatewayACLOperationNameWrite}, // Changed from read to write
 							},
 							ResourceNames: kkComps.CreateResourceNamesArrayOfEventGatewayACLResourceName(
 								[]kkComps.EventGatewayACLResourceName{

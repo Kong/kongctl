@@ -312,7 +312,7 @@ func TestPlanPortalTeams_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 func TestPlanPortalTeamRoles_ExternalPortalSyncDeletesWhenOmitted(t *testing.T) {
 	t.Parallel()
 
-	region := kkComps.EntityRegion("us")
+	region := kkComps.PortalAssignedRoleResponseEntityRegion("us")
 	planner := &Planner{
 		client: state.NewClient(state.ClientConfig{
 			PortalTeamAPI: &stubExternalPortalTeamAPI{

@@ -469,6 +469,10 @@ func aiGatewayMCPServerStringField(value any, key string) string {
 }
 
 func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	tokenVault, err := autoExplainConcreteNode[kkComps.AIGatewayTokenVault](nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build MCP server token vault schema: %w", err)
+	}
 	cache, err := autoExplainConcreteNode[kkComps.AIGatewayMCPServerListenerCache](nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build MCP server cache schema: %w", err)
@@ -479,6 +483,7 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	}
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
+		explainField("token_vault", tokenVault, false, false),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("customer-support-tools"), true, true),
 		explainField("display_name", explainStringNode("Customer Support Tools"), true, true),

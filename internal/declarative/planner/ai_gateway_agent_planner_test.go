@@ -205,7 +205,11 @@ func TestAIGatewayAgentPlannerDependsOnPolicyCreate(t *testing.T) {
 	require.Contains(t, policyCreate.DependsOn, gatewayCreate.ID)
 	require.Contains(t, agentCreate.DependsOn, policyCreate.ID)
 	require.Equal(t, resources.UnknownReferenceID, agentCreate.References[FieldPolicies+".0"].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"mask-sensitive-data#name", agentCreate.References[FieldPolicies+".0"].Ref)
+	require.Equal(
+		t,
+		tags.RefPlaceholderPrefix+"mask-sensitive-data#name",
+		agentCreate.References[FieldPolicies+".0"].Ref,
+	)
 }
 
 func TestAIGatewayAgentPlannerDependsOnAuthStrategyCreate(t *testing.T) {
@@ -394,7 +398,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 	return kkComps.AIGatewayAgent{
 		ID:          "agent-id",
 		Name:        "booking-agent",
-		Type:        kkComps.TypeA2a,
+		Type:        kkComps.AIGatewayAgentTypeA2a,
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,
 		Config: kkComps.AIGatewayAgentConfig{

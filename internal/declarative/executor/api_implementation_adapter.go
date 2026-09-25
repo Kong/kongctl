@@ -47,7 +47,7 @@ func (a *APIImplementationAdapter) MapCreateFields(
 		if err != nil {
 			return fmt.Errorf("service.control_plane_id is required: %w", err)
 		}
-		*create = kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
+		*create = kkComps.CreateAPIImplementationServiceReferenceInput(kkComps.ServiceReferenceInput{
 			Service: &kkComps.APIImplementationService{ID: serviceID, ControlPlaneID: controlPlaneID},
 		})
 		return nil

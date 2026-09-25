@@ -18,6 +18,9 @@ func (e *Executor) registerAIGatewayExecutors() {
 		NewBaseExecutor(NewAIGatewayAuthStrategyAdapter(client), client, dryRun),
 	))
 	registerChild(crudResourceExecutor(
+		NewBaseExecutor(NewAIGatewayCustomPolicyAdapter(client), client, dryRun),
+	))
+	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewAIGatewayPolicyAdapter(client), client, dryRun),
 	))
 	registerChild(crudResourceExecutor(

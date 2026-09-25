@@ -1,0 +1,30 @@
+# Requires a backend with custom-policy support enabled.
+ai_gateways:
+  - ref: custom-policy-gateway
+    name: custom-policy-gateway
+    display_name: Custom Policy Gateway
+    min_runtime_version: "2.2"
+    custom_policies:
+      - ref: custom-header
+        name: custom-header
+        display_name: Custom Header
+        type: streaming
+        schema: |
+          return {
+            name = "custom-header",
+            fields = {
+              { config = { type = "record", fields = {} } },
+            },
+          }
+        handler: |
+          local plugin = { PRIORITY = 1000, VERSION = "0.1.0" }
+          function plugin:access(config)
+            kong.service.request.set_header("X-Custom-Policy", "enabled")
+          end
+          return plugin
+    policies:
+      - ref: custom-header-instance
+        name: custom-header-instance
+        display_name: Custom Header Instance
+        type: custom-header
+        config: {}

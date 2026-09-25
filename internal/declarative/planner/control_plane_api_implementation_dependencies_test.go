@@ -35,8 +35,8 @@ func TestAdjustControlPlaneAPIImplementationDeleteDependencies(t *testing.T) {
 				Ref: "implementation",
 				API: "api",
 				APIImplementation: kkComps.APIImplementation{
-					Type: kkComps.APIImplementationTypeServiceReference,
-					ServiceReference: &kkComps.ServiceReference{
+					Type: kkComps.APIImplementationTypeServiceReferenceInput,
+					ServiceReferenceInput: &kkComps.ServiceReferenceInput{
 						Service: &kkComps.APIImplementationService{
 							ID:             "service-id",
 							ControlPlaneID: controlPlaneID,
@@ -126,8 +126,11 @@ func TestControlPlaneDeleteDependenciesWithDifferentDeclarationRefs(t *testing.T
 					Action: ActionDelete, Namespace: tc.namespace, Fields: map[string]any{FieldName: "code-breakers"},
 				},
 			}
-			implementation := kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
-				Service: &kkComps.APIImplementationService{ID: "service-id", ControlPlaneID: "__REF__:code-breakers-cp#id"},
+			implementation := kkComps.CreateAPIImplementationServiceReferenceInput(kkComps.ServiceReferenceInput{
+				Service: &kkComps.APIImplementationService{
+					ID:             "service-id",
+					ControlPlaneID: "__REF__:code-breakers-cp#id",
+				},
 			})
 			if tc.controlPlaneReference {
 				implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{
