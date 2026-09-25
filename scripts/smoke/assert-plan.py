@@ -5,7 +5,7 @@ import collections
 import json
 import sys
 
-path, resource, stage, namespace, runtime21 = sys.argv[1:]
+path, resource, stage, namespace = sys.argv[1:]
 plan = json.load(open(path, encoding="utf-8"))
 changes = plan.get("changes", [])
 if plan.get("metadata", {}).get("mode") != "sync":
@@ -32,7 +32,7 @@ else:
         "event_gateway": ["event_gateway_backend_cluster", "event_gateway_virtual_cluster"],
         "ai_gateway": [provider, model, policy],
     }[resource]
-    if resource == "ai_gateway" and runtime21 == "true":
+    if resource == "ai_gateway":
         types.append("ai_gateway_mcp_server")
     expected = collections.Counter(("DELETE", kind) for kind in types)
 if actual != expected:

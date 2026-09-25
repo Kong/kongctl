@@ -7,7 +7,6 @@ or locally built `kongctl` binary.
 ```sh
 scripts/smoke-test.sh --binary ./kongctl --profile smoke --quick
 scripts/smoke-test.sh --binary ./kongctl --profile smoke --yes
-scripts/smoke-test.sh --binary ./kongctl --profile smoke --yes --ai-runtime-2-1
 scripts/smoke-test.sh --binary ./kongctl --profile smoke --yes \
   --resources ai_gateway
 ```
@@ -34,10 +33,11 @@ exercises:
   cleanup. Event Gateway exports also check that children are excluded by
   default.
 
-`--ai-runtime-2-1` adds model costs and selector aliases, a policy condition,
-and MCP version/cache settings, including a zero TTL. Use an environment that
-supports runtime 2.1. These are control-plane checks; no inference calls or
-running Kafka brokers are required.
+AI Gateway 2.1 coverage is mandatory whenever AI Gateway is selected. It tests
+model costs and selector aliases, a policy condition, and MCP version/cache
+settings, including a zero TTL. Quick mode generates the same 2.1 fixtures;
+full mode verifies their lifecycle and remote values. These are control-plane
+checks; no inference calls or running Kafka brokers are required.
 
 Plans are checked for unexpected actions and changes outside the run's
 namespace. Create plans must contain exactly the expected root and child
@@ -62,7 +62,7 @@ normal targeted cleanup; the script does not suppress it or retry the plan.
 To exercise the other families independently while investigating this issue:
 
 ```sh
-scripts/smoke-test.sh --binary ./kongctl --yes --ai-runtime-2-1 \
+scripts/smoke-test.sh --binary ./kongctl --yes \
   --resources api,portal,control_plane,ai_gateway
 ```
 

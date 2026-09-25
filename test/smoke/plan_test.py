@@ -36,7 +36,7 @@ class PlanChecks(unittest.TestCase):
             path = pathlib.Path(directory) / "plan.json"
             path.write_text(json.dumps(plan))
             result = subprocess.run(
-                [sys.executable, str(CHECKER), str(path), resource, stage, "smoke", "false"],
+                [sys.executable, str(CHECKER), str(path), resource, stage, "smoke"],
                 capture_output=True, text=True, check=False,
             )
         if expected_error is None:

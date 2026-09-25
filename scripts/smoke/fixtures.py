@@ -7,7 +7,7 @@ import pathlib
 import sys
 
 
-def children(key, runtime21):
+def children(key):
     if key == "portal":
         return {"snippets": [{
             "ref": "smoke-snippet-ref", "name": "smoke-snippet",
@@ -57,29 +57,28 @@ def children(key, runtime21):
             "policies": ["SMOKE_POLICY_REFERENCE"],
         }],
     }
-    if runtime21:
-        result.update(min_runtime_version="2.1", runtime_auto_upgrade=False)
-        model = result["models"][0]
-        model["config"]["route"]["model"]["values"].append("smoke-alias")
-        model["targets"][0]["config"].update(
-            input_cost_list=[{"modal": "text", "cost": 2.5}],
-            output_cost_list=[{"modal": "audio", "cost": 10}],
-            cache_read_cost_list=[{"modal": "image", "cost": 0.5}],
-        )
-        result["policies"][0]["condition"] = "http.method == 'POST'"
-        result["mcp_servers"] = [{
-            "ref": "smoke-mcp-ref", "name": "smoke-mcp",
-            "display_name": "Smoke MCP", "type": "conversion-listener",
-            "tools": [{"name": "lookup", "description": "Look up a record",
-                       "method": "GET", "path": "/records"}],
-            "config": {
-                "url": "https://example.com", "route": {"paths": ["/smoke"]},
-                "server": {"forward_client_headers": True, "timeout": 10000},
-                "allowed_versions": ["2025-11-25"],
-                "cache": {"tools_list": {"ttl_ms": 0, "cache_scope": "private"},
-                          "discover": {"ttl_ms": 60000, "cache_scope": "public"}},
-            },
-        }]
+    result.update(min_runtime_version="2.1", runtime_auto_upgrade=False)
+    model = result["models"][0]
+    model["config"]["route"]["model"]["values"].append("smoke-alias")
+    model["targets"][0]["config"].update(
+        input_cost_list=[{"modal": "text", "cost": 2.5}],
+        output_cost_list=[{"modal": "audio", "cost": 10}],
+        cache_read_cost_list=[{"modal": "image", "cost": 0.5}],
+    )
+    result["policies"][0]["condition"] = "http.method == 'POST'"
+    result["mcp_servers"] = [{
+        "ref": "smoke-mcp-ref", "name": "smoke-mcp",
+        "display_name": "Smoke MCP", "type": "conversion-listener",
+        "tools": [{"name": "lookup", "description": "Look up a record",
+                   "method": "GET", "path": "/records"}],
+        "config": {
+            "url": "https://example.com", "route": {"paths": ["/smoke"]},
+            "server": {"forward_client_headers": True, "timeout": 10000},
+            "allowed_versions": ["2025-11-25"],
+            "cache": {"tools_list": {"ttl_ms": 0, "cache_scope": "private"},
+                      "discover": {"ttl_ms": 60000, "cache_scope": "public"}},
+        },
+    }]
     return result
 
 
@@ -91,9 +90,9 @@ def render(values):
 
 
 def main():
-    key, directory, runtime21 = sys.argv[1:]
+    key, directory = sys.argv[1:]
     directory = pathlib.Path(directory)
-    initial = children(key, runtime21 == "true")
+    initial = children(key)
     updated = copy.deepcopy(initial)
     if key == "portal":
         updated["snippets"][0]["content"] = "Smoke snippet updated content"
@@ -103,9 +102,8 @@ def main():
     elif key == "ai_gateway":
         updated["policies"][0]["config"]["minute"] = 20
         updated["models"][0]["display_name"] = "Smoke model updated"
-        if runtime21 == "true":
-            updated["models"][0]["targets"][0]["config"]["input_cost_list"][0]["cost"] = 3.5
-            updated["mcp_servers"][0]["config"]["cache"]["discover"]["ttl_ms"] = 120000
+        updated["models"][0]["targets"][0]["config"]["input_cost_list"][0]["cost"] = 3.5
+        updated["mcp_servers"][0]["config"]["cache"]["discover"]["ttl_ms"] = 120000
     for phase, values in (("initial", initial), ("updated", updated)):
         path = directory / f"{phase}.yaml"
         base = path.read_text()

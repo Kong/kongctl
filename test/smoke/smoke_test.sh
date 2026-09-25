@@ -210,16 +210,16 @@ test_scaffold_contract_failure_is_safe() {
   pass "explain and scaffold disagreement fails safely"
 }
 
-test_runtime21_lifecycle() {
+test_default_ai_gateway_21_lifecycle() {
   new_case runtime21
-  run_smoke --yes --ai-runtime-2-1
+  run_smoke --yes --resources ai_gateway
   [[ "$STATUS" -eq 0 ]] || fail "runtime 2.1 smoke succeeds" "$OUTPUT"
   assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"cost": 3.5' "runtime costs are updated"
   assert_contains "$RUN_DIR/fixtures/ai_gateway/updated.yaml" '"ttl_ms": 0' "zero cache TTL is covered"
   assert_contains "$FAKE_LOG" "ai_gateway-replacement.json" "replacement uses a saved plan"
-  assert_contains "$FAKE_LOG" "event_gateway-prune.json" "Event Gateway children are pruned"
   assert_json "$FAKE_STATE" "value == {}" "runtime suite cleans up"
-  pass "runtime 2.1 and dependency lifecycle"
+  assert_contains "$FAKE_LOG" "get ai-gateway mcp-servers" "default lifecycle verifies MCP fields"
+  pass "default AI Gateway lifecycle includes runtime 2.1"
 }
 
 test_fault_is_rejected() {
@@ -260,7 +260,7 @@ test_keep_on_failure
 test_cleanup_failure_is_reported
 test_prompt_refusal_is_non_mutating
 test_scaffold_contract_failure_is_safe
-test_runtime21_lifecycle
+test_default_ai_gateway_21_lifecycle
 test_fault_is_rejected bad-list list-api-quick --quick
 test_fault_is_rejected lost-tags patch-preserves-tags --quick
 test_fault_is_rejected false-zero plan-zero-api-updated-apply
