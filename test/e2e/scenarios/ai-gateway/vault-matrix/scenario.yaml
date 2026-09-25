@@ -212,6 +212,76 @@ steps:
             expect:
               fields:
                 total_changes: 0
+  - name: 003a-omitted-aws-defaults
+    commands:
+      - name: plan-minimal-aws
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/minimal-aws.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='matrix-aws-minimal'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.config.region: ap-northeast-1
+                contains(keys(fields.config), 'base64_decode'): false
+                contains(keys(fields.config), 'endpoint_url'): false
+                contains(keys(fields.config), 'sts_endpoint_url'): false
+      - name: apply-minimal-aws
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/minimal-aws.yaml'
+          - --auto-approve
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify-aws-server-defaults
+        run:
+          - get
+          - ai-gateway
+          - vaults
+          - --gateway-name
+          - AI Gateway Vault Matrix E2E
+          - matrix-aws-minimal
+          - -o
+          - json
+        assertions:
+          - select: config
+            expect:
+              fields:
+                region: ap-northeast-1
+                assume_role_arn: arn:aws:iam::123456789012:role/DummyKongVaultRole
+                base64_decode: false
+                endpoint_url: ''
+                sts_endpoint_url: ''
+      - name: diff-minimal-aws-no-changes
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/minimal-aws.yaml'
+          - --mode
+          - apply
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                contains(@, 'No changes detected. Konnect is up to date.'): true
   - name: 004-cleanup
     commands:
       - name: delete-test-gateway

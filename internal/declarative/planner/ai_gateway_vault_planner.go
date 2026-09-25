@@ -220,7 +220,7 @@ func comparableAIGatewayVaultPayloads(current, desired map[string]any) (map[stri
 	return comparableAIGatewayWriteOnlyPayloads(
 		current,
 		desired,
-		normalizeAIGatewayPayloadsForComparison,
+		normalizeAIGatewayVaultPayloadsForComparison,
 		isAIGatewayVaultWriteOnlyField,
 	)
 }

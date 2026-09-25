@@ -18,6 +18,133 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
+	for _, tc := range testdecl.VaultCases(t) {
+		t.Run(tc.Name, func(t *testing.T) {
+			config := maps.Clone(tc.Config)
+			defaults := map[string]any{}
+			if tc.Type != "konnect" {
+				defaults["base64_decode"] = false
+			}
+			if tc.Type == "aws" {
+				defaults["endpoint_url"] = ""
+				defaults["sts_endpoint_url"] = ""
+				defaults["role_session_name"] = "KongVault"
+				defaults["ttl"] = float64(0)
+				defaults["neg_ttl"] = float64(0)
+				defaults["resurrect_ttl"] = float64(100000000)
+				config["region"] = "ap-northeast-1"
+				config["assume_role_arn"] = "arn:aws:iam::123456789012:role/DummyKongVaultRole"
+			}
+			for key := range defaults {
+				delete(config, key)
+			}
+			vault := map[string]any{
+				"ref": tc.Name, "ai_gateway": "support-gateway",
+				FieldName: tc.Name, FieldType: tc.Type, FieldConfig: config,
+			}
+			data, err := json.Marshal(map[string]any{
+				"ai_gateways": []any{map[string]any{
+					"ref": "support-gateway", "name": "support-gateway", "display_name": "Support Gateway",
+				}},
+				"ai_gateway_vaults": []any{vault},
+			})
+			require.NoError(t, err)
+			path := filepath.Join(t.TempDir(), "vault.yaml")
+			require.NoError(t, os.WriteFile(path, data, 0o600))
+			rs, err := loader.New().LoadFile(path)
+			require.NoError(t, err)
+
+			currentConfig := maps.Clone(config)
+			maps.Copy(currentConfig, defaults)
+			current := maps.Clone(vault)
+			current[FieldConfig] = currentConfig
+			current[FieldID] = "vault-id"
+			current["created_at"] = "2026-01-01T00:00:00Z"
+			current["updated_at"] = "2026-01-01T00:00:00Z"
+			data, err = json.Marshal(current)
+			require.NoError(t, err)
+			var response kkComps.AIGatewayVault
+			require.NoError(t, json.Unmarshal(data, &response))
+			client := state.NewClient(state.ClientConfig{
+				AIGatewayAPI:       &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+				AIGatewayVaultsAPI: &testAIGatewayVaultAPI{vaults: []kkComps.AIGatewayVault{response}},
+			})
+			for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+				plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.NoError(t, err)
+				require.Empty(t, plan.Changes, "omitted defaults must not drift in %s mode", mode)
+			}
+		})
+	}
+}
+
+func TestAIGatewayVaultDefaultComparisonPreservesDrift(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		vaultType string
+		current   map[string]any
+		desired   map[string]any
+		wantDrift bool
+	}{
+		{
+			"omitted defaults", "aws",
+			map[string]any{"base64_decode": false, "endpoint_url": "", "sts_endpoint_url": ""},
+			map[string]any{},
+			false,
+		},
+		{
+			"explicit defaults", "aws",
+			map[string]any{},
+			map[string]any{"base64_decode": false, "endpoint_url": "", "sts_endpoint_url": ""},
+			false,
+		},
+		{"nondefault boolean", "aws", map[string]any{"base64_decode": true}, map[string]any{}, true},
+		{
+			"nondefault endpoint", "aws",
+			map[string]any{"endpoint_url": "https://secrets.example.test"},
+			map[string]any{},
+			true,
+		},
+		{
+			"nondefault sts endpoint", "aws",
+			map[string]any{"sts_endpoint_url": "https://sts.example.test"},
+			map[string]any{},
+			true,
+		},
+		{
+			"explicit boolean change", "aws",
+			map[string]any{"base64_decode": false},
+			map[string]any{"base64_decode": true},
+			true,
+		},
+		{"reset boolean", "aws", map[string]any{"base64_decode": true}, map[string]any{"base64_decode": false}, true},
+		{
+			"reset endpoint", "aws",
+			map[string]any{"endpoint_url": "https://secrets.example.test"},
+			map[string]any{"endpoint_url": ""},
+			true,
+		},
+		{"unknown empty field", "aws", map[string]any{"unknown": ""}, map[string]any{}, true},
+		{"required conjur endpoint", "conjur", map[string]any{"endpoint_url": ""}, map[string]any{}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			current := map[string]any{FieldType: tc.vaultType, FieldConfig: tc.current}
+			desired := map[string]any{FieldType: tc.vaultType, FieldConfig: tc.desired}
+			currentBefore, desiredBefore := normalizeAIGatewayJSONMap(current), normalizeAIGatewayJSONMap(desired)
+			currentCompare, desiredCompare := comparableAIGatewayVaultPayloads(current, desired)
+			changes := diffAIGatewayPayloads(current, desired, currentCompare, desiredCompare)
+			require.Equal(t, tc.wantDrift, len(changes) > 0)
+			require.Equal(t, currentBefore, current, "comparison must not mutate API payloads")
+			require.Equal(t, desiredBefore, desired, "comparison must not mutate update payloads")
+			if tc.wantDrift {
+				require.Equal(t, tc.current, changes[FieldConfig].Old)
+				require.Equal(t, tc.desired, changes[FieldConfig].New)
+			}
+		})
+	}
+}
+
 func TestAIGatewayVaultPlansPreserveAPIConfigurations(t *testing.T) {
 	for _, tc := range testdecl.VaultCases(t) {
 		t.Run(tc.Name, func(t *testing.T) {

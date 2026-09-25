@@ -13,6 +13,12 @@ and STS endpoint. It also changes caching options across cloud vaults and
 HashiCorp methods, and explicitly selects the certificate private key for
 writing through `--write-secret`.
 
+An additional AWS vault reproduces #2316 using only a region and role ARN.
+Its create plan must omit `base64_decode`, `endpoint_url`, and
+`sts_endpoint_url`; readback verifies the server-injected defaults, and a
+subsequent diff must report no changes. This adds four CLI commands to the
+scenario and uses the existing gateway cleanup.
+
 The scenario refuses to use an existing gateway with its test name. It uses
 the `ai-gateway-vault-matrix-e2e` namespace and deletes its gateway at the end.
 It contains no organization reset command. To run it without the harness's
