@@ -37,6 +37,7 @@ func (e *Executor) hydratePayloadReferences(change *planner.PlannedChange, plan 
 				change.ResourceType, change.ResourceRef, binding.Path, binding.Selector)
 		}
 		if unresolvedReferenceID(binding.ID) {
+			pendingCreation := false
 			for _, dependency := range change.DependsOn {
 				target := findPlannedChangeByID(plan, dependency)
 				if target == nil || target.ResourceType != binding.ResourceType || target.ResourceRef != binding.Ref {
@@ -45,6 +46,14 @@ func (e *Executor) hydratePayloadReferences(change *planner.PlannedChange, plan 
 				if id, _, ok := e.getCreatedResource(dependency); ok {
 					binding.ID = id
 				}
+				pendingCreation = pendingCreation || target.Action == planner.ActionCreate
+			}
+			// Dry-run does not execute CREATEs. Preserve the expression while
+			// still validating its binding and destination below.
+			if e.dryRun && pendingCreation && unresolvedReferenceID(binding.ID) {
+				binding.ID = tags.RefPlaceholderPrefix + binding.Ref + "#" + binding.Selector
+				bindings[binding.Path] = binding
+				continue
 			}
 		}
 		if unresolvedReferenceID(binding.ID) {

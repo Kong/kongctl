@@ -50,6 +50,49 @@ func TestPayloadBindingsHydrateSavedPlanAndRetry(t *testing.T) {
 	}
 }
 
+func TestPayloadBindingsDryRunWithSamePlanCreation(t *testing.T) {
+	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID: "create-gateway", ResourceType: planner.ResourceTypeAIGateway, ResourceRef: "gateway",
+		Action: planner.ActionCreate,
+		Fields: map[string]any{planner.FieldName: "gateway", planner.FieldDisplayName: "Gateway"},
+	})
+	plan.AddChange(planner.PlannedChange{
+		ID: "create-policy", ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		Action: planner.ActionCreate, DependsOn: []string{"create-gateway"},
+		Fields: map[string]any{
+			planner.FieldConfig: map[string]any{"header": "__REF__:gateway#id"},
+			planner.FieldName:   "policy", planner.FieldType: "http-log", planner.FieldDisplayName: "Policy",
+		},
+		References: map[string]planner.ReferenceInfo{planner.FieldAIGatewayID: {Ref: "gateway"}},
+		PayloadReferences: []planner.PayloadReference{{
+			Path: "/config/header", ResourceType: planner.ResourceTypeAIGateway, Ref: "gateway", Selector: planner.FieldID,
+		}},
+	})
+	plan.SetExecutionOrder([]string{"create-gateway", "create-policy"})
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	var saved planner.Plan
+	require.NoError(t, json.Unmarshal(data, &saved))
+	e := New(nil, nil, true)
+	result := e.Execute(t.Context(), &saved)
+	require.Empty(t, result.Errors)
+	require.Zero(t, result.FailureCount)
+	require.Equal(t, 2, result.SkippedCount)
+	require.Len(t, result.ValidationResults, 2)
+	for _, validation := range result.ValidationResults {
+		require.Equal(t, "would_succeed", validation.Status)
+	}
+	require.Empty(t, e.createdResources)
+	// A dependency must actually create the target; dry-run must not conceal
+	// malformed bindings or a missing destination.
+	saved.Changes[0].Action = planner.ActionUpdate
+	require.ErrorContains(t, e.hydratePayloadReferences(&saved.Changes[1], &saved), "unresolved reference")
+	saved.Changes[0].Action = planner.ActionCreate
+	saved.Changes[1].PayloadReferences[0].Path = "/config/missing"
+	require.ErrorContains(t, e.hydratePayloadReferences(&saved.Changes[1], &saved), "destination is missing")
+}
+
 func TestPayloadGuardHonorsDeferredValueProvenance(t *testing.T) {
 	change := &planner.PlannedChange{Fields: map[string]any{
 		planner.FieldDescription: tags.EnvPlaceholderPrefix + "deferred",

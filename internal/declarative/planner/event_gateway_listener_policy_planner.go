@@ -95,7 +95,7 @@ func (p *Planner) planListenerPolicyChangesForExistingListener(
 	}
 
 	// 3. Compare desired vs current
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayListenerPolicyResource, state.EventGatewayListenerPolicyInfo]{
 			desiredName: func(desired resources.EventGatewayListenerPolicyResource) string { return desired.GetMoniker() },
 			create: func(desiredPolicy resources.EventGatewayListenerPolicyResource) error {

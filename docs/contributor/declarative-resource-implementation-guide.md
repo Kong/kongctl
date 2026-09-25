@@ -714,14 +714,22 @@ caching its ID on the declaration; the payload binder must not require a
 CREATE operation for such a relationship.
 
 Resolve known payload identities before resource comparison. Child matching
-can discover additional IDs; planning repeats comparison when these consume
-remaining expressions. Deferred IDs are persisted in `PayloadReferences`,
+can discover additional IDs even when no update is needed. Shared root and
+child reconcilers record scoped matches through `recordMatchedIdentity`.
+`resolveMatchedPayloadIdentities` retains these IDs on original declarations
+targeted by ad-hoc payload references, including state wrappers around SDK
+unions. Other relationship handling remains unchanged. Planning repeats
+comparison when these IDs consume remaining expressions.
+Deferred IDs are persisted in `PayloadReferences`,
 with JSON Pointer destinations, target type/ref, and source selector. Only
 unresolved creation outputs add dependencies. Never infer a payload target
 type from an arbitrary destination key. Plan format 1.1 carries these bindings;
 1.0 plans remain accepted, and legacy dotted `References` paths are unchanged.
 The executor hydrates bindings from completed dependencies and checks mapped
-SDK requests before mutations. Deferred environment and secret paths are
+SDK requests before mutations. Dry-run preserves expressions for dependencies
+that would create the target, but still validates binding destinations; it
+does not require creation results or send mutation requests.
+Deferred environment and secret paths are
 exempt from expression interpretation after their values are injected.
 Tag processing protects ordinary strings resembling internal expressions;
 loading records their provenance and plans carry `LiteralPaths` so the request

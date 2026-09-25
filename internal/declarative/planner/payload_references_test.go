@@ -7,9 +7,12 @@ import (
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3" //nolint:gomodguard_v2 // yaml.v3 required for custom tag processing
 )
@@ -85,6 +88,92 @@ func TestRelationshipReferenceValidationPreservesForwardReferences(t *testing.T)
 	require.Empty(t, resolved.Errors)
 	require.Equal(t, resources.UnknownReferenceID,
 		resolved.ChangeReferences["create-portal"][FieldDefaultApplicationStrategyID].ID)
+}
+
+func TestPayloadReferencesToUnchangedTargets(t *testing.T) {
+	for _, update := range []bool{false, true} {
+		t.Run(map[bool]string{false: "no-op", true: "update"}[update], func(t *testing.T) {
+			provider := resources.AIGatewayProviderResource{
+				BaseResource: resources.BaseResource{Ref: "provider"}, AIGateway: "support-gateway",
+				Name: "support-openai", DisplayName: "OpenAI", Type: "openai",
+				Config: map[string]any{"auth": map[string]any{"type": "basic"}},
+			}
+			var remoteProvider kkComps.AIGatewayModelProvider
+			require.NoError(t, json.Unmarshal([]byte(`{
+  "id":"provider-id", "name":"support-openai", "display_name":"OpenAI", "type":"openai",
+  "config":{"auth":{"type":"basic"}}, "created_at":"2026-01-01T00:00:00Z", "updated_at":"2026-01-01T00:00:00Z"
+}`), &remoteProvider))
+			model := testAIGatewayModelResource(t)
+			modelData, err := json.Marshal(model)
+			require.NoError(t, err)
+			var modelPayload map[string]any
+			require.NoError(t, json.Unmarshal(modelData, &modelPayload))
+			modelPayload[FieldID] = "model-id"
+			modelPayload["created_at"] = "2026-01-01T00:00:00Z"
+			modelPayload["updated_at"] = "2026-01-01T00:00:00Z"
+			modelData, err = json.Marshal(modelPayload)
+			require.NoError(t, err)
+			var remoteModel kkComps.AIGatewayModel
+			require.NoError(t, json.Unmarshal(modelData, &remoteModel))
+			policy := testAIGatewayPolicyResource(t)
+			policy.Config = map[string]any{
+				"target": "__REF__:provider#id", "model": "__REF__:support-gpt#id", "dcr": "__REF__:dcr#id",
+			}
+			remotePolicy := testAIGatewayPolicy()
+			remotePolicy.Config = map[string]any{"target": "provider-id", "model": "model-id", "dcr": "dcr-id"}
+			if update {
+				policy.DisplayName = "Updated policy"
+			}
+			rs := &resources.ResourceSet{
+				AIGateways:         []resources.AIGatewayResource{testAIGatewayResource()},
+				AIGatewayProviders: []resources.AIGatewayProviderResource{provider},
+				AIGatewayPolicies:  []resources.AIGatewayPolicyResource{policy},
+				AIGatewayModels:    []resources.AIGatewayModelResource{model},
+				DCRProviders: []resources.DCRProviderResource{{
+					BaseResource: resources.BaseResource{Ref: "dcr", Kongctl: &resources.KongctlMeta{Namespace: new("default")}},
+					Name:         "dcr-provider", ProviderType: "http", Issuer: "https://example.com",
+				}},
+			}
+			client := state.NewClient(state.ClientConfig{
+				AIGatewayAPI:          &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
+				AIGatewayProvidersAPI: &nameIdentityProviderAPI{children: []kkComps.AIGatewayModelProvider{remoteProvider}},
+				AIGatewayPoliciesAPI:  &testAIGatewayPolicyAPI{policies: []kkComps.AIGatewayPolicy{remotePolicy}},
+				AIGatewayModelAPI: &providerOrderModelAPI{
+					testAIGatewayModelAPI: testAIGatewayModelAPI{models: []kkComps.AIGatewayModel{remoteModel}},
+				},
+				DCRProviderAPI: &payloadDCRProviderAPI{},
+			})
+			plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
+			require.NoError(t, err)
+			require.Equal(t, "provider-id", rs.AIGatewayProviders[0].GetKonnectID())
+			require.Equal(t, "provider-id", rs.AIGatewayPolicies[0].Config["target"])
+			require.Equal(t, "model-id", rs.AIGatewayModels[0].GetKonnectID())
+			require.Equal(t, "model-id", rs.AIGatewayPolicies[0].Config["model"])
+			require.Equal(t, "dcr-id", rs.DCRProviders[0].GetKonnectID())
+			require.Equal(t, "dcr-id", rs.AIGatewayPolicies[0].Config["dcr"])
+			if update {
+				require.Len(t, plan.Changes, 1)
+				require.Equal(t, ResourceTypeAIGatewayPolicy, plan.Changes[0].ResourceType)
+				require.Equal(t, ActionUpdate, plan.Changes[0].Action)
+				require.Empty(t, plan.Changes[0].PayloadReferences)
+			} else {
+				require.Empty(t, plan.Changes)
+			}
+		})
+	}
+}
+
+type payloadDCRProviderAPI struct {
+	helpers.DCRProvidersAPI
+}
+
+func (*payloadDCRProviderAPI) ListDcrProviderPayloads(
+	context.Context, kkOps.ListDcrProvidersRequest,
+) (*helpers.DCRProviderListPayload, error) {
+	return &helpers.DCRProviderListPayload{Total: 1, Data: []any{map[string]any{
+		"id": "dcr-id", "name": "dcr-provider", "provider_type": "http", "issuer": "https://example.com",
+		"labels": map[string]string{labels.NamespaceKey: "default"},
+	}}}, nil
 }
 
 func TestPayloadLookupsRequireExplicitContext(t *testing.T) {

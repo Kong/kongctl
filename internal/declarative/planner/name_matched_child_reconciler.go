@@ -46,6 +46,7 @@ func reconcileNameMatchedChildren[D, C any](
 					ops.create(child)
 					return nil
 				}
+				p.recordMatchedIdentity(&child, full)
 				needsUpdate, fields, changed, err := ops.diff(*full, child)
 				if err != nil {
 					return err

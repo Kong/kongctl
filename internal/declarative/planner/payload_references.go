@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -170,4 +171,73 @@ func (p *Planner) resolvePayloadLookup(
 		ResourceType: resourceType, MatchFields: lookup.MatchFields,
 		SensitiveFields: lookup.SensitiveFields, ParentID: parentID, Source: source,
 	})
+}
+
+type matchedResourceIdentity struct {
+	resourceType resources.ResourceType
+	observation  any
+}
+
+// Record scoped matches without changing legacy relationship resolution.
+func (p *Planner) recordMatchedIdentity(desired, current any) {
+	if p == nil || p.matchedIdentities == nil {
+		return
+	}
+	resource, ok := desired.(resources.Resource)
+	if !ok {
+		return
+	}
+	p.matchedIdentities[resource.GetRef()] = matchedResourceIdentity{resource.GetType(), current}
+}
+
+// Reconciliation uses filtered copies. Copy identities back to original
+// declarations only for ad-hoc payload targets, including unchanged targets.
+func (p *Planner) resolveMatchedPayloadIdentities(plan *Plan, rs *resources.ResourceSet) {
+	for _, change := range plan.Changes {
+		if change.Action != ActionCreate && change.Action != ActionUpdate {
+			continue
+		}
+		source, _ := rs.ReferenceTarget(change.ResourceRef)
+		// This visitor records known identities; reference validation remains in
+		// resolveKnownPayloadReferences and bindPayloadReferences.
+		_ = values.Transform(change.Fields, func(path, value string) (any, error) {
+			if rs.GetEnvSources(change.ResourceRef)[path] != "" || rs.LiteralSources[change.ResourceRef][path] != "" ||
+				(source != nil && (resources.IsRelationshipPath(source, path) ||
+					resources.IsEventGatewayReferencePath(source, path))) {
+				return value, nil
+			}
+			ref, selector, ok := tags.ParseRefPlaceholder(value)
+			if !ok || (selector != FieldID && selector != "ID") {
+				return value, nil
+			}
+			matched, ok := p.matchedIdentities[ref]
+			if !ok {
+				return value, nil
+			}
+			target, err := rs.ReferenceTarget(ref)
+			if err == nil && target.GetType() == matched.resourceType {
+				matchObservedIdentity(target, matched.observation)
+			}
+			return value, nil
+		})
+	}
+}
+
+func matchObservedIdentity(target resources.Resource, current any) bool {
+	if target.TryMatchKonnectResource(current) {
+		return true
+	}
+	// State observations can embed SDK union types whose resource matcher
+	// requires the SDK value itself rather than its normalized state wrapper.
+	v := reflect.Indirect(reflect.ValueOf(current))
+	if v.Kind() != reflect.Struct {
+		return false
+	}
+	for i := range v.NumField() {
+		field := v.Field(i)
+		if v.Type().Field(i).Anonymous && field.CanInterface() && matchObservedIdentity(target, field.Interface()) {
+			return true
+		}
+	}
+	return false
 }

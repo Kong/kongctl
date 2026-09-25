@@ -26,7 +26,7 @@ func TestPayloadBinderPreservesExistingEventGatewayBackendReference(t *testing.T
 			remoteBackend := kkComps.BackendCluster{ID: "backend-cluster-id", Name: "backend-cluster"}
 			remoteBackend.Authentication.Type = kkComps.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous
 			virtual := virtualClusterResource(nil)
-			virtual.Description = new("updated description")
+			virtual.Description = new("__REF__:backend-ref#id")
 			virtual.Destination.BackendClusterReferenceByID.ID = "__REF__:backend-ref#id"
 			gateway := externalEventGatewayResource()
 			gateway.VirtualClusters = []resources.EventGatewayVirtualClusterResource{virtual}
@@ -54,14 +54,15 @@ func TestPayloadBinderPreservesExistingEventGatewayBackendReference(t *testing.T
 			require.Equal(t, action, change.Action)
 			require.Equal(t, ResourceTypeEventGatewayVirtualCluster, change.ResourceType)
 			require.Empty(t, change.PayloadReferences)
-			require.Equal(t, "backend-cluster", change.References[FieldEventGatewayBackendClusterID].LookupFields[FieldName])
-			// An unchanged backend has no CREATE and no ID cached on its declaration.
-			require.Empty(t, rs.EventGatewayBackendClusters[0].GetKonnectID())
+			require.Equal(t, "backend-cluster-id", change.Fields[FieldDescription])
+			require.Equal(t, "backend-cluster-id", rs.EventGatewayBackendClusters[0].GetKonnectID())
+			destination := change.Fields[FieldDestination].(kkComps.BackendClusterReferenceModify)
+			require.Equal(t, "backend-cluster-id", destination.BackendClusterReferenceByID.ID)
 			data, err := json.Marshal(plan)
 			require.NoError(t, err)
 			var saved Plan
 			require.NoError(t, json.Unmarshal(data, &saved))
-			require.Equal(t, change.References, saved.Changes[0].References)
+			require.Equal(t, "backend-cluster-id", saved.Changes[0].Fields[FieldDestination].(map[string]any)[FieldID])
 		})
 	}
 }

@@ -82,7 +82,7 @@ func (p *Planner) planListenerChangesForExistingGateway(
 	}
 
 	// 3. Compare desired vs current
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayListenerResource, state.EventGatewayListener]{
 			desiredName: func(desired resources.EventGatewayListenerResource) string { return desired.Name },
 			create: func(desiredListener resources.EventGatewayListenerResource) error {

@@ -59,8 +59,9 @@ type Planner struct {
 	changeCount int
 
 	// Cache for managed resources fetched during a single GeneratePlan run.
-	resourceCache    *planningResourceCache
-	externalResolver *externalLookupResolver
+	resourceCache     *planningResourceCache
+	externalResolver  *externalLookupResolver
+	matchedIdentities map[string]matchedResourceIdentity
 
 	// For multi-namespace runs, prefer one all-namespace read per resource type
 	// and filter in-memory per namespace to reduce API calls.
@@ -116,6 +117,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 	// Reset per-run caches in case this planner instance is reused.
 	p.resourceCache = newPlanningResourceCache()
+	p.matchedIdentities = make(map[string]matchedResourceIdentity)
 	p.namespaceFanout = false
 
 	generator := opts.Generator
@@ -196,13 +198,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 
 		// Create a namespace-specific planner context
 		namespacePlanner := &Planner{
-			client:          p.client,
-			logger:          p.logger,
-			resolver:        p.resolver,
-			depResolver:     p.depResolver,
-			changeCount:     p.changeCount,
-			resourceCache:   p.resourceCache,
-			namespaceFanout: p.namespaceFanout,
+			client:            p.client,
+			logger:            p.logger,
+			resolver:          p.resolver,
+			depResolver:       p.depResolver,
+			changeCount:       p.changeCount,
+			resourceCache:     p.resourceCache,
+			matchedIdentities: p.matchedIdentities,
+			namespaceFanout:   p.namespaceFanout,
 		}
 
 		// Initialize generic planner for namespace-specific planner
@@ -264,6 +267,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		// Update change count
 		p.changeCount = namespacePlanner.changeCount
 	}
+
+	p.resolveMatchedPayloadIdentities(basePlan, rs)
 
 	// Child matching discovers identities during resource planning. If these
 	// make additional payload references concrete, compare again with the new
