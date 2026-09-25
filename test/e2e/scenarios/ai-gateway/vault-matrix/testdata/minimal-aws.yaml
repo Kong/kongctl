@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-vault-matrix-e2e
+ai_gateway_vaults:
+  - ref: matrix-aws-minimal
+    ai_gateway: !lookup {name: vault-matrix-gateway}
+    name: matrix-aws-minimal
+    type: aws
+    config:
+      region: ap-northeast-1
+      assume_role_arn: arn:aws:iam::123456789012:role/DummyKongVaultRole

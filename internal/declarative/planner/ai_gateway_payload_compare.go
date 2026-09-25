@@ -27,6 +27,41 @@ func normalizeAIGatewayPayloadsForComparison(
 	return currentCompare, desiredCompare
 }
 
+func normalizeAIGatewayVaultPayloadsForComparison(
+	currentPayload map[string]any,
+	desiredPayload map[string]any,
+) (map[string]any, map[string]any) {
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	pruneAIGatewayVaultDefaultsMissingFromPeer(currentCompare, desiredCompare)
+	pruneAIGatewayVaultDefaultsMissingFromPeer(desiredCompare, currentCompare)
+	pruneEmptyContainersMissingFromPeer(currentCompare, desiredCompare)
+	pruneEmptyContainersMissingFromPeer(desiredCompare, currentCompare)
+	return currentCompare, desiredCompare
+}
+
+func pruneAIGatewayVaultDefaultsMissingFromPeer(payload, peer map[string]any) {
+	config, ok := payload[FieldConfig].(map[string]any)
+	if !ok {
+		return
+	}
+	peerConfig, _ := peer[FieldConfig].(map[string]any)
+	// These API defaults have no default tags in the SDK. Keep them scoped to
+	// vault config so similarly named fields on other resources retain drift.
+	switch payload[FieldType] {
+	case "aws", "gcp", "azure", "conjur", "hcv", "env":
+		if _, exists := peerConfig["base64_decode"]; !exists && boolValueEqual(config["base64_decode"], false) {
+			delete(config, "base64_decode")
+		}
+	}
+	if payload[FieldType] == "aws" {
+		for _, key := range []string{"endpoint_url", "sts_endpoint_url"} {
+			if _, exists := peerConfig[key]; !exists && stringValueEqual(config[key], "") {
+				delete(config, key)
+			}
+		}
+	}
+}
+
 func normalizeAIGatewayPolicyPayloadsForComparison(
 	currentPayload map[string]any,
 	desiredPayload map[string]any,
