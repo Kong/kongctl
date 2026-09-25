@@ -17,6 +17,8 @@ ai_gateway_model_providers:
     name: lookup-openai-provider
     type: openai
     display_name: Lookup OpenAI Provider
+    labels:
+      gateway_id: !lookup {resource_type: ai_gateway, name: external-ai-gateway}
     config:
       auth:
         type: basic

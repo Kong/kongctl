@@ -29,3 +29,7 @@ ai_gateways:
         global: false
         config:
           http_endpoint: https://logging.example.com/ai-gateway
+          headers:
+            X-Control-Plane-Id: !ref ai-gateway-policy-e2e
+            X-Gateway.Id: !ref ai-gateway-policy-e2e#id
+            X-Gateway.Name: !ref ai-gateway-policy-e2e#name
