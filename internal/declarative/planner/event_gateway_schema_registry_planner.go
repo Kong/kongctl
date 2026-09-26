@@ -80,7 +80,7 @@ func (p *Planner) planSchemaRegistryChangesForExistingGateway(
 		currentByName[sr.Name] = sr
 	}
 
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewaySchemaRegistryResource, state.EventGatewaySchemaRegistry]{
 			desiredName: func(desired resources.EventGatewaySchemaRegistryResource) string { return desired.GetMoniker() },
 			create: func(desiredSR resources.EventGatewaySchemaRegistryResource) error {

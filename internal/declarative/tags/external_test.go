@@ -120,6 +120,44 @@ func TestExternalLookupKeyIsUnambiguous(t *testing.T) {
 	require.Equal(t, separateSelectors, ExternalLookupKey(map[string]string{"c": "d", "a": "b"}))
 }
 
+func TestNestedParentLookup(t *testing.T) {
+	t.Setenv("PARENT_SELECTOR", "production")
+	for _, tag := range []string{TagLookup, TagExternal} {
+		t.Run(tag, func(t *testing.T) {
+			registry := NewResolverRegistry()
+			registry.Register(NewExternalTagResolver(tag))
+			output, err := registry.Process([]byte("value: " + tag + `
+  resource_type: gateway_service
+  name: billing
+  parent: !lookup
+    resource_type: control_plane
+    name: !env PARENT_SELECTOR
+`))
+			require.NoError(t, err)
+			var decoded map[string]string
+			require.NoError(t, yaml.Unmarshal(output, &decoded))
+			lookup, ok := ParseExternalPlaceholder(decoded["value"])
+			require.True(t, ok)
+			require.Equal(t, map[string]string{"name": "billing"}, lookup.MatchFields)
+			require.NotNil(t, lookup.Parent)
+			require.Equal(t, "control_plane", lookup.Parent.ResourceType)
+			require.Equal(t, map[string]string{"name": "production"}, lookup.Parent.MatchFields)
+			require.Equal(t, []string{"name"}, lookup.Parent.SensitiveFields)
+		})
+	}
+	for _, expression := range []string{
+		"!lookup {resource_type: gateway_service, name: billing, parent_ref: cp, parent: !lookup {name: production}}",
+		"!lookup {resource_type: gateway_service, name: billing, parent: !lookup {}, parent_ref: cp}",
+		"!lookup {resource_type: gateway_service, name: billing, parent: !ref cp}",
+		"!lookup {resource_type: gateway_service, name: billing, parent: !lookup {name: !file secret}}",
+	} {
+		registry := NewResolverRegistry()
+		registry.Register(NewExternalTagResolver(TagLookup))
+		_, err := registry.Process([]byte("value: " + expression))
+		require.Error(t, err)
+	}
+}
+
 func TestExternalTagResolverRejectsInvalidValues(t *testing.T) {
 	t.Parallel()
 

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
-	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/declarative/values"
 	"github.com/kong/kongctl/internal/log"
 )
 
@@ -100,7 +100,6 @@ func (r *LocalFieldResolver) ResolveField(resource resources.Resource, field str
 		context.Background(), slog.LevelDebug, "Field resolved successfully",
 		slog.String("resource_ref", resource.GetRef()),
 		slog.String("field", field),
-		slog.String("value", result),
 	)
 
 	return result, nil
@@ -112,545 +111,43 @@ func (r *LocalFieldResolver) CanResolve(_ string) bool {
 	return true
 }
 
-// ResolveReferences resolves all ref placeholders in the ResourceSet
+// ResolveReferences resolves explicit scalar references throughout registered declarations.
 func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
-	// Extract logger from context or use default
-	var logger *slog.Logger
-	if loggerVal := ctx.Value(log.LoggerKey); loggerVal != nil {
-		logger = loggerVal.(*slog.Logger)
-	} else {
-		logger = slog.Default()
+	logger := slog.Default()
+	if value, ok := ctx.Value(log.LoggerKey).(*slog.Logger); ok {
+		logger = value
 	}
-
-	logger.LogAttrs(
-		ctx, slog.LevelDebug, "Starting reference resolution",
-		slog.Int("portals", len(rs.Portals)),
-		slog.Int("control_planes", len(rs.ControlPlanes)),
-		slog.Int("gateway_services", len(rs.GatewayServices)),
-		slog.Int("apis", len(rs.APIs)),
-		slog.Int("auth_strategies", len(rs.ApplicationAuthStrategies)),
-	)
-
-	resolver := NewLocalFieldResolver(logger)
-	resolutionPath := make([]string, 0)
-
-	// Process all resource types
-	processCount := 0
-
-	// Process Portals
-	for i := range rs.Portals {
-		if err := resolveResourceFields(ctx, &rs.Portals[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(
-				ctx, slog.LevelError, "Failed to resolve portal references",
-				slog.String("portal_ref", rs.Portals[i].GetRef()),
-				slog.String("error", err.Error()),
-			)
-			return fmt.Errorf("resolving portal %s: %w", rs.Portals[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	// Process ControlPlanes
-	for i := range rs.ControlPlanes {
-		if err := resolveResourceFields(ctx, &rs.ControlPlanes[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(
-				ctx, slog.LevelError, "Failed to resolve control plane references",
-				slog.String("control_plane_ref", rs.ControlPlanes[i].GetRef()),
-				slog.String("error", err.Error()),
-			)
-			return fmt.Errorf("resolving control plane %s: %w", rs.ControlPlanes[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	// Process APIs
-	for i := range rs.APIs {
-		if err := resolveResourceFields(ctx, &rs.APIs[i], rs, resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(
-				ctx, slog.LevelError, "Failed to resolve API references",
-				slog.String("api_ref", rs.APIs[i].GetRef()),
-				slog.String("error", err.Error()),
-			)
-			return fmt.Errorf("resolving API %s: %w", rs.APIs[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	// Process ApplicationAuthStrategies
-	for i := range rs.ApplicationAuthStrategies {
-		if err := resolveResourceFields(ctx, &rs.ApplicationAuthStrategies[i], rs,
-			resolver, resolutionPath, logger); err != nil {
-			logger.LogAttrs(
-				ctx, slog.LevelError, "Failed to resolve auth strategy references",
-				slog.String("auth_ref", rs.ApplicationAuthStrategies[i].GetRef()),
-				slog.String("error", err.Error()),
-			)
-			return fmt.Errorf("resolving auth strategy %s: %w", rs.ApplicationAuthStrategies[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGateways {
-		if err := resolveResourceFields(ctx, &rs.AIGateways[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway %s: %w", rs.AIGateways[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayProviders {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayProviders[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway provider %s: %w", rs.AIGatewayProviders[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayAuthStrategies {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.AIGatewayAuthStrategies[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving AI Gateway auth strategy %s: %w",
-				rs.AIGatewayAuthStrategies[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayPolicies {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayPolicies[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway policy %s: %w", rs.AIGatewayPolicies[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayAgents {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayAgents[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway agent %s: %w", rs.AIGatewayAgents[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayConsumers {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayConsumers[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway consumer %s: %w", rs.AIGatewayConsumers[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayConsumerCredentials {
-		err := resolveResourceFields(ctx, &rs.AIGatewayConsumerCredentials[i], rs, resolver, resolutionPath, logger)
+	logger.Debug("Starting reference resolution")
+	for _, resource := range rs.AllResources() {
+		err := values.Transform(resource, func(path string, value string) (any, error) {
+			if !tags.IsRefPlaceholder(value) ||
+				rs.GetEnvSources(resource.GetRef())[path] != "" || rs.LiteralSources[resource.GetRef()][path] != "" {
+				return value, nil
+			}
+			if resources.IsRelationshipPath(resource, path) {
+				// Preserve relationship-specific resolution, but validate the explicit
+				// target and selector before deferring its value to the planner.
+				_, err := rs.ResolvePayloadReference(value)
+				return value, err
+			}
+			logger.Debug("Found reference placeholder", "resource_ref", resource.GetRef())
+			if source := rs.PayloadReferenceLiteralSource(value); source != "" {
+				rs.AddLiteralSource(resource.GetRef(), path, source)
+			}
+			if source := rs.PayloadReferenceEnvSource(value); source != "" {
+				rs.AddEnvSource(resource.GetRef(), path, source)
+			}
+			resolved, err := rs.ResolvePayloadReference(value)
+			if err == nil {
+				logger.Debug("Reference resolved", "resource_ref", resource.GetRef())
+			}
+			return resolved, err
+		})
 		if err != nil {
-			return fmt.Errorf(
-				"resolving AI gateway consumer credential %s: %w",
-				rs.AIGatewayConsumerCredentials[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayConsumerGroups {
-		err := resolveResourceFields(ctx, &rs.AIGatewayConsumerGroups[i], rs, resolver, resolutionPath, logger)
-		if err != nil {
-			return fmt.Errorf("resolving AI gateway consumer group %s: %w", rs.AIGatewayConsumerGroups[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayModels {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayModels[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway model %s: %w", rs.AIGatewayModels[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayMCPServers {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayMCPServers[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway MCP server %s: %w", rs.AIGatewayMCPServers[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayConfigStores {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayConfigStores[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway config store %s: %w", rs.AIGatewayConfigStores[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayConfigStoreSecrets {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.AIGatewayConfigStoreSecrets[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving AI gateway config store secret %s: %w",
-				rs.AIGatewayConfigStoreSecrets[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayVaults {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayVaults[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway vault %s: %w", rs.AIGatewayVaults[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayDataPlaneCertificates {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.AIGatewayDataPlaneCertificates[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving AI gateway data plane certificate %s: %w",
-				rs.AIGatewayDataPlaneCertificates[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.AIGatewayCertificates {
-		if err := resolveResourceFields(ctx, &rs.AIGatewayCertificates[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway certificate %s: %w", rs.AIGatewayCertificates[i].GetRef(), err)
-		}
-		processCount++
-	}
-	for i := range rs.AIGatewayCACertificates {
-		if err := resolveResourceFields(
-			ctx, &rs.AIGatewayCACertificates[i], rs, resolver, resolutionPath, logger,
-		); err != nil {
-			return fmt.Errorf("resolving AI gateway CA certificate %s: %w", rs.AIGatewayCACertificates[i].GetRef(), err)
-		}
-		processCount++
-	}
-	for i := range rs.AIGatewaySNIs {
-		if err := resolveResourceFields(ctx, &rs.AIGatewaySNIs[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving AI gateway SNI %s: %w", rs.AIGatewaySNIs[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	// Process child resources (PortalPages, PortalSnippets, etc.)
-	for i := range rs.PortalPages {
-		if err := resolveResourceFields(ctx, &rs.PortalPages[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal page %s: %w", rs.PortalPages[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalSnippets {
-		if err := resolveResourceFields(ctx, &rs.PortalSnippets[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal snippet %s: %w", rs.PortalSnippets[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalCustomizations {
-		if err := resolveResourceFields(ctx, &rs.PortalCustomizations[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal customization %s: %w", rs.PortalCustomizations[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalAuthSettings {
-		if err := resolveResourceFields(ctx, &rs.PortalAuthSettings[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal auth settings %s: %w", rs.PortalAuthSettings[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalIPAllowLists {
-		if err := resolveResourceFields(ctx, &rs.PortalIPAllowLists[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal IP allow list %s: %w", rs.PortalIPAllowLists[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalIntegrations {
-		if err := resolveResourceFields(ctx, &rs.PortalIntegrations[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal integration %s: %w", rs.PortalIntegrations[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalIdentityProviders {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.PortalIdentityProviders[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving portal identity provider %s: %w",
-				rs.PortalIdentityProviders[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalCustomDomains {
-		if err := resolveResourceFields(ctx, &rs.PortalCustomDomains[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving portal custom domain %s: %w", rs.PortalCustomDomains[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.PortalAuditLogWebhooks {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.PortalAuditLogWebhooks[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving portal audit log webhook %s: %w",
-				rs.PortalAuditLogWebhooks[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.GatewayServices {
-		if err := resolveResourceFields(ctx, &rs.GatewayServices[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving gateway service %s: %w", rs.GatewayServices[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	for i := range rs.ControlPlaneDataPlaneCertificates {
-		if err := resolveResourceFields(
-			ctx,
-			&rs.ControlPlaneDataPlaneCertificates[i],
-			rs,
-			resolver,
-			resolutionPath,
-			logger,
-		); err != nil {
-			return fmt.Errorf(
-				"resolving control plane data plane certificate %s: %w",
-				rs.ControlPlaneDataPlaneCertificates[i].GetRef(),
-				err,
-			)
-		}
-		processCount++
-	}
-
-	for i := range rs.APIDocuments {
-		if err := resolveResourceFields(ctx, &rs.APIDocuments[i], rs, resolver, resolutionPath, logger); err != nil {
-			return fmt.Errorf("resolving api document %s: %w", rs.APIDocuments[i].GetRef(), err)
-		}
-		processCount++
-	}
-
-	implCount := len(rs.APIImplementations)
-	implMissingPayload := 0
-	for i := range rs.APIImplementations {
-		if rs.APIImplementations[i].ServiceReference.GetService() == nil &&
-			rs.APIImplementations[i].ControlPlaneReference.GetControlPlane() == nil {
-			implMissingPayload++
+			return fmt.Errorf("resolving %s %q: %w", resource.GetType(), resource.GetRef(), err)
 		}
 	}
-
-	logger.LogAttrs(
-		ctx, slog.LevelDebug, "Reference resolution completed",
-		slog.Int("resources_processed", processCount),
-		slog.Int("api_implementations", implCount),
-		slog.Int("api_implementations_missing_payload", implMissingPayload),
-	)
-
-	return nil
-}
-
-// resolveResourceFields walks a resource struct and resolves placeholder strings
-func resolveResourceFields(ctx context.Context, resource any, rs *resources.ResourceSet,
-	resolver FieldResolver, resolutionPath []string, logger *slog.Logger,
-) error {
-	val := reflect.ValueOf(resource)
-	if val.Kind() == reflect.Pointer {
-		val = val.Elem()
-	}
-
-	if val.Kind() != reflect.Struct {
-		return nil
-	}
-
-	// Get resource ref for logging
-	resourceRef := ""
-	// Try to get ref via Resource interface first
-	if resourceIface, ok := resource.(resources.Resource); ok {
-		resourceRef = resourceIface.GetRef()
-	} else {
-		// Fallback to struct field access
-		refField := val.FieldByName("Ref")
-		if refField.IsValid() && refField.Kind() == reflect.String {
-			resourceRef = refField.String()
-		}
-	}
-
-	logger.LogAttrs(
-		ctx, log.LevelTrace, "Processing resource for references",
-		slog.String("resource_ref", resourceRef),
-		slog.String("type", val.Type().String()),
-	)
-
-	return walkAndResolve(ctx, val, rs, resolver, resolutionPath, resourceRef, logger)
-}
-
-// walkAndResolve recursively walks struct fields and resolves placeholders
-func walkAndResolve(ctx context.Context, val reflect.Value, rs *resources.ResourceSet,
-	resolver FieldResolver, resolutionPath []string, currentResourceRef string, logger *slog.Logger,
-) error {
-	// Dereference pointers
-	if val.Kind() == reflect.Pointer {
-		if val.IsNil() {
-			return nil
-		}
-		val = val.Elem()
-	}
-
-	switch val.Kind() {
-	case reflect.String:
-		str := val.String()
-		if tags.IsRefPlaceholder(str) {
-			refStr, field, ok := tags.ParseRefPlaceholder(str)
-			if !ok {
-				logger.LogAttrs(
-					ctx, slog.LevelWarn, "Invalid placeholder format",
-					slog.String("placeholder", str),
-					slog.String("resource", currentResourceRef),
-				)
-				return fmt.Errorf("invalid placeholder: %s", str)
-			}
-
-			logger.LogAttrs(
-				ctx, slog.LevelDebug, "Found reference placeholder",
-				slog.String("placeholder", str),
-				slog.String("target_ref", refStr),
-				slog.String("target_field", field),
-				slog.String("source_resource", currentResourceRef),
-			)
-
-			// Check for circular dependency
-			pathKey := fmt.Sprintf("%s->%s#%s", currentResourceRef, refStr, field)
-			if slices.Contains(resolutionPath, pathKey) {
-				logger.LogAttrs(
-					ctx, slog.LevelError, "Circular reference detected",
-					slog.String("path", strings.Join(append(resolutionPath, pathKey), " -> ")),
-				)
-				return fmt.Errorf("circular reference: %s", strings.Join(append(resolutionPath, pathKey), " -> "))
-			}
-
-			// Resolve the reference
-			target, exists := rs.GetResourceByRef(refStr)
-			if !exists {
-				logger.LogAttrs(
-					ctx, slog.LevelWarn, "Referenced resource not found",
-					slog.String("ref", refStr),
-					slog.String("source_resource", currentResourceRef),
-				)
-				return fmt.Errorf("resource not found: %s", refStr)
-			}
-
-			logger.LogAttrs(
-				ctx, log.LevelTrace, "Found target resource",
-				slog.String("target_ref", refStr),
-				slog.String("target_type", string(target.GetType())),
-				slog.String("requesting_field", field),
-			)
-
-			// Extract field value
-			value, err := resolver.ResolveField(target, field)
-			if err != nil {
-				// Field not available in config - keep placeholder for runtime resolution
-				logger.LogAttrs(
-					ctx, slog.LevelDebug, "Field not available in config, deferring resolution",
-					slog.String("resource_ref", refStr),
-					slog.String("field", field),
-					slog.String("error", err.Error()),
-				)
-				break // Keep the __REF__: placeholder unchanged
-			}
-
-			// Set the resolved value
-			if val.CanSet() {
-				val.SetString(value)
-				logger.LogAttrs(
-					ctx, slog.LevelDebug, "Reference resolved",
-					slog.String("source_resource", currentResourceRef),
-					slog.String("target_ref", refStr),
-					slog.String("field", field),
-					slog.String("resolved_value", value),
-				)
-			}
-		}
-
-	case reflect.Struct:
-		for _, fieldVal := range val.Fields() {
-			if fieldVal.CanSet() {
-				if err := walkAndResolve(ctx, fieldVal, rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
-					return err
-				}
-			}
-		}
-
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < val.Len(); i++ {
-			if err := walkAndResolve(ctx, val.Index(i), rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
-				return err
-			}
-		}
-
-	case reflect.Map:
-		for _, key := range val.MapKeys() {
-			// Maps typically contain interface{} values which we need to handle specially
-			_ = val.MapIndex(key)
-			// For now, skip map resolution as it requires special handling
-			// This can be enhanced in Phase 2
-		}
-	case reflect.Pointer:
-		// Handle pointer types by dereferencing and processing
-		if !val.IsNil() {
-			if err := walkAndResolve(ctx, val.Elem(), rs, resolver, resolutionPath, currentResourceRef, logger); err != nil {
-				return err
-			}
-		}
-	case reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
-		reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer:
-		// For primitives and other types, no action needed
-		// They cannot contain reference placeholders
-	case reflect.Invalid:
-		// Handle invalid reflect values
-		// No action needed
-	default:
-		// This should never be reached as we've covered all reflect.Kind values
-	}
-
+	logger.Debug("Reference resolution completed")
 	return nil
 }
 

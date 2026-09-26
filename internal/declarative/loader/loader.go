@@ -369,6 +369,9 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)
 	l.extractNestedResources(&placeholderRS)
+	if err := restoreReferenceLiterals(&rs); err != nil {
+		return nil, fmt.Errorf("failed to restore literal values: %w", err)
+	}
 	if err := resolveOrdinaryEnvPlaceholders(&rs); err != nil {
 		return nil, fmt.Errorf("failed to resolve !env tags in %s: %w", sourcePath, err)
 	}
@@ -524,6 +527,11 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	}
 
 	accumulated.MergeEnvSources(source)
+	for ref, paths := range source.LiteralSources {
+		for path, value := range paths {
+			accumulated.AddLiteralSource(ref, path, value)
+		}
+	}
 	accumulated.MergeSecretSources(source)
 
 	return nil

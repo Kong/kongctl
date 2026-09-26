@@ -85,6 +85,10 @@ steps:
             expect:
               fields:
                 "@": 2
+          - select: "[?name=='lookup-openai-provider'] | [0]"
+            expect:
+              fields:
+                labels.gateway_id: "{{ .vars.gatewayID }}"
       - name: 001-plan-again
         run:
           - plan

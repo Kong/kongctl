@@ -78,7 +78,7 @@ func (p *Planner) planTrustBundleChangesForExistingGateway(
 		currentByName[tb.Name] = tb
 	}
 
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayTLSTrustBundleResource, state.EventGatewayTLSTrustBundle]{
 			desiredName: func(desired resources.EventGatewayTLSTrustBundleResource) string { return desired.GetMoniker() },
 			create: func(desiredTB resources.EventGatewayTLSTrustBundleResource) error {

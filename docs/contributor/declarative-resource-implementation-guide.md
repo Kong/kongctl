@@ -703,9 +703,54 @@ placeholder; the loader resolves locally available values, the
 executor hydrates them using remote state or earlier execution results.
 Preserve requested fields, list references, and nested/scoped paths.
 
+Arbitrary payload values use the shared `values.Transform` traversal, including
+map values, lists, embedded structs, and SDK union members. Keep map keys
+literal. `ResourceSet.ResolvePayloadReference` resolves configuration-known
+scalar selectors and validates target uniqueness. Preserve environment source
+paths when copying values; write-only secrets cannot be reference sources.
+Registered relationship fields retain their existing routing/name semantics.
+Validate explicit relationship reference targets and selectors before
+deferring their values. An existing declaration with an unresolved ID is a
+valid forward reference; a missing declaration must fail loading or planning.
+Reference target discovery includes resources retained inside parent
+declarations. Specialized Event Gateway relationships also keep their existing
+handlers, including backend destinations, schema registries, encryption keys,
+and parent policies. These handlers may resolve an existing target without
+caching its ID on the declaration; the payload binder must not require a
+CREATE operation for such a relationship.
+
+Resolve known payload identities before resource comparison. Child matching
+can discover additional IDs even when no update is needed. Shared root and
+child reconcilers record scoped matches through `recordMatchedIdentity`.
+`resolveMatchedPayloadIdentities` retains these IDs on original declarations
+targeted by ad-hoc payload references, including state wrappers around SDK
+unions. Other relationship handling remains unchanged. Planning repeats
+comparison when these IDs consume remaining expressions.
+Deferred IDs are persisted in `PayloadReferences`,
+with JSON Pointer destinations, target type/ref, and source selector. Only
+unresolved creation outputs add dependencies. Never infer a payload target
+type from an arbitrary destination key. Plan format 1.1 carries these bindings;
+1.0 plans remain accepted, and legacy dotted `References` paths are unchanged.
+The executor hydrates bindings from completed dependencies and checks mapped
+SDK requests before mutations. Dry-run preserves expressions for dependencies
+that would create the target, but still validates binding destinations; it
+does not require creation results or send mutation requests.
+Deferred environment and secret paths are
+exempt from expression interpretation after their values are injected.
+Tag processing protects ordinary strings resembling internal expressions;
+loading records their provenance and plans carry `LiteralPaths` so the request
+guard preserves them. Keep this provenance through saved-plan serialization.
+
 `!external` and `!lookup` are aliases. Their tag resolver validates syntax
 and emits an opaque placeholder without making Konnect calls.
 [Planner external lookup][external] resolves identity before managed matching.
+In arbitrary values, lookup mappings require `resource_type` and may supply
+`parent_ref` for an existing scoped parent or a nested `parent: !lookup`.
+These are mutually exclusive. Nested lookups require an explicit type matching
+the child's registered parent type and resolve before the child. Reuse the
+external capability registry, adapters, cache, and sensitivity metadata.
+Relationships continue to infer the type; explicit type metadata must agree
+with that inference.
 
 External-capable resource types must implement `ExternallyResolvableResource`,
 use external registration, declare selectors and parent scope, and supply
@@ -717,7 +762,8 @@ Override the base `IsExternal` behavior where needed so matching and lifecycle
 code recognize the resource as external.
 
 [The nested-tag allowlist][tag-registry] supports `!env` directly inside
-external/lookup mapping selectors, and `!env`/`!file` inside `!secret`.
+external/lookup mapping selectors, nested `!lookup`/`!external` in their
+`parent` field, and `!env`/`!file` inside `!secret`.
 External selectors from environment values retain sensitivity metadata:
 cache keys use real selectors, while diagnostics redact them.
 For new compositions, define resolution phase, location, result type,

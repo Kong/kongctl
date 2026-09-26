@@ -92,6 +92,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 	}
 
 	return reconcileMappedChildren(
+		p,
 		desired,
 		currentByName,
 		mappedChildOperations[resources.EventGatewayProducePolicyResource, state.EventGatewayVirtualClusterProducePolicyInfo]{

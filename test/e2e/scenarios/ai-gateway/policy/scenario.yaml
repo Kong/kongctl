@@ -90,6 +90,67 @@ steps:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
 
+  - name: 001b-verify-resolved-payload
+    skipInputs: true
+    commands:
+      - name: 000-get-gateway
+        run: [get, ai-gateways, -o, json]
+        recordVar:
+          name: gateway_id
+          responsePath: "[?name=='{{ .vars.gateway_ref }}'] | [0].id"
+        assertions:
+          - select: "[?name=='{{ .vars.gateway_ref }}']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 001-get-policies
+        run: [get, ai-gateway, policies, --gateway-name, "{{ .vars.gateway_name }}", -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.http_log_policy_name }}'] | [0]"
+            expect:
+              fields:
+                'config.headers."X-Control-Plane-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Name"': "{{ .vars.gateway_ref }}"
+
+  - name: 001c-update-policy-with-unchanged-gateway
+    inputOverlayOps:
+      - file: config.yaml
+        match: "ai_gateways[?ref=='ai-gateway-policy-e2e'].policies[?ref=='repro-http-log'].config | [0]"
+        set:
+          http_endpoint: https://logging.example.com/ai-gateway-updated
+    commands:
+      - name: 000-apply-update
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: 001-get-updated-policy
+        run: [get, ai-gateway, policies, --gateway-name, "{{ .vars.gateway_name }}", -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.http_log_policy_name }}'] | [0]"
+            expect:
+              fields:
+                config.http_endpoint: https://logging.example.com/ai-gateway-updated
+                'config.headers."X-Control-Plane-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Id"': "{{ .vars.gateway_id }}"
+                'config.headers."X-Gateway-Name"': "{{ .vars.gateway_ref }}"
+      - name: 002-plan-no-changes
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 002-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete

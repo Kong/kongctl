@@ -391,6 +391,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		return err
 	}
 	change = executionChange
+	ctx = withDeferredPayloadPaths(ctx, change)
 
 	// Notify reporter of change start
 	if e.reporter != nil {
@@ -427,7 +428,11 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 	// non-secret fields that later dependency references may need.
 	e.hydrateKnownReferenceIDs(change, plan)
 
-	resolvedReferenceChange, err := cloneChangeForExecution(change)
+	err = e.hydratePayloadReferences(change, plan)
+	var resolvedReferenceChange *planner.PlannedChange
+	if err == nil {
+		resolvedReferenceChange, err = cloneChangeForExecution(change)
+	}
 	if err == nil {
 		err = e.injectResolvedSecretWrites(change)
 	}

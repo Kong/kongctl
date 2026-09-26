@@ -83,7 +83,7 @@ func (p *Planner) planBackendClusterChangesForExistingGateway(
 		currentByName[cluster.Name] = cluster
 	}
 
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayBackendClusterResource, state.EventGatewayBackendCluster]{
 			desiredName: func(desired resources.EventGatewayBackendClusterResource) string { return desired.Name },
 			create: func(desiredCluster resources.EventGatewayBackendClusterResource) error {

@@ -23,7 +23,7 @@ func TestMappedChildLifecycleStopsBeforePruning(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			failure := errors.New("nested planning failed")
 			var events []string
-			err := reconcileMappedChildren([]string{"new", "kept", "later"},
+			err := reconcileMappedChildren(nil, []string{"new", "kept", "later"},
 				map[string]string{"kept": "kept-id", "stale": "stale-id"},
 				mappedChildOperations[string, string]{
 					desiredName: func(name string) string { return name },

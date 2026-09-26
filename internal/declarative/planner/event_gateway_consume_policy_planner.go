@@ -100,7 +100,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	}
 
 	// 3. Compare desired vs current
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayConsumePolicyResource, state.EventGatewayConsumePolicyInfo]{
 			desiredName: func(desired resources.EventGatewayConsumePolicyResource) string { return desired.GetMoniker() },
 			create: func(desiredPolicy resources.EventGatewayConsumePolicyResource) error {

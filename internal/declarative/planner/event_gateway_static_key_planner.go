@@ -80,7 +80,7 @@ func (p *Planner) planStaticKeyChangesForExistingGateway(
 		currentByName[sk.Name] = sk
 	}
 
-	return reconcileMappedChildren(desired, currentByName,
+	return reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayStaticKeyResource, state.EventGatewayStaticKey]{
 			desiredName: func(desired resources.EventGatewayStaticKeyResource) string { return desired.Name },
 			create: func(desiredKey resources.EventGatewayStaticKeyResource) error {
