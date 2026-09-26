@@ -1,0 +1,84 @@
+name: Deploy reviewed AI Gateway plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      plan_sha256:
+        description: SHA-256 of the committed ci/plan.json you reviewed
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-gateway-ai-demo
+  cancel-in-progress: false
+
+env:
+  KONGCTL_VERSION: "1.16.0"
+  KONGCTL_NO_TELEMETRY: "true"
+  KONNECT_BASE_URL: https://us.api.konghq.com
+  KONNECT_ORG_ID: REPLACE_WITH_ORGANIZATION_ID
+  KONNECT_NAMESPACE: ai-demo
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check the reviewed plan
+        env:
+          EXPECTED_PLAN_SHA256: ${{ inputs.plan_sha256 }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
+          [[ "$EXPECTED_PLAN_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s  ci/plan.json\n' "$EXPECTED_PLAN_SHA256" | sha256sum --check -
+          jq -e --arg ns "$KONNECT_NAMESPACE" --arg cli "kongctl/$KONGCTL_VERSION" '
+            .metadata.mode == "apply" and .metadata.generator == $cli and
+            all(.changes[]; .namespace == $ns and
+              (.action == "CREATE" or .action == "UPDATE"))
+          ' ci/plan.json >/dev/null
+      - uses: Kong/setup-kongctl@659d5c2b0f4db2e25d63797035358a22907421db # v1
+        with:
+          kongctl-version: ${{ env.KONGCTL_VERSION }}
+      - name: Apply the approved plan
+        env:
+          KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KONGCTL_DEFAULT_KONNECT_PAT"
+          test "$(kongctl version --full | cut -d ' ' -f 1)" = "$KONGCTL_VERSION"
+          actual_org="$(kongctl get organization --profile default \
+            --base-url "$KONNECT_BASE_URL" -o json --jq '.id' --jq-raw-output)"
+          test "$actual_org" = "$KONNECT_ORG_ID"
+          mkdir -p evidence
+          {
+            printf 'Source: %s\nActor: %s\n' "$GITHUB_SHA" "$GITHUB_ACTOR"
+            printf 'Organization: %s\nNamespace: %s\n' "$actual_org" "$KONNECT_NAMESPACE"
+            sha256sum ci/plan.json
+            kongctl diff --plan ci/plan.json
+          } > evidence/review.txt
+          cat evidence/review.txt
+          cat evidence/review.txt >> "$GITHUB_STEP_SUMMARY"
+          kongctl apply --plan ci/plan.json --profile default \
+            --base-url "$KONNECT_BASE_URL" --auto-approve -o json \
+            --execution-report-file evidence/apply.json
+          jq -e '.summary.status == "success"' evidence/apply.json
+      - name: Save execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-gateway-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7

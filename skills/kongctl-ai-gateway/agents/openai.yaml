@@ -1,0 +1,5 @@
+interface:
+  display_name: "Kongctl AI Gateway"
+  short_description: "Deploy AI Gateway with models, access and CI/CD"
+  default_prompt: "Use $kongctl-ai-gateway to build a declarative AI Gateway
+    deployment with working model traffic and a reviewable deployment workflow."
