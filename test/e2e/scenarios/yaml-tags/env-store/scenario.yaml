@@ -1,0 +1,141 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-create
+    commands:
+      - name: plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/create.json"
+        env:
+          KONGCTL_E2E_STORED_DESCRIPTION: Approved stored description
+          KONGCTL_E2E_STORED_ENABLED: "true"
+          KONGCTL_E2E_STORED_METADATA: '{"labels":{"owner":"42"}}'
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: changes[?resource_ref=='stored-portal'] | [0]
+            expect:
+              fields:
+                fields.description: Approved stored description
+                fields.auto_approve_developers: true
+                fields.labels.owner: "42"
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+      - name: diff
+        outputFormat: text
+        parseAs: raw
+        run: [diff, --plan, "{{ .workdir }}/create.json"]
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Approved stored description')": true
+                "contains(@, '[redacted from !env]')": false
+      - name: apply-with-changed-env
+        env:
+          KONGCTL_E2E_STORED_DESCRIPTION: Unapproved description
+          KONGCTL_E2E_STORED_ENABLED: "false"
+          KONGCTL_E2E_STORED_METADATA: invalid
+        run: [apply, --plan, "{{ .workdir }}/create.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: verify-create
+        run: [get, portals, -o, json]
+        assertions:
+          - select: "[?name=='stored-portal'] | [0]"
+            expect:
+              fields:
+                description: Approved stored description
+                auto_approve_developers: true
+                labels.owner: "42"
+
+  - name: 002-update
+    commands:
+      - name: plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/update.json"
+        env:
+          KONGCTL_E2E_STORED_DESCRIPTION: Approved stored update
+          KONGCTL_E2E_STORED_ENABLED: "false"
+          KONGCTL_E2E_STORED_METADATA: '{"labels":{"owner":"43"}}'
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: changes[?resource_ref=='stored-portal'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.auto_approve_developers: false
+                changed_fields.description.new: Approved stored update
+                changed_fields.auto_approve_developers.new: false
+      - name: apply-without-source-env
+        run: [apply, --plan, "{{ .workdir }}/update.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: verify-update
+        run: [get, portals, -o, json]
+        assertions:
+          - select: "[?name=='stored-portal'] | [0]"
+            expect:
+              fields:
+                description: Approved stored update
+                auto_approve_developers: false
+                labels.owner: "43"
+      - name: no-op
+        outputFormat: disable
+        env:
+          KONGCTL_E2E_STORED_DESCRIPTION: Approved stored update
+          KONGCTL_E2E_STORED_ENABLED: "false"
+          KONGCTL_E2E_STORED_METADATA: '{"labels":{"owner":"43"}}'
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-invalid-boolean
+    env:
+      KONGCTL_E2E_STORED_DESCRIPTION: Description
+      KONGCTL_E2E_STORED_ENABLED: not-a-boolean
+      KONGCTL_E2E_STORED_METADATA: '{"labels":{}}'
+    commands:
+      - run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        expectFailure:
+          exitCode: 1
+          contains: expected boolean
+
+  - name: 004-missing-source
+    commands:
+      - run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        expectFailure:
+          exitCode: 1
+          contains: "environment variable not set: KONGCTL_E2E_STORED_DESCRIPTION"
+
+  - name: 005-cleanup
+    env:
+      KONGCTL_E2E_STORED_DESCRIPTION: Approved stored update
+      KONGCTL_E2E_STORED_ENABLED: "false"
+      KONGCTL_E2E_STORED_METADATA: '{"labels":{"owner":"43"}}'
+    commands:
+      - run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0

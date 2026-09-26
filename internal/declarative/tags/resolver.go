@@ -193,6 +193,9 @@ func validateNestedChild(child *yaml.Node, outerTag string, location nestedTagLo
 	}
 
 	if isCustomTag(child.Tag) {
+		if IsStoredEnvNode(child) {
+			return nestedTagError(child, "stored environment values are not supported inside %s", outerTag)
+		}
 		allowedLocation, ok := supportedNestedTags[outerTag][child.Tag]
 		if !ok {
 			return nestedTagError(

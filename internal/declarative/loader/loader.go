@@ -276,6 +276,7 @@ func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir strin
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
+	placeholderRegistry.Register(tags.NewStoredEnvTagResolver())
 	placeholderRegistry.Register(tags.NewSecretTagResolverWithFileScope(baseDir, tagRootDir))
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)
@@ -297,6 +298,18 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 
 	placeholderContent := prepared.content
 	sourcePath := prepared.sourcePath
+	// A template from another source can introduce stored tags into this document.
+	prepared.hasEnvTags = prepared.hasEnvTags || strings.Contains(string(placeholderContent), tags.TagEnv)
+	if prepared.hasEnvTags {
+		var err error
+		placeholderContent, err = resolveStoredEnvContent(placeholderContent)
+		if err != nil {
+			return nil, withTemplateDefinitionContext(
+				fmt.Errorf("failed to load stored environment values in %s: %w", sourcePath, err),
+				prepared.templateDefinitions,
+			)
+		}
+	}
 	if prepared.hasEnvTags {
 		if err := validateEnvTagStringFields(placeholderContent); err != nil {
 			return nil, withTemplateDefinitionContext(
