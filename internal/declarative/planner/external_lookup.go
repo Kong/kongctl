@@ -253,7 +253,12 @@ func (r *externalLookupResolver) scopedDeclarationParentID(
 	if tags.IsRefPlaceholder(parentValue) {
 		ref, field, ok := tags.ParseRefPlaceholder(parentValue)
 		if !ok || field != FieldID {
-			return "", false, fmt.Errorf("%s %q: invalid parent reference %q", item.GetType(), item.GetRef(), parentValue)
+			return "", false, fmt.Errorf(
+				"%s %q: invalid parent reference %q",
+				item.GetType(),
+				item.GetRef(),
+				parentValue,
+			)
 		}
 		parentValue = ref
 	}
@@ -715,10 +720,10 @@ func setStringFieldByPath(resource resources.Resource, path, value string) error
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
 		switch path {
 		case "service.id", "service.control_plane_id":
-			if implementation.ServiceReference == nil {
+			if implementation.ServiceReferenceInput == nil {
 				return fmt.Errorf("service is not configured")
 			}
-			service := implementation.ServiceReference.GetService()
+			service := implementation.ServiceReferenceInput.GetService()
 			if service == nil {
 				return fmt.Errorf("service is not configured")
 			}
@@ -779,10 +784,10 @@ func stringFieldByPath(resource resources.Resource, path string) (string, error)
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
 		switch path {
 		case "service.id", "service.control_plane_id":
-			if implementation.ServiceReference == nil || implementation.ServiceReference.GetService() == nil {
+			if implementation.ServiceReferenceInput == nil || implementation.ServiceReferenceInput.GetService() == nil {
 				return "", nil
 			}
-			service := implementation.ServiceReference.GetService()
+			service := implementation.ServiceReferenceInput.GetService()
 			if path == "service.id" {
 				return service.ID, nil
 			}

@@ -25,6 +25,7 @@ type SDKAPI interface {
 	GetAIGatewayAPI() AIGatewayAPI
 	GetAIGatewayProvidersAPI() AIGatewayProvidersAPI
 	GetAIGatewayAuthStrategiesAPI() AIGatewayAuthStrategiesAPI
+	GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI
 	GetAIGatewayPoliciesAPI() AIGatewayPoliciesAPI
 	GetAIGatewayAgentsAPI() AIGatewayAgentsAPI
 	GetAIGatewayConsumersAPI() AIGatewayConsumersAPI
@@ -749,3 +750,11 @@ type Key struct{}
 
 // A Key used to store the SDKFactory in a Context
 var SDKAPIFactoryKey = Key{}
+
+func (k *KonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI {
+	if k.SDK == nil || k.SDK.AIGatewayCustomPolicies == nil {
+		return nil
+	}
+
+	return &AIGatewayCustomPoliciesAPIImpl{SDK: k.SDK}
+}

@@ -10,6 +10,7 @@ func TestAIGatewayChildLoadRegistrations(t *testing.T) {
 	want := []ResourceType{
 		ResourceTypeAIGatewayProvider,
 		ResourceTypeAIGatewayAuthStrategy,
+		ResourceTypeAIGatewayCustomPolicy,
 		ResourceTypeAIGatewayPolicy,
 		ResourceTypeAIGatewayAgent,
 		ResourceTypeAIGatewayConsumer,

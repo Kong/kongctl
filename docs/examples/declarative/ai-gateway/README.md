@@ -73,3 +73,6 @@ Before applying `runtime-tls.yaml`, place the matching runtime certificate and
 private key at `certs/runtime.pem` and `certs/runtime.key`, and place the CA
 certificate at `certs/ca.pem`. The private-key file is intentionally not
 included in this repository.
+
+For pre-GA AI Gateway 2.2 development, see
+[the feature notes and examples](PRE_GA_2_2.md).

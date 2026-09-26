@@ -40,7 +40,11 @@ func (a *APIVersionAPIImpl) CreateAPIVersion(ctx context.Context, apiID string, 
 	if a.SDK.APIVersion == nil {
 		return nil, fmt.Errorf("SDK.APIVersion is nil")
 	}
-	return a.SDK.APIVersion.CreateAPIVersion(ctx, apiID, request, opts...)
+	return a.SDK.APIVersion.CreateAPIVersion(
+		ctx,
+		kkOps.CreateAPIVersionRequest{APIID: apiID, CreateAPIVersionRequest: request},
+		opts...,
+	)
 }
 
 // ListAPIVersions implements the APIVersionAPI interface
@@ -97,7 +101,11 @@ func (a *APIVersionAPIImpl) FetchAPIVersion(ctx context.Context, apiID string, v
 	if a.SDK.APIVersion == nil {
 		return nil, fmt.Errorf("SDK.APIVersion is nil")
 	}
-	return a.SDK.APIVersion.FetchAPIVersion(ctx, apiID, versionID, opts...)
+	return a.SDK.APIVersion.FetchAPIVersion(
+		ctx,
+		kkOps.FetchAPIVersionRequest{APIID: apiID, VersionID: versionID},
+		opts...,
+	)
 }
 
 // GetVersionsForAPI fetches all version objects for a specific API

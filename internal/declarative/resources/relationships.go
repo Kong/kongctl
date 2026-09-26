@@ -218,6 +218,7 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 var aiGatewayChildTypes = []ResourceType{
 	ResourceTypeAIGatewayProvider,
 	ResourceTypeAIGatewayAuthStrategy,
+	ResourceTypeAIGatewayCustomPolicy,
 	ResourceTypeAIGatewayPolicy,
 	ResourceTypeAIGatewayAgent,
 	ResourceTypeAIGatewayConsumer,

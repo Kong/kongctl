@@ -214,6 +214,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
 			AIGatewayAuthStrategiesAPI:          sdk.GetAIGatewayAuthStrategiesAPI(),
+			AIGatewayCustomPoliciesAPI:          sdk.GetAIGatewayCustomPoliciesAPI(),
 			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
 			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
 			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),
@@ -991,7 +992,7 @@ func collectDeclarativeAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		resp, err := api.ListAppAuthStrategies(ctx, req)
@@ -1240,7 +1241,7 @@ func collectDeclarativeControlPlanes(
 
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
-			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
+			nameFilter := &kkComps.Name{}
 			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {

@@ -117,6 +117,26 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
+	customPolicies := p.resources.GetAIGatewayCustomPoliciesForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayCustomPolicy,
+	) && (len(customPolicies) > 0 || plan.Metadata.Mode == PlanModeSync) {
+		if err := p.planAIGatewayCustomPolicyChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			gatewayChangeID,
+			customPolicies,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
 	policies := p.resources.GetAIGatewayPoliciesForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(
 		plan,
@@ -253,5 +273,8 @@ func (p *Planner) planAIGatewayChildren(
 	if err := p.resolveAIGatewayProviderDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
 		return err
 	}
-	return p.resolveAIGatewayPolicyDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
+	if err := p.resolveAIGatewayPolicyDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
+		return err
+	}
+	return p.resolveAIGatewayCustomPolicyDependencies(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
 }

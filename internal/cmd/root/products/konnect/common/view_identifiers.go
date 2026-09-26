@@ -145,3 +145,8 @@ const (
 	ViewAliasPortals                   = "portals"
 	ViewAliasDCRProviders              = "dcr-providers"
 )
+
+const (
+	ViewParentAIGatewayCustomPolicy = "ai-gateway-custom-policy"
+	ViewFieldCustomPolicies         = "custom_policies"
+)

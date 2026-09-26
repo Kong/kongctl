@@ -20,6 +20,7 @@ const (
 	ResourceTypeAIGateway                               ResourceType = "ai_gateway"
 	ResourceTypeAIGatewayProvider                       ResourceType = "ai_gateway_model_provider"
 	ResourceTypeAIGatewayAuthStrategy                   ResourceType = "ai_gateway_auth_strategy"
+	ResourceTypeAIGatewayCustomPolicy                   ResourceType = "ai_gateway_custom_policy"
 	ResourceTypeAIGatewayPolicy                         ResourceType = "ai_gateway_policy"
 	ResourceTypeAIGatewayAgent                          ResourceType = "ai_gateway_agent"
 	ResourceTypeAIGatewayConsumer                       ResourceType = "ai_gateway_consumer"
@@ -150,6 +151,7 @@ type ResourceSet struct {
 	AIGateways                        []AIGatewayResource                        `yaml:"ai_gateways,omitempty"                                    json:"ai_gateways,omitempty"`                           //nolint:lll
 	AIGatewayProviders                []AIGatewayProviderResource                `yaml:"ai_gateway_model_providers,omitempty"                    json:"ai_gateway_model_providers,omitempty"`             //nolint:lll
 	AIGatewayAuthStrategies           []AIGatewayAuthStrategyResource            `yaml:"ai_gateway_auth_strategies,omitempty"                 json:"ai_gateway_auth_strategies,omitempty"`                //nolint:lll
+	AIGatewayCustomPolicies           []AIGatewayCustomPolicyResource            `yaml:"ai_gateway_custom_policies,omitempty"                     json:"ai_gateway_custom_policies,omitempty"`            //nolint:lll
 	AIGatewayPolicies                 []AIGatewayPolicyResource                  `yaml:"ai_gateway_policies,omitempty"                           json:"ai_gateway_policies,omitempty"`                    //nolint:lll
 	AIGatewayAgents                   []AIGatewayAgentResource                   `yaml:"ai_gateway_agents,omitempty"                             json:"ai_gateway_agents,omitempty"`                      //nolint:lll
 	AIGatewayConsumers                []AIGatewayConsumerResource                `yaml:"ai_gateway_consumers,omitempty"                          json:"ai_gateway_consumers,omitempty"`                   //nolint:lll
@@ -1419,4 +1421,23 @@ func (rs *ResourceSet) GetAIGatewaySNIsForGateway(gatewayRef string) []AIGateway
 		}
 	}
 	return snis
+}
+
+func (rs *ResourceSet) GetAIGatewayCustomPolicyByRef(ref string) *AIGatewayCustomPolicyResource {
+	for i := range rs.AIGatewayCustomPolicies {
+		if rs.AIGatewayCustomPolicies[i].GetRef() == ref {
+			return &rs.AIGatewayCustomPolicies[i]
+		}
+	}
+	return nil
+}
+
+func (rs *ResourceSet) GetAIGatewayCustomPoliciesForGateway(gatewayRef string) []AIGatewayCustomPolicyResource {
+	var policies []AIGatewayCustomPolicyResource
+	for _, policy := range rs.AIGatewayCustomPolicies {
+		if NormalizeResourceRef(policy.AIGateway) == gatewayRef {
+			policies = append(policies, policy)
+		}
+	}
+	return policies
 }

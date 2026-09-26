@@ -38,6 +38,7 @@ type ClientConfig struct {
 	AIGatewayAPI                      helpers.AIGatewayAPI
 	AIGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
 	AIGatewayAuthStrategiesAPI        helpers.AIGatewayAuthStrategiesAPI
+	AIGatewayCustomPoliciesAPI        helpers.AIGatewayCustomPoliciesAPI
 	AIGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	AIGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	AIGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -115,6 +116,7 @@ type Client struct {
 	aiGatewayAPI                      helpers.AIGatewayAPI
 	aiGatewayProvidersAPI             helpers.AIGatewayProvidersAPI
 	aiGatewayAuthStrategiesAPI        helpers.AIGatewayAuthStrategiesAPI
+	aiGatewayCustomPoliciesAPI        helpers.AIGatewayCustomPoliciesAPI
 	aiGatewayPoliciesAPI              helpers.AIGatewayPoliciesAPI
 	aiGatewayAgentsAPI                helpers.AIGatewayAgentsAPI
 	aiGatewayConsumersAPI             helpers.AIGatewayConsumersAPI
@@ -193,6 +195,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayAPI:                      config.AIGatewayAPI,
 		aiGatewayProvidersAPI:             config.AIGatewayProvidersAPI,
 		aiGatewayAuthStrategiesAPI:        config.AIGatewayAuthStrategiesAPI,
+		aiGatewayCustomPoliciesAPI:        config.AIGatewayCustomPoliciesAPI,
 		aiGatewayPoliciesAPI:              config.AIGatewayPoliciesAPI,
 		aiGatewayAgentsAPI:                config.AIGatewayAgentsAPI,
 		aiGatewayConsumersAPI:             config.AIGatewayConsumersAPI,
@@ -8154,4 +8157,9 @@ func (c *Client) DeleteEventGatewayTLSTrustBundle(
 	}
 
 	return nil
+}
+
+type AIGatewayCustomPolicy struct {
+	kkComps.AIGatewayCustomPolicy
+	NormalizedLabels map[string]string
 }

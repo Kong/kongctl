@@ -536,3 +536,31 @@ func getAIGatewayDataPlaneCertificateIdentifiers(cfg config.Hook) (id string, ti
 		aiGatewayDataPlaneCertificateTitleConfigPath,
 	)
 }
+
+const (
+	aiGatewayCustomPolicyIDFlagName     = "custom-policy-id"
+	aiGatewayCustomPolicyNameFlagName   = "custom-policy-name"
+	aiGatewayCustomPolicyIDConfigPath   = "konnect.ai-gateway.custom-policy.id"
+	aiGatewayCustomPolicyNameConfigPath = "konnect.ai-gateway.custom-policy.name"
+)
+
+var aiGatewayCustomPolicyFlags = pairedAIGatewayFlags{
+	idFlag:   aiGatewayCustomPolicyIDFlagName,
+	idPath:   aiGatewayCustomPolicyIDConfigPath,
+	idHelp:   "The ID of the AI Gateway Custom Policy to retrieve.",
+	nameFlag: aiGatewayCustomPolicyNameFlagName,
+	namePath: aiGatewayCustomPolicyNameConfigPath,
+	nameHelp: "The name of the AI Gateway Custom Policy to retrieve.",
+}
+
+func addAIGatewayCustomPolicyFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayCustomPolicyFlags)
+}
+
+func bindAIGatewayCustomPolicyFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayCustomPolicyFlags)...)
+}
+
+func getAIGatewayCustomPolicyIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayCustomPolicyIDConfigPath, aiGatewayCustomPolicyNameConfigPath)
+}

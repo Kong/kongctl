@@ -241,6 +241,7 @@ const (
 	ResourceTypeAIGateway                        = string(resources.ResourceTypeAIGateway)
 	ResourceTypeAIGatewayProvider                = string(resources.ResourceTypeAIGatewayProvider)
 	ResourceTypeAIGatewayAuthStrategy            = string(resources.ResourceTypeAIGatewayAuthStrategy)
+	ResourceTypeAIGatewayCustomPolicy            = string(resources.ResourceTypeAIGatewayCustomPolicy)
 	ResourceTypeAIGatewayPolicy                  = string(resources.ResourceTypeAIGatewayPolicy)
 	ResourceTypeAIGatewayAgent                   = string(resources.ResourceTypeAIGatewayAgent)
 	ResourceTypeAIGatewayConsumer                = string(resources.ResourceTypeAIGatewayConsumer)
@@ -311,4 +312,9 @@ const (
 const (
 	// DefaultNamespace is the default namespace when none is specified
 	DefaultNamespace = "default"
+)
+
+const (
+	FieldSchema  = "schema"
+	FieldHandler = "handler"
 )
