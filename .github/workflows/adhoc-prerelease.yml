@@ -362,8 +362,8 @@ jobs:
           config = yaml.safe_load(text.replace(needle, replacement, 1))
           # Preview builds are unsigned; retain the signing configuration for
           # a future opt-in mode without changing the standard release config.
-          for entry in config.get("notarize", {}).get("macos", []):
-              entry["enabled"] = "false"
+          for entry in (config.get("notarize") or {}).get("macos") or []:
+              entry["enabled"] = False
           dst.write_text(yaml.safe_dump(config, sort_keys=False))
           PY
           echo "config=${config}" >> "$GITHUB_OUTPUT"
