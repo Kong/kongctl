@@ -342,9 +342,15 @@ jobs:
         run: |
           set -euo pipefail
           config="${RUNNER_TEMP}/goreleaser-adhoc.yml"
-          python3 - <<'PY'
+          config_venv="${RUNNER_TEMP}/goreleaser-adhoc-python"
+          python3 -m venv "${config_venv}"
+          "${config_venv}/bin/python" -m pip install --disable-pip-version-check \
+            --only-binary=:all: PyYAML==6.0.3
+          "${config_venv}/bin/python" - <<'PY'
           import os
           from pathlib import Path
+
+          import yaml
 
           src = Path(".goreleaser.yml")
           dst = Path(os.environ["RUNNER_TEMP"]) / "goreleaser-adhoc.yml"
@@ -353,7 +359,12 @@ jobs:
           replacement = "- -X main.version=dev"
           if needle not in text:
               raise SystemExit("could not find GoReleaser main.version ldflag")
-          dst.write_text(text.replace(needle, replacement, 1))
+          config = yaml.safe_load(text.replace(needle, replacement, 1))
+          # Preview builds are unsigned; retain the signing configuration for
+          # a future opt-in mode without changing the standard release config.
+          for entry in config.get("notarize", {}).get("macos", []):
+              entry["enabled"] = "false"
+          dst.write_text(yaml.safe_dump(config, sort_keys=False))
           PY
           echo "config=${config}" >> "$GITHUB_OUTPUT"
 
