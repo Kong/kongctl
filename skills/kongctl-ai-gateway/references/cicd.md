@@ -22,11 +22,24 @@ Do not create two new tokens or require separate read/write credentials
 for this small setup. Ask for a missing CI credential with an explicit
 scope; do not mint broad tokens merely to finish setup.
 
+Fetch the intended remote and check ancestry before preparing a publication
+commit. For an existing `origin/main`, use
+`git rev-list --left-right --count HEAD...origin/main` and
+`git merge-base HEAD origin/main`. Use the actual remote/default branch.
+A failed fetch is not an empty repository. Surface unrelated or diverged
+history early; do not force-push or discard local work to bypass it.
+If authorized recovery uses a temporary worktree, finish by reconciling the
+original checkout while preserving local credentials, keys and skills, and
+verify its ahead/behind counts against the published branch.
+
 Use a working, released local kongctl version and the same fixed version
 in the workflow. Edit its version, organization UUID, base URL, namespace
 and concurrency group to match the project. The bundled action revisions
 and inputs are already selected; adapting this template does not require
-researching or writing a new installer.
+researching or writing a new installer. Keep its existing checks; do not
+add a bespoke one-update guard just for a description-change demonstration.
+If a requested check uses optional plan summary counters, interpret omitted
+zero counters as zero, for example `(.summary.secret_writes // 0) == 0`.
 
 Repository writers can [manually dispatch][dispatch] this workflow. This
 is an explicit operator approval, not independent reviewer enforcement.

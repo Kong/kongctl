@@ -14,6 +14,15 @@ intended gateway under the selected profile, organization and region.
 Inspect `docker context show` and `docker ps -a` for existing containers
 and published ports. A permission or network error is not an empty result.
 
+For shell snippets on macOS, use Bash for Bash-specific syntax, choose
+variables such as `http_code` rather than zsh's read-only `status`, and
+quote API paths containing `?`, such as
+`'repos/OWNER/REPO/git/trees/main?recursive=1'`.
+If sandbox restrictions block Docker, network or credential-store access,
+request the appropriate execution permission before diagnosing missing
+resources or invalid credentials. If the default kongctl log directory is
+unwritable, create `.artifacts` and pass `--log-file .artifacts/kongctl.log`.
+
 If state remains and intent is unclear, resolve one choice with the user:
 resume that deployment, replace it after scoped cleanup, or run in parallel.
 For resume, preserve the namespace, gateway identity and certificate pair;
