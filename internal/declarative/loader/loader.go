@@ -297,6 +297,18 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 
 	placeholderContent := prepared.content
 	sourcePath := prepared.sourcePath
+	// A template from another source can introduce stored tags into this document.
+	prepared.hasEnvTags = prepared.hasEnvTags || strings.Contains(string(placeholderContent), tags.TagEnv)
+	if prepared.hasEnvTags {
+		var err error
+		placeholderContent, err = resolveStoredEnvContent(placeholderContent)
+		if err != nil {
+			return nil, withTemplateDefinitionContext(
+				fmt.Errorf("failed to load stored environment values in %s: %w", sourcePath, err),
+				prepared.templateDefinitions,
+			)
+		}
+	}
 	if prepared.hasEnvTags {
 		if err := validateEnvTagStringFields(placeholderContent); err != nil {
 			return nil, withTemplateDefinitionContext(

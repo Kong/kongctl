@@ -157,7 +157,7 @@ func validateDynamicEnvNode(node *yaml.Node, path []string) error {
 }
 
 func isEnvValidationNode(node *yaml.Node) bool {
-	return node != nil && (node.Tag == tags.TagEnv ||
+	return node != nil && ((node.Tag == tags.TagEnv && !tags.IsStoredEnvNode(node)) ||
 		(node.Kind == yaml.ScalarNode && tags.IsEnvPlaceholder(node.Value)))
 }
 

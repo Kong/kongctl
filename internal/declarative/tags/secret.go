@@ -12,7 +12,7 @@ import (
 )
 
 // SecretPlaceholderPrefix identifies serialized deferred secret expressions.
-const SecretPlaceholderPrefix = "__SECRET__:"
+const SecretPlaceholderPrefix = "__SECRET__:" // pragma: allowlist secret
 
 // SecretSource describes one deferred source in a secret expression.
 type SecretSource struct {
@@ -136,6 +136,13 @@ func (r *SecretTagResolver) parseSecretSource(node *yaml.Node) (SecretSource, er
 	}
 	switch node.Tag {
 	case TagEnv:
+		options, err := ParseEnvOptions(node)
+		if err != nil {
+			return SecretSource{}, err
+		}
+		if options.Store {
+			return SecretSource{}, fmt.Errorf("!secret requires deferred environment sources")
+		}
 		varRef, extractPath, err := parseEnvNode(node)
 		if err != nil {
 			return SecretSource{}, err

@@ -1,5 +1,7 @@
 # `kongctl` Declarative Resource Reference
 
+[stored-env]: declarative.md#storing-typed-environment-values-in-plans
+
 This document is a reference for `kongctl` declarative
 configuration. It lists supported resource types and common field-level values.
 Resource configurations are provided as YAML files and can be expressed as one
@@ -66,7 +68,11 @@ Use YAML tags in field values to load files or reference other resources.
 - `!file`: Load content from a file. Supports `path#extract.path` and
   `path`/`extract` map form.
 - `!env`: Load string content from an environment variable. Supports
-  `VAR#extract.path` and `var`/`extract` map form.
+  `VAR#extract.path` and `var`/`extract` map form. Add `store: true` in
+  mapping form to retain typed values in plaintext plans. Known destination
+  types are inferred; unknown or ambiguous destinations require `type`.
+  See [stored environment values][stored-env]
+  for conversion types, numeric limits, errors, and nesting restrictions.
 - `!secret`: Declare a sensitive deferred value on a reviewed write-only
   field. Supports `source: !env VAR`, `source: !file ./path`, and ordered
   `parts` containing strings and deferred `!env` or `!file` sources.
