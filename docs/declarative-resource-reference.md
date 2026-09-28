@@ -375,6 +375,12 @@ analytics:
 
 ## Control Planes
 
+Managed control planes require an explicit, nonblank `name`. The local `ref`
+does not supply a default name. For manifests that previously omitted `name`,
+add `name` equal to the previous `ref` to preserve the existing Konnect name.
+External control planes may omit `name`; with `_deck`, kongctl uses the
+external name selector or looks up the resolved control plane ID in Konnect.
+
 [API Specification](https://developer.konghq.com/api/konnect/control-planes/v2/#/operations/create-control-plane)
 [Example](examples/declarative/control-plane/control-plane.yaml)
 

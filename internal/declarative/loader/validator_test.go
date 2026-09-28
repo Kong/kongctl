@@ -446,9 +446,10 @@ func TestLoader_validateAPIs(t *testing.T) {
 				}},
 			}
 			rs.ControlPlanes = []resources.ControlPlaneResource{
-				{BaseResource: resources.BaseResource{
-					Ref: "dummy-cp",
-				}},
+				{
+					BaseResource:              resources.BaseResource{Ref: "dummy-cp"},
+					CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: "dummy-cp"},
+				},
 			}
 
 			// Extract nested resources to match real loader behavior

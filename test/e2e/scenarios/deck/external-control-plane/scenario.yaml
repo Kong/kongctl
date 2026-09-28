@@ -1,0 +1,168 @@
+baseInputsPath: testdata
+
+steps:
+  - name: 000-setup
+    skipInputs: true
+    commands:
+      - name: 000-reset-org
+        resetOrg: true
+      - name: 001-create-direct-id-control-plane
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: e2e-deck-external-id
+              cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+          recordVar:
+            name: direct_id
+            responsePath: id
+      - name: 002-create-id-selector-control-plane
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: e2e-deck-external-selector
+              cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+          recordVar:
+            name: selector_id
+            responsePath: id
+      - name: 003-create-name-selector-control-plane
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: e2e-deck-external-name
+              cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+
+  - name: 001-plan-and-apply
+    inputOverlayDirs:
+      - overlays/001-external
+    commands:
+      - name: 000-reject-missing-managed-name
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/missing-name.yaml"
+        expectFailure:
+          exitCode: 1
+          contains: "name is required for control plane managed-without-name"
+      - name: 001-plan-external-deck
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan.json"
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/external.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 3
+                "length([?resource_type=='control_plane'])": 0
+                "length([?resource_type=='_deck'])": 3
+          - select: "changes[?resource_ref=='external-by-id'] | [0]"
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+                fields.control_plane_id: "{{ .vars.direct_id }}"
+                fields.control_plane_name: e2e-deck-external-id
+          - select: "changes[?resource_ref=='external-by-id-selector'] | [0]"
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+                fields.control_plane_id: "{{ .vars.selector_id }}"
+                fields.control_plane_name: e2e-deck-external-selector
+          - select: "changes[?resource_ref=='external-by-name-selector'] | [0]"
+            expect:
+              fields:
+                action: EXTERNAL_TOOL
+                fields.control_plane_name: e2e-deck-external-name
+      - name: 002-apply-saved-plan
+        outputFormat: json
+        stdinFile: "{{ .workdir }}/plan.json"
+        run:
+          - apply
+          - --plan
+          - "-"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                applied: 3
+                status: success
+
+  - name: 002-verify-services
+    skipInputs: true
+    commands:
+      - name: 000-get-id-service
+        run:
+          - get
+          - gateway
+          - control-plane
+          - services
+          - --control-plane-name
+          - e2e-deck-external-id
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='external-deck-service']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 001-get-selector-service
+        run:
+          - get
+          - gateway
+          - control-plane
+          - services
+          - --control-plane-name
+          - e2e-deck-external-selector
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='external-deck-service']"
+            expect:
+              fields:
+                "length(@)": 1
+      - name: 002-get-name-service
+        run:
+          - get
+          - gateway
+          - control-plane
+          - services
+          - --control-plane-name
+          - e2e-deck-external-name
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='external-deck-service']"
+            expect:
+              fields:
+                "length(@)": 1
+
+  - name: 003-idempotent-plan
+    inputOverlayDirs:
+      - overlays/001-external
+    commands:
+      - name: 000-plan-again
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/external.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 004-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

@@ -1,0 +1,23 @@
+control_planes:
+  - ref: external-by-id
+    _external:
+      id: "{{ .vars.direct_id }}"
+    _deck:
+      files: [gateway.yaml]
+      flags: ["--analytics=false"]
+  - ref: external-by-id-selector
+    _external:
+      selector:
+        matchFields:
+          id: "{{ .vars.selector_id }}"
+    _deck:
+      files: [gateway.yaml]
+      flags: ["--analytics=false"]
+  - ref: external-by-name-selector
+    _external:
+      selector:
+        matchFields:
+          name: e2e-deck-external-name
+    _deck:
+      files: [gateway.yaml]
+      flags: ["--analytics=false"]

@@ -3,6 +3,7 @@ package resources
 import (
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,13 +22,22 @@ func TestControlPlaneResourceExternalDoesNotDefaultManagedName(t *testing.T) {
 	require.NoError(t, cp.Validate())
 }
 
-func TestControlPlaneResourceManagedDefaultsNameToRef(t *testing.T) {
+func TestControlPlaneResourceManagedRequiresExplicitName(t *testing.T) {
 	t.Parallel()
 
-	cp := ControlPlaneResource{
-		BaseResource: BaseResource{Ref: "managed-control-plane"},
+	for _, name := range []string{"", " \t", "konnect-control-plane"} {
+		t.Run(name, func(t *testing.T) {
+			cp := ControlPlaneResource{
+				BaseResource:              BaseResource{Ref: "managed-control-plane"},
+				CreateControlPlaneRequest: kkComps.CreateControlPlaneRequest{Name: name},
+			}
+			cp.SetDefaults()
+			require.Equal(t, name, cp.Name)
+			if name == "konnect-control-plane" {
+				require.NoError(t, cp.Validate())
+			} else {
+				require.ErrorContains(t, cp.Validate(), "name is required for control plane managed-control-plane")
+			}
+		})
 	}
-	cp.SetDefaults()
-	require.False(t, cp.IsExternal())
-	require.Equal(t, "managed-control-plane", cp.Name)
 }

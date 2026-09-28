@@ -396,7 +396,7 @@ func TestPlanDeckExternalControlPlaneUsesResolvedKonnectName(t *testing.T) {
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 
-	err := planner.planDeckDependencies(context.Background(), rs, plan, Options{
+	err := planner.planDeckDependencies(t.Context(), rs, plan, Options{
 		Mode: PlanModeApply,
 		Deck: DeckOptions{
 			Runner: runner, KonnectToken: "token", KonnectAddress: "https://api.konghq.com",
