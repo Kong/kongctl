@@ -53,10 +53,30 @@ steps:
             expect:
               fields:
                 "contains(keys(@), 'ai_gateway')": true
-          - select: "length(oneOf)"
+          - select: "sort(oneOf[].properties.type.const)"
             expect:
               fields:
-                "@": 19
+                "@":
+                  - anthropic
+                  - azure
+                  - bedrock
+                  - cerebras
+                  - cohere
+                  - dashscope
+                  - databricks
+                  - deepseek
+                  - gemini
+                  - huggingface
+                  - kimi
+                  - llama2
+                  - mistral
+                  - ollama
+                  - openai
+                  - sagemaker
+                  - typesafe
+                  - vercel
+                  - vllm
+                  - xai
           - select: >-
               oneOf[?properties.type.const=='openai'] | [0].properties.config.properties.auth.properties
             expect:
