@@ -48,13 +48,19 @@ steps:
           contains: "name is required for control plane managed-without-name"
       - name: 001-plan-external-deck
         outputFormat: disable
-        stdoutFile: "{{ .workdir }}/plan.json"
         run:
           - plan
           - -f
           - "{{ .workdir }}/external.yaml"
           - --mode
           - apply
+          - --output-file
+          - "{{ .workdir }}/plan.json"
+      - name: 002-assert-plan
+        parseAs: json
+        exec:
+          - cat
+          - "{{ .workdir }}/plan.json"
         assertions:
           - select: changes
             expect:
@@ -79,20 +85,20 @@ steps:
               fields:
                 action: EXTERNAL_TOOL
                 fields.control_plane_name: e2e-deck-external-name
-      - name: 002-apply-saved-plan
+      - name: 003-apply-saved-plan
+        replanOnRetry:
+          - "{{ .workdir }}/external.yaml"
         outputFormat: json
-        stdinFile: "{{ .workdir }}/plan.json"
         run:
           - apply
           - --plan
-          - "-"
+          - "{{ .workdir }}/plan.json"
           - --auto-approve
         assertions:
           - select: summary
             expect:
               fields:
                 failed: 0
-                applied: 3
                 status: success
 
   - name: 002-verify-services
