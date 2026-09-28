@@ -277,8 +277,9 @@ Retry-Safe Assertion Review
   retryable sync completion, grouped version/publication/team-role readbacks,
   read-only convergence, and existing deletion readbacks. Its scoped `get`
   commands produce immutable snapshots; they do not poll assertion mismatches.
-  The current `source.get` supports a single resource argument, not a command
-  with flags. Do not imply that a standalone `get` assertion polls fresh state.
+  `source.get` supports whitespace-separated resource paths such as
+  `gateway control-planes`; it does not parse shell quoting. A standalone
+  `get` assertion does not poll fresh state.
 - Before extending the pattern, record the command-count delta and compare
   HTTP request counts and runner time in comparable live runs. Extra plans can
   perform many inventory reads; command count is not network-request count.
@@ -288,7 +289,8 @@ Selectors and Sources
 - Use JMESPath to target the object/array/scalar you want to compare.
 - Default source is the parent command’s JSON stdout.
 - Set `source.get: "<resource>"` to run a fresh `kongctl get <resource>`
-  for the assertion.
+  for the assertion. Nested resource paths such as `gateway control-planes`
+  are supported.
 - Set `source.artifact.path` to read a captured command artifact relative to
   the parent command directory. JSON and YAML files are auto-parsed by
   extension; other files are exposed as an object with a `text` field. Use
