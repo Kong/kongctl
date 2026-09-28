@@ -119,3 +119,17 @@ func TestStoredEnvOptionsAndNesting(t *testing.T) {
 		require.ErrorContains(t, validateNestedTags(doc.Content[0]), "stored environment values are not supported")
 	}
 }
+
+func TestEnvStoreBooleanSpellings(t *testing.T) {
+	for _, spelling := range []string{"true", "True", "TRUE", "false", "False", "FALSE"} {
+		t.Run(spelling, func(t *testing.T) {
+			var doc yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte("!env {var: VALUE, store: "+spelling+"}"), &doc))
+			opts, err := ParseEnvOptions(doc.Content[0])
+			require.NoError(t, err)
+			want := spelling == "true" || spelling == "True" || spelling == "TRUE"
+			require.Equal(t, want, opts.Store)
+			require.Equal(t, want, IsStoredEnvNode(doc.Content[0]))
+		})
+	}
+}

@@ -30,7 +30,7 @@ func IsStoredEnvNode(node *yaml.Node) bool {
 		return false
 	}
 	for i := 0; i+1 < len(node.Content); i += 2 {
-		if node.Content[i].Value == "store" && node.Content[i+1].Value != "false" {
+		if node.Content[i].Value == "store" && !strings.EqualFold(node.Content[i+1].Value, "false") {
 			return true
 		}
 	}
@@ -50,10 +50,9 @@ func ParseEnvOptions(node *yaml.Node) (EnvOptions, error) {
 			seen[key.Value] = true
 			switch key.Value {
 			case "store":
-				if value.Tag != "!!bool" || (value.Value != "true" && value.Value != "false") {
+				if value.Tag != "!!bool" || value.Decode(&opts.Store) != nil {
 					return opts, fmt.Errorf("!env store must be a boolean true or false")
 				}
-				opts.Store = value.Value == "true"
 			case "type", "var", "extract":
 				if value.Kind != yaml.ScalarNode || (value.Tag != "!!str" && value.Tag != "") {
 					return opts, fmt.Errorf("!env %s must be a string (quote the type name \"null\")", key.Value)

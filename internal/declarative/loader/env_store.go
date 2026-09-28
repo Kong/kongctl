@@ -96,7 +96,12 @@ func resolveStoredEnvValue(node *yaml.Node, destinations []reflect.Type) error {
 	}
 	// The SDK decoder remains authoritative for destination validation, including
 	// narrower integer ranges, enum values, and custom JSON representations.
-	return node.Encode(value)
+	anchor := node.Anchor
+	if err := node.Encode(value); err != nil {
+		return err
+	}
+	node.Anchor = anchor
+	return nil
 }
 
 func storedIdentityField(parents []reflect.Type, key string) bool {

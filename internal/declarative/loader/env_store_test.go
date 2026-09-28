@@ -42,6 +42,20 @@ portals:
 	}
 }
 
+func TestStoredEnvAnchorAlias(t *testing.T) {
+	t.Setenv("STORED_ANCHOR", "approved description")
+	input := `portals:
+  - ref: stored
+    name: stored
+    description: &description !env {var: STORED_ANCHOR, store: true}
+    display_name: *description
+`
+	rs, err := New().parseYAML(strings.NewReader(input), "anchor.yaml", "")
+	require.NoError(t, err)
+	require.Equal(t, "approved description", *rs.Portals[0].Description)
+	require.Equal(t, "approved description", *rs.Portals[0].DisplayName)
+}
+
 func TestStoredEnvCrossFileTemplate(t *testing.T) {
 	t.Setenv("STORED_TEMPLATE_BOOL", "true")
 	templates := writeLoaderTestFile(t, `_templates:
