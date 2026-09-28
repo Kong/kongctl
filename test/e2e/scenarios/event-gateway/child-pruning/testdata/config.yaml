@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-child-pruning-test
+
+event_gateways:
+  - ref: pruning-gateway
+    name: event-gateway-child-pruning-test
+    backend_clusters:
+      - ref: pruning-backend
+        name: pruning-backend
+        bootstrap_servers:
+          - kafka.example.com:9092
+        authentication:
+          type: anonymous
+        insecure_allow_anonymous_virtual_cluster_auth: true
+        tls:
+          enabled: false
+    virtual_clusters:
+      - ref: pruning-virtual
+        name: pruning-virtual
+        destination:
+          id: !ref pruning-backend#id
+        authentication:
+          - type: anonymous
+        acl_mode: passthrough
+        dns_label: pruning

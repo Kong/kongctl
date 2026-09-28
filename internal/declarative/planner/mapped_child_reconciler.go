@@ -15,6 +15,7 @@ type mappedChildOperations[D, C any] struct {
 // ordering guarantee and visits only the indexed observation for each name.
 // This differs from pruning every item of an ordered observation collection.
 func reconcileMappedChildren[D, C any](
+	p *Planner,
 	desired []D,
 	currentByName map[string]C,
 	ops mappedChildOperations[D, C],
@@ -27,6 +28,9 @@ func reconcileMappedChildren[D, C any](
 		var err error
 		if current, exists := currentByName[name]; exists {
 			err = ops.matched(item, current)
+			if err == nil {
+				p.recordMatchedIdentity(&item, current)
+			}
 		} else {
 			err = ops.create(item)
 		}

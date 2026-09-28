@@ -122,7 +122,11 @@ func (r *ResolverRegistry) processNode(node *yaml.Node) error {
 				}
 			}
 		}
-	case yaml.ScalarNode, yaml.AliasNode:
+	case yaml.ScalarNode:
+		if node.Tag == "!!str" || node.Tag == "" {
+			node.Value = ProtectReferenceLiteral(node.Value)
+		}
+	case yaml.AliasNode:
 		// Scalar and alias nodes don't have children to process
 		// Nothing to do here
 	}
@@ -169,6 +173,15 @@ func validateNestedContent(node *yaml.Node, outerTag string, direct bool) error 
 				return err
 			}
 			if i+1 >= len(node.Content) {
+				continue
+			}
+
+			value := node.Content[i+1]
+			if direct && (outerTag == TagLookup || outerTag == TagExternal) &&
+				key.Value == "parent" && (value.Tag == TagLookup || value.Tag == TagExternal) {
+				if err := validateNestedTags(value); err != nil {
+					return err
+				}
 				continue
 			}
 

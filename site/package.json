@@ -24,11 +24,11 @@
   "devDependencies": {
     "@astrojs/check": "0.9.10",
     "@playwright/test": "1.63.0",
-    "@types/node": "24.13.4",
+    "@types/node": "24.13.5",
     "jsdom": "30.0.1",
-    "prettier": "3.9.6",
+    "prettier": "3.9.7",
     "prettier-plugin-astro": "1.0.0",
     "typescript": "6.0.3",
-    "vitest": "5.0.0"
+    "vitest": "5.0.1"
   }
 }

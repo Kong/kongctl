@@ -7,10 +7,9 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
-// CurrentPlanVersion is the only plan format version accepted by this build.
-// Plans are intentionally rejected rather than migrated when their serialized
-// contract is not compatible with the current planner-to-executor boundary.
-const CurrentPlanVersion = "1.0"
+// CurrentPlanVersion adds explicit payload reference bindings. Version 1.0 plans
+// remain readable; older executors reject 1.1 rather than ignore its bindings.
+const CurrentPlanVersion = "1.1"
 
 // ValidatePlanCompatibility validates the portion of the serialized plan
 // contract that is independent of executor SDK request types.
@@ -21,7 +20,7 @@ func ValidatePlanCompatibility(plan *Plan) error {
 	if plan.Metadata.Version == "" {
 		return fmt.Errorf("invalid plan: missing version")
 	}
-	if plan.Metadata.Version != CurrentPlanVersion {
+	if plan.Metadata.Version != CurrentPlanVersion && plan.Metadata.Version != "1.0" {
 		return fmt.Errorf(
 			"plan version %q is not supported by this kongctl version; regenerate the plan",
 			plan.Metadata.Version,

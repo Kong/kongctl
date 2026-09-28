@@ -190,6 +190,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change plan
 
 	// Create resource
 	resourceName := common.ExtractResourceName(change.Fields)
+	if err := validateResolvedRequest(ctx, &create); err != nil {
+		return "", fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
+	}
 	id, err := b.ops.Create(ctx, create, change.Namespace, execCtx)
 	if err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "create", err)
@@ -254,6 +257,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	}
 
 	// Update resource
+	if err := validateResolvedRequest(ctx, &update); err != nil {
+		return "", fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
+	}
 	id, err := b.ops.Update(ctx, change.ResourceID, update, change.Namespace, execCtx)
 	if err != nil {
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "update", err)
