@@ -328,6 +328,18 @@ func (c *CLI) runCommand(
 	finalArgs := append([]string{}, args...)
 
 	if injectFlags {
+		// Pin the harness config even when the host sets KONGCTL_CONFIG_FILE.
+		haveConfig := false
+		for _, arg := range finalArgs {
+			if arg == "--config-file" || strings.HasPrefix(arg, "--config-file=") {
+				haveConfig = true
+				break
+			}
+		}
+		if !haveConfig && c.ConfigDir != "" {
+			finalArgs = append(finalArgs, "--config-file", filepath.Join(c.ConfigDir, "kongctl", "config.yaml"))
+		}
+
 		// Auto-append --profile unless already set in args.
 		haveProfile := false
 		for i := range finalArgs {

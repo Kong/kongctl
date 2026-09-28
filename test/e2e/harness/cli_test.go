@@ -7,9 +7,57 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/stretchr/testify/require"
 )
+
+func TestCLIConfigFileIsolation(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "print-args")
+	// The subprocess fixture must be executable by its owner.
+	err := os.WriteFile(bin, []byte("#!/bin/sh\nprintf '%s\\n' \"$@\"\n"), 0o700) //nolint:gosec
+	require.NoError(t, err)
+	t.Setenv("KONGCTL_CONFIG_FILE", filepath.Join(dir, "workspace.yaml"))
+	configDir := filepath.Join(dir, "harness config")
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		inject bool
+		want   []string
+	}{
+		{
+			name: "inherited config overridden", args: []string{"get", "apis"}, inject: true,
+			want: []string{
+				"get", "apis", "--config-file", filepath.Join(configDir, "kongctl", "config.yaml"),
+				"--profile", "e2e",
+			},
+		},
+		{
+			name: "explicit config preserved", args: []string{"get", "apis", "--config-file", "custom.yaml"},
+			inject: true, want: []string{"get", "apis", "--config-file", "custom.yaml", "--profile", "e2e"},
+		},
+		{
+			name: "equals config preserved", args: []string{"get", "apis", "--config-file=custom.yaml"},
+			inject: true, want: []string{"get", "apis", "--config-file=custom.yaml", "--profile", "e2e"},
+		},
+		{
+			name: "external command unchanged", args: []string{"external"}, want: []string{"external"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cli := &CLI{ConfigDir: configDir, Profile: "e2e", Env: os.Environ()}
+			result, err := cli.runCommand(t.Context(), bin, tc.args, nil, tc.inject, "", time.Second*10)
+			require.NoError(t, err)
+			want := tc.want
+			if tc.inject && captureEnabled {
+				want = append(want, "--log-file", filepath.Join(configDir, "logs", "cmd-000001.log"))
+			}
+			require.Equal(t, want, strings.Split(strings.TrimSpace(result.Stdout), "\n"))
+		})
+	}
+}
 
 func TestWriteProfileConfigIncludesHTTPSettings(t *testing.T) {
 	clearKonnectTargetEnv(t)
