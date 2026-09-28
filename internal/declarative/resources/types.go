@@ -222,6 +222,8 @@ type ResourceSet struct {
 	DefaultNamespaces []string `yaml:"-"                                                        json:"-"`
 	// EnvSources tracks deferred !env placeholders by resource ref and field path.
 	EnvSources map[string]map[string]string `yaml:"-"                                                        json:"-"`
+	// LiteralSources identifies ordinary YAML strings resembling reference encodings.
+	LiteralSources map[string]map[string]string `yaml:"-" json:"-"`
 	// SecretSources tracks deferred write-only values by resource ref and field path.
 	SecretSources map[string]map[string]SecretSourceDeclaration `yaml:"-" json:"-"`
 	// SyncScope tracks resource collection keys explicitly present in the input.

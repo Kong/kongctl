@@ -119,7 +119,7 @@ portals:
 	require.NoError(t, json.Unmarshal(planData, &plan))
 
 	// Verify plan structure
-	assert.Equal(t, "1.0", plan.Metadata.Version)
+	assert.Equal(t, planner.CurrentPlanVersion, plan.Metadata.Version)
 	assert.NotEmpty(t, plan.Metadata.GeneratedAt)
 	assert.Contains(t, plan.Metadata.Generator, "kongctl")
 

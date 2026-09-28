@@ -111,7 +111,7 @@ portals:
 	require.NoError(t, json.Unmarshal(planData, &plan))
 
 	// Verify plan structure
-	assert.Equal(t, "1.0", plan.Metadata.Version)
+	assert.Equal(t, planner.CurrentPlanVersion, plan.Metadata.Version)
 	assert.NotEmpty(t, plan.Metadata.GeneratedAt)
 
 	// Verify changes - the file tag should have been processed
@@ -227,7 +227,7 @@ apis:
 	require.NoError(t, json.Unmarshal(planData, &plan))
 
 	// Verify plan structure
-	assert.Equal(t, "1.0", plan.Metadata.Version)
+	assert.Equal(t, planner.CurrentPlanVersion, plan.Metadata.Version)
 
 	// Verify changes - the file tag should have been processed with correct relative path
 	assert.Len(t, plan.Changes, 1)
@@ -348,7 +348,7 @@ apis:
 	require.NoError(t, json.Unmarshal(planData, &plan))
 
 	// Verify plan structure
-	assert.Equal(t, "1.0", plan.Metadata.Version)
+	assert.Equal(t, planner.CurrentPlanVersion, plan.Metadata.Version)
 
 	// Should have 2 changes: 1 portal + 1 API
 	assert.Len(t, plan.Changes, 2)

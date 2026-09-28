@@ -106,6 +106,9 @@ func (b *BaseCreateDeleteExecutor[TCreate]) Create(ctx context.Context, change p
 	}
 
 	// Create resource
+	if err := validateResolvedRequest(ctx, &create); err != nil {
+		return "", fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
+	}
 	id, err := b.ops.Create(ctx, create, change.Namespace, execCtx)
 	if err != nil {
 		return "", fmt.Errorf("failed to create %s: %w", b.ops.ResourceType(), err)
@@ -186,6 +189,9 @@ func (b *BaseSingletonExecutor[TUpdate]) Update(ctx context.Context, change plan
 	}
 
 	// Update resource
+	if err := validateResolvedRequest(ctx, &update); err != nil {
+		return "", fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
+	}
 	err := b.ops.Update(ctx, parentID, update)
 	if err != nil {
 		return "", fmt.Errorf("failed to update %s: %w", b.ops.ResourceType(), err)

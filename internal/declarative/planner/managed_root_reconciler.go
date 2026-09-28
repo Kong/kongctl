@@ -92,6 +92,7 @@ func (r *managedRootReconciler[D, C]) reconcile(desired managedRoot[D], current 
 	if current == nil {
 		return r.operations.create(desired.resource, r.plan)
 	}
+	r.base.planner.recordMatchedIdentity(&desired.resource, current.resource)
 	needsUpdate, updateFields, changedFields := r.operations.diff(current.resource, desired.resource)
 	if current.protected != desired.protected {
 		change := &ProtectionChange{Old: current.protected, New: desired.protected}
