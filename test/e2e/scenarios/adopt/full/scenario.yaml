@@ -170,6 +170,17 @@ steps:
                 namespace: "{{ .vars.overwrite_namespace }}"
                 id: "{{ .vars.cp_id }}"
                 resource_type: control_plane
+          - name: control-plane-namespace-visible
+            source:
+              get: gateway control-planes
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: "[?id=='{{ .vars.cp_id }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "{{ .vars.overwrite_namespace }}"
       - name: overwrite-portal-namespace
         run:
           - adopt

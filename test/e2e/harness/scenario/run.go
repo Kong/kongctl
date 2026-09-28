@@ -1835,7 +1835,7 @@ func resolveAssertionSource(
 		// Run a fresh read-only command, carefully tracking the command capture dir to relocate under retries
 		prevCmdDir := cli.LastCommandDir
 		defer func() { cli.LastCommandDir = prevCmdDir }()
-		args := []string{"get", as.Source.Get}
+		args := append([]string{"get"}, strings.Fields(as.Source.Get)...)
 		if len(as.Source.Plan) > 0 {
 			args = []string{"plan"}
 			for _, arg := range as.Source.Plan {
