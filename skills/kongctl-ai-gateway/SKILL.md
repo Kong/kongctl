@@ -98,14 +98,27 @@ For other providers or policies, use targeted discovery and the current
   offline validation flag, substitute a fake API endpoint, or claim generic
   YAML lint proves native schema, references or deployment success.
 
-Once the target and execution are authorized, produce and inspect a saved
-plan, then execute that same file:
+Prepare a saved plan and show its diff before requesting execution approval:
 
 ```sh
 mkdir -p .plans .artifacts
 kongctl plan --mode apply -f ai-gateway.yaml \
   --require-namespace ai-demo --output-file .plans/apply.json
 kongctl diff --plan .plans/apply.json
+```
+
+Present the proposed additions, updates, deletions and secret writes with
+the target organization ID, region and namespace. Ask the user to approve
+that concrete saved plan before applying it or dispatching CI. A general
+request to set up a gateway does not replace this plan-review checkpoint.
+Shell permissions, sandbox escalation and automatic tool approval authorize
+command execution; they do not establish human approval of the plan.
+Reuse explicit approval already given for that exact plan and target;
+do not ask again merely because a command needs execution permission.
+
+After approval, execute the same saved file:
+
+```sh
 kongctl apply --plan .plans/apply.json -o json --auto-approve \
   --execution-report-file .artifacts/apply-report.json
 ```

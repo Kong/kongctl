@@ -100,6 +100,11 @@ state is the best source of truth, such as when adopting existing resources.
   provide a concise command sequence and decision notes.
 - Execute commands directly when the user asks the agent to run them.
 - Before any mutating run, state the intended effect in plain language.
+- When the selected workflow requires saved-plan review, present the diff
+  and target identity and obtain approval of that concrete plan before
+  execution. Shell permissions or automatic tool approval do not replace
+  human plan approval. Reuse approval already given for the same plan and
+  target; follow the specialized skill's review boundary when one applies.
 - Choose path from user intent:
   - Preview/review/audit/CI request: use explicit plan artifacts.
   - "Do it now" execution request: use inline commands.
