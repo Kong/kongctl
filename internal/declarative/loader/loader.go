@@ -276,7 +276,6 @@ func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir strin
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))
 	placeholderRegistry.Register(tags.NewEnvTagResolver(tags.EnvTagModePlaceholder))
-	placeholderRegistry.Register(tags.NewStoredEnvTagResolver())
 	placeholderRegistry.Register(tags.NewSecretTagResolverWithFileScope(baseDir, tagRootDir))
 
 	placeholderContent, err := placeholderRegistry.Process(rawContent)

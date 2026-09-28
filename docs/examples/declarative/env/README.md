@@ -2,9 +2,9 @@
 
 ## Stored typed values
 
-`stored.yaml` demonstrates `store: true`, the equivalent `!env_store`
-shorthand, inferred boolean conversion, and structured extraction. Stored
-values appear as plaintext in saved plans and may appear in plan/diff output.
+`stored.yaml` demonstrates `!env` with `store: true`, inferred boolean
+conversion, and structured extraction. Stored values appear as plaintext in
+saved plans and may appear in plan/diff output.
 Use them for non-sensitive configuration.
 
 ```bash
@@ -37,9 +37,9 @@ Known SDK types are inferred. Unknown or ambiguous destinations require a
 ```yaml
 config:
   redis:
-    ssl: !env_store {var: REDIS_SSL, type: boolean}
-    ssl_verify: !env_store {var: REDIS_SSL_VERIFY, type: boolean}
-  sync_rate: !env_store {var: SYNC_RATE, type: number}
+    ssl: !env {store: true, var: REDIS_SSL, type: boolean}
+    ssl_verify: !env {store: true, var: REDIS_SSL_VERIFY, type: boolean}
+  sync_rate: !env {store: true, var: SYNC_RATE, type: number}
 ```
 
 See the [conversion contract][stored-env]

@@ -19,8 +19,8 @@ func TestStoredEnvDiffPreservesTypesAndApprovedValues(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte(`portals:
   - ref: stored
     name: stored
-    description: !env_store STORED_DIFF_DESCRIPTION
-    auto_approve_developers: !env_store STORED_DIFF_BOOL
+    description: !env {var: STORED_DIFF_DESCRIPTION, store: true}
+    auto_approve_developers: !env {var: STORED_DIFF_BOOL, store: true}
 `), 0o600))
 	rs, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
 	require.NoError(t, err)

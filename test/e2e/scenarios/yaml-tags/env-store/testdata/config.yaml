@@ -6,5 +6,5 @@ portals:
   - ref: stored-portal
     name: stored-portal
     description: !env {var: KONGCTL_E2E_STORED_DESCRIPTION, store: true}
-    auto_approve_developers: !env_store KONGCTL_E2E_STORED_ENABLED
-    labels: !env_store {var: KONGCTL_E2E_STORED_METADATA, extract: labels}
+    auto_approve_developers: !env {var: KONGCTL_E2E_STORED_ENABLED, store: true}
+    labels: !env {store: true, var: KONGCTL_E2E_STORED_METADATA, extract: labels}

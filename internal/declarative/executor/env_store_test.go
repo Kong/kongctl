@@ -23,7 +23,7 @@ func TestStoredEnvPlanExecutesApprovedValues(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte(`portals:
   - ref: stored
     name: stored
-    description: !env_store STORED_EXEC_DESCRIPTION
+    description: !env {var: STORED_EXEC_DESCRIPTION, store: true}
     auto_approve_developers: !env {var: STORED_EXEC_ENABLED, store: true}
 `), 0o600))
 	rs, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
@@ -81,7 +81,7 @@ func TestStoredEnvStructuredPayloadRoundTrip(t *testing.T) {
         name: rate
         display_name: Rate
         type: rate-limiting
-        config: !env_store STORED_EXEC_CONFIG
+        config: !env {var: STORED_EXEC_CONFIG, store: true}
 `), 0o600))
 	rs, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
 	require.NoError(t, err)

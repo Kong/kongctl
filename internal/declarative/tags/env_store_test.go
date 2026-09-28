@@ -38,18 +38,19 @@ func TestStoredEnvTypes(t *testing.T) {
 					raw, path = string(encoded), "value"
 				}
 				t.Setenv("STORED_VALUE", raw)
-				for _, spelling := range []string{"!env {var: STORED_VALUE, store: true,", "!env_store {var: STORED_VALUE,"} {
-					var doc yaml.Node
-					require.NoError(
-						t,
-						yaml.Unmarshal(fmt.Appendf(nil, "%s type: %q, extract: %q}", spelling, tc.kind, path), &doc),
-					)
-					opts, err := ParseEnvOptions(doc.Content[0])
-					require.NoError(t, err)
-					actual, err := ResolveStoredEnv(opts, opts.Type)
-					require.NoError(t, err)
-					require.Equal(t, tc.want, actual)
-				}
+				var doc yaml.Node
+				require.NoError(
+					t,
+					yaml.Unmarshal(
+						fmt.Appendf(nil, "!env {var: STORED_VALUE, store: true, type: %q, extract: %q}", tc.kind, path),
+						&doc,
+					),
+				)
+				opts, err := ParseEnvOptions(doc.Content[0])
+				require.NoError(t, err)
+				actual, err := ResolveStoredEnv(opts, opts.Type)
+				require.NoError(t, err)
+				require.Equal(t, tc.want, actual)
 			}
 		})
 	}
@@ -99,11 +100,11 @@ func TestStoredEnvInvalidValues(t *testing.T) {
 
 func TestStoredEnvOptionsAndNesting(t *testing.T) {
 	for _, input := range []string{
-		"!env_store", "!env_store {var: FOO, store: false}",
+		"!env {store: true}",
 		"!env {var: FOO, store: yes}", "!env {var: FOO, store: 'true'}",
-		"!env {var: FOO, type: string}", "!env_store {var: FOO, type: auto}",
-		"!env_store {var: FOO, type: null}", "!env_store {var: FOO, eager: true}",
-		"!env_store {var: FOO, var: BAR}", "!env_store FOO#",
+		"!env {var: FOO, type: string}", "!env {store: true, var: FOO, type: auto}",
+		"!env {store: true, var: FOO, type: null}", "!env {store: true, var: FOO, eager: true}",
+		"!env {store: true, var: FOO, var: BAR}", "!env FOO#",
 	} {
 		t.Run(input, func(t *testing.T) {
 			var doc yaml.Node
@@ -113,10 +114,8 @@ func TestStoredEnvOptionsAndNesting(t *testing.T) {
 		})
 	}
 	for _, outer := range []string{TagSecret, TagLookup, TagExternal} {
-		for _, inner := range []string{"!env_store FOO", "!env {var: FOO, store: true}"} {
-			var doc yaml.Node
-			require.NoError(t, yaml.Unmarshal([]byte(outer+" {source: "+inner+"}"), &doc))
-			require.ErrorContains(t, validateNestedTags(doc.Content[0]), "stored environment values are not supported")
-		}
+		var doc yaml.Node
+		require.NoError(t, yaml.Unmarshal([]byte(outer+" {source: !env {var: FOO, store: true}}"), &doc))
+		require.ErrorContains(t, validateNestedTags(doc.Content[0]), "stored environment values are not supported")
 	}
 }

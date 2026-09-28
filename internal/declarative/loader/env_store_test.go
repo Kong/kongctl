@@ -15,15 +15,14 @@ func TestStoredEnvSDKFieldsAndTemplates(t *testing.T) {
 	t.Setenv("STORED_LABELS", `{"owner":"42"}`)
 	t.Setenv("DEFERRED_DISPLAY", "display")
 	for _, tag := range []string{
-		"!env_store STORED_ENABLED",
 		"!env {var: STORED_ENABLED, store: true}",
 		"!env\n      var: STORED_ENABLED\n      store: true",
 	} {
 		input := `
 _templates:
   portal_defaults:
-    description: !env_store STORED_DESCRIPTION
-    labels: !env_store STORED_LABELS
+    description: !env {var: STORED_DESCRIPTION, store: true}
+    labels: !env {var: STORED_LABELS, store: true}
 portals:
   - ref: stored
     _extends: portal_defaults
@@ -47,7 +46,7 @@ func TestStoredEnvCrossFileTemplate(t *testing.T) {
 	t.Setenv("STORED_TEMPLATE_BOOL", "true")
 	templates := writeLoaderTestFile(t, `_templates:
   stored:
-    auto_approve_developers: !env_store STORED_TEMPLATE_BOOL
+    auto_approve_developers: !env {var: STORED_TEMPLATE_BOOL, store: true}
 `)
 	consumer := writeLoaderTestFile(t, `portals:
   - ref: stored
@@ -74,10 +73,10 @@ func TestStoredEnvDynamicPolicyConfig(t *testing.T) {
     type: rate-limiting
     config:
       redis:
-        ssl: !env_store {var: STORED_BOOL, type: boolean}
+        ssl: !env {store: true, var: STORED_BOOL, type: boolean}
         ssl_verify: !env {var: STORED_BOOL, store: true, type: boolean}
-      sync_rate: !env_store {var: STORED_RATE, type: number}
-      extra: !env_store {var: STORED_OBJECT, type: object}
+      sync_rate: !env {store: true, var: STORED_RATE, type: number}
+      extra: !env {store: true, var: STORED_OBJECT, type: object}
 `
 	rs, err := New().parseYAML(strings.NewReader(input), "policy.yaml", "")
 	require.NoError(t, err)
@@ -114,13 +113,13 @@ func TestStoredEnvTypeInference(t *testing.T) {
 		Union   union             `json:"union"`
 	}
 	for _, tc := range []struct{ input, raw, wantErr string }{
-		{"known: !env_store VALUE", "42", ""},
-		{"numbers: [!env_store VALUE]", "42", ""},
-		{"labels: {owner: !env_store VALUE}", "true", ""},
-		{"dynamic: {value: !env_store VALUE}", "42", "cannot infer type"},
-		{"union: {value: !env_store VALUE}", "true", "cannot infer type"},
-		{"union: {value: !env_store {var: VALUE, type: boolean}}", "true", ""},
-		{"known: !env_store {var: VALUE, type: string}", "42", "conflicts"},
+		{"known: !env {var: VALUE, store: true}", "42", ""},
+		{"numbers: [!env {var: VALUE, store: true}]", "42", ""},
+		{"labels: {owner: !env {var: VALUE, store: true}}", "true", ""},
+		{"dynamic: {value: !env {var: VALUE, store: true}}", "42", "cannot infer type"},
+		{"union: {value: !env {var: VALUE, store: true}}", "true", "cannot infer type"},
+		{"union: {value: !env {store: true, var: VALUE, type: boolean}}", "true", ""},
+		{"known: !env {store: true, var: VALUE, type: string}", "42", "conflicts"},
 	} {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Setenv("VALUE", tc.raw)
@@ -138,13 +137,16 @@ func TestStoredEnvTypeInference(t *testing.T) {
 
 func TestStoredEnvRestrictions(t *testing.T) {
 	t.Setenv("VALUE", "value")
-	_, err := New().LoadFile(writeLoaderTestFile(t, portalSecretConfig("!env_store VALUE")))
+	_, err := New().LoadFile(writeLoaderTestFile(t, portalSecretConfig("!env {var: VALUE, store: true}")))
 	require.ErrorContains(t, err, "requires !secret with a deferred source")
 	for _, tc := range []struct{ input, message string }{
-		{"portals: [{ref: !env_store VALUE, name: portal}]", "not supported on refs"},
-		{"portals: [{ref: portal, name: portal, kongctl: {namespace: !env_store VALUE}}]", "kongctl.namespace"},
-		{"portals: [{ref: portal, name: portal, auto_approve_developers: !env_store VALUE}]", "expected boolean"},
-		{"portals: [{ref: portal, name: portal, description: !env_store {var: VALUE, type: boolean}}]", "conflicts"},
+		{"portals: [{ref: !env {var: VALUE, store: true}, name: portal}]", "not supported on refs"},
+		{"portals: [{ref: portal, name: portal, kongctl: {namespace: !env {var: VALUE, store: true}}}]", "kongctl.namespace"},
+		{
+			"portals: [{ref: portal, name: portal, auto_approve_developers: !env {var: VALUE, store: true}}]",
+			"expected boolean",
+		},
+		{"portals: [{ref: portal, name: portal, description: !env {store: true, var: VALUE, type: boolean}}]", "conflicts"},
 		{"portals: [{ref: portal, name: portal, description: !env {var: VALUE, store: 'false'}}]", "store must be a boolean"},
 	} {
 		_, err := New().parseYAML(strings.NewReader(tc.input), "invalid.yaml", "")
@@ -162,7 +164,7 @@ func TestStoredEnvSDKIntegerField(t *testing.T) {
         name: backend
         bootstrap_servers: ["localhost:9092"]
         authentication: {type: anonymous}
-        metadata_update_interval_seconds: !env_store STORED_INTERVAL
+        metadata_update_interval_seconds: !env {var: STORED_INTERVAL, store: true}
 `
 	rs, err := New().parseYAML(strings.NewReader(input), "integer.yaml", "")
 	require.NoError(t, err)

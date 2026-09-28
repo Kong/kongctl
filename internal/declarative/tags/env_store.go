@@ -21,25 +21,10 @@ type EnvOptions struct {
 	Store              bool
 }
 
-// StoredEnvTagResolver preserves !env_store until destination types are known.
-type StoredEnvTagResolver struct{}
-
-func NewStoredEnvTagResolver() *StoredEnvTagResolver { return &StoredEnvTagResolver{} }
-func (*StoredEnvTagResolver) Tag() string            { return TagEnvStore }
-func (*StoredEnvTagResolver) Resolve(node *yaml.Node) (any, error) {
-	if _, err := ParseEnvOptions(node); err != nil {
-		return nil, err
-	}
-	return node, nil
-}
-
 // IsStoredEnvNode reports syntactic opt-in; ParseEnvOptions validates the options.
 func IsStoredEnvNode(node *yaml.Node) bool {
 	if node == nil {
 		return false
-	}
-	if node.Tag == TagEnvStore {
-		return true
 	}
 	if node.Tag != TagEnv {
 		return false
@@ -52,9 +37,9 @@ func IsStoredEnvNode(node *yaml.Node) bool {
 	return false
 }
 
-// ParseEnvOptions validates both spellings without reading the environment.
+// ParseEnvOptions validates environment options without reading the environment.
 func ParseEnvOptions(node *yaml.Node) (EnvOptions, error) {
-	opts := EnvOptions{Store: node.Tag == TagEnvStore}
+	var opts EnvOptions
 	if node.Kind == yaml.MappingNode {
 		seen := map[string]bool{}
 		for i := 0; i+1 < len(node.Content); i += 2 {
@@ -69,9 +54,6 @@ func ParseEnvOptions(node *yaml.Node) (EnvOptions, error) {
 					return opts, fmt.Errorf("!env store must be a boolean true or false")
 				}
 				opts.Store = value.Value == "true"
-				if node.Tag == TagEnvStore && !opts.Store {
-					return opts, fmt.Errorf("!env_store conflicts with store: false")
-				}
 			case "type", "var", "extract":
 				if value.Kind != yaml.ScalarNode || (value.Tag != "!!str" && value.Tag != "") {
 					return opts, fmt.Errorf("!env %s must be a string (quote the type name \"null\")", key.Value)

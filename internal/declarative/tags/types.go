@@ -7,8 +7,6 @@ import "gopkg.in/yaml.v3"
 const (
 	// TagEnv identifies environment-backed values.
 	TagEnv = "!env"
-	// TagEnvStore identifies environment values retained in plans.
-	TagEnvStore = "!env_store"
 	// TagExternal identifies planner-time external lookups.
 	TagExternal = "!external"
 	// TagFile identifies file-backed values.

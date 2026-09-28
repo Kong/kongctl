@@ -8,5 +8,5 @@ portals:
     description: !env
       var: PORTAL_DESCRIPTION
       store: true
-    auto_approve_developers: !env_store PORTAL_AUTO_APPROVE
-    labels: !env_store {var: PORTAL_METADATA, extract: labels, type: object}
+    auto_approve_developers: !env {var: PORTAL_AUTO_APPROVE, store: true}
+    labels: !env {store: true, var: PORTAL_METADATA, extract: labels, type: object}
