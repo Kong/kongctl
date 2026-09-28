@@ -23,12 +23,22 @@ func init() {
 			}
 		}),
 		WithRootSyncScope(),
-		withCollectionValidation(40, namedCollectionValidation(func(r *ControlPlaneResource) string { return r.Name })),
+		withCollectionValidation(40, controlPlaneCollectionValidation),
 		withChildValidationPhase(90),
 	)
 }
 
 func (c *ControlPlaneResource) GetExternalBlock() *ExternalBlock { return c.External }
+
+func controlPlaneCollectionValidation(rs *ResourceSet) func(*ControlPlaneResource) error {
+	validateManaged := namedCollectionValidation(func(c *ControlPlaneResource) string { return c.Name })(rs)
+	return func(c *ControlPlaneResource) error {
+		if c.IsExternal() {
+			return validateCollectionResource(rs, c)
+		}
+		return validateManaged(c)
+	}
+}
 
 // ControlPlaneGroupMember represents a member entry for a control plane group.
 type ControlPlaneGroupMember struct {
@@ -73,6 +83,9 @@ func (c ControlPlaneResource) Validate() error {
 	if err := ValidateRef(c.Ref); err != nil {
 		return fmt.Errorf("invalid control plane ref: %w", err)
 	}
+	if !c.IsExternal() && strings.TrimSpace(c.Name) == "" {
+		return fmt.Errorf("name is required for control plane %s", c.Ref)
+	}
 
 	if len(c.GatewayServices) > 0 && c.IsGroup() {
 		return fmt.Errorf("control plane group %q cannot define gateway_services", c.Ref)
@@ -111,11 +124,6 @@ func (c ControlPlaneResource) Validate() error {
 
 // SetDefaults applies default values to control plane resource
 func (c *ControlPlaneResource) SetDefaults() {
-	// If Name is not set, use ref as default
-	if c.Name == "" {
-		c.Name = c.Ref
-	}
-
 	for i := range c.GatewayServices {
 		c.GatewayServices[i].SetDefaults()
 	}

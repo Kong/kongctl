@@ -1,0 +1,4 @@
+_format_version: "3.0"
+services:
+  - name: external-deck-service
+    url: https://api.kong-air.com/

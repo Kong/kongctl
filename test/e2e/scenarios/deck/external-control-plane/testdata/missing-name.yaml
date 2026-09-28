@@ -1,0 +1,2 @@
+control_planes:
+  - ref: managed-without-name
