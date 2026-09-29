@@ -53,11 +53,19 @@ func pruneAIGatewayVaultDefaultsMissingFromPeer(payload, peer map[string]any) {
 			delete(config, "base64_decode")
 		}
 	}
-	if payload[FieldType] == "aws" {
-		for _, key := range []string{"assume_role_arn", "endpoint_url", "sts_endpoint_url"} {
-			if _, exists := peerConfig[key]; !exists && stringValueEqual(config[key], "") {
-				delete(config, key)
-			}
+	var emptyStringDefaults []string
+	switch payload[FieldType] {
+	case "aws":
+		emptyStringDefaults = []string{"assume_role_arn", "endpoint_url", "sts_endpoint_url"}
+	case "hcv":
+		emptyStringDefaults = []string{"namespace"}
+		if config["auth_method"] == "aws_iam" {
+			emptyStringDefaults = append(emptyStringDefaults, "assume_role_arn", "sts_endpoint_url", "role_session_name")
+		}
+	}
+	for _, key := range emptyStringDefaults {
+		if _, exists := peerConfig[key]; !exists && stringValueEqual(config[key], "") {
+			delete(config, key)
 		}
 	}
 }
