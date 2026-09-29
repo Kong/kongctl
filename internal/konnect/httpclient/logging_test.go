@@ -540,6 +540,21 @@ func TestIsSensitiveFieldKey_CamelCaseTokenFields(t *testing.T) {
 	assert.False(t, isSensitiveFieldKey("tokenCount"))
 }
 
+func TestFieldAliasDisplayAndLogging(t *testing.T) {
+	for _, field := range []string{"pass", "passwords", "PASS", "Passwords"} {
+		t.Run(field, func(t *testing.T) {
+			assert.True(t, IsSensitiveFieldPath([]string{"config", field, "1"}))
+			input := map[string]any{field: []string{"retained-test-value", "trailing-test-value"}}
+			output := RedactSensitiveFields(input).(map[string]any)
+			assert.Equal(t, redactedValue, output[field])
+			assert.Equal(t, []string{"retained-test-value", "trailing-test-value"}, input[field])
+		})
+	}
+	for _, field := range []string{"pass_through", "bypass", "token_count"} {
+		assert.False(t, IsSensitiveFieldPath([]string{"config", field}))
+	}
+}
+
 func parseJSONLogs(t *testing.T, raw string) []map[string]any {
 	t.Helper()
 
