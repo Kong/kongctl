@@ -1,0 +1,486 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+defaults:
+  retry:
+    attempts: 1
+steps:
+  - name: create
+    commands:
+      - outputFormat: disable
+        name: plan-create
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: '@'
+            expect:
+              fields:
+                ? contains((changes[?resource_type=='ai_gateway_custom_policy'] | [0].depends_on), (changes[?resource_type=='ai_gateway']
+                  | [0].id))
+                : true
+                ? contains((changes[?resource_type=='ai_gateway_policy'] | [0].depends_on), (changes[?resource_type=='ai_gateway_custom_policy']
+                  | [0].id))
+                : true
+      - outputFormat: json
+        name: sync-create
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: read-created
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway custom-policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': e2e-stream-header
+                '[0].type': streaming
+                '[0].display_name': Initial streaming definition
+                '[0].schema': |
+                  return {
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                '[0].handler': |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.1.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "initial")
+                  end
+                  return plugin
+      - name: read-instance
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': header-instance
+                '[0].type': e2e-stream-header
+      - outputFormat: disable
+        name: converged
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: update
+    commands:
+      - outputFormat: disable
+        name: plan-update
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+      - outputFormat: json
+        name: sync-update
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: read-updated
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway custom-policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': e2e-stream-header
+                '[0].type': streaming
+                '[0].display_name': Updated streaming definition
+                '[0].schema': |
+                  return {
+                    -- updated schema
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                '[0].handler': |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+                  end
+                  return plugin
+      - name: get-by-name
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - e2e-stream-header
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                name: e2e-stream-header
+                type: streaming
+                display_name: Updated streaming definition
+                schema: |
+                  return {
+                    -- updated schema
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                handler: |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+                  end
+                  return plugin
+      - outputFormat: disable
+        name: converged
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: dump-and-reload
+    commands:
+      - outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        name: dump
+        run:
+          - dump
+          - declarative
+          - --resources=ai_gateways
+          - --include-child-resources
+          - --filter-name=custom-policy-e2e
+          - --default-namespace=ai-gateway-custom-policy-e2e
+        assertions:
+          - select: ai_gateways[?name=='custom-policy-e2e'] | [0]
+            expect:
+              fields:
+                length(custom_policies): 1
+                custom_policies[0].type: streaming
+                custom_policies[0].schema: |
+                  return {
+                    -- updated schema
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                custom_policies[0].handler: |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+                  end
+                  return plugin
+                policies[0].type: e2e-stream-header
+          - name: dump-reloads-without-changes
+            source:
+              plan:
+                - -f
+                - '{{ .workdir }}/dump.yaml'
+                - --mode
+                - apply
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: omitted-collection
+    commands:
+      - outputFormat: disable
+        name: omitted-children-unchanged
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - outputFormat: json
+        name: sync-omitted
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: definition-preserved
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway custom-policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': e2e-stream-header
+                '[0].type': streaming
+                '[0].display_name': Updated streaming definition
+                '[0].schema': |
+                  return {
+                    -- updated schema
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                '[0].handler': |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+                  end
+                  return plugin
+  - name: reject-in-use-deletion
+    commands:
+      - name: reject-delete
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/invalid-delete.yaml'
+          - --mode
+          - sync
+        expectFailure:
+          exitCode: 1
+          contains: cannot delete custom policy "e2e-stream-header" while policy "header-instance" still uses it
+      - name: definition-still-present
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway custom-policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': e2e-stream-header
+                '[0].type': streaming
+                '[0].display_name': Updated streaming definition
+                '[0].schema': |
+                  return {
+                    -- updated schema
+                    name = "e2e-stream-header",
+                    fields = {
+                      { config = { type = "record", fields = {} } },
+                    },
+                  }
+                '[0].handler': |
+                  local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+                  function plugin:access(config)
+                    kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+                  end
+                  return plugin
+  - name: delete-children
+    commands:
+      - outputFormat: disable
+        name: plan-delete-children
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: '@'
+            expect:
+              fields:
+                ? contains((changes[?resource_type=='ai_gateway_custom_policy'] | [0].depends_on), (changes[?resource_type=='ai_gateway_policy']
+                  | [0].id))
+                : true
+      - outputFormat: json
+        name: sync-delete-children
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: definitions-absent
+        run:
+          - get
+          - ai-gateway
+          - custom-policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway custom-policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: instances-absent
+        run:
+          - get
+          - ai-gateway
+          - policies
+          - --gateway-name
+          - custom-policy-e2e
+        assertions:
+          - source:
+              get: ai-gateway policies --gateway-name custom-policy-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - outputFormat: disable
+        name: converged-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: cleanup
+    commands:
+      - outputFormat: json
+        name: remove-gateway
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/cleanup.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: gateway-absent
+        run:
+          - get
+          - ai-gateways
+        assertions:
+          - source:
+              get: ai-gateways
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '[?name==''custom-policy-e2e''] | length(@)'
+            expect:
+              fields:
+                '@': 0
