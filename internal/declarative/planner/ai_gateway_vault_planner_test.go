@@ -27,6 +27,7 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 				defaults["base64_decode"] = false
 			}
 			if tc.Type == "aws" {
+				defaults["assume_role_arn"] = ""
 				defaults["endpoint_url"] = ""
 				defaults["sts_endpoint_url"] = ""
 				defaults["role_session_name"] = "KongVault"
@@ -34,7 +35,14 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 				defaults["neg_ttl"] = float64(0)
 				defaults["resurrect_ttl"] = float64(100000000)
 				config["region"] = "ap-northeast-1"
-				config["assume_role_arn"] = "arn:aws:iam::123456789012:role/DummyKongVaultRole"
+			}
+			if tc.Type == "hcv" {
+				defaults["namespace"] = ""
+				if config["auth_method"] == "aws_iam" {
+					defaults["assume_role_arn"] = ""
+					defaults["sts_endpoint_url"] = ""
+					defaults["role_session_name"] = ""
+				}
 			}
 			for key := range defaults {
 				delete(config, key)
@@ -100,6 +108,27 @@ func TestAIGatewayVaultDefaultComparisonPreservesDrift(t *testing.T) {
 			false,
 		},
 		{"nondefault boolean", "aws", map[string]any{"base64_decode": true}, map[string]any{}, true},
+		{"omitted role ARN", "aws", map[string]any{"assume_role_arn": ""}, map[string]any{}, false},
+		{"explicit empty role ARN", "aws", map[string]any{}, map[string]any{"assume_role_arn": ""}, false},
+		{
+			"nondefault role ARN", "aws",
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			map[string]any{},
+			true,
+		},
+		{
+			"set role ARN", "aws",
+			map[string]any{"assume_role_arn": ""},
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			true,
+		},
+		{
+			"reset role ARN", "aws",
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			map[string]any{"assume_role_arn": ""},
+			true,
+		},
+		{"role ARN without AWS IAM auth", "hcv", map[string]any{"assume_role_arn": ""}, map[string]any{}, true},
 		{
 			"nondefault endpoint", "aws",
 			map[string]any{"endpoint_url": "https://secrets.example.test"},
@@ -142,6 +171,46 @@ func TestAIGatewayVaultDefaultComparisonPreservesDrift(t *testing.T) {
 				require.Equal(t, tc.desired, changes[FieldConfig].New)
 			}
 		})
+	}
+}
+
+func TestAIGatewayHCVVaultEmptyDefaults(t *testing.T) {
+	for _, field := range []string{"namespace", "assume_role_arn", "sts_endpoint_url", "role_session_name"} {
+		for _, authMethod := range []string{"aws_iam", "token"} {
+			for _, tc := range []struct {
+				name    string
+				current *string
+				desired *string
+			}{
+				{"omitted", new(""), nil},
+				{"explicit empty", nil, new("")},
+				{"nondefault", new("configured-value"), nil},
+				{"set", new(""), new("configured-value")},
+				{"reset", new("configured-value"), new("")},
+			} {
+				t.Run(field+"/"+authMethod+"/"+tc.name, func(t *testing.T) {
+					currentConfig := map[string]any{"auth_method": authMethod}
+					desiredConfig := maps.Clone(currentConfig)
+					if tc.current != nil {
+						currentConfig[field] = *tc.current
+					}
+					if tc.desired != nil {
+						desiredConfig[field] = *tc.desired
+					}
+					current := map[string]any{FieldType: "hcv", FieldConfig: currentConfig}
+					desired := map[string]any{FieldType: "hcv", FieldConfig: desiredConfig}
+					currentBefore := normalizeAIGatewayJSONMap(current)
+					desiredBefore := normalizeAIGatewayJSONMap(desired)
+					currentCompare, desiredCompare := comparableAIGatewayVaultPayloads(current, desired)
+					changes := diffAIGatewayPayloads(current, desired, currentCompare, desiredCompare)
+					defaultOnly := tc.name == "omitted" || tc.name == "explicit empty"
+					knownDefault := field == "namespace" || authMethod == "aws_iam"
+					require.Equal(t, defaultOnly && knownDefault, len(changes) == 0)
+					require.Equal(t, currentBefore, current, "comparison must not mutate API payloads")
+					require.Equal(t, desiredBefore, desired, "comparison must not mutate update payloads")
+				})
+			}
+		}
 	}
 }
 
