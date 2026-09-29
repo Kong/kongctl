@@ -29,6 +29,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	applog "github.com/kong/kongctl/internal/log"
@@ -1410,11 +1411,11 @@ func runDiff(command *cobra.Command, args []string) error {
 		// JSON output
 		encoder := json.NewEncoder(command.OutOrStdout())
 		encoder.SetIndent("", "  ")
-		return encoder.Encode(plan)
+		return encoder.Encode(common.RedactPlanForDisplay(plan))
 
 	case "yaml":
 		// YAML output
-		yamlData, err := yaml.Marshal(plan)
+		yamlData, err := yaml.Marshal(common.RedactPlanForDisplay(plan))
 		if err != nil {
 			return fmt.Errorf("failed to marshal plan to YAML: %w", err)
 		}
@@ -1684,6 +1685,7 @@ func displayFieldChange(
 	indent string,
 	fullContent bool,
 ) {
+	oldValue = tags.RedactEnvOldValue(oldValue, newValue)
 	displayNestedFieldChange(out, field, normalizeDiffValue(oldValue), normalizeDiffValue(newValue),
 		true, true, indent, fullContent)
 }
@@ -2253,7 +2255,7 @@ func outputExecutionResult(command *cobra.Command,
 	ctx := command.Context()
 	if ctx != nil {
 		if p, ok := ctx.Value(currentPlanKey).(*planner.Plan); ok {
-			plan = p
+			plan = common.RedactPlanForDisplay(p)
 		}
 	}
 

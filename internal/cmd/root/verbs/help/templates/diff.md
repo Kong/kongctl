@@ -38,6 +38,12 @@ kongctl diff [flags]
 
 ## Output Formats
 
+All formats redact nested fields with sensitive names, such as passwords,
+tokens, and API keys, regardless of whether they use `!env`. Deferred `!env`
+fields also hide the corresponding current values. `--full-content` retains
+these protections. Redacted diff output is for review; use `kongctl plan`
+to generate an executable plan artifact.
+
 ### Text Format (Default)
 
 Shows human-readable differences using the selected theme's diff colors:

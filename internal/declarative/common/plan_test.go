@@ -1,6 +1,8 @@
 package common
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +12,39 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoadPlanRedactsCurrentDeferredEnvValues(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+		fc := planner.FieldChange{
+			Old: map[string]any{"credential": "remote-test-value", "visible": "old"},
+			// #nosec G101 -- deferred reference, not a credential.
+			New: map[string]any{"credential": "__ENV__:TEST_VALUE", "visible": "new"},
+		}
+		change := planner.PlannedChange{
+			ID: "update-policy", Action: planner.ActionUpdate,
+			ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		}
+		if legacy {
+			change.Fields = map[string]any{planner.FieldConfig: fc}
+		} else {
+			change.Fields = map[string]any{planner.FieldConfig: fc.New}
+			change.ChangedFields = map[string]planner.FieldChange{planner.FieldConfig: fc}
+		}
+		plan.AddChange(change)
+		encoded, err := json.Marshal(plan)
+		require.NoError(t, err)
+		loaded, err := LoadPlan("-", bytes.NewReader(encoded))
+		require.NoError(t, err)
+		output, err := json.Marshal(loaded)
+		require.NoError(t, err)
+		assert.NotContains(t, string(output), "remote-test-value")
+		assert.Contains(t, string(output), DeferredEnvRedactedDisplay)
+		assert.Contains(t, string(output), "__ENV__:TEST_VALUE")
+		assert.Contains(t, string(output), `"visible":"old"`)
+		assert.Contains(t, string(output), `"visible":"new"`)
+	}
+}
 
 func TestLoadPlan(t *testing.T) {
 	// Create temp file with valid plan

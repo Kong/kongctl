@@ -1190,7 +1190,21 @@ A runnable example is available in
   happen in separate command invocations, so environment values may differ
   between them and the executed value may differ from what was observed
   while planning.
-- Human-readable plan and diff output redact deferred `!env` values.
+- Human-readable plan and diff output redact deferred `!env` values and the
+  corresponding current values returned by Konnect. Saved plans also redact
+  those current values while retaining the desired deferred references.
+
+Diffs, execution reports, and operation/HTTP logs also redact nested fields
+with sensitive names, including password, secret, credential, token, API-key,
+and private-key patterns. This applies to literal and stored values as well as
+deferred values. Diff redaction applies to text, JSON, YAML, and
+`--full-content` output. It does not classify these fields as write-only or
+change when their values are sent to Konnect.
+
+Executable `kongctl plan` output can retain literal and stored values needed
+by `apply --plan`. Use deferred `!env` to avoid storing those values in a plan.
+Redacted diff output is for review; generate execution artifacts with
+`kongctl plan`.
 
 ### Storing typed environment values in plans
 

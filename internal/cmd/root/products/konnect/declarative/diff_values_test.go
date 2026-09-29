@@ -143,18 +143,19 @@ func TestDiffMultilineArray(t *testing.T) {
 func TestDiffCatalogClassification(t *testing.T) {
 	output := &diffOutput{resourceType: resources.ResourceTypeAIGatewayAuthStrategy}
 	for _, key := range []string{"client_secret", "http_proxy_authorization", "https_proxy_authorization"} {
-		assert.True(t, output.child(planner.FieldConfig).child(key).sensitive("literal"), key)
-		assert.False(t, output.child("unrelated").child(key).sensitive("literal"), key)
+		assert.True(t, output.child(planner.FieldConfig).child(key).writeOnly("literal"), key)
+		assert.False(t, output.child("unrelated").child(key).writeOnly("literal"), key)
 	}
 	for _, key := range []string{"cache_tokens_salt", "password", "token_count", "credential_claim"} {
-		assert.False(t, output.child(planner.FieldConfig).child(key).sensitive("literal"), key)
+		assert.False(t, output.child(planner.FieldConfig).child(key).writeOnly("literal"), key)
 	}
 	var out bytes.Buffer
 	output.Writer = &out
 	displayFieldChange(output, planner.FieldConfig, map[string]any{"cache_tokens_salt": "old"},
 		map[string]any{"cache_tokens_salt": "new", "password": "ordinary"}, "", true)
 	assert.Contains(t, out.String(), `cache_tokens_salt: "old" → "new"`)
-	assert.Contains(t, out.String(), `password: "ordinary"`)
+	assert.Contains(t, out.String(), `password: [REDACTED]`)
+	assert.NotContains(t, out.String(), "ordinary")
 }
 
 func TestDiffPlanRoundTripAndLegacyFields(t *testing.T) {
@@ -197,4 +198,109 @@ func TestDiffPlanRoundTripAndLegacyFields(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, string(data), string(after), "rendering must not mutate the plan")
 	}
+}
+
+func TestPolicyDiffRedactsCurrentDeferredEnvValues(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		for _, fullContent := range []bool{false, true} {
+			t.Run(fmt.Sprintf("legacy=%t/full=%t", legacy, fullContent), func(t *testing.T) {
+				fc := planner.FieldChange{
+					Old: map[string]any{
+						"redis": map[string]any{
+							"password": "remote-test-credential",
+							"host":     "private-cache.example.test",
+							"port":     6379,
+						},
+					},
+					New: map[string]any{
+						"redis": map[string]any{ // #nosec G101 -- deferred references, not credentials.
+							"password": "__ENV__:TEST_REDIS_PASSWORD",
+							"host":     "__ENV__:TEST_REDIS_HOST",
+							"port":     6380,
+						},
+					},
+				}
+				plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+				change := planner.PlannedChange{
+					ID: "update-policy", Action: planner.ActionUpdate,
+					ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "default-rate-limit",
+				}
+				if legacy {
+					change.Fields = map[string]any{planner.FieldConfig: fc}
+				} else {
+					change.ChangedFields = map[string]planner.FieldChange{planner.FieldConfig: fc}
+				}
+				plan.AddChange(change)
+				plan.SetExecutionOrder([]string{change.ID})
+				before, err := json.Marshal(plan)
+				require.NoError(t, err)
+				var saved planner.Plan
+				require.NoError(t, json.Unmarshal(before, &saved))
+				for _, candidate := range []*planner.Plan{plan, &saved} {
+					var out bytes.Buffer
+					command := &cobra.Command{}
+					command.SetOut(&out)
+					require.NoError(t, displayTextDiff(command, candidate, fullContent))
+					assert.NotContains(t, out.String(), "remote-test-credential")
+					assert.NotContains(t, out.String(), "private-cache.example.test")
+					assert.NotContains(t, out.String(), "__ENV__:")
+					assert.Contains(t, out.String(), `~ password: [REDACTED] → [REDACTED]`)
+					assert.Contains(t, out.String(), "~ port: 6379 → 6380")
+				}
+				after, err := json.Marshal(plan)
+				require.NoError(t, err)
+				assert.Equal(t, string(before), string(after), "display must not mutate execution inputs")
+			})
+		}
+	}
+}
+
+func TestDiffOpaqueConfigRedactsSensitiveNames(t *testing.T) {
+	for _, field := range []string{
+		"password", "sentinel_password", "clientSecret", "api-key", "accessToken", "private_key", "credential", "key",
+	} {
+		for _, full := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/full=%t", field, full), func(t *testing.T) {
+				oldValue := map[string]any{"nested": []any{map[string]any{field: "remote-test-value", "port": 6379}}}
+				newValue := map[string]any{"nested": []any{map[string]any{field: "literal-test-value", "port": 6380}}}
+				var out bytes.Buffer
+				output := &diffOutput{Writer: &out, resourceType: resources.ResourceTypeAIGatewayPolicy}
+				displayFieldChange(output, planner.FieldConfig, oldValue, newValue, "", full)
+				displayField(output, planner.FieldConfig, newValue, "", full)
+				displayFieldChange(output, planner.FieldConfig, oldValue, map[string]any{}, "", full)
+				displayFieldChange(output, planner.FieldConfig, map[string]any{}, newValue, "", full)
+				displayFieldChange(output, planner.FieldConfig, oldValue, "replacement", "", full)
+				assert.NotContains(t, out.String(), "remote-test-value")
+				assert.NotContains(t, out.String(), "literal-test-value")
+				assert.Contains(t, out.String(), "[REDACTED]")
+				assert.Contains(t, out.String(), "~ port: 6379 → 6380")
+				assert.NotContains(t, out.String(), diffSecretWriteLabel)
+				assert.Equal(t, "remote-test-value", oldValue["nested"].([]any)[0].(map[string]any)[field])
+				assert.Equal(t, "literal-test-value", newValue["nested"].([]any)[0].(map[string]any)[field])
+			})
+		}
+	}
+}
+
+func TestDiffOpaqueConfigRedactionKeepsUsefulChanges(t *testing.T) {
+	var out bytes.Buffer
+	output := &diffOutput{Writer: &out, resourceType: resources.ResourceTypeAIGatewayPolicy}
+	oldValue := map[string]any{
+		"password": "remote-test-value", "token_count": 1, "token_type": "old",
+		"headers": []any{map[string]any{"name": "Authorization", "value": "remote-header-value"}},
+	}
+	newValue := map[string]any{
+		"password": nil, "token_count": 2, "token_type": "new",
+		"headers": []any{map[string]any{"name": "Authorization", "value": "literal-header-value"}},
+	}
+	displayFieldChange(output, planner.FieldConfig, oldValue, newValue, "", true)
+	assert.NotContains(t, out.String(), "remote-test-value")
+	assert.NotContains(t, out.String(), "remote-header-value")
+	assert.NotContains(t, out.String(), "literal-header-value")
+	assert.Contains(t, out.String(), "~ password: [REDACTED] → null")
+	assert.Contains(t, out.String(), "~ token_count: 1 → 2")
+	assert.Contains(t, out.String(), `~ token_type: "old" → "new"`)
+	out.Reset()
+	displayFieldChange(output, planner.FieldConfig, oldValue, oldValue, "", true)
+	assert.Empty(t, out.String(), "unchanged sensitive values must not create a diff")
 }

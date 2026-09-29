@@ -42,6 +42,7 @@ func LoadPlan(source string, stdin io.Reader) (*planner.Plan, error) {
 		return nil, err
 	}
 
+	redactPlanEnvOldValues(plan)
 	return plan, nil
 }
 

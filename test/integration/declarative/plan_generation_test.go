@@ -653,6 +653,44 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 	assert.True(t, outputPlan.IsEmpty())
 }
 
+func TestDiffCommandRedactsOpaqueConfig(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	config := map[string]any{"redis": map[string]any{"password": "literal-test-value", "port": 6380}}
+	plan.AddChange(planner.PlannedChange{
+		ID: "update-policy", Action: planner.ActionUpdate,
+		ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		Fields: map[string]any{planner.FieldConfig: config},
+		ChangedFields: map[string]planner.FieldChange{planner.FieldConfig: {
+			Old: map[string]any{"redis": map[string]any{"password": "remote-test-value", "port": 6379}},
+			New: config,
+		}},
+	})
+	plan.SetExecutionOrder([]string{"update-policy"})
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	planFile := filepath.Join(t.TempDir(), "plan.json")
+	require.NoError(t, os.WriteFile(planFile, data, 0o600))
+	for _, format := range []string{"text", "json", "yaml"} {
+		t.Run(format, func(t *testing.T) {
+			command, err := declarative.NewDeclarativeCmd("diff")
+			require.NoError(t, err)
+			command.SetContext(SetupTestContext(t))
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetErr(&output)
+			command.SetArgs([]string{"--plan", planFile, "-o", format})
+			require.NoError(t, command.Execute())
+			assert.NotContains(t, output.String(), "remote-test-value")
+			assert.NotContains(t, output.String(), "literal-test-value")
+			assert.Contains(t, output.String(), "[REDACTED]")
+			assert.Contains(t, output.String(), "6380")
+		})
+	}
+	after, err := os.ReadFile(planFile)
+	require.NoError(t, err)
+	assert.Equal(t, data, after, "display must preserve the executable plan")
+}
+
 func TestDiffCommand_ModeWithPlanRejected(t *testing.T) {
 	diffCmd, err := declarative.NewDeclarativeCmd("diff")
 	require.NoError(t, err)

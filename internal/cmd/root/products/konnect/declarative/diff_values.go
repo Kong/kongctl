@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/secrets"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/theme"
 )
 
@@ -98,7 +100,7 @@ func displayDiffChange(
 	}
 	// Retain explicit null transitions, but never reveal non-null secret values
 	// or their types. Describe the write without claiming a remote value comparison.
-	if sensitive && oldValue != nil && newValue != nil {
+	if (output.writeOnly(oldValue) || output.writeOnly(newValue)) && oldValue != nil && newValue != nil {
 		fmt.Fprintf(out, "%s%s %s: %s\n", indent, marker, fieldText,
 			output.paint(theme.ColorTextMuted, diffSecretWriteLabel))
 		return
@@ -159,6 +161,13 @@ func (output *diffOutput) child(segment string) *diffOutput {
 }
 
 func (output *diffOutput) sensitive(value any) bool {
+	if reference, ok := value.(string); ok && secrets.IsVaultReference(reference) {
+		return false
+	}
+	return output.writeOnly(value) || httpclient.IsSensitiveFieldPath(planner.DecodeJSONPointer(output.path))
+}
+
+func (output *diffOutput) writeOnly(value any) bool {
 	if reference, ok := value.(string); ok && secrets.IsVaultReference(reference) {
 		return false
 	}
