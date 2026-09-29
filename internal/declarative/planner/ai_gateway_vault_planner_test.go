@@ -27,6 +27,7 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 				defaults["base64_decode"] = false
 			}
 			if tc.Type == "aws" {
+				defaults["assume_role_arn"] = ""
 				defaults["endpoint_url"] = ""
 				defaults["sts_endpoint_url"] = ""
 				defaults["role_session_name"] = "KongVault"
@@ -34,7 +35,6 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 				defaults["neg_ttl"] = float64(0)
 				defaults["resurrect_ttl"] = float64(100000000)
 				config["region"] = "ap-northeast-1"
-				config["assume_role_arn"] = "arn:aws:iam::123456789012:role/DummyKongVaultRole"
 			}
 			for key := range defaults {
 				delete(config, key)
@@ -100,6 +100,27 @@ func TestAIGatewayVaultDefaultComparisonPreservesDrift(t *testing.T) {
 			false,
 		},
 		{"nondefault boolean", "aws", map[string]any{"base64_decode": true}, map[string]any{}, true},
+		{"omitted role ARN", "aws", map[string]any{"assume_role_arn": ""}, map[string]any{}, false},
+		{"explicit empty role ARN", "aws", map[string]any{}, map[string]any{"assume_role_arn": ""}, false},
+		{
+			"nondefault role ARN", "aws",
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			map[string]any{},
+			true,
+		},
+		{
+			"set role ARN", "aws",
+			map[string]any{"assume_role_arn": ""},
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			true,
+		},
+		{
+			"reset role ARN", "aws",
+			map[string]any{"assume_role_arn": "arn:aws:iam::123456789012:role/KongVault"},
+			map[string]any{"assume_role_arn": ""},
+			true,
+		},
+		{"role ARN on another vault type", "hcv", map[string]any{"assume_role_arn": ""}, map[string]any{}, true},
 		{
 			"nondefault endpoint", "aws",
 			map[string]any{"endpoint_url": "https://secrets.example.test"},
