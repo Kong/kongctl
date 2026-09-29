@@ -112,6 +112,81 @@ func loadPayloadReferences(t *testing.T, content string) (*resources.ResourceSet
 	return New().LoadFromSources([]Source{{Path: writeLoaderTestFile(t, content), Type: SourceTypeFile}}, false)
 }
 
+func TestPayloadReferencesLoadAIGatewayCustomPolicies(t *testing.T) {
+	t.Setenv("CUSTOM_POLICY_HANDLER", "return function() end")
+	rs, err := loadPayloadReferences(t, `
+ai_gateways:
+  - ref: gateway
+    name: gateway
+    display_name: Gateway
+    deployment_type: hybrid
+    custom_policies:
+      - ref: source
+        name: source
+        display_name: Source
+        type: streaming
+        schema: 'return { fields = {} }'
+        handler: !env CUSTOM_POLICY_HANDLER
+ai_gateway_custom_policies:
+  - ref: target
+    ai_gateway: !ref gateway
+    name: target
+    display_name: !ref gateway#display_name
+    type: streaming
+    schema: !ref source#schema
+    handler: !ref source#handler
+`)
+	require.NoError(t, err)
+	require.Len(t, rs.AIGatewayCustomPolicies, 2)
+	var target *resources.AIGatewayCustomPolicyResource
+	for i := range rs.AIGatewayCustomPolicies {
+		if rs.AIGatewayCustomPolicies[i].Ref == "target" {
+			target = &rs.AIGatewayCustomPolicies[i]
+		}
+	}
+	require.NotNil(t, target)
+	require.Equal(t, "__REF__:gateway#id", target.AIGateway)
+	require.Equal(t, "Gateway", target.DisplayName)
+	require.Equal(t, "return { fields = {} }", target.Schema)
+	require.NotNil(t, target.Handler)
+	require.Equal(t, "return function() end", *target.Handler)
+	require.Equal(t, "__ENV__:CUSTOM_POLICY_HANDLER", rs.GetEnvSources("target")["/handler"])
+}
+
+func TestAIGatewayCustomPolicyReferencesRejectInvalidTargets(t *testing.T) {
+	for _, tc := range []struct{ field, expression, wantErr string }{
+		{"ai_gateway", "missing#id", "resource not found: missing"},
+		{"ai_gateway", "gateway#missing", "unknown or unavailable selector"},
+		{"schema", "gateway#missing", "unknown or unavailable selector"},
+		{"handler", "missing#name", "resource not found: missing"},
+	} {
+		t.Run(tc.field+"/"+tc.expression, func(t *testing.T) {
+			gateway := resources.AIGatewayResource{BaseResource: resources.BaseResource{Ref: "gateway"}}
+			policy := resources.AIGatewayCustomPolicyResource{
+				BaseResource: resources.BaseResource{Ref: "policy"},
+				AIGateway:    "gateway",
+			}
+			placeholder := "__REF__:" + tc.expression
+			switch tc.field {
+			case "ai_gateway":
+				policy.AIGateway = placeholder
+			case "schema":
+				policy.Schema = placeholder
+			case "handler":
+				policy.Handler = &placeholder
+			}
+			rs := &resources.ResourceSet{
+				AIGateways:              []resources.AIGatewayResource{gateway},
+				AIGatewayCustomPolicies: []resources.AIGatewayCustomPolicyResource{policy},
+			}
+			err := ResolveReferences(t.Context(), rs)
+			require.ErrorContains(t, err, tc.wantErr)
+			require.ErrorContains(t, err, "policy")
+			require.ErrorContains(t, err, "/"+tc.field)
+		})
+	}
+}
+
 func TestPayloadReferencesFindNestedEventGatewayTargets(t *testing.T) {
 	rs, err := loadPayloadReferences(t, `
 event_gateways:
