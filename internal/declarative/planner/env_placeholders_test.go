@@ -2,6 +2,8 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -204,4 +206,45 @@ func TestPlanPortalIdentityProviderCreate_PreservesDeferredEnvPlaceholders(t *te
 	assert.Equal(t, "__ENV__:PORTAL_IDP_CLIENT_SECRET", configFields["client_secret"])
 	require.Len(t, plan.Warnings, 1)
 	assert.Contains(t, plan.Warnings[0].Message, "Contains deferred !env values")
+}
+
+func TestDeferredEnvPlanRedactsCurrentPolicyValues(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprintf("legacy=%t", legacy), func(t *testing.T) {
+			oldConfig := map[string]any{"redis": map[string]any{
+				"password": "remote-test-credential", "port": 6379,
+			}}
+			newConfig := map[string]any{"redis": map[string]any{
+				"password": "desired-test-credential", "port": 6380,
+			}}
+			fc := FieldChange{Old: oldConfig, New: newConfig}
+			change := PlannedChange{
+				ID: "update-policy", Action: ActionUpdate,
+				ResourceType: ResourceTypeAIGatewayPolicy, ResourceRef: "default-rate-limit",
+			}
+			if legacy {
+				change.Fields = map[string]any{FieldConfig: fc}
+			} else {
+				change.Fields = map[string]any{FieldConfig: newConfig}
+				change.ChangedFields = map[string]FieldChange{FieldConfig: fc}
+			}
+			plan := NewPlan("1.0", "test", PlanModeApply)
+			plan.AddChange(change)
+			rs := &resources.ResourceSet{EnvSources: map[string]map[string]string{
+				// #nosec G101 -- deferred reference, not a credential.
+				"default-rate-limit": {"/config/redis/password": "__ENV__:TEST_REDIS_PASSWORD"},
+			}}
+			(&Planner{}).applyDeferredEnvPlaceholders(plan, rs)
+			encoded, err := json.Marshal(plan)
+			require.NoError(t, err)
+			assert.NotContains(t, string(encoded), "remote-test-credential")
+			assert.NotContains(t, string(encoded), "desired-test-credential")
+			assert.Contains(t, string(encoded), "__ENV__:TEST_REDIS_PASSWORD")
+			assert.Contains(t, string(encoded), "[redacted from !env]")
+			assert.Contains(t, string(encoded), `"port":6379`)
+			assert.Contains(t, string(encoded), `"port":6380`)
+			assert.Equal(t, "remote-test-credential", oldConfig["redis"].(map[string]any)["password"])
+			assert.Equal(t, "desired-test-credential", newConfig["redis"].(map[string]any)["password"])
+		})
+	}
 }

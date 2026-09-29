@@ -2,6 +2,7 @@ package common
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -290,6 +291,38 @@ func TestDisplayPlanSummary(t *testing.T) {
 	}
 }
 
+func TestFormatFieldValueStrings(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "empty", value: "", want: `""`},
+		{name: "plain", value: "plain text", want: `"plain text"`},
+		{name: "quotes", value: `a "quoted" value`, want: `"a \"quoted\" value"`},
+		{name: "backslashes", value: `a\b\`, want: `"a\\b\\"`},
+		{name: "control characters", value: "a\n\r\t\x1b[31m", want: `"a\n\r\t\x1b[31m"`},
+		{name: "unicode", value: "café 世界", want: `"café 世界"`},
+		{
+			name: "length boundary", value: strings.Repeat("x", 50),
+			want: `"` + strings.Repeat("x", 50) + `"`,
+		},
+		{
+			name: "truncated", value: strings.Repeat("x", 51),
+			want: `"` + strings.Repeat("x", 47) + `..."`,
+		},
+		{
+			name: "truncated with escaping", value: strings.Repeat("x", 45) + "\"\n" + strings.Repeat("y", 10),
+			want: `"` + strings.Repeat("x", 45) + `\"\n..."`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, formatFieldValue(tt.value))
+		})
+	}
+}
+
 func TestDisplayPlanSummary_RedactsDeferredEnvValues(t *testing.T) {
 	plan := &planner.Plan{
 		Summary: planner.PlanSummary{
@@ -319,6 +352,34 @@ func TestDisplayPlanSummary_RedactsDeferredEnvValues(t *testing.T) {
 
 	assert.Contains(t, out.String(), DeferredEnvRedactedDisplay)
 	assert.NotContains(t, out.String(), "__ENV__:PORTAL_DESCRIPTION")
+	assert.NotContains(t, out.String(), "old-value")
+
+	encoded, err := json.Marshal(plan)
+	require.NoError(t, err)
+	var saved planner.Plan
+	require.NoError(t, json.Unmarshal(encoded, &saved))
+	out.Reset()
+	DisplayPlanSummary(&saved, &out)
+	assert.Contains(t, out.String(), DeferredEnvRedactedDisplay)
+	assert.NotContains(t, out.String(), "old-value")
+	assert.NotContains(t, out.String(), "__ENV__:PORTAL_DESCRIPTION")
+}
+
+func TestDisplayPlanSummaryRedactsOpaqueConfig(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID: "update-policy", Action: planner.ActionUpdate,
+		ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		Fields: map[string]any{planner.FieldConfig: planner.FieldChange{
+			Old: map[string]any{"password": "remote-test-value"},
+			New: map[string]any{"password": "literal-test-value"},
+		}},
+	})
+	var out bytes.Buffer
+	DisplayPlanSummary(plan, &out)
+	assert.NotContains(t, out.String(), "remote-test-value")
+	assert.NotContains(t, out.String(), "literal-test-value")
+	assert.Contains(t, out.String(), "[REDACTED]")
 }
 
 func TestDisplayPlanSummary_WithResourceMonikers(t *testing.T) {

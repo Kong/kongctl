@@ -13,6 +13,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 // ConfirmExecution prompts for confirmation.
@@ -644,13 +645,17 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 		// Handle different field change formats
 		if fc, ok := value.(planner.FieldChange); ok {
 			hasFieldChanges = true
-			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field, formatFieldValue(fc.Old), formatFieldValue(fc.New))
+			fc.Old = tags.RedactEnvOldValue(fc.Old, fc.New)
+			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field,
+				formatNamedFieldValue(field, fc.Old), formatNamedFieldValue(field, fc.New))
 		} else if fc, ok := value.(map[string]any); ok {
 			// Handle FieldChange that was unmarshaled from JSON
 			if oldVal, hasOld := fc["old"]; hasOld {
 				if newVal, hasNew := fc["new"]; hasNew {
 					hasFieldChanges = true
-					fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field, formatFieldValue(oldVal), formatFieldValue(newVal))
+					oldVal = tags.RedactEnvOldValue(oldVal, newVal)
+					fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field,
+						formatNamedFieldValue(field, oldVal), formatNamedFieldValue(field, newVal))
 				}
 			}
 		}
@@ -728,6 +733,10 @@ func displayDependencies(out io.Writer, change planner.PlannedChange,
 	}
 }
 
+func formatNamedFieldValue(field string, value any) string {
+	return formatFieldValue(redactDisplayField(field, value))
+}
+
 // formatFieldValue formats a field value for display, truncating long strings
 func formatFieldValue(value any) string {
 	value = SanitizeDeferredEnvValue(value)
@@ -735,9 +744,9 @@ func formatFieldValue(value any) string {
 	switch v := value.(type) {
 	case string:
 		if len(v) > 50 {
-			return fmt.Sprintf("\"%.47s...\"", v)
+			v = fmt.Sprintf("%.47s...", v)
 		}
-		return fmt.Sprintf("\"%s\"", v)
+		return fmt.Sprintf("%q", v)
 	case bool:
 		return fmt.Sprintf("%t", v)
 	case nil:

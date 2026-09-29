@@ -9,7 +9,31 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-const DeferredEnvRedactedDisplay = "[redacted from !env]"
+const DeferredEnvRedactedDisplay = tags.DeferredEnvRedactedDisplay
+
+// Older saved plans may contain plaintext remote values beside deferred !env
+// references. Remove them on load so structured output cannot expose them either.
+func redactPlanEnvOldValues(plan *planner.Plan) {
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		for field, fc := range change.ChangedFields {
+			fc.Old = tags.RedactEnvOldValue(fc.Old, fc.New)
+			change.ChangedFields[field] = fc
+		}
+		if change.Action != planner.ActionUpdate {
+			continue
+		}
+		for _, value := range change.Fields {
+			if fc, ok := value.(map[string]any); ok {
+				oldValue, hasOld := fc["old"]
+				newValue, hasNew := fc["new"]
+				if hasOld && hasNew {
+					fc["old"] = tags.RedactEnvOldValue(oldValue, newValue)
+				}
+			}
+		}
+	}
+}
 
 func FormatPlanDisplayValue(value any) string {
 	return fmt.Sprintf("%v", SanitizeDeferredEnvValue(value))
@@ -119,7 +143,7 @@ func sanitizeDeferredEnvReflect(value reflect.Value) (reflect.Value, bool) {
 	case reflect.Struct:
 		if value.Type() == reflect.TypeFor[planner.FieldChange]() {
 			current := value.Interface().(planner.FieldChange)
-			current.Old = SanitizeDeferredEnvValue(current.Old)
+			current.Old = SanitizeDeferredEnvValue(tags.RedactEnvOldValue(current.Old, current.New))
 			current.New = SanitizeDeferredEnvValue(current.New)
 			return reflect.ValueOf(current), true
 		}

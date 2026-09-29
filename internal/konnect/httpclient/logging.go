@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -69,7 +70,9 @@ var sensitiveExactFieldKeys = map[string]struct{}{
 	"apikey":                    {},
 	"x_api_key":                 {},
 	"secret":                    {},
+	"pass":                      {},
 	"password":                  {},
+	"passwords":                 {},
 	"authorization":             {},
 	"cookie":                    {},
 	"credential":                {},
@@ -90,6 +93,30 @@ var nonSensitiveTokenFieldKeys = map[string]struct{}{
 // RedactSensitiveFields returns a copy of value with known sensitive fields redacted.
 func RedactSensitiveFields(value any) any {
 	return RedactSensitiveFieldsWithExactKeys(value)
+}
+
+// IsSensitiveFieldPath applies the logging field-name rules to a display path.
+// This classifies output sensitivity, not API write-only behavior.
+func IsSensitiveFieldPath(path []string) bool {
+	parentKey := ""
+	insideConfig := false
+	for _, key := range path {
+		if _, err := strconv.Atoi(key); err == nil {
+			continue // Array indices retain their containing field's context.
+		}
+		if isSensitiveFieldAt(key, parentKey, insideConfig) {
+			return true
+		}
+		insideConfig = insideConfig || normalizeKey(key) == "config"
+		parentKey = key
+	}
+	return false
+}
+
+func isSensitiveFieldAt(key, parentKey string, insideConfig bool) bool {
+	normalized := normalizeKey(key)
+	return isSensitiveFieldKey(key) || (insideConfig && normalized == "key") ||
+		(normalizeKey(parentKey) == "headers" && normalized == "value")
 }
 
 // RedactSensitiveFieldsWithExactKeys redacts known sensitive fields plus caller-scoped exact field keys.
@@ -643,8 +670,7 @@ func redactSensitiveValueAt(
 		for key, nested := range typed {
 			normalizedKey := normalizeKey(key)
 			_, exactMatch := exactKeys[normalizedKey]
-			if isSensitiveFieldKey(key) || exactMatch || (insideConfig && normalizedKey == "key") ||
-				(normalizeKey(parentKey) == "headers" && normalizedKey == "value") {
+			if isSensitiveFieldAt(key, parentKey, insideConfig) || exactMatch {
 				typed[key] = redactedValue
 				continue
 			}

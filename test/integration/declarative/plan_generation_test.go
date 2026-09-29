@@ -14,6 +14,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -651,6 +652,95 @@ func TestDiffCommand_YAMLOutput(t *testing.T) {
 
 	assert.Equal(t, "1.0", outputPlan.Metadata.Version)
 	assert.True(t, outputPlan.IsEmpty())
+}
+
+func TestDiffCommandRedactsOpaqueConfig(t *testing.T) {
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	config := map[string]any{"redis": map[string]any{"password": "literal-test-value", "port": 6380}}
+	plan.AddChange(planner.PlannedChange{
+		ID: "update-policy", Action: planner.ActionUpdate,
+		ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		Fields: map[string]any{planner.FieldConfig: config},
+		ChangedFields: map[string]planner.FieldChange{planner.FieldConfig: {
+			Old: map[string]any{"redis": map[string]any{"password": "remote-test-value", "port": 6379}},
+			New: config,
+		}},
+	})
+	plan.SetExecutionOrder([]string{"update-policy"})
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	planFile := filepath.Join(t.TempDir(), "plan.json")
+	require.NoError(t, os.WriteFile(planFile, data, 0o600))
+	for _, format := range []string{"text", "json", "yaml"} {
+		t.Run(format, func(t *testing.T) {
+			command, err := declarative.NewDeclarativeCmd("diff")
+			require.NoError(t, err)
+			command.SetContext(SetupTestContext(t))
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetErr(&output)
+			command.SetArgs([]string{"--plan", planFile, "-o", format})
+			require.NoError(t, command.Execute())
+			assert.NotContains(t, output.String(), "remote-test-value")
+			assert.NotContains(t, output.String(), "literal-test-value")
+			assert.Contains(t, output.String(), "[REDACTED]")
+			assert.Contains(t, output.String(), "6380")
+		})
+	}
+	after, err := os.ReadFile(planFile)
+	require.NoError(t, err)
+	assert.Equal(t, data, after, "display must preserve the executable plan")
+}
+
+func TestDisplayCollectionChanges(t *testing.T) {
+	current := map[string]any{
+		"removed":   map[string]any{"pass": "removed-test-value"},
+		"nulled":    map[string]any{"pass": "null-test-value"},
+		"passwords": []string{"retained-test-value", "trailing-test-value"},
+		"source":    "old-source", "port": 6379,
+	}
+	desired := map[string]any{
+		"nulled":    map[string]any{"pass": nil},
+		"passwords": []string{"retained-test-value"},
+		"source":    "__ENV__:TEST_SOURCE", "port": 6380,
+	}
+	fc := planner.FieldChange{Old: current, New: desired}
+	plan := planner.NewPlan("1.0", "test", planner.PlanModeApply)
+	plan.AddChange(planner.PlannedChange{
+		ID: "update-policy", Action: planner.ActionUpdate,
+		ResourceType: planner.ResourceTypeAIGatewayPolicy, ResourceRef: "policy",
+		Fields:        map[string]any{planner.FieldConfig: fc},
+		ChangedFields: map[string]planner.FieldChange{planner.FieldConfig: fc},
+	})
+	plan.SetExecutionOrder([]string{"update-policy"})
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	for _, format := range []string{"text", "json", "yaml", "summary"} {
+		t.Run(format, func(t *testing.T) {
+			var output bytes.Buffer
+			if format == "summary" {
+				common.DisplayPlanSummary(plan, &output)
+			} else {
+				command, err := declarative.NewDeclarativeCmd("diff")
+				require.NoError(t, err)
+				command.SetContext(SetupTestContext(t))
+				command.SetIn(bytes.NewReader(data))
+				command.SetOut(&output)
+				command.SetErr(&output)
+				command.SetArgs([]string{"--plan", "-", "-o", format})
+				require.NoError(t, command.Execute())
+			}
+			for _, value := range []string{
+				"removed-test-value", "null-test-value", "retained-test-value", "trailing-test-value",
+			} {
+				assert.NotContains(t, output.String(), value)
+			}
+			assert.Contains(t, output.String(), "[REDACTED]")
+		})
+	}
+	after, err := json.Marshal(plan)
+	require.NoError(t, err)
+	assert.Equal(t, data, after, "display must preserve execution inputs")
 }
 
 func TestDiffCommand_ModeWithPlanRejected(t *testing.T) {

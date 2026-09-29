@@ -147,11 +147,13 @@ func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder 
 		switch typed := value.(type) {
 		case FieldChange:
 			typed.New = placeholder
+			typed.Old = tags.RedactEnvOldValue(typed.Old, typed.New)
 			return typed, true
 		case map[string]any:
 			if isFieldChangeMap(typed) {
 				copied := maps.Clone(typed)
 				copied["new"] = placeholder
+				copied["old"] = tags.RedactEnvOldValue(copied["old"], copied["new"])
 				return copied, true
 			}
 		}
@@ -166,6 +168,7 @@ func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder 
 			return value, false
 		}
 		typed.New = updated
+		typed.Old = tags.RedactEnvOldValue(typed.Old, typed.New)
 		return typed, true
 	case map[string]any:
 		if isFieldChangeMap(typed) {
@@ -175,6 +178,7 @@ func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder 
 			}
 			copied := maps.Clone(typed)
 			copied["new"] = updated
+			copied["old"] = tags.RedactEnvOldValue(copied["old"], copied["new"])
 			return copied, true
 		}
 	}
