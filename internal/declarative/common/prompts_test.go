@@ -291,6 +291,38 @@ func TestDisplayPlanSummary(t *testing.T) {
 	}
 }
 
+func TestFormatFieldValueStrings(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  string
+	}{
+		{name: "empty", value: "", want: `""`},
+		{name: "plain", value: "plain text", want: `"plain text"`},
+		{name: "quotes", value: `a "quoted" value`, want: `"a \"quoted\" value"`},
+		{name: "backslashes", value: `a\b\`, want: `"a\\b\\"`},
+		{name: "control characters", value: "a\n\r\t\x1b[31m", want: `"a\n\r\t\x1b[31m"`},
+		{name: "unicode", value: "café 世界", want: `"café 世界"`},
+		{
+			name: "length boundary", value: strings.Repeat("x", 50),
+			want: `"` + strings.Repeat("x", 50) + `"`,
+		},
+		{
+			name: "truncated", value: strings.Repeat("x", 51),
+			want: `"` + strings.Repeat("x", 47) + `..."`,
+		},
+		{
+			name: "truncated with escaping", value: strings.Repeat("x", 45) + "\"\n" + strings.Repeat("y", 10),
+			want: `"` + strings.Repeat("x", 45) + `\"\n..."`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, formatFieldValue(tt.value))
+		})
+	}
+}
+
 func TestDisplayPlanSummary_RedactsDeferredEnvValues(t *testing.T) {
 	plan := &planner.Plan{
 		Summary: planner.PlanSummary{

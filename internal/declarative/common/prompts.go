@@ -744,9 +744,9 @@ func formatFieldValue(value any) string {
 	switch v := value.(type) {
 	case string:
 		if len(v) > 50 {
-			return fmt.Sprintf("\"%.47s...\"", v)
+			v = fmt.Sprintf("%.47s...", v)
 		}
-		return fmt.Sprintf("\"%s\"", v)
+		return fmt.Sprintf("%q", v)
 	case bool:
 		return fmt.Sprintf("%t", v)
 	case nil:
