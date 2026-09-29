@@ -45,7 +45,12 @@ jobs:
           jq -e --arg ns "$KONNECT_NAMESPACE" --arg cli "kongctl/$KONGCTL_VERSION" '
             .metadata.mode == "apply" and .metadata.generator == $cli and
             all(.changes[]; .namespace == $ns and
-              (.action == "CREATE" or .action == "UPDATE"))
+              (.action == "CREATE" or .action == "UPDATE") and
+              all(.secret_writes[]?; all(.expression.parts[];
+                (.literal != null and .source == null) or
+                (.literal == null and (.source.kind == "file" or
+                  (.source.kind == "env" and
+                    .source.reference == "OPENAI_API_KEY"))))))
           ' ci/plan.json >/dev/null
       - uses: Kong/setup-kongctl@659d5c2b0f4db2e25d63797035358a22907421db # v1
         with:

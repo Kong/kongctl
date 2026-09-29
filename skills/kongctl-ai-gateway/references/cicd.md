@@ -79,7 +79,12 @@ the data plane host. Do not regenerate or move it when enabling CI.
 The initial workflow maps `OPENAI_API_KEY` for plans that write that secret.
 Existing resources with no secret write need no new provider credential.
 When later adding caller credentials, add only their required secret/env
-mappings. Do not require unrelated secrets to execute an unchanged plan.
+mappings and extend the plan guard's environment-source allowlist with those
+same deployment credential names. Never allow management credentials such
+as `KONGCTL_DEFAULT_KONNECT_PAT` as a secret-write source. The template
+allows public literal parts and file sources; environment sources are
+limited to `OPENAI_API_KEY` until explicitly extended. Do not require
+unrelated secrets to execute an unchanged plan.
 
 ## Approve, run, and verify
 
