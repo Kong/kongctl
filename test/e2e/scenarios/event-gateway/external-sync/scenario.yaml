@@ -935,7 +935,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.schema_registry_ref }}"
-                fields.config.authentication.password: "${vault['env']['PATH']}"
+                fields.config.authentication.password: "[REDACTED]"
           - select: plan.changes[?resource_type=='event_gateway' && action=='DELETE']
             expect:
               fields:
