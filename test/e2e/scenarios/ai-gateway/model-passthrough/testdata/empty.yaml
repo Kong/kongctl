@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-passthrough-e2e
+ai_gateways:
+  - ref: model-passthrough-e2e
+    name: model-passthrough-e2e
+    display_name: model-passthrough-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    models: []
+    model_providers: []

@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-typesafe-decisions-e2e
+ai_gateways:
+  - ref: typesafe-decisions-e2e
+    name: typesafe-decisions-e2e
+    display_name: typesafe-decisions-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    models: []
+    model_providers: []

@@ -1,0 +1,37 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-passthrough-e2e
+ai_gateways:
+  - ref: model-passthrough-e2e
+    name: model-passthrough-e2e
+    display_name: model-passthrough-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    model_providers:
+      - ref: openai-provider
+        name: openai-provider
+        display_name: Initial provider
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers: []
+    models:
+      - ref: model-passthrough-model
+        name: model-passthrough-model
+        display_name: Initial model
+        type: model
+        enabled: true
+        formats:
+          - type: passthrough
+        capabilities: [generate]
+        config:
+          route:
+            paths: [/e2e/passthrough]
+            methods: [POST]
+        targets:
+          - name: upstream-model
+            provider: openai-provider
+            config:
+              type: openai
+              upstream_url: https://upstream.example.com/initial

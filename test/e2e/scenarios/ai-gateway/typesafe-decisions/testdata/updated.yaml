@@ -1,0 +1,40 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-typesafe-decisions-e2e
+ai_gateways:
+  - ref: typesafe-decisions-e2e
+    name: typesafe-decisions-e2e
+    display_name: typesafe-decisions-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    model_providers:
+      - ref: typesafe-provider
+        name: typesafe-provider
+        display_name: Updated provider
+        type: typesafe
+        config:
+          auth:
+            type: basic
+            headers: []
+    models:
+      - ref: typesafe-decisions-model
+        name: typesafe-decisions-model
+        display_name: Updated model
+        type: model
+        enabled: true
+        formats:
+          - type: typesafe
+        capabilities: [decisions]
+        config:
+          route:
+            model:
+              body_param: model
+              values: [typesafe-decisions-model, decision-alias-new, decision-alias-extra]
+        targets:
+          - name: upstream-model
+            provider: typesafe-provider
+            config:
+              type: typesafe
+              upstream_url: https://upstream.example.com/updated
+              input_cost: 3.5
+              output_cost: 4.75

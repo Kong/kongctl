@@ -1,0 +1,264 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+defaults:
+  retry:
+    attempts: 1
+steps:
+  - name: create
+    commands:
+      - name: plan-create
+        run: [plan, -f, '{{ .workdir }}/initial.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+        outputFormat: disable
+      - name: sync-create
+        run: [sync, -f, '{{ .workdir }}/initial.yaml', --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+        outputFormat: json
+      - name: read-model-providers
+        run: [get, ai-gateway, model-providers, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway model-providers --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': anthropic-provider
+                '[0].display_name': Initial provider
+                '[0].type': anthropic
+                '[0].config.auth.type': basic
+      - name: read-models
+        run: [get, ai-gateway, models, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway models --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': model-skills-model
+                '[0].display_name': Initial model
+                '[0].type': api
+                '[0].formats[0].type': anthropic
+                sort([0].capabilities): [skills]
+                '[0].targets[0].provider': anthropic-provider
+                '[0].targets[0].config.type': anthropic
+      - name: converged
+        run: [plan, -f, '{{ .workdir }}/initial.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+  - name: update
+    commands:
+      - name: plan-update
+        run: [plan, -f, '{{ .workdir }}/updated.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+        outputFormat: disable
+      - name: sync-update
+        run: [sync, -f, '{{ .workdir }}/updated.yaml', --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+        outputFormat: json
+      - name: read-model-providers
+        run: [get, ai-gateway, model-providers, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway model-providers --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': anthropic-provider
+                '[0].display_name': Updated provider
+                '[0].type': anthropic
+                '[0].config.auth.type': basic
+      - name: read-models
+        run: [get, ai-gateway, models, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway models --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': model-skills-model
+                '[0].display_name': Updated model
+                '[0].type': api
+                '[0].formats[0].type': anthropic
+                sort([0].capabilities): [files, skills]
+                '[0].targets[0].provider': anthropic-provider
+                '[0].targets[0].config.type': anthropic
+      - name: get-model-by-name
+        run: [get, ai-gateway, models, model-skills-model, --gateway-name, model-skills-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                name: model-skills-model
+                display_name: Updated model
+                type: api
+                formats[0].type: anthropic
+                sort(capabilities): [files, skills]
+                targets[0].provider: anthropic-provider
+                targets[0].config.type: anthropic
+      - name: converged
+        run: [plan, -f, '{{ .workdir }}/updated.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+  - name: dump-and-reload
+    commands:
+      - name: dump
+        run: [dump, declarative, --resources=ai_gateways, --include-child-resources, --filter-name=model-skills-e2e,
+          --default-namespace=ai-gateway-model-skills-e2e]
+        assertions:
+          - select: ai_gateways[0]
+            expect:
+              fields:
+                length(models): 1
+                length(model_providers): 1
+                model_providers[0].type: anthropic
+                model_providers[0].config.auth.type: basic
+          - select: ai_gateways[0].models[0]
+            expect:
+              fields:
+                name: model-skills-model
+                display_name: Updated model
+                type: api
+                formats[0].type: anthropic
+                sort(capabilities): [files, skills]
+                targets[0].provider: anthropic-provider
+                targets[0].config.type: anthropic
+          - source:
+              plan: [-f, '{{ .workdir }}/dump.yaml', --mode, apply]
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+  - name: delete-children
+    commands:
+      - name: plan-delete-children
+        run: [plan, -f, '{{ .workdir }}/empty.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+        outputFormat: disable
+      - name: delete-children
+        run: [sync, -f, '{{ .workdir }}/empty.yaml', --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+        outputFormat: json
+      - name: models-absent
+        run: [get, ai-gateway, models, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway models --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: model-providers-absent
+        run: [get, ai-gateway, model-providers, --gateway-name, model-skills-e2e]
+        assertions:
+          - source:
+              get: ai-gateway model-providers --gateway-name model-skills-e2e
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: converged-empty
+        run: [plan, -f, '{{ .workdir }}/empty.yaml', --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+  - name: cleanup
+    commands:
+      - name: remove-gateway
+        run: [sync, -f, '{{ .workdir }}/cleanup.yaml', --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+        outputFormat: json
+      - name: gateway-absent
+        run: [get, ai-gateways]
+        assertions:
+          - source:
+              get: ai-gateways
+            retry:
+              attempts: 6
+              interval: 2s
+              maxInterval: 2s
+            select: '[?name==''model-skills-e2e''] | length(@)'
+            expect:
+              fields:
+                '@': 0

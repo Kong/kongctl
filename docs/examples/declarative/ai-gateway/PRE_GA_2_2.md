@@ -74,3 +74,25 @@ full sync includes custom-policy reconciliation and can fail if its API
 is unavailable. Dumps use the existing child-read warning behavior.
 
 Cloud Gateway support is outside this change.
+
+## E2E coverage
+
+The following live scenarios exercise management API behavior:
+
+- `ai-gateway/typesafe-decisions`: Typesafe provider/target, decisions, and
+  alias replacement and expansion.
+- `ai-gateway/model-passthrough`: passthrough format, route and upstream URL
+  updates.
+- `ai-gateway/model-skills`: skills API capability and combination with files.
+- `ai-gateway/custom-policy`: streaming definitions, instances, and deletion
+  dependencies.
+
+Each covers creation, read-back, updates, convergence, dump/reload, and
+cleanup. Existing `ai-gateway/runtime-2-1` coverage also verifies multiple
+aliases on an OpenAI model. Run one with
+`make test-e2e-scenarios SCENARIO=ai-gateway/typesafe-decisions`.
+
+These scenarios follow the AI Gateway suite's default stable classification:
+backend unavailability fails CI. They do not establish data-plane behavior.
+Policy-schema-specific cases remain pending the upstream schemas described
+above; installed custom plugins require separate runtime prerequisites.
