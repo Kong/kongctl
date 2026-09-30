@@ -14,7 +14,8 @@ steps:
               fields:
                 failed: 0
 
-  - name: 001-create
+  - name: 001-create-auth
+    inputOverlayDirs: [overlays/000-auth-only]
     commands:
       - name: sync
         run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
@@ -22,12 +23,61 @@ steps:
           - select: plan.summary
             expect:
               fields:
-                total_changes: 3
-                by_action.CREATE: 3
+                total_changes: 2
+                by_action.CREATE: 2
           - select: summary
             expect:
               fields:
-                applied: 3
+                applied: 2
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 001a-create-server-existing-auth
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 001b-update-server-existing-auth
+    inputOverlayDirs: [overlays/000-update-server]
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
                 failed: 0
                 status: success
       - name: verify-convergence
