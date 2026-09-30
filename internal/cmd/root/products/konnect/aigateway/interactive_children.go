@@ -585,7 +585,7 @@ func loadAIGatewayCustomPolicies(_ context.Context, helper cmd.Helper, parent an
 
 	policyAPI := sdk.GetAIGatewayCustomPoliciesAPI()
 	if policyAPI == nil {
-		return tableview.ChildView{}, fmt.Errorf("AI Gateway Policies client is not available")
+		return tableview.ChildView{}, fmt.Errorf("AI Gateway Custom Policies client is not available")
 	}
 
 	policies, err := fetchAIGatewayCustomPolicies(helper, policyAPI, gatewayID, cfg)
