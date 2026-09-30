@@ -18,7 +18,6 @@ func TestSavedMCPReplacementCreateFailureKeepsOldServer(t *testing.T) {
 	var methods []string
 	httpClient := customPolicyHTTPClient(func(r *http.Request) (*http.Response, error) {
 		methods = append(methods, r.Method)
-		require.Equal(t, http.MethodPost, r.Method, "old server must not be read or deleted after create fails")
 		return &http.Response{
 			StatusCode: http.StatusBadRequest,
 			Header:     http.Header{"Content-Type": {"application/json"}},
@@ -54,7 +53,7 @@ func TestSavedMCPReplacementCreateFailureKeepsOldServer(t *testing.T) {
 	result := New(client, nil, false).Execute(testContextWithLogger(), &saved)
 	require.Equal(t, 1, result.FailureCount)
 	require.Equal(t, 1, result.SkippedCount)
-	require.Equal(t, []string{http.MethodPost}, methods)
+	require.Equal(t, []string{http.MethodPost}, methods, "old server must not be read or deleted after create fails")
 	require.Len(t, result.Errors, 1)
 	require.Contains(t, result.Errors[0].Error, "replacement rejected")
 }
