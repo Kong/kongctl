@@ -84,8 +84,8 @@ func TestMCPReplacementLifecyclePersistsOrdering(t *testing.T) {
 	require.Len(t, plan.Changes, 2)
 	create, deletion := plan.Changes[0], plan.Changes[1]
 	require.Contains(t, deletion.DependsOn, create.ID)
-	// Add prerequisite/deletion edges in an order that formerly put deletion
-	// at an earlier topological level than the replacement.
+	// Without the replacement edge, these prerequisite and deletion edges
+	// would order the deletion before the replacement.
 	plan.Changes[0].DependsOn = []string{"create-auth", "create-policy"}
 	for _, kind := range []string{ResourceTypeAIGatewayAuthStrategy, ResourceTypeAIGatewayPolicy} {
 		name := "auth"
