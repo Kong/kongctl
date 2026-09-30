@@ -145,6 +145,7 @@ func TestAIGatewayCustomPolicyDependencies(t *testing.T) {
 	require.Equal(t, []string{"definition"}, plan.Changes[1].DependsOn)
 	require.Empty(t, plan.Changes[2].DependsOn)
 	plan.Changes[0].Action = ActionDelete
+	p.client = state.NewClient(state.ClientConfig{AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{}})
 	require.ErrorContains(
 		t,
 		p.resolveAIGatewayCustomPolicyDependencies(t.Context(), "default", "gateway", "gateway-id", plan),

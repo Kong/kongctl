@@ -14,6 +14,7 @@ type planningResourceCache struct {
 	aiGatewayAgents         map[string][]state.AIGatewayAgent
 	aiGatewayConsumers      map[string][]state.AIGatewayConsumer
 	aiGatewayConsumerGroups map[string][]state.AIGatewayConsumerGroup
+	aiGatewayPolicies       map[string][]state.AIGatewayPolicy
 	aiGatewayModels         map[string][]state.AIGatewayModel
 	aiGatewayMCPServers     map[string][]state.AIGatewayMCPServer
 
@@ -38,6 +39,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		aiGatewayAgents:         make(map[string][]state.AIGatewayAgent),
 		aiGatewayConsumers:      make(map[string][]state.AIGatewayConsumer),
 		aiGatewayConsumerGroups: make(map[string][]state.AIGatewayConsumerGroup),
+		aiGatewayPolicies:       make(map[string][]state.AIGatewayPolicy),
 		aiGatewayModels:         make(map[string][]state.AIGatewayModel),
 		aiGatewayMCPServers:     make(map[string][]state.AIGatewayMCPServer),
 

@@ -10,107 +10,78 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-type aiGatewayAuthStrategyUser struct {
-	resourceType   string
-	id             string
-	name           string
-	authStrategies []string
-}
-
-// Inspect every auth strategy user, including children outside the sync scope.
-// A strategy can only be removed after all existing attachments are removed.
 func (p *Planner) resolveAIGatewayAuthStrategyDeletes(
 	ctx context.Context, namespace, gatewayRef, gatewayID string, plan *Plan,
 ) error {
-	var deletes []int
-	type resourceKey struct{ resourceType, id string }
-	changes := make(map[resourceKey]*PlannedChange)
-	var plannedUsers []*PlannedChange
 	namesByRef := make(map[string]string)
 	if p.resources != nil {
 		for _, strategy := range p.resources.GetAIGatewayAuthStrategiesForGateway(gatewayRef) {
 			namesByRef[strategy.Ref] = strategy.Name
 		}
 	}
-	for i := range plan.Changes {
-		change := &plan.Changes[i]
-		if change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(*change, gatewayRef) {
-			continue
-		}
-		if change.ResourceType == ResourceTypeAIGatewayAuthStrategy && change.Action == ActionDelete {
-			deletes = append(deletes, i)
-		}
-		if change.ResourceType == ResourceTypeAIGatewayAuthStrategy && change.Action == ActionCreate {
+	for _, change := range plan.Changes {
+		if change.Namespace == namespace && aiGatewayChildChangeMatchesParent(change, gatewayRef) &&
+			change.ResourceType == ResourceTypeAIGatewayAuthStrategy && change.Action == ActionCreate {
 			if name, ok := change.Fields[FieldName].(string); ok {
 				namesByRef[change.ResourceRef] = name
 			}
 		}
-		if !aiGatewayResourceUsesAuthStrategies(change.ResourceType) {
-			continue
-		}
-		if change.ResourceID != "" {
-			changes[resourceKey{change.ResourceType, change.ResourceID}] = change
-		}
-		if change.Action == ActionCreate || change.Action == ActionUpdate {
-			plannedUsers = append(plannedUsers, change)
-		}
 	}
-	if len(deletes) == 0 {
-		return nil
+	references := func(deletion PlannedChange, values []string) bool {
+		name, _ := deletion.Fields[FieldName].(string)
+		return slices.ContainsFunc(values, func(value string) bool {
+			value = canonicalAIGatewayReference(value, nil)
+			return value != "" && (value == name || value == deletion.ResourceID)
+		})
 	}
-
-	users, err := p.listAIGatewayAuthStrategyUsers(ctx, gatewayID)
-	if err != nil {
-		return fmt.Errorf("failed to inspect auth strategy attachments in AI Gateway %q: %w", gatewayRef, err)
-	}
-	for _, index := range deletes {
-		deletion := &plan.Changes[index]
-		authStrategyName, _ := deletion.Fields[FieldName].(string)
-		referencesAuthStrategy := func(authStrategies []string) bool {
-			return slices.ContainsFunc(authStrategies, func(value string) bool {
-				value = canonicalAIGatewayReference(value, nil)
-				return value != "" && (value == authStrategyName || value == deletion.ResourceID)
-			})
-		}
-		plannedReferencesAuthStrategy := func(values []string) bool {
-			resolved := make([]string, len(values))
-			for i, value := range values {
-				if ref, _, ok := tags.ParseRefPlaceholder(value); ok && namesByRef[ref] != "" {
-					value = namesByRef[ref]
-				}
-				resolved[i] = value
+	plannedReferences := func(deletion PlannedChange, values []string) bool {
+		resolved := make([]string, len(values))
+		for i, value := range values {
+			if ref, _, ok := tags.ParseRefPlaceholder(value); ok && namesByRef[ref] != "" {
+				value = namesByRef[ref]
 			}
-			return referencesAuthStrategy(resolved)
+			resolved[i] = value
 		}
-		for _, change := range plannedUsers {
-			if plannedReferencesAuthStrategy(aiGatewayAuthStrategies(change.Fields)) {
-				return fmt.Errorf(
-					"cannot delete AI Gateway Auth Strategy %q in gateway %q while planned %s %q still references it",
-					authStrategyName, gatewayRef, change.ResourceType, change.ResourceRef,
+		return references(deletion, resolved)
+	}
+	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		targetType: ResourceTypeAIGatewayAuthStrategy, usesTarget: aiGatewayResourceUsesAuthStrategies,
+		observe: func(ctx context.Context) ([]observedReferenceUser, error) {
+			users, err := p.listAIGatewayAuthStrategyUsers(ctx, gatewayID)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to inspect auth strategy attachments in AI Gateway %q: %w",
+					gatewayRef,
+					err,
 				)
 			}
-		}
-		for _, user := range users {
-			if !referencesAuthStrategy(user.authStrategies) {
-				continue
-			}
-			change := changes[resourceKey{user.resourceType, user.id}]
-			if change != nil && change.Action == ActionDelete {
-				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
-				continue
-			}
-			if change != nil && change.Action == ActionUpdate &&
-				aiGatewayAuthStrategyUpdateDetaches(*change, plannedReferencesAuthStrategy) {
-				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
-				continue
+			return users, nil
+		},
+		observedReferences: references,
+		plannedReferences: func(deletion, change PlannedChange) bool {
+			return plannedReferences(deletion, aiGatewayAuthStrategies(change.Fields))
+		},
+		updateDetaches: func(deletion, change PlannedChange) bool {
+			return aiGatewayAuthStrategyUpdateDetaches(
+				change,
+				func(values []string) bool { return plannedReferences(deletion, values) },
+			)
+		},
+		conflict: func(deletion PlannedChange, user observedReferenceUser, planned bool) error {
+			qualifier := ""
+			if planned {
+				qualifier = "planned "
 			}
 			return fmt.Errorf(
-				"cannot delete AI Gateway Auth Strategy %q in gateway %q while %s %q still references it",
-				authStrategyName, gatewayRef, user.resourceType, user.name,
+				"cannot delete AI Gateway Auth Strategy %q in gateway %q while %s%s %q still references it",
+				deletion.Fields[FieldName],
+				gatewayRef,
+				qualifier,
+				user.resourceType,
+				user.name,
 			)
-		}
-	}
-	return nil
+		},
+	})
 }
 
 func aiGatewayResourceUsesAuthStrategies(resourceType string) bool {
@@ -154,8 +125,8 @@ func aiGatewayAuthStrategyUpdateDetaches(change PlannedChange, referencesAuthStr
 func (p *Planner) listAIGatewayAuthStrategyUsers(
 	ctx context.Context,
 	gatewayID string,
-) ([]aiGatewayAuthStrategyUser, error) {
-	var users []aiGatewayAuthStrategyUser
+) ([]observedReferenceUser, error) {
+	var users []observedReferenceUser
 	agents, err := p.listAIGatewayAgents(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
@@ -165,7 +136,7 @@ func (p *Planner) listAIGatewayAuthStrategyUsers(
 		if err != nil {
 			return nil, fmt.Errorf("inspect agent auth strategy attachments: %w", err)
 		}
-		users = append(users, aiGatewayAuthStrategyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayAgent, agent.ID, agent.Name, aiGatewayAuthStrategies(payload),
 		})
 	}
@@ -178,7 +149,7 @@ func (p *Planner) listAIGatewayAuthStrategyUsers(
 		if err != nil {
 			return nil, fmt.Errorf("inspect model auth strategy attachments: %w", err)
 		}
-		users = append(users, aiGatewayAuthStrategyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayModel, resources.AIGatewayModelID(model.AIGatewayModel),
 			resources.AIGatewayModelName(model.AIGatewayModel), aiGatewayAuthStrategies(payload),
 		})
@@ -192,7 +163,7 @@ func (p *Planner) listAIGatewayAuthStrategyUsers(
 		if err != nil {
 			return nil, fmt.Errorf("inspect MCP server auth strategy attachments: %w", err)
 		}
-		users = append(users, aiGatewayAuthStrategyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayMCPServer, resources.AIGatewayMCPServerID(server.AIGatewayMCPServer),
 			resources.AIGatewayMCPServerName(server.AIGatewayMCPServer), aiGatewayAuthStrategies(payload),
 		})

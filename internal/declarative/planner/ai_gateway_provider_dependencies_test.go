@@ -144,6 +144,86 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 	}
 }
 
+func TestAIGatewayProviderDeleteFullModelUpdate(t *testing.T) {
+	for _, kind := range []string{"api", "model"} {
+		for _, targets := range []string{"omitted", "null", "empty", "replacement", "retained"} {
+			t.Run(kind+"/"+targets, func(t *testing.T) {
+				raw, err := testAIGatewayModelResource(t).MutablePayloadMap()
+				require.NoError(t, err)
+				raw[FieldType] = kind
+				if kind == "api" {
+					raw[FieldCapabilities] = []string{"files"}
+					delete(raw[FieldConfig].(map[string]any), FieldModel)
+				}
+				raw["id"] = "model-id"
+				raw["created_at"], raw["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
+				data, err := json.Marshal(raw)
+				require.NoError(t, err)
+				var observed kkComps.AIGatewayModel
+				require.NoError(t, json.Unmarshal(data, &observed))
+
+				raw["ref"], raw["ai_gateway"] = "support-gpt", "support-gateway"
+				raw[FieldDisplayName] = "Updated model"
+				switch targets {
+				case "omitted":
+					delete(raw, FieldTargets)
+				case "null":
+					raw[FieldTargets] = nil
+				case "empty":
+					raw[FieldTargets] = []any{}
+				case "replacement":
+					raw[FieldTargets].([]any)[0].(map[string]any)[FieldProvider] = "replacement"
+				}
+				data, err = json.Marshal(raw)
+				require.NoError(t, err)
+				var desired resources.AIGatewayModelResource
+				err = json.Unmarshal(data, &desired)
+				if targets == "omitted" {
+					require.ErrorContains(t, err, "missing required fields: targets")
+					return
+				}
+				require.NoError(t, err)
+				require.NoError(t, desired.Validate())
+				p := NewPlanner(state.NewClient(state.ClientConfig{
+					AIGatewayModelAPI: &providerOrderModelAPI{testAIGatewayModelAPI: testAIGatewayModelAPI{
+						models: []kkComps.AIGatewayModel{observed},
+					}},
+				}), slog.Default())
+				update, fields, changed, err := p.shouldUpdateAIGatewayModel(
+					state.AIGatewayModel{AIGatewayModel: observed}, desired,
+				)
+				require.NoError(t, err)
+				require.True(t, update)
+				// The complete planner payload preserves explicit null; targets
+				// is never omitted by SDK omitempty.
+				require.Contains(t, fields, FieldTargets)
+				if targets == "null" {
+					require.Nil(t, fields[FieldTargets])
+					data, err = json.Marshal(fields)
+					require.NoError(t, err)
+					require.Contains(t, string(data), `"targets":null`)
+				}
+				plan := &Plan{Changes: []PlannedChange{{
+					ID: "delete-provider", ResourceType: ResourceTypeAIGatewayProvider, Action: ActionDelete,
+					Fields: map[string]any{FieldName: "support-openai"}, Namespace: "default",
+					Parent: &ParentInfo{Ref: "support-gateway"},
+				}, {
+					ID: "update-model", ResourceType: ResourceTypeAIGatewayModel, Action: ActionUpdate,
+					ResourceID: "model-id", ResourceRef: desired.Ref, Fields: fields, ChangedFields: changed,
+					Namespace: "default", Parent: &ParentInfo{Ref: "support-gateway"},
+				}}}
+				err = p.resolveAIGatewayProviderDeletes(t.Context(), "default", "support-gateway", "gateway-id", plan)
+				if targets == "retained" {
+					require.ErrorContains(t, err, "planned model")
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, []string{"update-model"}, plan.Changes[0].DependsOn)
+			})
+		}
+	}
+}
+
 type providerOrderModelAPI struct {
 	testAIGatewayModelAPI
 	listError error

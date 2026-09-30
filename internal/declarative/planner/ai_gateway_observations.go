@@ -66,3 +66,11 @@ func (p *Planner) listAIGatewayMCPServers(ctx context.Context, gatewayID string)
 	}
 	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayMCPServers)
 }
+
+func (p *Planner) listAIGatewayPolicies(ctx context.Context, gatewayID string) ([]state.AIGatewayPolicy, error) {
+	var cache map[string][]state.AIGatewayPolicy
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayPolicies
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayPolicies)
+}
