@@ -589,6 +589,13 @@ targets and semantic-balancer embeddings. Replacement providers must exist
 before model updates. Add these edges before serialization so deletion and
 runtime-version dependencies cannot be reversed by the gateway's chain.
 
+MCP server reconciliation adds same-route replacement dependencies using the
+observed server payloads. Enabled serving variants with equivalent normalized
+route configuration in one gateway create before deleting the old server.
+These semantic edges must exist before sibling serialization; creation
+success is not a data-plane readiness barrier. Keep source-only resources,
+disabled servers, and unrelated or partially overlapping routes separate.
+
 Preserve namespace and protection behavior, including inherited protection.
 Planner validation accumulates protection failures before execution.
 [Inherited protection planning][plan-protection] records protecting parents;
