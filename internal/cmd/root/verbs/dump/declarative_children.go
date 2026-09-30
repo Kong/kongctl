@@ -1892,8 +1892,8 @@ func apiImplementationResourceFromState(
 			ID:             impl.Service.ID,
 			ControlPlaneID: impl.Service.ControlPlaneID,
 		}
-		implementation = kkComps.CreateAPIImplementationServiceReferenceInput(
-			kkComps.ServiceReferenceInput{Service: &service},
+		implementation = kkComps.CreateAPIImplementationServiceReference(
+			kkComps.ServiceReference{Service: &service},
 		)
 	case impl.ControlPlane != nil && strings.TrimSpace(impl.ControlPlane.ID) != "":
 		implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{

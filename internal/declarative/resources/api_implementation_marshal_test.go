@@ -14,7 +14,7 @@ func TestAPIImplementationResourceMarshalJSONIncludesMetadata(t *testing.T) {
 		ID:             "svc-id",
 		ControlPlaneID: "cp-id",
 	}
-	impl := kkComps.CreateAPIImplementationServiceReferenceInput(kkComps.ServiceReferenceInput{Service: &service})
+	impl := kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{Service: &service})
 
 	resource := APIImplementationResource{
 		APIImplementation: impl,
@@ -93,7 +93,7 @@ func TestAPIImplementationResourceUnmarshalJSONVariants(t *testing.T) {
 		{
 			name:      "service without type",
 			input:     `{"ref":"impl","service":{"id":"svc","control_plane_id":"cp"}}`,
-			wantType:  kkComps.APIImplementationTypeServiceReferenceInput,
+			wantType:  kkComps.APIImplementationTypeServiceReference,
 			wantSvcID: "svc",
 		},
 		{

@@ -398,7 +398,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 	return kkComps.AIGatewayAgent{
 		ID:          "agent-id",
 		Name:        "booking-agent",
-		Type:        kkComps.AIGatewayAgentTypeA2a,
+		Type:        kkComps.TypeA2a,
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,
 		Config: kkComps.AIGatewayAgentConfig{

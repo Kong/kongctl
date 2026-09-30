@@ -574,7 +574,7 @@ func TestShouldUpdatePortalCustomizationDetectsFooterBottomDrift(t *testing.T) {
 			FooterBottom: []kkComps.PortalMenuItem{{
 				Path:       "/terms",
 				Title:      "Terms",
-				Visibility: kkComps.VisibilityPublic,
+				Visibility: kkComps.PortalMenuItemVisibilityPublic,
 			}},
 		},
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 func TestFetchOrganizationUserRoles(t *testing.T) {
-	roleRegion := kkComps.EntityRegionUs
+	roleRegion := kkComps.AssignedRoleEntityRegionUs
 	api := &stubOrganizationTeamRolesAPI{
 		listUserRoles: func(
 			_ context.Context,

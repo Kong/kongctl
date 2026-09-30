@@ -790,7 +790,7 @@ func TestCollectOrganizationSystemAccountsFromTeamMemberships(t *testing.T) {
 				*kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
 				...kkOps.Option,
 			) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
-				region := kkComps.EntityRegion(entityRegion)
+				region := kkComps.AssignedRoleEntityRegion(entityRegion)
 				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
 					AssignedRoleCollection: &kkComps.AssignedRoleCollection{
 						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},

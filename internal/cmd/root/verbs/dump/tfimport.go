@@ -849,7 +849,7 @@ func dumpAppAuthStrategies(
 		}
 
 		if filter.name != "" {
-			req.Filter = &kkOps.ListAppAuthStrategiesQueryParamFilter{Name: buildStringFieldFilter(filter.name)}
+			req.Filter = &kkOps.QueryParamFilter{Name: buildStringFieldFilter(filter.name)}
 		}
 
 		res, err := kkClient.ListAppAuthStrategies(ctx, req)
@@ -912,7 +912,7 @@ func dumpControlPlanes(
 
 		if filter.name != "" {
 			op, val := parseFilterName(filter.name)
-			nameFilter := &kkComps.Name{}
+			nameFilter := &kkComps.ControlPlaneFilterParametersName{}
 			if op == filterOpContains {
 				nameFilter.Contains = &val
 			} else {

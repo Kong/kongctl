@@ -104,7 +104,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 				}
 
 				if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-					visValue := kkComps.Visibility(visibility)
+					visValue := kkComps.PortalMenuItemVisibility(visibility)
 					menuItem.Visibility = visValue
 				}
 				if external, ok := itemMap["external"].(bool); ok {
@@ -134,7 +134,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 						}
 
 						if visibility, ok := itemMap[planner.FieldVisibility].(string); ok {
-							visValue := kkComps.Visibility(visibility)
+							visValue := kkComps.PortalMenuItemVisibility(visibility)
 							footerItem.Visibility = visValue
 						}
 						if external, ok := itemMap["external"].(bool); ok {

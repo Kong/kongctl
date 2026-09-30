@@ -153,7 +153,7 @@ func TestAIGatewayAgentConfigExplainTracksSDKRequestShape(t *testing.T) {
 	allowOverlay := func(path, name string) bool {
 		return path == "logging" && name == "statistics"
 	}
-	assertCustomExplainDeeplySupportsSDKShape[kkComps.CreateAIGatewayAgentRequestConfig](t, config.Node, allowOverlay)
+	assertCustomExplainDeeplySupportsSDKShape[kkComps.Config](t, config.Node, allowOverlay)
 }
 
 func TestAIGatewayMCPServerConfigExplainIncludesUpstreamAuthentication(t *testing.T) {

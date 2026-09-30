@@ -118,7 +118,7 @@ func (a *APIAPIImpl) CreateAPIVersion(ctx context.Context, apiID string, request
 ) (*kkOps.CreateAPIVersionResponse, error) {
 	return a.SDK.APIVersion.CreateAPIVersion(
 		ctx,
-		kkOps.CreateAPIVersionRequest{APIID: apiID, CreateAPIVersionRequest: request},
+		apiID, request,
 		opts...,
 	)
 }
