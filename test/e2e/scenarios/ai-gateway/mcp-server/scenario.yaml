@@ -264,7 +264,7 @@ steps:
                 fields.config.route.paths[0]: /support-conversion-listener
                 fields.access.acl_attribute_type: consumer
                 fields.access.auth_strategies[0]: "__REF__:{{ .vars.auth_strategy_ref }}#id"
-                references."access.auth_strategies.0".ref: "__REF__:{{ .vars.auth_strategy_ref }}#id"
+                references."access.auth_strategies.0".ref: "__REF__:{{ .vars.auth_strategy_ref }}#name"
           - select: >-
               changes[?resource_type=='ai_gateway_mcp_server' && resource_ref=='{{ .vars.listener_server_ref }}'] | [0]
             expect:
