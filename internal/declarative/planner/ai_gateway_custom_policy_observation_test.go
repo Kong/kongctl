@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -13,14 +14,41 @@ import (
 
 type countingCustomPolicyUsersAPI struct {
 	testAIGatewayPolicyAPI
-	reads int
+	reads     int
+	listError error
 }
 
 func (a *countingCustomPolicyUsersAPI) ListAiGatewayPolicies(
 	ctx context.Context, request kkOps.ListAiGatewayPoliciesRequest, opts ...kkOps.Option,
 ) (*kkOps.ListAiGatewayPoliciesResponse, error) {
 	a.reads++
+	if a.listError != nil {
+		return nil, a.listError
+	}
 	return a.testAIGatewayPolicyAPI.ListAiGatewayPolicies(ctx, request, opts...)
+}
+
+func TestCustomPolicyConflictFailsSafelyWhenObservationFails(t *testing.T) {
+	api := &countingCustomPolicyUsersAPI{}
+	p := NewPlanner(state.NewClient(state.ClientConfig{AIGatewayPoliciesAPI: api}), slog.Default())
+	plan := &Plan{Changes: []PlannedChange{
+		{
+			ID: "delete-definition", ResourceType: ResourceTypeAIGatewayCustomPolicy, Action: ActionDelete,
+			Namespace: "default", Parent: &ParentInfo{Ref: "gateway"}, Fields: map[string]any{FieldName: "plugin"},
+		},
+		{
+			ID: "create-instance", ResourceType: ResourceTypeAIGatewayPolicy, Action: ActionCreate,
+			Namespace: "default", Parent: &ParentInfo{Ref: "gateway"}, Fields: map[string]any{FieldType: "plugin"},
+		},
+	}}
+	err := p.resolveAIGatewayCustomPolicyDependencies(t.Context(), "default", "gateway", "gateway-id", plan)
+	require.ErrorContains(t, err, "while planned policy")
+	api.listError = errors.New("observation unavailable")
+	p = NewPlanner(state.NewClient(state.ClientConfig{AIGatewayPoliciesAPI: api}), slog.Default())
+	err = p.resolveAIGatewayCustomPolicyDependencies(t.Context(), "default", "gateway", "gateway-id", plan)
+	require.ErrorIs(t, err, api.listError)
+	require.ErrorContains(t, err, "inspect policies before deleting custom definitions")
+	require.Equal(t, 2, api.reads)
 }
 
 func TestCustomPolicyDeletionReusesPolicyObservation(t *testing.T) {

@@ -11,7 +11,6 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 	ctx context.Context, namespace, gatewayRef, gatewayID string, plan *Plan,
 ) error {
 	creates := make(map[string]string)
-	var deletes []int
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
 		if change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(*change, gatewayRef) {
@@ -21,9 +20,6 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 			name, _ := change.Fields[FieldName].(string)
 			if change.Action == ActionCreate {
 				creates[name] = change.ID
-			}
-			if change.Action == ActionDelete {
-				deletes = append(deletes, i)
 			}
 		}
 	}
@@ -37,18 +33,6 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 		if id := creates[typeName]; id != "" {
 			change.DependsOn = appendDependsOn(change.DependsOn, id)
 		}
-		for _, index := range deletes {
-			if plan.Changes[index].Fields[FieldName] == typeName {
-				return fmt.Errorf(
-					"cannot delete custom policy %q while planned policy %q uses it",
-					typeName,
-					change.ResourceRef,
-				)
-			}
-		}
-	}
-	if len(deletes) == 0 {
-		return nil
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
 		targetType: ResourceTypeAIGatewayCustomPolicy,
