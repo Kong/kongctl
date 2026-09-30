@@ -82,7 +82,7 @@ The following live scenarios exercise management API behavior:
   alias replacement and expansion.
 - `ai-gateway/model-passthrough`: passthrough format, route and upstream URL
   updates.
-- `ai-gateway/model-skills`: skills API capability and combination with files.
+- `ai-gateway/model-skills`: skills API capability preserved through updates.
 - `ai-gateway/custom-policy`: streaming definitions, instances, and deletion
   dependencies.
 

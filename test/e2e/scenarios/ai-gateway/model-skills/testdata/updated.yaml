@@ -24,7 +24,7 @@ ai_gateways:
         enabled: true
         formats:
           - type: anthropic
-        capabilities: [skills, files]
+        capabilities: [skills]
         config:
           route: {}
         targets:

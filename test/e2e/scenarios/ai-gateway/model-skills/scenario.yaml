@@ -124,7 +124,7 @@ steps:
                 '[0].display_name': Updated model
                 '[0].type': api
                 '[0].formats[0].type': anthropic
-                sort([0].capabilities): [files, skills]
+                sort([0].capabilities): [skills]
                 '[0].targets[0].provider': anthropic-provider
                 '[0].targets[0].config.type': anthropic
       - name: get-model-by-name
@@ -137,7 +137,7 @@ steps:
                 display_name: Updated model
                 type: api
                 formats[0].type: anthropic
-                sort(capabilities): [files, skills]
+                sort(capabilities): [skills]
                 targets[0].provider: anthropic-provider
                 targets[0].config.type: anthropic
       - name: converged
@@ -168,7 +168,7 @@ steps:
                 display_name: Updated model
                 type: api
                 formats[0].type: anthropic
-                sort(capabilities): [files, skills]
+                sort(capabilities): [skills]
                 targets[0].provider: anthropic-provider
                 targets[0].config.type: anthropic
           - source:
