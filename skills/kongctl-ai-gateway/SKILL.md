@@ -29,10 +29,11 @@ checkout or another skill is unnecessary.
   aliases unless the requested change requires otherwise.
 - For a deployment pipeline, read [CI/CD](references/cicd.md). Combine it
   with model access only when that expansion is requested. Start with the
-  bundled single-workflow example and one existing gateway; for a
-  speed-focused task, get the first CI deployment working before expanding
-  models or callers. Keep the user's required approval boundary, but do not
-  add enterprise controls or custom audit machinery by default.
+  workflow matching the user's requested approval model and one existing
+  gateway. For a speed-focused task, get the first CI deployment working
+  before expanding models or callers. Keep the user's required approval
+  boundary, but do not add enterprise controls or custom audit machinery
+  by default.
 - For a failure, use the diagnostic table in the local setup reference;
   inspect the relevant installed schema before changing configuration.
 
@@ -98,7 +99,8 @@ For other providers or policies, use targeted discovery and the current
   offline validation flag, substitute a fake API endpoint, or claim generic
   YAML lint proves native schema, references or deployment success.
 
-Prepare a saved plan and show its diff before requesting execution approval:
+For direct execution or manual CI deployment, prepare a saved plan and show
+its diff before requesting execution approval:
 
 ```sh
 mkdir -p .plans .artifacts
@@ -108,9 +110,10 @@ kongctl diff --plan .plans/apply.json
 ```
 
 Present the proposed additions, updates, deletions and secret writes with
-the target organization ID, region and namespace. Ask the user to approve
-that concrete saved plan before applying it or dispatching CI. A general
-request to set up a gateway does not replace this plan-review checkpoint.
+the target organization ID, region and namespace. For direct execution or
+manual deployment, ask the user to approve that concrete saved plan before
+applying it or dispatching deployment CI. A general request to set up a
+gateway does not replace this plan-review checkpoint.
 Shell permissions, sandbox escalation and automatic tool approval authorize
 command execution; they do not establish human approval of the plan.
 Reuse explicit approval already given for that exact plan and target;
@@ -129,6 +132,13 @@ for planning and execution. Record the target organization ID using
 same context; a profile or organization name alone is not its identity.
 Changes to inputs or target require a new plan and review. Secrets
 referenced in that plan must be supplied to execution.
+
+For explicitly requested PR automation, use the CI/CD reference's
+PR-plan/apply-on-main workflow. Review each generated saved plan through the
+authorized repository process; do not add a manual dispatch approval to
+that deployment model. Read-only planning dispatches do not execute a plan
+and do not require deployment approval.
+
 Use `--auto-approve` only after the saved plan's execution is authorized;
 it avoids a second interactive CLI prompt in an agent's noninteractive
 shell. Explicit JSON output also works around versions that skip writing

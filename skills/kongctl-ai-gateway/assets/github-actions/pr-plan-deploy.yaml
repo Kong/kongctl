@@ -1,0 +1,280 @@
+name: Plan and deploy AI Gateway
+
+on:
+  workflow_dispatch:
+    inputs:
+      expect_no_changes:
+        description: Fail the drift check if the plan contains changes
+        required: true
+        default: true
+        type: boolean
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ai-gateway.yaml
+      - certs/**.crt
+      - ci/plan.json
+      - .github/workflows/deploy-ai-gateway.yaml
+  push:
+    branches: [main]
+    paths:
+      - ci/plan.json
+
+permissions:
+  contents: read
+
+env:
+  KONGCTL_VERSION: "1.19.0"
+  KONGCTL_NO_TELEMETRY: "true"
+  KONNECT_REGION: us
+  KONNECT_ORG_ID: REPLACE_WITH_ORGANIZATION_ID
+  KONNECT_NAMESPACE: ai-demo
+
+jobs:
+  check-drift:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: Kong/setup-kongctl@659d5c2b0f4db2e25d63797035358a22907421db # v1
+        with:
+          kongctl-version: ${{ env.KONGCTL_VERSION }}
+      - name: Check drift against Konnect
+        env:
+          KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+          EXPECT_NO_CHANGES: ${{ inputs.expect_no_changes }}
+        run: |
+          set -euo pipefail
+          test -n "$KONNECT_REGION"
+          test "$(kongctl version --full | cut -d ' ' -f 1)" = "$KONGCTL_VERSION"
+          actual_org="$(kongctl get organization --profile default --region "$KONNECT_REGION" \
+            -o json --jq '.id' --jq-raw-output)"
+          test "$actual_org" = "$KONNECT_ORG_ID"
+          mkdir -p evidence
+          kongctl plan --mode apply -f ai-gateway.yaml --profile default \
+            --region "$KONNECT_REGION" --require-namespace "$KONNECT_NAMESPACE" \
+            --output-file evidence/plan.json
+          kongctl diff --plan evidence/plan.json --profile default \
+            --region "$KONNECT_REGION" -o text | tee evidence/diff.txt
+          sha256sum evidence/plan.json > evidence/plan-sha256.txt
+          {
+            printf '### AI Gateway drift check\n\n'
+            printf 'Branch: `%s`  \nCommit: `%s`  \n' "$GITHUB_REF_NAME" "$GITHUB_SHA"
+            printf 'Organization: `%s`  \nRegion: `%s`  \nNamespace: `%s`\n\n' \
+              "$actual_org" "$KONNECT_REGION" "$KONNECT_NAMESPACE"
+            printf '```text\n'
+            cat evidence/diff.txt
+            printf '\n```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$EXPECT_NO_CHANGES" == true ]]; then
+            if ! jq -e '
+              .summary.total_changes == 0 and (.changes | length) == 0 and
+              (.summary.secret_writes // 0) == 0
+            ' evidence/plan.json >/dev/null; then
+              echo '::error::Expected a no-op, but the saved plan contains changes.'
+              printf '\n**Failed:** expected no changes; inspect the saved plan artifact.\n' >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            printf '\n**Passed:** no changes detected.\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Save drift-check evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-gateway-drift-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
+  plan:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: ai-gateway-plan-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: Kong/setup-kongctl@659d5c2b0f4db2e25d63797035358a22907421db # v1
+        with:
+          kongctl-version: ${{ env.KONGCTL_VERSION }}
+      - name: Generate plan and diff
+        env:
+          KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+        run: |
+          set -euo pipefail
+          test -n "$KONNECT_REGION"
+          test "$(kongctl version --full | cut -d ' ' -f 1)" = "$KONGCTL_VERSION"
+          actual_org="$(kongctl get organization --profile default --region "$KONNECT_REGION" \
+            -o json --jq '.id' --jq-raw-output)"
+          test "$actual_org" = "$KONNECT_ORG_ID"
+          mkdir -p ci evidence
+          kongctl plan --mode apply -f ai-gateway.yaml --profile default \
+            --region "$KONNECT_REGION" --require-namespace "$KONNECT_NAMESPACE" \
+            --output-file ci/plan.json
+          kongctl diff --plan ci/plan.json --profile default \
+            --region "$KONNECT_REGION" -o text | tee evidence/diff.txt
+          sha256sum ci/plan.json | tee evidence/plan-sha256.txt
+      - name: Commit plan and update PR description
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > evidence/pr.json
+          # A newer human commit needs its own plan; never overwrite it.
+          actual_head="$(jq -r '.head.sha' evidence/pr.json)"
+          if [[ "$actual_head" != "$EXPECTED_HEAD" ]]; then
+            echo "::error::Stale PR head: expected $EXPECTED_HEAD, actual $actual_head"
+            exit 1
+          fi
+          test "$(jq -r '.state' evidence/pr.json)" = open
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ci/plan.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update AI Gateway deployment plan'
+            git push origin "HEAD:refs/heads/$HEAD_BRANCH"
+          fi
+          export PLAN_COMMIT="$(git rev-parse HEAD)"
+          # Read the latest body so edits made during planning are preserved.
+          # The PR API can briefly lag behind a successful Git push.
+          for attempt in 1 2 3 4 5; do
+            gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" > evidence/pr.json
+            if [[ "$(jq -r '.head.sha' evidence/pr.json)" == "$PLAN_COMMIT" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          actual_head="$(jq -r '.head.sha' evidence/pr.json)"
+          if [[ "$actual_head" != "$PLAN_COMMIT" ]]; then
+            echo "::error::PR head did not match plan commit: expected $PLAN_COMMIT, actual $actual_head"
+            exit 1
+          fi
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, re
+          begin = '<!-- ai-gateway-plan:start -->'
+          end = '<!-- ai-gateway-plan:end -->'
+          pr = json.loads(pathlib.Path('evidence/pr.json').read_text())
+          body = pr.get('body') or ''
+          digest = hashlib.sha256(pathlib.Path('ci/plan.json').read_bytes()).hexdigest()
+          diff = pathlib.Path('evidence/diff.txt').read_text().strip()
+          fence = '`' * max(3, 1 + max((len(m.group()) for m in re.finditer(r'`+', diff)), default=0))
+          section = '\n'.join([
+              begin, '### AI Gateway deployment plan', '',
+              f"Organization: `{os.environ['KONNECT_ORG_ID']}`  ",
+              f"Region: `{os.environ['KONNECT_REGION']}`  ",
+              f"Namespace: `{os.environ['KONNECT_NAMESPACE']}`  ",
+              f"Plan commit: `{os.environ['PLAN_COMMIT']}`  ",
+              f'SHA-256: `{digest}`', '',
+              'Merging this PR with the updated `ci/plan.json` deploys this saved plan.', '',
+              fence + 'text', diff, fence, end,
+          ])
+          pattern = re.escape(begin) + r'.*?' + re.escape(end)
+          if re.search(pattern, body, flags=re.DOTALL):
+              body = re.sub(pattern, lambda _: section, body, flags=re.DOTALL)
+          else:
+              body = body.rstrip() + '\n\n' + section
+          if len(body) > 65536:
+              raise SystemExit('PR description exceeds GitHub limit; inspect evidence/diff.txt')
+          pathlib.Path('evidence/pr-body.md').write_text(body)
+          pathlib.Path('evidence/pr-update.json').write_text(json.dumps({'body': body}))
+          PY
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" \
+            --input evidence/pr-update.json > /dev/null
+          cat evidence/pr-body.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save planning evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-gateway-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence/diff.txt
+            evidence/plan-sha256.txt
+            ci/plan.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: ai-gateway-deploy-ai-demo
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Check the committed plan
+        run: |
+          set -euo pipefail
+          test -n "$KONNECT_REGION"
+          jq -e --arg ns "$KONNECT_NAMESPACE" --arg cli "kongctl/$KONGCTL_VERSION" '
+            .metadata.mode == "apply" and .metadata.generator == $cli and
+            all(.changes[]; .namespace == $ns and
+              (.action == "CREATE" or .action == "UPDATE") and
+              all(.secret_writes[]?; all(.expression.parts[];
+                (.literal != null and .source == null) or
+                (.literal == null and (.source.kind == "file" or
+                  (.source.kind == "env" and
+                    .source.reference == "OPENAI_API_KEY"))))))
+          ' ci/plan.json >/dev/null
+      - uses: Kong/setup-kongctl@659d5c2b0f4db2e25d63797035358a22907421db # v1
+        with:
+          kongctl-version: ${{ env.KONGCTL_VERSION }}
+      - name: Apply the committed plan
+        env:
+          KONGCTL_DEFAULT_KONNECT_PAT: ${{ secrets.KONNECT_PAT }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$KONGCTL_DEFAULT_KONNECT_PAT"
+          test "$(kongctl version --full | cut -d ' ' -f 1)" = "$KONGCTL_VERSION"
+          actual_org="$(kongctl get organization --profile default \
+            --region "$KONNECT_REGION" -o json --jq '.id' --jq-raw-output)"
+          test "$actual_org" = "$KONNECT_ORG_ID"
+          mkdir -p evidence
+          {
+            printf 'Source: %s\nActor: %s\n' "$GITHUB_SHA" "$GITHUB_ACTOR"
+            printf 'Organization: %s\nNamespace: %s\n' "$actual_org" "$KONNECT_NAMESPACE"
+            sha256sum ci/plan.json
+            kongctl diff --plan ci/plan.json --profile default --region "$KONNECT_REGION"
+          } > evidence/review.txt
+          cat evidence/review.txt
+          cat evidence/review.txt >> "$GITHUB_STEP_SUMMARY"
+          kongctl apply --plan ci/plan.json --profile default \
+            --region "$KONNECT_REGION" --auto-approve -o json \
+            --execution-report-file evidence/apply.json
+          jq -e '.summary.status == "success"' evidence/apply.json
+      - name: Save execution evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ai-gateway-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 7
