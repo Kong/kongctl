@@ -1,0 +1,130 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+steps:
+  - name: 000-clean-own-gateway
+    commands:
+      - name: delete-own-gateway
+        run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+
+  - name: 001-create
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 3
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 002-rename-auth
+    inputOverlayDirs: [overlays/001-rename-auth]
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 3
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-rename-both
+    inputOverlayDirs: [overlays/002-rename-both]
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 2
+                by_action.DELETE: 2
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-detach-auth
+    inputOverlayDirs: [overlays/003-detach-auth]
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+                status: success
+      - name: verify-convergence
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-cleanup
+    commands:
+      - name: delete-own-gateway
+        run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success

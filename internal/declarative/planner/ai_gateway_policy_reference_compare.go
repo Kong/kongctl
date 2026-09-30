@@ -7,6 +7,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/util"
 )
 
 func normalizeAIGatewayPolicyReferencesForComparison(
@@ -65,7 +66,7 @@ func normalizeAIGatewayAuthStrategyReferencesForComparison(
 		currentAccess[FieldAuthStrategies], aliases,
 	)
 	desiredAccess[FieldAuthStrategies] = normalizeAIGatewayReferenceList(
-		desiredAccess[FieldAuthStrategies], aliases,
+		resolveDesiredAIGatewayAuthStrategyNames(desiredAccess[FieldAuthStrategies], rs), aliases,
 	)
 	currentCompare[FieldAccess] = currentAccess
 	desiredCompare[FieldAccess] = desiredAccess
@@ -108,17 +109,37 @@ func aiGatewayAuthStrategyReferenceAliases(rs *resources.ResourceSet) map[string
 	}
 
 	for _, provider := range rs.AIGatewayAuthStrategies {
-		canonical := firstNonEmpty(provider.Ref, provider.Name, provider.GetKonnectID())
+		canonical := firstNonEmpty(provider.Name, provider.GetKonnectID())
 		if canonical == "" {
 			continue
 		}
-		for _, alias := range []string{provider.Ref, provider.Name, provider.GetKonnectID()} {
+		// Observed values are remote names or IDs, never declarative refs. A ref
+		// may retain an old name while its desired strategy is being replaced.
+		for _, alias := range []string{provider.Name, provider.GetKonnectID()} {
 			if alias != "" {
 				aliases[alias] = canonical
 			}
 		}
 	}
 	return aliases
+}
+
+func resolveDesiredAIGatewayAuthStrategyNames(raw any, rs *resources.ResourceSet) any {
+	values, valid := util.StringSliceFromAny(raw)
+	if !valid || rs == nil {
+		return raw
+	}
+	namesByRef := make(map[string]string)
+	for _, strategy := range rs.AIGatewayAuthStrategies {
+		namesByRef[strategy.Ref] = strategy.Name
+	}
+	values = slices.Clone(values)
+	for i, value := range values {
+		if ref, _, ok := tags.ParseRefPlaceholder(value); ok && namesByRef[ref] != "" {
+			values[i] = namesByRef[ref]
+		}
+	}
+	return values
 }
 
 func normalizeAIGatewayReferenceList(raw any, aliases map[string]string) any {

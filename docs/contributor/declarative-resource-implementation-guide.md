@@ -553,6 +553,12 @@ precede groups. TLS retains its own certificate/SNI scope and ordering.
 The root planner supplies parent IDs or create-change dependencies and skips
 unresolved external parents with a warning. Child lifecycles remain separate.
 
+After child planning, auth strategy deletes inspect all agents, models, and
+MCP servers in the gateway, including children outside the sync scope. Deletes
+must depend on updates or deletes that remove existing attachments. A retained
+attachment or a planned reference to a deleted strategy fails planning. Reuse
+cached observations and preserve these edges through dependency serialization.
+
 Portal's [child traversal][portal-child-plan] is shared by new, existing,
 and external parents. Add collection filtering, scope checks, and dispatch
 there once. Keep identity providers before auth settings, and teams before
