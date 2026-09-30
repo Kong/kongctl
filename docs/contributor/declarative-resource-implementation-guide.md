@@ -596,6 +596,67 @@ These semantic edges must exist before sibling serialization; creation
 success is not a data-plane readiness barrier. Keep source-only resources,
 disabled servers, and unrelated or partially overlapping routes separate.
 
+AI Gateway observed-reference deletion uses
+`observedReferenceDeletePolicy` and the ordered `aiGatewayDeleteResolvers`
+inventory. Adapters supply cached observation, target identity, desired
+reference matching, proven update detachment, and resource-specific errors.
+The shared policy waits for every observed user's delete or detaching update
+and rejects retained users and conflicting planned creates/updates. Match
+operations by resource kind and remote ID within the gateway and namespace;
+observe users outside the selected sync scope as well. No relevant target
+delete means no observation. Observation failures must reject the plan.
+
+Keep omission separate from clearing. Policy and auth-strategy adapters use
+the diff when SDK `omitempty` drops explicit empty lists; field absence alone
+does not prove removal. Provider models require their complete mutable
+payload, including targets and semantic-balancer embeddings. Auth-strategy
+desired refs resolve to the desired name before matching the old deletion
+target, including same-ref renames. Custom policies retain creation edges
+and require a nonempty replacement plugin type to prove detachment.
+
+`RelationshipDescriptor` supplies schema reference-binding metadata, not
+observed API extraction, update serialization, or deletion semantics. Do not
+reverse desired-state dependencies: removed references are absent there.
+`TestAIGatewayForeignKeyDeleteCoverage` requires an exact disposition for
+every registered AI Gateway API foreign-key descriptor. Its supplemental
+inventory audits runtime name references that are not schema descriptors:
+
+| Observed user / reference | Deletion disposition |
+| --- | --- |
+| Model targets and semantic embeddings / provider | Provider adapter |
+| Agent, consumer, group, model, MCP server / policies | Policy adapter |
+| Agent, model, MCP server / access auth strategies | Auth-strategy adapter |
+| Policy / custom plugin type | Custom-policy adapter |
+| SNI / certificate | Existing pending-delete TLS orchestration |
+| Konnect vault / config store | Explicit existing gap; see below |
+| Consumer group / consumers | Separate membership workflow; see below |
+
+Concrete exceptions remain outside this resolver migration:
+
+- TLS planning already observes SNIs outside scope, rejects retained and
+  conflicting planned references, and adds SNI dependencies before admitting
+  certificate deletes. Preserve that pending-delete orchestration.
+- Konnect vaults reference Config Stores through variant-specific
+  `config.config_store_id`. There is currently no observed-user deletion
+  check for that relationship. This migration does not claim that deleting a
+  referenced store is safe. A separate lifecycle change must establish vault
+  variant observation and detachment semantics, including transitions to
+  other vault backends and secret-bearing config serialization.
+- Consumer-group membership uses separate list/add/remove endpoints; the
+  executor strips `consumers` from the group PUT payload. Membership removal
+  must be proven by that workflow rather than treating an omitted PUT field
+  as detachment. Consumer deletion and membership reconciliation are not
+  migrated into the foreign-key policy here.
+- Gateway children, consumer credentials, and Config Store secrets use
+  structural parent selectors and their existing ownership/cascade behavior.
+  They are not cross-resource API foreign keys. Secret expressions and
+  opaque plugin config are also not statically bound foreign keys; do not
+  infer deletion safety from arbitrary strings in those payloads.
+
+Register new foreign keys with an adapter or a concrete, reviewed exception;
+do not add a blanket exemption for a target kind. Preserve graph and saved-plan
+dependencies, idempotent resolution, and all enabled E2E replay scenarios.
+
 Preserve namespace and protection behavior, including inherited protection.
 Planner validation accumulates protection failures before execution.
 [Inherited protection planning][plan-protection] records protecting parents;

@@ -9,85 +9,50 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-type aiGatewayPolicyUser struct {
-	resourceType string
-	id           string
-	name         string
-	policies     []string
-}
-
-// Inspect every policy consumer, including children outside the sync scope.
-// A policy can only be removed after all existing attachments are removed.
 func (p *Planner) resolveAIGatewayPolicyDeletes(
 	ctx context.Context, namespace, gatewayRef, gatewayID string, plan *Plan,
 ) error {
-	var deletes []int
-	type resourceKey struct{ resourceType, id string }
-	changes := make(map[resourceKey]*PlannedChange)
-	var plannedUsers []*PlannedChange
-	for i := range plan.Changes {
-		change := &plan.Changes[i]
-		if change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(*change, gatewayRef) {
-			continue
-		}
-		if change.ResourceType == ResourceTypeAIGatewayPolicy && change.Action == ActionDelete {
-			deletes = append(deletes, i)
-		}
-		if !aiGatewayResourceUsesPolicies(change.ResourceType) {
-			continue
-		}
-		if change.ResourceID != "" {
-			changes[resourceKey{change.ResourceType, change.ResourceID}] = change
-		}
-		if change.Action == ActionCreate || change.Action == ActionUpdate {
-			plannedUsers = append(plannedUsers, change)
-		}
+	references := func(deletion PlannedChange, values []string) bool {
+		name, _ := deletion.Fields[FieldName].(string)
+		return slices.ContainsFunc(values, func(value string) bool {
+			value = canonicalAIGatewayReference(value, nil)
+			return value != "" && (value == name || value == deletion.ResourceID)
+		})
 	}
-	if len(deletes) == 0 {
-		return nil
-	}
-
-	users, err := p.listAIGatewayPolicyUsers(ctx, gatewayID)
-	if err != nil {
-		return fmt.Errorf("failed to inspect policy attachments in AI Gateway %q: %w", gatewayRef, err)
-	}
-	for _, index := range deletes {
-		deletion := &plan.Changes[index]
-		policyName, _ := deletion.Fields[FieldName].(string)
-		referencesPolicy := func(policies []string) bool {
-			return slices.ContainsFunc(policies, func(value string) bool {
-				value = canonicalAIGatewayReference(value, nil)
-				return value != "" && (value == policyName || value == deletion.ResourceID)
-			})
-		}
-		for _, change := range plannedUsers {
-			if referencesPolicy(stringSliceFromField(change.Fields, FieldPolicies)) {
-				return fmt.Errorf(
-					"cannot delete AI Gateway Policy %q in gateway %q while planned %s %q still references it",
-					policyName, gatewayRef, change.ResourceType, change.ResourceRef,
-				)
+	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		targetType: ResourceTypeAIGatewayPolicy, usesTarget: aiGatewayResourceUsesPolicies,
+		observe: func(ctx context.Context) ([]observedReferenceUser, error) {
+			users, err := p.listAIGatewayPolicyUsers(ctx, gatewayID)
+			if err != nil {
+				return nil, fmt.Errorf("failed to inspect policy attachments in AI Gateway %q: %w", gatewayRef, err)
 			}
-		}
-		for _, user := range users {
-			if !referencesPolicy(user.policies) {
-				continue
-			}
-			change := changes[resourceKey{user.resourceType, user.id}]
-			if change != nil && change.Action == ActionDelete {
-				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
-				continue
-			}
-			if change != nil && change.Action == ActionUpdate && aiGatewayPolicyUpdateDetaches(*change, referencesPolicy) {
-				deletion.DependsOn = appendDependsOn(deletion.DependsOn, change.ID)
-				continue
+			return users, nil
+		},
+		observedReferences: references,
+		plannedReferences: func(deletion, change PlannedChange) bool {
+			return references(deletion, stringSliceFromField(change.Fields, FieldPolicies))
+		},
+		updateDetaches: func(deletion, change PlannedChange) bool {
+			return aiGatewayPolicyUpdateDetaches(
+				change,
+				func(values []string) bool { return references(deletion, values) },
+			)
+		},
+		conflict: func(deletion PlannedChange, user observedReferenceUser, planned bool) error {
+			qualifier := ""
+			if planned {
+				qualifier = "planned "
 			}
 			return fmt.Errorf(
-				"cannot delete AI Gateway Policy %q in gateway %q while %s %q still references it",
-				policyName, gatewayRef, user.resourceType, user.name,
+				"cannot delete AI Gateway Policy %q in gateway %q while %s%s %q still references it",
+				deletion.Fields[FieldName],
+				gatewayRef,
+				qualifier,
+				user.resourceType,
+				user.name,
 			)
-		}
-	}
-	return nil
+		},
+	})
 }
 
 func aiGatewayResourceUsesPolicies(resourceType string) bool {
@@ -111,21 +76,21 @@ func aiGatewayPolicyUpdateDetaches(change PlannedChange, referencesPolicy func([
 	return changed && field.New == nil
 }
 
-func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string) ([]aiGatewayPolicyUser, error) {
-	var users []aiGatewayPolicyUser
+func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string) ([]observedReferenceUser, error) {
+	var users []observedReferenceUser
 	agents, err := p.listAIGatewayAgents(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list agents: %w", err)
 	}
 	for _, agent := range agents {
-		users = append(users, aiGatewayPolicyUser{ResourceTypeAIGatewayAgent, agent.ID, agent.Name, agent.Policies})
+		users = append(users, observedReferenceUser{ResourceTypeAIGatewayAgent, agent.ID, agent.Name, agent.Policies})
 	}
 	consumers, err := p.listAIGatewayConsumers(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("list consumers: %w", err)
 	}
 	for _, consumer := range consumers {
-		users = append(users, aiGatewayPolicyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayConsumer, consumer.ID, consumer.Name, consumer.Policies,
 		})
 	}
@@ -134,7 +99,10 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 		return nil, fmt.Errorf("list consumer groups: %w", err)
 	}
 	for _, group := range groups {
-		users = append(users, aiGatewayPolicyUser{ResourceTypeAIGatewayConsumerGroup, group.ID, group.Name, group.Policies})
+		users = append(
+			users,
+			observedReferenceUser{ResourceTypeAIGatewayConsumerGroup, group.ID, group.Name, group.Policies},
+		)
 	}
 	models, err := p.listAIGatewayModels(ctx, gatewayID)
 	if err != nil {
@@ -145,7 +113,7 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 		if err != nil {
 			return nil, fmt.Errorf("inspect model policy attachments: %w", err)
 		}
-		users = append(users, aiGatewayPolicyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayModel, resources.AIGatewayModelID(model.AIGatewayModel),
 			resources.AIGatewayModelName(model.AIGatewayModel), stringSliceFromField(payload, FieldPolicies),
 		})
@@ -159,7 +127,7 @@ func (p *Planner) listAIGatewayPolicyUsers(ctx context.Context, gatewayID string
 		if err != nil {
 			return nil, fmt.Errorf("inspect MCP server policy attachments: %w", err)
 		}
-		users = append(users, aiGatewayPolicyUser{
+		users = append(users, observedReferenceUser{
 			ResourceTypeAIGatewayMCPServer, resources.AIGatewayMCPServerID(server.AIGatewayMCPServer),
 			resources.AIGatewayMCPServerName(server.AIGatewayMCPServer), stringSliceFromField(payload, FieldPolicies),
 		})

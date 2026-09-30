@@ -270,14 +270,5 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
-	if err := p.resolveAIGatewayProviderDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
-		return err
-	}
-	if err := p.resolveAIGatewayPolicyDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
-		return err
-	}
-	if err := p.resolveAIGatewayAuthStrategyDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan); err != nil {
-		return err
-	}
-	return p.resolveAIGatewayCustomPolicyDependencies(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
+	return p.resolveAIGatewayReferenceDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
 }
