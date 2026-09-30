@@ -608,11 +608,13 @@ delete means no observation. Observation failures must reject the plan.
 
 Keep omission separate from clearing. Policy and auth-strategy adapters use
 the diff when SDK `omitempty` drops explicit empty lists; field absence alone
-does not prove removal. Provider models require their complete mutable
-payload, including targets and semantic-balancer embeddings. Auth-strategy
-desired refs resolve to the desired name before matching the old deletion
-target, including same-ref renames. Custom policies retain creation edges
-and require a nonempty replacement plugin type to prove detachment.
+does not prove removal. Provider models use their complete mutable PUT
+payload, including targets and semantic-balancer embeddings. The SDK emits
+`targets` even for a nil list, which serializes as explicit `null`; preserve
+the existing full-update semantics and wait for successful model updates.
+Auth-strategy desired refs resolve to the desired name before matching the old
+deletion target, including same-ref renames. Custom policies retain creation
+edges and require a nonempty replacement plugin type to prove detachment.
 
 `RelationshipDescriptor` supplies schema reference-binding metadata, not
 observed API extraction, update serialization, or deletion semantics. Do not

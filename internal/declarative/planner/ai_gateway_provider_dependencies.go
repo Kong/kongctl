@@ -51,11 +51,10 @@ func (p *Planner) resolveAIGatewayProviderDeletes(
 		plannedReferences: func(deletion, change PlannedChange) bool {
 			return references(deletion, aiGatewayModelProviderNames(change.Fields))
 		},
-		// Model updates are full mutable payloads with required targets. Their
-		// provider references include both targets and semantic embeddings.
+		// Preserve the model's full-PUT detachment semantics. Provider references
+		// include both targets and semantic embeddings, even for empty targets.
 		updateDetaches: func(deletion, change PlannedChange) bool {
-			_, present := change.Fields[FieldTargets]
-			return present && !references(deletion, aiGatewayModelProviderNames(change.Fields))
+			return !references(deletion, aiGatewayModelProviderNames(change.Fields))
 		},
 		conflict: func(deletion PlannedChange, user observedReferenceUser, planned bool) error {
 			qualifier := ""
