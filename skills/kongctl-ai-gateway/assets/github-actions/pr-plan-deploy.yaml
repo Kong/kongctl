@@ -130,6 +130,17 @@ jobs:
           kongctl plan --mode apply -f ai-gateway.yaml --profile default \
             --region "$KONNECT_REGION" --require-namespace "$KONNECT_NAMESPACE" \
             --output-file ci/plan.json
+          # Keep the committed bytes when only the generation timestamp differs.
+          if git cat-file -e HEAD:ci/plan.json 2>/dev/null; then
+            git show HEAD:ci/plan.json > evidence/committed-plan.json
+            jq -S 'del(.metadata.generated_at)' evidence/committed-plan.json \
+              > evidence/committed-plan-content.json
+            jq -S 'del(.metadata.generated_at)' ci/plan.json \
+              > evidence/generated-plan-content.json
+            if cmp -s evidence/committed-plan-content.json evidence/generated-plan-content.json; then
+              git restore --source=HEAD --worktree ci/plan.json
+            fi
+          fi
           kongctl diff --plan ci/plan.json --profile default \
             --region "$KONNECT_REGION" -o text | tee evidence/diff.txt
           sha256sum ci/plan.json | tee evidence/plan-sha256.txt

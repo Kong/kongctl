@@ -72,9 +72,21 @@ its write-back steps. It checks out the same-repository PR head, generates
 provider and caller credentials deferred, and retain the deployment plan
 guard and organization, region and namespace checks.
 
+This route trusts repository writers with the configured credentials.
+Same-repository PRs can change the workflow and run it before review; the
+fork guard does not protect secrets from repository writers. When the
+project requires narrower access, use a credential restricted to the reads
+needed for planning, or move credentials into an environment with required
+reviewers. Retain the shared-token default for trusted writers unless a
+different policy is requested. See
+[GitHub's secret trust boundary][secret-trust].
+
 The planning job alone has `contents: write` and `pull-requests: write`.
-It commits only `ci/plan.json`, verifies the expected PR head, pushes without
-force, and polls briefly for the plan commit to appear in PR metadata.
+It retains the committed plan bytes when regeneration differs only in
+`metadata.generated_at`, then computes the diff and hash from that retained
+file. Other plan changes are committed as `ci/plan.json`. It verifies the
+expected PR head, pushes without force, and polls briefly for the plan
+commit to appear in PR metadata.
 Unresolved mismatches fail with expected/actual SHA diagnostics. The marked
 description section is replaced through a JSON API payload, preserving
 surrounding prose and handling embedded Markdown backticks.
@@ -88,7 +100,9 @@ Do not add the manual-hash route's dispatch gate to explicitly requested
 automatic deployment.
 
 Bot exclusions prevent recursive planning jobs but do not prevent GitHub
-from creating approval-required runs for `GITHUB_TOKEN`-generated PR events.
+from creating approval-required runs for `GITHUB_TOKEN`-generated
+`pull_request` events of types `opened`, `synchronize`, or `reopened`.
+The token-generated `push` event itself does not start a push workflow.
 Inspect the resulting run state and any existing required-check policy;
 repository writers can approve those runs through GitHub. Report any
 remaining prerequisite rather than claiming seamless automation. Do not
@@ -202,5 +216,6 @@ or runner availability immediately; never call authored YAML functional CI.
 [dispatch]: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow
 [Required reviewers]: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
 [token-triggers]: https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow
+[secret-trust]: https://docs.github.com/en/actions/reference/security/secure-use
 [manual-template]: ../assets/github-actions/deploy.yaml
 [pr-template]: ../assets/github-actions/pr-plan-deploy.yaml
