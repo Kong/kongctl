@@ -1,0 +1,160 @@
+baseInputsPath: "testdata"
+env:
+  KONGCTL_LOG_LEVEL: "info"
+steps:
+  - name: "000-clean-own-gateways"
+    commands:
+      - name: "delete"
+        run:
+          - "delete"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+  - name: "001-create"
+    commands:
+      - name: "sync"
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                applied: 14
+                failed: 0
+                status: "success"
+      - name: "verify-convergence"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
+  - name: "002-server-only"
+    inputOverlayDirs:
+      - "overlays/server-only"
+    commands:
+      - name: "save-plan"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 12
+                by_action.CREATE: 6
+                by_action.DELETE: 6
+        stdoutFile: "{{ .workdir }}/replacement-plan.json"
+        outputFormat: "disable"
+      - name: "verify-replacement-edges"
+        exec:
+          - "python3"
+          - "{{ .scenario_dir }}/check_plan.py"
+          - "{{ .workdir }}/replacement-plan.json"
+        parseAs: "raw"
+      - name: "execute-saved-plan"
+        run:
+          - "sync"
+          - "--plan"
+          - "{{ .workdir }}/replacement-plan.json"
+          - "--auto-approve"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                applied: 12
+                failed: 0
+                status: "success"
+      - name: "verify-convergence"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
+  - name: "003-auth-policy-server"
+    inputOverlayDirs:
+      - "overlays/both"
+    commands:
+      - name: "save-plan"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 20
+                by_action.CREATE: 10
+                by_action.DELETE: 10
+        stdoutFile: "{{ .workdir }}/replacement-plan.json"
+        outputFormat: "disable"
+      - name: "verify-replacement-edges"
+        exec:
+          - "python3"
+          - "{{ .scenario_dir }}/check_plan.py"
+          - "{{ .workdir }}/replacement-plan.json"
+        parseAs: "raw"
+      - name: "execute-saved-plan"
+        run:
+          - "sync"
+          - "--plan"
+          - "{{ .workdir }}/replacement-plan.json"
+          - "--auto-approve"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                applied: 20
+                failed: 0
+                status: "success"
+      - name: "verify-convergence"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                total_changes: 0
+  - name: "004-cleanup"
+    commands:
+      - name: "delete"
+        run:
+          - "delete"
+          - "-f"
+          - "{{ .workdir }}/config.yaml"
+          - "--auto-approve"
+        assertions:
+          - select: "summary"
+            expect:
+              fields:
+                applied: 2
+                failed: 0

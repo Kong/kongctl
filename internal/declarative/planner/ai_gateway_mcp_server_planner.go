@@ -54,7 +54,7 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 			aiGatewayMCPServerCreateDependenciesByName(plan, namespace, gatewayRef),
 		)
 	}
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayMCPServer,
+	if err := reconcileNameMatchedChildren(p, ResourceTypeAIGatewayMCPServer,
 		orderAIGatewayMCPServersForPlanning(desired), currentServers,
 		nameMatchedChildOperations[resources.AIGatewayMCPServerResource, state.AIGatewayMCPServer]{
 			desiredName: func(desired resources.AIGatewayMCPServerResource) string { return desired.Name() },
@@ -93,7 +93,10 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 					resources.AIGatewayMCPServerName(current.AIGatewayMCPServer), plan)
 			},
 			pruneOrder: orderCurrentAIGatewayMCPServersForDeletion,
-		}, plan)
+		}, plan); err != nil {
+		return err
+	}
+	return addAIGatewayMCPReplacementDependencies(namespace, gatewayRef, gatewayID, currentServers, plan)
 }
 
 func (p *Planner) planAIGatewayMCPServerCreatesForNewGateway(

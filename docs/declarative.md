@@ -693,6 +693,48 @@ existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
 `audit_log_webhook: null` is rejected because null is not a reset or delete
 signal.
 
+## AI Gateway MCP server replacements
+
+MCP server names are immutable: a name change in `sync` creates a new server
+and deletes the old one. For enabled `listener`, `conversion-listener`, and
+`passthrough-listener` servers in the same gateway, kongctl creates the
+replacement before deleting the old server when their normalized
+`config.route` values match. Auth strategies, policies, and sources needed by
+the new server are created first; unused strategies and policies are deleted
+after the old server. These dependencies are stored in saved plans as well.
+If replacement creation fails, deletion of the old server is blocked.
+
+The route comparison includes paths, hosts, methods, headers, protocols,
+regex priority, and route behavior settings. It ignores list order and
+normalizes documented API defaults. It preserves case and exact path/regex
+values. A partially overlapping or changed route does not qualify. Neither
+disabled servers nor the source-only `conversion-only` and `upstream-server`
+variants qualify. All matching creations must succeed before a matching
+deletion proceeds, including when several servers share a route.
+
+Konnect accepts distinct server names with the same route, including different
+authentication and policies. During overlap, either configuration may serve
+requests; do not rely on the old route winning. Clients must be compatible
+with both configurations during this interval. See Kong's
+[route priority documentation][gateway-route-priority].
+
+Successful control-plane creation is not a data-plane readiness check. kongctl
+does not wait for all data planes to serve the replacement or preserve MCP
+sessions across a rename, so this ordering does not guarantee zero downtime.
+For a controlled cutover, first use `apply` to create the replacement while
+retaining the old server, verify traffic and authentication on the data
+planes, then use `sync` to retire the old server and unused dependencies.
+
+There is no automatic delete-first fallback. If an API or deployment rejects
+overlap, the create fails and leaves the old server intact. If overlap itself
+is unacceptable (for example, mutually exclusive authorization policies),
+explicitly retire the old server in a separate sync before adding the new
+one, accepting the availability gap. Other route changes and source-only
+renames retain ordinary dependency ordering without a replacement guarantee.
+
+[gateway-route-priority]:
+  https://developer.konghq.com/gateway/entities/route/
+
 ## AI Gateway Config Stores and Vaults
 
 AI Gateway Config Stores can back Konnect Vaults declared under the same

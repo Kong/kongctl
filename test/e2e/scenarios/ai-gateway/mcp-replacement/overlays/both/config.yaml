@@ -1,0 +1,208 @@
+_defaults:
+  kongctl:
+    namespace: "ai-gateway-mcp-replacement-e2e"
+ai_gateways:
+  - ref: "mcp-replacement-0-e2e"
+    name: "mcp-replacement-0-e2e"
+    display_name: "MCP Replacement 0 E2E"
+    min_runtime_version: "2.1"
+    proxy_urls:
+      - host: "mcp-replacement-0.example.com"
+        port: 443
+        protocol: "https"
+    auth_strategies:
+      - ref: "auth-0"
+        name: "auth-0-renamed"
+        display_name: "MCP Auth"
+        type: "key-auth"
+        config:
+          key_names:
+            - "new-apikey"
+    policies:
+      - ref: "policy-0-renamed"
+        name: "policy-0-renamed"
+        display_name: "MCP Header"
+        type: "response-transformer"
+        enabled: true
+        global: false
+        config:
+          add:
+            headers:
+              - "X-MCP-Policy:new-0"
+    mcp_servers:
+      - ref: "passthrough-listener-0"
+        name: "passthrough-listener-0-renamed-again"
+        display_name: "passthrough-listener 0"
+        type: "passthrough-listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/passthrough-listener"
+            methods:
+              - "GET"
+              - "POST"
+          url: "https://httpbin.konghq.com/anything"
+        policies:
+          - !ref policy-0-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-0#name
+      - ref: "conversion-listener-0"
+        name: "conversion-listener-0-renamed-again"
+        display_name: "conversion-listener 0"
+        type: "conversion-listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/conversion-listener"
+            methods:
+              - "GET"
+              - "POST"
+          url: "https://httpbin.konghq.com/anything"
+        policies:
+          - !ref policy-0-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-0#name
+        tools:
+          - name: "echo"
+            description: "Echo request"
+            method: "GET"
+            path: "/anything"
+      - ref: "source-0"
+        name: "source-0"
+        display_name: "Source"
+        type: "conversion-only"
+        config:
+          url: "https://httpbin.konghq.com/anything"
+        tools:
+          - name: "echo"
+            description: "Echo request"
+            method: "GET"
+            path: "/anything"
+      - ref: "listener-0"
+        name: "listener-0-renamed-again"
+        display_name: "listener 0"
+        type: "listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/listener"
+            methods:
+              - "GET"
+              - "POST"
+        policies:
+          - !ref policy-0-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-0#name
+        sources:
+          - "source-0"
+  - ref: "mcp-replacement-1-e2e"
+    name: "mcp-replacement-1-e2e"
+    display_name: "MCP Replacement 1 E2E"
+    min_runtime_version: "2.1"
+    proxy_urls:
+      - host: "mcp-replacement-1.example.com"
+        port: 443
+        protocol: "https"
+    auth_strategies:
+      - ref: "auth-1"
+        name: "auth-1-renamed"
+        display_name: "MCP Auth"
+        type: "key-auth"
+        config:
+          key_names:
+            - "new-apikey"
+    policies:
+      - ref: "policy-1-renamed"
+        name: "policy-1-renamed"
+        display_name: "MCP Header"
+        type: "response-transformer"
+        enabled: true
+        global: false
+        config:
+          add:
+            headers:
+              - "X-MCP-Policy:new-1"
+    mcp_servers:
+      - ref: "passthrough-listener-1"
+        name: "passthrough-listener-1-renamed-again"
+        display_name: "passthrough-listener 1"
+        type: "passthrough-listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/passthrough-listener"
+            methods:
+              - "GET"
+              - "POST"
+          url: "https://httpbin.konghq.com/anything"
+        policies:
+          - !ref policy-1-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-1#name
+      - ref: "conversion-listener-1"
+        name: "conversion-listener-1-renamed-again"
+        display_name: "conversion-listener 1"
+        type: "conversion-listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/conversion-listener"
+            methods:
+              - "GET"
+              - "POST"
+          url: "https://httpbin.konghq.com/anything"
+        policies:
+          - !ref policy-1-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-1#name
+        tools:
+          - name: "echo"
+            description: "Echo request"
+            method: "GET"
+            path: "/anything"
+      - ref: "source-1"
+        name: "source-1"
+        display_name: "Source"
+        type: "conversion-only"
+        config:
+          url: "https://httpbin.konghq.com/anything"
+        tools:
+          - name: "echo"
+            description: "Echo request"
+            method: "GET"
+            path: "/anything"
+      - ref: "listener-1"
+        name: "listener-1-renamed-again"
+        display_name: "listener 1"
+        type: "listener"
+        enabled: true
+        config:
+          route:
+            paths:
+              - "/replacement/listener"
+            methods:
+              - "GET"
+              - "POST"
+        policies:
+          - !ref policy-1-renamed#name
+        access:
+          acl_attribute_type: "consumer"
+          auth_strategies:
+            - !ref auth-1#name
+        sources:
+          - "source-1"
