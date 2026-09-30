@@ -1,0 +1,32 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-auth-rename-e2e
+
+ai_gateways:
+  - ref: auth-rename-gateway-e2e
+    name: auth-rename-gateway-e2e
+    display_name: "Auth Strategy Rename E2E"
+    proxy_urls:
+      - host: auth-rename-e2e.example.com
+        port: 443
+        protocol: https
+    auth_strategies:
+      - ref: public-auth
+        name: replacement-auth
+        display_name: "Rename Auth"
+        type: key-auth
+        config:
+          key_names: [apikey]
+    mcp_servers:
+      - ref: pass-server
+        name: pass-server
+        display_name: "Rename Server"
+        type: passthrough-listener
+        config:
+          url: https://mcp.example.com/mcp
+          route:
+            paths: [/auth-rename]
+        access:
+          acl_attribute_type: consumer
+          auth_strategies:
+            - !ref public-auth

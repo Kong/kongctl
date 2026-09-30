@@ -307,7 +307,7 @@ func aiGatewayPolicyNameReference(ref string) string {
 }
 
 func aiGatewayAuthStrategyReferenceField(resourceType, fieldName string) bool {
-	if resourceType != ResourceTypeAIGatewayAgent && resourceType != ResourceTypeAIGatewayModel {
+	if !aiGatewayResourceUsesAuthStrategies(resourceType) {
 		return false
 	}
 	prefix := FieldAccess + "." + FieldAuthStrategies

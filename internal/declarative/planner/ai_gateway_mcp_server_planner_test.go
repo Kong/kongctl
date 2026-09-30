@@ -401,7 +401,7 @@ func TestAIGatewayMCPServerPlannerDependsOnAuthStrategyCreate(t *testing.T) {
 	field := FieldAccess + "." + FieldAuthStrategies + ".0"
 	require.Contains(t, serverCreate.DependsOn, providerCreate.ID)
 	require.Equal(t, resources.UnknownReferenceID, serverCreate.References[field].ID)
-	require.Equal(t, tags.RefPlaceholderPrefix+"support-key-auth#id", serverCreate.References[field].Ref)
+	require.Equal(t, tags.RefPlaceholderPrefix+"support-key-auth#name", serverCreate.References[field].Ref)
 }
 
 func TestAIGatewayMCPServerPlannerAuthStrategyRefNoopForExistingServer(t *testing.T) {
