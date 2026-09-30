@@ -116,7 +116,11 @@ func (a *APIAPIImpl) DeleteAPI(ctx context.Context, apiID string,
 func (a *APIAPIImpl) CreateAPIVersion(ctx context.Context, apiID string, request kkComps.CreateAPIVersionRequest,
 	opts ...kkOps.Option,
 ) (*kkOps.CreateAPIVersionResponse, error) {
-	return a.SDK.APIVersion.CreateAPIVersion(ctx, apiID, request, opts...)
+	return a.SDK.APIVersion.CreateAPIVersion(
+		ctx,
+		apiID, request,
+		opts...,
+	)
 }
 
 // ListAPIVersions implements the APIAPI interface

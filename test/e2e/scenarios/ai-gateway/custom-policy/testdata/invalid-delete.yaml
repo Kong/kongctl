@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-custom-policy-e2e
+ai_gateways:
+  - ref: custom-policy-e2e
+    name: custom-policy-e2e
+    display_name: custom-policy-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    custom_policies: []

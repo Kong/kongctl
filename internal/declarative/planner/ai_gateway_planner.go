@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"reflect"
+	"slices"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -196,7 +196,7 @@ func (p *Planner) shouldUpdateAIGateway(
 		}
 	}
 
-	if desired.ProxyUrls != nil && !reflect.DeepEqual(current.ProxyUrls, desired.ProxyUrls) {
+	if desired.ProxyUrls != nil && !slices.Equal(current.ProxyUrls, desired.ProxyUrls) {
 		updates[FieldProxyURLs] = desired.ProxyUrls
 		changedFields[FieldProxyURLs] = FieldChange{Old: current.ProxyUrls, New: desired.ProxyUrls}
 	}
@@ -263,11 +263,22 @@ func (p *Planner) planAIGatewayUpdate(
 	plan *Plan,
 ) string {
 	namespace, _ := aiGatewayNamespaceAndProtection(desired)
+	// Updates use PUT, so retain writable fields that are not changing.
 	fields := make(map[string]any)
-	maps.Copy(fields, updateFields)
-	if _, changed := fields[FieldRuntimeAutoUpgrade]; !changed && current.RuntimeAutoUpgrade != nil {
+	if current.Description != nil {
+		fields[FieldDescription] = *current.Description
+	}
+	if current.ProxyUrls != nil {
+		fields[FieldProxyURLs] = current.ProxyUrls
+	}
+	if current.MinRuntimeVersion != nil {
+		fields[FieldMinRuntimeVersion] = *current.MinRuntimeVersion
+	}
+	if current.RuntimeAutoUpgrade != nil {
 		fields[FieldRuntimeAutoUpgrade] = *current.RuntimeAutoUpgrade
 	}
+	fields[FieldLabels] = labels.GetUserLabels(current.NormalizedLabels)
+	maps.Copy(fields, updateFields)
 	fields[FieldName] = current.Name
 	if fields[FieldName] == "" {
 		fields[FieldName] = desired.Name

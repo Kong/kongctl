@@ -1201,7 +1201,7 @@ apis:
 	assert.Equal(t, "users-control-plane", service.ControlPlaneID)
 }
 
-func TestLoader_LoadFile_APIImplementationRejectsServiceReference(t *testing.T) {
+func TestLoader_LoadFile_APIImplementationRejectsServiceReferenceInput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`

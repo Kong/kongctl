@@ -1,0 +1,36 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-custom-policy-e2e
+ai_gateways:
+  - ref: custom-policy-e2e
+    name: custom-policy-e2e
+    display_name: custom-policy-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    custom_policies:
+      - ref: stream-header
+        name: e2e-stream-header
+        display_name: Updated streaming definition
+        type: streaming
+        schema: |
+          return {
+            -- updated schema
+            name = "e2e-stream-header",
+            fields = {
+              { config = { type = "record", fields = {} } },
+            },
+          }
+        handler: |
+          local plugin = { PRIORITY = 1000, VERSION = "0.2.0" }
+          function plugin:access(config)
+            kong.service.request.set_header("X-E2E-Custom-Policy", "updated")
+          end
+          return plugin
+    policies:
+      - ref: header-instance
+        name: header-instance
+        display_name: Custom header instance
+        type: e2e-stream-header
+        enabled: true
+        global: false
+        config: {}

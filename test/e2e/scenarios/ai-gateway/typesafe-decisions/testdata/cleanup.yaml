@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-typesafe-decisions-e2e
+ai_gateways: []

@@ -1,4 +1,4 @@
-sdk_version: v0.68.2-0.20260922202403-4d68939eb6fd
+sdk_version: v0.71.0
 schema_version: 1
 resources:
   - resource_type: ai_gateway
@@ -606,6 +606,10 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_consumer_group
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_custom_policy
     defaults: []
     overrides: []
     exclusions: []

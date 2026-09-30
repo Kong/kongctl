@@ -127,7 +127,10 @@ func TestControlPlaneDeleteDependenciesWithDifferentDeclarationRefs(t *testing.T
 				},
 			}
 			implementation := kkComps.CreateAPIImplementationServiceReference(kkComps.ServiceReference{
-				Service: &kkComps.APIImplementationService{ID: "service-id", ControlPlaneID: "__REF__:code-breakers-cp#id"},
+				Service: &kkComps.APIImplementationService{
+					ID:             "service-id",
+					ControlPlaneID: "__REF__:code-breakers-cp#id",
+				},
 			})
 			if tc.controlPlaneReference {
 				implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{

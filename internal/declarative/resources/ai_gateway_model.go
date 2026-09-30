@@ -743,6 +743,9 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 		{"sagemaker", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetSagemakerConfig]("type", "sagemaker")
 		}},
+		{"typesafe", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetTypesafeConfig]("type", "typesafe")
+		}},
 		{"vercel", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetVercelConfig]("type", "vercel")
 		}},

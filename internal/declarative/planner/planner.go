@@ -591,7 +591,9 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 		for j := range changes {
 			change := &changes[j]
 			if change.Action == ActionDelete && change.ResourceType == ResourceTypeControlPlane &&
-				change.Namespace == resources.GetNamespace(resource.Kongctl) && change.Fields[FieldName] == resource.Name {
+				change.Namespace == resources.GetNamespace(
+					resource.Kongctl,
+				) && change.Fields[FieldName] == resource.Name {
 				controlPlaneDeletes[resource.Ref] = change
 			}
 		}
@@ -601,7 +603,9 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 		for j := range changes {
 			change := &changes[j]
 			if change.Action == ActionDelete && change.ResourceType == ResourceTypeAPI &&
-				change.Namespace == resources.GetNamespace(resource.Kongctl) && change.Fields[FieldName] == resource.Name {
+				change.Namespace == resources.GetNamespace(
+					resource.Kongctl,
+				) && change.Fields[FieldName] == resource.Name {
 				apiDeletes[resource.Ref] = change
 			}
 		}

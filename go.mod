@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.9
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/Kong/sdk-konnect-go v0.68.2-0.20260922202403-4d68939eb6fd
+	github.com/Kong/sdk-konnect-go v0.71.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/ajg/form v1.9.0
@@ -108,7 +108,7 @@ require (
 	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spyzhov/ajson v0.8.0 // indirect
+	github.com/spyzhov/ajson v0.9.6 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/vmware-labs/yaml-jsonpath v0.3.2 // indirect
@@ -128,3 +128,5 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.52.0 // indirect
 )
+
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.71.1-0.20260930102655-288b6e157cf0

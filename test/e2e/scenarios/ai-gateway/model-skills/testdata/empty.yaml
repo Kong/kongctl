@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-skills-e2e
+ai_gateways:
+  - ref: model-skills-e2e
+    name: model-skills-e2e
+    display_name: model-skills-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    models: []
+    model_providers: []

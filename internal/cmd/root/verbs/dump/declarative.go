@@ -214,6 +214,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewayAPI:                        sdk.GetAIGatewayAPI(),
 			AIGatewayProvidersAPI:               sdk.GetAIGatewayProvidersAPI(),
 			AIGatewayAuthStrategiesAPI:          sdk.GetAIGatewayAuthStrategiesAPI(),
+			AIGatewayCustomPoliciesAPI:          sdk.GetAIGatewayCustomPoliciesAPI(),
 			AIGatewayPoliciesAPI:                sdk.GetAIGatewayPoliciesAPI(),
 			AIGatewayAgentsAPI:                  sdk.GetAIGatewayAgentsAPI(),
 			AIGatewayConsumersAPI:               sdk.GetAIGatewayConsumersAPI(),

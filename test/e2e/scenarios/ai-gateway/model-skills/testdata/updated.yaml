@@ -1,0 +1,34 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-model-skills-e2e
+ai_gateways:
+  - ref: model-skills-e2e
+    name: model-skills-e2e
+    display_name: model-skills-e2e
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    model_providers:
+      - ref: anthropic-provider
+        name: anthropic-provider
+        display_name: Updated provider
+        type: anthropic
+        config:
+          auth:
+            type: basic
+            headers: []
+    models:
+      - ref: model-skills-model
+        name: model-skills-model
+        display_name: Updated model
+        type: api
+        enabled: true
+        formats:
+          - type: anthropic
+        capabilities: [skills]
+        config:
+          route: {}
+        targets:
+          - name: upstream-model
+            provider: anthropic-provider
+            config:
+              type: anthropic

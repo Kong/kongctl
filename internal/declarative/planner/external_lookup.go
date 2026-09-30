@@ -253,7 +253,12 @@ func (r *externalLookupResolver) scopedDeclarationParentID(
 	if tags.IsRefPlaceholder(parentValue) {
 		ref, field, ok := tags.ParseRefPlaceholder(parentValue)
 		if !ok || field != FieldID {
-			return "", false, fmt.Errorf("%s %q: invalid parent reference %q", item.GetType(), item.GetRef(), parentValue)
+			return "", false, fmt.Errorf(
+				"%s %q: invalid parent reference %q",
+				item.GetType(),
+				item.GetRef(),
+				parentValue,
+			)
 		}
 		parentValue = ref
 	}
