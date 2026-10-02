@@ -12,6 +12,7 @@ defaults:
       - created_at
       - updated_at
 
+# Each command clears the harness base URL override so --region selects the endpoint.
 steps:
   - name: 001-reset
     skipInputs: true
@@ -31,6 +32,8 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
@@ -46,7 +49,7 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-us
-        run: ["get", "apis", "--region", "us", "-o", "json"]
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -72,6 +75,8 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - eu
         assertions:
@@ -87,7 +92,7 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-eu
-        run: ["get", "apis", "--region", "eu", "-o", "json"]
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -103,7 +108,7 @@ steps:
                 version: "1.0.0"
                 labels."KONGCTL-namespace": "apis-region-eu"
       - name: 003-get-us-isolated
-        run: ["get", "apis", "--region", "us", "-o", "json"]
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -126,6 +131,8 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - --mode
           - apply
+          - --base-url
+          - ""
           - --region
           - eu
         assertions:
@@ -146,6 +153,8 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - --mode
           - apply
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
@@ -165,6 +174,8 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
@@ -180,7 +191,7 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-us-updated
-        run: ["get", "apis", "--region", "us", "-o", "json"]
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -196,7 +207,7 @@ steps:
                 version: "1.1.0"
                 labels."KONGCTL-namespace": "apis-region-us"
       - name: 003-get-eu-unchanged
-        run: ["get", "apis", "--region", "eu", "-o", "json"]
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -219,6 +230,8 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - --mode
           - apply
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
@@ -237,6 +250,8 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
@@ -252,7 +267,7 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-us-empty
-        run: ["get", "apis", "--region", "us", "-o", "json"]
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -260,7 +275,7 @@ steps:
                 "length(@)": 0
                 "[?slug=='region-api-eu'] | length(@)": 0
       - name: 003-get-eu-preserved
-        run: ["get", "apis", "--region", "eu", "-o", "json"]
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -286,6 +301,8 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - eu
         assertions:
@@ -301,7 +318,7 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-eu-empty
-        run: ["get", "apis", "--region", "eu", "-o", "json"]
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
@@ -309,7 +326,7 @@ steps:
                 "length(@)": 0
                 "[?slug=='region-api-us'] | length(@)": 0
       - name: 003-get-us-still-empty
-        run: ["get", "apis", "--region", "us", "-o", "json"]
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
           - select: "@"
             expect:
