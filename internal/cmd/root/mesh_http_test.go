@@ -344,3 +344,60 @@ func TestMeshExplicitNameBeatsConfiguredID(t *testing.T) {
 		}
 	}
 }
+
+// An explicit hosted selector must win over a self managed URL saved in
+// configuration, and carry the Konnect credential, not the self managed one.
+//
+// The URL and the credential were once decided separately, so this request
+// reached the hosted endpoint carrying the saved self managed token. The
+// resolver tests check the decision; this checks what goes over the wire.
+func TestMeshExplicitHostedSelectorBeatsSavedSelfManagedURL(t *testing.T) {
+	const hostedID = "00000000-0000-4000-8000-000000000003"
+
+	var selfManagedRequests atomic.Int32
+	selfManaged := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		selfManagedRequests.Add(1)
+		writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+	}))
+	defer selfManaged.Close()
+
+	var meshPath, meshAuth string
+	konnect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/_resources") {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/meshes") {
+			meshPath = r.URL.Path
+			meshAuth = r.Header.Get("Authorization")
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+	}))
+	defer konnect.Close()
+
+	// A profile that already holds a self managed control plane and its token.
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_URL", selfManaged.URL)
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_TOKEN", "self-managed-secret")
+
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-id", hostedID,
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	if result.exitCode != 0 {
+		t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+	}
+	if n := selfManagedRequests.Load(); n != 0 {
+		t.Fatalf("the saved self managed control plane received %d requests", n)
+	}
+	if want := "/v3/mesh/control-planes/" + hostedID + "/meshes"; meshPath != want {
+		t.Fatalf("request path = %q, want %q", meshPath, want)
+	}
+	if strings.Contains(meshAuth, "self-managed-secret") {
+		t.Fatal("the self managed token was sent to the hosted control plane")
+	}
+	if meshAuth != "Bearer test-pat" {
+		t.Fatalf("Authorization = %q, want the Konnect credential", meshAuth)
+	}
+}
