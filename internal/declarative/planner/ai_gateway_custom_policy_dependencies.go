@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"fmt"
+	"slices"
 )
 
 // Custom definitions must exist before policies instantiate their plugin type.
@@ -52,12 +53,8 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 			return users, nil
 		},
 		observedReferences: func(deletion PlannedChange, values []string) bool {
-			for _, value := range values {
-				if value == deletion.Fields[FieldName] {
-					return true
-				}
-			}
-			return false
+			name, _ := deletion.Fields[FieldName].(string)
+			return name != "" && slices.Contains(values, name)
 		},
 		plannedReferences: func(deletion, change PlannedChange) bool {
 			return change.Fields[FieldType] == deletion.Fields[FieldName]
@@ -67,16 +64,15 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 			return valid && value != "" && value != deletion.Fields[FieldName]
 		},
 		conflict: func(deletion PlannedChange, user observedReferenceUser, planned bool) error {
+			qualifier := ""
 			if planned {
-				return fmt.Errorf(
-					"cannot delete custom policy %q while planned policy %q uses it",
-					deletion.Fields[FieldName],
-					user.name,
-				)
+				qualifier = "planned "
 			}
 			return fmt.Errorf(
-				"cannot delete custom policy %q while policy %q still uses it",
+				"cannot delete custom policy %q in gateway %q while %spolicy %q still uses it",
 				deletion.Fields[FieldName],
+				gatewayRef,
+				qualifier,
 				user.name,
 			)
 		},

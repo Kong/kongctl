@@ -334,7 +334,9 @@ steps:
           - sync
         expectFailure:
           exitCode: 1
-          contains: cannot delete custom policy "e2e-stream-header" while policy "header-instance" still uses it
+          contains: >-
+            cannot delete custom policy "e2e-stream-header" in gateway "custom-policy-e2e"
+            while policy "header-instance" still uses it
       - name: definition-still-present
         run:
           - get
