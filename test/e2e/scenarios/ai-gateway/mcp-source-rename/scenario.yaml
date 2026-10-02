@@ -1,0 +1,153 @@
+baseInputsPath: testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+defaults:
+  retry:
+    attempts: 1
+
+steps:
+  - name: clean-own-gateway
+    commands:
+      - name: delete
+        run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0}
+
+  - name: create
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+
+  - name: retained-listener
+    inputOverlayDirs: [overlays/retained]
+    commands:
+      - name: reject-source-delete
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        expectFailure:
+          exitCode: 1
+          contains: still references it in sources
+
+  - name: rename-source
+    inputOverlayDirs: [overlays/rename]
+    commands:
+      - name: single-sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: plan
+            expect:
+              fields:
+                "execution_order[0] == (changes[?action=='CREATE'].id | [0])": true
+                "execution_order[1] == (changes[?action=='UPDATE'].id | [0])": true
+                "execution_order[2] == (changes[?action=='DELETE'].id | [0])": true
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+      - name: verify-source-and-listener
+        run: [get, ai-gateway, mcp-servers, --gateway-name, "MCP Source Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 2
+                "[?name=='src-a'] | length(@)": 0
+                "[?name=='src-b'] | [0].type": upstream-server
+                "[?name=='agg-listener'] | [0].sources": [src-b]
+      - name: converged-plan
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+
+  - name: rename-back-with-saved-plan
+    commands:
+      - name: save-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/rename-plan.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: "@"
+            expect:
+              fields:
+                "execution_order[0] == (changes[?action=='CREATE'].id | [0])": true
+                "execution_order[1] == (changes[?action=='UPDATE'].id | [0])": true
+                "execution_order[2] == (changes[?action=='DELETE'].id | [0])": true
+      - name: execute-saved-plan
+        run: [sync, --plan, "{{ .workdir }}/rename-plan.json", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 3, failed: 0, status: success}
+      - name: verify-source-and-listener
+        run: [get, ai-gateway, mcp-servers, --gateway-name, "MCP Source Rename E2E"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 2
+                "[?name=='src-b'] | length(@)": 0
+                "[?name=='src-a'] | [0].type": upstream-server
+                "[?name=='agg-listener'] | [0].sources": [src-a]
+      - name: converged-plan
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+
+  - name: delete-listener-and-source
+    inputOverlayDirs: [overlays/empty]
+    commands:
+      - name: sync
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 2, failed: 0, status: success}
+      - name: verify-servers-absent
+        run: [get, ai-gateway, mcp-servers, --gateway-name, "MCP Source Rename E2E"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields: {"@": 0}
+
+  - name: cleanup
+    inputOverlayDirs: [overlays/cleanup]
+    commands:
+      - name: remove-gateway
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields: {applied: 1, failed: 0, status: success}
+      - name: verify-gateway-absent
+        run: [get, ai-gateways]
+        assertions:
+          - select: "[?name=='mcp-source-rename-e2e'] | length(@)"
+            expect:
+              fields: {"@": 0}

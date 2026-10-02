@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-source-rename-e2e
+ai_gateways:
+- ref: mcp-source-rename-e2e
+  name: mcp-source-rename-e2e
+  display_name: MCP Source Rename E2E
+  mcp_servers:
+  - ref: agg-listener
+    type: listener
+    name: agg-listener
+    display_name: agg-listener
+    enabled: true
+    sources:
+    - src-a
+    access:
+      acl_attribute_type: oauth_access_token
+      access_token_claim_field: sub
+    config:
+      route:
+        paths:
+        - /agg-listener

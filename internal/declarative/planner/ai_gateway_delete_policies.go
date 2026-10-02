@@ -14,6 +14,7 @@ var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
 	{ResourceTypeAIGatewayPolicy, (*Planner).resolveAIGatewayPolicyDeletes},
 	{ResourceTypeAIGatewayAuthStrategy, (*Planner).resolveAIGatewayAuthStrategyDeletes},
 	{ResourceTypeAIGatewayCustomPolicy, (*Planner).resolveAIGatewayCustomPolicyDependencies},
+	{ResourceTypeAIGatewayMCPServer, (*Planner).resolveAIGatewayMCPSourceDeletes},
 }
 
 func (p *Planner) resolveAIGatewayReferenceDeletes(

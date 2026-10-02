@@ -1,0 +1,8 @@
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-source-rename-e2e
+ai_gateways:
+- ref: mcp-source-rename-e2e
+  name: mcp-source-rename-e2e
+  display_name: MCP Source Rename E2E
+  mcp_servers: []
