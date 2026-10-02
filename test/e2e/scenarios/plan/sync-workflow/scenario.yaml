@@ -70,7 +70,68 @@ steps:
               fields:
                 labels.lifecycle: sunset
 
-  - name: 002-plan-sync-update
+  - name: 002-sync-dry-run
+    inputOverlayDirs:
+      - overlays/002-plan-sync
+    commands:
+      - name: 000-sync-dry-run
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --dry-run
+          - --auto-approve
+        assertions:
+          - select: plan.metadata
+            expect:
+              fields:
+                mode: sync
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.CREATE: 1
+                by_action.UPDATE: 2
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                skipped: 4
+                applied: 0
+                failed: 0
+                status: success
+      - name: 001-get-portal
+        run: ["get", "portals", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
+            expect:
+              fields:
+                display_name: "{{ .vars.portalName }}"
+                description: "Baseline portal for plan sync workflow"
+                authentication_enabled: true
+      - name: 002-get-apis
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
+            expect:
+              fields:
+                description: "Orders API managed via sync plan"
+                labels.domain: commerce
+                labels.lifecycle: active
+          - select: "[?name=='{{ .vars.legacyAPIRef }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.legacyAPIRef }}"
+                description: "Legacy API scheduled for removal"
+                labels.domain: legacy
+                labels.lifecycle: sunset
+          - select: "[?name=='{{ .vars.inventoryAPIRef }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 003-plan-sync-update
     inputOverlayDirs:
       - overlays/002-plan-sync
     commands:
@@ -180,7 +241,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003-delete-cleanup
+  - name: 004-delete-cleanup
     inputOverlayDirs:
       - overlays/002-plan-sync
     commands:
