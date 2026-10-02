@@ -80,7 +80,39 @@ steps:
               fields:
                 failed: 0
                 status: success
-      - name: 003-get-portals
+      - name: 003-apply-with-execution-report
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+          - --execution-report-file
+          - "{{ .workdir }}/execution-report-noop.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+                applied: 0
+                failed: 0
+                status: success
+          - name: execution-report-noop
+            source:
+              artifact:
+                path: "{{ .workdir }}/execution-report-noop.json"
+                parseAs: json
+            select: "@"
+            expect:
+              fields:
+                plan.metadata.mode: apply
+                plan.summary.total_changes: 0
+                execution.dry_run: false
+                summary.total_changes: 0
+                summary.applied: 0
+                summary.failed: 0
+                summary.status: success
+      - name: 004-get-portals
         run: ["get", "portals", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
@@ -90,7 +122,7 @@ steps:
                 authentication_enabled: true
                 rbac_enabled: true
                 auto_approve_developers: true
-      - name: 004-get-apis
+      - name: 005-get-apis
         run: ["get", "apis", "-o", "json"]
         assertions:
           - select: "[?name=='{{ .vars.ordersAPIRef }}'] | [0]"
