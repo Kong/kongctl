@@ -531,7 +531,67 @@ steps:
                 fields.entity_region: us
                 namespace: "{{ .vars.namespace }}"
 
-      - name: 004-get-portals
+      - name: 004-diff-sync-default-text
+        # Disable harness output injection to exercise the CLI's default format.
+        outputFormat: none
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add, 8 to change, 3 to destroy')": true
+                'contains(@, ''portal "{{ .vars.portalRef }}" will be updated'')': true
+                'contains(@, ''display_name: "{{ .vars.portalName }}" → "{{ .vars.portalUpdatedName }}"'')': true
+                'contains(@, ''api "{{ .vars.newAPIRef }}" will be created'')': true
+                'contains(@, ''api "{{ .vars.removedAPIName }}" will be deleted'')': true
+                "contains(@, 'bytes, ')": true
+                "contains(@, 'End of the complete Orders API change history guide.')": false
+
+      - name: 005-diff-sync-full-content
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - sync
+          - --full-content
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add, 8 to change, 3 to destroy')": true
+                'contains(@, ''api_document "{{ .vars.apiDocumentRef }}" will be updated'')': true
+                "contains(@, 'Use the Orders API to manage purchase flows with change history.')": true
+                "contains(@, '## Tracking order changes')": true
+                "contains(@, '## Handling updates safely')": true
+                "contains(@, 'End of the complete Orders API change history guide.')": true
+                "contains(@, 'bytes, ')": false
+
+      - name: 006-diff-plan-color-never
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - --plan
+          - "{{ .workdir }}/plan.json"
+          - --color
+          - never
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add, 8 to change, 3 to destroy')": true
+                'contains(@, ''display_name: "{{ .vars.portalName }}" → "{{ .vars.portalUpdatedName }}"'')': true
+
+      - name: 007-get-portals
         run: ["get", "portals"]
         assertions:
           - select: "[?name=='{{ .vars.portalRef }}'] | [0]"
@@ -539,7 +599,7 @@ steps:
               fields:
                 display_name: "{{ .vars.portalName }}"
 
-      - name: 005-get-apis
+      - name: 008-get-apis
         run: ["get", "apis"]
         assertions:
           - select: "[?name=='{{ .vars.removedAPIName }}']"
@@ -551,7 +611,7 @@ steps:
               fields:
                 "length(@)": 0
 
-      - name: 006-get-control-planes
+      - name: 009-get-control-planes
         run: ["get", "gateway", "control-planes"]
         assertions:
           - select: "[?name=='{{ .vars.cpName }}'] | [0]"
