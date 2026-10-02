@@ -143,44 +143,28 @@ func applyDeferredEnvChangedFieldPlaceholder(
 }
 
 func applyDeferredEnvPlaceholderValue(value any, segments []string, placeholder string) (any, bool) {
-	if len(segments) == 0 {
-		switch typed := value.(type) {
-		case FieldChange:
-			typed.New = placeholder
-			typed.Old = tags.RedactEnvOldValue(typed.Old, typed.New)
-			return typed, true
-		case map[string]any:
-			if isFieldChangeMap(typed) {
-				copied := maps.Clone(typed)
-				copied["new"] = placeholder
-				copied["old"] = tags.RedactEnvOldValue(copied["old"], copied["new"])
-				return copied, true
-			}
-		}
-
-		return placeholder, true
-	}
-
-	switch typed := value.(type) {
-	case FieldChange:
-		updated, changed := applyDeferredEnvPlaceholderValue(typed.New, segments, placeholder)
-		if !changed {
-			return value, false
-		}
-		typed.New = updated
-		typed.Old = tags.RedactEnvOldValue(typed.Old, typed.New)
-		return typed, true
-	case map[string]any:
-		if isFieldChangeMap(typed) {
-			updated, changed := applyDeferredEnvPlaceholderValue(typed["new"], segments, placeholder)
+	if oldValue, newValue, ok := ExtractFieldChange(value); ok {
+		var updated any = placeholder
+		if len(segments) > 0 {
+			var changed bool
+			updated, changed = applyDeferredEnvPlaceholderValue(newValue, segments, placeholder)
 			if !changed {
 				return value, false
 			}
+		}
+		oldValue = tags.RedactEnvOldValue(oldValue, updated)
+		switch typed := value.(type) {
+		case FieldChange:
+			typed.Old, typed.New = oldValue, updated
+			return typed, true
+		case map[string]any:
 			copied := maps.Clone(typed)
-			copied["new"] = updated
-			copied["old"] = tags.RedactEnvOldValue(copied["old"], copied["new"])
+			copied["old"], copied["new"] = oldValue, updated
 			return copied, true
 		}
+	}
+	if len(segments) == 0 {
+		return placeholder, true
 	}
 
 	reflected, changed := applyDeferredEnvPlaceholderReflect(reflect.ValueOf(value), segments, placeholder)
@@ -443,8 +427,18 @@ func parsedStructFieldName(tag string) (string, bool) {
 	return name, true
 }
 
-func isFieldChangeMap(value map[string]any) bool {
-	_, hasOld := value["old"]
-	_, hasNew := value["new"]
-	return hasOld && hasNew
+// ExtractFieldChange returns old and new values from a typed FieldChange or a
+// JSON-decoded map containing both "old" and "new" keys.
+func ExtractFieldChange(value any) (oldValue, newValue any, ok bool) {
+	switch typed := value.(type) {
+	case FieldChange:
+		return typed.Old, typed.New, true
+	case map[string]any:
+		oldValue, hasOld := typed["old"]
+		newValue, hasNew := typed["new"]
+		if hasOld && hasNew {
+			return oldValue, newValue, true
+		}
+	}
+	return nil, nil, false
 }

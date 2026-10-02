@@ -1,9 +1,9 @@
 package tags
 
 import (
-	"bytes"
-	"encoding/json"
 	"slices"
+
+	"github.com/kong/kongctl/internal/util"
 )
 
 const DeferredEnvRedactedDisplay = "[redacted from !env]"
@@ -13,30 +13,18 @@ const DeferredEnvRedactedDisplay = "[redacted from !env]"
 // Neither input is mutated. JSON normalization supports typed SDK containers
 // and preserves numbers without converting them to float64.
 func RedactEnvOldValue(oldValue, newValue any) any {
-	desired, err := envRedactionJSONValue(newValue)
+	desired, err := util.NormalizeJSONValue(newValue)
 	if err != nil {
 		return DeferredEnvRedactedDisplay
 	}
 	if !containsDeferredEnv(desired) {
 		return oldValue
 	}
-	current, err := envRedactionJSONValue(oldValue)
+	current, err := util.NormalizeJSONValue(oldValue)
 	if err != nil {
 		return DeferredEnvRedactedDisplay
 	}
 	return redactEnvOldValue(current, desired)
-}
-
-func envRedactionJSONValue(value any) (any, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return nil, err
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	var normalized any
-	err = decoder.Decode(&normalized)
-	return normalized, err
 }
 
 func containsDeferredEnv(value any) bool {
@@ -50,9 +38,7 @@ func containsDeferredEnv(value any) bool {
 			}
 		}
 	case []any:
-		if slices.ContainsFunc(value, containsDeferredEnv) {
-			return true
-		}
+		return slices.ContainsFunc(value, containsDeferredEnv)
 	}
 	return false
 }

@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/log"
+	"github.com/kong/kongctl/internal/util"
 )
 
 const (
@@ -115,7 +116,7 @@ func IsSensitiveFieldPath(path []string) bool {
 
 func isSensitiveFieldAt(key, parentKey string, insideConfig bool) bool {
 	normalized := normalizeKey(key)
-	return isSensitiveFieldKey(key) || (insideConfig && normalized == "key") ||
+	return isSensitiveNormalizedKey(normalized) || (insideConfig && normalized == "key") ||
 		(normalizeKey(parentKey) == "headers" && normalized == "value")
 }
 
@@ -419,7 +420,10 @@ func isSensitiveHeaderKey(key string) bool {
 }
 
 func isSensitiveFieldKey(key string) bool {
-	normalized := normalizeKey(key)
+	return isSensitiveNormalizedKey(normalizeKey(key))
+}
+
+func isSensitiveNormalizedKey(normalized string) bool {
 	if normalized == "" {
 		return false
 	}
@@ -685,15 +689,8 @@ func redactSensitiveValueAt(
 }
 
 func cloneLogValue(value any) any {
-	data, err := json.Marshal(value)
+	cloned, err := util.NormalizeJSONValue(value)
 	if err != nil {
-		return value
-	}
-
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	var cloned any
-	if err := decoder.Decode(&cloned); err != nil {
 		return value
 	}
 	return cloned

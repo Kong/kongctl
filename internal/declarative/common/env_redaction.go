@@ -25,9 +25,8 @@ func redactPlanEnvOldValues(plan *planner.Plan) {
 		}
 		for _, value := range change.Fields {
 			if fc, ok := value.(map[string]any); ok {
-				oldValue, hasOld := fc["old"]
-				newValue, hasNew := fc["new"]
-				if hasOld && hasNew {
+				oldValue, newValue, ok := planner.ExtractFieldChange(fc)
+				if ok {
 					fc["old"] = tags.RedactEnvOldValue(oldValue, newValue)
 				}
 			}
