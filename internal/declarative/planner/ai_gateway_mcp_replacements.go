@@ -15,11 +15,15 @@ func addAIGatewayMCPReplacementDependencies(
 	current []state.AIGatewayMCPServer,
 	plan *Plan,
 ) error {
+	matchesScope := func(change PlannedChange) bool {
+		return change.ResourceType == ResourceTypeAIGatewayMCPServer &&
+			change.Namespace == namespace && change.Parent != nil &&
+			change.Parent.ID == gatewayID &&
+			aiGatewayChildChangeMatchesParent(change, gatewayRef)
+	}
 	for i := range plan.Changes {
 		deletion := &plan.Changes[i]
-		if deletion.ResourceType != ResourceTypeAIGatewayMCPServer || deletion.Action != ActionDelete ||
-			deletion.Namespace != namespace || deletion.Parent == nil || deletion.Parent.ID != gatewayID ||
-			!aiGatewayChildChangeMatchesParent(*deletion, gatewayRef) {
+		if !matchesScope(*deletion) || deletion.Action != ActionDelete {
 			continue
 		}
 		for _, server := range current {
@@ -31,9 +35,7 @@ func addAIGatewayMCPReplacementDependencies(
 				return fmt.Errorf("inspect MCP server %q for route replacement: %w", deletion.ResourceRef, err)
 			}
 			for _, creation := range plan.Changes {
-				if creation.ResourceType != ResourceTypeAIGatewayMCPServer || creation.Action != ActionCreate ||
-					creation.Namespace != namespace || creation.Parent == nil || creation.Parent.ID != gatewayID ||
-					!aiGatewayChildChangeMatchesParent(creation, gatewayRef) {
+				if !matchesScope(creation) || creation.Action != ActionCreate {
 					continue
 				}
 				if aiGatewayMCPSameRoute(payload, creation.Fields) {
