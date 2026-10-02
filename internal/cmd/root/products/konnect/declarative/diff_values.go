@@ -1,8 +1,6 @@
 package declarative
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
@@ -15,6 +13,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/secrets"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/theme"
+	"github.com/kong/kongctl/internal/util"
 )
 
 const diffSecretWriteLabel = "(secret write; no value comparison)"
@@ -22,16 +21,10 @@ const diffSecretWriteLabel = "(secret write; no value comparison)"
 // Use the plan's JSON representation to handle typed maps, slices, and pointers
 // identically before and after saving a plan. Keep numbers lossless.
 func normalizeDiffValue(value any) any {
-	data, err := json.Marshal(value)
+	normalized, err := util.NormalizeJSONValue(value)
 	if err != nil {
 		// Unsupported values cannot occur in saved plans. Do not fall back to a
 		// Go representation that could expose nested secrets.
-		return "<unsupported value>"
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.UseNumber()
-	var normalized any
-	if err := decoder.Decode(&normalized); err != nil {
 		return "<unsupported value>"
 	}
 	return normalized

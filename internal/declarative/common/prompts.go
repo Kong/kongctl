@@ -642,22 +642,11 @@ func displayFieldChanges(out io.Writer, change planner.PlannedChange, indent str
 	for _, field := range fieldNames {
 		value := change.Fields[field]
 
-		// Handle different field change formats
-		if fc, ok := value.(planner.FieldChange); ok {
+		if oldValue, newValue, ok := planner.ExtractFieldChange(value); ok {
 			hasFieldChanges = true
-			fc.Old = tags.RedactEnvOldValue(fc.Old, fc.New)
+			oldValue = tags.RedactEnvOldValue(oldValue, newValue)
 			fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field,
-				formatNamedFieldValue(field, fc.Old), formatNamedFieldValue(field, fc.New))
-		} else if fc, ok := value.(map[string]any); ok {
-			// Handle FieldChange that was unmarshaled from JSON
-			if oldVal, hasOld := fc["old"]; hasOld {
-				if newVal, hasNew := fc["new"]; hasNew {
-					hasFieldChanges = true
-					oldVal = tags.RedactEnvOldValue(oldVal, newVal)
-					fmt.Fprintf(out, "%s%s: %v → %v\n", indent, field,
-						formatNamedFieldValue(field, oldVal), formatNamedFieldValue(field, newVal))
-				}
-			}
+				formatNamedFieldValue(field, oldValue), formatNamedFieldValue(field, newValue))
 		}
 	}
 
