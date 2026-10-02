@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDirectMeshCmd creates a mesh command that works at the root level,
-// giving "kongctl delete mesh ..." alongside the explicit
-// "kongctl delete konnect mesh ..." form.
+// NewDirectMeshCmd creates the mesh command that gives "kongctl delete mesh
+// ...". It has no explicit "delete konnect mesh" form: the declarative delete
+// command claims that subtree (see meshVerbs in the konnect package).
 //
 // Reaching Kong Mesh through one command path regardless of whether the control
 // plane is Konnect hosted or self managed is deliberate: where a control plane
