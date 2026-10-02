@@ -1,12 +1,8 @@
-_defaults:
-  kongctl:
-    namespace: "apis-region-us"
-
 apis:
   - ref: api-region
     name: "Region API US"
-    description: "Region-specific API fixture"
-    version: "1.0.0"
+    description: "Updated US API description"
+    version: "1.1.0"
     slug: "region-api-us"
     kongctl:
       namespace: "apis-region-us"
