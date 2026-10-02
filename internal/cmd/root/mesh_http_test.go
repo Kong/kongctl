@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // These drive the whole root command against a fake control plane, so the
@@ -399,5 +400,96 @@ func TestMeshExplicitHostedSelectorBeatsSavedSelfManagedURL(t *testing.T) {
 	}
 	if meshAuth != "Bearer test-pat" {
 		t.Fatalf("Authorization = %q, want the Konnect credential", meshAuth)
+	}
+}
+
+// One rejected document must not stop the rest of an apply, and must still
+// fail the command. Every document is reported, so the operator can see which
+// landed and which did not.
+func TestMeshApplyContinuesPastAPartialFailure(t *testing.T) {
+	var written []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_resources" {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		if r.Method == http.MethodPut {
+			written = append(written, r.URL.Path)
+		}
+		if strings.HasSuffix(r.URL.Path, "/rejected") {
+			writeJSON(t, w, http.StatusBadRequest, map[string]any{"title": "Resource is not valid"})
+			return
+		}
+		writeJSON(t, w, http.StatusCreated, map[string]any{})
+	}))
+	defer server.Close()
+
+	input := "type: Mesh\nname: first\n---\ntype: Mesh\nname: rejected\n---\ntype: Mesh\nname: last\n"
+	result := executeRootForTest(t,
+		"apply", "mesh", "-f", meshInputFile(t, input),
+		"--control-plane-url", server.URL, "--output", "json")
+
+	if result.exitCode == 0 {
+		t.Fatalf("expected a partial failure to fail the command\nstdout:\n%s", result.stdout)
+	}
+	if len(written) != 3 {
+		t.Fatalf("expected all three documents to be written, got %v", written)
+	}
+
+	var rows []struct {
+		Name   string `json:"name"`
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &rows); err != nil {
+		t.Fatalf("decode output: %v\nstdout:\n%s", err, result.stdout)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("expected three reported resources, got %d", len(rows))
+	}
+	for _, row := range rows {
+		failed := strings.HasPrefix(row.Result, "failed:")
+		if failed != (row.Name == "rejected") {
+			t.Fatalf("%s: result = %q", row.Name, row.Result)
+		}
+	}
+}
+
+// The mesh client is built from the configured HTTP settings, not defaults,
+// so a configured timeout must bound a request to the control plane.
+func TestMeshRequestHonoursTheConfiguredTimeout(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	// The timeout is configuration only; there is no flag for it.
+	t.Setenv("KONGCTL_DEFAULT_HTTP_TIMEOUT", "200ms")
+
+	start := time.Now()
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-url", server.URL)
+	elapsed := time.Since(start)
+
+	if result.exitCode == 0 {
+		t.Fatal("expected a request to an unresponsive control plane to fail")
+	}
+	// Failing before the timeout could elapse means the request never waited
+	// on the control plane, so the timeout was not what ended it.
+	if elapsed < 200*time.Millisecond {
+		t.Fatalf("command failed after %s, before the timeout\nstderr:\n%s", elapsed, result.stderr)
+	}
+	// The default timeout is 60s, so finishing well inside it shows the
+	// configured value was used.
+	if elapsed > 5*time.Second {
+		t.Fatalf("request took %s; the configured 200ms timeout was not applied", elapsed)
+	}
+	if !strings.Contains(result.stderr, "Client.Timeout exceeded") {
+		t.Fatalf("expected the HTTP client timeout to end the request\nstderr:\n%s", result.stderr)
 	}
 }
