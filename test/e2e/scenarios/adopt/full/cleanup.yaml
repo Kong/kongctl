@@ -31,3 +31,22 @@ ai_gateways:
     kongctl:
       namespace: team-e2e-overwrite
       protected: false
+
+dcr_providers:
+  - ref: adopt-e2e-dcr-provider
+    name: adopt-e2e-dcr-provider
+    provider_type: http
+    issuer: https://e2e-adopt-dcr.example.com/oauth2/default
+    kongctl:
+      namespace: team-e2e-overwrite
+      protected: false
+
+analytics:
+  dashboards:
+    - ref: adopt-e2e-dashboard
+      name: Adopt E2E Dashboard
+      definition:
+        tiles: []
+      kongctl:
+        namespace: team-e2e-overwrite
+        protected: false

@@ -4,6 +4,9 @@ vars:
   cp_name: adopt-e2e-cp
   ai_gateway_name: adopt-e2e-ai-gateway
   ai_gateway_display_name: Adopt E2E AI Gateway
+  dcr_provider_name: adopt-e2e-dcr-provider
+  dcr_provider_issuer: https://e2e-adopt-dcr.example.com/oauth2/default
+  dashboard_name: Adopt E2E Dashboard
   namespace: team-e2e
   overwrite_namespace: team-e2e-overwrite
 
@@ -57,6 +60,32 @@ steps:
               description: "Adopt Scenario AI Gateway"
           recordVar:
             name: ai_gateway_id
+            responsePath: id
+
+      - name: create-dcr-provider
+        create:
+          resource: dcr_provider
+          payload:
+            inline:
+              name: "{{ .vars.dcr_provider_name }}"
+              provider_type: http
+              issuer: "{{ .vars.dcr_provider_issuer }}"
+              dcr_config:
+                dcr_base_url: https://e2e-adopt-dcr.example.com/v1/dcr
+                api_key: e2e_adopt_dcr_token
+          recordVar:
+            name: dcr_provider_id
+            responsePath: id
+      - name: create-dashboard
+        create:
+          resource: dashboard
+          payload:
+            inline:
+              name: "{{ .vars.dashboard_name }}"
+              definition:
+                tiles: []
+          recordVar:
+            name: dashboard_id
             responsePath: id
 
   - name: 002-adopt
@@ -115,6 +144,34 @@ steps:
                 id: "{{ .vars.ai_gateway_id }}"
                 resource_type: ai_gateway
 
+      - name: adopt-dcr-provider
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.dcr_provider_name }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.dcr_provider_id }}"
+                resource_type: dcr_provider
+      - name: adopt-dashboard
+        run:
+          - adopt
+          - analytics
+          - dashboard
+          - "{{ .vars.dashboard_id }}"
+          - --namespace
+          - "{{ .vars.namespace }}"
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+                id: "{{ .vars.dashboard_id }}"
+                resource_type: dashboard
+
   - name: 003-reject-overwrite-without-flag
     skipInputs: true
     commands:
@@ -149,6 +206,42 @@ steps:
         run: ["get", "ai-gateways", "-o", "json"]
         assertions:
           - select: "[?id=='{{ .vars.ai_gateway_id }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+
+      - name: reject-dcr-provider-namespace
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.dcr_provider_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+      - name: verify-dcr-provider-namespace-unchanged
+        run: ["get", "dcr-providers", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.dcr_provider_id }}'] | [0]"
+            expect:
+              fields:
+                labels."KONGCTL-namespace": "{{ .vars.namespace }}"
+      - name: reject-dashboard-namespace
+        run:
+          - adopt
+          - analytics
+          - dashboard
+          - "{{ .vars.dashboard_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+        expectFailure:
+          exitCode: 1
+          contains: "already has namespace label"
+      - name: verify-dashboard-namespace-unchanged
+        run: ["get", "analytics", "dashboards", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.dashboard_id }}'] | [0]"
             expect:
               fields:
                 labels."KONGCTL-namespace": "{{ .vars.namespace }}"
@@ -224,6 +317,36 @@ steps:
                 id: "{{ .vars.ai_gateway_id }}"
                 resource_type: ai_gateway
 
+      - name: overwrite-dcr-provider-namespace
+        run:
+          - adopt
+          - dcr-provider
+          - "{{ .vars.dcr_provider_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.dcr_provider_id }}"
+                resource_type: dcr_provider
+      - name: overwrite-dashboard-namespace
+        run:
+          - adopt
+          - analytics
+          - dashboard
+          - "{{ .vars.dashboard_id }}"
+          - --namespace
+          - "{{ .vars.overwrite_namespace }}"
+          - --overwrite-namespace
+        assertions:
+          - expect:
+              fields:
+                namespace: "{{ .vars.overwrite_namespace }}"
+                id: "{{ .vars.dashboard_id }}"
+                resource_type: dashboard
+
   - name: 005-dump-and-plan
     skipInputs: true
     commands:
@@ -231,7 +354,7 @@ steps:
         run:
           - dump
           - declarative
-          - "--resources=portals,control_planes,apis,ai_gateways"
+          - "--resources=portals,control_planes,apis,ai_gateways,dcr_providers,analytics.dashboards"
           - --default-namespace
           - "{{ .vars.overwrite_namespace }}"
         outputFormat: none
@@ -255,6 +378,18 @@ steps:
               fields:
                 name: "{{ .vars.ai_gateway_name }}"
                 display_name: "{{ .vars.ai_gateway_display_name }}"
+          - select: "dcr_providers[?ref=='{{ .vars.dcr_provider_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dcr_provider_name }}"
+                provider_type: http
+                issuer: "{{ .vars.dcr_provider_issuer }}"
+                dcr_config.api_key: null
+          - select: "analytics.dashboards[?ref=='{{ .vars.dashboard_id }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.dashboard_name }}"
+                definition.tiles: []
           - select: "_defaults.kongctl"
             expect:
               fields:
@@ -290,8 +425,8 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 4
-                by_action.DELETE: 4
+                total_changes: 6
+                by_action.DELETE: 6
           - select: "changes[?resource_id=='{{ .vars.cp_id }}'] | [0]"
             expect:
               fields:
@@ -312,6 +447,16 @@ steps:
               fields:
                 action: DELETE
                 resource_type: ai_gateway
+          - select: "changes[?resource_id=='{{ .vars.dcr_provider_id }}'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_type: dcr_provider
+          - select: "changes[?resource_id=='{{ .vars.dashboard_id }}'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                resource_type: dashboard
 
       - name: 001-delete
         run:
@@ -354,6 +499,22 @@ steps:
         run: ["get", "ai-gateways", "-o", "json"]
         assertions:
           - select: "[?id=='{{ .vars.ai_gateway_id }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 006-get-dcr-providers
+        run: ["get", "dcr-providers", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.dcr_provider_id }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 007-get-dashboards
+        run: ["get", "analytics", "dashboards", "-o", "json"]
+        assertions:
+          - select: "[?id=='{{ .vars.dashboard_id }}']"
             expect:
               fields:
                 "length(@)": 0

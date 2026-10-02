@@ -47,6 +47,8 @@ func TestAdoptCleanupRecoversPartialDelete(t *testing.T) {
 			{"portal_id", resources.ResourceTypePortal, []string{"portals"}},
 			{"api_id", resources.ResourceTypeAPI, []string{"apis"}},
 			{"ai_gateway_id", resources.ResourceTypeAIGateway, []string{"ai-gateways"}},
+			{"dcr_provider_id", resources.ResourceTypeDCRProvider, []string{"dcr-providers"}},
+			{"dashboard_id", resources.ResourceTypeDashboard, []string{"analytics", "dashboards"}},
 		}},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
