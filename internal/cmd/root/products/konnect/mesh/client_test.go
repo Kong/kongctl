@@ -308,6 +308,31 @@ func selfSignedCAPEM(t *testing.T) string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
 }
 
+// selfSignedKeyPairPEM generates a certificate and its private key, so a
+// client certificate can be loaded the way an operator's would be.
+func selfSignedKeyPairPEM(t *testing.T) (certPEM, keyPEM string) {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "mesh-test-client"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	certPEM = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	keyPEM = string(pem.EncodeToMemory(&pem.Block{
+		Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key),
+	}))
+	return certPEM, keyPEM
+}
+
 func TestSelfManagedTLSConfig(t *testing.T) {
 	t.Run("nothing configured leaves Go's defaults", func(t *testing.T) {
 		tlsConfig, err := selfManagedTLSConfig(meshTestConfig(t, map[string]any{}))
@@ -370,17 +395,25 @@ func TestSelfManagedTLSConfig(t *testing.T) {
 // reached over Konnect's own certificates. It is also meaningless for the two
 // destinations that are not the control plane at all.
 func TestClientTLSAppliesOnlyToASelfManagedControlPlane(t *testing.T) {
-	// Configured as though a self managed control plane were in use, so the
-	// material is available to leak if a builder installs it.
+	// Configured as though a self managed control plane were in use, with
+	// every kind of TLS material, so each is available to leak if a builder
+	// installs it.
+	certPEM, keyPEM := selfSignedKeyPairPEM(t)
 	cfg := meshTestConfig(t, map[string]any{
 		meshcommon.TLSSkipVerifyConfigPath:   true,
+		meshcommon.CACertFileConfigPath:      writeTempFile(t, "ca.pem", selfSignedCAPEM(t)),
+		meshcommon.ClientCertFileConfigPath:  writeTempFile(t, "client.pem", certPEM),
+		meshcommon.ClientKeyFileConfigPath:   writeTempFile(t, "client-key.pem", keyPEM),
 		meshcommon.ControlPlaneURLConfigPath: "https://mesh.example:5682",
 	})
 	selfManaged, err := controlPlaneClientConfig(
 		cfg, meshTarget{baseURL: "https://mesh.example:5682", selfManaged: true})
 	require.NoError(t, err)
-	require.NotNil(t, selfManaged.TransportOptions.TLSClientConfig)
-	require.True(t, selfManaged.TransportOptions.TLSClientConfig.InsecureSkipVerify)
+	selfManagedTLS := selfManaged.TransportOptions.TLSClientConfig
+	require.NotNil(t, selfManagedTLS)
+	require.True(t, selfManagedTLS.InsecureSkipVerify)
+	require.NotNil(t, selfManagedTLS.RootCAs)
+	require.Len(t, selfManagedTLS.Certificates, 1)
 
 	// A hosted target, even with self managed TLS sitting in configuration.
 	hosted, err := controlPlaneClientConfig(

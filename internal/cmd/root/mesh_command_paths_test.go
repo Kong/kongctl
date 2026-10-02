@@ -89,6 +89,10 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 	paths := [][]string{
 		{"get", "mesh", "meshes"},
 		{"get", "konnect", "mesh", "meshes"},
+		// Token subcommands have their own pre-run, so they are checked on
+		// both trees as well.
+		{"create", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
+		{"create", "konnect", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
 	}
 
 	for _, path := range paths {
