@@ -556,7 +556,8 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 		if desiredCert.Certificate != getStringFromMap(currentCert, "certificate") {
 			return true
 		}
-		if desiredCert.Key != getStringFromMap(currentCert, "key") {
+		// Konnect omits private keys from responses; compare them only when returned.
+		if _, hasKey := currentCert["key"]; hasKey && desiredCert.Key != getStringFromMap(currentCert, "key") {
 			return true
 		}
 	}
