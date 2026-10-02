@@ -1,0 +1,35 @@
+# Step 1: upstream-server src-a, and listener agg-listener with sources: [src-a]
+_defaults:
+  kongctl:
+    namespace: ai-gateway-mcp-source-rename-e2e
+
+ai_gateways:
+  - ref: mcp-source-rename-e2e
+    name: mcp-source-rename-e2e
+    display_name: "MCP Source Rename E2E"
+    mcp_servers:
+      - ref: src-a
+        type: upstream-server
+        name: src-a
+        display_name: "src-a"
+        enabled: true
+        config:
+          url: https://upstream.example.com/mcp
+          tools_cache_ttl_seconds: 60
+          route:
+            paths:
+              - /src-a
+      - ref: agg-listener
+        type: listener
+        name: agg-listener
+        display_name: "agg-listener"
+        enabled: true
+        sources:
+          - src-a
+        access:
+          acl_attribute_type: oauth_access_token
+          access_token_claim_field: sub
+        config:
+          route:
+            paths:
+              - /agg-listener
