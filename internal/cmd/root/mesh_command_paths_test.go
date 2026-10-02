@@ -95,6 +95,10 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 		// both trees as well.
 		{"create", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
 		{"create", "konnect", "mesh", "zone-token", "--zone", "zone1", "--valid-for", "1h"},
+		// dump never builds the konnect subtree, so it has only the direct
+		// form, and its own pre-run must leave the mesh binding to the mesh
+		// command.
+		{"dump", "mesh"},
 	}
 
 	for _, path := range paths {
