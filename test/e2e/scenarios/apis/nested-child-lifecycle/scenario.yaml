@@ -419,6 +419,10 @@ steps:
                 "documents[?title=='Root Document'] | length(@)": 1
                 "length(publications)": 1
                 "publications[0].visibility": "public"
+                "length(implementations)": 1
+                "implementations[0].type": "service"
+                "implementations[0].service.control_plane_id != null": true
+                "implementations[0].service.id != null": true
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
