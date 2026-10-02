@@ -16,15 +16,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewDirectMeshCmd creates a mesh command that works at the root level, giving
-// "kongctl apply mesh ..." alongside the explicit
-// "kongctl apply konnect mesh ..." form.
+// NewDirectMeshCmd creates the mesh command that gives "kongctl apply mesh
+// ...". It has no explicit "apply konnect mesh" form: the declarative apply
+// command claims that subtree (see meshVerbs in the konnect package).
 //
-// Apply is the primary verb for sending mesh resources. A write addresses a
+// Apply is the only verb that writes mesh resources. A write addresses a
 // resource by type and name and creates or replaces it, which is what kumactl
 // calls apply and implements as an upsert, and it matches what apply already
 // means in kongctl: create or update, without deleting anything. `create mesh`
-// remains for the name this first shipped under.
+// issues tokens only.
 func NewDirectMeshCmd() (*cobra.Command, error) {
 	addFlags := func(_ verbs.VerbValue, cmdObj *cobra.Command) {
 		cmdObj.Flags().String(common.BaseURLFlagName, "",
