@@ -154,7 +154,7 @@ func ResolveReferences(ctx context.Context, rs *resources.ResourceSet) error {
 // findFieldByJSONTag finds a struct field by its JSON tag
 func findFieldByJSONTag(val reflect.Value, jsonTag string) reflect.Value {
 	t := val.Type()
-	for i := 0; i < t.NumField(); i++ {
+	for i := range t.NumField() {
 		field := t.Field(i)
 		tag := field.Tag.Get("json")
 		if idx := strings.Index(tag, ","); idx != -1 {
@@ -174,7 +174,10 @@ func convertToString(val reflect.Value) string {
 		val = val.Elem()
 	}
 
+	//exhaustive:ignore // Remaining kinds use general interface formatting.
 	switch val.Kind() {
+	case reflect.Invalid:
+		return "<invalid>"
 	case reflect.String:
 		return val.String()
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -187,15 +190,7 @@ func convertToString(val reflect.Value) string {
 		return fmt.Sprintf("%t", val.Bool())
 	case reflect.Complex64, reflect.Complex128:
 		return fmt.Sprintf("%v", val.Complex())
-	case reflect.Array, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer,
-		reflect.Slice, reflect.Struct, reflect.UnsafePointer:
-		// For composite types, use general interface conversion
-		return fmt.Sprintf("%v", val.Interface())
-	case reflect.Invalid:
-		// Handle invalid reflect values
-		return "<invalid>"
 	default:
-		// This should never be reached as we've covered all reflect.Kind values
 		return fmt.Sprintf("%v", val.Interface())
 	}
 }

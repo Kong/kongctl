@@ -60,6 +60,7 @@ func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
 }
 
 func parseEnvNode(node *yaml.Node) (string, string, error) {
+	//exhaustive:ignore // All non-scalar, non-map nodes share the same error.
 	switch node.Kind {
 	case yaml.ScalarNode:
 		varRef, extractPath, hasDelim := strings.Cut(node.Value, "#")
@@ -81,8 +82,6 @@ func parseEnvNode(node *yaml.Node) (string, string, error) {
 			return "", "", fmt.Errorf("!env tag requires 'var' field")
 		}
 		return strings.TrimSpace(envRef.Var), strings.TrimSpace(envRef.Extract), nil
-	case yaml.DocumentNode, yaml.SequenceNode, yaml.AliasNode:
-		return "", "", fmt.Errorf("!env tag must be used with a string or map, got %v", node.Kind)
 	default:
 		return "", "", fmt.Errorf("!env tag must be used with a string or map, got %v", node.Kind)
 	}
