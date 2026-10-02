@@ -12,6 +12,7 @@ defaults:
       - created_at
       - updated_at
 
+# Each command clears the harness base URL override so --region selects the endpoint.
 steps:
   - name: 001-reset
     skipInputs: true
@@ -31,14 +32,16 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - us
         assertions:
           - select: plan.summary
             expect:
               fields:
-                by_action.CREATE: 1
                 total_changes: 1
+                by_action.CREATE: 1
           - select: summary
             expect:
               fields:
@@ -46,18 +49,20 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-us
-        run:
-          - get
-          - apis
-          - --region
-          - us
-          - -o
-          - json
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
         assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-eu'] | length(@)": 0
           - select: "[?slug=='region-api-us'] | [0]"
             expect:
               fields:
                 name: "Region API US"
+                slug: "region-api-us"
+                description: "Region-specific API fixture"
+                version: "1.0.0"
                 labels."KONGCTL-namespace": "apis-region-us"
 
   - name: 003-apply-eu
@@ -70,14 +75,16 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - eu
         assertions:
           - select: plan.summary
             expect:
               fields:
-                by_action.CREATE: 1
                 total_changes: 1
+                by_action.CREATE: 1
           - select: summary
             expect:
               fields:
@@ -85,23 +92,157 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-eu
-        run:
-          - get
-          - apis
-          - --region
-          - eu
-          - -o
-          - json
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
         assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-us'] | length(@)": 0
           - select: "[?slug=='region-api-eu'] | [0]"
             expect:
               fields:
                 name: "Region API EU"
+                slug: "region-api-eu"
+                description: "Region-specific API fixture"
+                version: "1.0.0"
                 labels."KONGCTL-namespace": "apis-region-eu"
+      - name: 003-get-us-isolated
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-eu'] | length(@)": 0
+          - select: "[?slug=='region-api-us'] | [0]"
+            expect:
+              fields:
+                name: "Region API US"
+                slug: "region-api-us"
+                description: "Region-specific API fixture"
+                version: "1.0.0"
+                labels."KONGCTL-namespace": "apis-region-us"
+      - name: 004-plan-eu-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+          - --base-url
+          - ""
+          - --region
+          - eu
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
-  - name: 004-cleanup
+  - name: 004-plan-us-no-op
     inputOverlayDirs:
-      - overlays/003-cleanup
+      - overlays/001-us
+    commands:
+      - name: 001-plan-us-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+          - --base-url
+          - ""
+          - --region
+          - us
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-update-us
+    inputOverlayDirs:
+      - overlays/001-us
+      - overlays/004-update-us
+    commands:
+      - name: 001-apply-update-us
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --auto-approve
+          - --base-url
+          - ""
+          - --region
+          - us
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-us-updated
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-eu'] | length(@)": 0
+          - select: "[?slug=='region-api-us'] | [0]"
+            expect:
+              fields:
+                name: "Region API US"
+                slug: "region-api-us"
+                description: "Updated US API description"
+                version: "1.1.0"
+                labels."KONGCTL-namespace": "apis-region-us"
+      - name: 003-get-eu-unchanged
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-us'] | length(@)": 0
+          - select: "[?slug=='region-api-eu'] | [0]"
+            expect:
+              fields:
+                name: "Region API EU"
+                slug: "region-api-eu"
+                description: "Region-specific API fixture"
+                version: "1.0.0"
+                labels."KONGCTL-namespace": "apis-region-eu"
+      - name: 004-plan-us-no-op-after-update
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - --mode
+          - apply
+          - --base-url
+          - ""
+          - --region
+          - us
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-cleanup-us
+    inputOverlayDirs:
+      - overlays/005-cleanup-us
     commands:
       - name: 001-sync-us
         run:
@@ -109,13 +250,86 @@ steps:
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - us
-      - name: 002-sync-eu
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-us-empty
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+                "[?slug=='region-api-eu'] | length(@)": 0
+      - name: 003-get-eu-preserved
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "[?slug=='region-api-us'] | length(@)": 0
+          - select: "[?slug=='region-api-eu'] | [0]"
+            expect:
+              fields:
+                name: "Region API EU"
+                slug: "region-api-eu"
+                description: "Region-specific API fixture"
+                version: "1.0.0"
+                labels."KONGCTL-namespace": "apis-region-eu"
+
+  - name: 007-cleanup-eu
+    inputOverlayDirs:
+      - overlays/006-cleanup-eu
+    commands:
+      - name: 001-sync-eu
         run:
           - sync
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
+          - --base-url
+          - ""
           - --region
           - eu
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-eu-empty
+        run: ["get", "apis", "--region", "eu", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+                "[?slug=='region-api-us'] | length(@)": 0
+      - name: 003-get-us-still-empty
+        run: ["get", "apis", "--region", "us", "-o", "json", "--base-url", ""]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+                "[?slug=='region-api-eu'] | length(@)": 0

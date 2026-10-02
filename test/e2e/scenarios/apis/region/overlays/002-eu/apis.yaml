@@ -1,6 +1,12 @@
+_defaults:
+  kongctl:
+    namespace: "apis-region-eu"
+
 apis:
   - ref: api-region
     name: "Region API EU"
+    description: "Region-specific API fixture"
+    version: "1.0.0"
     slug: "region-api-eu"
     kongctl:
       namespace: "apis-region-eu"
