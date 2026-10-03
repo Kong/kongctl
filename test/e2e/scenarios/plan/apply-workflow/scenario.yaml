@@ -226,6 +226,8 @@ steps:
           - --plan
           - "{{ .workdir }}/plan-update.json"
           - --auto-approve
+          - --execution-report-file
+          - "{{ .workdir }}/execution-report-update.json"
         assertions:
           - select: summary
             expect:
@@ -237,6 +239,24 @@ steps:
               fields:
                 by_action.UPDATE: 2
                 by_action.CREATE: 1
+          - name: execution-report-update
+            source:
+              artifact:
+                path: "{{ .workdir }}/execution-report-update.json"
+                parseAs: json
+            select: "@"
+            expect:
+              fields:
+                plan.metadata.mode: apply
+                plan.summary.total_changes: 3
+                plan.summary.by_action.UPDATE: 2
+                plan.summary.by_action.CREATE: 1
+                execution.dry_run: false
+                "length(execution.applied_changes)": 3
+                summary.total_changes: 3
+                summary.applied: 3
+                summary.failed: 0
+                summary.status: success
       - name: 003-get-portals
         run: ["get", "portals", "-o", "json"]
         assertions:
