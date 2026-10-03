@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: team-shared
+
+control_planes:
+  - ref: groups-staging-runtime
+    name: "groups-staging-runtime"
+    description: "Staging runtime"
+    cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
+    proxy_urls:
+      - host: groups-staging.example.com
+        port: 8443
+        protocol: https

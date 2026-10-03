@@ -70,7 +70,80 @@ steps:
                 "length([?id=='{{ .vars.prodRuntimeID }}'])": 1
                 "length([?id=='{{ .vars.stagingRuntimeID }}'])": 1
 
+  - name: 003b-apply-update-members
+    inputOverlayDirs:
+      - overlays/002-update-members
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: apply
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+          - select: "plan.changes[?action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-emea-runtime'] | [0]
+            expect:
+              fields:
+                action: CREATE
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-shared-group'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 001-record-emea-id
+        run: ["get", "konnect", "gateway", "control-plane", "groups-emea-runtime", "-o", "json"]
+        recordVar:
+          name: emeaRuntimeID
+          responsePath: id
+      - name: 002-verify-staging-preserved
+        run: ["get", "konnect", "gateway", "control-plane", "groups-staging-runtime", "-o", "json"]
+        assertions:
+          - select: id
+            expect:
+              fields:
+                "@": "{{ .vars.stagingRuntimeID }}"
+      - name: 003-dump-updated-members
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+          - "--filter-name=groups-shared-group"
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: "control_planes[?name=='groups-shared-group'] | [0].members"
+            expect:
+              fields:
+                "length(@)": 2
+                "length([?id=='{{ .vars.stagingRuntimeID }}'])": 0
+                "length([?id=='{{ .vars.emeaRuntimeID }}'])": 1
+                "length([?id=='{{ .vars.prodRuntimeID }}'])": 1
+
   - name: 004-plan-idempotent
+    inputOverlayDirs:
+      - overlays/002-update-members
     commands:
       - name: 004-plan
         outputFormat: disable
@@ -87,6 +160,8 @@ steps:
                 total_changes: 0
 
   - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/002-update-members
     commands:
       - name: 000-delete
         maxConcurrency: 1
@@ -110,7 +185,35 @@ steps:
               fields:
                 failed: 0
                 status: success
-      - name: 001-verify-deleted
+      # Apply preserves omitted resources, so delete the former member explicitly.
+      - name: 001-delete-staging
+        run:
+          - delete
+          - -f
+          - "{{ .workdir }}/staging-cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: "plan.metadata"
+            expect:
+              fields:
+                mode: delete
+          - select: "plan.summary"
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: >-
+              plan.changes[?resource_type=='control_plane' &&
+                            resource_ref=='groups-staging-runtime'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: "summary"
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-verify-deleted
         run: ["get", "gateway", "control-planes", "-o", "json"]
         assertions:
           - select: "[?name=='groups-prod-runtime']"
@@ -118,6 +221,10 @@ steps:
               fields:
                 "length(@)": 0
           - select: "[?name=='groups-staging-runtime']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='groups-emea-runtime']"
             expect:
               fields:
                 "length(@)": 0
