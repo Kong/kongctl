@@ -557,7 +557,8 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 			return true
 		}
 		// Konnect omits private keys from responses; compare them only when returned.
-		if _, hasKey := currentCert["key"]; hasKey && desiredCert.Key != getStringFromMap(currentCert, "key") {
+		// Without a returned key, key-only changes cannot trigger an update.
+		if currentKey, ok := currentCert["key"].(string); ok && desiredCert.Key != currentKey {
 			return true
 		}
 	}

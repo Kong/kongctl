@@ -24,6 +24,15 @@ func TestTLSPolicyConfigNeedsUpdate(t *testing.T) {
 			certificate: map[string]any{"certificate": "certificate"},
 		},
 		{
+			name:        "null private key is unchanged",
+			certificate: map[string]any{"certificate": "certificate", "key": nil},
+		},
+		{
+			name:        "returned empty private key needs update",
+			certificate: map[string]any{"certificate": "certificate", "key": ""},
+			wantUpdate:  true,
+		},
+		{
 			name:        "returned matching private key is unchanged",
 			certificate: map[string]any{"certificate": "certificate", "key": "private-key"},
 		},
