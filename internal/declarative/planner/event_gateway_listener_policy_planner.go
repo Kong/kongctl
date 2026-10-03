@@ -556,7 +556,8 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 		if desiredCert.Certificate != getStringFromMap(currentCert, "certificate") {
 			return true
 		}
-		if desiredCert.Key != getStringFromMap(currentCert, "key") {
+		// The API omits private keys on reads; compare only when one is returned.
+		if currentKey, ok := currentCert["key"].(string); ok && desiredCert.Key != currentKey {
 			return true
 		}
 	}
