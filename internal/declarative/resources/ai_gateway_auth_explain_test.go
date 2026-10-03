@@ -8,6 +8,63 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAIGatewayTokenExchangeExplainPaths(t *testing.T) {
+	const base = "ai_gateway.auth_strategies.config.token_exchange"
+	tests := []struct {
+		path     string
+		kind     string
+		required bool
+	}{
+		{"", explainKindObject, false},
+		{"subject_token_issuers", explainKindObject, true},
+		{"subject_token_issuers.issuer", explainKindString, true},
+		{"subject_token_issuers.conditions", explainKindObject, false},
+		{"subject_token_issuers.conditions.has_audience", explainKindArray, false},
+		{"subject_token_issuers.conditions.missing_audience", explainKindArray, false},
+		{"subject_token_issuers.conditions.has_scopes", explainKindArray, false},
+		{"subject_token_issuers.conditions.missing_scopes", explainKindArray, false},
+		{"request", explainKindObject, false},
+		{"request.scopes", explainKindArray, false},
+		{"request.audience", explainKindArray, false},
+		{"request.empty_scopes", explainKindBoolean, false},
+		{"cache", explainKindObject, false},
+		{"cache.enabled", explainKindBoolean, false},
+		{"cache.ttl", explainKindInteger, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			path := base
+			if tt.path != "" {
+				path += "." + tt.path
+			}
+			subject, err := ResolveExplainSubject(path)
+			require.NoError(t, err)
+			assert.Equal(t, tt.kind, subject.Node.Kind)
+			assert.Equal(t, tt.required, subject.FieldRequired)
+			if tt.kind == explainKindArray && tt.path != "subject_token_issuers" {
+				assert.Equal(t, explainKindString, subject.Node.Items.Kind)
+			}
+		})
+	}
+	subject, err := ResolveExplainSubject("ai_gateway.auth_strategies.config")
+	require.NoError(t, err)
+	text := RenderExplainText(subject, true)
+	assert.Contains(t, text, "- token_exchange: object")
+	assert.Contains(t, text, "- subject_token_issuers:")
+	conditions, err := ResolveExplainSubject(base + ".subject_token_issuers.conditions")
+	require.NoError(t, err)
+	assert.Contains(t, RenderExplainSchema(conditions).Description,
+		"Required and non-empty when exchanging a token from the same issuer.")
+	_, err = ResolveExplainSubject(base + ".grant_type")
+	require.Error(t, err)
+
+	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	keyAuth := aiGatewayAuthStrategyExplainBranch(t, node, "key-auth")
+	_, ok := keyAuth.lookup([]string{"config", "token_exchange"})
+	assert.False(t, ok, "token exchange applies only to OpenID Connect")
+}
+
 func TestAIGatewayProviderAuthShapesDistinguishBedrockAndSagemaker(t *testing.T) {
 	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
