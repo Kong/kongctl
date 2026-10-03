@@ -416,7 +416,7 @@ func isSensitiveHeaderKey(key string) bool {
 		normalized == "cookie" || normalized == "set_cookie" || normalized == "x_api_key" {
 		return true
 	}
-	return isSensitiveFieldKey(normalized)
+	return isSensitiveNormalizedKey(normalized)
 }
 
 func isSensitiveFieldKey(key string) bool {
@@ -463,7 +463,7 @@ func containsSegment(normalized, segment string) bool {
 
 func hasSegmentPair(normalized, first, second string) bool {
 	parts := strings.Split(normalized, "_")
-	for idx := 0; idx < len(parts)-1; idx++ {
+	for idx := range len(parts) - 1 {
 		if parts[idx] == first && parts[idx+1] == second {
 			return true
 		}
