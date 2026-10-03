@@ -40,6 +40,19 @@ apis:
         content: |
           # Orders Overview
           Use the Orders API to manage purchase flows with change history.
+
+          ## Tracking order changes
+          Each order records the purchase items, payment status, and delivery
+          details. Clients can retrieve the current order before submitting an
+          update and review the change history after the request completes.
+
+          ## Handling updates safely
+          Keep the order identifier when retrying a request, verify the response
+          status, and retrieve the order again before showing the updated state.
+          This workflow helps support teams explain changes to customers and
+          keeps purchase records consistent across connected applications.
+
+          End of the complete Orders API change history guide.
   - ref: analytics-api
     name: analytics-api
     description: "Analytics API"
