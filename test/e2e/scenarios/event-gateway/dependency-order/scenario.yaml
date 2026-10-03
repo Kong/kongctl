@@ -43,6 +43,9 @@ steps:
           - event-gateway-dependency-order-test
           - -o
           - json
+        recordVar:
+          name: storefrontID
+          responsePath: "[0].id"
         assertions:
           - select: "length(@)"
             expect:
@@ -113,7 +116,75 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-sync-delete
+  - name: 004-apply-ref-destination
+    inputOverlayDirs:
+      - overlays/004-ref-destination
+    commands:
+      - name: 001-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-verify-ref-destination
+        run:
+          - get
+          - event-gateway
+          - listener-policies
+          - --gateway-name
+          - event-gateway-dependency-order-test
+          - --listener-name
+          - storefront-listener
+          - -o
+          - json
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: storefront-forward
+                type: forward_to_virtual_cluster
+                config.type: port_mapping
+                config.advertised_host: localhost
+                config.bootstrap_port: at_start
+                config.min_broker_id: 0
+                config.destination.id: "{{ .vars.storefrontID }}"
+
+  - name: 005-ref-idempotency-check
+    inputOverlayDirs:
+      - overlays/004-ref-destination
+    commands:
+      - name: 001-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-sync-delete
     inputOverlayDirs:
       - overlays/004-sync-delete
     commands:
@@ -151,7 +222,7 @@ steps:
                 failed: 0
                 status: success
 
-  - name: 005-verify-delete
+  - name: 007-verify-delete
     skipInputs: true
     commands:
       - name: 001-verify-event-gateway-deleted
