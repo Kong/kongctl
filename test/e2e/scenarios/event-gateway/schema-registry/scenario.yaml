@@ -142,6 +142,19 @@ steps:
             expect:
               fields:
                 "@": "{{ .vars.vaultReference }}"
+      - name: 006-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 002-plan-apply-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -213,6 +226,19 @@ steps:
                 config.authentication.type: basic
                 config.authentication.username: updateduser
                 config.authentication.password: "{{ .vars.vaultReference }}"
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 003-plan-apply-vault-reference-update
     inputOverlayDirs:
       - overlays/002-vault-reference-update
@@ -280,7 +306,47 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
-  - name: 004-sync-delete
+  - name: 004-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].schema_registries[?name=='{{ .vars.schemaRegistryName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.schemaRegistryName }}"
+                description: "Updated Schema Registry description"
+                type: confluent
+                config.endpoint: https://schema-registry-updated.example.com
+                config.schema_type: avro
+                config.timeout_seconds: 60
+                config.authentication.type: basic
+                config.authentication.username: updateduser
+                config.authentication.password: "{{ .vars.rotatedVaultReference }}"
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -336,7 +402,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 005-root-level-declaration
+  - name: 006-root-level-declaration
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -398,7 +464,7 @@ steps:
               fields:
                 name: default-schema-registry-name
                 description: "Default root level Schema Registry description"
-  - name: 006-sync-delete-root-level
+  - name: 007-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
