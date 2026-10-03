@@ -205,7 +205,24 @@ steps:
                 labels:
                   env: staging
                   team: backend
-  - name: 003-sync-delete
+  - name: 003-idempotency-check
+    inputOverlayDirs:
+      - overlays/001-update-fields
+    commands:
+      - name: 001-plan-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -261,7 +278,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 004-root-level-listener
+  - name: 005-root-level-listener
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -331,7 +348,7 @@ steps:
                 labels:
                   env: staging
                   team: backend
-  - name: 005-sync-delete-root-level
+  - name: 006-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
