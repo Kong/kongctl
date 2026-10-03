@@ -280,6 +280,8 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	if ok {
 		// These are supported OpenID Connect plugin fields that the API accepts
 		// through the SDK config's additionalProperties contract.
+		// token_exchange is missing from the published API schema (kong/kongctl#2389).
+		config.addField(explainField("token_exchange", aiGatewayTokenExchangeExplainNode(), false, false))
 		config.addField(explainField(
 			"upstream_headers_claims",
 			explainArrayOf(explainStringNode("sub")),

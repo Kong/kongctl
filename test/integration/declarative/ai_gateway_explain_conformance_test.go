@@ -13,6 +13,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestAIGatewayTokenExchangeExplainSchemaValidation(t *testing.T) {
+	subject, err := resources.ResolveExplainSubject("ai_gateway.auth_strategies.config.token_exchange")
+	require.NoError(t, err)
+	schemaData, err := json.Marshal(resources.RenderExplainSchema(subject))
+	require.NoError(t, err)
+	var schemaDocument any
+	require.NoError(t, json.Unmarshal(schemaData, &schemaDocument))
+	const schemaURL = "https://konghq.com/kongctl/token-exchange-schema.json"
+	compiler := jsonschema.NewCompiler()
+	require.NoError(t, compiler.AddResource(schemaURL, schemaDocument))
+	compiled, err := compiler.Compile(schemaURL)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		payload string
+		valid   bool
+	}{
+		{"minimal", `{"subject_token_issuers":[{"issuer":"https://issuer.example.com"}]}`, true},
+		{"all fields", `{
+			"subject_token_issuers":[{
+				"issuer":"https://issuer.example.com",
+				"conditions":{
+					"has_audience":["source"],"missing_audience":["target"],
+					"has_scopes":["read"],"missing_scopes":["write"]
+				}
+			}],
+			"request":{"scopes":["read"],"audience":["target"],"empty_scopes":false},
+			"cache":{"enabled":true,"ttl":60}
+		}`, true},
+		{"missing issuers", `{}`, false},
+		{"missing issuer", `{"subject_token_issuers":[{}]}`, false},
+		{"wrong issuers type", `{"subject_token_issuers":"issuer"}`, false},
+		{"wrong scope type", `{"subject_token_issuers":[],"request":{"scopes":[1]}}`, false},
+		{"wrong boolean type", `{"subject_token_issuers":[],"request":{"empty_scopes":"false"}}`, false},
+		{"wrong ttl type", `{"subject_token_issuers":[],"cache":{"ttl":"60"}}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var payload any
+			require.NoError(t, json.Unmarshal([]byte(tt.payload), &payload))
+			err := compiled.Validate(payload)
+			if tt.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestAIGatewayScenarioResourcesConformToExplainSchemas(t *testing.T) {
 	t.Setenv("KONGCTL_E2E_WEATHERAPI_API_KEY", "fake-weather-api-key")
 

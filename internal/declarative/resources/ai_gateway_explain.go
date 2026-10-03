@@ -1,5 +1,41 @@
 package resources
 
+func aiGatewayTokenExchangeExplainNode() *ExplainNode {
+	conditions := explainObject(
+		explainField("has_audience", explainArrayOf(explainStringNode("api.example.com")), false, false),
+		explainField("missing_audience", explainArrayOf(explainStringNode("api.example.com")), false, false),
+		explainField("has_scopes", explainArrayOf(explainStringNode("openid")), false, false),
+		explainField("missing_scopes", explainArrayOf(explainStringNode("openid")), false, false),
+	)
+	conditions.Description = "Conditions on the subject token that determine whether to exchange it. " +
+		"Required and non-empty when exchanging a token from the same issuer."
+	issuer := explainStringNode("https://issuer.example.com")
+	issuer.Description = "Issuer of the subject token eligible for exchange."
+	issuers := explainArrayOf(explainObject(
+		explainField("issuer", issuer, true, true),
+		explainField("conditions", conditions, false, false),
+	))
+	issuers.Description = "Subject token issuers eligible for token exchange."
+	request := explainObject(
+		explainField("scopes", explainArrayOf(explainStringNode("openid")), false, false),
+		explainField("audience", explainArrayOf(explainStringNode("api.example.com")), false, false),
+		explainField("empty_scopes", explainBoolNode("false"), false, false),
+	)
+	request.Description = "Scope and audience options for the token exchange request."
+	cache := explainObject(
+		explainField("enabled", explainBoolNode("true"), false, false),
+		explainField("ttl", &ExplainNode{Kind: explainKindInteger, Literal: "60"}, false, false),
+	)
+	cache.Description = "Caching options for exchanged tokens."
+	node := explainObject(
+		explainField("subject_token_issuers", issuers, true, true),
+		explainField("request", request, false, false),
+		explainField("cache", cache, false, false),
+	)
+	node.Description = "Token exchange configuration for an OpenID Connect AI Gateway auth strategy."
+	return node
+}
+
 func aiGatewayRouteExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),

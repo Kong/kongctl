@@ -130,7 +130,8 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "type") {
 			return true
 		}
-		return path == "config" && (name == "upstream_headers_claims" || name == "upstream_headers_names")
+		return path == "config" &&
+			(name == "upstream_headers_claims" || name == "upstream_headers_names" || name == "token_exchange")
 	}
 	assertCustomExplainDeeplySupportsSDKShape[kkComps.AIGatewayAuthStrategyKeyAuth](
 		t,
