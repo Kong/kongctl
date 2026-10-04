@@ -168,6 +168,9 @@ steps:
                 status: success
 
       - name: 003-verify-update
+        recordVar:
+          name: trustedCA
+          responsePath: "[?name=='{{ .vars.trustBundleName }}'] | [0].config.trusted_ca"
         run:
           - get
           - event-gateway
@@ -218,7 +221,56 @@ steps:
                   Jeo7mJ0RN29/eYI7ob59j8IIkTVSd8lJEpLoakPV4uyZPNgDx14MUB1Bz7qGU7gj
                   oxQ=
                   -----END CERTIFICATE-----
-  - name: 003-sync-delete
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].tls_trust_bundles[?name=='{{ .vars.trustBundleName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.trustBundleName }}"
+                description: "Updated TLS Trust Bundle description"
+                config.trusted_ca: "{{ .vars.trustedCA }}"
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -275,7 +327,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 004-root-level-declaration
+  - name: 005-root-level-declaration
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -338,7 +390,7 @@ steps:
               fields:
                 name: default-tls-trust-bundle-name
                 description: "Default root level TLS Trust Bundle description"
-  - name: 005-sync-delete-root-level
+  - name: 006-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:
