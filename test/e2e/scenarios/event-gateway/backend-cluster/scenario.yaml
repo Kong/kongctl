@@ -404,6 +404,56 @@ steps:
             expect:
               fields:
                 total_changes: 0
+  - name: 004b-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].backend_clusters[?name=='{{ .vars.bcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.bcRef }}"
+                description: "First Backend Cluster for Test updated description"
+                metadata_update_interval_seconds: 60
+                labels:
+                  env: production
+                  team: backend
+                bootstrap_servers:
+                  - "egw-backend-1.example.com:9094"
+                  - "egw-backend-2.example.com:9095"
+                authentication.type: sasl_scram
+                authentication.algorithm: sha512
+                authentication.username: '${env["scram-username"]}'
+                authentication.password: '${vault["env"]["scram-password"]}'
+                tls.enabled: true
+                tls.insecure_skip_verify: true
+                tls.tls_versions:
+                  - "tls12"
+                  - "tls13"
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
