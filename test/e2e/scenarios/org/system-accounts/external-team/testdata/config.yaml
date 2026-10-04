@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: org-sa-external-team-e2e
+
+organization:
+  teams:
+    - ref: external-team
+      name: e2e-sa-external-team
+      _external:
+        selector:
+          matchFields:
+            name: e2e-sa-external-team
+  system-accounts:
+    - ref: external-team-system-account
+      name: e2e-sa-external-team-account
+      teams:
+        - ref: external-team-membership
+          team: external-team
