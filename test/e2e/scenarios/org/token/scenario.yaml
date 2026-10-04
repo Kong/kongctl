@@ -16,11 +16,11 @@
 #     g. Verify PAT no longer appears in the list
 #  3. SPAT lifecycle:
 #     a. Create a system account via harness API, record sa_id
-#     b. Create a SPAT (-o json), assert token/name/system_account_id, record spat_id
-#     c. List SPATs for the system account, assert the new SPAT is present
-#     d. Get SPAT by name, assert fields
-#     e. Delete SPAT by name
-#     f. Verify SPAT no longer appears in the list
+#     b. Create SPATs by system account ID and name, assert fields, record IDs
+#     c. List SPATs by system account ID and name, assert both tokens are present
+#     d. Get each SPAT by token name using its system account selector
+#     e. Delete each SPAT by token name using its system account selector
+#     f. Verify both SPATs are absent using both system account selectors
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -31,6 +31,7 @@ test:
 vars:
   pat_name: e2e-pat
   spat_name: e2e-spat
+  name_resolved_spat_name: e2e-spat-by-sa-name
   system_account_name: e2e-token-test-sa
 
 steps:
@@ -219,7 +220,41 @@ steps:
                 token_present: true
                 expires_at_present: true
 
-  - name: 010-get-spat-list
+  - name: 010-create-spat-by-system-account-name
+    skipInputs: true
+    commands:
+      - name: 000-create-spat-json
+        outputFormat: json
+        run:
+          - create
+          - spat
+          - --system-account-name
+          - "{{ .vars.system_account_name }}"
+          - --name
+          - "{{ .vars.name_resolved_spat_name }}"
+          - --expires-in
+          - 24h
+        recordVars:
+          - name: name_resolved_spat_id
+            responsePath: id
+        assertions:
+          - select: >-
+              {
+                name: name,
+                system_account_id: system_account_id,
+                system_account_name: system_account_name,
+                token_present: length(token) > `0`,
+                expires_at_present: length(expires_at) > `0`
+              }
+            expect:
+              fields:
+                name: "{{ .vars.name_resolved_spat_name }}"
+                system_account_id: "{{ .vars.sa_id }}"
+                system_account_name: "{{ .vars.system_account_name }}"
+                token_present: true
+                expires_at_present: true
+
+  - name: 011-get-spat-list
     skipInputs: true
     commands:
       - name: 000-list-spats
@@ -236,7 +271,33 @@ steps:
                 name: "{{ .vars.spat_name }}"
                 id: "{{ .vars.spat_id }}"
 
-  - name: 011-get-spat-by-name
+  - name: 012-get-spat-list-by-system-account-name
+    skipInputs: true
+    commands:
+      - name: 000-list-spats
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-name
+          - "{{ .vars.system_account_name }}"
+        assertions:
+          - select: "[?name=='{{ .vars.spat_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.spat_name }}"
+                id: "{{ .vars.spat_id }}"
+                system_account_id: "{{ .vars.sa_id }}"
+                system_account_name: "{{ .vars.system_account_name }}"
+          - select: "[?name=='{{ .vars.name_resolved_spat_name }}'] | [0]"
+            expect:
+              fields:
+                name: "{{ .vars.name_resolved_spat_name }}"
+                id: "{{ .vars.name_resolved_spat_id }}"
+                system_account_id: "{{ .vars.sa_id }}"
+                system_account_name: "{{ .vars.system_account_name }}"
+
+  - name: 013-get-spat-by-name
     skipInputs: true
     commands:
       - name: 000-get-spat-by-name
@@ -254,7 +315,26 @@ steps:
                 id: "{{ .vars.spat_id }}"
                 system_account_id: "{{ .vars.sa_id }}"
 
-  - name: 012-delete-spat
+  - name: 014-get-spat-by-system-account-name
+    skipInputs: true
+    commands:
+      - name: 000-get-spat-by-name
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-name
+          - "{{ .vars.system_account_name }}"
+          - "{{ .vars.name_resolved_spat_name }}"
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.name_resolved_spat_name }}"
+                id: "{{ .vars.name_resolved_spat_id }}"
+                system_account_id: "{{ .vars.sa_id }}"
+                system_account_name: "{{ .vars.system_account_name }}"
+
+  - name: 015-delete-spat
     skipInputs: true
     commands:
       - name: 000-delete-spat-by-name
@@ -266,7 +346,26 @@ steps:
           - "{{ .vars.sa_id }}"
           - --auto-approve
 
-  - name: 013-verify-spat-deleted
+  - name: 016-delete-spat-by-system-account-name
+    skipInputs: true
+    commands:
+      - name: 000-delete-spat-by-name
+        outputFormat: json
+        run:
+          - delete
+          - spat
+          - "{{ .vars.name_resolved_spat_name }}"
+          - --system-account-name
+          - "{{ .vars.system_account_name }}"
+          - --auto-approve
+        assertions:
+          - expect:
+              fields:
+                name: "{{ .vars.name_resolved_spat_name }}"
+                id: "{{ .vars.name_resolved_spat_id }}"
+                status: deleted
+
+  - name: 017-verify-spat-deleted
     skipInputs: true
     commands:
       - name: 000-list-spats-after-delete
@@ -278,6 +377,30 @@ steps:
           - "{{ .vars.sa_id }}"
         assertions:
           - select: "[?name=='{{ .vars.spat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.name_resolved_spat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+  - name: 018-verify-spats-deleted-by-system-account-name
+    skipInputs: true
+    commands:
+      - name: 000-list-spats-after-delete
+        outputFormat: json
+        run:
+          - get
+          - spat
+          - --system-account-name
+          - "{{ .vars.system_account_name }}"
+        assertions:
+          - select: "[?name=='{{ .vars.spat_name }}']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='{{ .vars.name_resolved_spat_name }}']"
             expect:
               fields:
                 "length(@)": 0
