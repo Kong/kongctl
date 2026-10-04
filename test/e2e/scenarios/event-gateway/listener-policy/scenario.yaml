@@ -156,6 +156,20 @@ steps:
             expect:
               fields:
                 "@": tls_server
+      - name: 006-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 002-plan-update
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -249,7 +263,50 @@ steps:
             expect:
               fields:
                 total_changes: 0
-  - name: 004-sync-delete
+
+  - name: 004-dump-round-trip-tls
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-tls.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                type: tls_server
+                description: "{{ .vars.listenerPolicyDescriptionUpdated }}"
+                enabled: false
+                labels.env: staging
+                labels.team: payments
+                config.allow_plaintext: false
+                config.versions.min: TLSv1.2
+                config.versions.max: TLSv1.3
+                length(config.certificates): 1
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-tls.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
     commands:
@@ -307,7 +364,7 @@ steps:
             expect:
               fields:
                 "@": 0
-  - name: 005-root-level-listener-policy
+  - name: 006-root-level-listener-policy
     inputOverlayDirs:
       - overlays/003-root-level-declaration
     commands:
@@ -380,7 +437,62 @@ steps:
                   type: sni
                   advertised_port: 9092
                   sni_suffix: ".example.com"
-  - name: 006-sync-delete-root-level
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-dump-round-trip-sni
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-sni.yaml"
+        assertions:
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].listeners[?name=='{{ .vars.listenerName }}'] | [0].policies[?name=='{{ .vars.listenerPolicyName }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.listenerPolicyName }}"
+                type: forward_to_virtual_cluster
+                description: "{{ .vars.listenerPolicyRootLevelDescription }}"
+                enabled: false
+                labels.env: staging
+                labels.team: payments
+                config.type: sni
+                config.advertised_port: 9092
+                config.sni_suffix: ".example.com"
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-sni.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 008-sync-delete-root-level
     inputOverlayDirs:
       - overlays/004-sync-delete-root-level-declaration
     commands:

@@ -558,6 +558,7 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 		}
 		// Konnect omits private keys from responses; compare them only when returned.
 		// Without a returned key, key-only changes cannot trigger an update.
+		// Pair key rotations with another visible policy change so the update sends the new key.
 		if currentKey, ok := currentCert["key"].(string); ok && desiredCert.Key != currentKey {
 			return true
 		}

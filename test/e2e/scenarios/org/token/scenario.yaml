@@ -8,7 +8,7 @@
 #  1. Reset org (cleans up system accounts and other org resources)
 #  2. PAT lifecycle:
 #     a. Create a PAT (-o json), assert token/id/name/expires_at fields, record pat_id
-#     b. Verify -o token format emits a non-empty raw token string
+#     b. Verify -o token and -o env formats, then delete the format-test PATs
 #     c. List PATs and assert the new PAT is present
 #     d. Get PAT by name, assert fields
 #     e. Get PAT by ID, assert fields
@@ -16,11 +16,13 @@
 #     g. Verify PAT no longer appears in the list
 #  3. SPAT lifecycle:
 #     a. Create a system account via harness API, record sa_id
-#     b. Create SPATs by system account ID and name, assert fields, record IDs
-#     c. List SPATs by system account ID and name, assert both tokens are present
-#     d. Get each SPAT by token name using its system account selector
-#     e. Delete each SPAT by token name using its system account selector
-#     f. Verify both SPATs are absent using both system account selectors
+#     b. Create a SPAT by system account ID, assert fields, record spat_id
+#     c. Create a SPAT by system account name, assert resolved fields
+#     d. Verify -o token and -o env formats, then delete the format-test SPATs
+#     e. List SPATs by ID and name, assert both tokens are present
+#     f. Get each SPAT by token name using its system account selector
+#     g. Delete each SPAT by token name using its system account selector
+#     h. Verify both SPATs are absent using both system account selectors
 
 env:
   KONGCTL_LOG_LEVEL: info
@@ -87,10 +89,15 @@ steps:
           - token
         parseAs: raw
         assertions:
-          - select: "{stdout_present: length(stdout) > `0`}"
+          - select: >-
+              {
+                stdout_present: length(stdout) > `1`,
+                raw_token: !contains(stdout, ' ') && ends_with(stdout, `"\n"`)
+              }
             expect:
               fields:
                 stdout_present: true
+                raw_token: true
 
       - name: 001-delete-pat-token-fmt
         run:
@@ -99,7 +106,41 @@ steps:
           - "{{ .vars.pat_name }}-token-fmt"
           - --auto-approve
 
-  - name: 003-get-pat-list
+  - name: 003-create-pat-env-format
+    skipInputs: true
+    commands:
+      - name: 000-create-pat-env-output
+        run:
+          - create
+          - pat
+          - --name
+          - "{{ .vars.pat_name }}-env-fmt"
+          - --expires-in
+          - 24h
+          - -o
+          - env
+        parseAs: raw
+        assertions:
+          - select: >-
+              {
+                export_present: starts_with(stdout, `"export KONGCTL_E2E_KONNECT_PAT='"`),
+                token_present: length(stdout) > length(`"export KONGCTL_E2E_KONNECT_PAT=''\n"`),
+                quoted: ends_with(stdout, `"'\n"`)
+              }
+            expect:
+              fields:
+                export_present: true
+                token_present: true
+                quoted: true
+
+      - name: 001-delete-pat-env-fmt
+        run:
+          - delete
+          - pat
+          - "{{ .vars.pat_name }}-env-fmt"
+          - --auto-approve
+
+  - name: 004-get-pat-list
     skipInputs: true
     commands:
       - name: 000-list-pats
@@ -114,7 +155,7 @@ steps:
                 name: "{{ .vars.pat_name }}"
                 id: "{{ .vars.pat_id }}"
 
-  - name: 004-get-pat-by-name
+  - name: 005-get-pat-by-name
     skipInputs: true
     commands:
       - name: 000-get-pat-by-name
@@ -129,7 +170,7 @@ steps:
                 name: "{{ .vars.pat_name }}"
                 id: "{{ .vars.pat_id }}"
 
-  - name: 005-get-pat-by-id
+  - name: 006-get-pat-by-id
     skipInputs: true
     commands:
       - name: 000-get-pat-by-id
@@ -144,7 +185,7 @@ steps:
                 id: "{{ .vars.pat_id }}"
                 name: "{{ .vars.pat_name }}"
 
-  - name: 006-delete-pat
+  - name: 007-delete-pat
     skipInputs: true
     commands:
       - name: 000-delete-pat-by-name
@@ -154,7 +195,7 @@ steps:
           - "{{ .vars.pat_name }}"
           - --auto-approve
 
-  - name: 007-verify-pat-deleted
+  - name: 008-verify-pat-deleted
     skipInputs: true
     commands:
       - name: 000-list-pats-after-delete
@@ -171,10 +212,14 @@ steps:
             expect:
               fields:
                 "length(@)": 0
+          - select: "[?name=='{{ .vars.pat_name }}-env-fmt']"
+            expect:
+              fields:
+                "length(@)": 0
 
   # ── SPAT lifecycle ────────────────────────────────────────────────────────────
 
-  - name: 008-create-system-account
+  - name: 009-create-system-account
     skipInputs: true
     commands:
       - name: 000-create-system-account
@@ -188,7 +233,7 @@ steps:
             name: sa_id
             responsePath: id
 
-  - name: 009-create-spat
+  - name: 010-create-spat
     skipInputs: true
     commands:
       - name: 000-create-spat-json
@@ -220,7 +265,7 @@ steps:
                 token_present: true
                 expires_at_present: true
 
-  - name: 010-create-spat-by-system-account-name
+  - name: 011-create-spat-by-system-account-name
     skipInputs: true
     commands:
       - name: 000-create-spat-json
@@ -254,7 +299,81 @@ steps:
                 token_present: true
                 expires_at_present: true
 
-  - name: 011-get-spat-list
+  - name: 012-create-spat-token-format
+    skipInputs: true
+    commands:
+      - name: 000-create-spat-token-output
+        run:
+          - create
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --name
+          - "{{ .vars.spat_name }}-token-fmt"
+          - --expires-in
+          - 24h
+          - -o
+          - token
+        parseAs: raw
+        assertions:
+          - select: >-
+              {
+                stdout_present: length(stdout) > `1`,
+                raw_token: !contains(stdout, ' ') && ends_with(stdout, `"\n"`)
+              }
+            expect:
+              fields:
+                stdout_present: true
+                raw_token: true
+
+      - name: 001-delete-spat-token-fmt
+        run:
+          - delete
+          - spat
+          - "{{ .vars.spat_name }}-token-fmt"
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --auto-approve
+
+  - name: 013-create-spat-env-format
+    skipInputs: true
+    commands:
+      - name: 000-create-spat-env-output
+        run:
+          - create
+          - spat
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --name
+          - "{{ .vars.spat_name }}-env-fmt"
+          - --expires-in
+          - 24h
+          - -o
+          - env
+        parseAs: raw
+        assertions:
+          - select: >-
+              {
+                export_present: starts_with(stdout, `"export KONGCTL_E2E_KONNECT_PAT='"`),
+                token_present: length(stdout) > length(`"export KONGCTL_E2E_KONNECT_PAT=''\n"`),
+                quoted: ends_with(stdout, `"'\n"`)
+              }
+            expect:
+              fields:
+                export_present: true
+                token_present: true
+                quoted: true
+
+      - name: 001-delete-spat-env-fmt
+        run:
+          - delete
+          - spat
+          - "{{ .vars.spat_name }}-env-fmt"
+          - --system-account-id
+          - "{{ .vars.sa_id }}"
+          - --auto-approve
+
+  - name: 014-get-spat-list
     skipInputs: true
     commands:
       - name: 000-list-spats
@@ -271,7 +390,7 @@ steps:
                 name: "{{ .vars.spat_name }}"
                 id: "{{ .vars.spat_id }}"
 
-  - name: 012-get-spat-list-by-system-account-name
+  - name: 015-get-spat-list-by-system-account-name
     skipInputs: true
     commands:
       - name: 000-list-spats
@@ -297,7 +416,7 @@ steps:
                 system_account_id: "{{ .vars.sa_id }}"
                 system_account_name: "{{ .vars.system_account_name }}"
 
-  - name: 013-get-spat-by-name
+  - name: 016-get-spat-by-name
     skipInputs: true
     commands:
       - name: 000-get-spat-by-name
@@ -315,7 +434,7 @@ steps:
                 id: "{{ .vars.spat_id }}"
                 system_account_id: "{{ .vars.sa_id }}"
 
-  - name: 014-get-spat-by-system-account-name
+  - name: 017-get-spat-by-system-account-name
     skipInputs: true
     commands:
       - name: 000-get-spat-by-name
@@ -334,7 +453,7 @@ steps:
                 system_account_id: "{{ .vars.sa_id }}"
                 system_account_name: "{{ .vars.system_account_name }}"
 
-  - name: 015-delete-spat
+  - name: 018-delete-spat
     skipInputs: true
     commands:
       - name: 000-delete-spat-by-name
@@ -346,7 +465,7 @@ steps:
           - "{{ .vars.sa_id }}"
           - --auto-approve
 
-  - name: 016-delete-spat-by-system-account-name
+  - name: 019-delete-spat-by-system-account-name
     skipInputs: true
     commands:
       - name: 000-delete-spat-by-name
@@ -365,7 +484,7 @@ steps:
                 id: "{{ .vars.name_resolved_spat_id }}"
                 status: deleted
 
-  - name: 017-verify-spat-deleted
+  - name: 020-verify-spat-deleted
     skipInputs: true
     commands:
       - name: 000-list-spats-after-delete
@@ -385,7 +504,7 @@ steps:
               fields:
                 "length(@)": 0
 
-  - name: 018-verify-spats-deleted-by-system-account-name
+  - name: 021-verify-spats-deleted-by-system-account-name
     skipInputs: true
     commands:
       - name: 000-list-spats-after-delete

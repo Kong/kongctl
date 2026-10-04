@@ -14,7 +14,7 @@ func (p *Planner) resolveAIGatewayMCPSourceDeletes(
 ) error {
 	references := func(deletion PlannedChange, values []string) bool {
 		name, _ := deletion.Fields[FieldName].(string)
-		return slices.Contains(values, name)
+		return name != "" && slices.Contains(values, name)
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
 		targetType: ResourceTypeAIGatewayMCPServer,
