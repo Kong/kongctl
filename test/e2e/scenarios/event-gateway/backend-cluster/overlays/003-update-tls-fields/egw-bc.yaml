@@ -18,9 +18,13 @@ event_gateways:
           - "egw-backend-1.example.com:9094"
           - "egw-backend-2.example.com:9095"
         authentication:
-          type: sasl_plain
-          username: ${env["updated-username"]}
-          password: ${vault["env"]["updated-password"]}
+          type: sasl_scram
+          algorithm: sha512
+          username: ${env["scram-username"]}
+          password: ${vault["env"]["scram-password"]}
         tls:
           enabled: true
           insecure_skip_verify: true
+          tls_versions:
+            - tls12
+            - tls13
