@@ -40,6 +40,36 @@ steps:
             expect:
               fields:
                 "@": "groups-shared-group"
+      - name: 001-verify-prod-runtime-fields
+        run: ["get", "konnect", "gateway", "control-plane", "groups-prod-runtime", "-o", "json"]
+        assertions:
+          - select: config.auth_type
+            expect:
+              fields:
+                "@": pinned_client_certs
+          - select: config.proxy_urls
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "config.proxy_urls[0]"
+            expect:
+              fields:
+                host: groups-prod.example.com
+                port: 443
+                protocol: https
+      - name: 002-verify-staging-runtime-fields
+        run: ["get", "konnect", "gateway", "control-plane", "groups-staging-runtime", "-o", "json"]
+        assertions:
+          - select: config.proxy_urls
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "config.proxy_urls[0]"
+            expect:
+              fields:
+                host: groups-staging.example.com
+                port: 8443
+                protocol: https
 
   - name: 003-verify-members-after-apply
     skipInputs: true
@@ -86,7 +116,123 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 005-delete-cleanup
+  - name: 005-update-runtime-fields
+    inputOverlayDirs:
+      - overlays/003-update-fields
+    commands:
+      - name: 000-plan-update
+        outputFormat: disable
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='groups-prod-runtime'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "length(changed_fields)": 1
+                "length(changed_fields.proxy_urls.old)": 1
+                "length(changed_fields.proxy_urls.new)": 1
+                changed_fields.proxy_urls.old[0].host: groups-prod.example.com
+                changed_fields.proxy_urls.old[0].port: 443
+                changed_fields.proxy_urls.old[0].protocol: https
+                changed_fields.proxy_urls.new[0].host: groups-prod-updated.example.com
+                changed_fields.proxy_urls.new[0].port: 8443
+                changed_fields.proxy_urls.new[0].protocol: https
+          - select: >-
+              changes[?resource_type=='control_plane' &&
+                        resource_ref=='groups-staging-runtime'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                "length(changed_fields)": 1
+                "length(changed_fields.proxy_urls.old)": 1
+                "length(changed_fields.proxy_urls.new)": 1
+                changed_fields.proxy_urls.old[0].host: groups-staging.example.com
+                changed_fields.proxy_urls.old[0].port: 8443
+                changed_fields.proxy_urls.old[0].protocol: https
+                changed_fields.proxy_urls.new[0].host: groups-staging-updated.example.com
+                changed_fields.proxy_urls.new[0].port: 443
+                changed_fields.proxy_urls.new[0].protocol: https
+      - name: 001-apply-update
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-verify-prod-runtime-updated
+        run: ["get", "konnect", "gateway", "control-plane", "groups-prod-runtime", "-o", "json"]
+        assertions:
+          - select: config.auth_type
+            expect:
+              fields:
+                "@": pinned_client_certs
+          - select: config.proxy_urls
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "config.proxy_urls[0]"
+            expect:
+              fields:
+                host: groups-prod-updated.example.com
+                port: 8443
+                protocol: https
+      - name: 003-verify-staging-runtime-updated
+        run: ["get", "konnect", "gateway", "control-plane", "groups-staging-runtime", "-o", "json"]
+        assertions:
+          - select: config.proxy_urls
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "config.proxy_urls[0]"
+            expect:
+              fields:
+                host: groups-staging-updated.example.com
+                port: 443
+                protocol: https
+
+  - name: 006-plan-idempotent-after-update
+    inputOverlayDirs:
+      - overlays/003-update-fields
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - --mode
+          - apply
+          - -f
+          - "{{ .workdir }}/control-plane.yaml"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 007-delete-cleanup
+    inputOverlayDirs:
+      - overlays/003-update-fields
     commands:
       - name: 000-delete
         maxConcurrency: 1
