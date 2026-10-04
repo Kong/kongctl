@@ -9,8 +9,8 @@ control_planes:
     cluster_type: "CLUSTER_TYPE_CONTROL_PLANE"
     auth_type: "pinned_client_certs"
     proxy_urls:
-      - host: groups-prod.example.com
-        port: 443
+      - host: groups-prod-updated.example.com
+        port: 8443
         protocol: https
 
   #- ref: groups-staging-runtime
