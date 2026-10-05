@@ -32,6 +32,10 @@ vars:
   teamUpdatedDesc: "Backend team for diff coverage (updated)"
   aiGatewayRef: diff-ai-gateway
   aiGatewayName: diff-ai-gateway-name
+  aiGatewayHost: diff-ai-gateway.example.com
+  aiGatewayUpdatedHost: diff-ai-gateway-updated.example.com
+  aiGatewayOwner: platform
+  aiGatewayUpdatedOwner: platform-eng
 
 defaults:
   mask:
@@ -552,6 +556,11 @@ steps:
                 'contains(@, ''api "{{ .vars.removedAPIName }}" will be deleted'')': true
                 "contains(@, 'bytes, ')": true
                 "contains(@, 'End of the complete Orders API change history guide.')": false
+                "contains(@, 'labels:')": true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
+                "contains(@, 'proxy_urls:')": true
+                "contains(@, '[0]:')": true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
 
       - name: 005-diff-sync-full-content
         outputFormat: text
@@ -590,6 +599,12 @@ steps:
               fields:
                 "contains(@, 'Plan: 2 to add, 8 to change, 3 to destroy')": true
                 'contains(@, ''display_name: "{{ .vars.portalName }}" → "{{ .vars.portalUpdatedName }}"'')': true
+                'contains(@, ''ai_gateway "{{ .vars.aiGatewayRef }}" will be updated'')': true
+                "contains(@, 'labels:')": true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
+                "contains(@, 'proxy_urls:')": true
+                "contains(@, '[0]:')": true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
 
       - name: 007-get-portals
         run: ["get", "portals"]
@@ -618,6 +633,46 @@ steps:
             expect:
               fields:
                 description: "{{ .vars.cpDesc }}"
+
+      - name: 010-diff-apply-mode-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 2 to add, 8 to change')": true
+                "contains(@, 'to destroy')": false
+                'contains(@, ''ai_gateway "{{ .vars.aiGatewayRef }}" will be updated'')': true
+                "contains(@, 'labels:')": true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
+                "contains(@, 'proxy_urls:')": true
+                "contains(@, '[0]:')": true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
+
+      - name: 011-diff-delete-mode-text
+        outputFormat: text
+        parseAs: raw
+        run:
+          - diff
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - delete
+        assertions:
+          - select: stdout
+            expect:
+              fields:
+                "contains(@, 'Plan: 0 to add, 0 to change, 8 to destroy')": true
+                'contains(@, ''ai_gateway "{{ .vars.aiGatewayName }}" will be deleted'')': true
+                "contains(@, 'will be created')": false
+                "contains(@, 'will be updated')": false
 
   - name: 004-delete-cleanup
     commands:
