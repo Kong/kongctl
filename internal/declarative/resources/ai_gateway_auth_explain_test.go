@@ -49,7 +49,7 @@ func TestAIGatewayTokenExchangeExplainPaths(t *testing.T) {
 	subject, err := ResolveExplainSubject("ai_gateway.auth_strategies.config")
 	require.NoError(t, err)
 	text := RenderExplainText(subject, true)
-	assert.Contains(t, text, "- token_exchange: object")
+	assert.Contains(t, text, "- token_exchange: map[string] optional")
 	assert.Contains(t, text, "- subject_token_issuers:")
 	conditions, err := ResolveExplainSubject(base + ".subject_token_issuers.conditions")
 	require.NoError(t, err)

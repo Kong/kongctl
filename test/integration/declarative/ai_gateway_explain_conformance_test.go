@@ -43,6 +43,16 @@ func TestAIGatewayTokenExchangeExplainSchemaValidation(t *testing.T) {
 			"request":{"scopes":["read"],"audience":["target"],"empty_scopes":false},
 			"cache":{"enabled":true,"ttl":60}
 		}`, true},
+		{"additional fields", `{
+			"extension":{"enabled":true},
+			"subject_token_issuers":[{
+				"issuer":"https://issuer.example.com",
+				"issuer_extension":"value",
+				"conditions":{"has_scopes":["read"],"condition_extension":"value"}
+			}],
+			"request":{"empty_audience":true},
+			"cache":{"ttl_seconds":60}
+		}`, true},
 		{"missing issuers", `{}`, false},
 		{"missing issuer", `{"subject_token_issuers":[{}]}`, false},
 		{"wrong issuers type", `{"subject_token_issuers":"issuer"}`, false},

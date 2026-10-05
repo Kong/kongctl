@@ -9,12 +9,14 @@ func aiGatewayTokenExchangeExplainNode() *ExplainNode {
 	)
 	conditions.Description = "Conditions on the subject token that determine whether to exchange it. " +
 		"Required and non-empty when exchanging a token from the same issuer."
+	conditions.Additional = &ExplainNode{}
 	issuer := explainStringNode("https://issuer.example.com")
 	issuer.Description = "Issuer of the subject token eligible for exchange."
 	issuers := explainArrayOf(explainObject(
 		explainField("issuer", issuer, true, true),
 		explainField("conditions", conditions, false, false),
 	))
+	issuers.Items.Additional = &ExplainNode{}
 	issuers.Description = "Subject token issuers eligible for token exchange."
 	request := explainObject(
 		explainField("scopes", explainArrayOf(explainStringNode("openid")), false, false),
@@ -22,17 +24,21 @@ func aiGatewayTokenExchangeExplainNode() *ExplainNode {
 		explainField("empty_scopes", explainBoolNode("false"), false, false),
 	)
 	request.Description = "Scope and audience options for the token exchange request."
+	request.Additional = &ExplainNode{}
 	cache := explainObject(
 		explainField("enabled", explainBoolNode("true"), false, false),
 		explainField("ttl", &ExplainNode{Kind: explainKindInteger, Literal: "60"}, false, false),
 	)
 	cache.Description = "Caching options for exchanged tokens."
+	cache.Additional = &ExplainNode{}
 	node := explainObject(
 		explainField("subject_token_issuers", issuers, true, true),
 		explainField("request", request, false, false),
 		explainField("cache", cache, false, false),
 	)
 	node.Description = "Token exchange configuration for an OpenID Connect AI Gateway auth strategy."
+	// Preserve additional fields until an authoritative API schema defines the complete shape.
+	node.Additional = &ExplainNode{}
 	return node
 }
 
