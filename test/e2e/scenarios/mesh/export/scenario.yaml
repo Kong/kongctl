@@ -11,8 +11,8 @@ steps:
     skipInputs: true
     commands:
       - name: 000-apply-source
-        run: [apply, mesh, -f, "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml",
-              -f, "{{ .repo_dir }}/docs/examples/mesh/timeout-policy.yaml",
+        run: [apply, mesh, -f, "{{ .repo_dir }}/docs/examples/declarative/mesh/mesh.yaml",
+              -f, "{{ .repo_dir }}/docs/examples/declarative/mesh/timeout-policy.yaml",
               --control-plane-id, "{{ .vars.source_control_plane_id }}"]
         assertions:
           - select: "@"

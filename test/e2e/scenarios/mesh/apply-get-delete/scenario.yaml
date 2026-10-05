@@ -19,7 +19,7 @@ steps:
           - apply
           - mesh
           - -f
-          - "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml"
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/mesh.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
         assertions:
@@ -38,7 +38,7 @@ steps:
           - apply
           - mesh
           - -f
-          - "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml"
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/mesh.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
         assertions:
@@ -55,7 +55,7 @@ steps:
           - apply
           - mesh
           - -f
-          - "{{ .repo_dir }}/docs/examples/mesh/timeout-policy.yaml"
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/timeout-policy.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
         assertions:
