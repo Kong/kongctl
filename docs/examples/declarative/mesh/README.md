@@ -2,8 +2,8 @@
 
 These examples use native Kong Mesh documents with `kongctl apply mesh`.
 They are separate from kongctl's Konnect declarative manifests and do not use
-`plan`, `diff`, or `sync`. See the [Mesh guide](../../mesh.md) for the complete
-command and configuration reference.
+`plan`, `diff`, or `sync`. See the [Mesh guide](../../../mesh.md) for the
+complete command and configuration reference.
 
 | File | Purpose |
 | --- | --- |
@@ -20,7 +20,7 @@ resources within an existing control plane.
 From the repository root, enter the example directory and list hosted targets:
 
 ```shell
-cd docs/examples/mesh
+cd docs/examples/declarative/mesh
 kongctl get mesh control-planes
 export MESH_CP_ID="<source-control-plane-id>"
 kongctl get mesh resource-types --control-plane-id "$MESH_CP_ID"
