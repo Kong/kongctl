@@ -668,6 +668,77 @@ func TestOrganizationSystemAccountExternalTeamMembershipSync(t *testing.T) {
 	}
 }
 
+func TestOrganizationUserExternalTeamMembershipSync(t *testing.T) {
+	const (
+		userID   = "user-123"
+		teamID   = "team-123"
+		teamRef  = "external-team"
+		teamName = "External Team"
+	)
+	for _, removeMembership := range []bool{false, true} {
+		t.Run(fmt.Sprintf("remove=%t", removeMembership), func(t *testing.T) {
+			user := resources.OrganizationUserResource{Ref: "alice", Email: "alice@example.com"}
+			user.SetKonnectID(userID)
+			team := resources.OrganizationTeamResource{
+				BaseResource: resources.BaseResource{Ref: teamRef},
+				CreateTeam:   kkComps.CreateTeam{Name: teamName},
+				External: &resources.ExternalBlock{
+					Selector: &resources.ExternalSelector{MatchFields: map[string]string{FieldName: teamName}},
+				},
+			}
+			team.SetKonnectID(teamID)
+			resourceSet := &resources.ResourceSet{
+				Organization: &resources.OrganizationResource{
+					Users: []resources.OrganizationUserResource{user},
+				},
+				OrganizationTeams: []resources.OrganizationTeamResource{team},
+			}
+			if !removeMembership {
+				memberships := []resources.OrganizationUserTeamMembershipResource{
+					{Ref: "alice-external-team", User: user.Ref, Team: teamRef},
+				}
+				resourceSet.OrganizationUserTeamMemberships = memberships
+			}
+			client := state.NewClient(state.ClientConfig{
+				OrganizationMembershipAPI: &organizationTeamMembershipAPIStub{
+					listUserTeams: func(
+						_ context.Context,
+						req kkOps.ListUserTeamsRequest,
+						_ ...kkOps.Option,
+					) (*kkOps.ListUserTeamsResponse, error) {
+						require.Equal(t, userID, req.UserID)
+						return &kkOps.ListUserTeamsResponse{
+							TeamCollection: teamCollection(
+								kkComps.Team{ID: new(teamID), Name: new(teamName)},
+								kkComps.Team{ID: new("unrelated-team-123"), Name: new("Unrelated Team")},
+							),
+						}, nil
+					},
+				},
+			})
+			planner := NewPlanner(client, discardPlannerLogger())
+			planner.resources = resourceSet
+			teamPlanner := NewOrganizationTeamPlanner(NewBasePlanner(planner)).(*OrganizationTeamPlannerImpl)
+			plan := NewPlan("1.0", "test", PlanModeSync)
+
+			err := teamPlanner.planOrganizationUserTeamMembershipChanges(
+				t.Context(), resources.NamespaceExternal, resourceSet.OrganizationTeams,
+				map[string]state.OrganizationTeam{}, plan,
+			)
+			require.NoError(t, err)
+			if !removeMembership {
+				require.Empty(t, plan.Changes)
+				return
+			}
+			require.Len(t, plan.Changes, 1)
+			require.Equal(t, ActionDelete, plan.Changes[0].Action)
+			require.Equal(t, ResourceTypeOrganizationUserTeamMembership, plan.Changes[0].ResourceType)
+			require.Equal(t, teamID, plan.Changes[0].References[FieldTeamID].ID)
+			require.Equal(t, userID, plan.Changes[0].References[FieldUserID].ID)
+		})
+	}
+}
+
 func TestOrganizationTeamRolePortalEntityRefMatchesExistingRole(t *testing.T) {
 	const (
 		portalID = "portal-123"
