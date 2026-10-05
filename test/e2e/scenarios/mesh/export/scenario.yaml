@@ -1,0 +1,127 @@
+# Migrate native Mesh documents between two isolated hosted control planes.
+test:
+  meshControlPlanes: [source_control_plane_id, destination_control_plane_id]
+
+vars:
+  mesh: kongctl-e2e-export
+  policy: kongctl-e2e-export-timeout
+
+steps:
+  - name: 000-seed-source
+    skipInputs: true
+    commands:
+      - name: 000-apply-source
+        run: [apply, mesh, -f, "-", --control-plane-id, "{{ .vars.source_control_plane_id }}"]
+        stdin: |
+          type: Mesh
+          name: {{ .vars.mesh }}
+          labels:
+            e2e-label: preserved
+          ---
+          type: MeshTimeout
+          name: {{ .vars.policy }}
+          mesh: {{ .vars.mesh }}
+          spec:
+            targetRef:
+              kind: Mesh
+            to:
+              - targetRef:
+                  kind: Mesh
+                default:
+                  connectionTimeout: 5s
+                  idleTimeout: 1h
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='created'])": 2
+
+  - name: 001-export-and-migrate
+    skipInputs: true
+    commands:
+      - name: 000-federation-excludes-policies
+        run: [dump, mesh, --control-plane-id, "{{ .vars.source_control_plane_id }}"]
+        outputFormat: none
+        parseAs: yaml-stream
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='Mesh' && name=='{{ .vars.mesh }}'])": 1
+                "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}'])": 0
+                "length([?labels.\"kuma.io/origin\"])": 0
+                "length([?labels.\"e2e-label\"=='preserved'])": 1
+
+      - name: 001-federation-with-policies
+        run: [dump, mesh, --export-profile, federation-with-policies,
+              --control-plane-id, "{{ .vars.source_control_plane_id }}"]
+        outputFormat: none
+        parseAs: yaml-stream
+        stdoutFile: "{{ .workdir }}/migration.yaml"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}'])": 1
+                "length([?labels.\"kuma.io/origin\"])": 0
+
+      - name: 002-apply-destination
+        run: [apply, mesh, -f, "{{ .workdir }}/migration.yaml",
+              --control-plane-id, "{{ .vars.destination_control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='failed'])": 0
+                "length([?type=='Mesh' && name=='{{ .vars.mesh }}' && result=='created'])": 1
+                "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}' && result=='created'])": 1
+
+      - name: 003-read-destination-mesh
+        run: [get, mesh, meshes, "{{ .vars.mesh }}",
+              --control-plane-id, "{{ .vars.destination_control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.mesh }}"
+                'labels."e2e-label"': preserved
+                'labels."kuma.io/origin"': global
+
+      - name: 004-read-destination-policy
+        run: [get, mesh, meshtimeouts, "{{ .vars.policy }}", --mesh, "{{ .vars.mesh }}",
+              --control-plane-id, "{{ .vars.destination_control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.policy }}"
+                mesh: "{{ .vars.mesh }}"
+                spec.targetRef.kind: Mesh
+                spec.to[0].default.connectionTimeout: 5s
+                spec.to[0].default.idleTimeout: 1h0m0s
+                'labels."kuma.io/origin"': global
+
+      - name: 005-all-inventory
+        run: [dump, mesh, --export-profile, all,
+              --control-plane-id, "{{ .vars.source_control_plane_id }}"]
+        outputFormat: none
+        parseAs: yaml-stream
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}'])": 1
+                "length([?labels.\"kuma.io/origin\"]) > `0`": true
+
+      - name: 006-no-dataplanes-inventory
+        run: [dump, mesh, --export-profile, no-dataplanes,
+              --control-plane-id, "{{ .vars.source_control_plane_id }}"]
+        outputFormat: none
+        parseAs: yaml-stream
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}'])": 1
+                "length([?labels.\"kuma.io/origin\"]) > `0`": true
+                "length([?type=='Dataplane' || type=='DataplaneInsight'])": 0

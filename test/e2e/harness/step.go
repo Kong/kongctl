@@ -293,8 +293,9 @@ func (re resourceEndpoint) expandPath(params map[string]string) (string, error) 
 }
 
 var createResourceEndpoints = map[string]resourceEndpoint{
-	"portal":  {Method: http.MethodPost, Path: "/v3/portals"},
-	"portals": {Method: http.MethodPost, Path: "/v3/portals"},
+	"mesh-control-plane": {Method: http.MethodPost, Path: "/v3/mesh/control-planes"},
+	"portal":             {Method: http.MethodPost, Path: "/v3/portals"},
+	"portals":            {Method: http.MethodPost, Path: "/v3/portals"},
 	"portal-page": {
 		Method:    http.MethodPost,
 		Path:      "/v3/portals/{portalId}/pages",
@@ -423,6 +424,11 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 }
 
 var deleteResourceEndpoints = map[string]resourceEndpoint{
+	"mesh-control-plane": {
+		Method:    http.MethodDelete,
+		Path:      "/v3/mesh/control-planes/{meshControlPlaneId}",
+		ParamKeys: []string{"meshControlPlaneId"},
+	},
 	"portal-application-registration": {
 		Method:    http.MethodDelete,
 		Path:      "/v3/portals/{portalId}/applications/{applicationId}/registrations/{registrationId}",
@@ -570,10 +576,6 @@ func (s *Step) DeleteResource(resource string, opts DeleteResourceOptions) (Dele
 			SlugPrefix:   "delete",
 		},
 	)
-	if err != nil {
-		return DeleteResourceResult{}, err
-	}
-
 	return DeleteResourceResult{
 		Status:   result.Status,
 		Body:     result.Body,
@@ -582,7 +584,7 @@ func (s *Step) DeleteResource(resource string, opts DeleteResourceOptions) (Dele
 		URL:      result.URL,
 		Duration: result.Duration,
 		TimedOut: result.TimedOut,
-	}, nil
+	}, err
 }
 
 func (s *Step) requestResource(

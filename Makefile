@@ -1,5 +1,5 @@
 .PHONY: test-all
-test-all: lint test-installer test test-e2e-harness test-e2e-mesh-cli test-e2e-metrics test-integration
+test-all: lint test-installer test test-e2e-harness test-e2e-metrics test-integration
 
 VERSION ?= $(shell (git describe --tags --exact-match 2>/dev/null || echo dev) | sed 's/^v//')
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -112,11 +112,6 @@ test:
 .PHONY: test-e2e-harness
 test-e2e-harness:
 	go test -race -count=1 -tags=e2e ./test/e2e/harness/...
-
-.PHONY: test-e2e-mesh-cli
-test-e2e-mesh-cli:
-	KONGCTL_E2E_ARTIFACTS_DIR="$${KONGCTL_E2E_ARTIFACTS_DIR:-.e2e-artifacts/mesh-cli}" \
-		go test -race -count=1 -tags=e2e -run '^TestMeshCLI$$' ./test/e2e
 
 .PHONY: refresh-e2e-weights
 refresh-e2e-weights:

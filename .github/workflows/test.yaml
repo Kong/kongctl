@@ -103,9 +103,6 @@ jobs:
       - name: test
         run: |
           go test -race -count=1 ./...
-
-      - name: Test Mesh CLI against a local control-plane fixture
-        run: make test-e2e-mesh-cli
       - name: test E2E metrics scripts
         run: make test-e2e-metrics
       - name: test E2E harness without Konnect

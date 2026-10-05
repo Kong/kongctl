@@ -1,55 +1,15 @@
 # The resource write lifecycle: apply, read back, delete.
 #
-# Everything created here is deleted in the final step. The org reset that other
-# suites rely on does not sweep mesh control planes, so a scenario that leaves a
-# mesh behind leaves it behind for every later run.
-#
-# Names are fixed and prefixed rather than randomised, matching the other
-# suites; isolation comes from the org matrix and the explicit cleanup.
+# Each run provisions its own control plane. The harness deletes that control
+# plane even if a resource assertion fails before the explicit delete steps.
 test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
-  requiredEnvVars:
-    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
-  info: >
-    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
-    of a Kong Mesh control plane to run the mesh scenarios.
+  meshControlPlanes: [control_plane_id]
 
 vars:
   mesh: kongctl-e2e-mesh-lifecycle
   policy: kongctl-e2e-timeouts
 
 steps:
-  # A previous run that failed before its cleanup step would leave these
-  # behind, so remove them first and tolerate their absence.
-  - name: 000-pre-clean
-    skipInputs: true
-    commands:
-      - name: 000-delete-policy-if-present
-        exec:
-          - sh
-          - -c
-          - |
-            result=$("{{ .bin }}" delete mesh meshtimeouts "{{ .vars.policy }}" \
-              --mesh "{{ .vars.mesh }}" --profile e2e \
-              --control-plane-id "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}" 2>&1) && exit 0
-            case "$result" in
-              *"not found"*|*"Not Found"*) exit 0 ;;
-              *) printf "%s\n" "$result" >&2; exit 1 ;;
-            esac
-        parseAs: raw
-      - name: 001-delete-mesh-if-present
-        exec:
-          - sh
-          - -c
-          - |
-            result=$("{{ .bin }}" delete mesh meshes "{{ .vars.mesh }}" --profile e2e \
-              --control-plane-id "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}" 2>&1) && exit 0
-            case "$result" in
-              *"not found"*|*"Not Found"*) exit 0 ;;
-              *) printf "%s\n" "$result" >&2; exit 1 ;;
-            esac
-        parseAs: raw
-
   - name: 001-apply-mesh
     skipInputs: true
     commands:
@@ -60,7 +20,7 @@ steps:
           - -f
           - "-"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         stdin: |
           type: Mesh
           name: {{ .vars.mesh }}
@@ -82,7 +42,7 @@ steps:
           - -f
           - "-"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         stdin: |
           type: Mesh
           name: {{ .vars.mesh }}
@@ -102,7 +62,7 @@ steps:
           - -f
           - "-"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         stdin: |
           type: MeshTimeout
           name: {{ .vars.policy }}
@@ -131,7 +91,7 @@ steps:
           - mesh
           - meshes
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
@@ -146,7 +106,7 @@ steps:
           - --mesh
           - "{{ .vars.mesh }}"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
@@ -176,7 +136,7 @@ steps:
           - --mesh
           - "{{ .vars.mesh }}"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
@@ -189,7 +149,7 @@ steps:
           - meshes
           - "{{ .vars.mesh }}"
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
@@ -201,7 +161,7 @@ steps:
           - mesh
           - meshes
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
