@@ -5,6 +5,10 @@ types, aliases, scope, and write permissions come from the control plane's
 discovery API. Kong Mesh resources use their native document format, separate
 from kongctl's Konnect declarative manifests.
 
+The [Mesh examples](examples/mesh/README.md) include runnable Mesh and
+MeshTimeout documents with an apply/read/delete, dump, inspection, and token
+walkthrough.
+
 ## Select a control plane
 
 For a Konnect-hosted control plane, use the active profile's login or PAT:

@@ -3,33 +3,17 @@ test:
   meshControlPlanes: [source_control_plane_id, destination_control_plane_id]
 
 vars:
-  mesh: kongctl-e2e-export
-  policy: kongctl-e2e-export-timeout
+  mesh: kongctl-example-mesh
+  policy: kongctl-example-timeouts
 
 steps:
   - name: 000-seed-source
     skipInputs: true
     commands:
       - name: 000-apply-source
-        run: [apply, mesh, -f, "-", --control-plane-id, "{{ .vars.source_control_plane_id }}"]
-        stdin: |
-          type: Mesh
-          name: {{ .vars.mesh }}
-          labels:
-            e2e-label: preserved
-          ---
-          type: MeshTimeout
-          name: {{ .vars.policy }}
-          mesh: {{ .vars.mesh }}
-          spec:
-            targetRef:
-              kind: Mesh
-            to:
-              - targetRef:
-                  kind: Mesh
-                default:
-                  connectionTimeout: 5s
-                  idleTimeout: 1h
+        run: [apply, mesh, -f, "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml",
+              -f, "{{ .repo_dir }}/docs/examples/mesh/timeout-policy.yaml",
+              --control-plane-id, "{{ .vars.source_control_plane_id }}"]
         assertions:
           - select: "@"
             expect:
@@ -50,7 +34,7 @@ steps:
                 "length([?type=='Mesh' && name=='{{ .vars.mesh }}'])": 1
                 "length([?type=='MeshTimeout' && name=='{{ .vars.policy }}'])": 0
                 "length([?labels.\"kuma.io/origin\"])": 0
-                "length([?labels.\"e2e-label\"=='preserved'])": 1
+                "length([?labels.\"example\"=='kongctl-mesh'])": 1
 
       - name: 001-federation-with-policies
         run: [dump, mesh, --export-profile, federation-with-policies,
@@ -84,7 +68,7 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.mesh }}"
-                'labels."e2e-label"': preserved
+                'labels."example"': kongctl-mesh
                 'labels."kuma.io/origin"': global
 
       - name: 004-read-destination-policy

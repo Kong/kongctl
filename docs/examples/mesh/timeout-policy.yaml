@@ -1,0 +1,12 @@
+type: MeshTimeout
+name: kongctl-example-timeouts
+mesh: kongctl-example-mesh
+spec:
+  targetRef:
+    kind: Mesh
+  to:
+    - targetRef:
+        kind: Mesh
+      default:
+        connectionTimeout: 5s
+        idleTimeout: 1h

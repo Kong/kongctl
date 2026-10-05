@@ -2,12 +2,13 @@
 #
 # Each run provisions its own control plane. The harness deletes that control
 # plane even if a resource assertion fails before the explicit delete steps.
+# The manifests are the user-facing examples, so this also validates those files.
 test:
   meshControlPlanes: [control_plane_id]
 
 vars:
-  mesh: kongctl-e2e-mesh-lifecycle
-  policy: kongctl-e2e-timeouts
+  mesh: kongctl-example-mesh
+  policy: kongctl-example-timeouts
 
 steps:
   - name: 001-apply-mesh
@@ -18,12 +19,9 @@ steps:
           - apply
           - mesh
           - -f
-          - "-"
+          - "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
-        stdin: |
-          type: Mesh
-          name: {{ .vars.mesh }}
         assertions:
           - select: "@"
             expect:
@@ -40,12 +38,9 @@ steps:
           - apply
           - mesh
           - -f
-          - "-"
+          - "{{ .repo_dir }}/docs/examples/mesh/mesh.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
-        stdin: |
-          type: Mesh
-          name: {{ .vars.mesh }}
         assertions:
           - select: "@"
             expect:
@@ -60,22 +55,9 @@ steps:
           - apply
           - mesh
           - -f
-          - "-"
+          - "{{ .repo_dir }}/docs/examples/mesh/timeout-policy.yaml"
           - --control-plane-id
           - "{{ .vars.control_plane_id }}"
-        stdin: |
-          type: MeshTimeout
-          name: {{ .vars.policy }}
-          mesh: {{ .vars.mesh }}
-          spec:
-            targetRef:
-              kind: Mesh
-            to:
-              - targetRef:
-                  kind: Mesh
-                default:
-                  connectionTimeout: 5s
-                  idleTimeout: 1h
         assertions:
           - select: "@"
             expect:
@@ -118,10 +100,8 @@ steps:
 
   - name: 005-delete-cleanup
     skipInputs: true
-    # A write or delete against a remote control plane occasionally takes long
-    # enough to look like a failure. Retrying matters most here: a cleanup that
-    # gives up leaves a mesh behind for every later run, because the org reset
-    # the other suites rely on does not sweep mesh control planes.
+    # Retry transient deletion failures while checking the resource lifecycle.
+    # Harness teardown removes the isolated CP if this step cannot complete.
     retry:
       attempts: 3
       interval: 5s
