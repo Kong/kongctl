@@ -19,7 +19,7 @@ vars:
   portalViewerRoleRef: portal-viewer
   cpRoleNamespace: org-team-roles-cp-ref-e2e
   cpRef: org-team-roles-cp-ref
-  cpName: org-team-roles-cp-ref
+  cpName: org-team-roles-cp-ref-name
   cpRoleTeamRef: cp-role-team
   cpRoleTeamName: Control Plane Role Team
   cpViewerRoleRef: cp-viewer
