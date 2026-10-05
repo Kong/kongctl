@@ -100,6 +100,57 @@ steps:
                 "length([?id=='{{ .vars.prodRuntimeID }}'])": 1
                 "length([?id=='{{ .vars.stagingRuntimeID }}'])": 1
 
+  - name: 003b-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-all-control-planes
+        run:
+          - dump
+          - declarative
+          - "--resources=control_planes"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-groups.yaml"
+        assertions:
+          - select: "control_planes[?name=='groups-shared-group'] | [0]"
+            expect:
+              fields:
+                cluster_type: "CLUSTER_TYPE_CONTROL_PLANE_GROUP"
+          - select: "control_planes[?name=='groups-shared-group'] | [0].members"
+            expect:
+              fields:
+                "length(@)": 2
+                "length([?id=='{{ .vars.prodRuntimeID }}'])": 1
+                "length([?id=='{{ .vars.stagingRuntimeID }}'])": 1
+          - select: "control_planes[?name=='groups-prod-runtime'] | [0]"
+            expect:
+              fields:
+                auth_type: pinned_client_certs
+                "length(proxy_urls)": 1
+                proxy_urls[0].host: groups-prod.example.com
+                proxy_urls[0].port: 443
+                proxy_urls[0].protocol: https
+          - select: "control_planes[?name=='groups-staging-runtime'] | [0]"
+            expect:
+              fields:
+                "length(proxy_urls)": 1
+                proxy_urls[0].host: groups-staging.example.com
+                proxy_urls[0].port: 8443
+                proxy_urls[0].protocol: https
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-groups.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 004-plan-idempotent
     commands:
       - name: 004-plan
