@@ -74,7 +74,8 @@ func runGetResources(helper cmd.Helper, args []string) error {
 		body, fetchErr := fetch(helper, path)
 		if fetchErr != nil {
 			return cmd.PrepareExecutionError(
-				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Singular()), fetchErr, helper.GetCmd())
+				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Singular()), fetchErr, helper.GetCmd(),
+			)
 		}
 
 		// JSON and YAML print the control plane payload as it arrived, so
@@ -93,7 +94,8 @@ func runGetResources(helper cmd.Helper, args []string) error {
 		items, err = listAll(helper, path)
 		if err != nil {
 			return cmd.PrepareExecutionError(
-				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Plural()), err, helper.GetCmd())
+				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Plural()), err, helper.GetCmd(),
+			)
 		}
 
 		// The envelope is rebuilt from everything collected so that structured
@@ -141,7 +143,8 @@ func requestPath(cfg config.Hook, descriptor ResourceDescriptor, name string) (s
 		if name != "" {
 			return "", fmt.Errorf(
 				"--%s lists across meshes and cannot address a single resource; drop it and pass --%s",
-				meshcommon.AllMeshesFlagName, meshcommon.MeshFlagName)
+				meshcommon.AllMeshesFlagName, meshcommon.MeshFlagName,
+			)
 		}
 		return "/" + descriptor.Path, nil
 	}

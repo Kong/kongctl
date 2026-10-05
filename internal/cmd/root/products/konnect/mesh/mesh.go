@@ -84,6 +84,36 @@ func NewMeshCmd(
 		Long:    meshLong,
 		Example: meshExample,
 	}
+	//exhaustive:ignore // Other verbs use the shared Mesh help above.
+	switch verb {
+	case verbs.Apply:
+		baseCmd.Short = "Apply Kong Mesh resource documents"
+		baseCmd.Long = normalizers.LongDesc(`Apply resource documents directly to a Kong Mesh 3.0 or later control plane.
+
+Each document creates or replaces the resource addressed by its type and name.
+This command does not generate a declarative plan or show a diff. It does not
+delete resources omitted from the input. Documents are processed in input order;
+if a write fails, later documents are still attempted and the command exits
+with an error after reporting all results.`)
+	case verbs.Delete:
+		baseCmd.Short = "Delete a Kong Mesh resource"
+		baseCmd.Long = normalizers.LongDesc(`Delete one resource from a Kong Mesh 3.0 or later control plane.
+
+Specify the resource type and name. For a mesh scoped resource, select its mesh
+with --mesh; the default is "default". Read-only types cannot be deleted.`)
+	case verbs.Dump:
+		baseCmd.Short = "Export Kong Mesh resources as YAML"
+		baseCmd.Long = normalizers.LongDesc(`Export resources from a Kong Mesh 3.0 or later control plane as a YAML stream.
+
+The export covers the entire control plane, including every mesh. The default
+federation profile prepares resources for migration to another global control
+plane and excludes policies. Use federation-with-policies to include policies.
+These profiles strip control-plane-owned labels so the destination can set them.
+
+The all and no-dataplanes profiles retain source labels and may include read-only
+resources; they are inventories and cannot necessarily be applied back unchanged.
+Exports can contain secrets. Save them in a location appropriate for credentials.`)
+	}
 
 	baseCmd.PreRunE = chainMeshPreRun(parentPreRun)
 	if addParentFlags != nil {
@@ -105,6 +135,9 @@ func NewMeshCmd(
 	// args are accepted instead and dispatched to the generic read, which
 	// resolves the type against /_resources.
 	baseCmd.Args = cobra.ArbitraryArgs
+	if verb == verbs.Dump {
+		baseCmd.Args = cobra.NoArgs
+	}
 	// Cobra applies this default only on its own suggestion path, and the
 	// dispatch below calls SuggestionsFor directly to tell a mistyped
 	// subcommand apart from a resource type.
@@ -155,7 +188,8 @@ func NewMeshCmd(
 			if len(args) > 2 {
 				return &cmd.ConfigurationError{
 					Err: fmt.Errorf(
-						"expected a resource type and an optional name, got %d arguments", len(args)),
+						"expected a resource type and an optional name, got %d arguments", len(args),
+					),
 				}
 			}
 			return runGetResources(helper, args)

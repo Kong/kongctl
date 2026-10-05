@@ -171,8 +171,8 @@ func AddControlPlaneFlags(flags *pflag.FlagSet) {
 - Config path: [ %s ]`, ControlPlaneNameConfigPath))
 
 	flags.String(ControlPlaneURLFlagName, "",
-		fmt.Sprintf(`API URL of a self managed Kong Mesh control plane. Takes precedence over --%s.
-- Config path: [ %s ]`, ControlPlaneIDFlagName, ControlPlaneURLConfigPath))
+		fmt.Sprintf(`API URL of a self managed Kong Mesh control plane. Provide only one control plane selector flag.
+- Config path: [ %s ]`, ControlPlaneURLConfigPath))
 
 	flags.StringP(MeshFlagName, MeshFlagShorthand, DefaultMesh,
 		fmt.Sprintf(`Mesh that mesh scoped resources belong to.

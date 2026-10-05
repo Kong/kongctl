@@ -19,7 +19,7 @@ import (
 )
 
 // TypeFlagName selects which inspection a dataplane inspect performs.
-const TypeFlagName = "type"
+const TypeFlagName = meshcommon.InspectTypeFlagName
 
 // Inspection types for `inspect dataplane`. The first reads a control plane
 // computation; the rest proxy the proxy's own Envoy admin interface, which
@@ -56,7 +56,7 @@ once matching and merging have run, and which proxies a policy matches.`))
 	# Proxies a policy matches
 	%[1]s get mesh inspect meshtimeout slow
 
-	# A proxy's Envoy configuration, while its zone is connected
+	# A proxy's Envoy statistics, while its zone is connected
 	%[1]s get mesh inspect dataplane backend-01 --type stats
 
 	# Overviews
@@ -94,7 +94,8 @@ func newInspectCmd(
 			if len(args) != 2 {
 				return &cmd.ConfigurationError{
 					Err: fmt.Errorf(
-						"expected a policy type and a name, for example 'get mesh inspect meshtimeout <name>'"),
+						"expected a policy type and a name, for example 'get mesh inspect meshtimeout <name>'",
+					),
 				}
 			}
 			return runInspectPolicy(helper, args[0], args[1])
@@ -109,13 +110,16 @@ func newInspectCmd(
 	baseCmd.AddCommand(newInspectDataplaneCmd(verb, addParentFlags, parentPreRun))
 	baseCmd.AddCommand(newInspectOverviewCmd(
 		"dataplanes", "Overview of every dataplane in the mesh", overviewDataplanes,
-		verb, addParentFlags, parentPreRun))
+		verb, addParentFlags, parentPreRun,
+	))
 	baseCmd.AddCommand(newInspectOverviewCmd(
 		"meshes", "Overview of every mesh", overviewMeshes,
-		verb, addParentFlags, parentPreRun))
+		verb, addParentFlags, parentPreRun,
+	))
 	baseCmd.AddCommand(newInspectOverviewCmd(
 		"zones", "Overview of every zone", overviewZones,
-		verb, addParentFlags, parentPreRun))
+		verb, addParentFlags, parentPreRun,
+	))
 
 	return baseCmd
 }
@@ -214,7 +218,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 		body, err := fetch(helper, path)
 		if err != nil {
 			return cmd.PrepareExecutionError(
-				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd())
+				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
+			)
 		}
 		_, err = helper.GetStreams().Out.Write(body)
 		return err
@@ -230,7 +235,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 	layoutBody, err := fetch(helper, layoutPath)
 	if err != nil {
 		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd())
+			fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
+		)
 	}
 
 	var layout struct {
@@ -265,7 +271,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 		portBody, err := fetch(helper, portPath)
 		if err != nil {
 			return cmd.PrepareExecutionError(
-				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd())
+				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
+			)
 		}
 
 		var envelope struct {
@@ -311,7 +318,8 @@ func runInspectPolicy(helper cmd.Helper, typeArg, name string) error {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
 				"%s is not a policy, so nothing matches it; inspect applies to policy types",
-				descriptor.Plural()),
+				descriptor.Plural(),
+			),
 		}
 	}
 
@@ -322,7 +330,8 @@ func runInspectPolicy(helper cmd.Helper, typeArg, name string) error {
 	items, err := listAll(helper, path)
 	if err != nil {
 		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to inspect %s %s", descriptor.Singular(), name), err, helper.GetCmd())
+			fmt.Sprintf("failed to inspect %s %s", descriptor.Singular(), name), err, helper.GetCmd(),
+		)
 	}
 	envelope := listEnvelope{Items: items, Total: len(items)}
 
@@ -366,7 +375,8 @@ func runInspectOverview(helper cmd.Helper, kind overviewKind) error {
 	items, err := listAll(helper, path)
 	if err != nil {
 		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to inspect %s", strings.ToLower(label)), err, helper.GetCmd())
+			fmt.Sprintf("failed to inspect %s", strings.ToLower(label)), err, helper.GetCmd(),
+		)
 	}
 	envelope := listEnvelope{Items: items, Total: len(items)}
 

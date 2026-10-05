@@ -2,14 +2,15 @@ package mesh
 
 import (
 	"encoding/json"
-	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
-	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/require"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSplitTagValues(t *testing.T) {

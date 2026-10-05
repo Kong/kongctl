@@ -407,7 +407,8 @@ func TestClientTLSAppliesOnlyToASelfManagedControlPlane(t *testing.T) {
 		meshcommon.ControlPlaneURLConfigPath: "https://mesh.example:5682",
 	})
 	selfManaged, err := controlPlaneClientConfig(
-		cfg, meshTarget{baseURL: "https://mesh.example:5682", selfManaged: true})
+		cfg, meshTarget{baseURL: "https://mesh.example:5682", selfManaged: true},
+	)
 	require.NoError(t, err)
 	selfManagedTLS := selfManaged.TransportOptions.TLSClientConfig
 	require.NotNil(t, selfManagedTLS)
@@ -417,7 +418,8 @@ func TestClientTLSAppliesOnlyToASelfManagedControlPlane(t *testing.T) {
 
 	// A hosted target, even with self managed TLS sitting in configuration.
 	hosted, err := controlPlaneClientConfig(
-		cfg, meshTarget{baseURL: "https://global.api.konghq.com"})
+		cfg, meshTarget{baseURL: "https://global.api.konghq.com"},
+	)
 	require.NoError(t, err)
 	require.Nil(t, hosted.TransportOptions.TLSClientConfig)
 

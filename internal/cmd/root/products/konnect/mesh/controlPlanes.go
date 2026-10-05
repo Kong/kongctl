@@ -95,7 +95,8 @@ func ListControlPlanes(helper cmd.Helper) ([]ControlPlane, error) {
 		path := meshcommon.ControlPlanesPath + "?" + query.Encode()
 
 		result, err := apiutil.RequestWithTokenSource(
-			ctx, client, http.MethodGet, strings.TrimRight(baseURL, "/"), path, tokenSource, nil, nil)
+			ctx, client, http.MethodGet, strings.TrimRight(baseURL, "/"), path, tokenSource, nil, nil,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +146,8 @@ func resolveControlPlaneIDByName(helper cmd.Helper, name string) (string, error)
 		return matches[0].ID, nil
 	case 0:
 		return "", fmt.Errorf(
-			"no Kong Mesh control plane named %q; run 'get mesh control-planes' to list them", name)
+			"no Kong Mesh control plane named %q; run 'get mesh control-planes' to list them", name,
+		)
 	default:
 		ids := make([]string, 0, len(matches))
 		for _, match := range matches {
@@ -153,6 +155,7 @@ func resolveControlPlaneIDByName(helper cmd.Helper, name string) (string, error)
 		}
 		return "", fmt.Errorf(
 			"%d Kong Mesh control planes are named %q; select one with --%s: %s",
-			len(matches), name, meshcommon.ControlPlaneIDFlagName, strings.Join(ids, ", "))
+			len(matches), name, meshcommon.ControlPlaneIDFlagName, strings.Join(ids, ", "),
+		)
 	}
 }

@@ -44,7 +44,8 @@ func runDeleteResources(helper cmd.Helper, args []string) error {
 	if descriptor.ReadOnly {
 		return &cmd.ConfigurationError{
 			Err: fmt.Errorf(
-				"%s is read only on this control plane and cannot be deleted", descriptor.Singular()),
+				"%s is read only on this control plane and cannot be deleted", descriptor.Singular(),
+			),
 		}
 	}
 
@@ -56,7 +57,8 @@ func runDeleteResources(helper cmd.Helper, args []string) error {
 
 	if _, err := sendForStatus(helper, http.MethodDelete, descriptor.ItemPath(mesh, name), nil); err != nil {
 		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to delete %s %s", descriptor.Singular(), name), err, helper.GetCmd())
+			fmt.Sprintf("failed to delete %s %s", descriptor.Singular(), name), err, helper.GetCmd(),
+		)
 	}
 
 	return reportDeleted(helper, descriptor, mesh, name)

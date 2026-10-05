@@ -64,11 +64,13 @@ func unknownTypeError(descriptors []ResourceDescriptor, arg string) error {
 		return fmt.Errorf(
 			"unknown mesh resource type %q; did you mean %s? "+
 				"run 'get mesh resource-types' to list every type this control plane serves",
-			arg, strings.Join(near, ", "))
+			arg, strings.Join(near, ", "),
+		)
 	}
 	return fmt.Errorf(
 		"unknown mesh resource type %q on this control plane; "+
-			"run 'get mesh resource-types' to list every type it serves", arg)
+			"run 'get mesh resource-types' to list every type it serves", arg,
+	)
 }
 
 // minNearMissPrefix is how many leading characters two type names must share
