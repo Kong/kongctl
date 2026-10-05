@@ -1,0 +1,224 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  info: >-
+    System account membership in a team created outside declarative management:
+    resolve the external team by name, apply, verify idempotency, and sync away
+    the membership while preserving the unmanaged team.
+
+vars:
+  teamName: e2e-sa-external-team
+  membershipRef: external-team-membership
+  systemAccountName: e2e-sa-external-team-account
+
+defaults:
+  mask:
+    dropKeys:
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-external-team-and-system-account
+    skipInputs: true
+    commands:
+      - name: 000-create-external-team
+        create:
+          resource: organization_team
+          payload:
+            inline:
+              name: "{{ .vars.teamName }}"
+              description: Team created outside declarative management
+          recordVar:
+            name: team_id
+            responsePath: id
+
+      - name: 001-create-system-account
+        create:
+          resource: system-account
+          payload:
+            inline:
+              name: "{{ .vars.systemAccountName }}"
+              description: E2E system account for external team membership
+          recordVar:
+            name: system_account_id
+            responsePath: id
+
+      - name: 002-get-unmanaged-team
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                name: "{{ .vars.teamName }}"
+                'labels."KONGCTL-namespace"': null
+
+  - name: 002-plan-external-team-membership
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+                by_resource.organization_system_account_team_membership: 1
+          - select: changes[?resource_type=='organization_team']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: >-
+              changes[?resource_type=='organization_system_account_team_membership' &&
+                      resource_ref=='{{ .vars.membershipRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: ""
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.system_account_id.id: "{{ .vars.system_account_id }}"
+
+  - name: 003-apply-external-team-membership
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+                by_resource.organization_system_account_team_membership: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-system-account-teams
+        run:
+          - get
+          - org
+          - system-account
+          - teams
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "[0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                name: "{{ .vars.teamName }}"
+
+      - name: 002-diff-noop
+        run: [diff, -f, "{{ .workdir }}/config.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 004-sync-remove-membership
+    inputOverlayDirs:
+      - overlays/001-remove-membership
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+                by_resource.organization_system_account_team_membership: 1
+          - select: >-
+              plan.changes[?resource_type=='organization_system_account_team_membership'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: ""
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.system_account_id.id: "{{ .vars.system_account_id }}"
+          - select: plan.changes[?resource_type=='organization_team']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      - name: 001-get-system-account-teams-after-sync
+        run:
+          - get
+          - org
+          - system-account
+          - teams
+          - --system-account-name
+          - "{{ .vars.systemAccountName }}"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 002-get-external-team-after-sync
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                name: "{{ .vars.teamName }}"
+                'labels."KONGCTL-namespace"': null
+
+      - name: 003-diff-noop-after-sync
+        run: [diff, -f, "{{ .workdir }}/config.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-reset-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

@@ -52,6 +52,15 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 			scopedTeamIDs[id] = true
 		}
 	}
+	for _, team := range desiredTeams {
+		if !team.IsExternal() {
+			continue
+		}
+		_, teamID, _ := t.resolveOrganizationTeamForAssignment(team.Ref, desiredTeams, currentByName)
+		if teamID != "" {
+			scopedTeamIDs[teamID] = true
+		}
+	}
 
 	for userRef, memberships := range membershipsByUser {
 		user := t.organizationUserByRef(userRef)
