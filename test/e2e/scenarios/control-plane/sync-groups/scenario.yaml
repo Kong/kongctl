@@ -23,6 +23,8 @@ steps:
             expect:
               fields:
                 total_changes: 3
+                failed: 0
+                status: success
       - name: 002-verify-runtime-proxy-urls
         run:
           - get
@@ -71,6 +73,8 @@ steps:
             expect:
               fields:
                 total_changes: 3
+                failed: 0
+                status: success
           - select: >-
               plan.changes[?resource_type=='control_plane' &&
                             resource_ref=='groups-staging-runtime'] | [0]
@@ -129,6 +133,17 @@ steps:
             expect:
               fields:
                 id: "{{ .vars.emeaRuntimeID }}"
+      - name: 001-verify-staging-deleted
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        assertions:
+          - select: "[?name=='groups-staging-runtime']"
+            expect:
+              fields:
+                "length(@)": 0
+          - select: "[?name=='groups-emea-runtime']"
+            expect:
+              fields:
+                "length(@)": 1
 
   - name: 004-plan-idempotent
     inputOverlayDirs:

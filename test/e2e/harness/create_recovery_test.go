@@ -22,19 +22,26 @@ func TestTeamCreateRecoversWithoutRepeatingPost(t *testing.T) {
 			var gets atomic.Int32
 			var created map[string]any
 			ready := make(chan struct{})
+			shutdown := make(chan struct{})
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == http.MethodPost {
 					posts.Add(1)
 					if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
 						t.Error(err)
+						return
 					}
 					created["id"] = "created-id"
 					close(ready)
-					// Commit the create before the client deadline; never deliver its response in time.
-					<-r.Context().Done()
+					// Lose the response only after committing the create.
+					panic(http.ErrAbortHandler)
+				}
+				select {
+				case <-ready:
+				case <-r.Context().Done():
+					return
+				case <-shutdown:
 					return
 				}
-				<-ready
 				if mode == "delayed" {
 					switch gets.Add(1) {
 					case 1:
@@ -58,10 +65,13 @@ func TestTeamCreateRecoversWithoutRepeatingPost(t *testing.T) {
 				}
 				_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
 			}))
-			defer server.Close()
+			defer func() {
+				close(shutdown)
+				server.Close()
+			}()
 			t.Setenv(KonnectBaseAuthURLEnvName, server.URL)
 			t.Setenv("KONGCTL_E2E_KONNECT_PAT", "secret")
-			t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "30ms")
+			t.Setenv("KONGCTL_E2E_HTTP_TIMEOUT", "5s")
 			t.Setenv("KONGCTL_E2E_LOG_LEVEL", "trace")
 			dir := t.TempDir()
 			s := &Step{cli: &CLI{TestDir: dir}}
