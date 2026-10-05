@@ -412,6 +412,8 @@ func sanitizeHeaders(headers http.Header) map[string]string {
 
 func isSensitiveHeaderKey(key string) bool {
 	normalized := normalizeKey(key)
+	// Header-only case: proxy_authorization is absent from sensitiveExactFieldKeys,
+	// which also gates field and query redaction.
 	return normalized == "proxy_authorization" || isSensitiveNormalizedKey(normalized)
 }
 
