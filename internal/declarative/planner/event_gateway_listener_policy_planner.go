@@ -545,15 +545,12 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 		return true
 	}
 	for i, desiredCert := range desiredTLS.Config.Certificates {
-		if i >= len(currentCerts) {
-			return true
-		}
 		currentCert, ok := currentCerts[i].(map[string]any)
 		if !ok {
 			return true
 		}
 		// Compare certificate and key
-		if desiredCert.Certificate != getStringFromMap(currentCert, "certificate") {
+		if desiredCert.Certificate != getNestedString(currentCert, "certificate") {
 			return true
 		}
 		// Konnect omits private keys from responses; compare them only when returned.
@@ -571,12 +568,12 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 			return true
 		}
 		if desiredTLS.Config.Versions.Min != nil {
-			if string(*desiredTLS.Config.Versions.Min) != getStringFromMap(currentVersions, "min") {
+			if string(*desiredTLS.Config.Versions.Min) != getNestedString(currentVersions, "min") {
 				return true
 			}
 		}
 		if desiredTLS.Config.Versions.Max != nil {
-			if string(*desiredTLS.Config.Versions.Max) != getStringFromMap(currentVersions, "max") {
+			if string(*desiredTLS.Config.Versions.Max) != getNestedString(currentVersions, "max") {
 				return true
 			}
 		}
@@ -748,13 +745,6 @@ func getNestedValue(m map[string]any, keys ...string) any {
 		}
 	}
 	return current
-}
-
-func getStringFromMap(m map[string]any, key string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return ""
 }
 
 func getBoolFromNestedMap(m map[string]any, keys ...string) bool {
