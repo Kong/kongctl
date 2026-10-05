@@ -32,6 +32,10 @@ vars:
   teamUpdatedDesc: "Backend team for diff coverage (updated)"
   aiGatewayRef: diff-ai-gateway
   aiGatewayName: diff-ai-gateway-name
+  aiGatewayHost: diff-ai-gateway.example.com
+  aiGatewayUpdatedHost: diff-ai-gateway-updated.example.com
+  aiGatewayOwner: platform
+  aiGatewayUpdatedOwner: platform-eng
 
 defaults:
   mask:
@@ -553,10 +557,10 @@ steps:
                 "contains(@, 'bytes, ')": true
                 "contains(@, 'End of the complete Orders API change history guide.')": false
                 "contains(@, 'labels:')": true
-                'contains(@, ''~ owner: "platform" → "platform-eng"'')': true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
                 "contains(@, 'proxy_urls:')": true
                 "contains(@, '[0]:')": true
-                'contains(@, ''~ host: "diff-ai-gateway.example.com" → "diff-ai-gateway-updated.example.com"'')': true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
 
       - name: 005-diff-sync-full-content
         outputFormat: text
@@ -597,10 +601,10 @@ steps:
                 'contains(@, ''display_name: "{{ .vars.portalName }}" → "{{ .vars.portalUpdatedName }}"'')': true
                 'contains(@, ''ai_gateway "{{ .vars.aiGatewayRef }}" will be updated'')': true
                 "contains(@, 'labels:')": true
-                'contains(@, ''~ owner: "platform" → "platform-eng"'')': true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
                 "contains(@, 'proxy_urls:')": true
                 "contains(@, '[0]:')": true
-                'contains(@, ''~ host: "diff-ai-gateway.example.com" → "diff-ai-gateway-updated.example.com"'')': true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
 
       - name: 007-get-portals
         run: ["get", "portals"]
@@ -647,10 +651,10 @@ steps:
                 "contains(@, 'to destroy')": false
                 'contains(@, ''ai_gateway "{{ .vars.aiGatewayRef }}" will be updated'')': true
                 "contains(@, 'labels:')": true
-                'contains(@, ''~ owner: "platform" → "platform-eng"'')': true
+                'contains(@, ''~ owner: "{{ .vars.aiGatewayOwner }}" → "{{ .vars.aiGatewayUpdatedOwner }}"'')': true
                 "contains(@, 'proxy_urls:')": true
                 "contains(@, '[0]:')": true
-                'contains(@, ''~ host: "diff-ai-gateway.example.com" → "diff-ai-gateway-updated.example.com"'')': true
+                'contains(@, ''~ host: "{{ .vars.aiGatewayHost }}" → "{{ .vars.aiGatewayUpdatedHost }}"'')': true
 
       - name: 011-diff-delete-mode-text
         outputFormat: text
