@@ -7,12 +7,7 @@
 #
 # Nothing is created that needs deleting: a token is not a stored resource.
 test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
-  requiredEnvVars:
-    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
-  info: >
-    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
-    of a Kong Mesh control plane to run the mesh scenarios.
+  meshControlPlanes: [control_plane_id]
 
 steps:
   - name: 000-zone-token
@@ -28,7 +23,7 @@ steps:
           - --valid-for
           - 1h
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         # The token is printed as a bare JWT, not structured output.
         parseAs: raw
         assertions:
@@ -56,7 +51,7 @@ steps:
           - --valid-for
           - 1h
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         parseAs: raw
         assertions:
           - select: "@"
@@ -80,7 +75,7 @@ steps:
           - --zone
           - kongctl-e2e-zone
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         parseAs: raw
         assertions:
           - select: "@"

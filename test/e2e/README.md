@@ -62,6 +62,28 @@ make build
 KONGCTL_E2E_BIN=./kongctl make test-e2e
 ```
 
+### Mesh scenarios
+
+The `mesh/*` scenarios run against real Konnect using the normal E2E account
+and region. They provision isolated control planes with `version: v3`, wait
+for resource discovery, and delete those control planes during test teardown,
+including after failures. No existing control-plane ID or Mesh opt-in flag is
+required. The account must be able to create and delete Mesh control planes.
+
+Scenario declarations use `test.meshControlPlanes` to name the variables that
+receive the provisioned IDs:
+
+```yaml
+test:
+  meshControlPlanes: [source_control_plane_id, destination_control_plane_id]
+```
+
+Commands reference `{{ .vars.source_control_plane_id }}`. Export coverage uses
+separate source and destination control planes. Inspection coverage checks
+real overview endpoints and policy matching with no connected dataplanes;
+per-port policy and proxy-admin inspection still require a running zone and
+dataplane. These scenarios have no simulated API or replay cassette.
+
 ### Environment Variables
 
 Core harness settings:

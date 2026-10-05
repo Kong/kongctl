@@ -5,13 +5,7 @@
 # serves new policy types without a kongctl change. That contract is what this
 # asserts.
 test:
-  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
-  requiredEnvVars:
-    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
-  info: >
-    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
-    of a Kong Mesh control plane to run the mesh scenarios. The shared e2e orgs
-    do not have a mesh control plane by default.
+  meshControlPlanes: [control_plane_id]
 
 steps:
   - name: 000-list-control-planes
@@ -27,7 +21,7 @@ steps:
           - select: "@"
             expect:
               fields:
-                "length([?id=='{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}']) == `1`": true
+                "length([?id=='{{ .vars.control_plane_id }}']) == `1`": true
 
   - name: 001-discover-resource-types
     skipInputs: true
@@ -38,7 +32,7 @@ steps:
           - mesh
           - resource-types
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           - select: "@"
             expect:
@@ -66,7 +60,7 @@ steps:
           - mesh
           - meshes
           - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+          - "{{ .vars.control_plane_id }}"
         assertions:
           # Every control plane has a default mesh.
           - select: "@"

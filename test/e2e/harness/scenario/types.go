@@ -20,6 +20,7 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
+	MeshControlPlanes   []string `yaml:"meshControlPlanes"`
 	Enabled             *bool    `yaml:"enabled"`
 	EnabledByEnvVar     string   `yaml:"enabledByEnvVar"`
 	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
