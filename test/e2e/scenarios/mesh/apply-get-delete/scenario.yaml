@@ -25,28 +25,30 @@ steps:
     skipInputs: true
     commands:
       - name: 000-delete-policy-if-present
-        run:
-          - delete
-          - mesh
-          - meshtimeouts
-          - "{{ .vars.policy }}"
-          - --mesh
-          - "{{ .vars.mesh }}"
-          - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
-        # Absent is the expected case on a clean org.
-        expectFailure:
-          exitCode: 1
+        exec:
+          - sh
+          - -c
+          - |
+            result=$("{{ .bin }}" delete mesh meshtimeouts "{{ .vars.policy }}" \
+              --mesh "{{ .vars.mesh }}" --profile e2e \
+              --control-plane-id "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}" 2>&1) && exit 0
+            case "$result" in
+              *"not found"*|*"Not Found"*) exit 0 ;;
+              *) printf "%s\n" "$result" >&2; exit 1 ;;
+            esac
+        parseAs: raw
       - name: 001-delete-mesh-if-present
-        run:
-          - delete
-          - mesh
-          - meshes
-          - "{{ .vars.mesh }}"
-          - --control-plane-id
-          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
-        expectFailure:
-          exitCode: 1
+        exec:
+          - sh
+          - -c
+          - |
+            result=$("{{ .bin }}" delete mesh meshes "{{ .vars.mesh }}" --profile e2e \
+              --control-plane-id "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}" 2>&1) && exit 0
+            case "$result" in
+              *"not found"*|*"Not Found"*) exit 0 ;;
+              *) printf "%s\n" "$result" >&2; exit 1 ;;
+            esac
+        parseAs: raw
 
   - name: 001-apply-mesh
     skipInputs: true

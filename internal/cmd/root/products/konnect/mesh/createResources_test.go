@@ -55,7 +55,8 @@ spec: {}
 // JSON is valid YAML, so a JSON document needs no separate path.
 func TestDecodeResourcesAcceptsJSON(t *testing.T) {
 	resources, err := decodeResources(
-		strings.NewReader(`{"type":"MeshTimeout","name":"slow","spec":{}}`), "policy.json", "default")
+		strings.NewReader(`{"type":"MeshTimeout","name":"slow","spec":{}}`), "policy.json", "default",
+	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

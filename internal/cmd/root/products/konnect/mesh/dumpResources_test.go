@@ -79,6 +79,32 @@ func TestSelectTypesToDumpByProfile(t *testing.T) {
 	}
 }
 
+func TestFederationExcludesPoliciesWithoutTargetRef(t *testing.T) {
+	descriptors := []ResourceDescriptor{{
+		Name: "Policy", Path: "policies", IncludeInFederation: true, Policy: &PolicyDescriptor{},
+	}}
+	if got := selectTypesToDump(descriptors, ProfileFederation); len(got) != 0 {
+		t.Fatalf("plain federation included a policy: %v", got)
+	}
+	if got := selectTypesToDump(descriptors, ProfileFederationWithPolicies); len(got) != 1 {
+		t.Fatalf("federation-with-policies excluded a policy: %v", got)
+	}
+}
+
+func TestFederationRemovesControlPlaneOwnedLabels(t *testing.T) {
+	labels := map[string]any{
+		"kuma.io/mesh": "default", "kuma.io/workload": "backend", "team": "platform",
+	}
+	for _, key := range federationExcludedLabels {
+		labels[key] = "source-control-plane"
+	}
+	item := map[string]any{"labels": labels}
+	removeFederationLabels(ProfileFederationWithPolicies, item)
+	if len(labels) != 3 || labels["kuma.io/mesh"] != "default" || labels["kuma.io/workload"] != "backend" {
+		t.Fatalf("migration retained computed labels or lost user labels: %v", labels)
+	}
+}
+
 // The export has to be applicable in order: a mesh before anything inside it,
 // and the global secrets after everything that a changed signing key would
 // otherwise lock out.
@@ -111,7 +137,9 @@ func TestClassifyForDump(t *testing.T) {
 		{"ordinary resources sit in the middle", policies, map[string]any{"name": "slow"}, bucketMiddle},
 		{
 			"an ordinary global secret sits in the middle",
-			globalSecrets, map[string]any{"name": "zone-token-signing-key-1"}, bucketMiddle,
+			globalSecrets,
+			map[string]any{"name": "zone-token-signing-key-1"},
+			bucketMiddle,
 		},
 		// Carrying these to another control plane breaks its TLS handshakes.
 		{"envoy-admin-ca is skipped", globalSecrets, map[string]any{"name": "envoy-admin-ca"}, bucketSkip},
@@ -119,7 +147,9 @@ func TestClassifyForDump(t *testing.T) {
 		// Applying this invalidates the credential in use.
 		{
 			"a user token signing key goes last",
-			globalSecrets, map[string]any{"name": "user-token-signing-key-1"}, bucketLast,
+			globalSecrets,
+			map[string]any{"name": "user-token-signing-key-1"},
+			bucketLast,
 		},
 	}
 
@@ -163,8 +193,8 @@ func TestRemoveFederationLabels(t *testing.T) {
 				"kuma.io/zone":         "zone1",
 				"kuma.io/display-name": "backend",
 			},
-			wantGone: []string{"kuma.io/origin", "kuma.io/zone"},
-			wantKept: []string{"kuma.io/display-name"},
+			wantGone:  []string{"kuma.io/origin", "kuma.io/zone", "kuma.io/display-name"},
+			wantNoKey: true,
 		},
 		{
 			name:    "federation-with-policies drops them too",

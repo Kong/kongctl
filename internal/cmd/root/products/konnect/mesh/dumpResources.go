@@ -46,8 +46,9 @@ const (
 	globalSecretPath = "globalsecrets"
 )
 
-// runDumpResources serves `dump mesh`, writing every resource on the control
-// plane as a YAML stream that `apply mesh -f` can apply back.
+// runDumpResources serves `dump mesh`, writing selected resources as a YAML
+// stream. Federation profiles prepare resources for migration; other profiles
+// may include read-only resources and are not directly applicable.
 //
 // Which types are exported comes from /_resources — chiefly its
 // includeInFederation flag — so a type added by a newer Kong Mesh release is
@@ -79,7 +80,8 @@ func runDumpResources(helper cmd.Helper, profile string) error {
 		items, err := collectResources(helper, descriptor, meshNames)
 		if err != nil {
 			return cmd.PrepareExecutionError(
-				fmt.Sprintf("failed to export %s", descriptor.Plural()), err, helper.GetCmd())
+				fmt.Sprintf("failed to export %s", descriptor.Plural()), err, helper.GetCmd(),
+			)
 		}
 
 		for _, item := range items {
@@ -111,6 +113,16 @@ const originLabel = "kuma.io/origin"
 // plane".
 const zoneLabel = "kuma.io/zone"
 
+// Match Kuma's control-plane-owned label registry, retaining kuma.io/mesh so
+// a resource remains associated with its mesh on import.
+var federationExcludedLabels = []string{
+	originLabel, zoneLabel, "kuma.io/policy-role", "kuma.io/display-name",
+	"kuma.io/env", "k8s.kuma.io/namespace", "k8s.kuma.io/service-account",
+	"kuma.io/listener-zoneingress", "kuma.io/listener-zoneegress",
+	"kuma.io/managed-by", "kuma.io/deletion-grace-period-started-at",
+	"k8s.kuma.io/service-name", "k8s.kuma.io/is-headless-service",
+}
+
 // removeFederationLabels drops the origin and zone labels from a federation
 // export.
 //
@@ -137,8 +149,9 @@ func removeFederationLabels(profile string, item map[string]any) {
 		return
 	}
 
-	delete(labels, originLabel)
-	delete(labels, zoneLabel)
+	for _, label := range federationExcludedLabels {
+		delete(labels, label)
+	}
 	if len(labels) == 0 {
 		// An empty map is written out as `labels: {}`, which is noise in a
 		// stream meant to be read back.
@@ -159,7 +172,7 @@ func selectTypesToDump(descriptors []ResourceDescriptor, profile string) []Resou
 			}
 			// The targetRef policies are the ones a federated zone keeps for
 			// itself, so the plain federation profile leaves them behind.
-			if descriptor.Policy != nil && descriptor.Policy.IsTargetRef {
+			if descriptor.IsPolicy() {
 				continue
 			}
 		case ProfileFederationWithPolicies:
@@ -230,8 +243,6 @@ func listMeshNames(helper cmd.Helper) ([]string, error) {
 	return names, nil
 }
 
-// dumpPageSize is how many resources are requested per call. The control plane
-// caps its own page size, so this is a request rather than a guarantee.
 // writeYAMLStream writes the resources as a multi document YAML stream, the
 // form kumactl export produced and `apply mesh -f` reads back.
 func writeYAMLStream(helper cmd.Helper, items []map[string]any) error {

@@ -213,6 +213,22 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 	}
 }
 
+func TestRedactMeshCredentialBodies(t *testing.T) {
+	for _, path := range []string{
+		"/tokens/zone", "/tokens/dataplane",
+		"/v3/mesh/control-planes/cp1/tokens/zone",
+		"/globalsecrets", "/globalsecrets/key",
+		"/v3/mesh/control-planes/cp1/meshes/default/secrets",
+		"/meshes/default/secrets/key",
+	} {
+		t.Run(path, func(t *testing.T) {
+			parsedURL, err := url.Parse("https://example.test" + path)
+			require.NoError(t, err)
+			assert.Equal(t, redactedValue, redactBodyForURL([]byte("private-material"), "text/plain", parsedURL))
+		})
+	}
+}
+
 func TestRedactBodyForURLScopesConfigStoreSecretValue(t *testing.T) {
 	body := []byte(`{"key":"api-key","value":"secret-value"}`)
 

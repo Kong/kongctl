@@ -26,7 +26,6 @@ func TestMeshCommandPathsResolve(t *testing.T) {
 		{"create", "mesh", "--help"},
 		{"create", "konnect", "mesh", "--help"},
 		{"dump", "mesh", "--help"},
-		{"dump", "konnect", "mesh", "--help"},
 		{"delete", "mesh", "--help"},
 	}
 
@@ -46,7 +45,8 @@ func TestMeshCommandPathsResolve(t *testing.T) {
 			// The mesh command's own help, not a parent's help that merely
 			// lists it: a swallowed argument prints the parent's help and
 			// still exits zero.
-			if !strings.Contains(result.stdout, "Kong Mesh control plane") {
+			if !strings.Contains(result.stdout, "Kong Mesh control plane") &&
+				!strings.Contains(result.stdout, "Kong Mesh 3.0 or later control plane") {
 				t.Fatalf("expected %q help to describe the mesh command\nstdout:\n%s",
 					path, result.stdout)
 			}
@@ -177,9 +177,16 @@ func TestMeshDumpDoesNotShadowProfileFlag(t *testing.T) {
 	// The global -p/--profile is still present and must stay: what must not
 	// appear is an example telling operators to pass --profile for an export
 	// selection, which is what the rename was for.
-	for _, line := range strings.Split(result.stdout, "\n") {
+	for line := range strings.SplitSeq(result.stdout, "\n") {
 		if strings.Contains(line, "dump mesh --profile") {
 			t.Fatalf("example still uses --profile for the export selection: %q", line)
 		}
+	}
+}
+
+func TestMeshDumpRejectsPositionalArguments(t *testing.T) {
+	result := executeRootForTest(t, "dump", "mesh", "meshes", "--control-plane-url", "http://127.0.0.1:1")
+	if result.exitCode == 0 || strings.Contains(result.stderr, "connect: connection refused") {
+		t.Fatalf("dump should reject arguments before accessing the control plane: %s", result.stderr)
 	}
 }

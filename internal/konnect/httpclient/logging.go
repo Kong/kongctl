@@ -559,12 +559,29 @@ func redactBody(body []byte, contentType string) string {
 func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) string {
 	var exactKeys map[string]struct{}
 	route := routeFromURL(parsedURL)
+	if len(body) > 0 && isMeshCredentialRoute(route) {
+		return redactedValue
+	}
 	if isConfigStoreSecretRoute(route) {
 		exactKeys = normalizedKeySet([]string{"value"})
 	} else if isAIGatewayCertificateRoute(route) {
 		exactKeys = normalizedKeySet([]string{"key", "key_alt"})
 	}
 	return redactBodyWithExactKeys(body, contentType, exactKeys)
+}
+
+// Mesh tokens are returned as bare text, and secrets carry arbitrary payloads.
+// Redact entire bodies on these endpoints for hosted and self-managed targets.
+func isMeshCredentialRoute(route string) bool {
+	route = strings.TrimRight(route, "/")
+	if strings.HasSuffix(route, "/tokens/dataplane") || strings.HasSuffix(route, "/tokens/zone") {
+		return true
+	}
+	if strings.HasSuffix(route, "/globalsecrets") || strings.Contains(route, "/globalsecrets/") {
+		return true
+	}
+	return strings.Contains(route, "/meshes/") &&
+		(strings.HasSuffix(route, "/secrets") || strings.Contains(route, "/secrets/"))
 }
 
 func redactBodyWithExactKeys(body []byte, contentType string, exactKeys map[string]struct{}) string {

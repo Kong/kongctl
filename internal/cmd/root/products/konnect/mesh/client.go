@@ -141,7 +141,8 @@ func newLoggingClient(
 	clientConfig httpclient.ClientConfig, logger *slog.Logger,
 ) *httpclient.LoggingHTTPClient {
 	return httpclient.NewLoggingHTTPClientWithClient(
-		httpclient.NewHTTPClientWithConfig(clientConfig), logger)
+		httpclient.NewHTTPClientWithConfig(clientConfig), logger,
+	)
 }
 
 // meshTarget is the control plane an invocation addresses, resolved once.
@@ -178,7 +179,8 @@ func selfManagedTLSConfig(cfg config.Hook) (*tls.Config, error) {
 	if (clientCertFile == "") != (clientKeyFile == "") {
 		return nil, &cmd.ConfigurationError{Err: fmt.Errorf(
 			"--%s and --%s are used together; provide both",
-			meshcommon.ClientCertFileFlagName, meshcommon.ClientKeyFileFlagName)}
+			meshcommon.ClientCertFileFlagName, meshcommon.ClientKeyFileFlagName,
+		)}
 	}
 
 	tlsConfig := &tls.Config{
@@ -198,7 +200,8 @@ func selfManagedTLSConfig(cfg config.Hook) (*tls.Config, error) {
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(pem) {
 			return nil, &cmd.ConfigurationError{Err: fmt.Errorf(
-				"%s holds no PEM certificate: %s", meshcommon.CACertFileFlagName, caCertFile)}
+				"%s holds no PEM certificate: %s", meshcommon.CACertFileFlagName, caCertFile,
+			)}
 		}
 		tlsConfig.RootCAs = pool
 	}
@@ -435,7 +438,8 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 			strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneTokenConfigPath)), headers, payload)
 	} else {
 		result, err = apiutil.RequestWithTokenSource(
-			ctx, client, method, target.baseURL, path, tokenSource, headers, payload)
+			ctx, client, method, target.baseURL, path, tokenSource, headers, payload,
+		)
 	}
 	if err != nil {
 		return nil, 0, err
@@ -469,11 +473,13 @@ func buildAPIError(statusCode int, body []byte) error {
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return fmt.Errorf(
 			"not authorized to read the Kong Mesh control plane (status %d); "+
-				"check that the credential grants access to this control plane", statusCode)
+				"check that the credential grants access to this control plane", statusCode,
+		)
 	case http.StatusNotFound:
 		return fmt.Errorf(
 			"control plane API not found (status %d); "+
-				"check the control plane selection, and that it is running Kong Mesh 3.0 or later", statusCode)
+				"check the control plane selection, and that it is running Kong Mesh 3.0 or later", statusCode,
+		)
 	}
 
 	if detail := strings.TrimSpace(string(body)); detail != "" {
@@ -513,14 +519,16 @@ func resolveTarget(helper cmd.Helper, cfg config.Hook) (meshTarget, error) {
 		return meshTarget{baseURL: baseURL, selfManaged: true}, nil
 	case meshcommon.ControlPlaneIDFlagName:
 		baseURL, err := meshcommon.ControlPlaneAPIURLForID(
-			cfg, cfg.GetString(meshcommon.ControlPlaneIDConfigPath))
+			cfg, cfg.GetString(meshcommon.ControlPlaneIDConfigPath),
+		)
 		if err != nil {
 			return meshTarget{}, err
 		}
 		return meshTarget{baseURL: baseURL}, nil
 	case meshcommon.ControlPlaneNameFlagName:
 		baseURL, err := resolveBaseURLByName(
-			helper, cfg, cfg.GetString(meshcommon.ControlPlaneNameConfigPath))
+			helper, cfg, cfg.GetString(meshcommon.ControlPlaneNameConfigPath),
+		)
 		if err != nil {
 			return meshTarget{}, err
 		}
@@ -613,6 +621,7 @@ func explicitControlPlaneSelector(helper cmd.Helper) (string, error) {
 		}
 		return "", &cmd.ConfigurationError{Err: fmt.Errorf(
 			"%s select different control planes; provide only one",
-			strings.Join(quoted, " and "))}
+			strings.Join(quoted, " and "),
+		)}
 	}
 }

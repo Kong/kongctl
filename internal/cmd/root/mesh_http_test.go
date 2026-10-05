@@ -35,6 +35,29 @@ func meshDescriptors() map[string]any {
 	}
 }
 
+func TestMeshTokenTraceDoesNotLogCredential(t *testing.T) {
+	const credential = "issued-mesh-credential" // #nosec G101 -- synthetic response for log-redaction regression
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, credential)
+	}))
+	defer server.Close()
+	logPath := filepath.Join(t.TempDir(), "trace.log")
+	result := executeRootForTest(t, "create", "mesh", "zone-token", "--zone", "zone1",
+		"--valid-for", "1h", "--control-plane-url", server.URL,
+		"--log-level", "trace", "--log-file", logPath)
+	if result.exitCode != 0 || result.stdout != credential {
+		t.Fatalf("token issuance failed: stdout=%q stderr=%s", result.stdout, result.stderr)
+	}
+	logs, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logs), credential) || strings.Contains(result.stderr, credential) {
+		t.Fatal("issued token leaked to logs")
+	}
+}
+
 // meshInputFile puts a resource document on disk and returns its path.
 func meshInputFile(t *testing.T, content string) string {
 	t.Helper()

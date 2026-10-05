@@ -271,7 +271,8 @@ func requireValidFor(cfg config.Hook) (string, error) {
 		return "", &cmd.ConfigurationError{
 			Err: fmt.Errorf(
 				"a positive token lifetime is required, for example 24h; set --%s or %s",
-				tokenValidForFlagName, meshcommon.TokenValidForConfigPath),
+				tokenValidForFlagName, meshcommon.TokenValidForConfigPath,
+			),
 		}
 	}
 	return validFor.String(), nil
@@ -304,14 +305,16 @@ func issueToken(helper cmd.Helper, path string, request any, description string)
 	response, _, err := send(helper, http.MethodPost, path, body)
 	if err != nil {
 		return cmd.PrepareExecutionError(
-			fmt.Sprintf("failed to issue a %s", description), err, helper.GetCmd())
+			fmt.Sprintf("failed to issue a %s", description), err, helper.GetCmd(),
+		)
 	}
 
 	token := strings.TrimSpace(string(response))
 	if token == "" {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("the control plane returned an empty %s", description),
-			fmt.Errorf("empty response body"), helper.GetCmd())
+			fmt.Errorf("empty response body"), helper.GetCmd(),
+		)
 	}
 
 	_, err = fmt.Fprint(helper.GetStreams().Out, token)

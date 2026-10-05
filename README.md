@@ -240,6 +240,8 @@ backend.
 
 ## Documentation Listing
 
+- **[Kong Mesh Guide](docs/mesh.md)** - Control-plane selection, resources,
+  export, inspection, and tokens
 - **[Declarative Configuration Guide](docs/declarative.md)** - Complete guide
   covering quick start, concepts, YAML tags, CI/CD integration, and best
   practices

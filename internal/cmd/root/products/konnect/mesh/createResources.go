@@ -99,7 +99,8 @@ func runApplyResources(helper cmd.Helper, filenames []string) error {
 	}
 	if failed {
 		return cmd.PrepareExecutionError(
-			"one or more mesh resources could not be applied", errApplyFailed, helper.GetCmd())
+			"one or more mesh resources could not be applied", errApplyFailed, helper.GetCmd(),
+		)
 	}
 	return nil
 }
@@ -122,7 +123,8 @@ func applyResource(
 	// but saying so before sending names the type rather than the status.
 	if descriptor.ReadOnly {
 		return false, nil, fmt.Errorf(
-			"%s is read only on this control plane and cannot be created or updated", descriptor.Singular())
+			"%s is read only on this control plane and cannot be created or updated", descriptor.Singular(),
+		)
 	}
 
 	mesh := resource.Mesh
@@ -131,7 +133,8 @@ func applyResource(
 	}
 
 	status, warnings, err := sendForWrite(
-		helper, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body)
+		helper, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body,
+	)
 	if err != nil {
 		return false, nil, err
 	}
@@ -235,7 +238,8 @@ func readResourceURL(helper cmd.Helper, rawURL, defaultMesh string) ([]meshResou
 
 	ctx := helper.GetContext()
 	result, err := apiutil.Request(
-		ctx, client, http.MethodGet, "", rawURL, "", nil, nil)
+		ctx, client, http.MethodGet, "", rawURL, "", nil, nil,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch %s: %w", rawURL, err)
 	}
