@@ -1,0 +1,22 @@
+_defaults:
+  kongctl:
+    namespace: "{{ .vars.cpRoleNamespace }}"
+
+apis: []
+
+control_planes:
+  - ref: "{{ .vars.cpRef }}"
+    name: "{{ .vars.cpName }}"
+    description: Control plane for team role entity ref E2E scenario
+
+organization:
+  teams:
+    - ref: "{{ .vars.cpRoleTeamRef }}"
+      name: "{{ .vars.cpRoleTeamName }}"
+      description: Team for control plane role entity ref E2E scenario
+      roles:
+        - ref: "{{ .vars.cpViewerRoleRef }}"
+          role_name: Viewer
+          entity_id: !ref {{ .vars.cpRef }}#id
+          entity_type_name: Control Planes
+          entity_region: us
