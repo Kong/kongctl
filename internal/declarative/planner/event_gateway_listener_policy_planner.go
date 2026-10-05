@@ -545,9 +545,6 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 		return true
 	}
 	for i, desiredCert := range desiredTLS.Config.Certificates {
-		if i >= len(currentCerts) {
-			return true
-		}
 		currentCert, ok := currentCerts[i].(map[string]any)
 		if !ok {
 			return true

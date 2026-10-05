@@ -412,11 +412,7 @@ func sanitizeHeaders(headers http.Header) map[string]string {
 
 func isSensitiveHeaderKey(key string) bool {
 	normalized := normalizeKey(key)
-	if normalized == "authorization" || normalized == "proxy_authorization" ||
-		normalized == "cookie" || normalized == "set_cookie" || normalized == "x_api_key" {
-		return true
-	}
-	return isSensitiveNormalizedKey(normalized)
+	return normalized == "proxy_authorization" || isSensitiveNormalizedKey(normalized)
 }
 
 func isSensitiveFieldKey(key string) bool {
