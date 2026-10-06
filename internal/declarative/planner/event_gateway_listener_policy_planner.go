@@ -581,7 +581,7 @@ func (p *Planner) tlsPolicyConfigNeedsUpdate(
 
 	// Compare allow_plaintext if specified
 	if desiredTLS.Config.AllowPlaintext != nil {
-		currentAllowPlaintext := getBoolFromNestedMap(currentConfig, "allow_plaintext")
+		currentAllowPlaintext := getNestedBool(currentConfig, "allow_plaintext")
 		if *desiredTLS.Config.AllowPlaintext != currentAllowPlaintext {
 			return true
 		}
@@ -747,7 +747,7 @@ func getNestedValue(m map[string]any, keys ...string) any {
 	return current
 }
 
-func getBoolFromNestedMap(m map[string]any, keys ...string) bool {
+func getNestedBool(m map[string]any, keys ...string) bool {
 	val := getNestedValue(m, keys...)
 	if b, ok := val.(bool); ok {
 		return b
