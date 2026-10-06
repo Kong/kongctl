@@ -55,21 +55,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 		}
 	}
 
-	scopedTeamIDs := make(map[string]bool)
-	for _, team := range currentByName {
-		if id := team.ID; id != "" {
-			scopedTeamIDs[id] = true
-		}
-	}
-	for _, team := range desiredTeams {
-		if !team.IsExternal() {
-			continue
-		}
-		_, teamID, _ := t.resolveOrganizationTeamForAssignment(team.Ref, desiredTeams, currentByName)
-		if teamID != "" {
-			scopedTeamIDs[teamID] = true
-		}
-	}
+	scopedTeamIDs := t.buildScopedTeamIDs(desiredTeams, currentByName)
 
 	for accountRef, memberships := range membershipsByAccount {
 		account := t.organizationSystemAccountByRef(accountRef)

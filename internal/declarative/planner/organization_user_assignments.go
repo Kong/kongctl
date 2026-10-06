@@ -46,21 +46,7 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 			}
 		}
 	}
-	scopedTeamIDs := make(map[string]bool)
-	for _, team := range currentByName {
-		if id := team.ID; id != "" {
-			scopedTeamIDs[id] = true
-		}
-	}
-	for _, team := range desiredTeams {
-		if !team.IsExternal() {
-			continue
-		}
-		_, teamID, _ := t.resolveOrganizationTeamForAssignment(team.Ref, desiredTeams, currentByName)
-		if teamID != "" {
-			scopedTeamIDs[teamID] = true
-		}
-	}
+	scopedTeamIDs := t.buildScopedTeamIDs(desiredTeams, currentByName)
 
 	for userRef, memberships := range membershipsByUser {
 		user := t.organizationUserByRef(userRef)
@@ -397,6 +383,28 @@ func (t *OrganizationTeamPlannerImpl) organizationRoleScopedEntityIDs(namespace 
 		}
 	}
 	return scoped
+}
+
+func (t *OrganizationTeamPlannerImpl) buildScopedTeamIDs(
+	desiredTeams []resources.OrganizationTeamResource,
+	currentByName map[string]state.OrganizationTeam,
+) map[string]bool {
+	scopedTeamIDs := make(map[string]bool)
+	for _, team := range currentByName {
+		if id := team.ID; id != "" {
+			scopedTeamIDs[id] = true
+		}
+	}
+	for _, team := range desiredTeams {
+		if !team.IsExternal() {
+			continue
+		}
+		_, teamID, _ := t.resolveOrganizationTeamForAssignment(team.Ref, desiredTeams, currentByName)
+		if teamID != "" {
+			scopedTeamIDs[teamID] = true
+		}
+	}
+	return scopedTeamIDs
 }
 
 func (t *OrganizationTeamPlannerImpl) resolveOrganizationTeamForAssignment(
