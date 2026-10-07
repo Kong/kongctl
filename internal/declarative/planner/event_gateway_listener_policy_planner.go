@@ -391,6 +391,7 @@ func (p *Planner) shouldUpdateListenerPolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+	desiredFields := p.listenerPolicyToFields(desired)
 
 	// Compare name
 	desiredName := desired.GetMoniker()
@@ -457,22 +458,21 @@ func (p *Planner) shouldUpdateListenerPolicy(
 		needsUpdate = true
 		changes[FieldConfig] = FieldChange{
 			Old: current.RawConfig,
-			New: p.listenerPolicyToFields(desired)[FieldConfig],
+			New: desiredFields[FieldConfig],
 		}
 	}
 
 	// If any changes detected, serialize ALL fields from desired state for PUT request
 	if needsUpdate {
-		updateFields := p.listenerPolicyToFields(desired)
 		if current.Type != "" {
-			if desiredType, ok := updateFields[FieldType].(string); ok && desiredType != current.Type {
+			if desiredType, ok := desiredFields[FieldType].(string); ok && desiredType != current.Type {
 				changes[FieldType] = FieldChange{
 					Old: current.Type,
 					New: desiredType,
 				}
 			}
 		}
-		return true, updateFields, changes
+		return true, desiredFields, changes
 	}
 
 	return false, nil, nil
@@ -763,23 +763,8 @@ func (p *Planner) addVirtualClusterReference(
 	fields map[string]any,
 	plan *Plan,
 ) {
-	config, hasConfig := fields[FieldConfig]
-	if !hasConfig {
-		return
-	}
-
-	configMap, ok := config.(map[string]any)
-	if !ok {
-		return
-	}
-
-	destination, hasDestination := configMap[FieldDestination]
-	if !hasDestination {
-		return
-	}
-
-	destMap, ok := destination.(map[string]any)
-	if !ok {
+	destMap := getNestedMap(fields, FieldConfig, FieldDestination)
+	if destMap == nil {
 		return
 	}
 
