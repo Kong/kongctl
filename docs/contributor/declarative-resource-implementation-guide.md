@@ -420,8 +420,8 @@ Choose identity and operation semantics before selecting a reusable strategy:
   and sync pruning. Diffing and change construction remain resource-specific.
   Its existing `FieldError` handling applies to ordinary updates; changing
   protection-transition validation is separate compatibility work.
-- **Managed roots owning children:** Control planes, Portals, APIs and AI
-  Gateways use
+- **Managed roots owning children:** Control planes, Portals, APIs, AI Gateways
+  and Event Gateway control planes use
   [`managedRootReconciler`][reconcile] decisions one parent at a time. Creation
   returns the change ID for child dependencies. Adapters retain observation,
   traversal, external-parent handling and sync retention; do not move children
@@ -443,6 +443,12 @@ Choose identity and operation semantics before selecting a reusable strategy:
   external API names do not retain managed roots. New API children use the
   parent creation dependency; existing and external parents retain their
   child traversal. External delete manifests remove only declared children.
+  Event Gateway control planes also use `reconcileLifecycle` without recording
+  payload matches. They retain last-observation-wins name indexing, including
+  empty names, and map-based sync pruning. External gateway names retain
+  matching managed roots during sync; delete mode warns and skips external
+  gateways. Existing child order, scope and parent creation dependencies stay
+  in the adapter.
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.

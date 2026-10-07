@@ -74,14 +74,22 @@ func (p *Planner) planEGWControlPlaneChanges(
 		}
 	}
 
-	// Index current Event Gateway Control Planes by name
-	currentByName := make(map[string]state.EventGatewayControlPlane)
+	// Preserve last-observation-wins name matching, including empty names.
+	currentByName := make(map[string]managedRoot[state.EventGatewayControlPlane])
 	for _, cp := range currentEGWControlPlanes {
-		currentByName[cp.Name] = cp
+		currentByName[cp.Name] = managedRoot[state.EventGatewayControlPlane]{
+			resource: cp, name: cp.Name,
+			protected: labels.IsProtectedResource(cp.NormalizedLabels),
+		}
 	}
-
-	// Collect protection validation errors
-	protectionErrors := &ProtectionErrorCollector{}
+	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeEventGatewayControlPlane,
+		managedRootOperations[resources.EventGatewayControlPlaneResource, state.EventGatewayControlPlane]{
+			diff:             p.shouldUpdateEGWControlPlaneResource,
+			create:           p.planEGWControlPlaneCreate,
+			update:           p.planEGWControlPlaneUpdateWithFields,
+			changeProtection: p.planEGWControlPlaneProtectionChangeWithFields,
+			remove:           p.planEGWControlPlaneDelete,
+		}, plan)
 
 	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
@@ -94,29 +102,18 @@ func (p *Planner) planEGWControlPlaneChanges(
 				continue
 			}
 
-			current, exists := currentByName[desiredEGWCP.Name]
-			if !exists {
+			current := findManagedRoot(currentByName, desiredEGWCP.Name)
+			if current == nil {
+				// This warning historically uses a different name from the resource kind.
 				plan.AddWarning("", fmt.Sprintf(
 					"event_gateway_control_plane %q not found in Konnect, skipping delete",
 					desiredEGWCP.Name,
 				))
 				continue
 			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(
-				ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionDelete,
-			); err != nil {
-				protectionErrors.Add(err)
-			} else {
-				p.planEGWControlPlaneDelete(current, plan)
-			}
+			reconciler.remove(*current)
 		}
-
-		if protectionErrors.HasErrors() {
-			return protectionErrors.Error()
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
 	// Compare each desired Event Gateway Control Plane
@@ -131,73 +128,19 @@ func (p *Planner) planEGWControlPlaneChanges(
 				return fmt.Errorf("external event_gateway %q has no resolved Konnect ID", desiredEGWCP.GetRef())
 			}
 		} else {
-			current, exists := currentByName[desiredEGWCP.Name]
-
-			if !exists {
-				// CREATE action
-				gatewayChangeID = p.planEGWControlPlaneCreate(desiredEGWCP, plan)
-			} else {
-				gatewayID = current.ID
-
-				// Check if update needed
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-
-				// Get protection status from desired configuration
-				shouldProtect := false
-				if desiredEGWCP.Kongctl != nil &&
-					desiredEGWCP.Kongctl.Protected != nil &&
-					*desiredEGWCP.Kongctl.Protected {
-					shouldProtect = true
-				}
-
-				// Handle protection changes
-				if isProtected != shouldProtect {
-					// When changing protection status, include any other field updates too
-					needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
-
-					// Create protection change object
-					protectionChange := &ProtectionChange{
-						Old: isProtected,
-						New: shouldProtect,
-					}
-
-					// Validate protection change
-					err := p.validateProtectionWithChange(
-						ResourceTypeEventGatewayControlPlane,
-						desiredEGWCP.Name,
-						isProtected,
-						ActionUpdate,
-						protectionChange,
-						needsUpdate,
-					)
-					if err != nil {
-						protectionErrors.Add(err)
-					} else {
-						p.planEGWControlPlaneProtectionChangeWithFields(
-							current,
-							desiredEGWCP,
-							isProtected,
-							shouldProtect,
-							updateFields,
-							changedFields,
-							plan,
-						)
-					}
-				} else {
-					// Check if update needed based on configuration
-					needsUpdate, updateFields, changedFields := p.shouldUpdateEGWControlPlaneResource(current, desiredEGWCP)
-					if needsUpdate {
-						// Regular update - check protection
-						if err := p.validateProtection(
-							ResourceTypeEventGatewayControlPlane, desiredEGWCP.Name, isProtected, ActionUpdate,
-						); err != nil {
-							protectionErrors.Add(err)
-						} else {
-							p.planEGWControlPlaneUpdateWithFields(current, desiredEGWCP, updateFields, changedFields, plan)
-						}
-					}
-				}
+			current := findManagedRoot(currentByName, desiredEGWCP.Name)
+			if current != nil {
+				gatewayID = current.resource.ID
 			}
+			// Preserve the existing identity-binding contract; root lifecycle
+			// matching does not record payload reference identities.
+			gatewayChangeID = reconciler.reconcileLifecycle(
+				managedRoot[resources.EventGatewayControlPlaneResource]{
+					resource: desiredEGWCP, name: desiredEGWCP.Name,
+					protected: desiredEGWCP.Kongctl != nil &&
+						desiredEGWCP.Kongctl.Protected != nil && *desiredEGWCP.Kongctl.Protected,
+				}, current,
+			)
 		}
 
 		// Plan backend clusters for this gateway (whether it exists or is being created)
@@ -331,23 +274,11 @@ func (p *Planner) planEGWControlPlaneChanges(
 		// Find managed Event Gateway Control Planes not in desired state
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				// Validate protection before adding DELETE
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				if err := p.validateProtection(ResourceTypeEventGatewayControlPlane, name, isProtected, ActionDelete); err != nil {
-					protectionErrors.Add(err)
-				} else {
-					p.planEGWControlPlaneDelete(current, plan)
-				}
+				reconciler.remove(current)
 			}
 		}
 	}
-
-	// Fail fast if any protected resources would be modified
-	if protectionErrors.HasErrors() {
-		return protectionErrors.Error()
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 func (p *Planner) planEGWControlPlaneProtectionChangeWithFields(
