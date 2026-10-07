@@ -138,6 +138,41 @@ func TestAPIRootLifecycleSyncUsesNameIndexAndExcludesExternalNames(t *testing.T)
 	require.Equal(t, "last-id", plan.Changes[0].ResourceID)
 }
 
+func TestAPIRootLifecycleDeleteModeUsesNameIndex(t *testing.T) {
+	p := apiRootLifecyclePlanner(t, []kkComps.APIResponseSchema{
+		{ID: "protected-id", Name: "protected", Labels: map[string]string{
+			labels.NamespaceKey: "default", labels.ProtectedKey: "true",
+		}},
+		{ID: "first-id", Name: "removable", Labels: map[string]string{labels.NamespaceKey: "default"}},
+		{ID: "last-id", Name: "removable", Labels: map[string]string{labels.NamespaceKey: "default"}},
+	}, nil)
+	p.resources = &resources.ResourceSet{APIs: []resources.APIResource{
+		{
+			BaseResource:     resources.BaseResource{Ref: "protected-ref"},
+			CreateAPIRequest: kkComps.CreateAPIRequest{Name: "protected"},
+		},
+		{
+			BaseResource:     resources.BaseResource{Ref: "missing-ref"},
+			CreateAPIRequest: kkComps.CreateAPIRequest{Name: "missing"},
+		},
+		{
+			BaseResource:     resources.BaseResource{Ref: "removable-ref"},
+			CreateAPIRequest: kkComps.CreateAPIRequest{Name: "removable"},
+		},
+	}}
+	// Neither a manifest ref nor a cached ID overrides the declared API name.
+	p.resources.APIs[2].SetKonnectID("first-id")
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeDelete)
+	err := p.planAPIChanges(t.Context(), NewConfig("default"), p.resources.APIs, plan)
+	require.ErrorContains(t, err, "api \"protected\" is protected and cannot be deleted")
+	require.Len(t, plan.Changes, 1, "a protected deletion must not stop later desired resources")
+	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+	require.Equal(t, ResourceTypeAPI, plan.Changes[0].ResourceType)
+	require.Equal(t, "last-id", plan.Changes[0].ResourceID)
+	require.Len(t, plan.Warnings, 1)
+	require.Equal(t, "api \"missing\" not found in Konnect, skipping delete", plan.Warnings[0].Message)
+}
+
 func apiRootLifecyclePlanner(t *testing.T, current []kkComps.APIResponseSchema, versions *apiRootVersionAPI) *Planner {
 	t.Helper()
 	api := new(MockAPIAPI)
