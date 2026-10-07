@@ -29,6 +29,7 @@ func init() {
 				func(r *PortalAuditLogWebhookResource, ref string) { r.Portal = ref },
 			),
 		},
+		withReferenceValidation(70),
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }

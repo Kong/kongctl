@@ -109,65 +109,9 @@ func (l *Loader) validateAIGatewayConfigStoreSecrets(rs *resources.ResourceSet) 
 
 // validateCrossReferences validates that all cross-resource references are valid
 func (l *Loader) validateCrossReferences(rs *resources.ResourceSet) error {
-	// Validate portal references
-	for i := range rs.Portals {
-		if err := l.validateResourceReferences(&rs.Portals[i], rs); err != nil {
-			return err
-		}
-	}
-
-	// Validate API child resource references
-	for i := range rs.APIs {
-		api := &rs.APIs[i]
-		// Validate publication references
-		for j := range api.Publications {
-			if err := l.validateResourceReferences(&api.Publications[j], rs); err != nil {
-				return err
-			}
-		}
-
-		// Validate implementation references
-		for j := range api.Implementations {
-			if err := l.validateResourceReferences(&api.Implementations[j], rs); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Validate separate API child resources (extracted from nested resources)
-	for i := range rs.APIPublications {
-		if err := l.validateResourceReferences(&rs.APIPublications[i], rs); err != nil {
-			return err
-		}
-	}
-
-	for i := range rs.APIImplementations {
-		if err := l.validateResourceReferences(&rs.APIImplementations[i], rs); err != nil {
-			return err
-		}
-	}
-
-	for i := range rs.APIDocuments {
-		if err := l.validateResourceReferences(&rs.APIDocuments[i], rs); err != nil {
-			return err
-		}
-	}
-
-	for i := range rs.PortalIPAllowLists {
-		if err := l.validateResourceReferences(&rs.PortalIPAllowLists[i], rs); err != nil {
-			return err
-		}
-	}
-
-	for i := range rs.PortalAuditLogWebhooks {
-		if err := l.validateResourceReferences(&rs.PortalAuditLogWebhooks[i], rs); err != nil {
-			return err
-		}
-	}
-
-	// Note: API versions don't have outbound references, so no validation needed
-
-	return nil
+	return rs.ValidateRegisteredReferences(func(resource resources.Resource) error {
+		return l.validateResourceReferences(resource, rs)
+	})
 }
 
 // validateResourceReferences validates references for a single resource using its mapping

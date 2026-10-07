@@ -21,6 +21,10 @@ func init() {
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIPublicationResource) *APIResource {
 			return rs.GetAPIByRef(r.API)
 		}),
+		withReferenceValidation(30),
+		withNestedReferenceValidation(20, 10, func(api *APIResource) *[]APIPublicationResource {
+			return &api.Publications
+		}),
 		WithChildSyncScope(ResourceTypeAPI),
 	)
 }

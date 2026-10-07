@@ -32,6 +32,8 @@ type resourceOps struct {
 	load                              *childLoadRegistration
 	collectionValidation              *collectionValidationRegistration
 	collectionValidationOmittedReason string
+	referenceValidation               *referenceValidationRegistration
+	nestedReferenceValidation         *referenceValidationRegistration
 	childValidationPhase              int
 	dumpDefaultRules                  map[string]dumpDefaultRule
 	maturity                          *maturity.Metadata

@@ -38,7 +38,8 @@ request: it can contain `ref`, `kongctl`, children, and parent selectors.
 
 The [resource registry][registry] drives iteration, aggregation,
 explain/scaffold, load-schema discovery, namespace participation,
-collection scope, registered child loading, ordered collection validation,
+collection scope, registered child loading, ordered collection/reference
+validation,
 and dump-default metadata.
 The [root planner inventory][roots] drives root construction and dispatch.
 [Runtime executor registration][runtime-executors] supplies action routing and
@@ -153,6 +154,30 @@ Keep defaults, extraction, and template handling consistent across both.
 Capture sync scope before extraction loses YAML key presence. Shape
 validation must run before resolving ordinary environment values so invalid
 input cannot disclose a secret in an error.
+
+### Cross-reference validation participation
+
+Register the loader's reference pass with
+[`withReferenceValidation`][reference-validation] beside the declaration.
+Its positive phase determines diagnostic order; traversal uses registered
+storage. Reference mappings alone do not enroll a resource. Nonparticipants
+stay outside this pass; adding earlier checks is a separate behavior change.
+
+Publications and implementations also use `withNestedReferenceValidation`
+with a typed API child accessor. Visits sharing a phase run in child order
+within each parent, preserving per-API first-error precedence. Flattened
+visits have separate phases. Do not replace this with a kind-wide nested
+scan or enroll nested documents: neither matches the existing pass.
+Dispatch rejects conflicting phases/orders and missing or mistyped parents
+after registration completes. The
+[reference-validation contract test][reference-validation-contract] pins
+enrollment and documents intentionally excluded mapping implementations.
+New mapping implementations must choose enrollment or a reviewed exclusion.
+
+The loader retains field lookup, optional/array handling, UUID and placeholder
+exceptions, type checks, and error wording. This enrollment is not another
+relationship inventory and does not change planner reference resolution or
+observed-reference deletion policies.
 
 ### Collection validation
 
@@ -1156,3 +1181,7 @@ engine contract. Each refactoring migration should:
 
 [portal-child-plan]:
   ../../internal/declarative/planner/portal_child_traversal.go
+
+[reference-validation]: ../../internal/declarative/resources/reference_validation.go
+
+[reference-validation-contract]: ../../internal/declarative/resources/reference_validation_contract_test.go
