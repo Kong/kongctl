@@ -89,10 +89,18 @@ func findManagedRoot[C any](currentByName map[string]managedRoot[C], name string
 // reconcile returns a creation change ID only for a new root. The caller uses
 // it for child dependencies; updates and no-ops keep routing by the observed ID.
 func (r *managedRootReconciler[D, C]) reconcile(desired managedRoot[D], current *managedRoot[C]) string {
+	if current != nil {
+		r.base.planner.recordMatchedIdentity(&desired.resource, current.resource)
+	}
+	return r.reconcileLifecycle(desired, current)
+}
+
+// reconcileLifecycle shares decisions without recording payload identities.
+// Callers with an earlier identity-resolution contract retain that contract.
+func (r *managedRootReconciler[D, C]) reconcileLifecycle(desired managedRoot[D], current *managedRoot[C]) string {
 	if current == nil {
 		return r.operations.create(desired.resource, r.plan)
 	}
-	r.base.planner.recordMatchedIdentity(&desired.resource, current.resource)
 	needsUpdate, updateFields, changedFields := r.operations.diff(current.resource, desired.resource)
 	if current.protected != desired.protected {
 		change := &ProtectionChange{Old: current.protected, New: desired.protected}

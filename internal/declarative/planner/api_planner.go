@@ -112,15 +112,23 @@ func (p *Planner) planAPIChanges(
 		return fmt.Errorf("failed to list current APIs: %w", err)
 	}
 
-	// Index current APIs by name
-	currentByName := make(map[string]state.API)
+	// Preserve the API name index and its last-observation-wins pruning.
+	currentByName := make(map[string]managedRoot[state.API])
 	for _, api := range currentAPIs {
-		currentByName[api.Name] = api
+		currentByName[api.Name] = managedRoot[state.API]{
+			resource: api, name: api.Name,
+			protected: labels.IsProtectedResource(api.NormalizedLabels),
+		}
 	}
+	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeAPI,
+		managedRootOperations[resources.APIResource, state.API]{
+			diff: p.shouldUpdateAPI, create: p.planAPICreate,
+			update:           p.planAPIUpdateWithFields,
+			changeProtection: p.planAPIProtectionChangeWithFields,
+			remove:           p.planAPIDelete,
+		}, plan)
 
-	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
-		var protectionErrors []error
 		for _, desiredAPI := range desired {
 			if desiredAPI.IsExternal() {
 				apiID := desiredAPI.GetKonnectID()
@@ -132,36 +140,11 @@ func (p *Planner) planAPIChanges(
 				}
 				continue
 			}
-			current, exists := currentByName[desiredAPI.Name]
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"api %q not found in Konnect, skipping delete", desiredAPI.Name,
-				))
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionDelete); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planAPIDelete(current, plan)
-			}
+			reconciler.deleteDesired(desiredAPI.Name, findManagedRoot(currentByName, desiredAPI.Name))
 		}
-
-		if len(protectionErrors) > 0 {
-			collector := &ProtectionErrorCollector{}
-			for _, err := range protectionErrors {
-				collector.Add(err)
-			}
-			return collector.Error()
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
-	// Collect protection validation errors
-	var protectionErrors []error
-
-	// Compare each desired API
 	for _, desiredAPI := range desired {
 		if desiredAPI.IsExternal() {
 			if desiredAPI.GetKonnectID() == "" {
@@ -173,109 +156,41 @@ func (p *Planner) planAPIChanges(
 			}
 			continue
 		}
-		current, exists := currentByName[desiredAPI.Name]
-
-		if !exists {
-			// CREATE action
-			apiChangeID := p.planAPICreate(desiredAPI, plan)
-			// Extract namespace for child resources
+		current := findManagedRoot(currentByName, desiredAPI.Name)
+		// API identity resolution precedes planning; do not rebind payload targets
+		// from this namespace-filtered, last-observation-wins index.
+		apiChangeID := reconciler.reconcileLifecycle(managedRoot[resources.APIResource]{
+			resource: desiredAPI, name: desiredAPI.Name,
+			protected: desiredAPI.Kongctl != nil &&
+				desiredAPI.Kongctl.Protected != nil && *desiredAPI.Kongctl.Protected,
+		}, current)
+		if current == nil {
 			parentNamespace := DefaultNamespace
 			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Namespace != nil {
 				parentNamespace = *desiredAPI.Kongctl.Namespace
 			}
-			// Plan child resources after API creation
 			p.planAPIChildResourcesCreate(parentNamespace, desiredAPI, apiChangeID, plan)
 		} else {
-			// Check if update needed
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-
-			// Get protection status from desired configuration
-			shouldProtect := false
-			if desiredAPI.Kongctl != nil && desiredAPI.Kongctl.Protected != nil && *desiredAPI.Kongctl.Protected {
-				shouldProtect = true
-			}
-
-			// Handle protection changes
-			if isProtected != shouldProtect {
-				// When changing protection status, include any other field updates too
-				needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desiredAPI)
-
-				// Create protection change object
-				protectionChange := &ProtectionChange{
-					Old: isProtected,
-					New: shouldProtect,
-				}
-
-				// Validate protection change
-				err := p.validateProtectionWithChange(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionUpdate,
-					protectionChange, needsUpdate)
-				if err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					p.planAPIProtectionChangeWithFields(
-						current,
-						desiredAPI,
-						isProtected,
-						shouldProtect,
-						updateFields,
-						changedFields,
-						plan,
-					)
-				}
-			} else {
-				// Check if update needed based on configuration
-				needsUpdate, updateFields, changedFields := p.shouldUpdateAPI(current, desiredAPI)
-				if needsUpdate {
-					// Regular update - check protection
-					if err := p.validateProtection(ResourceTypeAPI, desiredAPI.Name, isProtected, ActionUpdate); err != nil {
-						protectionErrors = append(protectionErrors, err)
-					} else {
-						p.planAPIUpdateWithFields(current, desiredAPI, updateFields, changedFields, plan)
-					}
-				}
-			}
-
-			// Plan child resource changes
-			if err := p.planAPIChildResourceChanges(ctx, plannerCtx, current, desiredAPI, plan); err != nil {
+			if err := p.planAPIChildResourceChanges(ctx, plannerCtx, current.resource, desiredAPI, plan); err != nil {
 				return err
 			}
 		}
 	}
 
-	// Check for managed resources to delete (sync mode only)
 	if plan.Metadata.Mode == PlanModeSync {
-		// Build set of desired API names
 		desiredNames := make(map[string]bool)
 		for _, api := range desired {
 			if !api.IsExternal() {
 				desiredNames[api.Name] = true
 			}
 		}
-
-		// Find managed APIs not in desired state
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				// Validate protection before adding DELETE
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				if err := p.validateProtection(ResourceTypeAPI, name, isProtected, ActionDelete); err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					p.planAPIDelete(current, plan)
-				}
+				reconciler.remove(current)
 			}
 		}
 	}
-
-	// Fail fast if any protected resources would be modified
-	if len(protectionErrors) > 0 {
-		collector := &ProtectionErrorCollector{}
-		for _, err := range protectionErrors {
-			collector.Add(err)
-		}
-		return collector.Error()
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 // planExternalAPIChildDeletes deletes only descendants explicitly present in a
