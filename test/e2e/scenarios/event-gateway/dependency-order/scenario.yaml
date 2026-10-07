@@ -184,6 +184,44 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 005b-dump-round-trip-port-mapping
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name=event-gateway-dependency-order-test"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump-port-mapping.yaml"
+        assertions:
+          - select: event_gateways[0].listeners[0].policies[0]
+            expect:
+              fields:
+                name: storefront-forward
+                type: forward_to_virtual_cluster
+                config.type: port_mapping
+                config.advertised_host: localhost
+                config.bootstrap_port: at_start
+                config.min_broker_id: 0
+                config.destination.id: "{{ .vars.storefrontID }}"
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/dump-port-mapping.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 006-sync-delete
     inputOverlayDirs:
       - overlays/004-sync-delete
