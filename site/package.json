@@ -27,8 +27,8 @@
     "@types/node": "24.13.6",
     "jsdom": "30.1.1",
     "prettier": "3.9.9",
-    "prettier-plugin-astro": "1.0.1",
+    "prettier-plugin-astro": "1.1.0",
     "typescript": "6.0.3",
-    "vitest": "5.0.1"
+    "vitest": "5.0.2"
   }
 }
