@@ -58,111 +58,50 @@ func (p *Planner) planCatalogServiceChanges(
 		return fmt.Errorf("failed to list catalog services: %w", err)
 	}
 
-	currentByName := make(map[string]state.CatalogService)
+	currentByName := make(map[string]managedRoot[state.CatalogService])
 	for _, svc := range currentServices {
-		currentByName[svc.Name] = svc
+		currentByName[svc.Name] = managedRoot[state.CatalogService]{
+			resource: svc, name: svc.Name,
+			protected: labels.IsProtectedResource(svc.NormalizedLabels),
+		}
 	}
+	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeCatalogService,
+		managedRootOperations[resources.CatalogServiceResource, state.CatalogService]{
+			diff:   p.shouldUpdateCatalogService,
+			create: p.planCatalogServiceCreate,
+			update: p.planCatalogServiceUpdateWithFields,
+			changeProtection: func(current state.CatalogService, desired resources.CatalogServiceResource,
+				_, _ bool, fields map[string]any, changed map[string]FieldChange, plan *Plan,
+			) {
+				p.planCatalogServiceProtectionChangeWithFields(current, desired, fields, changed, plan)
+			},
+			remove: p.planCatalogServiceDelete,
+		}, plan)
 
-	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
-		var protectionErrors []error
 		for _, desiredSvc := range desired {
-			current, exists := currentByName[desiredSvc.Name]
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"catalog_service %q not found in Konnect, skipping delete", desiredSvc.Name,
-				))
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(
-				"catalog_service", desiredSvc.Name, isProtected, ActionDelete,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planCatalogServiceDelete(current, plan)
-			}
+			reconciler.deleteDesired(desiredSvc.Name, findManagedRoot(currentByName, desiredSvc.Name))
 		}
-
-		if len(protectionErrors) > 0 {
-			collector := &ProtectionErrorCollector{}
-			for _, err := range protectionErrors {
-				collector.Add(err)
-			}
-			return collector.Error()
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
-	var protectionErrors []error
 	desiredNames := make(map[string]bool)
-
 	for _, desiredSvc := range desired {
 		desiredNames[desiredSvc.Name] = true
-
-		current, exists := currentByName[desiredSvc.Name]
-		if !exists {
-			p.planCatalogServiceCreate(desiredSvc, plan)
-			continue
-		}
-
-		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		shouldProtect := false
-		if desiredSvc.Kongctl != nil && desiredSvc.Kongctl.Protected != nil && *desiredSvc.Kongctl.Protected {
-			shouldProtect = true
-		}
-
-		if isProtected != shouldProtect {
-			needsUpdate, updateFields, changedFields := p.shouldUpdateCatalogService(current, desiredSvc)
-			protectionChange := &ProtectionChange{
-				Old: isProtected,
-				New: shouldProtect,
-			}
-
-			if err := p.validateProtectionWithChange(
-				"catalog_service", desiredSvc.Name, isProtected, ActionUpdate, protectionChange, needsUpdate,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planCatalogServiceProtectionChangeWithFields(current, desiredSvc, updateFields, changedFields, plan)
-			}
-		} else {
-			needsUpdate, updateFields, changedFields := p.shouldUpdateCatalogService(current, desiredSvc)
-			if needsUpdate {
-				if err := p.validateProtection(ResourceTypeCatalogService, desiredSvc.Name, isProtected, ActionUpdate); err != nil {
-					protectionErrors = append(protectionErrors, err)
-				} else {
-					p.planCatalogServiceUpdateWithFields(current, desiredSvc, updateFields, changedFields, plan)
-				}
-			}
-		}
+		reconciler.reconcileLifecycle(managedRoot[resources.CatalogServiceResource]{
+			resource: desiredSvc, name: desiredSvc.Name,
+			protected: desiredSvc.Kongctl != nil && desiredSvc.Kongctl.Protected != nil && *desiredSvc.Kongctl.Protected,
+		}, findManagedRoot(currentByName, desiredSvc.Name))
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for name, current := range currentByName {
-			if desiredNames[name] {
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeCatalogService, name, isProtected, ActionDelete); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planCatalogServiceDelete(current, plan)
+			if !desiredNames[name] {
+				reconciler.remove(current)
 			}
 		}
 	}
-
-	if len(protectionErrors) > 0 {
-		collector := &ProtectionErrorCollector{}
-		for _, err := range protectionErrors {
-			collector.Add(err)
-		}
-		return collector.Error()
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 func (p *Planner) shouldUpdateCatalogService(

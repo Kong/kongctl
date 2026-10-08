@@ -474,6 +474,10 @@ Choose identity and operation semantics before selecting a reusable strategy:
   matching managed roots during sync; delete mode warns and skips external
   gateways. Existing child order, scope and parent creation dependencies stay
   in the adapter.
+- **Catalog-service roots:** Use `reconcileLifecycle` without recording payload
+  matches. Keep name-only matching, last-observation-wins indexing (including
+  empty names), map-based sync pruning, and observation/error handling local.
+  Field comparison and change builders retain their existing behavior.
 - **Roots with other matching rules:** [dashboard planning][dashboard-plan]
   demonstrates explicit-ID/name matching. Preserve identity precedence,
   ambiguity handling, and matching scope.
