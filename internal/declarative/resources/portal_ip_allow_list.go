@@ -23,6 +23,7 @@ func init() {
 				func(r *PortalIPAllowListResource, ref string) { r.Portal = ref },
 			),
 		},
+		withReferenceValidation(60),
 		WithChildSyncScope(ResourceTypePortal),
 	)
 }

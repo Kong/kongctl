@@ -38,6 +38,7 @@ func init() {
 		WithNamespaceFrom(func(rs *ResourceSet, r *APIDocumentResource) *APIResource {
 			return rs.GetAPIByRef(r.API)
 		}),
+		withReferenceValidation(50),
 		WithChildSyncScope(ResourceTypeAPI),
 	)
 }

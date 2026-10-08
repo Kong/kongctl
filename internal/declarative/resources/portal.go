@@ -24,6 +24,7 @@ func init() {
 				External:          r.IsExternal(),
 			}
 		}),
+		withReferenceValidation(10),
 		WithRootSyncScope(),
 		withCollectionValidation(10, namedCollectionValidation(func(r *PortalResource) string { return r.Name })),
 		withChildValidationPhase(140),
