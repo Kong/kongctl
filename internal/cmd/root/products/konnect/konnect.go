@@ -3,6 +3,7 @@ package konnect
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	commoncmd "github.com/kong/kongctl/internal/cmd/common"
@@ -19,6 +20,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
@@ -201,6 +203,49 @@ func preRunE(c *cobra.Command, args []string) error {
 	return bindFlags(c, args)
 }
 
+// meshVerbs are the verbs Kong Mesh serves under the explicit product path.
+//
+// Get and Create are the only ones reachable. For Plan, Sync, Diff, Export,
+// Apply and Delete, NewKonnectCmd replaces the konnect command with the
+// declarative command and returns before any product is added, so mesh cannot
+// be registered under `apply konnect` or `delete konnect` without
+// restructuring how the declarative verbs claim that subtree. Those two are
+// served by the direct `apply mesh` and `delete mesh` forms.
+//
+// Dump is not listed because the dump verb never builds the konnect subtree,
+// which made an earlier Dump entry here inert.
+var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Create}
+
+// addMeshCommand registers Kong Mesh under the explicit product path, giving
+// `kongctl <verb> konnect mesh ...` alongside the direct `kongctl <verb> mesh
+// ...` form that the root command registers.
+//
+// Mesh serves a subset of the verbs, so an unsupported verb registers nothing
+// rather than adding a command that cannot run.
+//
+// Apply and delete are absent deliberately. `apply konnect` and `delete
+// konnect` are replaced by the declarative commands, which take their own
+// arguments, so a `mesh` subcommand there is read as one of them instead of
+// dispatching. Both are served by the direct `apply mesh` and `delete mesh`
+// forms.
+func addMeshCommand(
+	cmd *cobra.Command,
+	verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) error {
+	if !slices.Contains(meshVerbs, verb) {
+		return nil
+	}
+
+	meshCmd, err := mesh.NewMeshCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(meshCmd)
+	return nil
+}
+
 func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use:     konnectUse,
@@ -232,6 +277,9 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 	if verb == verbs.Create {
 		if err := addTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+		if err := addMeshCommand(cmd, verb, addFlags, preRunE); err != nil {
 			return nil, err
 		}
 		addFlags(verb, cmd)
@@ -419,6 +467,10 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(egcpc)
+
+	if err := addMeshCommand(cmd, verb, addFlags, preRunE); err != nil {
+		return nil, err
+	}
 
 	if verb == verbs.Get {
 		cmd.RunE = func(c *cobra.Command, args []string) error {
