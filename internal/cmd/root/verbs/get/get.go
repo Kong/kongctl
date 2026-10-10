@@ -210,6 +210,12 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(regionsCmd)
 
+	meshCmd, err := NewDirectMeshCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(meshCmd)
+
 	eventGatewayControlPlaneCmd, err := NewDirectEventGatewayCmd()
 	if err != nil {
 		return nil, err

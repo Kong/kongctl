@@ -1,0 +1,75 @@
+# Discovery and read against a Kong Mesh control plane.
+#
+# kongctl carries no built-in list of Kong Mesh resource types: it asks the
+# control plane and renders what comes back, so a newer Kong Mesh release
+# serves new policy types without a kongctl change. That contract is what this
+# asserts.
+test:
+  enabledByEnvVar: KONGCTL_E2E_RUN_MESH
+  requiredEnvVars:
+    - KONGCTL_E2E_MESH_CONTROL_PLANE_ID
+  info: >
+    Set KONGCTL_E2E_RUN_MESH=1 and KONGCTL_E2E_MESH_CONTROL_PLANE_ID to the id
+    of a Kong Mesh control plane to run the mesh scenarios. The shared e2e orgs
+    do not have a mesh control plane by default.
+
+steps:
+  - name: 000-list-control-planes
+    skipInputs: true
+    commands:
+      - name: 000-control-planes
+        run:
+          - get
+          - mesh
+          - control-planes
+        assertions:
+          # The selected control plane must be among those listed.
+          - select: "@"
+            expect:
+              fields:
+                "length([?id=='{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}']) == `1`": true
+
+  - name: 001-discover-resource-types
+    skipInputs: true
+    commands:
+      - name: 000-resource-types
+        run:
+          - get
+          - mesh
+          - resource-types
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                # The control plane reports its own types, so assert the
+                # contract rather than an exact list that a release may grow.
+                "length(@) > `0`": true
+                # Every type carries the fields the printers and the generic
+                # read depend on.
+                "length([?name==''])": 0
+                "length([?path==''])": 0
+                # Scope drives whether --mesh applies, so it must be one of
+                # the two the client understands.
+                "length([?scope!='Mesh' && scope!='Global'])": 0
+                # Meshes are global and writable; dataplanes are read only.
+                "length([?path=='meshes' && scope=='Global']) == `1`": true
+                "length([?path=='dataplanes' && readOnly]) == `1`": true
+
+  - name: 002-read-meshes
+    skipInputs: true
+    commands:
+      - name: 000-get-meshes
+        run:
+          - get
+          - mesh
+          - meshes
+          - --control-plane-id
+          - "{{ .env.KONGCTL_E2E_MESH_CONTROL_PLANE_ID }}"
+        assertions:
+          # Every control plane has a default mesh.
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='default']) == `1`": true
