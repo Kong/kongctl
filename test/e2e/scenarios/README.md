@@ -91,6 +91,10 @@ Schema (YAML)
   - assignedEnvironment: optional GitHub Actions environment / matrix org
     name. When set, CI runs the scenario only in the matching matrix job.
   - requiresPAT: optional boolean, defaults to true
+  - meshControlPlanes: optional list of variable names. Provision an isolated
+    hosted Mesh control plane with API version `v3` for each name, wait for
+    discovery, and delete it during test teardown even after a failure. Use
+    `{{ .vars.NAME }}` to reference its ID in commands.
 - defaults:
   - retry:
       attempts: int
@@ -288,6 +292,9 @@ Selectors and Sources
 
 - Use JMESPath to target the object/array/scalar you want to compare.
 - Default source is the parent command’s JSON stdout.
+- Commands exporting multiple YAML documents can set `parseAs: yaml-stream`.
+  Assertions receive an array of all nonempty resource documents; malformed
+  documents fail parsing, including documents after the first one.
 - Set `source.get: "<resource>"` to run a fresh `kongctl get <resource>`
   for the assertion. Nested resource paths such as `gateway control-planes`
   are supported.

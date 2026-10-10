@@ -1,0 +1,85 @@
+# Token issuance.
+#
+# A zone token proves a zone control plane's identity when it connects to the
+# global control plane over KDS; a dataplane token proves a proxy's identity.
+# Both are issued by the control plane and returned as a signed JWT, so the
+# assertion is on the shape of what comes back rather than its contents.
+#
+# Nothing is created that needs deleting: a token is not a stored resource.
+test:
+  meshControlPlanes: [control_plane_id]
+
+steps:
+  - name: 000-zone-token
+    skipInputs: true
+    commands:
+      - name: 000-issue
+        run:
+          - create
+          - mesh
+          - zone-token
+          - --zone
+          - kongctl-e2e-zone
+          - --valid-for
+          - 1h
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        # The token is printed as a bare JWT, not structured output.
+        parseAs: raw
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                # A compact JWS: base64url segments joined by dots, so the
+                # header decodes from the leading 'eyJ'.
+                "starts_with(stdout, 'eyJ')": true
+                "contains(stdout, '.')": true
+                "length(stdout) > `100`": true
+
+  - name: 001-dataplane-token
+    skipInputs: true
+    commands:
+      - name: 000-issue
+        run:
+          - create
+          - mesh
+          - dataplane-token
+          - --mesh
+          - default
+          - --name
+          - kongctl-e2e-dp
+          - --valid-for
+          - 1h
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        parseAs: raw
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "starts_with(stdout, 'eyJ')": true
+                "length(stdout) > `100`": true
+
+  # A lifetime is required, and configuration can satisfy it, so the resolved
+  # value is validated rather than the flag's presence.
+  - name: 002-lifetime-from-the-environment
+    skipInputs: true
+    commands:
+      - name: 000-issue-without-the-flag
+        env:
+          KONGCTL_E2E_KONNECT_MESH_TOKEN_VALID_FOR: 1h
+        run:
+          - create
+          - mesh
+          - zone-token
+          - --zone
+          - kongctl-e2e-zone
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        parseAs: raw
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "starts_with(stdout, 'eyJ')": true
+                "length(stdout) > `100`": true

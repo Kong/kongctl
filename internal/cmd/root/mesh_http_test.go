@@ -1,0 +1,518 @@
+package root
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+// These drive the whole root command against a fake control plane, so the
+// pre-run, flag binding, target resolution, credential choice, HTTP request,
+// pagination and error rendering all run.
+//
+// A self managed target resolves no Konnect credential, so pointing
+// --control-plane-url at an httptest server exercises the real request path
+// with no authentication set up at all. Before this, no mesh test issued an
+// HTTP request of any kind.
+
+// meshDescriptors is the /_resources payload: the control plane reports the
+// types it serves, and kongctl renders whatever comes back.
+func meshDescriptors() map[string]any {
+	return map[string]any{
+		"resources": []map[string]any{
+			{"name": "Mesh", "path": "meshes", "scope": "Global", "shortName": "m", "readOnly": false},
+			{"name": "MeshTimeout", "path": "meshtimeouts", "scope": "Mesh", "shortName": "mt", "readOnly": false},
+			{"name": "Dataplane", "path": "dataplanes", "scope": "Mesh", "shortName": "dp", "readOnly": true},
+		},
+	}
+}
+
+func TestMeshTokenTraceDoesNotLogCredential(t *testing.T) {
+	const credential = "issued-mesh-credential" // #nosec G101 -- synthetic response for log-redaction regression
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, credential)
+	}))
+	defer server.Close()
+	logPath := filepath.Join(t.TempDir(), "trace.log")
+	result := executeRootForTest(t, "create", "mesh", "zone-token", "--zone", "zone1",
+		"--valid-for", "1h", "--control-plane-url", server.URL,
+		"--log-level", "trace", "--log-file", logPath)
+	if result.exitCode != 0 || result.stdout != credential {
+		t.Fatalf("token issuance failed: stdout=%q stderr=%s", result.stdout, result.stderr)
+	}
+	logs, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(logs), credential) || strings.Contains(result.stderr, credential) {
+		t.Fatal("issued token leaked to logs")
+	}
+}
+
+// meshInputFile puts a resource document on disk and returns its path.
+func meshInputFile(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "resource.yaml")
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+	return path
+}
+
+func writeJSON(t *testing.T, w http.ResponseWriter, status int, body any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(body); err != nil {
+		t.Errorf("encode response: %v", err)
+	}
+}
+
+// A listing is returned across two pages, so a client that reads only the
+// first page silently drops half the results.
+func TestMeshGetPaginatesOverHTTP(t *testing.T) {
+	const total = 150
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/_resources":
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+		case "/meshes":
+			requests.Add(1)
+			offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+			items := []map[string]any{}
+			for i := offset; i < total && len(items) < 100; i++ {
+				items = append(items, map[string]any{"name": fmt.Sprintf("mesh-%03d", i)})
+			}
+			writeJSON(t, w, http.StatusOK, map[string]any{"total": total, "items": items})
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes", "--control-plane-url", server.URL, "--output", "json")
+	if result.exitCode != 0 {
+		t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+	}
+
+	var payload struct {
+		Items []map[string]any `json:"items"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
+		t.Fatalf("decode output: %v\nstdout:\n%s", err, result.stdout)
+	}
+	if len(payload.Items) != total {
+		t.Fatalf("collected %d of %d items; a single-page read would stop at 100", len(payload.Items), total)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("expected 2 page requests, got %d", got)
+	}
+}
+
+// A self managed control plane authenticates its own callers. No Konnect
+// credential is resolved, and none is sent; the control plane token is sent
+// only when one was given.
+func TestMeshSelfManagedAuthorization(t *testing.T) {
+	cases := []struct {
+		name           string
+		extraArgs      []string
+		wantAuthHeader string
+	}{
+		{name: "no token sends no authorization header", wantAuthHeader: ""},
+		{
+			name:           "the control plane token is sent when given",
+			extraArgs:      []string{"--control-plane-token", "cp-secret"},
+			wantAuthHeader: "Bearer cp-secret",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var seen string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/meshes" {
+					seen = r.Header.Get("Authorization")
+				}
+				if r.URL.Path == "/_resources" {
+					writeJSON(t, w, http.StatusOK, meshDescriptors())
+					return
+				}
+				writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+			}))
+			defer server.Close()
+
+			args := append([]string{"get", "mesh", "meshes", "--control-plane-url", server.URL}, tc.extraArgs...)
+			result := executeRootForTest(t, args...)
+			if result.exitCode != 0 {
+				t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+			}
+			if seen != tc.wantAuthHeader {
+				t.Fatalf("Authorization = %q, want %q", seen, tc.wantAuthHeader)
+			}
+		})
+	}
+}
+
+// A write that the control plane rejects must fail the command and surface
+// what the control plane said, rather than reporting a successful apply.
+func TestMeshApplyReportsWriteFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_resources" {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		writeJSON(t, w, http.StatusBadRequest, map[string]any{
+			"title": "Resource is not valid",
+			"invalid_parameters": []map[string]any{
+				{"field": "spec.targetRef.name", "reason": "unknown field"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	// JSON output, so the reason is not truncated to a table column.
+	result := executeRootForTest(t,
+		"apply", "mesh", "-f", meshInputFile(t, "type: Mesh\nname: rejected\n"),
+		"--control-plane-url", server.URL, "--output", "json")
+
+	if result.exitCode == 0 {
+		t.Fatalf("expected a rejected write to fail\nstdout:\n%s", result.stdout)
+	}
+
+	var rows []struct {
+		Name   string `json:"name"`
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &rows); err != nil {
+		t.Fatalf("decode output: %v\nstdout:\n%s", err, result.stdout)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected one reported resource, got %d", len(rows))
+	}
+	// The row must say it failed, and carry what the control plane objected
+	// to, rather than reporting the write as applied.
+	if !strings.HasPrefix(rows[0].Result, "failed:") {
+		t.Fatalf("result = %q, want a failure", rows[0].Result)
+	}
+	for _, want := range []string{"Resource is not valid", "spec.targetRef.name", "unknown field"} {
+		if !strings.Contains(rows[0].Result, want) {
+			t.Fatalf("result %q does not surface %q", rows[0].Result, want)
+		}
+	}
+}
+
+// A read-only type is refused before a request is sent, naming the type.
+func TestMeshApplyRefusesReadOnlyType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_resources" {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		t.Errorf("no request should reach %s for a read only type", r.URL.Path)
+	}))
+	defer server.Close()
+
+	result := executeRootForTest(t,
+		"apply", "mesh", "-f", meshInputFile(t, "type: Dataplane\nname: dp-1\nmesh: default\n"),
+		"--control-plane-url", server.URL)
+
+	if result.exitCode == 0 {
+		t.Fatal("expected a read only type to be refused")
+	}
+	if !strings.Contains(result.stdout+result.stderr, "read only") {
+		t.Fatalf("expected the refusal to say the type is read only\nstderr:\n%s", result.stderr)
+	}
+}
+
+// A remote input named by `-f <url>` is not the control plane, so the control
+// plane's trust policy must not reach it.
+//
+// One client builder installed the control plane's client certificate, private
+// CA and tls-skip-verify on every destination, so `apply mesh -f https://...`
+// presented the operator's control plane certificate to whatever server held
+// the file and accepted that server's certificate through a skip-verify meant
+// for the control plane. Omitting the bearer token did not isolate TLS.
+//
+// The input server here is self signed. The control plane is configured with
+// --tls-skip-verify, so if that setting leaked the download would succeed.
+func TestMeshInputDownloadDoesNotInheritControlPlaneTrust(t *testing.T) {
+	inputServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/yaml")
+		if _, err := w.Write([]byte("type: Mesh\nname: from-the-input-server\n")); err != nil {
+			t.Errorf("write input: %v", err)
+		}
+	}))
+	defer inputServer.Close()
+
+	var reachedControlPlane bool
+	controlPlane := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_resources" {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		reachedControlPlane = true
+		writeJSON(t, w, http.StatusOK, map[string]any{})
+	}))
+	defer controlPlane.Close()
+
+	result := executeRootForTest(t,
+		"apply", "mesh", "-f", inputServer.URL+"/resource.yaml",
+		"--control-plane-url", controlPlane.URL,
+		"--tls-skip-verify")
+
+	if result.exitCode == 0 {
+		t.Fatalf("the input download inherited the control plane's skip-verify\nstdout:\n%s", result.stdout)
+	}
+	if reachedControlPlane {
+		t.Fatal("a resource fetched over an unverified connection reached the control plane")
+	}
+	// The failure must be the input download's certificate, not something else.
+	combined := result.stdout + result.stderr
+	if !strings.Contains(combined, "certificate") && !strings.Contains(combined, "x509") {
+		t.Fatalf("expected a certificate verification failure\nstdout:\n%s\nstderr:\n%s",
+			result.stdout, result.stderr)
+	}
+}
+
+// A selector named on the command line decides the target, even when
+// configuration names a different one.
+//
+// A configured control plane id used to short-circuit the resolver before
+// --control-plane-name was considered, so an explicit name silently addressed
+// the configured id instead. This resolver also serves writes and deletes, so
+// that meant operating on a control plane the operator did not choose.
+//
+// The whole flow runs here: Konnect is faked so the name can be looked up,
+// and the assertion is the path the mesh request actually took.
+func TestMeshExplicitNameBeatsConfiguredID(t *testing.T) {
+	const (
+		configuredID = "00000000-0000-4000-8000-000000000001"
+		namedID      = "00000000-0000-4000-8000-000000000002"
+	)
+
+	var meshRequestPaths []string
+	konnect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v3/mesh/control-planes":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"data": []map[string]any{
+					{"id": configuredID, "name": "old", "version": "v3"},
+					{"id": namedID, "name": "new", "version": "v3"},
+				},
+				"meta": map[string]any{"page": map[string]any{"total": 2, "size": 100, "number": 1}},
+			})
+		case strings.HasSuffix(r.URL.Path, "/_resources"):
+			meshRequestPaths = append(meshRequestPaths, r.URL.Path)
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+		default:
+			meshRequestPaths = append(meshRequestPaths, r.URL.Path)
+			writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+		}
+	}))
+	defer konnect.Close()
+
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		// Configuration names one control plane; the command line names another.
+		"--control-plane-id", configuredID,
+		"--control-plane-name", "new",
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	// Two selectors at once is rejected rather than resolved by precedence,
+	// because they name two different control planes.
+	if result.exitCode == 0 {
+		t.Fatalf("expected conflicting selectors to be rejected\nstdout:\n%s", result.stdout)
+	}
+	if !strings.Contains(result.stderr, "control-plane") {
+		t.Fatalf("expected the conflict to name the selectors\nstderr:\n%s", result.stderr)
+	}
+
+	// With only the name given, and the id supplied through configuration
+	// rather than a flag, the name must win.
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_ID", configuredID)
+	meshRequestPaths = nil
+
+	result = executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-name", "new",
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	if result.exitCode != 0 {
+		t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+	}
+	if len(meshRequestPaths) == 0 {
+		t.Fatal("no mesh request was made")
+	}
+	for _, path := range meshRequestPaths {
+		if strings.Contains(path, configuredID) {
+			t.Fatalf("request went to the configured id %s, not the named control plane: %s",
+				configuredID, path)
+		}
+		if !strings.Contains(path, namedID) {
+			t.Fatalf("request did not address the named control plane %s: %s", namedID, path)
+		}
+	}
+}
+
+// An explicit hosted selector must win over a self managed URL saved in
+// configuration, and carry the Konnect credential, not the self managed one.
+//
+// The URL and the credential were once decided separately, so this request
+// reached the hosted endpoint carrying the saved self managed token. The
+// resolver tests check the decision; this checks what goes over the wire.
+func TestMeshExplicitHostedSelectorBeatsSavedSelfManagedURL(t *testing.T) {
+	const hostedID = "00000000-0000-4000-8000-000000000003"
+
+	var selfManagedRequests atomic.Int32
+	selfManaged := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		selfManagedRequests.Add(1)
+		writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+	}))
+	defer selfManaged.Close()
+
+	var meshPath, meshAuth string
+	konnect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/_resources") {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/meshes") {
+			meshPath = r.URL.Path
+			meshAuth = r.Header.Get("Authorization")
+		}
+		writeJSON(t, w, http.StatusOK, map[string]any{"total": 0, "items": []any{}})
+	}))
+	defer konnect.Close()
+
+	// A profile that already holds a self managed control plane and its token.
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_URL", selfManaged.URL)
+	t.Setenv("KONGCTL_DEFAULT_KONNECT_MESH_CONTROL_PLANE_TOKEN", "self-managed-secret")
+
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-id", hostedID,
+		"--base-url", konnect.URL,
+		"--pat", "test-pat")
+
+	if result.exitCode != 0 {
+		t.Fatalf("expected success\nstderr:\n%s", result.stderr)
+	}
+	if n := selfManagedRequests.Load(); n != 0 {
+		t.Fatalf("the saved self managed control plane received %d requests", n)
+	}
+	if want := "/v3/mesh/control-planes/" + hostedID + "/meshes"; meshPath != want {
+		t.Fatalf("request path = %q, want %q", meshPath, want)
+	}
+	if strings.Contains(meshAuth, "self-managed-secret") {
+		t.Fatal("the self managed token was sent to the hosted control plane")
+	}
+	if meshAuth != "Bearer test-pat" {
+		t.Fatalf("Authorization = %q, want the Konnect credential", meshAuth)
+	}
+}
+
+// One rejected document must not stop the rest of an apply, and must still
+// fail the command. Every document is reported, so the operator can see which
+// landed and which did not.
+func TestMeshApplyContinuesPastAPartialFailure(t *testing.T) {
+	var written []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/_resources" {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+			return
+		}
+		if r.Method == http.MethodPut {
+			written = append(written, r.URL.Path)
+		}
+		if strings.HasSuffix(r.URL.Path, "/rejected") {
+			writeJSON(t, w, http.StatusBadRequest, map[string]any{"title": "Resource is not valid"})
+			return
+		}
+		writeJSON(t, w, http.StatusCreated, map[string]any{})
+	}))
+	defer server.Close()
+
+	input := "type: Mesh\nname: first\n---\ntype: Mesh\nname: rejected\n---\ntype: Mesh\nname: last\n"
+	result := executeRootForTest(t,
+		"apply", "mesh", "-f", meshInputFile(t, input),
+		"--control-plane-url", server.URL, "--output", "json")
+
+	if result.exitCode == 0 {
+		t.Fatalf("expected a partial failure to fail the command\nstdout:\n%s", result.stdout)
+	}
+	if len(written) != 3 {
+		t.Fatalf("expected all three documents to be written, got %v", written)
+	}
+
+	var rows []struct {
+		Name   string `json:"name"`
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(result.stdout), &rows); err != nil {
+		t.Fatalf("decode output: %v\nstdout:\n%s", err, result.stdout)
+	}
+	if len(rows) != 3 {
+		t.Fatalf("expected three reported resources, got %d", len(rows))
+	}
+	for _, row := range rows {
+		failed := strings.HasPrefix(row.Result, "failed:")
+		if failed != (row.Name == "rejected") {
+			t.Fatalf("%s: result = %q", row.Name, row.Result)
+		}
+	}
+}
+
+// The mesh client is built from the configured HTTP settings, not defaults,
+// so a configured timeout must bound a request to the control plane.
+func TestMeshRequestHonoursTheConfiguredTimeout(t *testing.T) {
+	release := make(chan struct{})
+	defer close(release)
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+
+	// The timeout is configuration only; there is no flag for it.
+	t.Setenv("KONGCTL_DEFAULT_HTTP_TIMEOUT", "200ms")
+
+	start := time.Now()
+	result := executeRootForTest(t,
+		"get", "mesh", "meshes",
+		"--control-plane-url", server.URL)
+	elapsed := time.Since(start)
+
+	if result.exitCode == 0 {
+		t.Fatal("expected a request to an unresponsive control plane to fail")
+	}
+	// Failing before the timeout could elapse means the request never waited
+	// on the control plane, so the timeout was not what ended it.
+	if elapsed < 200*time.Millisecond {
+		t.Fatalf("command failed after %s, before the timeout\nstderr:\n%s", elapsed, result.stderr)
+	}
+	// The default timeout is 60s, so finishing well inside it shows the
+	// configured value was used.
+	if elapsed > 5*time.Second {
+		t.Fatalf("request took %s; the configured 200ms timeout was not applied", elapsed)
+	}
+	if !strings.Contains(result.stderr, "Client.Timeout exceeded") {
+		t.Fatalf("expected the HTTP client timeout to end the request\nstderr:\n%s", result.stderr)
+	}
+}

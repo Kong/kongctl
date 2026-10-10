@@ -1,0 +1,60 @@
+# Real computed-state endpoints on an isolated global CP with no connected zones.
+# Connected dataplane policy and proxy-admin inspection require a running zone.
+test:
+  meshControlPlanes: [control_plane_id]
+
+steps:
+  - name: 000-seed-policy
+    skipInputs: true
+    commands:
+      - name: 000-apply-policy
+        run: [apply, mesh, -f, "-", --control-plane-id, "{{ .vars.control_plane_id }}"]
+        stdin: |
+          type: MeshTimeout
+          name: kongctl-e2e-inspect-timeout
+          mesh: default
+          spec:
+            targetRef:
+              kind: Mesh
+            to:
+              - targetRef:
+                  kind: Mesh
+                default:
+                  connectionTimeout: 5s
+
+  - name: 001-inspect-overviews-and-policy
+    skipInputs: true
+    commands:
+      - name: 000-meshes
+        run: [get, mesh, inspect, meshes, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='default'])": 1
+                total: 1
+      - name: 001-dataplanes
+        run: [get, mesh, inspect, dataplanes, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                items: []
+                total: 0
+      - name: 002-zones
+        run: [get, konnect, mesh, inspect, zones, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                items: []
+                total: 0
+      - name: 003-policy-matches
+        run: [get, mesh, inspect, meshtimeout, kongctl-e2e-inspect-timeout,
+              --control-plane-id, "{{ .vars.control_plane_id }}"]
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                items: []
+                total: 0

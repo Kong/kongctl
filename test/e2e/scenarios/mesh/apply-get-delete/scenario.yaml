@@ -1,0 +1,149 @@
+# The resource write lifecycle: apply, read back, delete.
+#
+# Each run provisions its own control plane. The harness deletes that control
+# plane even if a resource assertion fails before the explicit delete steps.
+# The manifests are the user-facing examples, so this also validates those files.
+test:
+  meshControlPlanes: [control_plane_id]
+
+vars:
+  mesh: kongctl-example-mesh
+  policy: kongctl-example-timeouts
+
+steps:
+  - name: 001-apply-mesh
+    skipInputs: true
+    commands:
+      - name: 000-apply
+        run:
+          - apply
+          - mesh
+          - -f
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/mesh.yaml"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='Mesh' && name=='{{ .vars.mesh }}' && result=='created']) == `1`": true
+
+  # A write addresses a resource by type and name and creates or replaces it,
+  # so applying the same document again is an update rather than a conflict.
+  - name: 002-apply-is-an-upsert
+    skipInputs: true
+    commands:
+      - name: 000-reapply
+        run:
+          - apply
+          - mesh
+          - -f
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/mesh.yaml"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?name=='{{ .vars.mesh }}' && result=='updated']) == `1`": true
+
+  - name: 003-apply-a-policy-into-the-mesh
+    skipInputs: true
+    commands:
+      - name: 000-apply-policy
+        run:
+          - apply
+          - mesh
+          - -f
+          - "{{ .repo_dir }}/docs/examples/declarative/mesh/timeout-policy.yaml"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?type=='MeshTimeout' && result=='created']) == `1`": true
+
+  - name: 004-read-back
+    skipInputs: true
+    commands:
+      - name: 000-get-the-mesh
+        run:
+          - get
+          - mesh
+          - meshes
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='{{ .vars.mesh }}']) == `1`": true
+      - name: 001-get-the-policy
+        run:
+          - get
+          - mesh
+          - meshtimeouts
+          - "{{ .vars.policy }}"
+          - --mesh
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                name: "{{ .vars.policy }}"
+                mesh: "{{ .vars.mesh }}"
+                # Written through this control plane, so it owns the resource.
+                'labels."kuma.io/origin"': global
+
+  - name: 005-delete-cleanup
+    skipInputs: true
+    # Retry transient deletion failures while checking the resource lifecycle.
+    # Harness teardown removes the isolated CP if this step cannot complete.
+    retry:
+      attempts: 3
+      interval: 5s
+      backoffFactor: 2
+    commands:
+      - name: 000-delete-policy
+        run:
+          - delete
+          - mesh
+          - meshtimeouts
+          - "{{ .vars.policy }}"
+          - --mesh
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='deleted']) == `1`": true
+      - name: 001-delete-mesh
+        run:
+          - delete
+          - mesh
+          - meshes
+          - "{{ .vars.mesh }}"
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length([?result=='deleted']) == `1`": true
+      - name: 002-confirm-gone
+        run:
+          - get
+          - mesh
+          - meshes
+          - --control-plane-id
+          - "{{ .vars.control_plane_id }}"
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(items[?name=='{{ .vars.mesh }}'])": 0
