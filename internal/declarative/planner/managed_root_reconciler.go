@@ -11,8 +11,8 @@ type managedRoot[T any] struct {
 }
 
 // managedRootOperations keeps diffing and change construction with each resource
-// planner. The reconciler owns the lifecycle for managed roots matched by name;
-// resource discovery, external references, and child lifecycles stay outside it.
+// planner. The reconciler owns lifecycle decisions for already matched roots;
+// discovery, matching, external references, and child lifecycles stay outside it.
 type managedRootOperations[D, C any] struct {
 	diff             func(C, D) (bool, map[string]any, map[string]FieldChange)
 	create           func(D, *Plan) string

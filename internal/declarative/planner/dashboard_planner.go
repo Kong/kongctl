@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"maps"
 	"reflect"
-	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -58,98 +57,72 @@ func (p *Planner) planDashboardChanges(
 	}
 
 	currentByID, currentByName := indexDashboards(currentDashboards)
+	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeDashboard,
+		managedRootOperations[resources.DashboardResource, state.Dashboard]{
+			diff: p.shouldUpdateDashboard,
+			create: func(desired resources.DashboardResource, plan *Plan) string {
+				p.planDashboardCreate(desired, plan)
+				return ""
+			},
+			update: p.planDashboardUpdate,
+			changeProtection: func(current state.Dashboard, desired resources.DashboardResource,
+				_, _ bool, fields map[string]any, changed map[string]FieldChange, plan *Plan,
+			) {
+				p.planDashboardUpdate(current, desired, fields, changed, plan)
+			},
+			remove: p.planDashboardDelete,
+		}, plan)
+	observedRoot := func(current state.Dashboard, diagnosticName string) managedRoot[state.Dashboard] {
+		return managedRoot[state.Dashboard]{
+			resource: current, name: diagnosticName,
+			protected: labels.IsProtectedResource(current.NormalizedLabels),
+		}
+	}
 
 	if plan.Metadata.Mode == PlanModeDelete {
-		var protectionErrors []error
 		for _, desiredDashboard := range desired {
 			current, exists, err := matchCurrentDashboard(desiredDashboard, currentByID, currentByName)
 			if err != nil {
 				return err
 			}
-			if !exists {
-				plan.AddWarning("", fmt.Sprintf(
-					"dashboard %q not found in Konnect, skipping delete", desiredDashboard.Name,
-				))
-				continue
+			var root *managedRoot[state.Dashboard]
+			if exists {
+				// ID selection can rename a root; delete errors retain the desired name.
+				matched := observedRoot(current, desiredDashboard.Name)
+				root = &matched
 			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(
-				ResourceTypeDashboard, desiredDashboard.Name, isProtected, ActionDelete,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planDashboardDelete(current, plan)
-			}
+			reconciler.deleteDesired(desiredDashboard.Name, root)
 		}
-
-		if len(protectionErrors) > 0 {
-			return dashboardProtectionError(protectionErrors)
-		}
-		return nil
+		return reconciler.errors.Error()
 	}
 
-	var protectionErrors []error
 	matchedCurrent := make(map[string]bool)
-
 	for _, desiredDashboard := range desired {
 		current, exists, err := matchCurrentDashboard(desiredDashboard, currentByID, currentByName)
 		if err != nil {
 			return err
 		}
-		if !exists {
-			p.planDashboardCreate(desiredDashboard, plan)
-			continue
+		var root *managedRoot[state.Dashboard]
+		if exists {
+			matchedCurrent[dashboardIdentity(current)] = true
+			matched := observedRoot(current, current.Name)
+			root = &matched
 		}
-		matchedCurrent[dashboardIdentity(current)] = true
-
-		isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		shouldProtect := desiredDashboard.Kongctl != nil &&
-			desiredDashboard.Kongctl.Protected != nil &&
-			*desiredDashboard.Kongctl.Protected
-
-		needsUpdate, updateFields, changedFields := p.shouldUpdateDashboard(current, desiredDashboard)
-		if isProtected != shouldProtect {
-			protectionChange := &ProtectionChange{Old: isProtected, New: shouldProtect}
-			if err := p.validateProtectionWithChange(
-				ResourceTypeDashboard, desiredDashboard.Name, isProtected, ActionUpdate, protectionChange, needsUpdate,
-			); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planDashboardUpdate(current, desiredDashboard, updateFields, changedFields, plan)
-			}
-			continue
-		}
-
-		if needsUpdate {
-			if err := p.validateProtection(ResourceTypeDashboard, desiredDashboard.Name, isProtected, ActionUpdate); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planDashboardUpdate(current, desiredDashboard, updateFields, changedFields, plan)
-			}
-		}
+		reconciler.reconcileLifecycle(managedRoot[resources.DashboardResource]{
+			resource: desiredDashboard, name: desiredDashboard.Name,
+			protected: desiredDashboard.Kongctl != nil && desiredDashboard.Kongctl.Protected != nil &&
+				*desiredDashboard.Kongctl.Protected,
+		}, root)
 	}
 
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, current := range currentDashboards {
-			if matchedCurrent[dashboardIdentity(current)] {
-				continue
-			}
-
-			isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-			if err := p.validateProtection(ResourceTypeDashboard, current.Name, isProtected, ActionDelete); err != nil {
-				protectionErrors = append(protectionErrors, err)
-			} else {
-				p.planDashboardDelete(current, plan)
+			if !matchedCurrent[dashboardIdentity(current)] {
+				reconciler.remove(observedRoot(current, current.Name))
 			}
 		}
 	}
-
-	if len(protectionErrors) > 0 {
-		return dashboardProtectionError(protectionErrors)
-	}
-
-	return nil
+	return reconciler.errors.Error()
 }
 
 func (p *Planner) shouldUpdateDashboard(
@@ -325,14 +298,4 @@ func dashboardNamespaceAndProtection(resource resources.DashboardResource) (stri
 		protection = *resource.Kongctl.Protected
 	}
 	return namespace, protection
-}
-
-func dashboardProtectionError(protectionErrors []error) error {
-	var errMsg strings.Builder
-	errMsg.WriteString("Cannot generate plan due to protected resources:\n")
-	for _, err := range protectionErrors {
-		fmt.Fprintf(&errMsg, "- %s\n", err.Error())
-	}
-	errMsg.WriteString("\nTo proceed, first update these resources to set protected: false")
-	return fmt.Errorf("%s", errMsg.String())
 }

@@ -478,9 +478,13 @@ Choose identity and operation semantics before selecting a reusable strategy:
   matches. Keep name-only matching, last-observation-wins indexing (including
   empty names), map-based sync pruning, and observation/error handling local.
   Field comparison and change builders retain their existing behavior.
-- **Roots with other matching rules:** [dashboard planning][dashboard-plan]
-  demonstrates explicit-ID/name matching. Preserve identity precedence,
-  ambiguity handling, and matching scope.
+- **Dashboard roots:** [The adapter][dashboard-plan] uses `reconcileLifecycle`
+  without recording payload matches. Matching stays local: bound ID, then
+  UUID ref, then unambiguous name. Matching errors abort immediately, ahead of
+  accumulated protection errors. Sync retains matched observed identities and
+  prunes in observation order; delete errors use the desired name even when
+  ID matching selects a differently named root. These dashboard-specific rules
+  are distinct from AI Gateway name-only matching.
 - **Name-matched children with detail lookup:** AI Gateway model providers,
   auth strategies, policies, agents, models, vaults, consumer groups, and MCP
   servers use [`reconcileNameMatchedChildren`][child-reconcile] within an
