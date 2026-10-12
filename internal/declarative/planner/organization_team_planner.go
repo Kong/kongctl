@@ -371,32 +371,28 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationTeamRoleChanges(
 			}
 		}
 
-		desiredKeys := make(map[string]bool)
-		for _, role := range roles {
-			key := buildOrganizationTeamRoleKey(
-				role.RoleName,
-				t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
-				role.EntityTypeName,
-				role.EntityRegion,
-			)
-			if desiredKeys[key] {
-				return fmt.Errorf("duplicate organization team role assignment %q for team %q", key, teamRef)
-			}
-			desiredKeys[key] = true
-
-			if _, exists := existingRoles[key]; exists {
-				continue
-			}
-
-			t.planOrganizationTeamRoleCreate(namespace, teamRef, teamName, teamID, role, plan)
-		}
-
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
-			for key, existingRole := range existingRoles {
-				if !desiredKeys[key] {
+		err := reconcileRoleAssignments(roles, existingRoles,
+			roleAssignmentOperations[resources.OrganizationTeamRoleResource, state.OrganizationTeamRole]{
+				key: func(role resources.OrganizationTeamRoleResource) string {
+					return buildOrganizationTeamRoleKey(
+						role.RoleName,
+						t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
+						role.EntityTypeName,
+						role.EntityRegion,
+					)
+				},
+				duplicate: func(key string) error {
+					return fmt.Errorf("duplicate organization team role assignment %q for team %q", key, teamRef)
+				},
+				create: func(role resources.OrganizationTeamRoleResource) {
+					t.planOrganizationTeamRoleCreate(namespace, teamRef, teamName, teamID, role, plan)
+				},
+				remove: func(existingRole state.OrganizationTeamRole) {
 					t.planOrganizationTeamRoleDelete(namespace, teamRef, teamName, teamID, existingRole, plan)
-				}
-			}
+				},
+			}, plan.Metadata.Mode == PlanModeSync && teamID != "")
+		if err != nil {
+			return err
 		}
 	}
 

@@ -582,7 +582,16 @@ Choose identity and operation semantics before selecting a reusable strategy:
   Portal customization remains update-only; do not apply optional-singleton
   deletion semantics to it.
 - **Assignments and selectors:** [organization planning][organization-plan]
-  includes role/membership operations and broader organization scope.
+  and Portal teams use [`reconcileRoleAssignments`][role-reconcile] for role
+  assignment sets within one owner. Adapters supply a filtered composite-key
+  index and retain owner grouping, observation, entity-reference resolution,
+  dependency construction and pruning eligibility. The helper detects duplicate
+  desired keys before checking existing assignments, preserves earlier creates
+  on error, and prunes only after successful desired traversal. It does not
+  record payload identities. Keep team membership matching separate: unresolved
+  team refs can identify duplicate declarations without matching remote IDs.
+  Membership sync visits selectors across namespaces; user/system-account role
+  sync visits selectors within the current namespace. Preserve these boundaries.
 - **Tool-local configuration:** `control_planes[]._deck` is validated by its
   parent and planned through [deck integration][deck-plan] with
   `ActionExternalTool`, dependencies, and external-tool summary accounting.
@@ -1134,6 +1143,8 @@ engine contract. Each refactoring migration should:
   ../../internal/declarative/planner/optional_singleton_reconciler.go
 [portal-children]: ../../internal/declarative/planner/portal_child_planner.go
 [planner-package]: ../../internal/declarative/planner
+[role-reconcile]:
+  ../../internal/declarative/planner/role_assignment_reconciler.go
 [organization-plan]:
   ../../internal/declarative/planner/organization_team_planner.go
 [deck-plan]: ../../internal/declarative/planner/deck_requirements.go

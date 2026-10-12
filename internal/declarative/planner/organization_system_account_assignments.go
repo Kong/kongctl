@@ -179,28 +179,24 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 			existingRoles[key] = role
 		}
 
-		desiredKeys := make(map[string]bool)
-		for _, role := range roles {
-			key := buildOrganizationTeamRoleKey(
-				role.RoleName,
-				t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
-				role.EntityTypeName,
-				role.EntityRegion,
-			)
-			if desiredKeys[key] {
-				return fmt.Errorf("duplicate organization system account role assignment %q for system account %q",
-					key, accountRef)
-			}
-			desiredKeys[key] = true
-			if _, ok := existingRoles[key]; ok {
-				continue
-			}
-			t.planOrganizationSystemAccountRoleCreate(namespace, accountRef, account.GetKonnectID(), role, plan)
-		}
-
-		if plan.Metadata.Mode == PlanModeSync {
-			for key, existingRole := range existingRoles {
-				if !desiredKeys[key] {
+		err = reconcileRoleAssignments(roles, existingRoles,
+			roleAssignmentOperations[resources.OrganizationSystemAccountRoleResource, state.OrganizationSystemAccountRole]{
+				key: func(role resources.OrganizationSystemAccountRoleResource) string {
+					return buildOrganizationTeamRoleKey(
+						role.RoleName,
+						t.resolveOrganizationTeamRoleEntityID(role.EntityID, role.EntityTypeName),
+						role.EntityTypeName,
+						role.EntityRegion,
+					)
+				},
+				duplicate: func(key string) error {
+					return fmt.Errorf("duplicate organization system account role assignment %q for system account %q",
+						key, accountRef)
+				},
+				create: func(role resources.OrganizationSystemAccountRoleResource) {
+					t.planOrganizationSystemAccountRoleCreate(namespace, accountRef, account.GetKonnectID(), role, plan)
+				},
+				remove: func(existingRole state.OrganizationSystemAccountRole) {
 					t.planOrganizationSystemAccountRoleDelete(
 						namespace,
 						accountRef,
@@ -208,8 +204,10 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 						existingRole,
 						plan,
 					)
-				}
-			}
+				},
+			}, plan.Metadata.Mode == PlanModeSync)
+		if err != nil {
+			return err
 		}
 	}
 
