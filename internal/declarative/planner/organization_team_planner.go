@@ -67,8 +67,16 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		currentByName[team.Name] = team
 	}
 
-	// Collect protection validation errors
-	protectionErrors := &ProtectionErrorCollector{}
+	reconciler := newManagedRootReconciler(t.BasePlanner, ResourceTypeOrganizationTeam,
+		managedRootOperations[resources.OrganizationTeamResource, state.OrganizationTeam]{
+			diff:             t.shouldUpdateOrganizationTeam,
+			create:           t.planTeamCreate,
+			update:           t.planOrganizationTeamUpdateWithFields,
+			changeProtection: t.planOrganizationTeamProtectionChangeWithFields,
+			remove:           t.planOrganizationTeamDelete,
+		}, plan)
+	// Explicit deletes retain their fallible role-before-team orchestration.
+	protectionErrors := &reconciler.errors
 
 	// Handle delete mode - plan DELETE for desired resources that exist in Konnect
 	if plan.Metadata.Mode == PlanModeDelete {
@@ -119,63 +127,17 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		}
 
 		current, exists := currentByName[desiredTeam.Name]
-		if !exists {
-			t.planTeamCreate(desiredTeam, plan)
-			continue
-		}
-
-		// Check if update needed
-		// Get protection status from desired configuration
-		currentProtected := labels.IsProtectedResource(current.NormalizedLabels)
-		desiredProtected := false
-		if desiredTeam.Kongctl != nil && desiredTeam.Kongctl.Protected != nil && *desiredTeam.Kongctl.Protected {
-			desiredProtected = true
-		}
-
-		// Handle protection changes
-		if currentProtected != desiredProtected {
-			// When changing protection status, include any other field updates too
-			needsUpdate, updateFields, changedFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
-
-			// Create protection change object
-			protectionChange := &ProtectionChange{
-				Old: currentProtected,
-				New: desiredProtected,
-			}
-
-			// Validate protection change
-			err := t.ValidateProtectionWithChange(
-				ResourceTypeOrganizationTeam,
-				desiredTeam.Name,
-				currentProtected,
-				ActionUpdate,
-				protectionChange,
-				needsUpdate,
-			)
-			protectionErrors.Add(err)
-			if err == nil {
-				t.planOrganizationTeamProtectionChangeWithFields(
-					current,
-					desiredTeam,
-					currentProtected,
-					desiredProtected,
-					updateFields,
-					changedFields,
-					plan,
-				)
-			}
-		} else {
-			// Check if update needed based on configuration
-			needsUpdate, updateFields, changedFields := t.shouldUpdateOrganizationTeam(current, desiredTeam)
-			if needsUpdate {
-				// Regular update - check protection
-				err := t.ValidateProtection(ResourceTypeOrganizationTeam, desiredTeam.Name, currentProtected, ActionUpdate)
-				protectionErrors.Add(err)
-				if err == nil {
-					t.planOrganizationTeamUpdateWithFields(current, desiredTeam, updateFields, changedFields, plan)
-				}
+		var root *managedRoot[state.OrganizationTeam]
+		if exists {
+			root = &managedRoot[state.OrganizationTeam]{
+				resource: current, name: current.Name,
+				protected: labels.IsProtectedResource(current.NormalizedLabels),
 			}
 		}
+		reconciler.reconcileLifecycle(managedRoot[resources.OrganizationTeamResource]{
+			resource: desiredTeam, name: desiredTeam.Name,
+			protected: desiredTeam.Kongctl != nil && desiredTeam.Kongctl.Protected != nil && *desiredTeam.Kongctl.Protected,
+		}, root)
 	}
 
 	if err := t.planOrganizationTeamRoleChanges(ctx, namespace, desired, currentByName, plan); err != nil {
@@ -204,13 +166,10 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		// Find managed teams not in desired state
 		for name, current := range currentByName {
 			if !desiredNames[name] {
-				// Validate protection before adding DELETE
-				isProtected := labels.IsProtectedResource(current.NormalizedLabels)
-				err := t.ValidateProtection(ResourceTypeOrganizationTeam, name, isProtected, ActionDelete)
-				protectionErrors.Add(err)
-				if err == nil {
-					t.planOrganizationTeamDelete(current, plan)
-				}
+				reconciler.remove(managedRoot[state.OrganizationTeam]{
+					resource: current, name: name,
+					protected: labels.IsProtectedResource(current.NormalizedLabels),
+				})
 			}
 		}
 	}
