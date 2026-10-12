@@ -485,6 +485,13 @@ Choose identity and operation semantics before selecting a reusable strategy:
   prunes in observation order; delete errors use the desired name even when
   ID matching selects a differently named root. These dashboard-specific rules
   are distinct from AI Gateway name-only matching.
+- **Organization-team roots:** Use `reconcileLifecycle` without recording
+  payload matches. Keep nonempty-name indexing, external-team handling and
+  root sync-scope gating local. Root decisions precede team-role, user and
+  system-account assignment phases, then pruning; assignment errors take
+  precedence over collected protection errors. Explicit deletion checks
+  protection, removes declared roles, then deletes the team. Keep this
+  fallible role-removal path outside the shared infallible delete callback.
 - **Name-matched children with detail lookup:** AI Gateway model providers,
   auth strategies, policies, agents, models, vaults, consumer groups, and MCP
   servers use [`reconcileNameMatchedChildren`][child-reconcile] within an
