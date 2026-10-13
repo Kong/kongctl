@@ -637,6 +637,18 @@ observable fields; [write-only secrets](#write-only-secrets) have separate
 selection rules. Preserve PATCH sparsity and any API-specific full-update
 requirements rather than applying one update policy universally.
 
+Portal's five optional booleans use the typed
+[Portal boolean field contract][portal-boolean-contract]
+for create extraction, comparison, request mapping and list/detail export.
+Enroll each field once with declaration, observation and update accessors;
+do not add parallel field lists in those callers. Omission is unmanaged,
+explicit false is retained, and an absent observation differs from false.
+The planner retains `Field*` aliases and converts contract changes into plan
+diagnostics. Update mapping handles one field at a time to preserve caller
+error timing. This pilot does not cover strings, enums, labels, references
+or secrets; keep their existing policies explicit rather than inferring them
+from SDK types. Add another contract only after identifying shared semantics.
+
 Use `PlannedChange.Parent` and `References` for routing and
 `DependsOn` for operation ordering. Children created with a new parent need
 its creation dependency and a resolvable parent reference. Preserve delete
@@ -1143,6 +1155,8 @@ engine contract. Each refactoring migration should:
   ../../internal/declarative/planner/optional_singleton_reconciler.go
 [portal-children]: ../../internal/declarative/planner/portal_child_planner.go
 [planner-package]: ../../internal/declarative/planner
+[portal-boolean-contract]:
+  ../../internal/declarative/fieldcontracts/portal_booleans.go
 [role-reconcile]:
   ../../internal/declarative/planner/role_assignment_reconciler.go
 [organization-plan]:

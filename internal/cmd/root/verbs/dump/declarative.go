@@ -16,6 +16,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	konnectCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
@@ -730,18 +731,7 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 	}
 
 	result.Description = portal.GetDescription()
-
-	if authEnabled := portal.GetAuthenticationEnabled(); authEnabled != nil {
-		result.AuthenticationEnabled = authEnabled
-	}
-
-	if rbacEnabled := portal.GetRbacEnabled(); rbacEnabled != nil {
-		result.RbacEnabled = rbacEnabled
-	}
-
-	if siprEnabled := portal.GetSiprEnabled(); siprEnabled != nil {
-		result.SiprEnabled = siprEnabled
-	}
+	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
 
 	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
 		apiVisibility := kkComps.DefaultAPIVisibility(visibility)
@@ -754,14 +744,6 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 	}
 
 	result.DefaultApplicationAuthStrategyID = portal.GetDefaultApplicationAuthStrategyID()
-
-	if developers := portal.GetAutoApproveDevelopers(); developers != nil {
-		result.AutoApproveDevelopers = developers
-	}
-
-	if applications := portal.GetAutoApproveApplications(); applications != nil {
-		result.AutoApproveApplications = applications
-	}
 
 	if userLabels := decllabels.GetUserLabels(portal.GetLabels()); len(userLabels) > 0 {
 		result.Labels = decllabels.DenormalizeLabels(userLabels)
@@ -777,12 +759,7 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 		Name:                             portal.GetName(),
 		DisplayName:                      portal.GetDisplayName(),
 		Description:                      portal.GetDescription(),
-		AuthenticationEnabled:            portal.GetAuthenticationEnabled(),
-		RbacEnabled:                      portal.GetRbacEnabled(),
-		SiprEnabled:                      portal.GetSiprEnabled(),
 		DefaultApplicationAuthStrategyID: portal.GetDefaultApplicationAuthStrategyID(),
-		AutoApproveDevelopers:            portal.GetAutoApproveDevelopers(),
-		AutoApproveApplications:          portal.GetAutoApproveApplications(),
 		Labels:                           portal.GetLabels(),
 	}
 
@@ -794,7 +771,9 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 		listPortal.DefaultPageVisibility = kkComps.ListPortalsResponseDefaultPageVisibility(visibility)
 	}
 
-	return mapPortalToDeclarativeResource(listPortal)
+	result := mapPortalToDeclarativeResource(listPortal)
+	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
+	return result
 }
 
 func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.APIResource {
