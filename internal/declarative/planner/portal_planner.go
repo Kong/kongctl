@@ -241,12 +241,7 @@ func extractPortalFields(resource any) map[string]any {
 
 	fields[FieldName] = portal.Name
 	fieldcontracts.ExtractPortalBooleans(portal.CreatePortal, fields)
-	if portal.DisplayName != nil {
-		fields[FieldDisplayName] = *portal.DisplayName
-	}
-	if portal.Description != nil {
-		fields[FieldDescription] = *portal.Description
-	}
+	fieldcontracts.ExtractPortalStrings(portal.CreatePortal, fields)
 	if portal.DefaultAPIVisibility != nil {
 		fields[FieldDefaultAPIVisibility] = string(*portal.DefaultAPIVisibility)
 	}
@@ -390,25 +385,9 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	// Only compare fields present in desired configuration
-	if desired.DisplayName != nil {
-		if current.DisplayName != *desired.DisplayName {
-			updates[FieldDisplayName] = *desired.DisplayName
-			changedFields[FieldDisplayName] = FieldChange{
-				Old: current.DisplayName,
-				New: *desired.DisplayName,
-			}
-		}
-	}
-	if desired.Description != nil {
-		currentDesc := p.GetString(current.Description)
-		if currentDesc != *desired.Description {
-			updates[FieldDescription] = *desired.Description
-			changedFields[FieldDescription] = FieldChange{
-				Old: currentDesc,
-				New: *desired.Description,
-			}
-		}
+	for name, change := range fieldcontracts.ComparePortalStrings(desired.CreatePortal, &current) {
+		updates[name] = change.New
+		changedFields[name] = FieldChange{Old: change.Old, New: change.New}
 	}
 
 	if desired.DefaultApplicationAuthStrategyID != nil {

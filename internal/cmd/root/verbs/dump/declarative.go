@@ -726,11 +726,7 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 		},
 	}
 
-	if displayName := portal.GetDisplayName(); displayName != "" {
-		result.DisplayName = &displayName
-	}
-
-	result.Description = portal.GetDescription()
+	fieldcontracts.ExportPortalStrings(&portal, &result.CreatePortal)
 	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
 
 	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
@@ -757,8 +753,6 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 	listPortal := kkComps.ListPortalsResponsePortal{
 		ID:                               portal.GetID(),
 		Name:                             portal.GetName(),
-		DisplayName:                      portal.GetDisplayName(),
-		Description:                      portal.GetDescription(),
 		DefaultApplicationAuthStrategyID: portal.GetDefaultApplicationAuthStrategyID(),
 		Labels:                           portal.GetLabels(),
 	}
@@ -773,6 +767,7 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 
 	result := mapPortalToDeclarativeResource(listPortal)
 	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
+	fieldcontracts.ExportPortalStrings(&portal, &result.CreatePortal)
 	return result
 }
 
