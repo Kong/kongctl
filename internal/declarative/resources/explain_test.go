@@ -733,7 +733,7 @@ func TestRenderScaffoldYAML_AIGatewayModelsNestedChildResource(t *testing.T) {
 	assert.Contains(t, scaffold, "# type: api")
 	assert.NotContains(t, scaffold, "provider: openai")
 	assert.NotContains(t, scaffold, "ai_gateway: value")
-	assert.NotContains(t, scaffold, "kongctl:")
+	assert.Contains(t, scaffold, "kongctl:")
 }
 
 func TestRenderScaffoldYAML_AIGatewayAuthStrategyConsumerClaims(t *testing.T) {

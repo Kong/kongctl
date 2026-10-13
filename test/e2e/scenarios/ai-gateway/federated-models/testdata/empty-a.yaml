@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: federated-team-a
+ai_gateways:
+  - ref: shared
+    _external:
+      selector:
+        matchFields:
+          name: federated-models-e2e
+    models: []

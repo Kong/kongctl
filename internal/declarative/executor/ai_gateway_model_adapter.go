@@ -3,6 +3,8 @@ package executor
 import (
 	"context"
 	"fmt"
+	"maps"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -23,7 +25,7 @@ func NewAIGatewayModelAdapter(client *state.Client) *AIGatewayModelAdapter {
 // MapCreateFields maps planner fields to CreateAIGatewayModelRequest.
 func (a *AIGatewayModelAdapter) MapCreateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fields map[string]any,
 	create *kkComps.CreateAIGatewayModelRequest,
 ) error {
@@ -33,13 +35,13 @@ func (a *AIGatewayModelAdapter) MapCreateFields(
 	if create.AIGatewayModelAPI == nil && create.AIGatewayModelModel == nil {
 		return fmt.Errorf("type must be either api or model")
 	}
-	return nil
+	return validateModelPayloadOwnership(modelCreateMetadata(*create), execCtx)
 }
 
 // MapUpdateFields maps planner fields to UpdateAIGatewayModelRequest.
 func (a *AIGatewayModelAdapter) MapUpdateFields(
 	_ context.Context,
-	_ *ExecutionContext,
+	execCtx *ExecutionContext,
 	fields map[string]any,
 	update *kkComps.UpdateAIGatewayModelRequest,
 	_ map[string]string,
@@ -50,7 +52,7 @@ func (a *AIGatewayModelAdapter) MapUpdateFields(
 	if update.AIGatewayModelAPI == nil && update.AIGatewayModelModel == nil {
 		return fmt.Errorf("type must be either api or model")
 	}
-	return nil
+	return validateModelPayloadOwnership(modelUpdateMetadata(*update), execCtx)
 }
 
 // Create creates an AI Gateway model.
@@ -63,6 +65,27 @@ func (a *AIGatewayModelAdapter) Create(
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return "", err
+	}
+	if err := validateModelPayloadOwnership(modelCreateMetadata(req), execCtx); err != nil {
+		return "", err
+	}
+	if namespace != execCtx.Namespace {
+		return "", fmt.Errorf("AI Gateway model execution namespace mismatch")
+	}
+	models, err := a.client.ListAIGatewayModels(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	name := ""
+	if req.AIGatewayModelAPI != nil {
+		name = req.AIGatewayModelAPI.Name
+	} else if req.AIGatewayModelModel != nil {
+		name = req.AIGatewayModelModel.Name
+	}
+	for _, model := range models {
+		if resources.AIGatewayModelName(model.AIGatewayModel) == name {
+			return "", fmt.Errorf("AI Gateway model %q already exists; replan and explicitly adopt it if unowned", name)
+		}
 	}
 	return a.client.CreateAIGatewayModel(ctx, gatewayID, req, namespace)
 }
@@ -79,7 +102,57 @@ func (a *AIGatewayModelAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	if err := validateModelPayloadOwnership(modelUpdateMetadata(req), execCtx); err != nil {
+		return "", err
+	}
+	if namespace != execCtx.Namespace {
+		return "", fmt.Errorf("AI Gateway model execution namespace mismatch")
+	}
+	current, err := a.client.GetAIGatewayModel(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway model no longer exists")
+	}
+	metadata := resources.AIGatewayModelManagedBy(current.AIGatewayModel)
+	if err := resources.ValidateModelOwnership(metadata, namespace); err != nil {
+		return "", err
+	}
+	if metadata[resources.ModelProtectedKey] == "true" {
+		if !modelUnprotectOnly(execCtx.PlannedChange, metadata, modelUpdateMetadata(req)) ||
+			!modelUnprotectPayloadUnchanged(current.AIGatewayModel, req) {
+			return "", fmt.Errorf("AI Gateway model is protected; unprotect it in a separate update")
+		}
+	}
+	merged := maps.Clone(metadata)
+	if merged == nil {
+		merged = make(map[string]string)
+	}
+	maps.Copy(merged, modelUpdateMetadata(req))
+	if req.AIGatewayModelAPI != nil {
+		req.AIGatewayModelAPI.ManagedBy = merged
+	} else {
+		req.AIGatewayModelModel.ManagedBy = merged
+	}
 	return a.client.UpdateAIGatewayModel(ctx, gatewayID, id, req, namespace)
+}
+
+func modelUnprotectPayloadUnchanged(current kkComps.AIGatewayModel, req kkComps.UpdateAIGatewayModelRequest) bool {
+	before, err := resources.AIGatewayModelMutablePayloadMap(current)
+	if err != nil {
+		return false
+	}
+	model := resources.AIGatewayModelResource{}
+	model.AIGatewayModelAPI = req.AIGatewayModelAPI
+	model.AIGatewayModelModel = req.AIGatewayModelModel
+	after, err := model.MutablePayloadMap()
+	if err != nil {
+		return false
+	}
+	delete(before, planner.FieldManagedBy)
+	delete(after, planner.FieldManagedBy)
+	return reflect.DeepEqual(before, after)
 }
 
 // Delete deletes an AI Gateway model.
@@ -87,6 +160,20 @@ func (a *AIGatewayModelAdapter) Delete(ctx context.Context, id string, execCtx *
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayModel(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	metadata := resources.AIGatewayModelManagedBy(current.AIGatewayModel)
+	if err := resources.ValidateModelOwnership(metadata, execCtx.Namespace); err != nil {
+		return err
+	}
+	if metadata[resources.ModelProtectedKey] == "true" {
+		return fmt.Errorf("AI Gateway model is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayModel(ctx, gatewayID, id)
 }
@@ -108,7 +195,56 @@ func (a *AIGatewayModelAdapter) GetByID(
 	if model == nil {
 		return nil, nil
 	}
+	metadata := resources.AIGatewayModelManagedBy(model.AIGatewayModel)
+	if err := resources.ValidateModelOwnership(metadata, execCtx.Namespace); err != nil {
+		return nil, err
+	}
 	return &aiGatewayModelResourceInfo{model: model}, nil
+}
+
+func modelCreateMetadata(req kkComps.CreateAIGatewayModelRequest) map[string]string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.ManagedBy
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.ManagedBy
+	}
+	return nil
+}
+
+func modelUpdateMetadata(req kkComps.UpdateAIGatewayModelRequest) map[string]string {
+	if req.AIGatewayModelAPI != nil {
+		return req.AIGatewayModelAPI.ManagedBy
+	}
+	if req.AIGatewayModelModel != nil {
+		return req.AIGatewayModelModel.ManagedBy
+	}
+	return nil
+}
+
+func validateModelPayloadOwnership(metadata map[string]string, execCtx *ExecutionContext) error {
+	if execCtx == nil {
+		return nil
+	}
+	if err := resources.ValidateModelOwnership(metadata, execCtx.Namespace); err != nil {
+		return err
+	}
+	if metadata[resources.ModelProtectedKey] != "true" && metadata[resources.ModelProtectedKey] != "false" {
+		return fmt.Errorf("AI Gateway model payload requires generated protection metadata; regenerate the plan")
+	}
+	return nil
+}
+
+func modelUnprotectOnly(change *planner.PlannedChange, current, desired map[string]string) bool {
+	if change == nil || len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
+		desired[resources.ModelProtectedKey] != "false" {
+		return false
+	}
+	before := maps.Clone(current)
+	after := maps.Clone(desired)
+	delete(before, resources.ModelProtectedKey)
+	delete(after, resources.ModelProtectedKey)
+	return maps.Equal(before, after)
 }
 
 // GetByName is not supported without a parent gateway context.

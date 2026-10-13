@@ -44,6 +44,8 @@ type PlanMetadata struct {
 
 // PlanSyncScope records the explicit resource collections used for sync planning.
 type PlanSyncScope struct {
+	ModelNamespaces            map[string][]string  `json:"model_namespaces,omitempty"`
+	GatewayNamespaces          []string             `json:"gateway_namespaces,omitempty"`
 	RootResourceTypes          []string             `json:"root_resource_types,omitempty"`
 	ChildResourceTypes         []PlanSyncChildScope `json:"child_resource_types,omitempty"`
 	RootChildResourceTypes     []string             `json:"root_child_resource_types,omitempty"`
