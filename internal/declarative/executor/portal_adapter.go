@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -36,15 +37,11 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 
 	// Map required fields
 	create.Name = common.ExtractResourceName(fields)
+	fieldcontracts.MapPortalBooleanCreateFields(fields, create)
 
 	// Map optional fields using utilities (SDK uses double pointers)
 	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
 	common.MapOptionalStringFieldToPtr(&create.DisplayName, fields, planner.FieldDisplayName)
-	common.MapOptionalBoolFieldToPtr(&create.AuthenticationEnabled, fields, planner.FieldAuthenticationEnabled)
-	common.MapOptionalBoolFieldToPtr(&create.RbacEnabled, fields, planner.FieldRBACEnabled)
-	common.MapOptionalBoolFieldToPtr(&create.SiprEnabled, fields, planner.FieldSIPREnabled)
-	common.MapOptionalBoolFieldToPtr(&create.AutoApproveDevelopers, fields, planner.FieldAutoApproveDevelopers)
-	common.MapOptionalBoolFieldToPtr(&create.AutoApproveApplications, fields, planner.FieldAutoApproveApplications)
 
 	if defaultAPIVisibility, ok := fields[planner.FieldDefaultAPIVisibility].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
@@ -80,6 +77,9 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 	// Only include fields that are in the fields map
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
+		if fieldcontracts.MapPortalBooleanUpdateField(field, value, update) {
+			continue
+		}
 		switch field {
 		case planner.FieldName:
 			if name, ok := value.(string); ok {
@@ -92,26 +92,6 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 		case planner.FieldDisplayName:
 			if displayName, ok := value.(string); ok {
 				update.DisplayName = &displayName
-			}
-		case planner.FieldAuthenticationEnabled:
-			if authEnabled, ok := value.(bool); ok {
-				update.AuthenticationEnabled = &authEnabled
-			}
-		case planner.FieldRBACEnabled:
-			if rbacEnabled, ok := value.(bool); ok {
-				update.RbacEnabled = &rbacEnabled
-			}
-		case planner.FieldSIPREnabled:
-			if siprEnabled, ok := value.(bool); ok {
-				update.SiprEnabled = &siprEnabled
-			}
-		case planner.FieldAutoApproveDevelopers:
-			if autoApproveDevelopers, ok := value.(bool); ok {
-				update.AutoApproveDevelopers = &autoApproveDevelopers
-			}
-		case planner.FieldAutoApproveApplications:
-			if autoApproveApplications, ok := value.(bool); ok {
-				update.AutoApproveApplications = &autoApproveApplications
 			}
 		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {

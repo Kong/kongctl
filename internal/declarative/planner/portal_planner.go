@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -239,20 +240,12 @@ func extractPortalFields(resource any) map[string]any {
 	}
 
 	fields[FieldName] = portal.Name
+	fieldcontracts.ExtractPortalBooleans(portal.CreatePortal, fields)
 	if portal.DisplayName != nil {
 		fields[FieldDisplayName] = *portal.DisplayName
 	}
 	if portal.Description != nil {
 		fields[FieldDescription] = *portal.Description
-	}
-	if portal.AuthenticationEnabled != nil {
-		fields[FieldAuthenticationEnabled] = *portal.AuthenticationEnabled
-	}
-	if portal.RbacEnabled != nil {
-		fields[FieldRBACEnabled] = *portal.RbacEnabled
-	}
-	if portal.SiprEnabled != nil {
-		fields[FieldSIPREnabled] = *portal.SiprEnabled
 	}
 	if portal.DefaultAPIVisibility != nil {
 		fields[FieldDefaultAPIVisibility] = string(*portal.DefaultAPIVisibility)
@@ -262,12 +255,6 @@ func extractPortalFields(resource any) map[string]any {
 	}
 	if portal.DefaultApplicationAuthStrategyID != nil {
 		fields[FieldDefaultApplicationStrategyID] = *portal.DefaultApplicationAuthStrategyID
-	}
-	if portal.AutoApproveDevelopers != nil {
-		fields[FieldAutoApproveDevelopers] = *portal.AutoApproveDevelopers
-	}
-	if portal.AutoApproveApplications != nil {
-		fields[FieldAutoApproveApplications] = *portal.AutoApproveApplications
 	}
 
 	// Copy user-defined labels only (protection label will be added during execution)
@@ -395,26 +382,6 @@ func (p *portalPlannerImpl) addAuthStrategyReference(change *PlannedChange, port
 	}
 }
 
-func planOptionalBoolChange(
-	desired *bool,
-	current *bool,
-	fieldName string,
-	updates map[string]any,
-	changedFields map[string]FieldChange,
-) {
-	if desired == nil {
-		return
-	}
-	if current == nil || *current != *desired {
-		updates[fieldName] = *desired
-		var oldValue any
-		if current != nil {
-			oldValue = *current
-		}
-		changedFields[fieldName] = FieldChange{Old: oldValue, New: *desired}
-	}
-}
-
 // shouldUpdatePortal checks if portal needs update based on configured fields only
 func (p *portalPlannerImpl) shouldUpdatePortal(
 	current state.Portal,
@@ -461,29 +428,14 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 		}
 	}
 
-	planOptionalBoolChange(
-		desired.AuthenticationEnabled,
-		current.GetAuthenticationEnabled(),
-		FieldAuthenticationEnabled,
-		updates,
-		changedFields,
-	)
-	planOptionalBoolChange(desired.RbacEnabled, current.GetRbacEnabled(), FieldRBACEnabled, updates, changedFields)
-	planOptionalBoolChange(desired.SiprEnabled, current.GetSiprEnabled(), FieldSIPREnabled, updates, changedFields)
-	planOptionalBoolChange(
-		desired.AutoApproveDevelopers,
-		current.GetAutoApproveDevelopers(),
-		FieldAutoApproveDevelopers,
-		updates,
-		changedFields,
-	)
-	planOptionalBoolChange(
-		desired.AutoApproveApplications,
-		current.GetAutoApproveApplications(),
-		FieldAutoApproveApplications,
-		updates,
-		changedFields,
-	)
+	for name, change := range fieldcontracts.ComparePortalBooleans(desired.CreatePortal, &current) {
+		updates[name] = change.New
+		var old any
+		if change.Old != nil {
+			old = *change.Old
+		}
+		changedFields[name] = FieldChange{Old: old, New: change.New}
+	}
 
 	if desired.DefaultAPIVisibility != nil {
 		currentVisibility := string(current.DefaultAPIVisibility)

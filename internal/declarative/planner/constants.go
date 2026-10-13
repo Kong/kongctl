@@ -1,6 +1,9 @@
 package planner
 
-import "github.com/kong/kongctl/internal/declarative/resources"
+import (
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
+	"github.com/kong/kongctl/internal/declarative/resources"
+)
 
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
@@ -134,10 +137,10 @@ const (
 
 // Common portal plan field identifiers.
 const (
-	FieldAuthenticationEnabled        = "authentication_enabled"
+	FieldAuthenticationEnabled        = fieldcontracts.FieldAuthenticationEnabled
 	FieldAllowedIPs                   = "allowed_ips"
-	FieldAutoApproveApplications      = "auto_approve_applications"
-	FieldAutoApproveDevelopers        = "auto_approve_developers"
+	FieldAutoApproveApplications      = fieldcontracts.FieldAutoApproveApplications
+	FieldAutoApproveDevelopers        = fieldcontracts.FieldAutoApproveDevelopers
 	FieldAutoApproveRegistrations     = "auto_approve_registrations"
 	FieldBasicAuthEnabled             = "basic_auth_enabled"
 	FieldCanOwnApplications           = "can_own_applications"
@@ -166,8 +169,8 @@ const (
 	FieldNPA                          = "npa"
 	FieldPreview                      = "preview"
 	FieldReplyToEmail                 = "reply_to_email"
-	FieldRBACEnabled                  = "rbac_enabled"
-	FieldSIPREnabled                  = "sipr_enabled"
+	FieldRBACEnabled                  = fieldcontracts.FieldRBACEnabled
+	FieldSIPREnabled                  = fieldcontracts.FieldSIPREnabled
 	FieldSSL                          = "ssl"
 	FieldRobots                       = "robots"
 	FieldSpecRenderer                 = "spec_renderer"
