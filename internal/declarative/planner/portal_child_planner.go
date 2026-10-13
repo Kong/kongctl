@@ -4763,40 +4763,34 @@ func (p *Planner) planPortalTeamRolesChanges(
 			}
 		}
 
-		desiredKeys := make(map[string]bool)
-		for _, role := range desiredRoles {
-			key := buildPortalTeamRoleKey(
-				role.RoleName,
-				resolveEntityID(role.EntityID),
-				role.EntityTypeName,
-				role.EntityRegion,
-			)
-			if desiredKeys[key] {
-				return fmt.Errorf("duplicate portal team role assignment %q for team %q", key, teamRef)
-			}
-			desiredKeys[key] = true
-
-			if _, exists := existingRoles[key]; exists {
-				continue
-			}
-
-			p.planPortalTeamRoleCreate(
-				parentNamespace,
-				portalRef,
-				portalName,
-				portalID,
-				teamRef,
-				teamName,
-				teamID,
-				findChangeID(plan, ResourceTypePortalTeam, teamRef),
-				role,
-				plan,
-			)
-		}
-
-		if plan.Metadata.Mode == PlanModeSync && teamID != "" {
-			for key, existingRole := range existingRoles {
-				if !desiredKeys[key] {
+		err := reconcileRoleAssignments(desiredRoles, existingRoles,
+			roleAssignmentOperations[resources.PortalTeamRoleResource, state.PortalTeamRole]{
+				key: func(role resources.PortalTeamRoleResource) string {
+					return buildPortalTeamRoleKey(
+						role.RoleName,
+						resolveEntityID(role.EntityID),
+						role.EntityTypeName,
+						role.EntityRegion,
+					)
+				},
+				duplicate: func(key string) error {
+					return fmt.Errorf("duplicate portal team role assignment %q for team %q", key, teamRef)
+				},
+				create: func(role resources.PortalTeamRoleResource) {
+					p.planPortalTeamRoleCreate(
+						parentNamespace,
+						portalRef,
+						portalName,
+						portalID,
+						teamRef,
+						teamName,
+						teamID,
+						findChangeID(plan, ResourceTypePortalTeam, teamRef),
+						role,
+						plan,
+					)
+				},
+				remove: func(existingRole state.PortalTeamRole) {
 					p.planPortalTeamRoleDelete(
 						parentNamespace,
 						portalRef,
@@ -4808,8 +4802,10 @@ func (p *Planner) planPortalTeamRolesChanges(
 						existingRole,
 						plan,
 					)
-				}
-			}
+				},
+			}, plan.Metadata.Mode == PlanModeSync && teamID != "")
+		if err != nil {
+			return err
 		}
 	}
 
