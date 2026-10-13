@@ -1994,6 +1994,7 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 	var allData []kkComps.AIGatewayModel
 	var pageAfter *string
 	pageSize := int64(100)
+	seenCursors := make(map[string]bool)
 
 	for {
 		req := kkOps.ListAiGatewayModelsRequest{
@@ -2008,15 +2009,22 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 		}
 
 		if resp == nil || resp.ListAIGatewayModelsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway models returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayModelsResponse.Data...)
 
 		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelsResponse.Meta.Page.Next)
 		if nextCursor == "" {
+			if next := resp.ListAIGatewayModelsResponse.Meta.Page.Next; next != nil && *next != "" {
+				return nil, fmt.Errorf("list AI Gateway models returned an invalid next-page cursor for gateway %s", gatewayID)
+			}
 			break
 		}
+		if seenCursors[nextCursor] {
+			return nil, fmt.Errorf("list AI Gateway models repeated a pagination cursor for gateway %s", gatewayID)
+		}
+		seenCursors[nextCursor] = true
 		pageAfter = &nextCursor
 	}
 
@@ -2154,11 +2162,7 @@ func (c *Client) DeleteAIGatewayModel(ctx context.Context, gatewayID string, mod
 }
 
 func normalizedAIGatewayModelLabels(model kkComps.AIGatewayModel) map[string]string {
-	normalized := resources.AIGatewayModelLabels(model)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedModelOwnership(model)
 }
 
 func aiGatewayModelCreateRequestName(req kkComps.CreateAIGatewayModelRequest) string {

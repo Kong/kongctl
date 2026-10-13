@@ -33,6 +33,28 @@ type namespaceRegistration struct {
 
 var namespaceRegistrations []namespaceRegistration
 
+// WithNestedNamespaceGroups visits the original child slices before extraction,
+// so defaulting updates their metadata rather than copies of their values.
+func WithNestedNamespaceGroups[R any](
+	source func(*ResourceSet) [][]R,
+	participant func(*R) NamespaceParticipant,
+) ResourceRegistrationOption {
+	return func(ops *resourceOps) error {
+		if ops.namespace == nil || ops.explain.typ != reflect.TypeFor[R]() {
+			return fmt.Errorf("nested namespace groups require a matching namespace registration")
+		}
+		ops.namespace.visitNested = func(rs *ResourceSet, fn func(NamespaceParticipant) error) error {
+			for _, group := range source(rs) {
+				if err := visitNamespaceSlice(group, participant, fn); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		return nil
+	}
+}
+
 // WithNamespace registers typed metadata access alongside the resource's
 // existing slice accessor and supplies its desired namespace selection policy.
 // Order preserves namespace diagnostic traversal.

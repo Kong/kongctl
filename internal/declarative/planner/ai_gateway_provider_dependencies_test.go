@@ -52,6 +52,9 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			require.NoError(t, err)
 			var current kkComps.AIGatewayModel
 			require.NoError(t, json.Unmarshal(data, &current))
+			current.AIGatewayModelAIGatewayModelModel.ManagedBy = map[string]string{
+				resources.ModelNamespaceKey: "default", resources.ModelProtectedKey: "false",
+			}
 			modelAPI := &providerOrderModelAPI{
 				testAIGatewayModelAPI: testAIGatewayModelAPI{models: []kkComps.AIGatewayModel{current}},
 			}

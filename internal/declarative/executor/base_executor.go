@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/log"
@@ -224,6 +225,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 
 	// Check protection status using common utility
 	isProtected := common.GetProtectionStatus(resource.GetNormalizedLabels())
+	if b.ops.ResourceType() == planner.ResourceTypeAIGatewayModel {
+		isProtected = labels.IsProtectedResource(resource.GetNormalizedLabels())
+	}
 	isProtectionChange := common.IsProtectionChange(change.Protection)
 
 	// Validate protection using common utility
@@ -318,6 +322,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 
 	// Check if resource is protected
 	isProtected := common.GetProtectionStatus(resource.GetNormalizedLabels())
+	if b.ops.ResourceType() == planner.ResourceTypeAIGatewayModel {
+		isProtected = labels.IsProtectedResource(resource.GetNormalizedLabels())
+	}
 	if isProtected {
 		return fmt.Errorf("resource is protected and cannot be deleted")
 	}
@@ -354,6 +361,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	ctx context.Context, resourceName string, change planner.PlannedChange,
 ) (ResourceInfo, error) {
+	if b.ops.ResourceType() == string(resources.ResourceTypeAIGatewayModel) {
+		return b.ops.GetByID(ctx, change.ResourceID, NewExecutionContext(&change))
+	}
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	// Strategy 1: Standard name-based lookup

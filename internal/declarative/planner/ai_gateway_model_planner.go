@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -44,49 +43,27 @@ func (p *Planner) planAIGatewayModelChanges(
 		)
 		return nil
 	}
+	if p.resourceCache != nil && p.resourceCache.aiGatewayModelsPlanned[gatewayID] {
+		return nil
+	}
+	desired, namespaces, err := p.modelGatewayDeclarations(gatewayRef, gatewayID)
+	if err != nil {
+		return err
+	}
 
 	currentModels, err := p.listAIGatewayModels(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway models for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayModel, desired, currentModels,
-		nameMatchedChildOperations[resources.AIGatewayModelResource, state.AIGatewayModel]{
-			desiredName: func(desired resources.AIGatewayModelResource) string {
-				return desired.Name()
-			},
-			currentName: func(current state.AIGatewayModel) string {
-				return resources.AIGatewayModelName(current.AIGatewayModel)
-			},
-			fetch: func(_ resources.AIGatewayModelResource, current state.AIGatewayModel) (*state.AIGatewayModel, error) {
-				id := resources.AIGatewayModelID(current.AIGatewayModel)
-				full, err := p.client.GetAIGatewayModel(ctx, gatewayID, id)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway model %s: %w", id, err)
-				}
-				return full, nil
-			},
-			diff: p.shouldUpdateAIGatewayModel,
-			create: func(desired resources.AIGatewayModelResource) {
-				p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, desired,
-					aiGatewayModelCreateDependencies(desired, providerCreateDepsByName, policyCreateDepsByName), plan)
-			},
-			update: func(current state.AIGatewayModel, desired resources.AIGatewayModelResource,
-				fields map[string]any, changed map[string]FieldChange,
-			) {
-				p.planAIGatewayModelUpdate(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayModelID(current.AIGatewayModel), desired, fields, changed,
-					aiGatewayModelCreateDependencies(desired, providerCreateDepsByName, policyCreateDepsByName), plan)
-			},
-			protected: func(current state.AIGatewayModel) bool {
-				return labels.IsProtectedResource(current.NormalizedLabels)
-			},
-			remove: func(current state.AIGatewayModel) {
-				p.planAIGatewayModelDelete(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayModelID(current.AIGatewayModel),
-					resources.AIGatewayModelName(current.AIGatewayModel), plan)
-			},
-		}, plan)
+	if err := p.reconcileOwnedAIGatewayModels(ctx, gatewayRef, gatewayName, gatewayID,
+		providerCreateDepsByName, policyCreateDepsByName, desired, currentModels, namespaces, plan); err != nil {
+		return err
+	}
+	if p.resourceCache != nil {
+		p.resourceCache.aiGatewayModelsPlanned[gatewayID] = true
+	}
+	return nil
 }
 
 func (p *Planner) planAIGatewayModelCreatesForNewGateway(
@@ -113,7 +90,7 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 }
 
 func (p *Planner) planAIGatewayModelCreate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
@@ -127,13 +104,17 @@ func (p *Planner) planAIGatewayModelCreate(
 		return
 	}
 
+	fields[FieldManagedBy] = resources.BuildModelManagedBy(nil, model.ManagedBy(),
+		resources.GetNamespace(model.Kongctl), model.Protected())
+
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayModel, model.Ref),
 		ResourceType: ResourceTypeAIGatewayModel,
 		ResourceRef:  model.Ref,
 		Action:       ActionCreate,
 		Fields:       fields,
-		Namespace:    namespace,
+		Namespace:    resources.GetNamespace(model.Kongctl),
+		Protection:   model.Protected(),
 		DependsOn:    dependsOn,
 	}
 	if gatewayID != "" {
@@ -153,7 +134,7 @@ func (p *Planner) planAIGatewayModelCreate(
 }
 
 func (p *Planner) planAIGatewayModelUpdate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	gatewayID string,
 	modelID string,
@@ -171,7 +152,8 @@ func (p *Planner) planAIGatewayModelUpdate(
 		Action:        ActionUpdate,
 		Fields:        updateFields,
 		ChangedFields: changedFields,
-		Namespace:     namespace,
+		Namespace:     resources.GetNamespace(model.Kongctl),
+		Protection:    model.Protected(),
 		DependsOn:     dependsOn,
 		Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
 	}

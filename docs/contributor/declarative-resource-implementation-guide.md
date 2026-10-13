@@ -77,6 +77,14 @@ Registering a declaration does not complete those steps automatically.
   see [namespace capabilities](#namespace-capabilities). Ordinary managed
   children inherit namespace and protection from their parent; do not give
   them independent `kongctl` configuration.
+
+  AI Gateway models are an intentional exception: `WithNamespace` supplies
+  independent ownership and protection using reserved lowercase `managed_by`
+  keys. Nested namespace groups must visit original slices before extraction.
+  Model namespace scope is captured per source, separately from gateway scope;
+  parent linkage never authorizes model mutation. See
+  [model ownership](../ai-gateway-model-ownership.md) for migration and API
+  limits.
 - Follow the [maturity policy](maturity.md). Resources default to GA.
   Co-locate `WithMaturity` and narrower `WithOperationMaturity` overrides
   with registration. Maturity is discovery metadata, not runtime gating or
