@@ -643,6 +643,8 @@ for create extraction, comparison, request mapping and list/detail export.
 Enroll each field once with declaration, observation and update accessors;
 do not add parallel field lists in those callers. Omission is unmanaged,
 explicit false is retained, and an absent observation differs from false.
+These projections preserve pointer presence; SDK wire-serialization defaults
+remain unchanged and separate from declarative omission semantics.
 The planner retains `Field*` aliases and converts contract changes into plan
 diagnostics. Update mapping handles one field at a time to preserve caller
 error timing. This pilot does not cover strings, enums, labels, references
