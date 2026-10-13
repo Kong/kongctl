@@ -5,16 +5,25 @@ import (
 	"fmt"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
 )
 
+// Plain fixtures preserve pointer presence without SDK decoding defaults.
+type (
+	portalCreateFixture kkComps.CreatePortal
+	portalListFixture   kkComps.ListPortalsResponsePortal
+)
+
 func TestPortalBooleanContractPlanning(t *testing.T) {
-	for _, field := range []string{
+	booleanFields := []string{
 		FieldAuthenticationEnabled, FieldRBACEnabled, FieldSIPREnabled,
 		FieldAutoApproveDevelopers, FieldAutoApproveApplications,
-	} {
+	}
+	for _, field := range booleanFields {
 		for _, desiredValue := range []any{nil, false, true} {
 			for _, currentValue := range []any{nil, false, true} {
 				t.Run(fmt.Sprintf("%s/desired=%v/current=%v", field, desiredValue, currentValue), func(t *testing.T) {
@@ -22,11 +31,20 @@ func TestPortalBooleanContractPlanning(t *testing.T) {
 					var current state.Portal
 					payload, err := json.Marshal(map[string]any{field: desiredValue})
 					require.NoError(t, err)
-					require.NoError(t, json.Unmarshal(payload, &desired.CreatePortal))
+					var desiredCreate portalCreateFixture
+					require.NoError(t, json.Unmarshal(payload, &desiredCreate))
+					desired.CreatePortal = kkComps.CreatePortal(desiredCreate)
 					payload, err = json.Marshal(map[string]any{field: currentValue})
 					require.NoError(t, err)
-					require.NoError(t, json.Unmarshal(payload, &current.ListPortalsResponsePortal))
+					var currentList portalListFixture
+					require.NoError(t, json.Unmarshal(payload, &currentList))
+					current.ListPortalsResponsePortal = kkComps.ListPortalsResponsePortal(currentList)
 					fields := extractPortalFields(desired)
+					for _, other := range booleanFields {
+						if other != field {
+							require.NotContains(t, fields, other)
+						}
+					}
 					if desiredValue == nil {
 						require.NotContains(t, fields, field)
 					} else {
