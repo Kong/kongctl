@@ -251,7 +251,7 @@ const listPageSize = 100
 // The `next` link in the response cannot be followed: on Konnect hosted
 // control planes it carries an internal cluster address. Pagination is
 // therefore driven by constructing offset and size directly.
-func listAll(helper cmd.Helper, path string) ([]map[string]any, error) {
+func listAll(client *meshClient, path string) ([]map[string]any, error) {
 	return paginate(func(offset int) (listEnvelope, error) {
 		query := url.Values{}
 		query.Set("size", fmt.Sprint(listPageSize))
@@ -259,7 +259,7 @@ func listAll(helper cmd.Helper, path string) ([]map[string]any, error) {
 			query.Set("offset", fmt.Sprint(offset))
 		}
 
-		body, err := fetch(helper, path+"?"+query.Encode())
+		body, err := fetch(client, path+"?"+query.Encode())
 		if err != nil {
 			return listEnvelope{}, err
 		}
@@ -314,15 +314,15 @@ func listPayload(items []map[string]any) map[string]any {
 
 // fetch performs a GET against the selected control plane and returns the
 // response body.
-func fetch(helper cmd.Helper, path string) ([]byte, error) {
-	body, _, err := send(helper, http.MethodGet, path, nil)
+func fetch(client *meshClient, path string) ([]byte, error) {
+	body, _, err := send(client, http.MethodGet, path, nil)
 	return body, err
 }
 
 // sendForStatus performs a request and returns only the response status, for
 // callers that distinguish a created resource from a replaced one.
-func sendForStatus(helper cmd.Helper, method, path string, body []byte) (int, error) {
-	_, status, err := send(helper, method, path, body)
+func sendForStatus(client *meshClient, method, path string, body []byte) (int, error) {
+	_, status, err := send(client, method, path, body)
 	return status, err
 }
 
@@ -333,8 +333,8 @@ func sendForStatus(helper cmd.Helper, method, path string, body []byte) (int, er
 // deprecation notices for the resource that was just written. They are the only
 // place the control plane reports a resource it accepted but wants changed, so
 // they are read here rather than discarded with the rest of the body.
-func sendForWrite(helper cmd.Helper, method, path string, body []byte) (int, []string, error) {
-	respBody, status, err := send(helper, method, path, body)
+func sendForWrite(client *meshClient, method, path string, body []byte) (int, []string, error) {
+	respBody, status, err := send(client, method, path, body)
 	if err != nil {
 		return status, nil, err
 	}
@@ -370,25 +370,31 @@ func parseWarnings(body []byte) []string {
 	return warnings
 }
 
-// send performs a request against the selected control plane and returns the
-// response body.
-//
-// Every mesh call goes through here so that control plane resolution,
-// credentials, and error rendering behave identically across commands.
-func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, error) {
+// meshClient holds the target, credentials and transport for one invocation.
+type meshClient struct {
+	helper      cmd.Helper
+	target      meshTarget
+	httpClient  *httpclient.LoggingHTTPClient
+	tokenSource *auth.TokenSource
+	token       string
+	logger      *slog.Logger
+	ctx         context.Context
+}
+
+func newMeshClient(helper cmd.Helper) (*meshClient, error) {
 	cfg, err := helper.GetConfig()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	logger, err := helper.GetLogger()
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	target, err := resolveTarget(helper, cfg)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	ctx := helper.GetContext()
@@ -408,13 +414,30 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 	if !target.selfManaged {
 		tokenSource, err = konnectcommon.GetAccessTokenSource(cfg, logger)
 		if err != nil {
-			return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+			return nil, fmt.Errorf("resolve Konnect access token: %w", err)
 		}
 		if _, err := konnectcommon.ResolveAccessToken(ctx, cfg, tokenSource); err != nil {
-			return nil, 0, fmt.Errorf("resolve Konnect access token: %w", err)
+			return nil, fmt.Errorf("resolve Konnect access token: %w", err)
 		}
 	}
 
+	httpClient, err := newControlPlaneClient(cfg, target, logger)
+	if err != nil {
+		return nil, err
+	}
+	return &meshClient{
+		helper: helper, target: target, httpClient: httpClient,
+		tokenSource: tokenSource, token: strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneTokenConfigPath)),
+		logger: logger, ctx: ctx,
+	}, nil
+}
+
+// send performs a request against the selected control plane and returns the
+// response body.
+//
+// Every mesh call goes through here so that control plane resolution,
+// credentials, and error rendering behave identically across commands.
+func send(client *meshClient, method, path string, body []byte) ([]byte, int, error) {
 	var (
 		payload io.Reader
 		headers map[string]string
@@ -424,28 +447,21 @@ func send(helper cmd.Helper, method, path string, body []byte) ([]byte, int, err
 		headers = map[string]string{"Content-Type": "application/json"}
 	}
 
-	client, err := newControlPlaneClient(cfg, target, logger)
-	if err != nil {
-		return nil, 0, err
-	}
-
 	var result *apiutil.Result
-	if target.selfManaged {
-		// An empty token sends no authorization header, which is what a
-		// control plane reached over loopback expects: Kuma authenticates
-		// such a caller as admin.
-		result, err = apiutil.Request(ctx, client, method, target.baseURL, path,
-			strings.TrimSpace(cfg.GetString(meshcommon.ControlPlaneTokenConfigPath)), headers, payload)
+	var err error
+	if client.target.selfManaged {
+		result, err = apiutil.Request(client.ctx, client.httpClient, method, client.target.baseURL, path,
+			client.token, headers, payload)
 	} else {
-		result, err = apiutil.RequestWithTokenSource(
-			ctx, client, method, target.baseURL, path, tokenSource, headers, payload,
-		)
+		result, err = apiutil.RequestWithTokenSource(client.ctx, client.httpClient, method,
+			client.target.baseURL, path, client.tokenSource, headers, payload)
 	}
+
 	if err != nil {
 		return nil, 0, err
 	}
 
-	logger.Debug("mesh control plane call completed",
+	client.logger.Debug("mesh control plane call completed",
 		"method", method, "path", path, "status_code", result.StatusCode)
 
 	if result.StatusCode < http.StatusOK || result.StatusCode >= http.StatusMultipleChoices {

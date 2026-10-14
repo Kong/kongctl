@@ -302,7 +302,11 @@ func issueToken(helper cmd.Helper, path string, request any, description string)
 		return fmt.Errorf("failed to encode the %s request: %w", description, err)
 	}
 
-	response, _, err := send(helper, http.MethodPost, path, body)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	response, _, err := send(client, http.MethodPost, path, body)
 	if err != nil {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("failed to issue a %s", description), err, helper.GetCmd(),

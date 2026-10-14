@@ -61,14 +61,18 @@ func runDumpResources(helper cmd.Helper, profile string) error {
 		}
 	}
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}
 
 	selected := selectTypesToDump(descriptors, profile)
 
-	meshNames, err := listMeshNames(helper)
+	meshNames, err := listMeshNames(client)
 	if err != nil {
 		return err
 	}
@@ -77,7 +81,7 @@ func runDumpResources(helper cmd.Helper, profile string) error {
 	// resources that depend on them, then the signing keys.
 	var first, middle, last []map[string]any
 	for _, descriptor := range selected {
-		items, err := collectResources(helper, descriptor, meshNames)
+		items, err := collectResources(client, descriptor, meshNames)
 		if err != nil {
 			return cmd.PrepareExecutionError(
 				fmt.Sprintf("failed to export %s", descriptor.Plural()), err, helper.GetCmd(),
@@ -210,15 +214,15 @@ func dumpPriority(descriptor ResourceDescriptor) int {
 // collectResources lists every instance of a type, visiting each mesh in turn
 // for mesh scoped types so the export covers the whole control plane.
 func collectResources(
-	helper cmd.Helper, descriptor ResourceDescriptor, meshNames []string,
+	client *meshClient, descriptor ResourceDescriptor, meshNames []string,
 ) ([]map[string]any, error) {
 	if !descriptor.IsMeshScoped() {
-		return listAll(helper, descriptor.CollectionPath(""))
+		return listAll(client, descriptor.CollectionPath(""))
 	}
 
 	var items []map[string]any
 	for _, mesh := range meshNames {
-		page, err := listAll(helper, descriptor.CollectionPath(mesh))
+		page, err := listAll(client, descriptor.CollectionPath(mesh))
 		if err != nil {
 			return nil, err
 		}
@@ -228,10 +232,10 @@ func collectResources(
 }
 
 // listMeshNames reads the meshes an export has to walk.
-func listMeshNames(helper cmd.Helper) ([]string, error) {
-	items, err := listAll(helper, "/meshes")
+func listMeshNames(client *meshClient) ([]string, error) {
+	items, err := listAll(client, "/meshes")
 	if err != nil {
-		return nil, cmd.PrepareExecutionError("failed to list meshes", err, helper.GetCmd())
+		return nil, cmd.PrepareExecutionError("failed to list meshes", err, client.helper.GetCmd())
 	}
 
 	names := make([]string, 0, len(items))

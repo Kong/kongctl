@@ -94,7 +94,11 @@ func (c *getResourceTypesCmd) runE(cobraCmd *cobra.Command, args []string) error
 	}
 	defer printer.Flush()
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}

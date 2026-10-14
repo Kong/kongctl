@@ -237,16 +237,8 @@ func bindOwnFlags(c *cobra.Command, args []string) error {
 }
 
 // chainMeshPreRun runs the caller's pre-run, then binds the mesh command's own
-// flags.
-//
-// The mesh command used to assign the caller's pre-run outright and bind
-// nothing itself, which left binding to whoever registered it. The four direct
-// verb paths each called meshcommon.BindFlags in their own closure; the
-// explicit konnect path passed the general konnect pre-run, which knows
-// nothing about mesh, so every mesh flag there was registered but unbound and
-// `get konnect mesh --control-plane-url ...` reported no control plane
-// selected. Binding here means the two trees cannot diverge again, and
-// matches how every other product owns both halves.
+// flags. Binding here keeps the direct and konnect command trees bound
+// identically, matching how other products own both halves.
 func chainMeshPreRun(
 	parentPreRun func(*cobra.Command, []string) error,
 ) func(*cobra.Command, []string) error {

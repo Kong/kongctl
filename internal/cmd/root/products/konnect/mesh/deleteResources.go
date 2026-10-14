@@ -29,7 +29,11 @@ func runDeleteResources(helper cmd.Helper, args []string) error {
 		return err
 	}
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}
@@ -55,7 +59,7 @@ func runDeleteResources(helper cmd.Helper, args []string) error {
 		mesh = meshcommon.ResolveMesh(cfg)
 	}
 
-	if _, err := sendForStatus(helper, http.MethodDelete, descriptor.ItemPath(mesh, name), nil); err != nil {
+	if _, err := sendForStatus(client, http.MethodDelete, descriptor.ItemPath(mesh, name), nil); err != nil {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("failed to delete %s %s", descriptor.Singular(), name), err, helper.GetCmd(),
 		)

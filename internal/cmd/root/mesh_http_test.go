@@ -5,14 +5,127 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestMeshDumpResolvesTargetOnceAndReusesConnection(t *testing.T) {
+	var lookups atomic.Int32
+	var mu sync.Mutex
+	connections := map[string]map[string]bool{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v3/mesh/control-planes" {
+			id := fmt.Sprintf("00000000-0000-4000-8000-%012d", lookups.Add(1))
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"data": []map[string]any{{"id": id, "name": "chosen", "version": "v3"}},
+				"meta": map[string]any{"page": map[string]any{"total": 1, "size": 100, "number": 1}},
+			})
+			return
+		}
+		mu.Lock()
+		prefix := strings.Split(r.URL.Path, "/")[4]
+		if connections[prefix] == nil {
+			connections[prefix] = map[string]bool{}
+		}
+		connections[prefix][r.RemoteAddr] = true
+		mu.Unlock()
+		if strings.HasSuffix(r.URL.Path, "/_resources") {
+			writeJSON(t, w, http.StatusOK, meshDescriptors())
+		} else {
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"items": []map[string]any{{"name": "demo", "type": "Mesh"}}, "total": 1,
+			})
+		}
+	}))
+	defer server.Close()
+	for i := range 2 {
+		result := executeRootForTest(t, "dump", "mesh", "--export-profile", "all",
+			"--control-plane-name", "chosen", "--base-url", server.URL, "--pat", "test-pat")
+		if result.exitCode != 0 {
+			t.Fatalf("dump failed: %s", result.stderr)
+		}
+		if lookups.Load() != int32(i+1) {
+			t.Fatalf("expected one name lookup per invocation, got %d", lookups.Load())
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(connections) != 2 {
+		t.Fatalf("expected separately resolved targets for two invocations, got %v", connections)
+	}
+	for target, addresses := range connections {
+		if len(addresses) != 1 {
+			t.Fatalf("target %s used %d connections instead of reusing one", target, len(addresses))
+		}
+	}
+}
+
+func TestMeshDeleteEscapesResourceNames(t *testing.T) {
+	for _, resource := range []string{"meshes", "meshtimeouts"} {
+		for _, name := range []string{"a#b", "a?b=c", "a%b", "a/b"} {
+			t.Run(resource+"/"+name, func(t *testing.T) {
+				const mesh = "mesh#?%/name"
+				var deletes atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					if r.URL.Path == "/_resources" {
+						writeJSON(t, w, http.StatusOK, meshDescriptors())
+						return
+					}
+					want := "/meshes/" + url.PathEscape(name)
+					if resource == "meshtimeouts" {
+						want = "/meshes/" + url.PathEscape(mesh) + "/meshtimeouts/" + url.PathEscape(name)
+					}
+					if r.Method != http.MethodDelete || r.RequestURI != want || r.URL.RawQuery != "" {
+						t.Errorf("unexpected deletion: %s %s; want DELETE %s", r.Method, r.RequestURI, want)
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					deletes.Add(1)
+					w.WriteHeader(http.StatusNoContent)
+				}))
+				defer server.Close()
+				result := executeRootForTest(t, "delete", "mesh", resource, name,
+					"--mesh", mesh, "--control-plane-url", server.URL)
+				if result.exitCode != 0 || deletes.Load() != 1 {
+					t.Fatalf("delete failed: %s", result.stderr)
+				}
+			})
+		}
+	}
+}
+
+func TestMeshInspectEscapesDataplaneAndPortNames(t *testing.T) {
+	const mesh, name, kri = "mesh#?%/name", "dp#?%/name", "kri#?%/port"
+	base := "/meshes/" + url.PathEscape(mesh) + "/dataplanes/" + url.PathEscape(name)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		switch r.RequestURI {
+		case base + "/_layout":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"inbounds": []map[string]any{{"kri": kri}},
+			})
+		case base + "/_inbounds/" + url.PathEscape(kri) + "/_policies":
+			writeJSON(t, w, http.StatusOK, map[string]any{"policies": []any{}})
+		default:
+			t.Errorf("unexpected inspection path: %s", r.RequestURI)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+	result := executeRootForTest(t, "inspect", "mesh", "dataplane", name,
+		"--mesh", mesh, "--control-plane-url", server.URL, "-o", "json")
+	if result.exitCode != 0 || requests.Load() != 2 {
+		t.Fatalf("inspection failed: %s", result.stderr)
+	}
+}
 
 // These drive the whole root command against a fake control plane, so the
 // pre-run, flag binding, target resolution, credential choice, HTTP request,

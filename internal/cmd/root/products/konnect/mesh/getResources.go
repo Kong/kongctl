@@ -46,7 +46,11 @@ func runGetResources(helper cmd.Helper, args []string) error {
 	}
 	defer printer.Flush()
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}
@@ -71,7 +75,7 @@ func runGetResources(helper cmd.Helper, args []string) error {
 		raw   any
 	)
 	if name != "" {
-		body, fetchErr := fetch(helper, path)
+		body, fetchErr := fetch(client, path)
 		if fetchErr != nil {
 			return cmd.PrepareExecutionError(
 				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Singular()), fetchErr, helper.GetCmd(),
@@ -91,7 +95,7 @@ func runGetResources(helper cmd.Helper, args []string) error {
 	} else {
 		// A collection is paged: one request returns the control plane's first
 		// page, which for a large mesh silently omits the rest.
-		items, err = listAll(helper, path)
+		items, err = listAll(client, path)
 		if err != nil {
 			return cmd.PrepareExecutionError(
 				fmt.Sprintf("failed to retrieve mesh %s", descriptor.Plural()), err, helper.GetCmd(),

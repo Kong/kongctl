@@ -3,6 +3,7 @@ package mesh
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -202,6 +203,10 @@ func newInspectOverviewCmd(
 // runInspectDataplane reads either the policies the control plane matched to a
 // proxy, or the proxy's Envoy admin output relayed by the control plane.
 func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
@@ -211,8 +216,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 	if inspection != InspectPolicies {
 		// Envoy admin output has no shape kongctl can usefully tabulate, so it
 		// is relayed verbatim the way the proxy produced it.
-		path := fmt.Sprintf("/meshes/%s/dataplanes/%s/%s", mesh, name, inspection)
-		body, err := fetch(helper, path)
+		path := fmt.Sprintf("/meshes/%s/dataplanes/%s/%s", url.PathEscape(mesh), url.PathEscape(name), inspection)
+		body, err := fetch(client, path)
 		if err != nil {
 			return cmd.PrepareExecutionError(
 				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
@@ -228,8 +233,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 	// matches. So read the layout first and ask about each port, which is also
 	// the answer an operator wants -- a policy applying to one port of a proxy
 	// and not another is exactly what is hard to see otherwise.
-	layoutPath := fmt.Sprintf("/meshes/%s/dataplanes/%s/_layout", mesh, name)
-	layoutBody, err := fetch(helper, layoutPath)
+	layoutPath := fmt.Sprintf("/meshes/%s/dataplanes/%s/_layout", url.PathEscape(mesh), url.PathEscape(name))
+	layoutBody, err := fetch(client, layoutPath)
 	if err != nil {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
@@ -264,8 +269,8 @@ func runInspectDataplane(helper cmd.Helper, name, inspection string) error {
 	collected := map[string]any{}
 	for _, port := range ports {
 		portPath := fmt.Sprintf("/meshes/%s/dataplanes/%s/%s/%s/_policies",
-			mesh, name, port.direction, port.kri)
-		portBody, err := fetch(helper, portPath)
+			url.PathEscape(mesh), url.PathEscape(name), port.direction, url.PathEscape(port.kri))
+		portBody, err := fetch(client, portPath)
 		if err != nil {
 			return cmd.PrepareExecutionError(
 				fmt.Sprintf("failed to inspect dataplane %s", name), err, helper.GetCmd(),
@@ -303,7 +308,11 @@ func runInspectPolicy(helper cmd.Helper, typeArg, name string) error {
 		return err
 	}
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}
@@ -324,7 +333,7 @@ func runInspectPolicy(helper cmd.Helper, typeArg, name string) error {
 	path := descriptor.ItemPath(mesh, name) + "/_resources/dataplanes"
 	// Paged like any other collection: a policy matching more dataplanes than
 	// one page holds would otherwise be reported as matching fewer.
-	items, err := listAll(helper, path)
+	items, err := listAll(client, path)
 	if err != nil {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("failed to inspect %s %s", descriptor.Singular(), name), err, helper.GetCmd(),
@@ -348,6 +357,10 @@ func runInspectPolicy(helper cmd.Helper, typeArg, name string) error {
 
 // runInspectOverview reads an overview collection.
 func runInspectOverview(helper cmd.Helper, kind overviewKind) error {
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
@@ -360,7 +373,7 @@ func runInspectOverview(helper cmd.Helper, kind overviewKind) error {
 			path, label = "/dataplanes/_overview", "Dataplanes"
 		} else {
 			mesh := meshcommon.ResolveMesh(cfg)
-			path = fmt.Sprintf("/meshes/%s/dataplanes/_overview", mesh)
+			path = fmt.Sprintf("/meshes/%s/dataplanes/_overview", url.PathEscape(mesh))
 			label = "Dataplanes"
 		}
 	case overviewMeshes:
@@ -369,7 +382,7 @@ func runInspectOverview(helper cmd.Helper, kind overviewKind) error {
 		path, label = "/zones/_overview", "Zones"
 	}
 
-	items, err := listAll(helper, path)
+	items, err := listAll(client, path)
 	if err != nil {
 		return cmd.PrepareExecutionError(
 			fmt.Sprintf("failed to inspect %s", strings.ToLower(label)), err, helper.GetCmd(),

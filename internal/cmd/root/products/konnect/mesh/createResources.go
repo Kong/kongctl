@@ -55,7 +55,11 @@ func runApplyResources(helper cmd.Helper, filenames []string) error {
 		return err
 	}
 
-	descriptors, err := Discover(helper)
+	client, err := newMeshClient(helper)
+	if err != nil {
+		return err
+	}
+	descriptors, err := discover(client)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to retrieve mesh resource types", err, helper.GetCmd())
 	}
@@ -78,7 +82,7 @@ func runApplyResources(helper cmd.Helper, filenames []string) error {
 	results := make([]applyResult, 0, len(resources))
 	var failed bool
 	for _, resource := range resources {
-		created, warnings, err := applyResource(helper, descriptors, resource)
+		created, warnings, err := applyResource(client, descriptors, resource)
 		if err != nil {
 			failed = true
 		}
@@ -112,7 +116,7 @@ var errApplyFailed = errors.New("see the reported resources above")
 // applyResource sends one document, reporting whether the control plane created
 // it rather than replaced an existing one.
 func applyResource(
-	helper cmd.Helper, descriptors []ResourceDescriptor, resource meshResource,
+	client *meshClient, descriptors []ResourceDescriptor, resource meshResource,
 ) (bool, []string, error) {
 	descriptor, err := ResolveType(descriptors, resource.Type)
 	if err != nil {
@@ -133,7 +137,7 @@ func applyResource(
 	}
 
 	status, warnings, err := sendForWrite(
-		helper, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body,
+		client, http.MethodPut, descriptor.ItemPath(mesh, resource.Name), resource.Body,
 	)
 	if err != nil {
 		return false, nil, err

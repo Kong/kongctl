@@ -3,9 +3,9 @@ package mesh
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
-	"github.com/kong/kongctl/internal/cmd"
 	meshcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh/common"
 )
 
@@ -104,21 +104,21 @@ func (d ResourceDescriptor) CollectionPath(mesh string) string {
 	if mesh == "" {
 		mesh = meshcommon.DefaultMesh
 	}
-	return fmt.Sprintf("/meshes/%s/%s", mesh, d.Path)
+	return fmt.Sprintf("/meshes/%s/%s", url.PathEscape(mesh), d.Path)
 }
 
 // ItemPath returns the control plane API path addressing a single named
 // instance of the resource type.
 func (d ResourceDescriptor) ItemPath(mesh, name string) string {
-	return d.CollectionPath(mesh) + "/" + name
+	return d.CollectionPath(mesh) + "/" + url.PathEscape(name)
 }
 
-// Discover fetches the resource types served by the selected control plane.
+// discover fetches the resource types served by the selected control plane.
 //
 // Results are sorted by the control plane, which returns them alphabetically by
 // type name; callers relying on a specific order should sort explicitly.
-func Discover(helper cmd.Helper) ([]ResourceDescriptor, error) {
-	body, err := fetch(helper, discoveryPath)
+func discover(client *meshClient) ([]ResourceDescriptor, error) {
+	body, err := fetch(client, discoveryPath)
 	if err != nil {
 		return nil, err
 	}
