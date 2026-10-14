@@ -29,3 +29,7 @@ func (e *Executor) registerMeterExecutor() {
 		crudResourceExecutor(NewManagedLabelBaseExecutor(NewMeterAdapter(e.client), e.client, e.dryRun)),
 	)
 }
+
+func (e *Executor) registerFeatureExecutor() {
+	e.registerResourceExecutor(crudResourceExecutor(NewBaseExecutor(NewFeatureAdapter(e.client), e.client, e.dryRun)))
+}

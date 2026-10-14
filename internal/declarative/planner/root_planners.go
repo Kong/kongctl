@@ -23,6 +23,7 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{resourceType: resources.ResourceTypeMeter, displayName: "meter", planner: NewMeterPlanner(base)},
+		{resourceType: resources.ResourceTypeFeature, displayName: "feature", planner: NewFeaturePlanner(base)},
 		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
@@ -111,5 +112,5 @@ func (p *Planner) planRootChanges(ctx context.Context, opts Options, plannerCtx 
 			)
 		}
 	}
-	return nil
+	return p.resolveMeterFeatureDeletes(ctx, plan)
 }

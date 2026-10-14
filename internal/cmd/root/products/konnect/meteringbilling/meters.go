@@ -120,6 +120,7 @@ func NewCommand(verb verbs.VerbValue) *cobra.Command {
 		leaf.AddCommand(query)
 	}
 	family.AddCommand(leaf)
+	family.AddCommand(newFeaturesCommand(verb, configure))
 	return family
 }
 

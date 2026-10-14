@@ -37,6 +37,7 @@ const (
 	ResourceTypeAIGatewaySNI                            ResourceType = "ai_gateway_sni"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeMeter                                   ResourceType = "meter"
+	ResourceTypeFeature                                 ResourceType = "feature"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
@@ -217,7 +218,8 @@ type ResourceSet struct {
 	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"                      json:"event_gateway_static_keys,omitempty"`                      //nolint:lll
 	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"                json:"event_gateway_tls_trust_bundles,omitempty"`                //nolint:lll
 
-	Meters []MeterResource `yaml:"meters,omitempty" json:"meters,omitempty"`
+	Meters   []MeterResource   `yaml:"meters,omitempty" json:"meters,omitempty"`
+	Features []FeatureResource `yaml:"features,omitempty" json:"features,omitempty"`
 
 	// Dashboards is populated internally from Analytics.Dashboards during loading.
 	// It is not exposed in YAML/JSON to enforce the analytics grouping format.

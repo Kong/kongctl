@@ -42,6 +42,7 @@ type SDKAPI interface {
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
 	GetMetersAPI() MetersAPI
+	GetFeaturesAPI() FeaturesAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
@@ -770,5 +771,15 @@ func (k *KonnectSDK) GetMetersAPI() MetersAPI {
 		Token:       k.Token,
 		TokenSource: k.TokenSource,
 		HTTPClient:  k.HTTPClient,
+	}
+}
+
+func (k *KonnectSDK) GetFeaturesAPI() FeaturesAPI {
+	if k.SDK == nil {
+		return nil
+	}
+	return &FeaturesAPIImpl{
+		OpenMeterFeaturesSDK: k.SDK.OpenMeterFeatures, BaseURL: k.BaseURL,
+		Token: k.Token, TokenSource: k.TokenSource, HTTPClient: k.HTTPClient,
 	}
 }
