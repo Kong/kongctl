@@ -9,6 +9,135 @@ The [Mesh examples](examples/mesh/README.md) include runnable Mesh
 and MeshTimeout documents with an apply/read/delete, dump, inspection, and
 token walkthrough.
 
+## Quickstart
+
+This walkthrough creates a Mesh and a timeout policy inside an existing
+control plane. A Konnect Mesh control plane hosts Mesh resources; applying a
+`type: Mesh` document creates a mesh within it, not another control plane.
+
+### 1. Set up a control plane
+
+Use a Kong Mesh 3.0 or later control plane and a kongctl build with Mesh
+commands. Your Konnect account needs access to Service Mesh and permission
+to read and configure the selected control plane.
+
+For a new hosted control plane, open **Service Mesh** in Konnect, choose
+**Create a service mesh**, enter a name such as `kongctl-quickstart`, and
+save. See Kong's [control plane setup guide][mesh-setup] for provisioning
+and zone deployment instructions. Control-plane creation is performed
+outside kongctl in this branch, including outside its declarative engine.
+Confirm that the selected control plane supports Kong Mesh 3.0 or later;
+older targets do not serve the discovery API these commands require.
+
+Log in, then list control planes with their full IDs:
+
+```shell
+kongctl login
+kongctl get mesh control-planes --text-id-format full
+export MESH_CP_ID="<your-control-plane-id>"
+kongctl get mesh resource-types --control-plane-id "$MESH_CP_ID"
+```
+
+Replace the placeholder with the ID of your new or existing control plane.
+Use the same Konnect profile and region throughout the walkthrough.
+Discovery should list `Mesh` and `MeshTimeout`. A name can also be used
+through `--control-plane-name kongctl-quickstart` if it uniquely identifies
+the target.
+
+### 2. Apply mesh configuration
+
+From the repository root, apply the two supplied native Mesh documents:
+
+```shell
+kongctl apply mesh -f docs/examples/mesh/mesh.yaml \
+  -f docs/examples/mesh/timeout-policy.yaml \
+  --control-plane-id "$MESH_CP_ID"
+```
+
+This creates `kongctl-example-mesh`, then applies
+`kongctl-example-timeouts` to that mesh. The policy sets an outbound
+connection timeout of five seconds and an idle timeout of one hour.
+The first run reports `created`; running it again reports `updated`.
+Writes happen directly, without a declarative plan or diff.
+
+To change configuration, edit the timeout values in the policy document
+and apply that file again:
+
+```shell
+kongctl apply mesh -f docs/examples/mesh/timeout-policy.yaml \
+  --control-plane-id "$MESH_CP_ID"
+```
+
+### 3. Read the stored configuration
+
+```shell
+kongctl get mesh meshes kongctl-example-mesh \
+  --control-plane-id "$MESH_CP_ID" -o yaml
+kongctl get mesh meshtimeouts kongctl-example-timeouts \
+  --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID" -o yaml
+kongctl get mesh dataplanes --mesh kongctl-example-mesh \
+  --control-plane-id "$MESH_CP_ID" -o json
+```
+
+The first two commands return the stored resources, including any defaults
+the server adds. The server may normalize durations such as `1h` to
+`1h0m0s`. The dataplane list contains `items` and `total`; it is empty until
+workloads connect through a zone.
+
+### 4. Inspect computed state
+
+```shell
+kongctl inspect mesh meshes --control-plane-id "$MESH_CP_ID"
+kongctl inspect mesh zones --control-plane-id "$MESH_CP_ID"
+kongctl inspect mesh dataplanes --mesh kongctl-example-mesh \
+  --control-plane-id "$MESH_CP_ID"
+kongctl inspect mesh meshtimeout kongctl-example-timeouts \
+  --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
+```
+
+These commands show overviews and the dataplanes matched by the policy,
+whereas `get` returns stored resource configuration. Applying the example
+documents does not deploy a zone or workloads, so empty dataplane and
+policy-match results are expected in a fresh control plane.
+
+For a mesh with connected workloads, obtain a dataplane name from the
+listing above and inspect it:
+
+```shell
+export MESH_DP_NAME="<connected-dataplane-name>"
+kongctl inspect mesh dataplane "$MESH_DP_NAME" \
+  --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
+kongctl inspect mesh dataplane "$MESH_DP_NAME" --type stats \
+  --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
+```
+
+The default inspection shows policies matched per inbound and outbound
+port; `--type stats` returns raw proxy statistics. These require the target
+to expose dataplane inspection and reach the proxy. If the hosted global
+control plane does not expose those endpoints, address the connected zone
+control plane with `--control-plane-url` instead of `--control-plane-id`,
+using its authentication and TLS options described below. Follow the
+[zone setup guide][mesh-setup] to connect workloads, placing them in
+`kongctl-example-mesh` to inspect this example policy.
+
+### 5. Clean up the example resources
+
+Delete the policy before its Mesh:
+
+```shell
+kongctl delete mesh meshtimeouts kongctl-example-timeouts \
+  --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
+kongctl delete mesh meshes kongctl-example-mesh \
+  --control-plane-id "$MESH_CP_ID"
+```
+
+If you provisioned a control plane solely for this walkthrough, remove it
+through Konnect after removing any connected workloads and zone deployments.
+For export, migration, and token examples, continue with the sections below
+or the [Mesh examples walkthrough](examples/mesh/README.md).
+
+[mesh-setup]: https://developer.konghq.com/mesh/configure-mesh-global-control-plane-on-kubernetes-with-konnect-ui/
+
 ## Select a control plane
 
 For a Konnect-hosted control plane, use the active profile's login or PAT:
