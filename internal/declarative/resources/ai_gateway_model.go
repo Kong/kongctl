@@ -51,6 +51,9 @@ func init() {
 				Meta:              &r.Kongctl,
 			}
 		}),
+		WithIndependentChildOwnership(captureModelNamespaceScopes,
+			func(model *AIGatewayModelResource) *KongctlMeta { return model.Kongctl }),
+
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),
@@ -100,17 +103,15 @@ func (a AIGatewayModelResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway model ref: %w", err)
 	}
-	for key := range a.ManagedBy() {
-		if key == ModelNamespaceKey || key == ModelProtectedKey {
-			return fmt.Errorf("managed_by key %q is reserved; use kongctl metadata on AI Gateway model %s", key, a.Ref)
-		}
-		if len(key) < 1 || len(key) > 63 || !isMetadataAlphanumeric(key[0]) {
-			return fmt.Errorf(
-				"invalid managed_by key on AI Gateway model %s: "+
-					"keys must be 1–63 characters and start with an alphanumeric character",
-				a.Ref,
-			)
-		}
+	if err := ValidateChildManagedBy(a.ManagedBy(), true); err != nil {
+		return fmt.Errorf("AI Gateway model %s: %w", a.Ref, err)
+	}
+	if err := ValidateChildManagedBy(BuildChildManagedBy(nil,
+		a.ManagedBy(),
+		GetNamespace(a.Kongctl),
+		a.Protected()),
+		false); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway model %s", a.Ref)
@@ -816,4 +817,19 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 		branches = append(branches, node)
 	}
 	return explainUnionNode(branches...), nil
+}
+
+func captureModelNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	for _, gateway := range rs.AIGateways {
+		namespaces := make([]string, 0, len(gateway.Models))
+		for _, model := range gateway.Models {
+			namespaces = append(namespaces, GetNamespace(model.Kongctl))
+		}
+		CaptureOwnedChildCollection(scope, ResourceTypeAIGatewayModel, gateway.Ref, defaultNamespace,
+			scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, ResourceTypeAIGatewayModel), namespaces)
+	}
+	for _, model := range rs.AIGatewayModels {
+		scope.AddModelNamespace(model.AIGateway, GetNamespace(model.Kongctl))
+	}
 }

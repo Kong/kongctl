@@ -50,6 +50,7 @@ func (c *Client) ListAIGatewayAuthStrategies(
 	const defaultPageSize int64 = 100
 	pageSize := defaultPageSize
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	var all []AIGatewayAuthStrategy
 
 	for {
@@ -66,7 +67,7 @@ func (c *Client) ListAIGatewayAuthStrategies(
 			return nil, WrapAPIError(err, "list AI Gateway Auth Strategies", nil)
 		}
 		if resp == nil || resp.ListAIGatewayAuthStrategiesResponse == nil {
-			return all, nil
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		for _, provider := range resp.ListAIGatewayAuthStrategiesResponse.Data {
@@ -77,7 +78,10 @@ func (c *Client) ListAIGatewayAuthStrategies(
 			all = append(all, normalized)
 		}
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayAuthStrategiesResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayAuthStrategiesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

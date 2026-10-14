@@ -19,6 +19,7 @@ func (c *Client) ListAIGatewayMCPServers(ctx context.Context, gatewayID string) 
 
 	var allData []kkComps.AIGatewayMCPServer
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -34,12 +35,15 @@ func (c *Client) ListAIGatewayMCPServers(ctx context.Context, gatewayID string) 
 		}
 
 		if resp == nil || resp.ListAIGatewayMCPServersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayMCPServersResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayMCPServersResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayMCPServersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}

@@ -35,7 +35,7 @@ func (c *Client) ListAIGatewayConsumerGroups(ctx context.Context, gatewayID stri
 		}
 
 		if resp == nil || resp.ListAIGatewayConsumerGroupsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumerGroupsResponse.Data...)
@@ -214,7 +214,7 @@ func (c *Client) ListAIGatewayConsumersInConsumerGroup(
 			return nil, WrapAPIError(err, "list AI Gateway Consumers in Consumer Group", nil)
 		}
 		if resp == nil || resp.ListAIGatewayConsumersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)

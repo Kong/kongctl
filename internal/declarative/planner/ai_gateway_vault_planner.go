@@ -34,7 +34,7 @@ func (p *Planner) planAIGatewayVaultChanges(
 		return nil
 	}
 
-	currentVaults, err := p.client.ListAIGatewayVaults(ctx, gatewayID)
+	currentVaults, err := p.listAIGatewayVaults(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Vaults for gateway %s: %w", gatewayID, err)
 	}

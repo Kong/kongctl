@@ -62,8 +62,8 @@ func TestAIGatewayPolicyDeleteOrdering(t *testing.T) {
 				otherGateway: true, wantError: "still references it",
 			},
 			{
-				name: "other namespace delete cannot detach", action: ActionDelete,
-				otherNS: true, wantError: "still references it",
+				name: "other namespace delete detaches", action: ActionDelete,
+				otherNS: true,
 			},
 		} {
 			t.Run(kind+"/"+tt.name, func(t *testing.T) {

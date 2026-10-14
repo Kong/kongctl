@@ -22,6 +22,7 @@ func (c *Client) ListAIGatewayCertificates(ctx context.Context, gatewayID string
 	}
 	var result []AIGatewayCertificate
 	var after *string
+	var cursors pagination.CursorTracker
 	size := int64(100)
 	for {
 		resp, err := c.aiGatewayCertificatesAPI.ListAiGatewayCertificates(ctx, kkOps.ListAiGatewayCertificatesRequest{
@@ -31,12 +32,15 @@ func (c *Client) ListAIGatewayCertificates(ctx context.Context, gatewayID string
 			return nil, WrapAPIError(err, "list AI Gateway certificates", nil)
 		}
 		if resp == nil || resp.ListAIGatewayCertificatesResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 		for _, item := range resp.ListAIGatewayCertificatesResponse.Data {
 			result = append(result, AIGatewayCertificate{AIGatewayCertificate: item, NormalizedLabels: item.Labels})
 		}
-		next := pagination.ExtractPageAfterCursor(resp.ListAIGatewayCertificatesResponse.Meta.Page.Next)
+		next, err := cursors.Next(resp.ListAIGatewayCertificatesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if next == "" {
 			break
 		}
@@ -131,6 +135,7 @@ func (c *Client) ListAIGatewayCACertificates(ctx context.Context, gatewayID stri
 	}
 	var result []AIGatewayCACertificate
 	var after *string
+	var cursors pagination.CursorTracker
 	size := int64(100)
 	for {
 		resp, err := c.aiGatewayCACertificatesAPI.ListAiGatewayCaCertificates(
@@ -141,12 +146,15 @@ func (c *Client) ListAIGatewayCACertificates(ctx context.Context, gatewayID stri
 			return nil, WrapAPIError(err, "list AI Gateway CA certificates", nil)
 		}
 		if resp == nil || resp.ListAIGatewayCACertificatesResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 		for _, item := range resp.ListAIGatewayCACertificatesResponse.Data {
 			result = append(result, AIGatewayCACertificate{AIGatewayCACertificate: item, NormalizedLabels: item.Labels})
 		}
-		next := pagination.ExtractPageAfterCursor(resp.ListAIGatewayCACertificatesResponse.Meta.Page.Next)
+		next, err := cursors.Next(resp.ListAIGatewayCACertificatesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if next == "" {
 			break
 		}
@@ -241,6 +249,7 @@ func (c *Client) ListAIGatewaySNIs(ctx context.Context, gatewayID string) ([]AIG
 	}
 	var result []AIGatewaySNI
 	var after *string
+	var cursors pagination.CursorTracker
 	size := int64(100)
 	for {
 		resp, err := c.aiGatewaySNIsAPI.ListAiGatewaySnis(
@@ -251,12 +260,15 @@ func (c *Client) ListAIGatewaySNIs(ctx context.Context, gatewayID string) ([]AIG
 			return nil, WrapAPIError(err, "list AI Gateway SNIs", nil)
 		}
 		if resp == nil || resp.ListAIGatewaySNIsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 		for _, item := range resp.ListAIGatewaySNIsResponse.Data {
 			result = append(result, AIGatewaySNI{AIGatewaySNI: item, NormalizedLabels: item.Labels})
 		}
-		next := pagination.ExtractPageAfterCursor(resp.ListAIGatewaySNIsResponse.Meta.Page.Next)
+		next, err := cursors.Next(resp.ListAIGatewaySNIsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if next == "" {
 			break
 		}

@@ -333,6 +333,14 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		}
 	}
 
+	if err := p.planAIGatewayCascadeWarnings(ctx, basePlan); err != nil {
+		return nil, err
+	}
+
+	if err := p.resolveFinalAIGatewayDependencies(ctx, basePlan); err != nil {
+		return nil, err
+	}
+
 	// Ensure team roles depend on referenced entities created in the same plan.
 	adjustTeamRoleDependencies(basePlan)
 

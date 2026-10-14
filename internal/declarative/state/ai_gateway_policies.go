@@ -18,6 +18,7 @@ func (c *Client) ListAIGatewayPolicies(ctx context.Context, gatewayID string) ([
 
 	var allData []kkComps.AIGatewayPolicy
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -33,12 +34,15 @@ func (c *Client) ListAIGatewayPolicies(ctx context.Context, gatewayID string) ([
 		}
 
 		if resp == nil || resp.ListAIGatewayPoliciesResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayPoliciesResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayPoliciesResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayPoliciesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
