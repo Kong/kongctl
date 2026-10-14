@@ -104,7 +104,12 @@ func TestMeterPlanningIdentityOwnershipAndProtection(t *testing.T) {
 				tt.change(&d, &c)
 			}
 			server := fixture.NewMeterServer(t, c)
-			client := state.NewClient(state.ClientConfig{MetersAPI: server.SDK.GetMetersAPI()})
+			client := state.NewClient(
+				state.ClientConfig{
+					MetersAPI:   server.SDK.GetMetersAPI(),
+					FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+				},
+			)
 			p := NewPlanner(client, slog.New(slog.NewTextHandler(io.Discard, nil)))
 			rs := &resources.ResourceSet{Meters: []resources.MeterResource{d}}
 			plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: tt.mode})
@@ -140,7 +145,12 @@ func TestMeterSyncOnlyPrunesOwnedScope(t *testing.T) {
 	rs := &resources.ResourceSet{DefaultNamespace: "billing", SyncScope: resources.NewSyncScope()}
 	rs.SyncScope.AddRoot(resources.ResourceTypeMeter)
 	p := NewPlanner(
-		state.NewClient(state.ClientConfig{MetersAPI: server.SDK.GetMetersAPI()}),
+		state.NewClient(
+			state.ClientConfig{
+				MetersAPI:   server.SDK.GetMetersAPI(),
+				FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+			},
+		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
@@ -157,7 +167,12 @@ func TestMeterPlannerPropagatesAPIReadErrors(t *testing.T) {
 	server := fixture.NewMeterServer(t)
 	server.Fail(403)
 	p := NewPlanner(
-		state.NewClient(state.ClientConfig{MetersAPI: server.SDK.GetMetersAPI()}),
+		state.NewClient(
+			state.ClientConfig{
+				MetersAPI:   server.SDK.GetMetersAPI(),
+				FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+			},
+		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	_, err := p.GeneratePlan(

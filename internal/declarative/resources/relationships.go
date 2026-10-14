@@ -35,6 +35,9 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeFeature: {
+		{FieldPath: "meter.id", TargetType: ResourceTypeMeter, Kind: RelationshipKindAPIForeignKey},
+	},
 	ResourceTypeAPIVersion: {
 		{FieldPath: "api", TargetType: ResourceTypeAPI, Kind: RelationshipKindKongctlParentSelector, RootOnly: true},
 	},

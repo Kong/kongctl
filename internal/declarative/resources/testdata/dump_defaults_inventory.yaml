@@ -1541,6 +1541,10 @@ resources:
         source: sdk
     overrides: []
     exclusions: []
+  - resource_type: feature
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: gateway_service
     defaults: []
     overrides: []

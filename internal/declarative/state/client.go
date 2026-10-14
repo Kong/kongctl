@@ -53,6 +53,7 @@ type ClientConfig struct {
 	AIGatewaySNIsAPI                  helpers.AIGatewaySNIsAPI
 	DashboardsAPI                     helpers.DashboardsAPI
 	MetersAPI                         helpers.MetersAPI
+	FeaturesAPI                       helpers.FeaturesAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -132,6 +133,7 @@ type Client struct {
 	aiGatewaySNIsAPI                  helpers.AIGatewaySNIsAPI
 	dashboardsAPI                     helpers.DashboardsAPI
 	metersAPI                         helpers.MetersAPI
+	featuresAPI                       helpers.FeaturesAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -212,6 +214,7 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewaySNIsAPI:                  config.AIGatewaySNIsAPI,
 		dashboardsAPI:                     config.DashboardsAPI,
 		metersAPI:                         config.MetersAPI,
+		featuresAPI:                       config.FeaturesAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,
