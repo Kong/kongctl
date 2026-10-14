@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
@@ -24,23 +23,6 @@ func (c *Client) ListMeters(ctx context.Context) ([]Meter, error) {
 	result := make([]Meter, 0, len(values))
 	for _, v := range values {
 		result = append(result, Meter{Meter: v, NormalizedLabels: v.Labels})
-	}
-	return result, nil
-}
-
-func (c *Client) ListManagedMeters(ctx context.Context, namespaces []string) ([]Meter, error) {
-	if len(namespaces) == 0 {
-		return nil, nil
-	}
-	values, err := c.ListMeters(ctx)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]Meter, 0)
-	for _, m := range values {
-		if labels.IsManagedResource(m.Labels) && shouldIncludeNamespace(m.Labels[labels.NamespaceKey], namespaces) {
-			result = append(result, m)
-		}
 	}
 	return result, nil
 }

@@ -117,6 +117,14 @@ func (m MeterResource) Validate() error {
 	if err := helpers.ValidateMeterCreate(m.CreateRequest()); err != nil {
 		return fmt.Errorf("meter %q: %w", m.Ref, err)
 	}
+	for key := range m.Labels {
+		if labels.IsKongctlLabel(key) {
+			return fmt.Errorf(
+				"meter %q: management label %q belongs in the kongctl block; labels accept user labels only",
+				m.Ref, key,
+			)
+		}
+	}
 	namespace := GetNamespace(m.Kongctl)
 	return helpers.ValidateMeterLabels(labels.BuildCreateLabels(m.Labels, namespace, true))
 }
