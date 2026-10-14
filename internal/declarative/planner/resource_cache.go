@@ -41,6 +41,7 @@ type planningResourceCache struct {
 	managedCatalogServices           observationCache[state.CatalogService]
 	managedAIGateways                observationCache[state.AIGateway]
 	managedDashboards                observationCache[state.Dashboard]
+	allMeters                        observationCache[state.Meter]
 	managedOrganizationTeams         observationCache[state.OrganizationTeam]
 
 	portalTeamsByPortalID             map[string][]state.PortalTeam
@@ -80,6 +81,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedCatalogServices:            newObservationCache[state.CatalogService](),
 		managedAIGateways:                 newObservationCache[state.AIGateway](),
 		managedDashboards:                 newObservationCache[state.Dashboard](),
+		allMeters:                         newObservationCache[state.Meter](),
 		managedOrganizationTeams:          newObservationCache[state.OrganizationTeam](),
 		portalTeamsByPortalID:             make(map[string][]state.PortalTeam),
 		portalIdentityProvidersByPortalID: make(map[string][]state.PortalIdentityProvider),
@@ -308,4 +310,18 @@ func namespaceCacheKey(normalizedNamespaces []string) string {
 		return ""
 	}
 	return strings.Join(normalizedNamespaces, ",")
+}
+
+func (p *Planner) listMeters(ctx context.Context) ([]state.Meter, error) {
+	var cache *observationCache[state.Meter]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.allMeters
+	}
+	return cache.list(
+		ctx,
+		[]string{"*"},
+		false,
+		func(ctx context.Context, _ []string) ([]state.Meter, error) { return p.client.ListMeters(ctx) },
+		func(m state.Meter) string { return m.Labels[labels.NamespaceKey] },
+	)
 }

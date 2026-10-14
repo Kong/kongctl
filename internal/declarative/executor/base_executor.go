@@ -361,6 +361,14 @@ func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	}
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
+	// Resources whose identity is not their display name can supply an exact
+	// update lookup, including ownership validation and read error propagation.
+	if lookup, ok := b.ops.(interface {
+		GetForUpdate(context.Context, planner.PlannedChange) (ResourceInfo, error)
+	}); ok {
+		return lookup.GetForUpdate(ctx, change)
+	}
+
 	// Strategy 1: Standard name-based lookup
 	resource, err := b.ops.GetByName(ctx, resourceName)
 	if err == nil && resource != nil {

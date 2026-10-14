@@ -331,6 +331,15 @@ catalog_services:
      key: value
 ```
 
+## Metering & Billing meters
+
+Root `meters` declarations manage usage aggregation. Required fields are
+`ref`, `name`, `key`, `aggregation`, and `event_type`; optional fields are
+`id`, `description`, `labels`, `dimensions`, `value_property`, `events_from`,
+and `kongctl`. See [meter commands and lifecycle](metering-billing.md) for
+identity, adoption, immutable-field policy, namespace ownership, and examples.
+Use `kongctl explain meters` for the generated schema.
+
 ## Dashboards
 
 [Custom Dashboards](https://developer.konghq.com/custom-dashboards/)

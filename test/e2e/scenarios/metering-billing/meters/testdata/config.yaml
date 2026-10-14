@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: mb-meter-e2e
+meters:
+  - ref: local-request_count
+    name: E2E Request Count
+    key: kongctl_e2e_request_count
+    aggregation: count
+    event_type: kongctl.e2e.request
+    dimensions:
+      region: $.region

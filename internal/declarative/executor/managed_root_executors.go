@@ -23,3 +23,9 @@ func (e *Executor) registerDashboardExecutor() {
 		NewManagedLabelBaseExecutor(NewDashboardAdapter(e.client), e.client, e.dryRun),
 	))
 }
+
+func (e *Executor) registerMeterExecutor() {
+	e.registerResourceExecutor(
+		crudResourceExecutor(NewManagedLabelBaseExecutor(NewMeterAdapter(e.client), e.client, e.dryRun)),
+	)
+}
