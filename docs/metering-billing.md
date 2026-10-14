@@ -108,6 +108,10 @@ instructions. Create a meter with a new key, migrate its consumers, then delete
 the old meter; kongctl does not automatically replace it. Optional omitted
 fields remain unmanaged. Required fields have no derived defaults.
 
+Declarative `labels` accept user labels only. Configure namespace and
+protection through `kongctl.namespace` and `kongctl.protected`; supplying
+`KONGCTL-*` management keys in `labels` is rejected during validation.
+
 Sync only prunes meters with `KONGCTL-namespace` matching a selected namespace.
 An omitted `meters` collection leaves meters untouched; explicit `meters: []`
 removes owned, unprotected meters from that scope. A protected meter must be
