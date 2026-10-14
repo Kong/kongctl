@@ -1,20 +1,21 @@
 # AI Gateway 2.2 development
 
-This branch uses public SDK v0.71.0 with the kongctl request-default
-patches. Its generation input includes AI Gateway specification 2.2.0.
+This branch uses public SDK v0.73.1 with the kongctl request-default
+patches, including omission of portal customization theme names.
+Existing AI Gateway 2.2 surfaces remain available.
 The original feature references were specification 2.1.15 and
 ai-deck-converter v0.19.0; the converter is a runtime reference, not a
 kongctl dependency.
 
 ```go
-replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.71.1-0.20260930102655-288b6e157cf0
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.73.2-0.20261014171439-ab3bef3da53d
 ```
 
 The patched public SDK needs no private-module authentication,
 `GOPRIVATE` entry, or `scripts/setup-private-sdk.sh` invocation. Existing
 private-SDK scripts and CI support remain available for other branches.
 Patch provenance and reproduction instructions are in
-[KONGCTL_PATCHES.md](https://github.com/Kong/sdk-konnect-go/blob/288b6e157cf052ca2c6a0a70a90d0ca2aaa0e624/KONGCTL_PATCHES.md).
+[KONGCTL_PATCHES.md](https://github.com/Kong/sdk-konnect-go/blob/ab3bef3da53de833af6585f28d8b7edfbc7591d5/KONGCTL_PATCHES.md).
 
 The public schema omits internal-only MCP token-vault configuration,
 Event Gateway AWS IAM authentication and some internal policy variants,

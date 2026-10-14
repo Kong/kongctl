@@ -21,14 +21,12 @@ func TestGetAIGatewayAuthStrategyPreservesAccessControlConfig(t *testing.T) {
 			DisplayName: "Support OIDC",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-			Config: &kkComps.AIGatewayAuthStrategyOpenIDConnectResponseConfig{
+			Config: &kkComps.AIGWOpenIDConnectGeneratedConfigOutput{
 				CacheTokensSalt:        "support-cache-salt",
 				ConsumerGroupsClaim:    []string{"groups"},
 				ConsumerGroupsOptional: &optional,
-				AdditionalProperties: map[string]any{
-					"upstream_headers_claims": []string{"sub"},
-					"upstream_headers_names":  []string{"x-consumer-subject"},
-				},
+				UpstreamHeadersClaims:  []string{"sub"},
+				UpstreamHeadersNames:   []string{"x-consumer-subject"},
 			},
 		},
 	)

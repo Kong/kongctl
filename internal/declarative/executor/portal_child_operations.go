@@ -73,7 +73,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 
 	// Handle layout
 	if layout, ok := change.Fields[planner.FieldLayout].(string); ok {
-		customization.Layout = &layout
+		customization.Layout = &layout //nolint:staticcheck // Legacy layout compatibility.
 	}
 
 	// Handle CSS
@@ -167,7 +167,7 @@ func (e *Executor) updatePortalCustomization(ctx context.Context, change planner
 		slog.Any("customization", customization),
 		slog.Bool("has_menu", customization.Menu != nil),
 		slog.Bool("has_theme", customization.Theme != nil),
-		slog.Bool("has_layout", customization.Layout != nil),
+		slog.Bool("has_layout", customization.Layout != nil), //nolint:staticcheck // Legacy layout compatibility.
 		slog.Bool("has_css", customization.CSS != nil))
 
 	// Update the customization

@@ -276,23 +276,12 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	)
 	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "scopes"}, "openid")
 
-	config, ok := openIDConnect.lookup([]string{aiGatewayAuthStrategyFieldConfig})
-	if ok {
-		// These are supported OpenID Connect plugin fields that the API accepts
-		// through the SDK config's additionalProperties contract.
-		config.addField(explainField(
-			"upstream_headers_claims",
-			explainArrayOf(explainStringNode("sub")),
-			false,
-			false,
-		))
-		config.addField(explainField(
-			"upstream_headers_names",
-			explainArrayOf(explainStringNode("x-consumer-subject")),
-			false,
-			false,
-		))
-	}
+	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "upstream_headers_claims"}, "sub")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayAuthStrategyFieldConfig, "upstream_headers_names"},
+		"x-consumer-subject",
+	)
 
 	return explainUnionNode(keyAuth, openIDConnect), nil
 }

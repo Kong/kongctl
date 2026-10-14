@@ -52,7 +52,7 @@ func TestPortalCustomizationAPIImplUpdatePreservesExplicitEmptyMenuLists(t *test
 	}
 
 	_, err := api.UpdatePortalCustomization(t.Context(), "portal-123", &kkComponents.PortalCustomization{
-		Layout: &layout,
+		Layout: &layout, //nolint:staticcheck // Legacy layout compatibility.
 		Menu: &kkComponents.Menu{
 			Main:           []kkComponents.PortalMenuItem{},
 			FooterSections: []kkComponents.PortalFooterMenuSection{},

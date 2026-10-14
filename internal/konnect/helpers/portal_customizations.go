@@ -89,7 +89,7 @@ func requiresExplicitEmptyPortalMenu(customization *kkComponents.PortalCustomiza
 func marshalPortalCustomizationPayload(customization *kkComponents.PortalCustomization) ([]byte, error) {
 	payload := portalCustomizationPayload{
 		Theme:        customization.Theme,
-		Layout:       customization.Layout,
+		Layout:       customization.Layout, //nolint:staticcheck // Legacy layout compatibility.
 		CSS:          customization.CSS,
 		SpecRenderer: customization.SpecRenderer,
 		Robots:       customization.Robots,
