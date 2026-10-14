@@ -229,6 +229,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AIGatewaySNIsAPI:                    sdk.GetAIGatewaySNIsAPI(),
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			MetersAPI:                           sdk.GetMetersAPI(),
+			FeaturesAPI:                         sdk.GetFeaturesAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
 			PortalIPAllowListAPI:                sdk.GetPortalIPAllowListAPI(),

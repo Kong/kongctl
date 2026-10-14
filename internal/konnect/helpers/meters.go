@@ -105,7 +105,7 @@ func (m *MetersAPIImpl) UpdateMeter(
 	}
 	options := []kkSDK.SDKOption{
 		kkSDK.WithServerURL(m.BaseURL),
-		kkSDK.WithClient(&meterEmptyMapClient{client: m.HTTPClient, fields: empty}),
+		kkSDK.WithClient(&meteringBillingRequestFieldsClient{client: m.HTTPClient, fields: empty}),
 	}
 	if m.TokenSource != nil {
 		options = append(options, kkSDK.WithSecuritySource(func(ctx context.Context) (kkComps.Security, error) {
@@ -119,22 +119,22 @@ func (m *MetersAPIImpl) UpdateMeter(
 	return sdk.Meters.UpdateMeter(ctx, id, req, opts...)
 }
 
-type meterEmptyMapClient struct {
+type meteringBillingRequestFieldsClient struct {
 	client kkSDK.HTTPClient
 	fields map[string]any
 }
 
-func (m *meterEmptyMapClient) Do(req *http.Request) (*http.Response, error) {
+func (m *meteringBillingRequestFieldsClient) Do(req *http.Request) (*http.Response, error) {
 	data, err := io.ReadAll(req.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read meter update payload: %w", err)
+		return nil, fmt.Errorf("read M&B request payload: %w", err)
 	}
 	if err := req.Body.Close(); err != nil {
 		return nil, err
 	}
 	var payload map[string]any
 	if err := json.Unmarshal(data, &payload); err != nil {
-		return nil, fmt.Errorf("decode meter update payload: %w", err)
+		return nil, fmt.Errorf("decode M&B request payload: %w", err)
 	}
 	maps.Copy(payload, m.fields)
 	data, err = json.Marshal(payload)

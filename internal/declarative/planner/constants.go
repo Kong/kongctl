@@ -8,6 +8,11 @@ import (
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	FieldProtected = "protected"
+	FieldUnitCost  = "unit_cost"
+	FieldMeter     = "meter"
+	FieldFilters   = "filters"
+
 	// FieldID contains a resource ID
 	FieldID = "id"
 
@@ -267,6 +272,7 @@ const (
 	ResourceTypeAIGatewaySNI                     = string(resources.ResourceTypeAIGatewaySNI)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
 	ResourceTypeMeter                            = string(resources.ResourceTypeMeter)
+	ResourceTypeFeature                          = string(resources.ResourceTypeFeature)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
 	ResourceTypeAPIImplementation                = string(resources.ResourceTypeAPIImplementation)

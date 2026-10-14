@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,6 +93,18 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 			func(update *kkComps.UpdateTeam) map[string]*string {
 				return update.Labels
 			},
+		)
+	})
+
+	t.Run("feature rejects protection changes", func(t *testing.T) {
+		covered[resources.ResourceTypeFeature] = true
+		adapter := NewFeatureAdapter(nil)
+		var request helpers.FeatureUpdateRequest
+		change := planner.PlannedChange{Protection: planner.ProtectionChange{Old: true, New: false}}
+		require.ErrorContains(
+			t,
+			adapter.MapUpdateFields(t.Context(), NewExecutionContext(&change), map[string]any{}, &request, nil),
+			"protection cannot change",
 		)
 	})
 
