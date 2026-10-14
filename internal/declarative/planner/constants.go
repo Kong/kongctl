@@ -15,7 +15,7 @@ const (
 	FieldName = "name"
 
 	// FieldDescription contains a resource description
-	FieldDescription = "description"
+	FieldDescription = fieldcontracts.FieldDescription
 
 	// FieldCurrentLabels contains the current labels of a resource
 	// Used during updates to determine which labels should be removed
@@ -42,7 +42,7 @@ const (
 	FieldDCRProviderConfig = "dcr_config"
 
 	// FieldDisplayName contains a resource display name
-	FieldDisplayName = "display_name"
+	FieldDisplayName = fieldcontracts.FieldDisplayName
 
 	// FieldLabels contains user-managed labels
 	FieldLabels = "labels"

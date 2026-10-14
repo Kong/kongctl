@@ -647,9 +647,17 @@ These projections preserve pointer presence; SDK wire-serialization defaults
 remain unchanged and separate from declarative omission semantics.
 The planner retains `Field*` aliases and converts contract changes into plan
 diagnostics. Update mapping handles one field at a time to preserve caller
-error timing. This pilot does not cover strings, enums, labels, references
-or secrets; keep their existing policies explicit rather than inferring them
-from SDK types. Add another contract only after identifying shared semantics.
+error timing.
+
+Portal's optional `display_name` and `description` use the
+[Portal string field contract][portal-string-contract] across the same stages.
+Omitted declarations are unmanaged; explicit empty strings are retained in
+requests. Comparison normalizes an absent description to empty. Export instead
+preserves description presence and omits an empty display name. Keep these
+policies separate from boolean observation handling and SDK wire defaults.
+Enums, labels, references and secrets retain their explicit policies; add
+another contract only after identifying shared semantics. Legacy test-only
+Portal executor methods remain outside these production contracts.
 
 Use `PlannedChange.Parent` and `References` for routing and
 `DependsOn` for operation ordering. Children created with a new parent need
@@ -1227,3 +1235,5 @@ engine contract. Each refactoring migration should:
 [reference-validation]: ../../internal/declarative/resources/reference_validation.go
 
 [reference-validation-contract]: ../../internal/declarative/resources/reference_validation_contract_test.go
+
+[portal-string-contract]: ../../internal/declarative/fieldcontracts/portal_strings.go

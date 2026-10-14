@@ -39,9 +39,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	create.Name = common.ExtractResourceName(fields)
 	fieldcontracts.MapPortalBooleanCreateFields(fields, create)
 
-	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
-	common.MapOptionalStringFieldToPtr(&create.DisplayName, fields, planner.FieldDisplayName)
+	fieldcontracts.MapPortalStringCreateFields(fields, create)
 
 	if defaultAPIVisibility, ok := fields[planner.FieldDefaultAPIVisibility].(string); ok {
 		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
@@ -77,21 +75,14 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 	// Only include fields that are in the fields map
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
-		if fieldcontracts.MapPortalBooleanUpdateField(field, value, update) {
+		if fieldcontracts.MapPortalBooleanUpdateField(field, value, update) ||
+			fieldcontracts.MapPortalStringUpdateField(field, value, update) {
 			continue
 		}
 		switch field {
 		case planner.FieldName:
 			if name, ok := value.(string); ok {
 				update.Name = &name
-			}
-		case planner.FieldDescription:
-			if desc, ok := value.(string); ok {
-				update.Description = &desc
-			}
-		case planner.FieldDisplayName:
-			if displayName, ok := value.(string); ok {
-				update.DisplayName = &displayName
 			}
 		case planner.FieldDefaultApplicationStrategyID:
 			if authID, ok := value.(string); ok {
