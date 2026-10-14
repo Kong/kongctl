@@ -56,7 +56,8 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 	return nil
 }
 
-// MapUpdateFields maps fields to UpdatePortal request
+// MapUpdateFields maps fields to UpdatePortal request.
+// Label changes are handled separately by MapUpdateLabels.
 func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdatePortal, _ map[string]string,
 ) error {
@@ -78,7 +79,6 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 				}
 				update.DefaultApplicationAuthStrategyID = &authID
 			}
-			// Skip "labels" as they're handled separately below
 		}
 	}
 
