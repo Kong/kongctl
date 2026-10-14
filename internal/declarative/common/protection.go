@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
@@ -38,7 +39,7 @@ func IsProtectionChange(protection any) bool {
 
 // GetProtectionStatus extracts the protection status from normalized labels
 func GetProtectionStatus(normalizedLabels map[string]string) bool {
-	return normalizedLabels != nil && normalizedLabels["KONGCTL/protected"] == "true"
+	return labels.IsProtectedResource(normalizedLabels)
 }
 
 // FormatProtectionError creates a standardized error message for protection violations
