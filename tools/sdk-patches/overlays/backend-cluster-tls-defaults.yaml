@@ -1,0 +1,7 @@
+overlay: 1.0.0
+info:
+  title: Omit defaults from backend cluster TLS settings
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.BackendClusterTLS.properties.insecure_skip_verify.default
+    remove: true

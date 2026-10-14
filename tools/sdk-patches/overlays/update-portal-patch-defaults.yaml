@@ -1,0 +1,17 @@
+overlay: 1.0.0
+info:
+  title: Omit defaults from the UpdatePortal PATCH model
+  version: 0.0.1
+actions:
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.authentication_enabled.default
+    remove: true
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.rbac_enabled.default
+    remove: true
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.sipr_enabled.default
+    remove: true
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.auto_approve_developers.default
+    remove: true
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.auto_approve_applications.default
+    remove: true
+  - target: $.components.requestBodies.UpdatePortal.content['application/json'].schema.properties.notifications_developer_pii_visibility_enabled.default
+    remove: true

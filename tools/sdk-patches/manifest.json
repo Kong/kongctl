@@ -1,0 +1,26 @@
+{
+  "speakeasy_version": "1.801.0",
+  "overlays": [
+    "backend-cluster-tls-defaults.yaml",
+    "patch-custom-portal-email-template-defaults.yaml",
+    "portal-customization-theme-defaults.yaml",
+    "portal-team-konnect-managed-defaults.yaml",
+    "update-dcr-config-http-defaults.yaml",
+    "update-portal-audit-log-webhook-patch-defaults.yaml",
+    "update-portal-identity-provider-defaults.yaml",
+    "update-portal-patch-defaults.yaml"
+  ],
+  "post_generation": [
+    {
+      "file": "models/components/aigwkeyauthgeneratedconfig.go",
+      "before": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitempty\"`",
+      "after": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitzero\"`"
+    }
+  ],
+  "tests": {
+    "tests/kongctl_boolean_defaults_test.go.txt": "models/components/kongctl_boolean_defaults_test.go",
+    "tests/portal_customization_defaults_test.go.txt": "models/components/portal_customization_defaults_test.go",
+    "tests/portalteam_defaults_test.go.txt": "models/components/portalteam_defaults_test.go",
+    "tests/identity_realms_test.go.txt": "identity_realms_kongctl_test.go"
+  }
+}

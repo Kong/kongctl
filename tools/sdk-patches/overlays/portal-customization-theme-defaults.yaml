@@ -1,0 +1,7 @@
+overlay: 1.0.0
+info:
+  title: Preserve omitted theme names in portal customization requests
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.PortalCustomizationV3.properties.theme.properties.name.default
+    remove: true
