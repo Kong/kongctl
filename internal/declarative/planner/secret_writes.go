@@ -393,6 +393,21 @@ func secretResourceFields(resource resources.Resource, action ActionType) (map[s
 	if resource.GetType() == resources.ResourceTypeAIGatewayConfigStoreSecret && action == ActionUpdate {
 		delete(fields, FieldKey)
 	}
+	if metadata, independent := resources.IndependentChildMetadata(resource); independent {
+		desired, _ := fields[FieldManagedBy].(map[string]any)
+		raw := make(map[string]string)
+		for key, value := range desired {
+			if text, ok := value.(string); ok {
+				raw[key] = text
+			}
+		}
+		// Mutable payload maps may also retain the native map representation.
+		if native, ok := fields[FieldManagedBy].(map[string]string); ok {
+			maps.Copy(raw, native)
+		}
+		protected := metadata != nil && metadata.Protected != nil && *metadata.Protected
+		fields[FieldManagedBy] = resources.BuildChildManagedBy(nil, raw, resources.GetNamespace(metadata), protected)
+	}
 	return fields, nil
 }
 
@@ -462,8 +477,23 @@ func prepareDeclaredSecretPaths(
 		}
 		switch {
 		case group.selected == 0:
-			removeSecretPath(change.Fields, group.prefix)
-			removeSecretChangedPath(change.ChangedFields, group.prefix)
+			objectElements := true
+			for _, path := range group.paths {
+				if len(path) <= len(group.prefix)+1 {
+					objectElements = false
+				}
+			}
+			if objectElements {
+				// Nested scalar array removals can shift indexes inside these objects.
+				// Remove highest indexes first so remaining paths keep their identity.
+				for _, path := range slices.SortedFunc(maps.Values(group.paths), compareSecretRemovalPaths) {
+					removeSecretPath(change.Fields, path)
+					removeSecretChangedPath(change.ChangedFields, path)
+				}
+			} else {
+				removeSecretPath(change.Fields, group.prefix)
+				removeSecretChangedPath(change.ChangedFields, group.prefix)
+			}
 		case group.selected != len(group.paths):
 			return fmt.Errorf(
 				"write-only array field /%s must be written as a complete group; select all configured values",
@@ -660,6 +690,9 @@ func removeSecretPathValue(value any, segments []string) (any, bool) {
 }
 
 func secretResourceNamespace(rs *resources.ResourceSet, resource resources.Resource) string {
+	if metadata, independent := resources.IndependentChildMetadata(resource); independent {
+		return resources.GetNamespace(metadata)
+	}
 	switch typed := resource.(type) {
 	case *resources.DCRProviderResource:
 		return resources.GetNamespace(typed.Kongctl)
@@ -779,7 +812,7 @@ func (p *Planner) resolveSecretResourceID(
 		if parent == nil || parent.ID == "" {
 			return "", fmt.Errorf("AI Gateway auth strategy %q has no resolved gateway", typed.Ref)
 		}
-		current, err := p.client.ListAIGatewayAuthStrategies(ctx, parent.ID)
+		current, err := p.listAIGatewayAuthStrategies(ctx, parent.ID)
 		if err != nil {
 			return "", err
 		}
@@ -793,7 +826,7 @@ func (p *Planner) resolveSecretResourceID(
 		if parent == nil || parent.ID == "" {
 			return "", fmt.Errorf("AI Gateway vault %q has no resolved gateway", typed.Ref)
 		}
-		current, err := p.client.ListAIGatewayVaults(ctx, parent.ID)
+		current, err := p.listAIGatewayVaults(ctx, parent.ID)
 		if err != nil {
 			return "", err
 		}
@@ -826,7 +859,7 @@ func (p *Planner) resolveSecretResourceID(
 		if parent == nil || parent.ID == "" {
 			return "", fmt.Errorf("AI Gateway certificate %q has no resolved gateway", typed.Ref)
 		}
-		current, err := p.client.ListAIGatewayCertificates(ctx, parent.ID)
+		current, err := p.listAIGatewayCertificates(ctx, parent.ID)
 		if err != nil {
 			return "", err
 		}
@@ -882,7 +915,7 @@ func (p *Planner) resolveAIGatewayProviderSecretID(
 	if parent == nil || parent.ID == "" {
 		return "", fmt.Errorf("AI Gateway model provider %q has no resolved gateway", resource.GetRef())
 	}
-	current, err := p.client.ListAIGatewayProviders(ctx, parent.ID)
+	current, err := p.listAIGatewayProviders(ctx, parent.ID)
 	if err != nil {
 		return "", err
 	}

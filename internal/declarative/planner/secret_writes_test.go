@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -825,4 +826,65 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 		rs.AIGatewayCertificates = []resources.AIGatewayCertificateResource{*typed}
 	}
 	return rs
+}
+
+func TestUnselectedObjectArraySecretsPreservePublicSiblings(t *testing.T) {
+	for _, family := range []string{
+		ResourceTypeAIGatewayProvider,
+		ResourceTypeAIGatewayAuthStrategy,
+		ResourceTypeAIGatewayPolicy,
+	} {
+		t.Run(family, func(t *testing.T) {
+			headers := []any{map[string]any{"name": "Authorization", "value": "__SECRET__:never-written", "location": "header"}}
+			change := PlannedChange{
+				ResourceType: family,
+				Fields:       map[string]any{"config": map[string]any{"auth": map[string]any{"headers": headers}}},
+			}
+			require.NoError(t,
+				prepareDeclaredSecretPaths(&change,
+					map[string]resources.SecretSourceDeclaration{"/config/auth/headers/0/value": {}},
+					nil))
+			require.Equal(t, "Authorization", headers[0].(map[string]any)["name"])
+			require.NotContains(t, headers[0], "value")
+			data, err := json.Marshal(change)
+			require.NoError(t, err)
+			require.NotContains(t, string(data), "__SECRET__")
+		})
+	}
+}
+
+func TestSecretWriteContextUsesIndependentChildOwnership(t *testing.T) {
+	model := testAIGatewayModelResource(t)
+	model.Kongctl = &resources.KongctlMeta{Namespace: new("application-team")}
+	model.SetManagedBy(map[string]string{"other-tool": "retain"})
+	require.Equal(t, "application-team", secretResourceNamespace(nil, &model))
+	fields, err := secretResourceFields(&model, ActionUpdate)
+	require.NoError(t, err)
+	metadata := fields[FieldManagedBy].(map[string]string)
+	require.Equal(t, "application-team", metadata[resources.ChildNamespaceKey])
+	require.Equal(t, "false", metadata[resources.ChildProtectedKey])
+	require.Equal(t, "retain", metadata["other-tool"])
+}
+
+func TestUnselectedNestedArraySecretsPreservePublicObjectsWithoutPlaceholders(t *testing.T) {
+	entries := make([]any, 4)
+	declarations := make(map[string]resources.SecretSourceDeclaration)
+	for i := range len(entries) {
+		keys := make([]any, 12)
+		for j := range len(keys) {
+			keys[j] = "__SECRET__:never-written"
+			declarations[fmt.Sprintf("/config/credentials/%d/keys/%d", i, j)] = resources.SecretSourceDeclaration{}
+		}
+		entries[i] = map[string]any{"name": fmt.Sprintf("public-%d", i), "keys": keys}
+	}
+	config := map[string]any{"issuer": "https://issuer.example.test", "credentials": entries}
+	change := PlannedChange{Fields: map[string]any{FieldConfig: config}}
+	require.NoError(t, prepareDeclaredSecretPaths(&change, declarations, nil))
+	for i, entry := range entries {
+		require.Equal(t, fmt.Sprintf("public-%d", i), entry.(map[string]any)["name"])
+		require.NotContains(t, entry, "keys")
+	}
+	data, err := json.Marshal(change)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "__SECRET__")
 }

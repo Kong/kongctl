@@ -74,3 +74,71 @@ func (p *Planner) listAIGatewayPolicies(ctx context.Context, gatewayID string) (
 	}
 	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayPolicies)
 }
+
+func (p *Planner) listAIGatewayProviders(ctx context.Context, gatewayID string) ([]state.AIGatewayProvider, error) {
+	var cache map[string][]state.AIGatewayProvider
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayProviders
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayProviders)
+}
+
+func (p *Planner) listAIGatewayAuthStrategies(ctx context.Context,
+	gatewayID string) ([]state.AIGatewayAuthStrategy,
+	error,
+) {
+	var cache map[string][]state.AIGatewayAuthStrategy
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayAuthStrategies
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayAuthStrategies)
+}
+
+func (p *Planner) listAIGatewayCustomPolicies(ctx context.Context,
+	gatewayID string) ([]state.AIGatewayCustomPolicy,
+	error,
+) {
+	var cache map[string][]state.AIGatewayCustomPolicy
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayCustomPolicies
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayCustomPolicies)
+}
+
+func (p *Planner) listAIGatewayVaults(ctx context.Context, gatewayID string) ([]state.AIGatewayVault, error) {
+	var cache map[string][]state.AIGatewayVault
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayVaults
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayVaults)
+}
+
+func (p *Planner) listAIGatewayCertificates(ctx context.Context,
+	gatewayID string) ([]state.AIGatewayCertificate,
+	error,
+) {
+	var cache map[string][]state.AIGatewayCertificate
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayCertificates
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayCertificates)
+}
+
+func (p *Planner) listAIGatewayCACertificates(ctx context.Context,
+	gatewayID string) ([]state.AIGatewayCACertificate,
+	error,
+) {
+	var cache map[string][]state.AIGatewayCACertificate
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewayCACertificates
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewayCACertificates)
+}
+
+func (p *Planner) listAIGatewaySNIs(ctx context.Context, gatewayID string) ([]state.AIGatewaySNI, error) {
+	var cache map[string][]state.AIGatewaySNI
+	if p.resourceCache != nil {
+		cache = p.resourceCache.aiGatewaySNIs
+	}
+	return listCachedAIGatewayChildren(ctx, gatewayID, cache, p.client.ListAIGatewaySNIs)
+}

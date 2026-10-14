@@ -45,7 +45,7 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 		return nil
 	}
 
-	currentProviders, err := p.client.ListAIGatewayAuthStrategies(ctx, gatewayID)
+	currentProviders, err := p.listAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
 	}

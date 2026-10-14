@@ -38,7 +38,7 @@ func (p *Planner) planAIGatewayProviderChanges(
 		return nil
 	}
 
-	currentProviders, err := p.client.ListAIGatewayProviders(ctx, gatewayID)
+	currentProviders, err := p.listAIGatewayProviders(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Model Providers for gateway %s: %w", gatewayID, err)
 	}

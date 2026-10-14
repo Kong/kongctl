@@ -34,7 +34,7 @@ func (c *Client) ListAIGatewayConsumers(ctx context.Context, gatewayID string) (
 		}
 
 		if resp == nil || resp.ListAIGatewayConsumersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)

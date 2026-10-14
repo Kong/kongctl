@@ -53,23 +53,18 @@ func (p *Planner) planAIGatewayTLSChanges(
 		}
 	}
 
-	var currentSNIs []state.AIGatewaySNI
 	if sniScoped && (len(snis) > 0 || plan.Metadata.Mode == PlanModeSync) {
-		var err error
-		currentSNIs, err = p.planAIGatewaySNIChanges(
+		err := p.planAIGatewaySNIChanges(
 			ctx, namespace, gatewayRef, gatewayID, gatewayChangeID, snis, plan,
 		)
 		if err != nil {
 			return err
 		}
-	} else if len(pendingDeletes) > 0 && gatewayID != "" {
-		var err error
-		currentSNIs, err = p.client.ListAIGatewaySNIs(ctx, gatewayID)
-		if err != nil {
-			return fmt.Errorf("failed to inspect AI Gateway SNIs before deleting certificates: %w", err)
-		}
 	}
-	return p.planAIGatewayCertificateDeletes(pendingDeletes, currentSNIs, plan)
+	for _, pending := range pendingDeletes {
+		plan.AddChange(pending.change)
+	}
+	return nil
 }
 
 func (p *Planner) planAIGatewayCertificateUpserts(
@@ -89,7 +84,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		}
 		return nil, nil
 	}
-	current, err := p.client.ListAIGatewayCertificates(ctx, gatewayID)
+	current, err := p.listAIGatewayCertificates(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list AI Gateway certificates: %w", err)
 	}
@@ -151,7 +146,7 @@ func (p *Planner) planAIGatewayCACertificateChanges(
 		}
 		return nil
 	}
-	current, err := p.client.ListAIGatewayCACertificates(ctx, gatewayID)
+	current, err := p.listAIGatewayCACertificates(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway CA certificates: %w", err)
 	}
@@ -195,7 +190,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewaySNIResource,
 	plan *Plan,
-) ([]state.AIGatewaySNI, error) {
+) error {
 	p.logger.Debug("Planning AI Gateway SNI changes",
 		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
 	if gatewayID == "" {
@@ -203,7 +198,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 			fields := sni.PayloadMap()
 			certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
 			if err != nil {
-				return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+				return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
 			}
 			fields[FieldCertificate] = certificate
 			dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
@@ -212,11 +207,11 @@ func (p *Planner) planAIGatewaySNIChanges(
 				"", sni.Ref, fields, dependsOn, plan,
 			)
 		}
-		return nil, nil
+		return nil
 	}
-	current, err := p.client.ListAIGatewaySNIs(ctx, gatewayID)
+	current, err := p.listAIGatewaySNIs(ctx, gatewayID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
+		return fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
 	}
 	byName := indexAIGatewaySNIs(current)
 	desiredNames := make(map[string]bool, len(desired))
@@ -227,7 +222,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 		fields := sni.PayloadMap()
 		certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
 		if err != nil {
-			return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+			return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
 		}
 		fields[FieldCertificate] = certificate
 		dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
@@ -255,7 +250,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 			}
 		}
 	}
-	return current, nil
+	return nil
 }
 
 func (p *Planner) planAIGatewayCertificateDeletes(

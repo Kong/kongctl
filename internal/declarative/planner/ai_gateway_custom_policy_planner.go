@@ -40,7 +40,7 @@ func (p *Planner) planAIGatewayCustomPolicyChanges(
 		return nil
 	}
 
-	currentPolicies, err := p.client.ListAIGatewayCustomPolicies(ctx, gatewayID)
+	currentPolicies, err := p.listAIGatewayCustomPolicies(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Custom Policies for gateway %s: %w", gatewayID, err)
 	}

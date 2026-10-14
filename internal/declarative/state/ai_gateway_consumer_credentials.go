@@ -39,7 +39,7 @@ func (c *Client) ListAIGatewayConsumerCredentials(
 		}
 
 		if resp == nil || resp.ListAIGatewayConsumerCredentialsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumerCredentialsResponse.Data...)

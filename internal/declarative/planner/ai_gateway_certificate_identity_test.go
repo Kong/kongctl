@@ -207,7 +207,7 @@ func planCertificateIdentity(
 		for _, item := range current {
 			api.snis = append(api.snis, item.(kkComps.AIGatewaySNI))
 		}
-		_, err := p.planAIGatewaySNIChanges(ctx, DefaultNamespace, "gateway", "gateway-id", "",
+		err := p.planAIGatewaySNIChanges(ctx, DefaultNamespace, "gateway", "gateway-id", "",
 			[]resources.AIGatewaySNIResource{*desired.(*resources.AIGatewaySNIResource)}, plan)
 		return err
 	}
@@ -263,6 +263,9 @@ func TestAIGatewayCertificateIdentitySNIDependencies(t *testing.T) {
 			p.resources = rs
 			plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
 			err := p.planAIGatewayTLSChanges(t.Context(), DefaultNamespace, "gateway", "gateway-id", "", plan)
+			if err == nil {
+				err = p.resolveFinalAIGatewayDependencies(t.Context(), plan)
+			}
 			require.Equal(t, []string{"gateway-id", "gateway-id"}, api.gatewayIDs)
 			if tc.keepReference || tc.omitSNIScope {
 				require.ErrorContains(
@@ -270,7 +273,8 @@ func TestAIGatewayCertificateIdentitySNIDependencies(t *testing.T) {
 					err,
 					`cannot delete AI Gateway certificate "old-cert" while SNI "sni" still references it`,
 				)
-				require.Len(t, plan.Changes, 1)
+				require.Len(t, plan.Changes, 2)
+				require.Equal(t, ActionDelete, plan.Changes[1].Action)
 				require.Equal(t, ActionCreate, plan.Changes[0].Action)
 				return
 			}
@@ -348,13 +352,20 @@ func TestAIGatewayCertificateDeleteRejectsPlannedSNIReference(t *testing.T) {
 			p.resources = rs
 			plan := NewPlan(CurrentPlanVersion, "test", tc.mode)
 			err := p.planAIGatewayTLSChanges(t.Context(), DefaultNamespace, "gateway", "gateway-id", "", plan)
+			if err == nil {
+				err = p.resolveFinalAIGatewayDependencies(t.Context(), plan)
+			}
 			if tc.wantError {
 				require.ErrorContains(t, err, `cannot delete AI Gateway certificate "old-cert"`)
 				require.ErrorContains(t, err, `planned SNI "sni-ref" still references it`)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Len(t, plan.Changes, 1)
+			if tc.wantError {
+				require.Len(t, plan.Changes, 2)
+			} else {
+				require.Len(t, plan.Changes, 1)
+			}
 			sni := plan.Changes[0]
 			require.Equal(t, ResourceTypeAIGatewaySNI, sni.ResourceType)
 			require.Equal(t, "old-cert", sni.Fields[FieldCertificate])
