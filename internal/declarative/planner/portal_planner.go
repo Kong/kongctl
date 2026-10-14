@@ -240,14 +240,7 @@ func extractPortalFields(resource any) map[string]any {
 	}
 
 	fields[FieldName] = portal.Name
-	fieldcontracts.ExtractPortalBooleans(portal.CreatePortal, fields)
-	fieldcontracts.ExtractPortalStrings(portal.CreatePortal, fields)
-	if portal.DefaultAPIVisibility != nil {
-		fields[FieldDefaultAPIVisibility] = string(*portal.DefaultAPIVisibility)
-	}
-	if portal.DefaultPageVisibility != nil {
-		fields[FieldDefaultPageVisibility] = string(*portal.DefaultPageVisibility)
-	}
+	fieldcontracts.ExtractPortalFields(portal.CreatePortal, fields)
 	if portal.DefaultApplicationAuthStrategyID != nil {
 		fields[FieldDefaultApplicationStrategyID] = *portal.DefaultApplicationAuthStrategyID
 	}
@@ -385,7 +378,7 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	for name, change := range fieldcontracts.ComparePortalStrings(desired.CreatePortal, &current) {
+	for name, change := range fieldcontracts.ComparePortalFields(desired.CreatePortal, current.ListPortalsResponsePortal) {
 		updates[name] = change.New
 		changedFields[name] = FieldChange{Old: change.Old, New: change.New}
 	}
@@ -403,39 +396,6 @@ func (p *portalPlannerImpl) shouldUpdatePortal(
 					Old: currentAuthID,
 					New: desiredValue,
 				}
-			}
-		}
-	}
-
-	for name, change := range fieldcontracts.ComparePortalBooleans(desired.CreatePortal, &current) {
-		updates[name] = change.New
-		var old any
-		if change.Old != nil {
-			old = *change.Old
-		}
-		changedFields[name] = FieldChange{Old: old, New: change.New}
-	}
-
-	if desired.DefaultAPIVisibility != nil {
-		currentVisibility := string(current.DefaultAPIVisibility)
-		desiredVisibility := string(*desired.DefaultAPIVisibility)
-		if currentVisibility != desiredVisibility {
-			updates[FieldDefaultAPIVisibility] = desiredVisibility
-			changedFields[FieldDefaultAPIVisibility] = FieldChange{
-				Old: currentVisibility,
-				New: desiredVisibility,
-			}
-		}
-	}
-
-	if desired.DefaultPageVisibility != nil {
-		currentVisibility := string(current.DefaultPageVisibility)
-		desiredVisibility := string(*desired.DefaultPageVisibility)
-		if currentVisibility != desiredVisibility {
-			updates[FieldDefaultPageVisibility] = desiredVisibility
-			changedFields[FieldDefaultPageVisibility] = FieldChange{
-				Old: currentVisibility,
-				New: desiredVisibility,
 			}
 		}
 	}

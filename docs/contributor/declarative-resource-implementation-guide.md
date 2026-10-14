@@ -637,27 +637,26 @@ observable fields; [write-only secrets](#write-only-secrets) have separate
 selection rules. Preserve PATCH sparsity and any API-specific full-update
 requirements rather than applying one update policy universally.
 
-Portal's five optional booleans use the typed
-[Portal boolean field contract][portal-boolean-contract]
-for create extraction, comparison, request mapping and list/detail export.
-Enroll each field once with declaration, observation and update accessors;
-do not add parallel field lists in those callers. Omission is unmanaged,
-explicit false is retained, and an absent observation differs from false.
-These projections preserve pointer presence; SDK wire-serialization defaults
-remain unchanged and separate from declarative omission semantics.
-The planner retains `Field*` aliases and converts contract changes into plan
-diagnostics. Update mapping handles one field at a time to preserve caller
-error timing.
+Portal's nine ordinary optional fields use the
+[Portal field projections][portal-field-projections] for create extraction,
+comparison, request mapping and list/detail export. Pipeline callers invoke
+one projection per stage; field categories and SDK enum conversions stay
+inside this module. Enroll typed accessors and export policy in the private
+[boolean][portal-boolean-contract] or [text][portal-string-contract] inventory.
+Do not add parallel field lists or category dispatch to pipeline callers.
 
-Portal's optional `display_name` and `description` use the
-[Portal string field contract][portal-string-contract] across the same stages.
-Omitted declarations are unmanaged; explicit empty strings are retained in
-requests. Comparison normalizes an absent description to empty. Export instead
-preserves description presence and omits an empty display name. Keep these
-policies separate from boolean observation handling and SDK wire defaults.
-Enums, labels, references and secrets retain their explicit policies; add
-another contract only after identifying shared semantics. Legacy test-only
-Portal executor methods remain outside these production contracts.
+Omitted declarations are unmanaged. Booleans preserve explicit false and
+unknown observations. Text comparison normalizes an absent description to
+empty; explicit empty strings and visibility values remain in requests.
+Export preserves description presence but omits empty display names and
+visibility values. Create/update visibility enum types are converted without
+adding validation or defaults. SDK wire defaults remain separate from these
+pointer-presence policies.
+
+The planner retains `Field*` aliases and renders normalized contract changes.
+Update mapping handles one field at a time to preserve caller error timing.
+Name/identity, labels, references and secrets retain their explicit policies.
+Legacy test-only Portal executor methods remain outside these projections.
 
 Use `PlannedChange.Parent` and `References` for routing and
 `DependsOn` for operation ordering. Children created with a new parent need
@@ -1237,3 +1236,5 @@ engine contract. Each refactoring migration should:
 [reference-validation-contract]: ../../internal/declarative/resources/reference_validation_contract_test.go
 
 [portal-string-contract]: ../../internal/declarative/fieldcontracts/portal_strings.go
+
+[portal-field-projections]: ../../internal/declarative/fieldcontracts/portal.go

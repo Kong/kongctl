@@ -37,19 +37,7 @@ func (p *PortalAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionCon
 
 	// Map required fields
 	create.Name = common.ExtractResourceName(fields)
-	fieldcontracts.MapPortalBooleanCreateFields(fields, create)
-
-	fieldcontracts.MapPortalStringCreateFields(fields, create)
-
-	if defaultAPIVisibility, ok := fields[planner.FieldDefaultAPIVisibility].(string); ok {
-		visibility := kkComps.DefaultAPIVisibility(defaultAPIVisibility)
-		create.DefaultAPIVisibility = &visibility
-	}
-
-	if defaultPageVisibility, ok := fields[planner.FieldDefaultPageVisibility].(string); ok {
-		visibility := kkComps.DefaultPageVisibility(defaultPageVisibility)
-		create.DefaultPageVisibility = &visibility
-	}
+	fieldcontracts.MapPortalCreateFields(fields, create)
 
 	if defaultAppAuthStrategyID, ok := fields[planner.FieldDefaultApplicationStrategyID].(string); ok {
 		if tags.IsRefPlaceholder(defaultAppAuthStrategyID) {
@@ -75,8 +63,7 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 	// Only include fields that are in the fields map
 	// These represent actual changes detected by the planner
 	for field, value := range fields {
-		if fieldcontracts.MapPortalBooleanUpdateField(field, value, update) ||
-			fieldcontracts.MapPortalStringUpdateField(field, value, update) {
+		if fieldcontracts.MapPortalUpdateField(field, value, update) {
 			continue
 		}
 		switch field {
@@ -90,16 +77,6 @@ func (p *PortalAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, 
 					return errUnresolvedRef(planner.FieldDefaultApplicationStrategyID, authID)
 				}
 				update.DefaultApplicationAuthStrategyID = &authID
-			}
-		case planner.FieldDefaultAPIVisibility:
-			if visibility, ok := value.(string); ok {
-				vis := kkComps.UpdatePortalDefaultAPIVisibility(visibility)
-				update.DefaultAPIVisibility = &vis
-			}
-		case planner.FieldDefaultPageVisibility:
-			if visibility, ok := value.(string); ok {
-				vis := kkComps.UpdatePortalDefaultPageVisibility(visibility)
-				update.DefaultPageVisibility = &vis
 			}
 			// Skip "labels" as they're handled separately below
 		}
