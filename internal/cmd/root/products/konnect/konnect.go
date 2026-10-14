@@ -19,6 +19,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
@@ -218,6 +219,10 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
+	}
+
+	if family := meteringbilling.NewCommand(verb); family != nil {
+		cmd.AddCommand(family)
 	}
 
 	// Handle Login verb

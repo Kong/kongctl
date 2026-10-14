@@ -36,6 +36,14 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		rootCollector(
+			"meters",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.MeterResource, error) {
+				return collectDeclarativeMeters(ctx, d.sdk.GetMetersAPI(), d.pageSize, d.filter)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.MeterResource { return &rs.Meters },
+			nil,
+		),
+		rootCollector(
 			"portals",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.PortalResource, error) {
 				return collectDeclarativePortals(ctx, d.sdk.GetPortalAPI(), d.pageSize, d.filter)

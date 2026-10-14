@@ -22,6 +22,7 @@ type rootPlanner struct {
 func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
+		{resourceType: resources.ResourceTypeMeter, displayName: "meter", planner: NewMeterPlanner(base)},
 		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",

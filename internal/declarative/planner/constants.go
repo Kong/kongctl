@@ -75,6 +75,11 @@ const (
 	FieldSpec           = "spec"
 	FieldSlug           = "slug"
 	FieldKey            = "key"
+	FieldAggregation    = "aggregation"
+	FieldEventType      = "event_type"
+	FieldEventsFrom     = "events_from"
+	FieldValueProperty  = "value_property"
+	FieldDimensions     = "dimensions"
 	FieldValue          = "value"
 	FieldAPIKey         = "api_key"
 	FieldClientID       = "client_id"
@@ -260,6 +265,7 @@ const (
 	ResourceTypeAIGatewayCACertificate           = string(resources.ResourceTypeAIGatewayCACertificate)
 	ResourceTypeAIGatewaySNI                     = string(resources.ResourceTypeAIGatewaySNI)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
+	ResourceTypeMeter                            = string(resources.ResourceTypeMeter)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
 	ResourceTypeAPIImplementation                = string(resources.ResourceTypeAPIImplementation)
