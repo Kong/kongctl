@@ -68,16 +68,24 @@ selection is rejected. Scalar secrets and nested object secrets continue to
 omit only their selected paths. No credentials are implicitly rewritten or
 embedded in plans or logs.
 
-A live CLI metadata-only PUT retained the public Authorization header
-definition without selecting or resolving its `!secret` source. This validates
-public payload preservation; it does not by itself prove the
-backend retained a usable credential. A disposable live runtime probe attempted
-to compare actual upstream authentication before and after a metadata-only PUT.
-The runtime failed before baseline traffic with `/probe/tls.key: Permission
-denied`. The disposable gateway and container were removed. Runtime credential
-continuity remains a blocker for provider ownership enrollment until that probe
-or equivalent backend verification succeeds. Retaining a redacted GET shape
-alone must not be recorded as successful continuity validation.
+A disposable live runtime probe verified provider basic-header credential
+continuity across a CLI metadata-only PUT. A local upstream received the
+expected synthetic Authorization credential before the update and the same
+credential afterward, without selecting or resolving the manifest's `!secret`
+source. The post-update check used a fresh runtime with an empty local config
+cache, synchronized to Konnect's expected config version. The public header
+definition and updated metadata were also retained. Credentials were compared
+in memory and were not printed or embedded in plans.
+
+The probe's initial key-access failure did not establish a missing nono grant.
+The running session's `nono why --self` confirmed worktree read/write access,
+and the agent could read the generated key. The image defaulted to UID/GID
+1001 while the key belonged to UID/GID 1000 with mode `0600`. Matching the
+disposable container's user to the host key owner and using a project-local
+writable runtime directory allowed the probe to proceed without new grants.
+All disposable gateways, containers, keys, and runtime caches were removed.
+This verifies the tested basic-header contract; other write-only shapes still
+need their own evidence. Retaining a redacted GET shape alone is insufficient.
 
 Inspection also identified catalog gaps: provider auth parameter values and AWS
 session tokens currently lack reviewed `!secret` path capabilities. Their safe
