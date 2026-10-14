@@ -10,6 +10,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -116,6 +117,8 @@ Setting this value overrides tokens obtained from the login command.
 		fmt.Sprintf(`Retry selected retryable connection-level errors.
 - Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
 
+	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+
 	if err := addDeleteTokenCommands(cmd); err != nil {
 		return nil, err
 	}
@@ -162,6 +165,7 @@ func addDeleteTokenCommands(cmd *cobra.Command) error {
 		return err
 	}
 	konnectCmd.AddCommand(konnectOrgCmd)
+	konnectCmd.AddCommand(meteringbilling.NewCommand(Verb))
 	cmd.AddCommand(konnectCmd)
 
 	meshCmd, err := NewDirectMeshCmd()
