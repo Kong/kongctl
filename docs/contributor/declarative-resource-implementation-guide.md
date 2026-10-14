@@ -656,7 +656,7 @@ pointer-presence policies.
 The planner retains `Field*` aliases and renders normalized contract changes.
 Update mapping handles one field at a time to preserve caller error timing.
 Name/identity, labels, references and secrets retain their explicit policies.
-Test Portal operations through registered resource dispatch so field mapping,
+Test resource operations through registered dispatch so field mapping,
 labels and runtime protection checks exercise the production path.
 
 Use `PlannedChange.Parent` and `References` for routing and

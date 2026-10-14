@@ -69,7 +69,7 @@ func (m *MockAPIAPI) FetchAPI(
 	return args.Get(0).(*kkOps.FetchAPIResponse), args.Error(1)
 }
 
-func TestExecutor_deleteAPI(t *testing.T) {
+func TestExecutor_deleteResourceAPI(t *testing.T) {
 	tests := []struct {
 		name      string
 		change    planner.PlannedChange
@@ -88,20 +88,13 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockAPIAPI) {
-				// Mock GetAPIByName for protection check
-				m.On("ListApis", mock.Anything, mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
-					ListAPIResponse: &kkComps.ListAPIResponse{
-						Data: []kkComps.APIResponseSchema{
-							{
-								ID:   "api-123",
-								Name: "delete-api",
-								Labels: map[string]string{
-									labels.NamespaceKey: "default",
-								},
-							},
-						},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{Total: 1},
+				// Mock the production ID lookup for the protection check
+				m.On("FetchAPI", mock.Anything, "api-123", mock.Anything).Return(&kkOps.FetchAPIResponse{
+					APIResponseSchema: &kkComps.APIResponseSchema{
+						ID:   "api-123",
+						Name: "delete-api",
+						Labels: map[string]string{
+							labels.NamespaceKey: "default",
 						},
 					},
 				}, nil)
@@ -123,20 +116,13 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockAPIAPI) {
-				m.On("ListApis", mock.Anything, mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
-					ListAPIResponse: &kkComps.ListAPIResponse{
-						Data: []kkComps.APIResponseSchema{
-							{
-								ID:   "api-456",
-								Name: "protected-api",
-								Labels: map[string]string{
-									labels.NamespaceKey: "default",
-									labels.ProtectedKey: "true",
-								},
-							},
-						},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{Total: 1},
+				m.On("FetchAPI", mock.Anything, "api-456", mock.Anything).Return(&kkOps.FetchAPIResponse{
+					APIResponseSchema: &kkComps.APIResponseSchema{
+						ID:   "api-456",
+						Name: "protected-api",
+						Labels: map[string]string{
+							labels.NamespaceKey: "default",
+							labels.ProtectedKey: "true",
 						},
 					},
 				}, nil)
@@ -155,6 +141,8 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockAPIAPI) {
+				m.On("FetchAPI", mock.Anything, "api-789", mock.Anything).
+					Return(&kkOps.FetchAPIResponse{}, nil)
 				// ListAPIs will be called but won't return this API
 				// because it's not managed (ListManagedAPIs filters it out)
 				m.On("ListApis", mock.Anything, mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
@@ -182,6 +170,8 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockAPIAPI) {
+				m.On("FetchAPI", mock.Anything, "api-999", mock.Anything).
+					Return(&kkOps.FetchAPIResponse{}, nil)
 				m.On("ListApis", mock.Anything, mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
 					ListAPIResponse: &kkComps.ListAPIResponse{
 						Data: []kkComps.APIResponseSchema{},
@@ -204,19 +194,12 @@ func TestExecutor_deleteAPI(t *testing.T) {
 				},
 			},
 			setupMock: func(m *MockAPIAPI) {
-				m.On("ListApis", mock.Anything, mock.Anything, mock.Anything).Return(&kkOps.ListApisResponse{
-					ListAPIResponse: &kkComps.ListAPIResponse{
-						Data: []kkComps.APIResponseSchema{
-							{
-								ID:   "api-fail",
-								Name: "fail-api",
-								Labels: map[string]string{
-									labels.NamespaceKey: "default",
-								},
-							},
-						},
-						Meta: kkComps.PaginatedMeta{
-							Page: kkComps.PageMeta{Total: 1},
+				m.On("FetchAPI", mock.Anything, "api-fail", mock.Anything).Return(&kkOps.FetchAPIResponse{
+					APIResponseSchema: &kkComps.APIResponseSchema{
+						ID:   "api-fail",
+						Name: "fail-api",
+						Labels: map[string]string{
+							labels.NamespaceKey: "default",
 						},
 					},
 				}, nil)
@@ -226,7 +209,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 					Return(nil, errors.New("API error"))
 			},
 			wantErr: true,
-			errMsg:  "failed to delete API",
+			errMsg:  "failed to delete api",
 		},
 	}
 
@@ -242,7 +225,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
-			err := executor.deleteAPI(testContextWithLogger(), tt.change)
+			err := executor.deleteResource(testContextWithLogger(), &tt.change)
 
 			// Verify
 			if tt.wantErr {
@@ -259,7 +242,7 @@ func TestExecutor_deleteAPI(t *testing.T) {
 	}
 }
 
-func TestExecutor_createAPI(t *testing.T) {
+func TestExecutor_createResourceAPI(t *testing.T) {
 	tests := []struct {
 		name      string
 		change    planner.PlannedChange
@@ -339,7 +322,7 @@ func TestExecutor_createAPI(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
-			id, err := executor.createAPI(testContextWithLogger(), tt.change)
+			id, err := executor.createResource(testContextWithLogger(), &tt.change)
 
 			// Verify
 			if tt.wantErr {
