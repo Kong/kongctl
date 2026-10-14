@@ -129,4 +129,4 @@ require (
 	modernc.org/sqlite v1.52.0 // indirect
 )
 
-replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.73.2-0.20261014171439-ab3bef3da53d
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.73.2-0.20261014221212-c75dd6e4af7d

@@ -1,5 +1,5 @@
-github.com/Kong/sdk-konnect-go v0.73.2-0.20261014171439-ab3bef3da53d h1:R+T/8pMtMBAFzxNtf/rm3vBg7bGez719qqlHCx2x1hM=
-github.com/Kong/sdk-konnect-go v0.73.2-0.20261014171439-ab3bef3da53d/go.mod h1:iUqTkxWGssFnWJkeKkljf4OeAx59k9uaKcO5Hx+96kU=
+github.com/Kong/sdk-konnect-go v0.73.2-0.20261014221212-c75dd6e4af7d h1:jt+E30ViDNMZJx5/3/uH8BEzq0S3ZBktVdqSTfJqGII=
+github.com/Kong/sdk-konnect-go v0.73.2-0.20261014221212-c75dd6e4af7d/go.mod h1:iUqTkxWGssFnWJkeKkljf4OeAx59k9uaKcO5Hx+96kU=
 github.com/ajg/form v1.9.0 h1:S01Z5HQq9ukm7hu1Kd7iWDN+e5mtLo+Xo3Uj+aj2UZc=
 github.com/ajg/form v1.9.0/go.mod h1:HL757PzLyNkj5AIfptT6L+iGNeXTlnrr/oDePGc/y7Q=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
