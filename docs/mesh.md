@@ -5,7 +5,7 @@ types, aliases, scope, and write permissions come from the control plane's
 discovery API. Kong Mesh resources use their native document format, separate
 from kongctl's Konnect declarative manifests.
 
-The [Mesh examples](examples/declarative/mesh/README.md) include runnable Mesh
+The [Mesh examples](examples/mesh/README.md) include runnable Mesh
 and MeshTimeout documents with an apply/read/delete, dump, inspection, and
 token walkthrough.
 
@@ -104,12 +104,12 @@ read-only resources; they cannot necessarily be reapplied unchanged.
 ## Inspect computed state
 
 ```shell
-kongctl get mesh inspect dataplanes --mesh production
-kongctl get mesh inspect meshes
-kongctl get mesh inspect zones
-kongctl get mesh inspect meshtimeout slow --mesh production
-kongctl get mesh inspect dataplane backend --mesh production
-kongctl get mesh inspect dataplane backend --type stats --mesh production
+kongctl inspect mesh dataplanes --mesh production
+kongctl inspect mesh meshes
+kongctl inspect mesh zones
+kongctl inspect mesh meshtimeout slow --mesh production
+kongctl inspect mesh dataplane backend --mesh production
+kongctl inspect mesh dataplane backend --type stats --mesh production
 ```
 
 Policy inspection lists matching dataplanes. Dataplane policy inspection
@@ -135,7 +135,8 @@ Tokens are written as bare text without a trailing newline, including when
 `-o json` or `-o yaml` is selected. Trace logs redact tokens and secret bodies.
 
 The direct forms above work for hosted and self-managed targets. Explicit
-`get konnect mesh` and `create konnect mesh` forms are also supported.
+`get konnect mesh`, `inspect konnect mesh`, and `create konnect mesh` forms
+are also supported.
 Resource apply/delete use the direct form because their `konnect` subtree is
 owned by the existing declarative commands. Mesh has no plan, diff, sync,
 interactive view, or control-plane creation command.

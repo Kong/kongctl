@@ -77,6 +77,29 @@ func writeJSON(t *testing.T, w http.ResponseWriter, status int, body any) {
 	}
 }
 
+func TestMeshInspectOverviewOnBothCommandTrees(t *testing.T) {
+	for _, path := range [][]string{{"inspect", "mesh"}, {"inspect", "konnect", "mesh"}} {
+		t.Run(strings.Join(path, " "), func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if r.Method != http.MethodGet || r.URL.Path != "/meshes/_overview" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+				}
+				writeJSON(t, w, http.StatusOK, map[string]any{
+					"items": []map[string]any{{"name": "demo"}}, "total": 1,
+				})
+			}))
+			defer server.Close()
+			args := append(append([]string{}, path...), "meshes", "--control-plane-url", server.URL, "-o", "json")
+			result := executeRootForTest(t, args...)
+			if result.exitCode != 0 || requests.Load() == 0 || !strings.Contains(result.stdout, "demo") {
+				t.Fatalf("inspection failed: stdout=%s stderr=%s", result.stdout, result.stderr)
+			}
+		})
+	}
+}
+
 // A listing is returned across two pages, so a client that reads only the
 // first page silently drops half the results.
 func TestMeshGetPaginatesOverHTTP(t *testing.T) {

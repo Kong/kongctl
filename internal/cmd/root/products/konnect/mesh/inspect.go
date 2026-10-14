@@ -44,32 +44,29 @@ var (
 		`Inspect what a Kong Mesh control plane computed, rather than what was
 applied to it.
 
-'get mesh' reads resources back as they were written. 'inspect' answers the
+'get mesh' reads stored resource configuration. 'inspect' answers the
 questions that only the control plane can: which policies apply to a proxy
 once matching and merging have run, and which proxies a policy matches.`))
 
 	inspectExample = normalizers.Examples(i18n.T("root.products.konnect.mesh.inspectExample",
 		fmt.Sprintf(`
 	# Policies that apply to a proxy, after matching and merging
-	%[1]s get mesh inspect dataplane backend-01
+	%[1]s inspect mesh dataplane backend-01
 
 	# Proxies a policy matches
-	%[1]s get mesh inspect meshtimeout slow
+	%[1]s inspect mesh meshtimeout slow
 
 	# A proxy's Envoy statistics, while its zone is connected
-	%[1]s get mesh inspect dataplane backend-01 --type stats
+	%[1]s inspect mesh dataplane backend-01 --type stats
 
 	# Overviews
-	%[1]s get mesh inspect dataplanes
-	%[1]s get mesh inspect meshes
-	%[1]s get mesh inspect zones
+	%[1]s inspect mesh dataplanes
+	%[1]s inspect mesh meshes
+	%[1]s inspect mesh zones
 	`, meta.CLIName)))
 )
 
-// newInspectCmd builds `get mesh inspect`. It sits under the get verb rather
-// than becoming a verb of its own, because every other kongctl product groups
-// reads under get and an inspect verb unique to mesh would read as an
-// exception to that.
+// newInspectCmd builds the Mesh inspection surface for the inspect verb.
 func newInspectCmd(
 	verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
@@ -94,7 +91,7 @@ func newInspectCmd(
 			if len(args) != 2 {
 				return &cmd.ConfigurationError{
 					Err: fmt.Errorf(
-						"expected a policy type and a name, for example 'get mesh inspect meshtimeout <name>'",
+						"expected a policy type and a name, for example 'inspect mesh meshtimeout <name>'",
 					),
 				}
 			}

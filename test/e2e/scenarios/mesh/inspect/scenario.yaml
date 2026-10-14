@@ -26,7 +26,7 @@ steps:
     skipInputs: true
     commands:
       - name: 000-meshes
-        run: [get, mesh, inspect, meshes, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        run: [inspect, mesh, meshes, --control-plane-id, "{{ .vars.control_plane_id }}"]
         assertions:
           - select: "@"
             expect:
@@ -34,7 +34,7 @@ steps:
                 "length(items[?name=='default'])": 1
                 total: 1
       - name: 001-dataplanes
-        run: [get, mesh, inspect, dataplanes, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        run: [inspect, mesh, dataplanes, --control-plane-id, "{{ .vars.control_plane_id }}"]
         assertions:
           - select: "@"
             expect:
@@ -42,7 +42,7 @@ steps:
                 items: []
                 total: 0
       - name: 002-zones
-        run: [get, konnect, mesh, inspect, zones, --control-plane-id, "{{ .vars.control_plane_id }}"]
+        run: [inspect, konnect, mesh, zones, --control-plane-id, "{{ .vars.control_plane_id }}"]
         assertions:
           - select: "@"
             expect:
@@ -50,7 +50,7 @@ steps:
                 items: []
                 total: 0
       - name: 003-policy-matches
-        run: [get, mesh, inspect, meshtimeout, kongctl-e2e-inspect-timeout,
+        run: [inspect, mesh, meshtimeout, kongctl-e2e-inspect-timeout,
               --control-plane-id, "{{ .vars.control_plane_id }}"]
         assertions:
           - select: "@"

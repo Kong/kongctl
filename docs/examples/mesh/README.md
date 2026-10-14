@@ -2,7 +2,7 @@
 
 These examples use native Kong Mesh documents with `kongctl apply mesh`.
 They are separate from kongctl's Konnect declarative manifests and do not use
-`plan`, `diff`, or `sync`. See the [Mesh guide](../../../mesh.md) for the
+`plan`, `diff`, or `sync`. See the [Mesh guide](../../mesh.md) for the
 complete command and configuration reference.
 
 | File | Purpose |
@@ -20,7 +20,7 @@ resources within an existing control plane.
 From the repository root, enter the example directory and list hosted targets:
 
 ```shell
-cd docs/examples/declarative/mesh
+cd docs/examples/mesh
 kongctl get mesh control-planes
 export MESH_CP_ID="<source-control-plane-id>"
 kongctl get mesh resource-types --control-plane-id "$MESH_CP_ID"
@@ -102,10 +102,10 @@ Inspect mesh and dataplane overviews, then find the dataplanes the policy
 matches:
 
 ```shell
-kongctl get mesh inspect meshes --control-plane-id "$MESH_CP_ID"
-kongctl get mesh inspect dataplanes --mesh kongctl-example-mesh \
+kongctl inspect mesh meshes --control-plane-id "$MESH_CP_ID"
+kongctl inspect mesh dataplanes --mesh kongctl-example-mesh \
   --control-plane-id "$MESH_CP_ID"
-kongctl get mesh inspect meshtimeout kongctl-example-timeouts \
+kongctl inspect mesh meshtimeout kongctl-example-timeouts \
   --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
 ```
 
@@ -115,9 +115,9 @@ These manifests configure resources; they do not deploy a zone or workloads.
 With a connected dataplane, replace `<dataplane-name>` below with its name:
 
 ```shell
-kongctl get mesh inspect dataplane "<dataplane-name>" \
+kongctl inspect mesh dataplane "<dataplane-name>" \
   --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
-kongctl get mesh inspect dataplane "<dataplane-name>" --type stats \
+kongctl inspect mesh dataplane "<dataplane-name>" --type stats \
   --mesh kongctl-example-mesh --control-plane-id "$MESH_CP_ID"
 ```
 

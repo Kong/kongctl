@@ -18,6 +18,7 @@ const (
 	Lint      = VerbValue("lint")
 	API       = VerbValue("api")
 	Get       = VerbValue("get")
+	Inspect   = VerbValue("inspect")
 	Create    = VerbValue("create")
 	Dump      = VerbValue("dump")
 	Update    = VerbValue("update")

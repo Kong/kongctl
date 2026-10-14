@@ -78,6 +78,14 @@ func NewMeshCmd(
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) (*cobra.Command, error) {
+	if verb == verbs.Inspect {
+		inspection := newInspectCmd(verb, addParentFlags, parentPreRun)
+		inspection.Use = meshUse
+		inspection.Long += "\n\nKong Mesh 3.0 or later control plane is required."
+		meshcommon.AddControlPlaneFlags(inspection.PersistentFlags())
+		return inspection, nil
+	}
+
 	baseCmd := &cobra.Command{
 		Use:     meshUse,
 		Short:   meshShort,
@@ -203,7 +211,6 @@ Exports can contain secrets. Save them in a location appropriate for credentials
 	if verb == verbs.Get {
 		baseCmd.AddCommand(newGetResourceTypesCmd(verb, addParentFlags, parentPreRun))
 		baseCmd.AddCommand(newGetControlPlanesCmd(verb, addParentFlags, parentPreRun))
-		baseCmd.AddCommand(newInspectCmd(verb, addParentFlags, parentPreRun))
 	}
 	if verb == verbs.Create {
 		baseCmd.AddCommand(newDataplaneTokenCmd(parentPreRun))

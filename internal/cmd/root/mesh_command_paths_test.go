@@ -23,6 +23,8 @@ func TestMeshCommandPathsResolve(t *testing.T) {
 		{"apply", "mesh", "--help"},
 		{"get", "mesh", "--help"},
 		{"get", "konnect", "mesh", "--help"},
+		{"inspect", "mesh", "--help"},
+		{"inspect", "konnect", "mesh", "--help"},
 		{"create", "mesh", "--help"},
 		{"create", "konnect", "mesh", "--help"},
 		{"dump", "mesh", "--help"},
@@ -51,6 +53,13 @@ func TestMeshCommandPathsResolve(t *testing.T) {
 					path, result.stdout)
 			}
 		})
+	}
+}
+
+func TestMeshGetDoesNotOfferInspectSubcommand(t *testing.T) {
+	result := executeRootForTest(t, "get", "mesh", "--help")
+	if result.exitCode != 0 || strings.Contains(result.stdout, "  inspect ") {
+		t.Fatalf("get mesh still offers inspection: stdout=%s stderr=%s", result.stdout, result.stderr)
 	}
 }
 
@@ -101,9 +110,9 @@ func TestMeshFlagsBindOnBothCommandTrees(t *testing.T) {
 		{"dump", "mesh"},
 		// Inspect commands are subcommands with their own pre-run, so they
 		// must chain the mesh binding rather than take the caller's as is.
-		{"get", "mesh", "inspect", "dataplane", "dp1"},
-		{"get", "konnect", "mesh", "inspect", "dataplane", "dp1"},
-		{"get", "mesh", "inspect", "zones"},
+		{"inspect", "mesh", "dataplane", "dp1"},
+		{"inspect", "konnect", "mesh", "dataplane", "dp1"},
+		{"inspect", "mesh", "zones"},
 	}
 
 	for _, path := range paths {

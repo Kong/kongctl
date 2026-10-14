@@ -205,7 +205,7 @@ func preRunE(c *cobra.Command, args []string) error {
 
 // meshVerbs are the verbs Kong Mesh serves under the explicit product path.
 //
-// Get and Create are the only ones reachable. For Plan, Sync, Diff, Export,
+// Get, Inspect and Create are the reachable Mesh verbs. For Plan, Sync, Diff, Export,
 // Apply and Delete, NewKonnectCmd replaces the konnect command with the
 // declarative command and returns before any product is added, so mesh cannot
 // be registered under `apply konnect` or `delete konnect` without
@@ -214,7 +214,7 @@ func preRunE(c *cobra.Command, args []string) error {
 //
 // Dump is not listed because the dump verb never builds the konnect subtree,
 // which made an earlier Dump entry here inert.
-var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Create}
+var meshVerbs = []verbs.VerbValue{verbs.Get, verbs.Inspect, verbs.Create}
 
 // addMeshCommand registers Kong Mesh under the explicit product path, giving
 // `kongctl <verb> konnect mesh ...` alongside the direct `kongctl <verb> mesh
@@ -263,6 +263,14 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
+	}
+
+	if verb == verbs.Inspect {
+		if err := addMeshCommand(cmd, verb, addFlags, preRunE); err != nil {
+			return nil, err
+		}
+		addFlags(verb, cmd)
+		return cmd, nil
 	}
 
 	// Handle Login verb
