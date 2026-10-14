@@ -13,9 +13,9 @@ const (
 	FieldAutoApproveApplications = "auto_approve_applications"
 )
 
-// PortalBooleanObservation preserves absent response values. Both Portal list
+// portalBooleanObservation preserves absent response values. Both Portal list
 // and detail SDK responses satisfy this interface.
-type PortalBooleanObservation interface {
+type portalBooleanObservation interface {
 	GetAuthenticationEnabled() *bool
 	GetRbacEnabled() *bool
 	GetSiprEnabled() *bool
@@ -26,7 +26,7 @@ type PortalBooleanObservation interface {
 type portalBooleanField struct {
 	name        string
 	declaration func(*kkComps.CreatePortal) **bool
-	observation func(PortalBooleanObservation) *bool
+	observation func(portalBooleanObservation) *bool
 	update      func(*kkComps.UpdatePortal) **bool
 }
 
@@ -35,37 +35,37 @@ var portalBooleanFields = [...]portalBooleanField{
 	{
 		FieldAuthenticationEnabled,
 		func(p *kkComps.CreatePortal) **bool { return &p.AuthenticationEnabled },
-		PortalBooleanObservation.GetAuthenticationEnabled,
+		portalBooleanObservation.GetAuthenticationEnabled,
 		func(p *kkComps.UpdatePortal) **bool { return &p.AuthenticationEnabled },
 	},
 	{
 		FieldRBACEnabled,
 		func(p *kkComps.CreatePortal) **bool { return &p.RbacEnabled },
-		PortalBooleanObservation.GetRbacEnabled,
+		portalBooleanObservation.GetRbacEnabled,
 		func(p *kkComps.UpdatePortal) **bool { return &p.RbacEnabled },
 	},
 	{
 		FieldSIPREnabled,
 		func(p *kkComps.CreatePortal) **bool { return &p.SiprEnabled },
-		PortalBooleanObservation.GetSiprEnabled,
+		portalBooleanObservation.GetSiprEnabled,
 		func(p *kkComps.UpdatePortal) **bool { return &p.SiprEnabled },
 	},
 	{
 		FieldAutoApproveDevelopers,
 		func(p *kkComps.CreatePortal) **bool { return &p.AutoApproveDevelopers },
-		PortalBooleanObservation.GetAutoApproveDevelopers,
+		portalBooleanObservation.GetAutoApproveDevelopers,
 		func(p *kkComps.UpdatePortal) **bool { return &p.AutoApproveDevelopers },
 	},
 	{
 		FieldAutoApproveApplications,
 		func(p *kkComps.CreatePortal) **bool { return &p.AutoApproveApplications },
-		PortalBooleanObservation.GetAutoApproveApplications,
+		portalBooleanObservation.GetAutoApproveApplications,
 		func(p *kkComps.UpdatePortal) **bool { return &p.AutoApproveApplications },
 	},
 }
 
-// ExtractPortalBooleans includes explicitly declared values, including false.
-func ExtractPortalBooleans(desired kkComps.CreatePortal, fields map[string]any) {
+// extractPortalBooleans includes explicitly declared values, including false.
+func extractPortalBooleans(desired kkComps.CreatePortal, fields map[string]any) {
 	for _, field := range portalBooleanFields {
 		if value := *field.declaration(&desired); value != nil {
 			fields[field.name] = *value
@@ -73,18 +73,18 @@ func ExtractPortalBooleans(desired kkComps.CreatePortal, fields map[string]any) 
 	}
 }
 
-// PortalBooleanChange retains unknown observations separately from false.
-type PortalBooleanChange struct {
+// portalBooleanChange retains unknown observations separately from false.
+type portalBooleanChange struct {
 	Old *bool
 	New bool
 }
 
-// ComparePortalBooleans treats an omitted declaration as unmanaged. An explicit
+// comparePortalBooleans treats an omitted declaration as unmanaged. An explicit
 // declaration differs from an absent observation, even when declaring false.
-func ComparePortalBooleans(
-	desired kkComps.CreatePortal, current PortalBooleanObservation,
-) map[string]PortalBooleanChange {
-	changes := make(map[string]PortalBooleanChange)
+func comparePortalBooleans(
+	desired kkComps.CreatePortal, current portalBooleanObservation,
+) map[string]portalBooleanChange {
+	changes := make(map[string]portalBooleanChange)
 	for _, field := range portalBooleanFields {
 		value := *field.declaration(&desired)
 		if value == nil {
@@ -92,14 +92,14 @@ func ComparePortalBooleans(
 		}
 		old := field.observation(current)
 		if old == nil || *old != *value {
-			changes[field.name] = PortalBooleanChange{Old: old, New: *value}
+			changes[field.name] = portalBooleanChange{Old: old, New: *value}
 		}
 	}
 	return changes
 }
 
-// MapPortalBooleanCreateFields leaves absent or non-boolean fields untouched.
-func MapPortalBooleanCreateFields(fields map[string]any, target *kkComps.CreatePortal) {
+// mapPortalBooleanCreateFields leaves absent or non-boolean fields untouched.
+func mapPortalBooleanCreateFields(fields map[string]any, target *kkComps.CreatePortal) {
 	for _, field := range portalBooleanFields {
 		if value, ok := fields[field.name].(bool); ok {
 			*field.declaration(target) = &value
@@ -107,9 +107,9 @@ func MapPortalBooleanCreateFields(fields map[string]any, target *kkComps.CreateP
 	}
 }
 
-// MapPortalBooleanUpdateField handles one field so callers retain their field
+// mapPortalBooleanUpdateField handles one field so callers retain their field
 // iteration and error timing. Wrong-typed values are recognized but ignored.
-func MapPortalBooleanUpdateField(name string, value any, target *kkComps.UpdatePortal) bool {
+func mapPortalBooleanUpdateField(name string, value any, target *kkComps.UpdatePortal) bool {
 	for _, field := range portalBooleanFields {
 		if field.name == name {
 			if value, ok := value.(bool); ok {
@@ -121,8 +121,8 @@ func MapPortalBooleanUpdateField(name string, value any, target *kkComps.UpdateP
 	return false
 }
 
-// ExportPortalBooleans copies observed values without manufacturing defaults.
-func ExportPortalBooleans(current PortalBooleanObservation, target *kkComps.CreatePortal) {
+// exportPortalBooleans copies observed values without manufacturing defaults.
+func exportPortalBooleans(current portalBooleanObservation, target *kkComps.CreatePortal) {
 	for _, field := range portalBooleanFields {
 		if value := field.observation(current); value != nil {
 			*field.declaration(target) = value

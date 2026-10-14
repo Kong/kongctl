@@ -149,8 +149,8 @@ const (
 	FieldAuthReferrerPolicy           = "auth_referrer_policy"
 	FieldCookiesWin                   = "cookies_win"
 	FieldDataLayer                    = "data_layer"
-	FieldDefaultAPIVisibility         = "default_api_visibility"
-	FieldDefaultPageVisibility        = "default_page_visibility"
+	FieldDefaultAPIVisibility         = fieldcontracts.FieldDefaultAPIVisibility
+	FieldDefaultPageVisibility        = fieldcontracts.FieldDefaultPageVisibility
 	FieldDomainName                   = "domain_name"
 	FieldDebug                        = "debug"
 	FieldEnvName                      = "env_name"

@@ -726,18 +726,7 @@ func mapPortalToDeclarativeResource(portal kkComps.ListPortalsResponsePortal) de
 		},
 	}
 
-	fieldcontracts.ExportPortalStrings(&portal, &result.CreatePortal)
-	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
-
-	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
-		apiVisibility := kkComps.DefaultAPIVisibility(visibility)
-		result.DefaultAPIVisibility = &apiVisibility
-	}
-
-	if visibility := portal.GetDefaultPageVisibility(); visibility != "" {
-		pageVisibility := kkComps.DefaultPageVisibility(visibility)
-		result.DefaultPageVisibility = &pageVisibility
-	}
+	fieldcontracts.ExportPortalFields(portal, &result.CreatePortal)
 
 	result.DefaultApplicationAuthStrategyID = portal.GetDefaultApplicationAuthStrategyID()
 
@@ -757,17 +746,8 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 		Labels:                           portal.GetLabels(),
 	}
 
-	if visibility := portal.GetDefaultAPIVisibility(); visibility != "" {
-		listPortal.DefaultAPIVisibility = kkComps.ListPortalsResponseDefaultAPIVisibility(visibility)
-	}
-
-	if visibility := portal.GetDefaultPageVisibility(); visibility != "" {
-		listPortal.DefaultPageVisibility = kkComps.ListPortalsResponseDefaultPageVisibility(visibility)
-	}
-
 	result := mapPortalToDeclarativeResource(listPortal)
-	fieldcontracts.ExportPortalBooleans(&portal, &result.CreatePortal)
-	fieldcontracts.ExportPortalStrings(&portal, &result.CreatePortal)
+	fieldcontracts.ExportPortalResponseFields(portal, &result.CreatePortal)
 	return result
 }
 
