@@ -12,11 +12,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-type pendingAIGatewayCertificateDelete struct {
-	certificate state.AIGatewayCertificate
-	change      PlannedChange
-}
-
 func (p *Planner) planAIGatewayTLSChanges(
 	ctx context.Context,
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
@@ -35,7 +30,7 @@ func (p *Planner) planAIGatewayTLSChanges(
 	caCertificates := p.resources.GetAIGatewayCACertificatesForGateway(gatewayRef)
 	snis := p.resources.GetAIGatewaySNIsForGateway(gatewayRef)
 
-	var pendingDeletes []pendingAIGatewayCertificateDelete
+	var pendingDeletes []PlannedChange
 	if certificateScoped && (len(certificates) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		var err error
 		pendingDeletes, err = p.planAIGatewayCertificateUpserts(
@@ -61,8 +56,8 @@ func (p *Planner) planAIGatewayTLSChanges(
 			return err
 		}
 	}
-	for _, pending := range pendingDeletes {
-		plan.AddChange(pending.change)
+	for _, deletion := range pendingDeletes {
+		plan.AddChange(deletion)
 	}
 	return nil
 }
@@ -72,7 +67,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewayCertificateResource,
 	plan *Plan,
-) ([]pendingAIGatewayCertificateDelete, error) {
+) ([]PlannedChange, error) {
 	p.logger.Debug("Planning AI Gateway certificate changes",
 		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
 	if gatewayID == "" {
@@ -111,19 +106,16 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		}
 	}
 
-	var deletes []pendingAIGatewayCertificateDelete
+	var deletes []PlannedChange
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, certificate := range current {
 			if desiredNames[certificate.Name] {
 				continue
 			}
-			deletes = append(deletes, pendingAIGatewayCertificateDelete{
-				certificate: certificate,
-				change: newAIGatewayTLSDelete(
-					p, ResourceTypeAIGatewayCertificate, namespace, gatewayRef, gatewayID,
-					certificate.ID, certificate.Name,
-				),
-			})
+			deletes = append(deletes, newAIGatewayTLSDelete(
+				p, ResourceTypeAIGatewayCertificate, namespace, gatewayRef, gatewayID,
+				certificate.ID, certificate.Name,
+			))
 		}
 	}
 	return deletes, nil
@@ -249,47 +241,6 @@ func (p *Planner) planAIGatewaySNIChanges(
 				))
 			}
 		}
-	}
-	return nil
-}
-
-func (p *Planner) planAIGatewayCertificateDeletes(
-	deletes []pendingAIGatewayCertificateDelete,
-	currentSNIs []state.AIGatewaySNI,
-	plan *Plan,
-) error {
-	for _, pending := range deletes {
-		for _, change := range plan.Changes {
-			if change.ResourceType != ResourceTypeAIGatewaySNI ||
-				(change.Action != ActionCreate && change.Action != ActionUpdate) ||
-				change.Namespace != pending.change.Namespace ||
-				change.Parent == nil || pending.change.Parent == nil ||
-				change.Parent.ID != pending.change.Parent.ID {
-				continue
-			}
-			if change.Fields[FieldCertificate] == pending.certificate.Name {
-				return fmt.Errorf(
-					"cannot delete AI Gateway certificate %q while planned SNI %q still references it",
-					pending.certificate.Name, change.ResourceRef,
-				)
-			}
-		}
-		for _, sni := range currentSNIs {
-			if sni.Certificate != pending.certificate.Name {
-				continue
-			}
-			change := findAIGatewayTLSChange(plan, ResourceTypeAIGatewaySNI, sni.ID)
-			if change == nil || (change.Action == ActionUpdate &&
-				change.Fields[FieldCertificate] == pending.certificate.Name) {
-				return fmt.Errorf(
-					"cannot delete AI Gateway certificate %q while SNI %q still references it",
-					pending.certificate.Name, sni.Name,
-				)
-			}
-			pending.change.DependsOn = append(pending.change.DependsOn, change.ID)
-		}
-		slices.Sort(pending.change.DependsOn)
-		plan.AddChange(pending.change)
 	}
 	return nil
 }
@@ -449,16 +400,6 @@ func certificateChangeDependency(plan *Plan, namespace, reference string) []stri
 		if change.Namespace == namespace && change.ResourceType == ResourceTypeAIGatewayCertificate &&
 			change.ResourceRef == targetRef && change.Action != ActionDelete {
 			return []string{change.ID}
-		}
-	}
-	return nil
-}
-
-func findAIGatewayTLSChange(plan *Plan, resourceType, resourceID string) *PlannedChange {
-	for i := range plan.Changes {
-		change := &plan.Changes[i]
-		if change.ResourceType == resourceType && change.ResourceID == resourceID {
-			return change
 		}
 	}
 	return nil
