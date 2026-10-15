@@ -1,0 +1,12 @@
+overlay: 1.0.0
+info:
+  title: Omit defaults from the HTTP DCR provider PATCH model
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.UpdateDcrConfigHttpInRequest.properties.allow_multiple_credentials['$ref']
+    remove: true
+  - target: $.components.schemas.UpdateDcrConfigHttpInRequest.properties.allow_multiple_credentials
+    update:
+      description: When enabled, indicates that the DCR provider supports creating and managing multiple credentials per application.
+      type: boolean
+      title: DcrConfigPropertyAllowMultipleCredentials

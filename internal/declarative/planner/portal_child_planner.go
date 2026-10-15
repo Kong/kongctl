@@ -1185,12 +1185,12 @@ func (p *Planner) shouldUpdatePortalCustomization(
 	}
 
 	// Compare layout
-	if !p.compareStringPtr(current.Layout, desired.Layout) {
-		if desired.Layout != nil {
-			updates[FieldLayout] = *desired.Layout
+	if !p.compareStringPtr(current.Layout, desired.Layout) { //nolint:staticcheck // Legacy layout compatibility.
+		if desired.Layout != nil { //nolint:staticcheck // Legacy layout compatibility.
+			updates[FieldLayout] = *desired.Layout //nolint:staticcheck // Legacy layout compatibility.
 			changedFields[FieldLayout] = FieldChange{
-				Old: current.Layout,
-				New: *desired.Layout,
+				Old: current.Layout,  //nolint:staticcheck // Legacy layout compatibility.
+				New: *desired.Layout, //nolint:staticcheck // Legacy layout compatibility.
 			}
 		}
 	}
@@ -1254,8 +1254,8 @@ func (p *Planner) buildAllCustomizationFields(
 	}
 
 	// Add layout if present
-	if customization.Layout != nil {
-		fields[FieldLayout] = *customization.Layout
+	if customization.Layout != nil { //nolint:staticcheck // Legacy layout compatibility.
+		fields[FieldLayout] = *customization.Layout //nolint:staticcheck // Legacy layout compatibility.
 	}
 
 	// Add CSS if present

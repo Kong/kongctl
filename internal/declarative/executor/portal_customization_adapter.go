@@ -49,7 +49,7 @@ func (p *PortalCustomizationAdapter) MapUpdateFields(_ context.Context, fields m
 
 	// Handle layout
 	if layout, ok := fields[planner.FieldLayout].(string); ok {
-		update.Layout = &layout
+		update.Layout = &layout //nolint:staticcheck // Legacy layout compatibility.
 	}
 
 	// Handle CSS

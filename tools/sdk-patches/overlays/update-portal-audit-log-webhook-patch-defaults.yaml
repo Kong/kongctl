@@ -1,0 +1,7 @@
+overlay: 1.0.0
+info:
+  title: Omit defaults from the UpdatePortalAuditLogWebhook PATCH model
+  version: 0.0.1
+actions:
+  - target: $.components.requestBodies.UpdatePortalAuditLogWebhook.content['application/json'].schema.properties.enabled.default
+    remove: true

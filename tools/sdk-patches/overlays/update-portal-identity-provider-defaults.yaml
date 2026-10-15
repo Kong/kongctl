@@ -1,0 +1,25 @@
+overlay: 1.0.0
+info:
+  title: Omit defaults from portal identity provider PATCH models
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.UpdateIdentityProvider.properties.enabled['$ref']
+    remove: true
+  - target: $.components.schemas.UpdateIdentityProvider.properties.enabled
+    update:
+      description: |
+        Indicates whether the identity provider is enabled.
+        Only one identity provider can be active at a time, such as SAML or OIDC.
+      type: boolean
+      example: true
+      title: Identity Provider Enabled Property
+  - target: $.components.schemas.PortalUpdateIdentityProvider.properties.enabled['$ref']
+    remove: true
+  - target: $.components.schemas.PortalUpdateIdentityProvider.properties.enabled
+    update:
+      description: |
+        Indicates whether the identity provider is enabled.
+        Only one identity provider can be active at a time, such as SAML or OIDC.
+      type: boolean
+      example: true
+      title: Identity Provider Enabled Property

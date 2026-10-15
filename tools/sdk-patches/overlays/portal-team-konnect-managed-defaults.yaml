@@ -1,0 +1,31 @@
+overlay: 1.0.0
+info:
+  title: Preserve omitted membership management in portal team requests
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.PortalCreateTeamRequest.properties.konnect_managed['$ref']
+    remove: true
+  - target: $.components.schemas.PortalCreateTeamRequest.properties.konnect_managed
+    update:
+      description: |
+        Whether the team's membership is managed by Konnect instead of being
+        synced from an identity provider's team mappings. Set to false to let
+        identity provider team mappings keep syncing members into this team.
+        Set to true to manage membership directly in Konnect and prevent
+        identity provider team mappings from syncing to this team.
+      type: boolean
+      example: false
+      title: KonnectManaged
+  - target: $.components.schemas.PortalUpdateTeamRequest.properties.konnect_managed['$ref']
+    remove: true
+  - target: $.components.schemas.PortalUpdateTeamRequest.properties.konnect_managed
+    update:
+      description: |
+        Whether the team's membership is managed by Konnect instead of being
+        synced from an identity provider's team mappings. Set to false to let
+        identity provider team mappings keep syncing members into this team.
+        Set to true to manage membership directly in Konnect and prevent
+        identity provider team mappings from syncing to this team.
+      type: boolean
+      example: false
+      title: KonnectManaged

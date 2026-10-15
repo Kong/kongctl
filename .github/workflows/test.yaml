@@ -103,6 +103,8 @@ jobs:
       - name: test
         run: |
           go test -race -count=1 ./...
+      - name: test SDK patch tooling
+        run: make test-sdk-patches
       - name: test E2E metrics scripts
         run: make test-e2e-metrics
       - name: test E2E harness without Konnect

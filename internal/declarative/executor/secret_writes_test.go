@@ -123,6 +123,7 @@ func TestAIGatewayAuthStrategyAdapterMapsInjectedClientSecrets(t *testing.T) {
 		planner.FieldDisplayName: "Support OIDC",
 		planner.FieldConfig: map[string]any{
 			"cache_tokens_salt": "support-cache-salt",
+			"issuer":            "https://issuer.example.com",
 			"client_id":         []any{"first-client", "second-client"},
 			"client_secret":     []any{nil, nil},
 		},
@@ -158,6 +159,7 @@ func TestAIGatewayAuthStrategyAdapterPreservesVaultReferenceBesideInjectedSecret
 		planner.FieldDisplayName: "Support OIDC",
 		planner.FieldConfig: map[string]any{
 			"cache_tokens_salt": "support-cache-salt",
+			"issuer":            "https://issuer.example.com",
 			"client_id":         []any{"primary-client", "fallback-client"},
 			"client_secret":     []any{reference, nil},
 		},

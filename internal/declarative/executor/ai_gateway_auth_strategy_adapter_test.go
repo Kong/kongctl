@@ -17,6 +17,7 @@ func TestAIGatewayAuthStrategyAdapterMapsOpenIDConnectCacheTokensSalt(t *testing
 		planner.FieldConfig: map[string]any{
 			"auth_methods":      []string{"bearer"},
 			"cache_tokens_salt": "support-cache-salt",
+			"issuer":            "https://issuer.example.com",
 		},
 	}
 
@@ -64,6 +65,7 @@ func TestAIGatewayAuthStrategyAdapterRejectsMissingOpenIDConnectCacheTokensSalt(
 		planner.FieldDisplayName: "Support OIDC",
 		planner.FieldConfig: map[string]any{
 			"auth_methods": []string{"bearer"},
+			"issuer":       "https://issuer.example.com",
 		},
 	}
 
@@ -80,6 +82,7 @@ func TestAIGatewayAuthStrategyAdapterPreservesAdditionalOpenIDConnectConfigPrope
 		planner.FieldConfig: map[string]any{
 			"auth_methods":      []string{"bearer"},
 			"cache_tokens_salt": "support-cache-salt",
+			"issuer":            "https://issuer.example.com",
 			"credential_claim":  []string{"sub"},
 		},
 	}
@@ -109,6 +112,7 @@ func TestAIGatewayAuthStrategyAdapterPreservesAccessControlConfig(t *testing.T) 
 		planner.FieldDisplayName: "Support OIDC",
 		planner.FieldConfig: map[string]any{
 			"cache_tokens_salt":        "support-cache-salt",
+			"issuer":                   "https://issuer.example.com",
 			"consumer_groups_claim":    []string{"groups"},
 			"consumer_groups_optional": false,
 			"upstream_headers_claims":  []string{"sub"},
@@ -124,6 +128,15 @@ func TestAIGatewayAuthStrategyAdapterPreservesAccessControlConfig(t *testing.T) 
 	require.NotNil(t, config)
 	require.Equal(t, []string{"groups"}, config.ConsumerGroupsClaim)
 	require.False(t, *config.ConsumerGroupsOptional)
-	require.Equal(t, []any{"sub"}, config.AdditionalProperties["upstream_headers_claims"])
-	require.Equal(t, []any{"x-consumer-subject"}, config.AdditionalProperties["upstream_headers_names"])
+	require.Equal(t, []string{"sub"}, config.UpstreamHeadersClaims)
+	require.Equal(t, []string{"x-consumer-subject"}, config.UpstreamHeadersNames)
+
+	data, err := json.Marshal(request)
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(data, &payload))
+	wireConfig, ok := payload[planner.FieldConfig].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, []any{"sub"}, wireConfig["upstream_headers_claims"])
+	require.Equal(t, []any{"x-consumer-subject"}, wireConfig["upstream_headers_names"])
 }
