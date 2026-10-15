@@ -665,7 +665,9 @@ these distinct policies inside the contract rather than normalizing every
 stage identically. Unsupported attribute shapes retain their existing fallback.
 
 The planner retains `Field*` aliases and renders normalized contract changes.
-Update mapping handles one field at a time to preserve caller error timing.
+Update mapping applies only supplied changes. Portal maps one field at a time
+to preserve error timing in its caller; API maps supplied fields in bulk
+because its field mapping cannot fail.
 Name/identity, labels, references and secrets retain their explicit policies.
 Test resource operations through registered dispatch so field mapping,
 labels and runtime protection checks exercise the production path.
