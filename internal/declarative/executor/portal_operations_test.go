@@ -82,7 +82,7 @@ func (m *MockPortalAPI) DeletePortal(
 	return args.Get(0).(*kkOps.DeletePortalResponse), args.Error(1)
 }
 
-func TestExecutor_createPortal(t *testing.T) {
+func TestExecutor_createResourcePortal(t *testing.T) {
 	tests := []struct {
 		name         string
 		change       planner.PlannedChange
@@ -222,7 +222,7 @@ func TestExecutor_createPortal(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
-			gotID, err := executor.createPortal(testContextWithLogger(), tt.change)
+			gotID, err := executor.createResource(testContextWithLogger(), &tt.change)
 
 			// Verify
 			if tt.wantErr {
@@ -285,7 +285,7 @@ func TestExecutor_createResourcePortalResolvesUnknownAuthStrategyReferenceBefore
 	mockAPI.AssertExpectations(t)
 }
 
-func TestExecutor_updatePortal(t *testing.T) {
+func TestExecutor_updateResourcePortal(t *testing.T) {
 	tests := []struct {
 		name      string
 		change    planner.PlannedChange
@@ -369,7 +369,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 				}, nil)
 			},
 			wantErr: true,
-			errMsg:  "resource is protected",
+			errMsg:  "resource 'protected-portal' (portal) is protected and cannot be updated",
 		},
 		{
 			name: "portal not found",
@@ -408,7 +408,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
-			gotID, err := executor.updatePortal(testContextWithLogger(), tt.change)
+			gotID, err := executor.updateResource(testContextWithLogger(), &tt.change)
 
 			// Verify
 			if tt.wantErr {
@@ -426,7 +426,7 @@ func TestExecutor_updatePortal(t *testing.T) {
 	}
 }
 
-func TestExecutor_deletePortal(t *testing.T) {
+func TestExecutor_deleteResourcePortal(t *testing.T) {
 	tests := []struct {
 		name      string
 		change    planner.PlannedChange
@@ -564,7 +564,7 @@ func TestExecutor_deletePortal(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
-			err := executor.deletePortal(testContextWithLogger(), tt.change)
+			err := executor.deleteResource(testContextWithLogger(), &tt.change)
 
 			// Verify
 			if tt.wantErr {
@@ -620,11 +620,11 @@ func TestExecutor_protectionChangeBetweenPlanAndExecution(t *testing.T) {
 	executor := New(client, nil, false)
 
 	// Execute update
-	_, err := executor.updatePortal(testContextWithLogger(), change)
+	_, err := executor.updateResource(testContextWithLogger(), &change)
 
 	// Should fail due to protection
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "resource is protected")
+	assert.Contains(t, err.Error(), "resource 'test-portal' (portal) is protected and cannot be updated")
 
 	mockAPI.AssertExpectations(t)
 }

@@ -62,7 +62,7 @@ func TestStoredEnvPlanExecutesApprovedValues(t *testing.T) {
 			return request.Description != nil && *request.Description == "approved plaintext" &&
 				request.AutoApproveDevelopers != nil && *request.AutoApproveDevelopers
 		})).Return(&kkOps.CreatePortalResponse{PortalResponse: &kkComps.PortalResponse{ID: "stored-id"}}, nil).Once()
-		_, err := exec.createPortal(testContextWithLogger(), restored.Changes[0])
+		_, err := exec.createResource(testContextWithLogger(), &restored.Changes[0])
 		require.NoError(t, err)
 	}
 	api.AssertExpectations(t)
