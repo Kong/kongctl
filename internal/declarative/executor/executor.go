@@ -827,7 +827,7 @@ func (e *Executor) validateChangePreExecution(ctx context.Context, change planne
 				}
 
 				// Check protection status using common utility
-				isProtected := common.GetProtectionStatus(portal.NormalizedLabels)
+				isProtected := labels.IsProtectedResource(portal.NormalizedLabels)
 				isProtectionChange := common.IsProtectionChange(change.Protection)
 
 				// Validate protection using common utility

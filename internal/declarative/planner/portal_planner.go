@@ -119,8 +119,7 @@ func (p *portalPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config,
 		current := findManagedRoot(currentByName, desiredPortal.Name)
 		portalChangeID := reconciler.reconcile(managedRoot[resources.PortalResource]{
 			resource: desiredPortal, name: desiredPortal.Name,
-			protected: desiredPortal.Kongctl != nil &&
-				desiredPortal.Kongctl.Protected != nil && *desiredPortal.Kongctl.Protected,
+			protected: desiredPortal.Kongctl.IsProtected(),
 		}, current)
 		if current == nil {
 			if err := p.planPortalChildResourcesCreate(ctx, plannerCtx, desiredPortal, portalChangeID, plan); err != nil {

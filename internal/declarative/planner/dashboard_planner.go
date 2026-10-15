@@ -59,11 +59,8 @@ func (p *Planner) planDashboardChanges(
 	currentByID, currentByName := indexDashboards(currentDashboards)
 	reconciler := newManagedRootReconciler(NewBasePlanner(p), ResourceTypeDashboard,
 		managedRootOperations[resources.DashboardResource, state.Dashboard]{
-			diff: p.shouldUpdateDashboard,
-			create: func(desired resources.DashboardResource, plan *Plan) string {
-				p.planDashboardCreate(desired, plan)
-				return ""
-			},
+			diff:   p.shouldUpdateDashboard,
+			create: p.planDashboardCreate,
 			update: p.planDashboardUpdate,
 			changeProtection: func(current state.Dashboard, desired resources.DashboardResource,
 				_, _ bool, fields map[string]any, changed map[string]FieldChange, plan *Plan,
@@ -110,8 +107,7 @@ func (p *Planner) planDashboardChanges(
 		}
 		reconciler.reconcileLifecycle(managedRoot[resources.DashboardResource]{
 			resource: desiredDashboard, name: desiredDashboard.Name,
-			protected: desiredDashboard.Kongctl != nil && desiredDashboard.Kongctl.Protected != nil &&
-				*desiredDashboard.Kongctl.Protected,
+			protected: desiredDashboard.Kongctl.IsProtected(),
 		}, root)
 	}
 
@@ -206,7 +202,7 @@ func dashboardIdentity(dashboard state.Dashboard) string {
 	return "name:" + dashboard.Name
 }
 
-func (p *Planner) planDashboardCreate(resource resources.DashboardResource, plan *Plan) {
+func (p *Planner) planDashboardCreate(resource resources.DashboardResource, plan *Plan) string {
 	namespace, protection := dashboardNamespaceAndProtection(resource)
 
 	change := PlannedChange{
@@ -219,6 +215,7 @@ func (p *Planner) planDashboardCreate(resource resources.DashboardResource, plan
 		Protection:   protection,
 	}
 	plan.AddChange(change)
+	return change.ID
 }
 
 func (p *Planner) planDashboardUpdate(
@@ -239,7 +236,7 @@ func (p *Planner) planDashboardUpdate(
 
 	protection := ProtectionChange{
 		Old: labels.IsProtectedResource(current.NormalizedLabels),
-		New: desired.Kongctl != nil && desired.Kongctl.Protected != nil && *desired.Kongctl.Protected,
+		New: desired.Kongctl.IsProtected(),
 	}
 
 	change := PlannedChange{

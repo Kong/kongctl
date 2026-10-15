@@ -115,8 +115,7 @@ func (p *Planner) planAIGatewayChanges(
 		gatewayUpdateID = ""
 		gatewayChangeID := reconciler.reconcile(managedRoot[resources.AIGatewayResource]{
 			resource: desiredGateway, name: desiredGateway.Name,
-			protected: desiredGateway.Kongctl != nil &&
-				desiredGateway.Kongctl.Protected != nil && *desiredGateway.Kongctl.Protected,
+			protected: desiredGateway.Kongctl.IsProtected(),
 		}, current)
 
 		childStart := len(plan.Changes)
@@ -290,7 +289,7 @@ func (p *Planner) planAIGatewayUpdate(
 
 	protection := ProtectionChange{
 		Old: labels.IsProtectedResource(current.NormalizedLabels),
-		New: desired.Kongctl != nil && desired.Kongctl.Protected != nil && *desired.Kongctl.Protected,
+		New: desired.Kongctl.IsProtected(),
 	}
 
 	change := PlannedChange{

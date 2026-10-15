@@ -90,7 +90,7 @@ func (p *Planner) planCatalogServiceChanges(
 		desiredNames[desiredSvc.Name] = true
 		reconciler.reconcileLifecycle(managedRoot[resources.CatalogServiceResource]{
 			resource: desiredSvc, name: desiredSvc.Name,
-			protected: desiredSvc.Kongctl != nil && desiredSvc.Kongctl.Protected != nil && *desiredSvc.Kongctl.Protected,
+			protected: desiredSvc.Kongctl.IsProtected(),
 		}, findManagedRoot(currentByName, desiredSvc.Name))
 	}
 
@@ -306,7 +306,7 @@ func (p *Planner) planCatalogServiceProtectionChangeWithFields(
 		ResourceRef:  desired.GetRef(),
 		ResourceID:   current.ID,
 		OldProtected: labels.IsProtectedResource(current.NormalizedLabels),
-		NewProtected: desired.Kongctl != nil && desired.Kongctl.Protected != nil && *desired.Kongctl.Protected,
+		NewProtected: desired.Kongctl.IsProtected(),
 		Namespace:    namespace,
 	}
 

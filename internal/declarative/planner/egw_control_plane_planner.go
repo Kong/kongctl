@@ -137,8 +137,7 @@ func (p *Planner) planEGWControlPlaneChanges(
 			gatewayChangeID = reconciler.reconcileLifecycle(
 				managedRoot[resources.EventGatewayControlPlaneResource]{
 					resource: desiredEGWCP, name: desiredEGWCP.Name,
-					protected: desiredEGWCP.Kongctl != nil &&
-						desiredEGWCP.Kongctl.Protected != nil && *desiredEGWCP.Kongctl.Protected,
+					protected: desiredEGWCP.Kongctl.IsProtected(),
 				}, current,
 			)
 		}

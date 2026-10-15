@@ -64,7 +64,7 @@ func (p *authStrategyPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *C
 		desiredRoots = append(desiredRoots, managedRoot[resources.ApplicationAuthStrategyResource]{
 			resource:  strategy,
 			name:      name,
-			protected: strategy.Kongctl != nil && strategy.Kongctl.Protected != nil && *strategy.Kongctl.Protected,
+			protected: strategy.Kongctl.IsProtected(),
 		})
 	}
 

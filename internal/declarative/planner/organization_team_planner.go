@@ -136,7 +136,7 @@ func (t *OrganizationTeamPlannerImpl) PlanChanges(ctx context.Context, plannerCt
 		}
 		reconciler.reconcileLifecycle(managedRoot[resources.OrganizationTeamResource]{
 			resource: desiredTeam, name: desiredTeam.Name,
-			protected: desiredTeam.Kongctl != nil && desiredTeam.Kongctl.Protected != nil && *desiredTeam.Kongctl.Protected,
+			protected: desiredTeam.Kongctl.IsProtected(),
 		}, root)
 	}
 

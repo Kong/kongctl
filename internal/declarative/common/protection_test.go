@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGetProtectionStatus(t *testing.T) {
+func TestIsProtectedResource(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		labels    map[string]string
@@ -19,6 +19,6 @@ func TestGetProtectionStatus(t *testing.T) {
 		{name: "explicitly unprotected", labels: map[string]string{labels.ProtectedKey: labels.FalseValue}},
 		{name: "empty protection", labels: map[string]string{labels.ProtectedKey: ""}},
 	} {
-		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.protected, GetProtectionStatus(tc.labels)) })
+		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.protected, labels.IsProtectedResource(tc.labels)) })
 	}
 }

@@ -45,7 +45,7 @@ func (p *dcrProviderPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Co
 		desiredRoots = append(desiredRoots, managedRoot[resources.DCRProviderResource]{
 			resource:  provider,
 			name:      name,
-			protected: provider.Kongctl != nil && provider.Kongctl.Protected != nil && *provider.Kongctl.Protected,
+			protected: provider.Kongctl.IsProtected(),
 		})
 	}
 
