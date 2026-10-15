@@ -791,6 +791,8 @@ outside the resource registry; their assignments and Portal assets do have
 managed scope and executors. Coverage checks do not imply CRUD support:
 supported actions and their payload contracts remain executor-local.
 No per-kind executor field, payload-list entry, or action-switch case is needed.
+Keep operation behavior in registered adapters and shared executors; do not
+add parallel resource-specific methods on `Executor`.
 Use an explicit `resourceExecutor` for custom actions such as the update-only
 portal team-group mapping executor. Keep unsupported actions nil.
 
