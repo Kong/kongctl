@@ -262,6 +262,11 @@ type KongctlMeta struct {
 	NamespaceOrigin NamespaceOrigin `yaml:"-"                   json:"-"`
 }
 
+// IsProtected reports whether resource protection is enabled, including for nil metadata.
+func (m *KongctlMeta) IsProtected() bool {
+	return m != nil && m.Protected != nil && *m.Protected
+}
+
 // FileDefaults holds file-level defaults that apply to all resources in the file
 type FileDefaults struct {
 	Kongctl *KongctlMetaDefaults `yaml:"kongctl,omitempty" json:"kongctl,omitempty"`

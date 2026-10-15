@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 )
 
@@ -35,17 +34,6 @@ func IsProtectionChange(protection any) bool {
 		}
 	}
 	return false
-}
-
-// GetProtectionStatus extracts the protection status from normalized labels
-func GetProtectionStatus(normalizedLabels map[string]string) bool {
-	return labels.IsProtectedResource(normalizedLabels)
-}
-
-// FormatProtectionError creates a standardized error message for protection violations
-func FormatProtectionError(resourceType, resourceName, action string) error {
-	return fmt.Errorf("resource '%s' (%s) is protected and cannot be %s",
-		resourceName, resourceType, ActionToVerb(planner.ActionType(action)))
 }
 
 // ActionToVerb converts an ActionType to a past-tense verb for error messages

@@ -161,8 +161,7 @@ func (p *Planner) planAPIChanges(
 		// from this namespace-filtered, last-observation-wins index.
 		apiChangeID := reconciler.reconcileLifecycle(managedRoot[resources.APIResource]{
 			resource: desiredAPI, name: desiredAPI.Name,
-			protected: desiredAPI.Kongctl != nil &&
-				desiredAPI.Kongctl.Protected != nil && *desiredAPI.Kongctl.Protected,
+			protected: desiredAPI.Kongctl.IsProtected(),
 		}, current)
 		if current == nil {
 			parentNamespace := DefaultNamespace

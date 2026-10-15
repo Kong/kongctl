@@ -223,7 +223,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Update(ctx context.Context, change plan
 	}
 
 	// Check protection status using common utility
-	isProtected := common.GetProtectionStatus(resource.GetNormalizedLabels())
+	isProtected := labels.IsProtectedResource(resource.GetNormalizedLabels())
 	isProtectionChange := common.IsProtectionChange(change.Protection)
 
 	// Validate protection using common utility
@@ -317,7 +317,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 	}
 
 	// Check if resource is protected
-	isProtected := common.GetProtectionStatus(resource.GetNormalizedLabels())
+	isProtected := labels.IsProtectedResource(resource.GetNormalizedLabels())
 	if isProtected {
 		return fmt.Errorf("resource is protected and cannot be deleted")
 	}
