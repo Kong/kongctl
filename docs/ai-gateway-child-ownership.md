@@ -77,15 +77,9 @@ cache, synchronized to Konnect's expected config version. The public header
 definition and updated metadata were also retained. Credentials were compared
 in memory and were not printed or embedded in plans.
 
-The probe's initial key-access failure did not establish a missing nono grant.
-The running session's `nono why --self` confirmed worktree read/write access,
-and the agent could read the generated key. The image defaulted to UID/GID
-1001 while the key belonged to UID/GID 1000 with mode `0600`. Matching the
-disposable container's user to the host key owner and using a project-local
-writable runtime directory allowed the probe to proceed without new grants.
-All disposable gateways, containers, keys, and runtime caches were removed.
-This verifies the tested basic-header contract; other write-only shapes still
-need their own evidence. Retaining a redacted GET shape alone is insufficient.
+Live evidence covers provider basic-header credential continuity only. Other
+write-only shapes still need their own evidence. Retaining a redacted GET
+shape alone is insufficient.
 
 Inspection also identified catalog gaps: provider auth parameter values and AWS
 session tokens currently lack reviewed `!secret` path capabilities. Their safe

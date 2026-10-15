@@ -128,7 +128,11 @@ func TestAIGatewayCertificateIdentityPlans(t *testing.T) {
 						current := []any{remote(certificateIdentityOtherID, "other"), remote("name-id", "wanted")}
 						err := planCertificateIdentity(t.Context(), p, api, desired, current, plan)
 						require.NoError(t, err)
-						require.Equal(t, []string{"gateway-id"}, api.gatewayIDs)
+						gatewayIDs := []string{"gateway-id"}
+						if kind == ResourceTypeAIGatewayCertificate && mode == PlanModeSync {
+							gatewayIDs = append(gatewayIDs, "gateway-id") // Inspect SNIs before deleting certificates.
+						}
+						require.Equal(t, gatewayIDs, api.gatewayIDs)
 
 						matched := tc.desiredName == "wanted"
 						offset := 0
@@ -196,7 +200,10 @@ func planCertificateIdentity(
 		if err != nil {
 			return err
 		}
-		return p.planAIGatewayCertificateDeletes(pending, nil, plan)
+		for _, deletion := range pending {
+			plan.AddChange(deletion)
+		}
+		return p.resolveFinalAIGatewayDependencies(ctx, plan)
 	case *resources.AIGatewayCACertificateResource:
 		for _, item := range current {
 			api.cas = append(api.cas, item.(kkComps.AIGatewayCACertificate))
@@ -379,17 +386,20 @@ func TestAIGatewayCertificateDeleteRejectsPlannedSNIReference(t *testing.T) {
 	}
 }
 
-func TestAIGatewayCertificateDeleteIgnoresOtherSNIParents(t *testing.T) {
+func TestAIGatewayCertificateFinalDeleteMatchesCanonicalGateway(t *testing.T) {
 	for _, tc := range []struct {
 		name, namespace string
 		parent          *ParentInfo
+		wantError       bool
 	}{
-		{"other gateway", DefaultNamespace, &ParentInfo{Ref: "other-gateway", ID: "other-gateway-id"}},
-		{"other namespace", "other-namespace", &ParentInfo{Ref: "gateway", ID: "gateway-id"}},
-		{"new gateway", DefaultNamespace, nil},
+		{"other gateway", DefaultNamespace, &ParentInfo{Ref: "other-gateway", ID: "other-gateway-id"}, false},
+		{"same alias different gateway", DefaultNamespace, &ParentInfo{Ref: "gateway", ID: "other-gateway-id"}, false},
+		{"other namespace same gateway", "other-namespace", &ParentInfo{Ref: "gateway", ID: "gateway-id"}, true},
+		{"other alias same gateway", DefaultNamespace, &ParentInfo{Ref: "gateway-alias", ID: "gateway-id"}, true},
+		{"new gateway", DefaultNamespace, nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := &Planner{}
+			p := NewPlanner((&certificateIdentityAPI{}).client(), slog.Default())
 			plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
 			plan.AddChange(PlannedChange{
 				ID: "create-sni", ResourceType: ResourceTypeAIGatewaySNI,
@@ -397,16 +407,14 @@ func TestAIGatewayCertificateDeleteIgnoresOtherSNIParents(t *testing.T) {
 				Fields:     map[string]any{FieldCertificate: "old-cert"},
 				References: map[string]ReferenceInfo{FieldAIGatewayID: {Ref: "other-gateway"}},
 			})
-			pending := pendingAIGatewayCertificateDelete{
-				certificate: state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
-					ID: "old-cert-id", Name: "old-cert",
-				}},
-				change: newAIGatewayTLSDelete(p, ResourceTypeAIGatewayCertificate, DefaultNamespace,
-					"gateway", "gateway-id", "old-cert-id", "old-cert"),
+			plan.AddChange(newAIGatewayTLSDelete(p, ResourceTypeAIGatewayCertificate, DefaultNamespace,
+				"gateway", "gateway-id", "old-cert-id", "old-cert"))
+			err := p.resolveFinalAIGatewayDependencies(t.Context(), plan)
+			if tc.wantError {
+				require.ErrorContains(t, err, `planned SNI "sni-ref" still references it`)
+				return
 			}
-			require.NoError(t, p.planAIGatewayCertificateDeletes(
-				[]pendingAIGatewayCertificateDelete{pending}, nil, plan,
-			))
+			require.NoError(t, err)
 			require.Len(t, plan.Changes, 2)
 			require.Equal(t, ActionDelete, plan.Changes[1].Action)
 			require.Equal(t, "old-cert-id", plan.Changes[1].ResourceID)
