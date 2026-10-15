@@ -653,6 +653,17 @@ visibility values. Create/update visibility enum types are converted without
 adding validation or defaults. SDK wire defaults remain separate from these
 pointer-presence policies.
 
+API's description, version, slug and attributes use the
+[API field projections][api-field-projections] across the same stages. Enroll
+ordinary text fields in its typed inventory. Omitted declarations are unmanaged;
+text comparison treats absent observations as empty, while export preserves
+pointer presence and requests preserve explicit empty strings. Attribute
+requests and diagnostics reuse [attribute normalization][api-attributes] and
+retain per-key null removals. Comparison alone ignores null keys and list
+ordering; export keeps raw nonempty attributes and omits empty values. Keep
+these distinct policies inside the contract rather than normalizing every
+stage identically. Unsupported attribute shapes retain their existing fallback.
+
 The planner retains `Field*` aliases and renders normalized contract changes.
 Update mapping handles one field at a time to preserve caller error timing.
 Name/identity, labels, references and secrets retain their explicit policies.
@@ -1241,3 +1252,6 @@ engine contract. Each refactoring migration should:
 [portal-string-contract]: ../../internal/declarative/fieldcontracts/portal_strings.go
 
 [portal-field-projections]: ../../internal/declarative/fieldcontracts/portal.go
+
+[api-field-projections]: ../../internal/declarative/fieldcontracts/api.go
+[api-attributes]: ../../internal/declarative/attributes/normalize.go

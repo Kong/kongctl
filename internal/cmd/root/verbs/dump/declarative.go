@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -753,14 +752,8 @@ func mapPortalResponseToDeclarativeResource(portal kkComps.PortalResponse) declr
 
 func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.APIResource {
 	result := declresources.APIResource{
-		BaseResource: declresources.BaseResource{Ref: api.ID},
-		CreateAPIRequest: kkComps.CreateAPIRequest{
-			Name:        api.Name,
-			Description: api.Description,
-			Version:     api.Version,
-			Slug:        api.Slug,
-			Attributes:  api.Attributes,
-		},
+		BaseResource:     declresources.BaseResource{Ref: api.ID},
+		CreateAPIRequest: kkComps.CreateAPIRequest{Name: api.Name},
 	}
 
 	if labels := decllabels.GetUserLabels(api.Labels); len(labels) > 0 {
@@ -768,7 +761,7 @@ func mapAPIToDeclarativeResource(api kkComps.APIResponseSchema) declresources.AP
 	}
 	result.Kongctl = kongctlMetaFromLabels(api.Labels)
 
-	normalizeAPIResource(&result)
+	fieldcontracts.ExportAPIFields(api, &result.CreateAPIRequest)
 
 	return result
 }
@@ -891,40 +884,6 @@ func kongctlMetaFromLabels(labels map[string]string) *declresources.KongctlMeta 
 		meta.Protected = &value
 	}
 	return meta
-}
-
-func normalizeAPIResource(api *declresources.APIResource) {
-	if api.Attributes == nil {
-		return
-	}
-
-	if isEmptyValue(api.Attributes) {
-		api.Attributes = nil
-	}
-}
-
-func isEmptyValue(v any) bool {
-	if v == nil {
-		return true
-	}
-
-	val := reflect.ValueOf(v)
-
-	//exhaustive:ignore // Other reflection kinds are not considered empty.
-	switch val.Kind() {
-	case reflect.Pointer, reflect.Interface:
-		if val.IsNil() {
-			return true
-		}
-		return isEmptyValue(val.Elem().Interface())
-	case reflect.Map, reflect.Slice, reflect.Array, reflect.Chan, reflect.String:
-		return val.Len() == 0
-	case reflect.Struct:
-		zero := reflect.Zero(val.Type())
-		return reflect.DeepEqual(v, zero.Interface())
-	}
-
-	return false
 }
 
 func collectDeclarativeAuthStrategies(

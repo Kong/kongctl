@@ -4,8 +4,8 @@ import (
 	"context"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/attributes"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -32,22 +32,11 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 	// Map required fields
 	create.Name = common.ExtractResourceName(fields)
 
-	// Map optional fields using utilities (SDK uses double pointers)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
-	common.MapOptionalStringFieldToPtr(&create.Version, fields, planner.FieldVersion)
-	common.MapOptionalStringFieldToPtr(&create.Slug, fields, planner.FieldSlug)
+	fieldcontracts.MapAPICreateFields(fields, create)
 
 	// Handle labels using centralized helper
 	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
 	create.Labels = labels.BuildCreateLabels(userLabels, namespace, protection)
-
-	if attrs, ok := fields[planner.FieldAttributes]; ok {
-		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
-			create.Attributes = normalized
-		} else {
-			create.Attributes = attrs
-		}
-	}
 
 	return nil
 }
@@ -56,37 +45,10 @@ func (p *APIAdapter) MapCreateFields(_ context.Context, execCtx *ExecutionContex
 func (p *APIAdapter) MapUpdateFields(_ context.Context, _ *ExecutionContext, fields map[string]any,
 	update *kkComps.UpdateAPIRequest, _ map[string]string,
 ) error {
-	// Only include fields that are in the fields map
-	// These represent actual changes detected by the planner
-	for field, value := range fields {
-		switch field {
-		case planner.FieldName:
-			if name, ok := value.(string); ok {
-				update.Name = &name
-			}
-		case planner.FieldDescription:
-			if desc, ok := value.(string); ok {
-				update.Description = &desc
-			}
-		case planner.FieldVersion:
-			if version, ok := value.(string); ok {
-				update.Version = &version
-			}
-		case planner.FieldSlug:
-			if slug, ok := value.(string); ok {
-				update.Slug = &slug
-			}
-			// Skip "labels" as they're handled separately below
-		}
+	if name, ok := fields[planner.FieldName].(string); ok {
+		update.Name = &name
 	}
-
-	if attrs, ok := fields[planner.FieldAttributes]; ok {
-		if normalized, ok := attributes.NormalizeAPIAttributes(attrs); ok {
-			update.Attributes = normalized
-		} else {
-			update.Attributes = attrs
-		}
-	}
+	fieldcontracts.MapAPIUpdateFields(fields, update)
 
 	return nil
 }

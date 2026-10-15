@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
-	"reflect"
-	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
-	"github.com/kong/kongctl/internal/declarative/attributes"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -322,15 +320,7 @@ func extractAPIFields(resource any) map[string]any {
 	}
 
 	fields[FieldName] = api.Name
-	if api.Description != nil {
-		fields[FieldDescription] = *api.Description
-	}
-	if api.Version != nil {
-		fields[FieldVersion] = *api.Version
-	}
-	if api.Slug != nil {
-		fields[FieldSlug] = *api.Slug
-	}
+	fieldcontracts.ExtractAPIFields(api.CreateAPIRequest, fields)
 
 	// Copy user-defined labels only (protection label will be added during execution)
 	if len(api.Labels) > 0 {
@@ -339,14 +329,6 @@ func extractAPIFields(resource any) map[string]any {
 			labelsMap[k] = v
 		}
 		fields[FieldLabels] = labelsMap
-	}
-
-	if api.Attributes != nil {
-		if normalized, ok := attributes.NormalizeAPIAttributes(api.Attributes); ok {
-			fields[FieldAttributes] = normalized
-		} else {
-			fields[FieldAttributes] = api.Attributes
-		}
 	}
 
 	return fields
@@ -402,28 +384,9 @@ func (p *Planner) shouldUpdateAPI(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	// Only compare fields present in desired configuration
-	if desired.Description != nil {
-		currentDesc := getString(current.Description)
-		if currentDesc != *desired.Description {
-			updates[FieldDescription] = *desired.Description
-			changedFields[FieldDescription] = FieldChange{
-				Old: currentDesc,
-				New: *desired.Description,
-			}
-		}
-	}
-
-	// Check version if present in desired configuration
-	if desired.Version != nil {
-		currentVersion := getString(current.Version)
-		if currentVersion != *desired.Version {
-			updates[FieldVersion] = *desired.Version
-			changedFields[FieldVersion] = FieldChange{
-				Old: currentVersion,
-				New: *desired.Version,
-			}
-		}
+	for name, change := range fieldcontracts.CompareAPIFields(desired.CreateAPIRequest, current.APIResponseSchema) {
+		updates[name] = change.New
+		changedFields[name] = FieldChange{Old: change.Old, New: change.New}
 	}
 
 	// Check if labels are defined in the desired state
@@ -439,37 +402,6 @@ func (p *Planner) shouldUpdateAPI(
 			changedFields[FieldLabels] = FieldChange{
 				Old: labels.GetUserLabels(current.NormalizedLabels),
 				New: labels.GetUserLabels(desired.Labels),
-			}
-		}
-	}
-
-	// Check slug differences when configured
-	if desired.Slug != nil {
-		currentSlug := getString(current.Slug)
-		if currentSlug != *desired.Slug {
-			updates[FieldSlug] = *desired.Slug
-			changedFields[FieldSlug] = FieldChange{
-				Old: currentSlug,
-				New: *desired.Slug,
-			}
-		}
-	}
-
-	// Check attributes when provided in desired state
-	if desired.Attributes != nil {
-		desiredAttrs := desired.Attributes
-		if normalized, ok := attributes.NormalizeAPIAttributes(desired.Attributes); ok {
-			desiredAttrs = normalized
-		}
-		currentAttrs := current.Attributes
-		if normalized, ok := attributes.NormalizeAPIAttributes(current.Attributes); ok {
-			currentAttrs = normalized
-		}
-		if !attributesEqual(currentAttrs, desiredAttrs) {
-			updates[FieldAttributes] = desiredAttrs
-			changedFields[FieldAttributes] = FieldChange{
-				Old: currentAttrs,
-				New: desiredAttrs,
 			}
 		}
 	}
@@ -521,53 +453,6 @@ func (p *Planner) planAPIUpdateWithFields(
 	}
 
 	plan.AddChange(change)
-}
-
-func attributesEqual(current, desired any) bool {
-	if normalized, ok := attributes.NormalizeAPIAttributes(current); ok {
-		current = canonicalizeAttributesForCompare(normalized)
-	}
-	if normalized, ok := attributes.NormalizeAPIAttributes(desired); ok {
-		desired = canonicalizeAttributesForCompare(normalized)
-	}
-
-	if current == nil && desired == nil {
-		return true
-	}
-
-	currentJSON, err := normalizers.SpecToJSON(current)
-	if err != nil {
-		return reflect.DeepEqual(current, desired)
-	}
-
-	desiredJSON, err := normalizers.SpecToJSON(desired)
-	if err != nil {
-		return reflect.DeepEqual(current, desired)
-	}
-
-	return currentJSON == desiredJSON
-}
-
-func canonicalizeAttributesForCompare(attrs map[string]any) any {
-	canonical := make(map[string]any, len(attrs))
-	for key, value := range attrs {
-		if value == nil {
-			continue
-		}
-		if values, ok := value.([]string); ok {
-			values = slices.Clone(values)
-			slices.Sort(values)
-			canonical[key] = values
-			continue
-		}
-		canonical[key] = value
-	}
-
-	if len(canonical) == 0 {
-		return nil
-	}
-
-	return canonical
 }
 
 // planAPIProtectionChangeWithFields creates an UPDATE for protection status with optional field updates
