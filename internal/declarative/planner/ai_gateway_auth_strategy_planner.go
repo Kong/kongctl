@@ -229,7 +229,7 @@ func shouldUpdateAIGatewayAuthStrategy(
 		}
 	}
 
-	if desired.ManagedBy != nil && !reflect.DeepEqual(current.ManagedBy, desired.ManagedBy) {
+	if desired.ManagedBy != nil && !managedByValuesEqual(current.ManagedBy, desired.ManagedBy) {
 		changedFields[FieldManagedBy] = FieldChange{Old: current.ManagedBy, New: desired.ManagedBy}
 	}
 

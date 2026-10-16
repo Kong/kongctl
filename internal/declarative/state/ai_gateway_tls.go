@@ -75,6 +75,9 @@ func (c *Client) CreateAIGatewayCertificate(
 	req kkComps.CreateAIGatewayCertificateRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCertificatesAPI, aiGatewayCertificatesAPIName); err != nil {
 		return "", err
 	}
@@ -97,6 +100,9 @@ func (c *Client) UpdateAIGatewayCertificate(
 	req kkComps.UpdateAIGatewayCertificateRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCertificatesAPI, aiGatewayCertificatesAPIName); err != nil {
 		return "", err
 	}
@@ -189,6 +195,9 @@ func (c *Client) CreateAIGatewayCACertificate(
 	req kkComps.CreateAIGatewayCACertificateRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCACertificatesAPI, aiGatewayCACertificatesAPIName); err != nil {
 		return "", err
 	}
@@ -211,6 +220,9 @@ func (c *Client) UpdateAIGatewayCACertificate(
 	req kkComps.UpdateAIGatewayCACertificateRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCACertificatesAPI, aiGatewayCACertificatesAPIName); err != nil {
 		return "", err
 	}
@@ -300,6 +312,9 @@ func (c *Client) CreateAIGatewaySNI(
 	req kkComps.CreateAIGatewaySNIRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewaySNIsAPI, aiGatewaySNIsAPIName); err != nil {
 		return "", err
 	}
@@ -322,6 +337,9 @@ func (c *Client) UpdateAIGatewaySNI(
 	req kkComps.UpdateAIGatewaySNIRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewaySNIsAPI, aiGatewaySNIsAPIName); err != nil {
 		return "", err
 	}

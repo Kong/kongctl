@@ -276,7 +276,10 @@ func TestAIGatewayModelResourceAcceptsKongctlMetadata(t *testing.T) {
 
 func TestAIGatewayModelMetadataReservesOwnershipKeys(t *testing.T) {
 	for _, payload := range []string{aiGatewayModelJSON, aiGatewayAPIModelJSON} {
-		for _, key := range []string{ModelNamespaceKey, ModelProtectedKey, "", "_invalid", strings.Repeat("a", 64)} {
+		for _, key := range []string{
+			ModelNamespaceKey, ModelProtectedKey, ManagedByToolKey, ManagedByVersionKey,
+			"", "_invalid", strings.Repeat("a", 64),
+		} {
 			var model AIGatewayModelResource
 			require.NoError(t, json.Unmarshal([]byte(payload), &model))
 			model.SetManagedBy(map[string]string{key: "value"})

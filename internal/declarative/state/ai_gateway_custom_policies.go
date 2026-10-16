@@ -118,6 +118,9 @@ func (c *Client) CreateAIGatewayCustomPolicy(
 	req kkComps.CreateAIGatewayCustomPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCustomPoliciesAPI, "AI Gateway Custom Policies API"); err != nil {
 		return "", err
 	}
@@ -147,6 +150,9 @@ func (c *Client) UpdateAIGatewayCustomPolicy(
 	req kkComps.UpdateAIGatewayCustomPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCustomPoliciesAPI, "AI Gateway Custom Policies API"); err != nil {
 		return "", err
 	}

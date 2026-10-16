@@ -130,6 +130,9 @@ func (c *Client) CreateAIGatewayConsumerCredential(
 	req kkComps.CreateAIGatewayConsumerCredentialRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayConsumersAPI, "AI Gateway Consumers API"); err != nil {
 		return "", err
 	}

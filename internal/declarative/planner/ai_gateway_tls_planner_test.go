@@ -45,7 +45,7 @@ func TestAIGatewayTLSOptionalFieldRemovalPlansUpdate(t *testing.T) {
 	certAlt := "alternate-public-cert"
 	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
 		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
-		Labels: map[string]string{"revision": "initial"}, ManagedBy: map[string]string{"tool": "test"},
+		Labels: map[string]string{"revision": "initial"}, ManagedBy: map[string]string{"other-tool": "test"},
 	}}
 	desired := resources.AIGatewayCertificateResource{
 		BaseResource: resources.BaseResource{Ref: "runtime-cert"},

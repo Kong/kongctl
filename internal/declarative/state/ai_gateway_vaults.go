@@ -119,6 +119,9 @@ func (c *Client) CreateAIGatewayVault(
 	req kkComps.CreateAIGatewayVaultRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayVaultsAPI, "AI Gateway Vaults API"); err != nil {
 		return "", err
 	}
@@ -148,6 +151,9 @@ func (c *Client) UpdateAIGatewayVault(
 	req kkComps.UpdateAIGatewayVaultRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayVaultsAPI, "AI Gateway Vaults API"); err != nil {
 		return "", err
 	}
