@@ -81,10 +81,16 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 			desired, err := normalizers.SpecToJSON(desired)
 			require.NoError(t, err)
 			var mutations []string
+			var transportErrors []error
 			var mu sync.Mutex
-			clientHTTP := catalogTransitionHTTPClient(func(r *http.Request) (*http.Response, error) {
+			clientHTTP := catalogTransitionHTTPClient(func(r *http.Request) (httpResponse *http.Response, requestErr error) {
 				mu.Lock()
 				defer mu.Unlock()
+				defer func() {
+					if requestErr != nil {
+						transportErrors = append(transportErrors, requestErr)
+					}
+				}()
 				status := http.StatusOK
 				var response any
 				path := strings.TrimPrefix(r.URL.Path, "/v3/apis")
@@ -94,8 +100,12 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 				}
 				if r.Body != nil {
 					body, err := io.ReadAll(r.Body)
-					require.NoError(t, err)
-					require.NotContains(t, string(body), "allow_operation_removal")
+					if err != nil {
+						return nil, fmt.Errorf("read request body: %w", err)
+					}
+					if strings.Contains(string(body), "allow_operation_removal") {
+						return nil, fmt.Errorf("operation removal policy leaked into request body")
+					}
 					r.Body = io.NopCloser(strings.NewReader(string(body)))
 				}
 				switch {
@@ -116,7 +126,9 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 					response = versions[strings.TrimPrefix(path, "/"+apiID+"/versions/")]
 				case r.Method == http.MethodPost && path == "/"+apiID+"/versions":
 					var request kkComps.CreateAPIVersionRequest
-					require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+					if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+						return nil, fmt.Errorf("decode version create request: %w", err)
+					}
 					if test.rejectCreation {
 						status, response = 400, map[string]any{"detail": "new version rejected"}
 					} else {
@@ -128,7 +140,9 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 					}
 				case r.Method == http.MethodPatch && path == "/"+apiID:
 					var request kkComps.UpdateAPIRequest
-					require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+					if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+						return nil, fmt.Errorf("decode API update request: %w", err)
+					}
 					target := versions[newID]
 					if target.Spec == nil || *target.Spec.Content != desired {
 						status, response = 409, map[string]any{"detail": "target spec is not ready"}
@@ -142,7 +156,9 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 					id := strings.TrimPrefix(path, "/"+apiID+"/versions/")
 					version := versions[id]
 					var request kkComps.APIVersionRequest
-					require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+					if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+						return nil, fmt.Errorf("decode version update request: %w", err)
+					}
 					if version.Version == *current.Version && !force {
 						status, response = 409, map[string]any{"detail": "operation removal requires force"}
 					} else {
@@ -158,10 +174,12 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 						status = 204
 					}
 				default:
-					t.Fatalf("unexpected request: %s %s", r.Method, r.URL)
+					return nil, fmt.Errorf("unexpected request: %s %s", r.Method, r.URL)
 				}
 				body, err := json.Marshal(response)
-				require.NoError(t, err)
+				if err != nil {
+					return nil, fmt.Errorf("encode response: %w", err)
+				}
 				return &http.Response{
 					StatusCode: status, Header: http.Header{"Content-Type": {"application/json"}},
 					Body: io.NopCloser(strings.NewReader(string(body))), Request: r,
@@ -215,6 +233,7 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 			var saved planner.Plan
 			require.NoError(t, json.Unmarshal(data, &saved))
 			result := executor.New(client, nil, false).Execute(ctx, &saved)
+			require.Empty(t, transportErrors, "transport failures must not satisfy expected ACE rejections")
 			if test.allowRemoval && !test.rejectCreation {
 				require.Empty(t, result.Errors)
 				require.Equal(t, version, *current.Version)
@@ -229,7 +248,12 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 				require.NoError(t, err)
 				require.Empty(t, repeated.Changes, "authorization metadata must not cause perpetual updates")
 			} else {
-				require.NotEmpty(t, result.Errors)
+				require.Len(t, result.Errors, 1)
+				expectedError := "operation removal requires force"
+				if test.rejectCreation {
+					expectedError = "new version rejected"
+				}
+				require.Contains(t, result.Errors[0].Error, expectedError)
 				require.Equal(t, "beta.1", *current.Version)
 				require.Equal(t, original, *versions[oldID].Spec.Content)
 				for _, mutation := range mutations {
