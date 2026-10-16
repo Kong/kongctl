@@ -109,7 +109,7 @@ func (a AIGatewayModelResource) Validate() error {
 	if err := ValidateChildManagedBy(BuildChildManagedBy(nil,
 		a.ManagedBy(),
 		GetNamespace(a.Kongctl),
-		a.Protected()),
+		a.Protected(), ""),
 		false); err != nil {
 		return err
 	}
@@ -585,6 +585,8 @@ func AIGatewayModelResourceFromResponse(
 	if managed, ok := payload["managed_by"].(map[string]any); ok {
 		delete(managed, ModelNamespaceKey)
 		delete(managed, ModelProtectedKey)
+		delete(managed, ManagedByToolKey)
+		delete(managed, ManagedByVersionKey)
 		if len(managed) == 0 {
 			delete(payload, "managed_by")
 		}

@@ -104,7 +104,15 @@ stores and data plane certificates are excluded from ownership federation.
 Use `BuildChildManagedBy`, `ValidateChildManagedBy`, `ValidateChildOwnership`,
 and `NormalizedChildOwnership` in resources. Preserve unrelated entries during
 both planning and execution, and validate the complete merged map against the
-five-entry limit. Raw reserved keys are invalid; unowned objects require an
+five-entry limit. All AI Gateway writes supporting `managed_by` stamp
+`tool: kongctl`
+and `version` from the executing binary, independently of ownership enrollment.
+Owned children reserve those two entries plus namespace and protection, leaving
+one unrelated entry. Compare provenance as last-writer metadata: a binary
+upgrade
+alone must not schedule writes or modify protected children. Saved-plan and
+secret-only execution must stamp the executing version and recheck capacity.
+Raw reserved keys are invalid; unowned objects require an
 explicit API adoption, and foreign ownership requires an explicit transfer.
 The model helpers remain compatibility wrappers around the shared contract.
 

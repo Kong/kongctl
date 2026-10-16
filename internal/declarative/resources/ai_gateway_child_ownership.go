@@ -18,7 +18,12 @@ const (
 
 // BuildChildManagedBy preserves metadata belonging to other tools. Validate the
 // resulting map before planning or writing: the limit applies after merging.
-func BuildChildManagedBy(current, desired map[string]string, namespace string, protected bool) map[string]string {
+func BuildChildManagedBy(
+	current, desired map[string]string,
+	namespace string,
+	protected bool,
+	version string,
+) map[string]string {
 	metadata := maps.Clone(current)
 	if metadata == nil {
 		metadata = make(map[string]string)
@@ -26,17 +31,18 @@ func BuildChildManagedBy(current, desired map[string]string, namespace string, p
 	maps.Copy(metadata, desired)
 	metadata[ChildNamespaceKey] = namespace
 	metadata[ChildProtectedKey] = strconv.FormatBool(protected)
-	return metadata
+	return ManagedByWithProvenance(metadata, version)
 }
 
 func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
 	if len(metadata) > ChildManagedByLimit {
-		return fmt.Errorf("managed_by exceeds the five-entry limit after merging ownership metadata (%d entries)",
+		return fmt.Errorf("managed_by exceeds the five-entry limit after merging generated metadata (%d entries)",
 			len(metadata))
 	}
 	for key := range metadata {
-		if raw && (key == ChildNamespaceKey || key == ChildProtectedKey) {
-			return fmt.Errorf("managed_by key %q is reserved; use kongctl metadata", key)
+		if raw && (key == ChildNamespaceKey || key == ChildProtectedKey ||
+			key == ManagedByToolKey || key == ManagedByVersionKey) {
+			return fmt.Errorf("managed_by key %q is reserved for kongctl", key)
 		}
 		if len(key) < 1 || len(key) > 63 || !isMetadataAlphanumeric(key[0]) {
 			return fmt.Errorf("invalid managed_by key: keys must be 1–63 characters and start with an alphanumeric character")
@@ -139,5 +145,11 @@ func ChildUnprotectionMetadataOnly(current, desired map[string]string) bool {
 	before, after := maps.Clone(current), maps.Clone(desired)
 	delete(before, ChildProtectedKey)
 	delete(after, ChildProtectedKey)
+	// Provenance changes automatically with the executing binary; it does not
+	// authorize any other metadata, payload, or secret mutation.
+	delete(before, ManagedByToolKey)
+	delete(before, ManagedByVersionKey)
+	delete(after, ManagedByToolKey)
+	delete(after, ManagedByVersionKey)
 	return maps.Equal(before, after)
 }

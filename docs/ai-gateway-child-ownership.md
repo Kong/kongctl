@@ -10,13 +10,24 @@ workflow.
 
 ## Ownership and collection scope
 
-Participating children persist `kongctl-namespace` and `kongctl-protected` in
-`managed_by`. Their explicit namespace overrides the source file default, then
-the literal `default` namespace. Gateway metadata supplies neither ownership
+Every AI Gateway child API that supports `managed_by` is stamped on create or
+update with `tool: kongctl` and `version: <running binary version>` (`dev` for
+local development builds). Saved plans use the executing binary's version at
+write time. These provenance fields do not establish ownership or enable
+federation. A version change alone does not schedule a write.
+
+Participating children also persist `kongctl-namespace` and
+`kongctl-protected` in `managed_by`. Their explicit namespace overrides the
+source file default, then the literal `default` namespace. Gateway metadata
+supplies neither ownership
 nor protection. Raw reserved entries are rejected. Other tools' metadata is
 preserved, including entries added after planning. The merged map may contain
-at most five entries, including the two reserved entries; overflow fails before
-a write rather than discarding metadata.
+at most five entries, including all four generated entries. Overflow fails
+before a write without discarding metadata. This leaves one unrelated entry
+for independently owned children and three for children carrying provenance
+only. Model dumps omit generated entries and
+translate namespace/protection into `kongctl` metadata. Unprotection may update
+automatic provenance, but still cannot change other metadata or payload fields.
 
 An unowned name match requires explicit adoption through the API. A match owned
 by another namespace requires explicit transfer. Defaults and references never

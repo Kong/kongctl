@@ -85,6 +85,7 @@ func TestModelExecutionPreservesFreshMetadataAndProtection(t *testing.T) {
 	for _, variant := range []string{"model", "api"} {
 		t.Run(variant, func(t *testing.T) {
 			model := executorOwnedModel(t, variant)
+			delete(resources.AIGatewayModelManagedBy(model), "other-tool")
 			payload, err := resources.AIGatewayModelMutablePayloadMap(model)
 			require.NoError(t, err)
 			change := planner.PlannedChange{
@@ -133,7 +134,7 @@ func TestProtectedModelsOnlyAllowPayloadPreservingUnprotection(t *testing.T) {
 			metadata[resources.ModelProtectedKey] = "true"
 			fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 			require.NoError(t, err)
-			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false)
+			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
 			change := planner.PlannedChange{
 				Namespace: "team-a", Fields: fields,
 				Parent:     &planner.ParentInfo{ID: "gateway-id"},
@@ -219,7 +220,7 @@ func TestSavedModelUnprotectionRejectsConcurrentProtectionChange(t *testing.T) {
 	metadata[resources.ModelProtectedKey] = "true"
 	fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 	require.NoError(t, err)
-	fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false)
+	fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
 	change := planner.PlannedChange{
 		Namespace: "team-a",
 		Fields:    fields,

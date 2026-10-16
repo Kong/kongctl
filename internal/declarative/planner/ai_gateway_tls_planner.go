@@ -346,11 +346,17 @@ func addAIGatewayTLSCurrentMetadata(fields map[string]any, labels, managedBy map
 func diffAIGatewayTLSPayloads(current, desired map[string]any) map[string]FieldChange {
 	changed := make(map[string]FieldChange)
 	for field, desiredValue := range desired {
+		if field == FieldManagedBy && managedByValuesEqual(current[field], desiredValue) {
+			continue
+		}
 		if !aigatewayTLSValuesEqual(current[field], desiredValue) {
 			changed[field] = FieldChange{Old: current[field], New: desiredValue}
 		}
 	}
 	for field, currentValue := range current {
+		if field == FieldManagedBy && managedByValuesEqual(currentValue, desired[field]) {
+			continue
+		}
 		if _, exists := desired[field]; !exists && !emptyAIGatewayTLSMap(currentValue) {
 			changed[field] = FieldChange{Old: currentValue, New: nil}
 		}

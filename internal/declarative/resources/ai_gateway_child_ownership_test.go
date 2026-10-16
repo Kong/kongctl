@@ -8,18 +8,22 @@ import (
 
 func TestChildOwnershipMetadataMergeAndCapacity(t *testing.T) {
 	current := map[string]string{ChildNamespaceKey: "team-a", ChildProtectedKey: "false", "other-tool": "keep"}
-	merged := BuildChildManagedBy(current, map[string]string{"declared": "new", "third": "new"}, "team-a", true)
+	merged := BuildChildManagedBy(current, nil, "team-a", true, "1.2.3")
 	require.NoError(t, ValidateChildManagedBy(merged, false))
 	require.Equal(t, "keep", merged["other-tool"])
+	require.Equal(t, "kongctl", merged[ManagedByToolKey])
+	require.Equal(t, "1.2.3", merged[ManagedByVersionKey])
+	require.Len(t, merged, 5)
+	require.NotContains(t, current, ManagedByVersionKey)
 	require.Equal(t, "false", current[ChildProtectedKey], "merge cannot mutate observations")
 	require.ErrorContains(t,
 		ValidateChildManagedBy(BuildChildManagedBy(merged,
 			map[string]string{"sixth": "overflow"},
 			"team-a",
-			true),
+			true, "1.2.3"),
 			false),
 		"five-entry")
-	for _, key := range []string{ChildNamespaceKey, ChildProtectedKey} {
+	for _, key := range []string{ChildNamespaceKey, ChildProtectedKey, ManagedByToolKey, ManagedByVersionKey} {
 		require.ErrorContains(t, ValidateChildManagedBy(map[string]string{key: "raw"}, true), "reserved")
 	}
 	require.ErrorContains(t, ValidateChildOwnership("child", nil, "team-a"), "explicitly adopt")

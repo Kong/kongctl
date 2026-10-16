@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/secrets"
 )
@@ -98,7 +99,7 @@ func (p *Planner) applySecretWriteIntents(
 				return fmt.Errorf("resource %s %q could not be resolved for a secret-only update",
 					resource.GetType(), resourceRef)
 			}
-			fields, err := secretResourceFields(resource, ActionUpdate)
+			fields, err := secretResourceFields(ctx, resource, ActionUpdate)
 			if err != nil {
 				return err
 			}
@@ -116,7 +117,7 @@ func (p *Planner) applySecretWriteIntents(
 			plan.AddChange(*change)
 			change = &plan.Changes[len(plan.Changes)-1]
 		} else {
-			fields, err := secretResourceFields(resource, change.Action)
+			fields, err := secretResourceFields(ctx, resource, change.Action)
 			if err != nil {
 				return err
 			}
@@ -351,7 +352,7 @@ func changeID(change *PlannedChange) string {
 	return change.ID
 }
 
-func secretResourceFields(resource resources.Resource, action ActionType) (map[string]any, error) {
+func secretResourceFields(ctx context.Context, resource resources.Resource, action ActionType) (map[string]any, error) {
 	var fields map[string]any
 	if payloadResource, ok := resource.(interface {
 		MutablePayloadMap() (map[string]any, error)
@@ -406,7 +407,9 @@ func secretResourceFields(resource resources.Resource, action ActionType) (map[s
 			maps.Copy(raw, native)
 		}
 		protected := metadata != nil && metadata.Protected != nil && *metadata.Protected
-		fields[FieldManagedBy] = resources.BuildChildManagedBy(nil, raw, resources.GetNamespace(metadata), protected)
+		fields[FieldManagedBy] = resources.BuildChildManagedBy(
+			nil, raw, resources.GetNamespace(metadata), protected, build.Version(ctx),
+		)
 	}
 	return fields, nil
 }

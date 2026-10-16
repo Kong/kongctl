@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -30,7 +31,7 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 		observed, exists := byName[model.Name()]
 		if !exists {
 			if plan.Metadata.Mode != PlanModeDelete {
-				p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, model,
+				p.planAIGatewayModelCreate(ctx, namespace, gatewayRef, gatewayName, gatewayID, model,
 					aiGatewayModelCreateDependencies(model, providerDeps, policyDeps), plan)
 			}
 			continue
@@ -69,7 +70,9 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 		if model.AIGatewayModelModel != nil {
 			owned.AIGatewayModelModel = new(*model.AIGatewayModelModel)
 		}
-		owned.SetManagedBy(resources.BuildModelManagedBy(metadata, model.ManagedBy(), namespace, model.Protected()))
+		owned.SetManagedBy(resources.BuildModelManagedBy(
+			metadata, model.ManagedBy(), namespace, model.Protected(), build.Version(ctx),
+		))
 		if err := resources.ValidateChildManagedBy(owned.ManagedBy(), false); err != nil {
 			return err
 		}

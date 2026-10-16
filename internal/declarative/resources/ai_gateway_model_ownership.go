@@ -41,8 +41,13 @@ func (a *AIGatewayModelResource) SetManagedBy(metadata map[string]string) {
 
 // BuildModelManagedBy preserves metadata from other systems. Reserved values
 // always come from kongctl configuration, never the raw SDK payload.
-func BuildModelManagedBy(current, desired map[string]string, namespace string, protected bool) map[string]string {
-	return BuildChildManagedBy(current, desired, namespace, protected)
+func BuildModelManagedBy(
+	current, desired map[string]string,
+	namespace string,
+	protected bool,
+	version string,
+) map[string]string {
+	return BuildChildManagedBy(current, desired, namespace, protected, version)
 }
 
 func (a AIGatewayModelResource) Protected() bool {

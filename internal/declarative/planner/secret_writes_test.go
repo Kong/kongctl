@@ -433,7 +433,7 @@ func TestSecretResourceFieldsUsesMutablePayloadContract(t *testing.T) {
 		Config:       map[string]any{"auth": map[string]any{"header": "placeholder"}},
 	}
 
-	fields, err := secretResourceFields(&provider, ActionCreate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionCreate)
 	require.NoError(t, err)
 	assert.Equal(t, "provider", fields[FieldName])
 	assert.Contains(t, fields, FieldConfig)
@@ -485,7 +485,7 @@ func TestSecretResourceFieldsUsesPortalIdentityProviderUpdateContract(t *testing
 		Portal:                 "portal",
 	}
 
-	fields, err := secretResourceFields(&provider, ActionUpdate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionUpdate)
 	require.NoError(t, err)
 	assert.NotContains(t, fields, FieldType)
 	assert.NotContains(t, fields, resources.SchemaFieldPortal)
@@ -500,7 +500,7 @@ func TestSecretResourceFieldsUsesDCRProviderUpdateContract(t *testing.T) {
 		DCRConfig:    map[string]any{"dcr_base_url": "https://dcr.example.test"},
 	}
 
-	fields, err := secretResourceFields(&provider, ActionUpdate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionUpdate)
 	require.NoError(t, err)
 	assert.Equal(t, "http", fields[FieldDCRProviderUpdateType])
 	assert.NotContains(t, fields, FieldDCRProviderProviderType)
@@ -858,7 +858,7 @@ func TestSecretWriteContextUsesIndependentChildOwnership(t *testing.T) {
 	model.Kongctl = &resources.KongctlMeta{Namespace: new("application-team")}
 	model.SetManagedBy(map[string]string{"other-tool": "retain"})
 	require.Equal(t, "application-team", secretResourceNamespace(nil, &model))
-	fields, err := secretResourceFields(&model, ActionUpdate)
+	fields, err := secretResourceFields(t.Context(), &model, ActionUpdate)
 	require.NoError(t, err)
 	metadata := fields[FieldManagedBy].(map[string]string)
 	require.Equal(t, "application-team", metadata[resources.ChildNamespaceKey])
