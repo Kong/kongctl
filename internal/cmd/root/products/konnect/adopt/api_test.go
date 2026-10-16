@@ -57,6 +57,7 @@ func (a *apiAPIStub) UpdateAPI(
 	_ context.Context,
 	id string,
 	req kkComps.UpdateAPIRequest,
+	_ bool,
 	_ ...kkOps.Option,
 ) (*kkOps.UpdateAPIResponse, error) {
 	if id != a.fetchResponse.ID {

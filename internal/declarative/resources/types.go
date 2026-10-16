@@ -254,6 +254,9 @@ const (
 
 // KongctlMeta contains tool-specific metadata for resources
 type KongctlMeta struct {
+	// AllowOperationRemoval authorizes ACE operation removal on API and version updates.
+	// It is execution policy, not a Konnect label, and is supported only on APIs.
+	AllowOperationRemoval *bool `yaml:"allow_operation_removal,omitempty" json:"allow_operation_removal,omitempty"`
 	// Protected prevents accidental deletion of critical resources
 	Protected *bool `yaml:"protected,omitempty" json:"protected,omitempty"`
 	// Namespace for resource isolation and multi-team management

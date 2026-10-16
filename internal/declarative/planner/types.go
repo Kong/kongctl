@@ -79,6 +79,7 @@ type PlannedChange struct {
 	Namespace             string                   `json:"namespace"`
 	DependsOn             []string                 `json:"depends_on,omitempty"`
 	SecretWrites          []SecretWriteIntent      `json:"secret_writes,omitempty"`
+	AllowOperationRemoval bool                     `json:"allow_operation_removal,omitempty"`
 }
 
 // PayloadReference binds an explicit payload expression to its declaration.

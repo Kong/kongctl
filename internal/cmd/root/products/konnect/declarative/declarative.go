@@ -1542,6 +1542,9 @@ func displayTextDiff(command *cobra.Command, plan *planner.Plan, fullContent boo
 					change.ResourceRef,
 				)
 				fmt.Fprintln(out, out.paint(theme.ColorDiffChanged, header))
+				if change.AllowOperationRemoval {
+					fmt.Fprintln(out, "  allow_operation_removal: true (ACE operation removal authorized)")
+				}
 
 				// Check if this is a protection change
 				if pc, ok := change.Protection.(planner.ProtectionChange); ok {

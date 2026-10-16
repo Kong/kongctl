@@ -40,7 +40,7 @@ func (m *MockAPIAPI) CreateAPI(
 }
 
 func (m *MockAPIAPI) UpdateAPI(
-	ctx context.Context, id string, req kkComps.UpdateAPIRequest, opts ...kkOps.Option,
+	ctx context.Context, id string, req kkComps.UpdateAPIRequest, _ bool, opts ...kkOps.Option,
 ) (*kkOps.UpdateAPIResponse, error) {
 	args := m.Called(ctx, id, req, opts)
 	if args.Get(0) == nil {

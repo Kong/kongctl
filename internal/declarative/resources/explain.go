@@ -1219,6 +1219,10 @@ func autoExplainNode(
 			node.addField(fieldNode)
 		}
 		applyInlineUnionBranches(node, inlineUnions)
+		if typ == reflect.TypeFor[KongctlMeta]() {
+			// API-specific execution policy is exposed by apiExplainNode only.
+			explainRemoveField(node, "allow_operation_removal")
+		}
 
 		return node, nil
 	}
