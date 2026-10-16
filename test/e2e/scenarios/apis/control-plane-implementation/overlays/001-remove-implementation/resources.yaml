@@ -17,4 +17,9 @@ control_planes:
 apis:
   - ref: control-plane-api
     name: "E2E Control Plane Implementation API"
+    version: beta.2
+    versions:
+      - ref: current-spec
+        version: beta.2
+        spec: !file ./specs/beta2.yaml
     implementations: []

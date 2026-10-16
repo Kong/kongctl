@@ -370,20 +370,22 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
   {
     "id": "impl-id",
     "control_plane": {
-      "control_plane_id": "cp-id"
+      "control_plane_id": "cp-id",
+      "access_control_enforcement_enabled": true
     }
   }
 ]`, `[
   {
     "id": "impl-id",
     "control_plane": {
-      "control_plane_id": "cp-id"
+      "control_plane_id": "cp-id",
+      "access_control_enforcement_enabled": true
     }
   }
 ]`},
 		},
 		{
-			"cp-implementation-delete", "apis/control-plane-implementation", 4, 5,
+			"cp-implementation-delete", "apis/control-plane-implementation", 6, 7,
 			`{
   "summary": {
     "total_changes": 1,

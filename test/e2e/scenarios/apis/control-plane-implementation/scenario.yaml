@@ -78,6 +78,7 @@ steps:
               fields:
                 "length(id) > `0`": true
                 control_plane.control_plane_id: "{{ .vars.apiImplementationCPID }}"
+                control_plane.access_control_enforcement_enabled: true
       - name: 004-get-implementation-by-id
         run:
           - get
@@ -152,7 +153,168 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 004-sync-delete-implementation
+  - name: 004-reject-unapproved-version-switch
+    inputOverlayDirs:
+      - overlays/002-switch-version
+    commands:
+      - name: 000-plan-transition
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/resources.yaml", "--mode", "sync"]
+        recordVars:
+          - name: apiVersionCreateChangeID
+            responsePath: >-
+              changes[?resource_type=='api_version' && action=='CREATE'] | [0].id
+          - name: apiVersionSwitchChangeID
+            responsePath: >-
+              changes[?resource_type=='api' && action=='UPDATE'] | [0].id
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.CREATE: 1
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: "@"
+            expect:
+              fields:
+                "length(execution_groups)": 3
+          - select: "changes[?resource_type=='api' && action=='UPDATE'] | [0]"
+            expect:
+              fields:
+                fields.version: beta.2
+                "contains(keys(@), 'allow_operation_removal')": false
+                "contains(depends_on, '{{ .vars.apiVersionCreateChangeID }}')": true
+          - select: >-
+              changes[?resource_type=='api_version' && action=='DELETE'] | [0]
+            expect:
+              fields:
+                fields.version: beta.1
+                "contains(depends_on, '{{ .vars.apiVersionSwitchChangeID }}')": true
+
+      - name: 001-reject-sync
+        maxConcurrency: 3
+        run: ["sync", "-f", "{{ .workdir }}/resources.yaml", "--auto-approve"]
+        expectFailure:
+          exitCode: 1
+          contains: "Operations are not allowed to be removed"
+
+      - name: 002-current-version-unchanged
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='E2E Control Plane Implementation API'] | [0]"
+            expect:
+              fields:
+                version: beta.1
+
+      - name: 003-old-version-preserved
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "E2E Control Plane Implementation API"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 2
+                "length([?version=='beta.1'])": 1
+                "length([?version=='beta.2'])": 1
+
+  - name: 005-authorize-version-switch
+    inputOverlayDirs:
+      - overlays/002-switch-version
+    inputOverlayOps:
+      - file: resources.yaml
+        match: "apis[?ref=='control-plane-api']"
+        set:
+          kongctl:
+            allow_operation_removal: true
+    commands:
+      - name: 000-save-authorized-plan
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/transition-plan.json"
+        run: ["plan", "-f", "{{ .workdir }}/resources.yaml", "--mode", "sync"]
+        recordVar:
+          name: apiVersionSwitchChangeID
+          responsePath: >-
+            changes[?resource_type=='api' && action=='UPDATE'] | [0].id
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 1
+                by_action.DELETE: 1
+          - select: "@"
+            expect:
+              fields:
+                "length(execution_groups)": 2
+          - select: "changes[?resource_type=='api'] | [0]"
+            expect:
+              fields:
+                allow_operation_removal: true
+                fields.version: beta.2
+          - select: "changes[?action=='DELETE'] | [0]"
+            expect:
+              fields:
+                fields.version: beta.1
+                "contains(depends_on, '{{ .vars.apiVersionSwitchChangeID }}')": true
+
+      - name: 001-sync-saved-plan
+        maxConcurrency: 3
+        retry:
+          attempts: 1
+        run:
+          - sync
+          - --plan
+          - "{{ .workdir }}/transition-plan.json"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-current-version-switched
+        run: ["get", "apis", "-o", "json"]
+        assertions:
+          - select: "[?name=='E2E Control Plane Implementation API'] | [0]"
+            expect:
+              fields:
+                version: beta.2
+
+      - name: 003-old-version-deleted
+        run:
+          - get
+          - api
+          - versions
+          - --api-name
+          - "E2E Control Plane Implementation API"
+          - -o
+          - json
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(@)": 1
+                "length([?version=='beta.1'])": 0
+                "[0].version": beta.2
+
+      - name: 004-repeat-is-noop
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/resources.yaml", "--mode", "sync"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 006-sync-delete-implementation
     inputOverlayDirs:
       - overlays/001-remove-implementation
     commands:
@@ -226,7 +388,7 @@ steps:
               fields:
                 "length(@)": 1
 
-  - name: 005-reset-org
+  - name: 007-reset-org
     skipInputs: true
     commands:
       - resetOrg: true
