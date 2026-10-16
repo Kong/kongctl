@@ -19,9 +19,14 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 			mode      PlanMode
 			refs      []string
 			creates   []int
+			createID  string
 			deletes   []string
 			duplicate string
 		}{
+			{
+				name: "resolved team without observed membership creates", mode: PlanModeApply,
+				refs: []string{"ghost"}, creates: []int{0}, createID: "ghost-id",
+			},
 			{
 				name: "apply retains observations", mode: PlanModeApply,
 				refs: []string{"known", "new-a"}, creates: []int{1},
@@ -63,13 +68,16 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 				account.SetKonnectID("owner-id")
 				rs := &resources.ResourceSet{Organization: &resources.OrganizationResource{}}
 				var desiredTeams []resources.OrganizationTeamResource
-				for _, ref := range []string{"known", "alias", "new-a", "new-b", "stale-id", "missing"} {
+				for _, ref := range []string{"known", "alias", "ghost", "new-a", "new-b", "stale-id", "missing"} {
 					team := resources.OrganizationTeamResource{
 						BaseResource: resources.BaseResource{Ref: ref, Kongctl: plannerNamespaceMeta(namespace)},
 						CreateTeam:   kkComps.CreateTeam{Name: ref},
 					}
 					if ref == "alias" {
 						team.SetKonnectID("known-id")
+					}
+					if ref == "ghost" {
+						team.SetKonnectID("ghost-id")
 					}
 					rs.OrganizationTeams = append(rs.OrganizationTeams, team)
 					// Keep the declaration selectable while testing resolution's skip contract.
@@ -164,9 +172,13 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 					ref := tc.refs[desiredIndex]
 					require.Equal(t, ActionCreate, change.Action)
 					require.Equal(t, fmt.Sprintf("membership-%d", desiredIndex), change.ResourceRef)
-					require.Equal(t, ReferenceInfo{Ref: ref, LookupFields: map[string]string{FieldName: ref}},
+					require.Equal(t, ReferenceInfo{Ref: ref, ID: tc.createID, LookupFields: map[string]string{FieldName: ref}},
 						change.References[FieldTeamID])
-					require.Equal(t, []string{"create-" + ref}, change.DependsOn)
+					if tc.createID == "" {
+						require.Equal(t, []string{"create-" + ref}, change.DependsOn)
+					} else {
+						require.Empty(t, change.DependsOn)
+					}
 				}
 				var deleted []string
 				for _, change := range changes[len(tc.creates):] {
