@@ -6,13 +6,12 @@ import (
 	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
-
-const authStrategyConfigOpenIDConnect = "openid-connect"
 
 // authStrategyPlannerImpl implements planning logic for auth strategy resources
 type authStrategyPlannerImpl struct {
@@ -111,16 +110,6 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 
 			// Set strategy type
 			fields[FieldAuthStrategyType] = "key_auth"
-
-			// Set config under configs map
-			keyAuthConfig := make(map[string]any)
-			if strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
-				keyAuthConfig["key_names"] = strategy.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
-			}
-
-			fields[FieldConfigs] = map[string]any{
-				"key-auth": keyAuthConfig,
-			}
 		}
 	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
 		if strategy.AppAuthStrategyOpenIDConnectRequest != nil {
@@ -131,28 +120,14 @@ func (p *authStrategyPlannerImpl) planAuthStrategyCreate(
 			// Set strategy type
 			fields[FieldAuthStrategyType] = "openid_connect"
 
-			// Set config under configs map
-			oidcConfig := make(map[string]any)
-			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer != "" {
-				oidcConfig[FieldDCRProviderIssuer] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Issuer
-			}
-			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim != nil {
-				oidcConfig["credential_claim"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.CredentialClaim
-			}
-			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes != nil {
-				oidcConfig["scopes"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.Scopes
-			}
-			if strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods != nil {
-				oidcConfig["auth_methods"] = strategy.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect.AuthMethods
-			}
-
-			fields[FieldConfigs] = map[string]any{
-				authStrategyConfigOpenIDConnect: oidcConfig,
-			}
 			if providerID := strategy.GetDCRProviderID(); providerID != "" {
 				fields[FieldDCRProviderID] = providerID
 			}
 		}
+	}
+
+	if configs := fieldcontracts.ExtractAuthStrategyConfigs(strategy.CreateAppAuthStrategyRequest); configs != nil {
+		fields[FieldConfigs] = configs
 	}
 
 	kongctl = strategy.Kongctl
@@ -250,130 +225,16 @@ func (p *authStrategyPlannerImpl) shouldUpdateAuthStrategy(
 		}
 	}
 
-	// Check config updates based on strategy type
-	switch desired.Type {
-	case kkComps.CreateAppAuthStrategyRequestTypeKeyAuth:
-		if desired.AppAuthStrategyKeyAuthRequest != nil {
-			// Check key_names updates
-			if desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames != nil {
-				desiredKeyNames := desired.AppAuthStrategyKeyAuthRequest.Configs.KeyAuth.KeyNames
-
-				// Convert current key names to a comparable format
-				currentKeyNames := make([]string, 0)
-				if current.Configs != nil {
-					if keyAuthConfig, ok := current.Configs["key-auth"].(map[string]any); ok {
-						// Try different type assertions for key_names
-						switch kn := keyAuthConfig["key_names"].(type) {
-						case []any:
-							for _, name := range kn {
-								if str, ok := name.(string); ok {
-									currentKeyNames = append(currentKeyNames, str)
-								}
-							}
-						case []string:
-							currentKeyNames = kn
-						}
-					}
-				}
-
-				keyNamesChanged := len(currentKeyNames) != len(desiredKeyNames)
-				if !keyNamesChanged {
-					for i, desiredName := range desiredKeyNames {
-						if i < len(currentKeyNames) && currentKeyNames[i] != desiredName {
-							keyNamesChanged = true
-							break
-						}
-					}
-				}
-
-				if keyNamesChanged {
-					newConfigs := map[string]any{
-						"key-auth": map[string]any{
-							"key_names": desiredKeyNames,
-						},
-					}
-					updateFields[FieldConfigs] = newConfigs
-					changedFields[FieldConfigs] = FieldChange{
-						Old: map[string]any{
-							"key-auth": map[string]any{
-								"key_names": currentKeyNames,
-							},
-						},
-						New: newConfigs,
-					}
-				}
-			}
-		}
-
-	case kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect:
+	oldConfigs, newConfigs := fieldcontracts.CompareAuthStrategyConfigs(
+		desired.CreateAppAuthStrategyRequest,
+		current.Configs,
+	)
+	if newConfigs != nil {
+		updateFields[FieldConfigs] = newConfigs
+		changedFields[FieldConfigs] = FieldChange{Old: oldConfigs, New: newConfigs}
+	}
+	if desired.Type == kkComps.CreateAppAuthStrategyRequestTypeOpenidConnect {
 		if desired.AppAuthStrategyOpenIDConnectRequest != nil {
-			oidcConfig := &desired.AppAuthStrategyOpenIDConnectRequest.Configs.OpenidConnect
-
-			// Get current OIDC config
-			var currentOIDC map[string]any
-			if current.Configs != nil {
-				if oidc, ok := current.Configs[authStrategyConfigOpenIDConnect].(map[string]any); ok {
-					currentOIDC = oidc
-				}
-			}
-
-			oidcUpdates := make(map[string]any)
-			oidcOldValues := make(map[string]any)
-			hasUpdates := false
-
-			// Check issuer
-			if oidcConfig.Issuer != "" {
-				currentIssuer, _ := currentOIDC[FieldDCRProviderIssuer].(string)
-				if currentIssuer != oidcConfig.Issuer {
-					oidcUpdates[FieldDCRProviderIssuer] = oidcConfig.Issuer
-					oidcOldValues[FieldDCRProviderIssuer] = currentIssuer
-					hasUpdates = true
-				}
-			}
-
-			// Check credential_claim
-			if oidcConfig.CredentialClaim != nil {
-				currentClaims := extractStringSlice(currentOIDC["credential_claim"])
-				if !stringSlicesEqual(currentClaims, oidcConfig.CredentialClaim) {
-					oidcUpdates["credential_claim"] = oidcConfig.CredentialClaim
-					oidcOldValues["credential_claim"] = currentClaims
-					hasUpdates = true
-				}
-			}
-
-			// Check scopes
-			if oidcConfig.Scopes != nil {
-				currentScopes := extractStringSlice(currentOIDC["scopes"])
-				if !stringSlicesEqual(currentScopes, oidcConfig.Scopes) {
-					oidcUpdates["scopes"] = oidcConfig.Scopes
-					oidcOldValues["scopes"] = currentScopes
-					hasUpdates = true
-				}
-			}
-
-			// Check auth_methods
-			if oidcConfig.AuthMethods != nil {
-				currentMethods := extractStringSlice(currentOIDC["auth_methods"])
-				if !stringSlicesEqual(currentMethods, oidcConfig.AuthMethods) {
-					oidcUpdates["auth_methods"] = oidcConfig.AuthMethods
-					oidcOldValues["auth_methods"] = currentMethods
-					hasUpdates = true
-				}
-			}
-
-			if hasUpdates {
-				newConfigs := map[string]any{
-					authStrategyConfigOpenIDConnect: oidcUpdates,
-				}
-				updateFields[FieldConfigs] = newConfigs
-				changedFields[FieldConfigs] = FieldChange{
-					Old: map[string]any{
-						authStrategyConfigOpenIDConnect: oidcOldValues,
-					},
-					New: newConfigs,
-				}
-			}
-
 			desiredProviderID := desired.GetDCRProviderID()
 			comparableProviderValue := p.resolveComparableDCRProviderValue(desiredProviderID)
 			if desiredProviderID != "" &&
@@ -431,35 +292,6 @@ func (p *authStrategyPlannerImpl) resolveComparableDCRProviderValue(desiredProvi
 	}
 
 	return desiredProviderID
-}
-
-// extractStringSlice converts any to []string
-func extractStringSlice(val any) []string {
-	result := make([]string, 0)
-	switch v := val.(type) {
-	case []any:
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-	case []string:
-		result = v
-	}
-	return result
-}
-
-// stringSlicesEqual compares two string slices
-func stringSlicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // planAuthStrategyUpdateWithFields creates an UPDATE change with specific fields

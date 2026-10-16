@@ -690,6 +690,21 @@ filter them through the narrower update inventory. Preserve top-level
 immutability, write-only intent selection and full-config diagnostic behavior
 in their existing paths. This config policy does not change identity or defaults.
 
+Application auth strategies use [config projections][auth-config-policy] for
+key-auth and OIDC create extraction, comparison and SDK create/update mapping.
+Their typed list inventory owns key names, claims, scopes and auth methods;
+OIDC issuer handling remains explicit in the same module. Omitted declarations
+are unmanaged, comparison preserves list order, and changed configs retain
+their nested diagnostic shape. Typed slices preserve nil/empty presence;
+decoded arrays filter nonstrings and use stage-specific fallbacks when empty.
+Only OIDC create mapping supplies the existing `credential_claim: [sub]`
+fallback. Do not apply it to updates or normalize issuer values as DCR does.
+
+Keep strategy-type immutability, identity, display name, labels, protection
+and DCR reference comparison/dependencies outside this config contract. Dump
+copies typed response configs without filtering through the narrower field
+inventory. Adding fields must still assess resource validation and export.
+
 The planner retains `Field*` aliases and renders normalized contract changes.
 Update mapping applies only supplied changes. Portal and control planes map
 one field at a time to preserve caller error timing; API maps supplied fields
@@ -1287,3 +1302,5 @@ engine contract. Each refactoring migration should:
 [cp-field-projections]: ../../internal/declarative/fieldcontracts/control_plane.go
 
 [dcr-config-policy]: ../../internal/declarative/fieldcontracts/dcr_config.go
+
+[auth-config-policy]: ../../internal/declarative/fieldcontracts/auth_strategy_config.go

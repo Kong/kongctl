@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -85,7 +86,7 @@ func (a *AuthStrategyAdapter) MapUpdateFields(
 			return fmt.Errorf("strategy type not provided for config update")
 		}
 
-		updateConfigs, err := a.buildUpdateConfigs(strategyType, configs)
+		updateConfigs, err := fieldcontracts.MapAuthStrategyConfigUpdate(strategyType, configs)
 		if err != nil {
 			return fmt.Errorf("failed to build configs: %w", err)
 		}
@@ -194,15 +195,9 @@ func (a *AuthStrategyAdapter) SupportsUpdate() bool {
 func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labels map[string]string,
 	fields map[string]any,
 ) (*kkComps.AppAuthStrategyKeyAuthRequest, error) {
-	// Extract key auth config
-	configs, ok := fields[planner.FieldConfigs].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("configs is required for key_auth strategy")
-	}
-
-	keyAuthConfig, ok := configs["key-auth"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("configs.key-auth is required for key_auth strategy")
+	config, err := fieldcontracts.MapKeyAuthConfigCreate(fields[planner.FieldConfigs])
+	if err != nil {
+		return nil, err
 	}
 
 	// Build key auth request
@@ -211,25 +206,9 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 		DisplayName:  displayName,
 		StrategyType: kkComps.StrategyTypeKeyAuth,
 		Configs: kkComps.AppAuthStrategyKeyAuthRequestConfigs{
-			KeyAuth: kkComps.AppAuthStrategyConfigKeyAuth{},
+			KeyAuth: config,
 		},
 		Labels: labels,
-	}
-
-	// Extract key names - handle both []string and []any
-	switch keyNames := keyAuthConfig["key_names"].(type) {
-	case []string:
-		req.Configs.KeyAuth.KeyNames = keyNames
-	case []any:
-		names := make([]string, 0, len(keyNames))
-		for _, kn := range keyNames {
-			if str, ok := kn.(string); ok {
-				names = append(names, str)
-			}
-		}
-		if len(names) > 0 {
-			req.Configs.KeyAuth.KeyNames = names
-		}
 	}
 
 	return req, nil
@@ -239,15 +218,9 @@ func (a *AuthStrategyAdapter) buildKeyAuthRequest(name, displayName string, labe
 func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string, labels map[string]string,
 	fields map[string]any,
 ) (*kkComps.AppAuthStrategyOpenIDConnectRequest, error) {
-	// Extract openid connect config
-	configs, ok := fields[planner.FieldConfigs].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("configs is required for openid_connect strategy")
-	}
-
-	oidcConfig, ok := configs["openid-connect"].(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("configs.openid-connect is required for openid_connect strategy")
+	config, err := fieldcontracts.MapOIDCConfigCreate(fields[planner.FieldConfigs])
+	if err != nil {
+		return nil, err
 	}
 
 	// Build openid connect request
@@ -256,97 +229,16 @@ func (a *AuthStrategyAdapter) buildOpenIDConnectRequest(name, displayName string
 		DisplayName:  displayName,
 		StrategyType: kkComps.AppAuthStrategyOpenIDConnectRequestStrategyTypeOpenidConnect,
 		Configs: kkComps.AppAuthStrategyOpenIDConnectRequestConfigs{
-			OpenidConnect: kkComps.AppAuthStrategyConfigOpenIDConnect{},
+			OpenidConnect: config,
 		},
 		Labels: labels,
 	}
-
-	// Extract issuer (required)
-	issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string)
-	if !ok {
-		return nil, fmt.Errorf("issuer is required for openid_connect strategy")
-	}
-	req.Configs.OpenidConnect.Issuer = issuer
-
-	// Extract credential_claim
-	req.Configs.OpenidConnect.CredentialClaim = extractStringSlice(oidcConfig["credential_claim"], []string{"sub"})
-
-	// Extract scopes
-	req.Configs.OpenidConnect.Scopes = extractStringSlice(oidcConfig["scopes"], nil)
-
-	// Extract auth methods
-	req.Configs.OpenidConnect.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
 
 	if providerID, ok := fields[planner.FieldDCRProviderID].(string); ok && providerID != "" {
 		req.DcrProviderID = &providerID
 	}
 
 	return req, nil
-}
-
-// buildUpdateConfigs builds the SDK Configs union type from planner data
-func (a *AuthStrategyAdapter) buildUpdateConfigs(strategyType string,
-	configs map[string]any,
-) (*kkComps.Configs, error) {
-	switch strategyType {
-	case "key_auth":
-		keyAuthConfig, ok := configs["key-auth"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("key-auth config missing for key_auth strategy")
-		}
-
-		keyAuth := kkComps.PartialAppAuthStrategyConfigKeyAuth{}
-		keyAuth.KeyNames = extractStringSlice(keyAuthConfig["key_names"], nil)
-
-		wrapped := kkComps.UpdateAppAuthStrategyRequestKeyAuth{KeyAuth: keyAuth}
-		result := kkComps.CreateConfigsUpdateAppAuthStrategyRequestKeyAuth(wrapped)
-		return &result, nil
-
-	case "openid_connect":
-		oidcConfig, ok := configs["openid-connect"].(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("openid-connect config missing for openid_connect strategy")
-		}
-
-		// Use partial config for updates
-		oidc := kkComps.PartialAppAuthStrategyConfigOpenIDConnect{}
-
-		// Extract issuer
-		if issuer, ok := oidcConfig[planner.FieldDCRProviderIssuer].(string); ok {
-			oidc.Issuer = &issuer
-		}
-
-		// Extract other fields
-		oidc.CredentialClaim = extractStringSlice(oidcConfig["credential_claim"], nil)
-		oidc.Scopes = extractStringSlice(oidcConfig["scopes"], nil)
-		oidc.AuthMethods = extractStringSlice(oidcConfig["auth_methods"], nil)
-
-		wrapped := kkComps.UpdateAppAuthStrategyRequestOpenIDConnect{OpenidConnect: oidc}
-		result := kkComps.CreateConfigsUpdateAppAuthStrategyRequestOpenIDConnect(wrapped)
-		return &result, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported strategy type: %s", strategyType)
-	}
-}
-
-// extractStringSlice extracts a string slice from various input types
-func extractStringSlice(input any, defaultValue []string) []string {
-	switch v := input.(type) {
-	case []string:
-		return v
-	case []any:
-		result := make([]string, 0, len(v))
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		if len(result) > 0 {
-			return result
-		}
-	}
-	return defaultValue
 }
 
 // AuthStrategyResourceInfo wraps an ApplicationAuthStrategy to implement ResourceInfo
