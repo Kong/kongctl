@@ -7,6 +7,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -66,7 +67,7 @@ func (a *DCRProviderAdapter) MapUpdateFields(
 			return fmt.Errorf("provider type not provided for DCR config update")
 		}
 
-		config, err := buildDCRProviderUpdateConfig(providerType, dcrConfig)
+		config, err := fieldcontracts.MapDCRConfigUpdate(providerType, dcrConfig)
 		if err != nil {
 			return fmt.Errorf("failed to build DCR provider update config: %w", err)
 		}
@@ -144,69 +145,6 @@ func (a *DCRProviderAdapter) RequiredFields() []string {
 
 func (a *DCRProviderAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func buildDCRProviderUpdateConfig(providerType string, raw any) (*kkComps.DcrConfig, error) {
-	config, ok := raw.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("DCR config must be an object")
-	}
-
-	switch providerType {
-	case "auth0":
-		req := kkComps.UpdateDcrConfigAuth0InRequest{}
-		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
-		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
-		mapOptionalString(&req.InitialClientAudience, config, "initial_client_audience")
-		mapOptionalBool(&req.UseDeveloperManagedScopes, config, "use_developer_managed_scopes")
-		result := kkComps.CreateDcrConfigUpdateDcrConfigAuth0InRequest(req)
-		return &result, nil
-
-	case "azureAd":
-		req := kkComps.UpdateDcrConfigAzureAdInRequest{}
-		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
-		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
-		result := kkComps.CreateDcrConfigUpdateDcrConfigAzureAdInRequest(req)
-		return &result, nil
-
-	case "curity":
-		req := kkComps.UpdateDcrConfigCurityInRequest{}
-		mapOptionalString(&req.InitialClientID, config, "initial_client_id")
-		mapOptionalString(&req.InitialClientSecret, config, "initial_client_secret")
-		result := kkComps.CreateDcrConfigUpdateDcrConfigCurityInRequest(req)
-		return &result, nil
-
-	case "okta":
-		req := kkComps.UpdateDcrConfigOktaInRequest{}
-		mapOptionalString(&req.DcrToken, config, "dcr_token")
-		result := kkComps.CreateDcrConfigUpdateDcrConfigOktaInRequest(req)
-		return &result, nil
-
-	case "http":
-		req := kkComps.UpdateDcrConfigHTTPInRequest{}
-		mapOptionalString(&req.DcrBaseURL, config, "dcr_base_url")
-		mapOptionalString(&req.APIKey, config, "api_key")
-		mapOptionalBool(&req.DisableEventHooks, config, "disable_event_hooks")
-		mapOptionalBool(&req.DisableRefreshSecret, config, "disable_refresh_secret")
-		mapOptionalBool(&req.AllowMultipleCredentials, config, "allow_multiple_credentials")
-		result := kkComps.CreateDcrConfigUpdateDcrConfigHTTPInRequest(req)
-		return &result, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported DCR provider type: %s", providerType)
-	}
-}
-
-func mapOptionalString(target **string, fields map[string]any, key string) {
-	if value, ok := fields[key].(string); ok {
-		*target = &value
-	}
-}
-
-func mapOptionalBool(target **bool, fields map[string]any, key string) {
-	if value, ok := fields[key].(bool); ok {
-		*target = &value
-	}
 }
 
 type DCRProviderResourceInfo struct {
