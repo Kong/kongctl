@@ -428,6 +428,18 @@ The `kongctl plan` command provides built-in namespace guardrails:
 
 These flags help prevent accidentally operating on unexpected namespaces, especially when running in sync mode.
 
+External resources do not participate in namespace enforcement and do not inherit
+`kongctl` metadata. If no managed parent resources are present, an explicit
+`_defaults.kongctl.namespace` satisfies `--require-any-namespace` and must match
+one of the values allowed by `--require-namespace`.
+
+`_deck` steps do not independently participate in namespace enforcement. For a
+managed control plane, enforcement checks the control plane's namespace. A file
+containing only external control planes with `_deck` must declare a matching
+file-level default to satisfy namespace enforcement. This validates the manifest's
+declared namespace; it does not check the external control plane's labels or
+assign namespaces to Gateway entities managed by decK.
+
 ## External Resources and Namespaces
 
 External resources are Konnect objects managed elsewhere but selected by the

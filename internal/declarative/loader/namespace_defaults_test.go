@@ -6,9 +6,64 @@ import (
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/validator"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNamespaceDefaultsExternalOnly(t *testing.T) {
+	for _, withDeck := range []bool{false, true} {
+		name := "external only"
+		if withDeck {
+			name = "external with deck"
+		}
+		t.Run(name, func(t *testing.T) {
+			manifest := `
+_defaults:
+  kongctl:
+    namespace: platform
+control_planes:
+  - ref: shared-cp
+    _external:
+      selector:
+        matchFields:
+          name: shared-cp
+`
+			if withDeck {
+				manifest += `    _deck:
+      files: [gateway.yaml]
+`
+			}
+			file := filepath.Join(t.TempDir(), "external.yaml")
+			require.NoError(t, os.WriteFile(file, []byte(manifest), 0o600))
+			rs, err := New().LoadFromSources([]Source{{Type: SourceTypeFile, Path: file}}, false)
+			require.NoError(t, err)
+			v := validator.NewNamespaceValidator()
+			require.NoError(t, v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
+				Mode: validator.NamespaceRequirementSpecific, AllowedNamespaces: []string{"platform"},
+			}))
+			assert.Equal(t, "platform", rs.DefaultNamespace)
+			assert.Equal(t, []string{"platform"}, rs.DefaultNamespaces)
+			require.Len(t, rs.ControlPlanes, 1)
+			assert.Nil(t, rs.ControlPlanes[0].Kongctl)
+			assert.Equal(t, withDeck, rs.ControlPlanes[0].HasDeckConfig())
+			require.NoError(t, v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
+				Mode: validator.NamespaceRequirementAny,
+			}))
+			err = v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
+				Mode: validator.NamespaceRequirementSpecific, AllowedNamespaces: []string{"other"},
+			})
+			require.ErrorContains(t, err, "_defaults.kongctl.namespace is 'platform'")
+
+			rs.DefaultNamespace = ""
+			rs.DefaultNamespaces = nil
+			err = v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
+				Mode: validator.NamespaceRequirementSpecific, AllowedNamespaces: []string{"platform"},
+			})
+			require.ErrorContains(t, err, "no resources or _defaults.kongctl.namespace were provided")
+		})
+	}
+}
 
 func TestNamespaceDefaults(t *testing.T) {
 	t.Run("namespace defaults from _defaults section", func(t *testing.T) {

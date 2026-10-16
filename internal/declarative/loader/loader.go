@@ -524,16 +524,18 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)
 
-	// If this source defines a namespace default without parent resources,
-	// propagate it so sync mode can inspect the correct namespace.
+	// Preserve defaults when no managed parents carry them, including sources
+	// containing only external resources, for enforcement and sync scope.
 	if source.DefaultNamespace != "" {
-		parentCount := 0
-		_ = source.ForEachNamespaceParticipant(func(resources.NamespaceParticipant) error {
-			parentCount++
+		managedParentCount := 0
+		_ = source.ForEachNamespaceParticipant(func(pt resources.NamespaceParticipant) error {
+			if !pt.External {
+				managedParentCount++
+			}
 			return nil
 		})
 
-		if parentCount == 0 {
+		if managedParentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
 		}
 	}
