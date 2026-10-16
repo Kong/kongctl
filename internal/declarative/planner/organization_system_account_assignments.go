@@ -79,45 +79,43 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 			existingByTeamID[membership.TeamID] = membership
 		}
 
-		desiredTeamIDs := make(map[string]bool)
-		for _, membership := range memberships {
-			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(
-				membership.Team,
-				desiredTeams,
-				currentByName,
-			)
-			if team == nil {
-				continue
-			}
-			teamKey := teamID
-			if teamKey == "" {
-				teamKey = membership.Team
-			}
-			key := account.GetKonnectID() + "|" + teamKey
-			if desiredTeamIDs[key] {
-				return fmt.Errorf("duplicate organization system account team membership %q", key)
-			}
-			desiredTeamIDs[key] = true
-			if teamID != "" {
-				if _, ok := existingByTeamID[teamID]; ok {
-					continue
-				}
-			}
-			t.planOrganizationSystemAccountTeamMembershipCreate(
-				namespace,
-				accountRef,
-				account.GetKonnectID(),
-				membership.Ref,
-				membership.Team,
-				teamID,
-				teamName,
-				plan,
-			)
-		}
-
-		if plan.Metadata.Mode == PlanModeSync {
-			for teamID, existing := range existingByTeamID {
-				if !desiredTeamIDs[account.GetKonnectID()+"|"+teamID] {
+		err = reconcileTeamMemberships(
+			account.GetKonnectID(),
+			memberships,
+			existingByTeamID,
+			teamMembershipOperations[
+				resources.OrganizationSystemAccountTeamMembershipResource,
+				state.OrganizationSystemAccountTeamMembership,
+			]{
+				resolve: func(
+					membership resources.OrganizationSystemAccountTeamMembershipResource,
+				) (teamMembershipTarget, bool) {
+					team, id, name := t.resolveOrganizationTeamForAssignment(
+						membership.Team,
+						desiredTeams,
+						currentByName,
+					)
+					return teamMembershipTarget{ref: membership.Team, id: id, name: name}, team != nil
+				},
+				duplicate: func(key string) error {
+					return fmt.Errorf("duplicate organization system account team membership %q", key)
+				},
+				create: func(
+					membership resources.OrganizationSystemAccountTeamMembershipResource,
+					team teamMembershipTarget,
+				) {
+					t.planOrganizationSystemAccountTeamMembershipCreate(
+						namespace,
+						accountRef,
+						account.GetKonnectID(),
+						membership.Ref,
+						team.ref,
+						team.id,
+						team.name,
+						plan,
+					)
+				},
+				remove: func(existing state.OrganizationSystemAccountTeamMembership) {
 					t.planOrganizationSystemAccountTeamMembershipDelete(
 						namespace,
 						accountRef,
@@ -125,9 +123,14 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 						existing,
 						plan,
 					)
-				}
-			}
+				},
+			},
+			plan.Metadata.Mode == PlanModeSync,
+		)
+		if err != nil {
+			return err
 		}
+
 	}
 
 	return nil
@@ -179,7 +182,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 			existingRoles[key] = role
 		}
 
-		err = reconcileRoleAssignments(roles, existingRoles,
+		err = reconcileRoleAssignments(
+			roles,
+			existingRoles,
 			roleAssignmentOperations[resources.OrganizationSystemAccountRoleResource, state.OrganizationSystemAccountRole]{
 				key: func(role resources.OrganizationSystemAccountRoleResource) string {
 					return buildOrganizationTeamRoleKey(
@@ -205,7 +210,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountRoleChanges(
 						plan,
 					)
 				},
-			}, plan.Metadata.Mode == PlanModeSync)
+			},
+			plan.Metadata.Mode == PlanModeSync,
+		)
 		if err != nil {
 			return err
 		}
