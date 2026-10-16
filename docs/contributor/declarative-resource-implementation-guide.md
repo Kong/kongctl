@@ -664,10 +664,20 @@ ordering; export keeps raw nonempty attributes and omits empty values. Keep
 these distinct policies inside the contract rather than normalizing every
 stage identically. Unsupported attribute shapes retain their existing fallback.
 
+Control-plane [field projections][cp-field-projections] own description,
+auth type, cluster type, cloud gateway and proxy URLs. Cluster type and cloud
+gateway remain create/export-only; comparison and update mapping ignore them.
+An explicit empty auth type is mapped but ignored by comparison. Proxy URL
+comparison is order-sensitive; omitted URLs are unmanaged and explicit empty
+URLs can clear existing values. Saved-plan URL decoding retains its accepted
+shapes and errors. Export omits blank descriptions, empty enum/URL values and
+false cloud gateway without trimming nonblank descriptions. Keep group
+membership, identity and labels outside this contract.
+
 The planner retains `Field*` aliases and renders normalized contract changes.
-Update mapping applies only supplied changes. Portal maps one field at a time
-to preserve error timing in its caller; API maps supplied fields in bulk
-because its field mapping cannot fail.
+Update mapping applies only supplied changes. Portal and control planes map
+one field at a time to preserve caller error timing; API maps supplied fields
+in bulk because its field mapping cannot fail.
 Name/identity, labels, references and secrets retain their explicit policies.
 Test resource operations through registered dispatch so field mapping,
 labels and runtime protection checks exercise the production path.
@@ -1257,3 +1267,5 @@ engine contract. Each refactoring migration should:
 
 [api-field-projections]: ../../internal/declarative/fieldcontracts/api.go
 [api-attributes]: ../../internal/declarative/attributes/normalize.go
+
+[cp-field-projections]: ../../internal/declarative/fieldcontracts/control_plane.go
