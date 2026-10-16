@@ -432,6 +432,9 @@ External resources do not participate in namespace enforcement and do not inheri
 `kongctl` metadata. If no managed parent resources are present, an explicit
 `_defaults.kongctl.namespace` satisfies `--require-any-namespace` and must match
 one of the values allowed by `--require-namespace`.
+Defaults on external-only files are retained for enforcement without adding
+namespaces to sync's deletion scope. Defaults-only files still select namespaces
+for sync deletion.
 
 `_deck` steps do not independently participate in namespace enforcement. For a
 managed control plane, enforcement checks the control plane's namespace. A file

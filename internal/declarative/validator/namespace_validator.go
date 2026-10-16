@@ -180,7 +180,10 @@ func (v *NamespaceValidator) ValidateNamespaceRequirement(
 	if req.Mode == NamespaceRequirementNone || rs == nil {
 		return nil
 	}
-	defaultNamespaces := rs.DefaultNamespaces
+	defaultNamespaces := rs.NamespaceEnforcementDefaults
+	if len(defaultNamespaces) == 0 {
+		defaultNamespaces = rs.DefaultNamespaces
+	}
 	if len(defaultNamespaces) == 0 && rs.DefaultNamespace != "" {
 		defaultNamespaces = []string{rs.DefaultNamespace}
 	}

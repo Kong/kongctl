@@ -42,8 +42,9 @@ control_planes:
 			require.NoError(t, v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
 				Mode: validator.NamespaceRequirementSpecific, AllowedNamespaces: []string{"platform"},
 			}))
-			assert.Equal(t, "platform", rs.DefaultNamespace)
-			assert.Equal(t, []string{"platform"}, rs.DefaultNamespaces)
+			assert.Empty(t, rs.DefaultNamespace)
+			assert.Empty(t, rs.DefaultNamespaces)
+			assert.Equal(t, []string{"platform"}, rs.NamespaceEnforcementDefaults)
 			require.Len(t, rs.ControlPlanes, 1)
 			assert.Nil(t, rs.ControlPlanes[0].Kongctl)
 			assert.Equal(t, withDeck, rs.ControlPlanes[0].HasDeckConfig())
@@ -57,6 +58,7 @@ control_planes:
 
 			rs.DefaultNamespace = ""
 			rs.DefaultNamespaces = nil
+			rs.NamespaceEnforcementDefaults = nil
 			err = v.ValidateNamespaceRequirement(rs, validator.NamespaceRequirement{
 				Mode: validator.NamespaceRequirementSpecific, AllowedNamespaces: []string{"platform"},
 			})

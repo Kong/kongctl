@@ -222,6 +222,9 @@ type ResourceSet struct {
 	// This is used by the planner to determine which namespace to check for deletions
 	DefaultNamespace  string   `yaml:"-"                                                        json:"-"`
 	DefaultNamespaces []string `yaml:"-"                                                        json:"-"`
+	// NamespaceEnforcementDefaults retains declared file defaults independently
+	// of the namespaces that sync planning may inspect for deletions.
+	NamespaceEnforcementDefaults []string `yaml:"-" json:"-"`
 	// EnvSources tracks deferred !env placeholders by resource ref and field path.
 	EnvSources map[string]map[string]string `yaml:"-"                                                        json:"-"`
 	// LiteralSources identifies ordinary YAML strings resembling reference encodings.

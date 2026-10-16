@@ -524,18 +524,21 @@ func (l *Loader) appendResourcesWithDuplicateCheck(
 	// Update the running index with newly added refs
 	maps.Copy(refIndex, seenRefs)
 
-	// Preserve defaults when no managed parents carry them, including sources
-	// containing only external resources, for enforcement and sync scope.
+	// Retain declared defaults for enforcement without expanding sync deletion
+	// namespaces for files containing only external resources.
 	if source.DefaultNamespace != "" {
-		managedParentCount := 0
-		_ = source.ForEachNamespaceParticipant(func(pt resources.NamespaceParticipant) error {
-			if !pt.External {
-				managedParentCount++
-			}
+		if !slices.Contains(accumulated.NamespaceEnforcementDefaults, source.DefaultNamespace) {
+			accumulated.NamespaceEnforcementDefaults = append(
+				accumulated.NamespaceEnforcementDefaults, source.DefaultNamespace,
+			)
+		}
+		parentCount := 0
+		_ = source.ForEachNamespaceParticipant(func(resources.NamespaceParticipant) error {
+			parentCount++
 			return nil
 		})
 
-		if managedParentCount == 0 {
+		if parentCount == 0 {
 			accumulated.AddDefaultNamespace(source.DefaultNamespace)
 		}
 	}
