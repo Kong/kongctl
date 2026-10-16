@@ -2,10 +2,10 @@ package executor
 
 import (
 	"context"
-	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/common"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -26,28 +26,8 @@ func (a *ControlPlaneAdapter) MapCreateFields(_ context.Context, execCtx *Execut
 	fields map[string]any, create *kkComps.CreateControlPlaneRequest,
 ) error {
 	create.Name = common.ExtractResourceName(fields)
-	common.MapOptionalStringFieldToPtr(&create.Description, fields, planner.FieldDescription)
-
-	if clusterType, ok := extractString(fields[planner.FieldClusterType]); ok {
-		value := kkComps.CreateControlPlaneRequestClusterType(clusterType)
-		create.ClusterType = &value
-	}
-
-	if authType, ok := extractString(fields[planner.FieldAuthType]); ok {
-		value := kkComps.AuthType(authType)
-		create.AuthType = &value
-	}
-
-	if cloudGateway, ok := extractBool(fields[planner.FieldCloudGateway]); ok {
-		create.CloudGateway = &cloudGateway
-	}
-
-	if proxyValues, ok := fields[planner.FieldProxyURLs]; ok && proxyValues != nil {
-		urls, err := convertProxyURLs(proxyValues)
-		if err != nil {
-			return fmt.Errorf("invalid proxy_urls value: %w", err)
-		}
-		create.ProxyUrls = urls
+	if err := fieldcontracts.MapControlPlaneCreateFields(fields, create); err != nil {
+		return err
 	}
 
 	userLabels := labels.ExtractLabelsFromField(fields[planner.FieldLabels])
@@ -66,21 +46,10 @@ func (a *ControlPlaneAdapter) MapUpdateFields(_ context.Context, _ *ExecutionCon
 			if name, ok := value.(string); ok {
 				update.Name = &name
 			}
-		case planner.FieldDescription:
-			if desc, ok := value.(string); ok {
-				update.Description = &desc
+		default:
+			if err := fieldcontracts.MapControlPlaneUpdateField(field, value, update); err != nil {
+				return err
 			}
-		case planner.FieldAuthType:
-			if auth, ok := extractString(value); ok {
-				typed := kkComps.UpdateControlPlaneRequestAuthType(auth)
-				update.AuthType = &typed
-			}
-		case planner.FieldProxyURLs:
-			urls, err := convertProxyURLs(value)
-			if err != nil {
-				return fmt.Errorf("invalid proxy_urls value: %w", err)
-			}
-			update.ProxyUrls = urls
 		}
 	}
 
@@ -186,89 +155,4 @@ func (c *ControlPlaneResourceInfo) GetLabels() map[string]string {
 
 func (c *ControlPlaneResourceInfo) GetNormalizedLabels() map[string]string {
 	return c.controlPlane.NormalizedLabels
-}
-
-func extractString(value any) (string, bool) {
-	if value == nil {
-		return "", false
-	}
-	if str, ok := value.(string); ok {
-		return str, true
-	}
-	return "", false
-}
-
-func extractBool(value any) (bool, bool) {
-	if value == nil {
-		return false, false
-	}
-	switch v := value.(type) {
-	case bool:
-		return v, true
-	case *bool:
-		if v == nil {
-			return false, false
-		}
-		return *v, true
-	default:
-		return false, false
-	}
-}
-
-func convertProxyURLs(value any) ([]kkComps.ProxyURL, error) {
-	if value == nil {
-		return nil, nil
-	}
-	if urls, ok := value.([]kkComps.ProxyURL); ok {
-		return urls, nil
-	}
-
-	switch items := value.(type) {
-	case []any:
-		return convertProxyInterfaceSlice(items)
-	case []map[string]any:
-		converted := make([]any, len(items))
-		for i := range items {
-			converted[i] = items[i]
-		}
-		return convertProxyInterfaceSlice(converted)
-	default:
-		return nil, fmt.Errorf("unsupported proxy_urls type %T", value)
-	}
-}
-
-func convertProxyInterfaceSlice(items []any) ([]kkComps.ProxyURL, error) {
-	urls := make([]kkComps.ProxyURL, 0, len(items))
-	for _, item := range items {
-		data, ok := item.(map[string]any)
-		if !ok {
-			return nil, fmt.Errorf("proxy url entry must be object, got %T", item)
-		}
-
-		host, _ := data["host"].(string)
-		protocol, _ := data["protocol"].(string)
-
-		portVal, hasPort := data["port"]
-		var port int64
-		if hasPort {
-			switch pv := portVal.(type) {
-			case int64:
-				port = pv
-			case int:
-				port = int64(pv)
-			case float64:
-				port = int64(pv)
-			default:
-				return nil, fmt.Errorf("invalid proxy url port type %T", portVal)
-			}
-		}
-
-		urls = append(urls, kkComps.ProxyURL{
-			Host:     host,
-			Port:     port,
-			Protocol: protocol,
-		})
-	}
-
-	return urls, nil
 }

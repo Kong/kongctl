@@ -1217,30 +1217,7 @@ func mapControlPlaneToDeclarativeResource(
 			Name: cp.Name,
 		},
 	}
-	if strings.TrimSpace(cp.Description) != "" {
-		mapped.Description = &cp.Description
-	}
-
-	config := cp.Config
-
-	if string(config.ClusterType) != "" {
-		clusterType := kkComps.CreateControlPlaneRequestClusterType(string(config.ClusterType))
-		mapped.ClusterType = &clusterType
-	}
-
-	if string(config.AuthType) != "" {
-		authType := kkComps.AuthType(string(config.AuthType))
-		mapped.AuthType = &authType
-	}
-
-	if config.CloudGateway {
-		cloudGateway := config.CloudGateway
-		mapped.CloudGateway = &cloudGateway
-	}
-
-	if len(config.ProxyUrls) > 0 {
-		mapped.ProxyUrls = config.ProxyUrls
-	}
+	fieldcontracts.ExportControlPlaneFields(cp, &mapped.CreateControlPlaneRequest)
 
 	userLabels := decllabels.GetUserLabels(cp.Labels)
 	if len(userLabels) > 0 {

@@ -203,12 +203,12 @@ const (
 	FieldACLMode                                    = "acl_mode"
 	FieldAddresses                                  = "addresses"
 	FieldAuthentication                             = "authentication"
-	FieldAuthType                                   = "auth_type"
+	FieldAuthType                                   = fieldcontracts.FieldAuthType
 	FieldBootstrapServers                           = "bootstrap_servers"
 	FieldCertificate                                = "certificate"
 	FieldCert                                       = "cert"
-	FieldCloudGateway                               = "cloud_gateway"
-	FieldClusterType                                = "cluster_type"
+	FieldCloudGateway                               = fieldcontracts.FieldCloudGateway
+	FieldClusterType                                = fieldcontracts.FieldClusterType
 	FieldDestination                                = "destination"
 	FieldDNSLabel                                   = "dns_label"
 	FieldInsecureAllowAnonymousVirtualClusterAuth   = "insecure_allow_anonymous_virtual_cluster_auth"
@@ -220,7 +220,7 @@ const (
 	FieldBalancer                                   = "balancer"
 	FieldEmbeddings                                 = "embeddings"
 	FieldProvider                                   = "provider"
-	FieldProxyURLs                                  = "proxy_urls"
+	FieldProxyURLs                                  = fieldcontracts.FieldProxyURLs
 	FieldFormats                                    = "formats"
 	FieldTargets                                    = "targets"
 	FieldPolicies                                   = "policies"

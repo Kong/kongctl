@@ -6,6 +6,7 @@ import (
 	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -409,36 +410,10 @@ func (p *controlPlanePlannerImpl) shouldUpdateControlPlane(
 	updates := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
 
-	if desired.Description != nil {
-		currentDesc := current.Description
-		if currentDesc != *desired.Description {
-			updates[FieldDescription] = *desired.Description
-			changedFields[FieldDescription] = FieldChange{
-				Old: currentDesc,
-				New: *desired.Description,
-			}
-		}
-	}
-
-	if desired.AuthType != nil {
-		desiredAuth := string(*desired.AuthType)
-		if desiredAuth != "" && desiredAuth != string(current.Config.AuthType) {
-			updates[FieldAuthType] = desiredAuth
-			changedFields[FieldAuthType] = FieldChange{
-				Old: string(current.Config.AuthType),
-				New: desiredAuth,
-			}
-		}
-	}
-
-	if desired.ProxyUrls != nil {
-		if !proxyURLsEqual(current.Config.ProxyUrls, desired.ProxyUrls) {
-			updates[FieldProxyURLs] = desired.ProxyUrls
-			changedFields[FieldProxyURLs] = FieldChange{
-				Old: current.Config.ProxyUrls,
-				New: desired.ProxyUrls,
-			}
-		}
+	changes := fieldcontracts.CompareControlPlaneFields(desired.CreateControlPlaneRequest, current.ControlPlane)
+	for name, change := range changes {
+		updates[name] = change.New
+		changedFields[name] = FieldChange{Old: change.Old, New: change.New}
 	}
 
 	if desired.Labels != nil {
@@ -470,25 +445,7 @@ func extractControlPlaneFields(cp resources.ControlPlaneResource) map[string]any
 	fields := make(map[string]any)
 	fields[FieldName] = cp.Name
 
-	if cp.Description != nil {
-		fields[FieldDescription] = *cp.Description
-	}
-
-	if cp.ClusterType != nil {
-		fields[FieldClusterType] = string(*cp.ClusterType)
-	}
-
-	if cp.AuthType != nil {
-		fields[FieldAuthType] = string(*cp.AuthType)
-	}
-
-	if cp.CloudGateway != nil {
-		fields[FieldCloudGateway] = *cp.CloudGateway
-	}
-
-	if cp.ProxyUrls != nil {
-		fields[FieldProxyURLs] = cp.ProxyUrls
-	}
+	fieldcontracts.ExtractControlPlaneFields(cp.CreateControlPlaneRequest, fields)
 
 	if cp.Labels != nil {
 		fields[FieldLabels] = cp.Labels
@@ -500,22 +457,6 @@ func extractControlPlaneFields(cp resources.ControlPlaneResource) map[string]any
 	}
 
 	return fields
-}
-
-func proxyURLsEqual(current, desired []kkComps.ProxyURL) bool {
-	if len(current) != len(desired) {
-		return false
-	}
-
-	for i := range current {
-		if current[i].Host != desired[i].Host ||
-			current[i].Port != desired[i].Port ||
-			current[i].Protocol != desired[i].Protocol {
-			return false
-		}
-	}
-
-	return true
 }
 
 func isProtected(cp resources.ControlPlaneResource) bool {
