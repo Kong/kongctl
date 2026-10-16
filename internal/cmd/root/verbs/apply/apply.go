@@ -66,5 +66,11 @@ func NewApplyCmd() (*cobra.Command, error) {
 	// Also add konnect as a subcommand for explicit usage
 	cmd.AddCommand(konnectCmd)
 
+	meshCmd, err := NewDirectMeshCmd()
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(meshCmd)
+
 	return cmd, nil
 }

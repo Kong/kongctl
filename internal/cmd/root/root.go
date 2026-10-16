@@ -28,6 +28,7 @@ import (
 	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/get"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/help"
+	"github.com/kong/kongctl/internal/cmd/root/verbs/inspect"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/install"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/lint"
 	"github.com/kong/kongctl/internal/cmd/root/verbs/list"
@@ -336,6 +337,12 @@ func addCommands() error {
 	rootCmd.AddCommand(command)
 
 	command, err = get.NewGetCmd()
+	if err != nil {
+		return err
+	}
+	rootCmd.AddCommand(command)
+
+	command, err = inspect.NewInspectCmd()
 	if err != nil {
 		return err
 	}

@@ -164,6 +164,12 @@ func addDeleteTokenCommands(cmd *cobra.Command) error {
 	konnectCmd.AddCommand(konnectOrgCmd)
 	cmd.AddCommand(konnectCmd)
 
+	meshCmd, err := NewDirectMeshCmd()
+	if err != nil {
+		return err
+	}
+	cmd.AddCommand(meshCmd)
+
 	return nil
 }
 

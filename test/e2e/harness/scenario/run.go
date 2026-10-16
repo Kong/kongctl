@@ -5,8 +5,10 @@ package scenario
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -19,6 +21,7 @@ import (
 	jmespath "github.com/jmespath/go-jmespath"
 	"github.com/kong/kongctl/internal/declarative/executor"
 	"github.com/kong/kongctl/test/e2e/harness"
+	yamlstream "go.yaml.in/yaml/v4"
 	"sigs.k8s.io/yaml"
 )
 
@@ -67,6 +70,12 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) (runErr error) {
 	cli, err := harness.NewCLIT(t)
 	if err != nil {
 		return fmt.Errorf("harness init failed: %w", err)
+	}
+	if s.Vars == nil {
+		s.Vars = map[string]any{}
+	}
+	if err := provisionMeshControlPlanes(t, cli, s.Test.MeshControlPlanes, s.Vars); err != nil {
+		return fmt.Errorf("provision Mesh control planes: %w", err)
 	}
 	diagnostics := newScenarioDiagnostics(filepath.Join(cli.TestDir, "scenario-diagnostics.json"), scenarioPath)
 	cli.ObserveHTTP = diagnostics.http
@@ -1203,6 +1212,25 @@ func parseCommandOutput(mode string, stdout string) (assertionData, error) {
 			return assertionData{}, err
 		}
 		return decodeJSONOutput(jb)
+	case "yaml-stream":
+		decoder := yamlstream.NewDecoder(strings.NewReader(stdout))
+		documents := []any{}
+		for {
+			var document map[string]any
+			if err := decoder.Decode(&document); err != nil {
+				if errors.Is(err, io.EOF) {
+					data, err := json.Marshal(documents)
+					if err != nil {
+						return assertionData{}, err
+					}
+					return decodeJSONOutput(data)
+				}
+				return assertionData{}, err
+			}
+			if document != nil {
+				documents = append(documents, document)
+			}
+		}
 	case "raw":
 		return assertionData{Map: map[string]any{"stdout": stdout}}, nil
 	default:

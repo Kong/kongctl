@@ -34,12 +34,14 @@ func TestNewApplyCmd(t *testing.T) {
 		"Long description should mention applying changes")
 	assert.Contains(t, cmd.Example, meta.CLIName, "Examples should include CLI name")
 
-	// Test that konnect subcommand is added
-	subcommands := cmd.Commands()
-	if len(subcommands) != 1 {
-		t.Fatalf("Should have exactly one subcommand, got %d", len(subcommands))
+	// konnect carries the declarative flows; mesh sends resources to a Kong
+	// Mesh control plane, where apply is the create-or-update it already means.
+	names := make([]string, 0, len(cmd.Commands()))
+	for _, sub := range cmd.Commands() {
+		names = append(names, sub.Name())
 	}
-	assert.Equal(t, "konnect", subcommands[0].Name(), "Subcommand should be 'konnect'")
+	assert.ElementsMatch(t, []string{"konnect", "mesh"}, names,
+		"apply should carry the konnect and mesh subcommands")
 }
 
 func TestApplyCmdHelpText(t *testing.T) {
