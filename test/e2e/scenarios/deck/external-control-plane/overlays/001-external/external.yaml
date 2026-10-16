@@ -1,3 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: platform
+
 control_planes:
   - ref: external-by-id
     _external:
