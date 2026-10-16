@@ -674,6 +674,22 @@ shapes and errors. Export omits blank descriptions, empty enum/URL values and
 false cloud gateway without trimming nonblank descriptions. Keep group
 membership, identity and labels outside this contract.
 
+DCR's [provider config policy][dcr-config-policy] co-locates typed update
+accessors, response observability and boolean validation/default comparison
+for its five provider variants. Add a config field there once for these three
+stages. Write-only string fields map to requests but never drive observed
+comparison. Observable booleans treat an absent response as false only during
+comparison; explicit response null remains distinct. Validation rejects
+non-boolean values, while saved-plan mapping keeps its existing type filtering.
+Neither stage injects defaults, and unknown-provider validation/comparison
+remain permissive while update mapping rejects unsupported providers.
+
+DCR create decoding and raw response export are deliberately separate: do not
+filter them through the narrower update inventory. Preserve top-level
+`display_name` presence, shared issuer normalization, provider-type
+immutability, write-only intent selection and full-config diagnostic behavior
+in their existing paths. This config policy does not change identity or defaults.
+
 The planner retains `Field*` aliases and renders normalized contract changes.
 Update mapping applies only supplied changes. Portal and control planes map
 one field at a time to preserve caller error timing; API maps supplied fields
@@ -1269,3 +1285,5 @@ engine contract. Each refactoring migration should:
 [api-attributes]: ../../internal/declarative/attributes/normalize.go
 
 [cp-field-projections]: ../../internal/declarative/fieldcontracts/control_plane.go
+
+[dcr-config-policy]: ../../internal/declarative/fieldcontracts/dcr_config.go

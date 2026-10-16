@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"reflect"
 
+	"github.com/kong/kongctl/internal/declarative/fieldcontracts"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -125,7 +125,7 @@ func (p *dcrProviderPlannerImpl) shouldUpdateDCRProvider(
 		changedFields[FieldDCRProviderIssuer] = FieldChange{Old: current.Issuer, New: normalizedDesiredIssuer}
 	}
 
-	if dcrProviderConfigChanged(current.ProviderType, current.DCRConfig, desired.DCRConfig) {
+	if fieldcontracts.DCRConfigChanged(current.ProviderType, current.DCRConfig, desired.DCRConfig) {
 		updateFields[FieldDCRProviderConfig] = desired.DCRConfig
 		changedFields[FieldDCRProviderConfig] = FieldChange{Old: current.DCRConfig, New: desired.DCRConfig}
 	}
@@ -139,71 +139,6 @@ func (p *dcrProviderPlannerImpl) shouldUpdateDCRProvider(
 	}
 
 	return len(updateFields) > 0, updateFields, changedFields
-}
-
-func dcrProviderConfigChanged(providerType string, current, desired map[string]any) bool {
-	if desired == nil {
-		return false
-	}
-
-	for _, field := range observableDCRConfigFields(providerType) {
-		desiredValue, ok := desired[field]
-		if !ok {
-			continue
-		}
-		currentValue, ok := current[field]
-		if !ok {
-			if dcrProviderMissingFieldMatchesDesiredDefault(providerType, field, desiredValue) {
-				continue
-			}
-			return true
-		}
-		if !reflect.DeepEqual(currentValue, desiredValue) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func dcrProviderMissingFieldMatchesDesiredDefault(providerType, field string, desired any) bool {
-	desiredBool, ok := desired.(bool)
-	if !ok || desiredBool {
-		return false
-	}
-
-	switch providerType {
-	case "auth0":
-		return field == "use_developer_managed_scopes"
-	case "http":
-		return field == "disable_event_hooks" ||
-			field == "disable_refresh_secret" ||
-			field == "allow_multiple_credentials"
-	default:
-		return false
-	}
-}
-
-func observableDCRConfigFields(providerType string) []string {
-	switch providerType {
-	case "auth0":
-		return []string{
-			"initial_client_id",
-			"initial_client_audience",
-			"use_developer_managed_scopes",
-		}
-	case "azureAd", "curity":
-		return []string{"initial_client_id"}
-	case "http":
-		return []string{
-			"dcr_base_url",
-			"disable_event_hooks",
-			"disable_refresh_secret",
-			"allow_multiple_credentials",
-		}
-	default:
-		return nil
-	}
 }
 
 func (p *dcrProviderPlannerImpl) planDCRProviderUpdateWithFields(
