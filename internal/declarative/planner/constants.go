@@ -61,7 +61,7 @@ const (
 	FieldContent        = "content"
 	FieldTitle          = "title"
 	FieldStatus         = "status"
-	FieldAttributes     = "attributes"
+	FieldAttributes     = fieldcontracts.FieldAttributes
 	FieldType           = "type"
 	FieldConfig         = "config"
 	FieldConfigStoreID  = "config_store_id"
@@ -71,9 +71,9 @@ const (
 	FieldTools          = "tools"
 	FieldConsumers      = "consumers"
 	FieldEnabled        = "enabled"
-	FieldVersion        = "version"
+	FieldVersion        = fieldcontracts.FieldVersion
 	FieldSpec           = "spec"
-	FieldSlug           = "slug"
+	FieldSlug           = fieldcontracts.FieldSlug
 	FieldKey            = "key"
 	FieldValue          = "value"
 	FieldAPIKey         = "api_key"
