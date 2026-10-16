@@ -938,6 +938,44 @@ organization:
 	})
 }
 
+func TestNamespace_CommandRequirementExternalDeck(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Plan, verbs.Apply} {
+		t.Run(string(verb), func(t *testing.T) {
+			configFile := writeNamespaceRegressionConfig(t, `
+_defaults:
+  kongctl:
+    namespace: platform
+control_planes:
+  - ref: shared-cp
+    _external:
+      selector:
+        matchFields:
+          name: shared-cp
+    _deck:
+      files: [gateway.yaml]
+`)
+			cmd, err := declarative.NewDeclarativeCmd(verb)
+			require.NoError(t, err)
+			cmd.SetContext(SetupTestContext(t))
+			var output bytes.Buffer
+			cmd.SetOut(&output)
+			cmd.SetErr(&output)
+			args := []string{"-f", configFile, "--require-namespace", "platform"}
+			if verb == verbs.Apply {
+				args = append(args, "--dry-run")
+			}
+			cmd.SetArgs(args)
+
+			err = cmd.Execute()
+
+			// The mock has no control planes: passing enforcement must advance to
+			// external resolution rather than claim the declared default is absent.
+			require.ErrorContains(t, err, `control_plane "shared-cp" _external: no control_plane matched selector`)
+			assert.NotContains(t, err.Error(), "namespace enforcement")
+		})
+	}
+}
+
 // TestNamespace_ProtectedResourcesWithNamespaces tests protected flag behavior with namespaces
 func TestNamespace_ProtectedResourcesWithNamespaces(t *testing.T) {
 	ctx := SetupTestContext(t)

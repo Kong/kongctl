@@ -54,6 +54,8 @@ steps:
           - "{{ .workdir }}/external.yaml"
           - --mode
           - apply
+          - --require-namespace
+          - platform
           - --output-file
           - "{{ .workdir }}/plan.json"
       - name: 002-assert-plan
@@ -85,7 +87,34 @@ steps:
               fields:
                 action: EXTERNAL_TOOL
                 fields.control_plane_name: e2e-deck-external-name
-      - name: 003-apply-saved-plan
+      - name: 003-reject-namespace-mismatch
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/external.yaml"
+          - --require-namespace
+          - other
+          - --dry-run
+        expectFailure:
+          exitCode: 1
+          contains: "namespace enforcement requires one of [other] but _defaults.kongctl.namespace is 'platform'"
+      - name: 004-dry-run-required-namespace
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/external.yaml"
+          - --require-namespace
+          - platform
+          - --dry-run
+        assertions:
+          - select: plan.changes
+            expect:
+              fields:
+                "length(@)": 3
+                "length([?resource_type=='control_plane'])": 0
+                "length([?resource_type=='_deck' && action=='EXTERNAL_TOOL'])": 3
+      - name: 005-apply-saved-plan
         replanOnRetry:
           - "{{ .workdir }}/external.yaml"
         outputFormat: json
@@ -162,8 +191,29 @@ steps:
           - "{{ .workdir }}/external.yaml"
           - --mode
           - apply
+          - --require-namespace
+          - platform
         assertions:
           - select: changes
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 001-apply-required-namespace
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/external.yaml"
+          - --require-namespace
+          - platform
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - select: plan.changes
             expect:
               fields:
                 "length(@)": 0
