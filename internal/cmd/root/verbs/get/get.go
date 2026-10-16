@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -156,6 +157,8 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(apiCmd)
+
+	cmd.AddCommand(meteringbilling.NewCommand(Verb))
 
 	analyticsCmd, err := NewDirectAnalyticsCmd()
 	if err != nil {

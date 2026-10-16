@@ -63,6 +63,7 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeOrganizationSystemAccount,
 		ResourceTypeOrganizationSystemAccountTeamMembership,
 		ResourceTypeOrganizationSystemAccountRole,
+		ResourceTypeMeter,
 	}
 	var got []ResourceType
 	for _, step := range buildCollectionValidationSteps() {

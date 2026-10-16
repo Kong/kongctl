@@ -41,6 +41,14 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 				return update.Labels
 			})
 	})
+	t.Run("meter", func(t *testing.T) {
+		covered[resources.ResourceTypeMeter] = true
+		verifyStringManagedLabels(
+			t,
+			NewMeterAdapter(nil),
+			func(update *kkComps.UpdateMeterRequest) map[string]string { return update.Labels },
+		)
+	})
 	t.Run("dashboard", func(t *testing.T) {
 		covered[resources.ResourceTypeDashboard] = true
 		verifyStringManagedLabels(t, NewDashboardAdapter(nil),
@@ -78,9 +86,13 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 	})
 	t.Run("organization_team", func(t *testing.T) {
 		covered[resources.ResourceTypeOrganizationTeam] = true
-		verifyPointerManagedLabels(t, NewOrganizationTeamAdapter(nil), func(update *kkComps.UpdateTeam) map[string]*string {
-			return update.Labels
-		})
+		verifyPointerManagedLabels(
+			t,
+			NewOrganizationTeamAdapter(nil),
+			func(update *kkComps.UpdateTeam) map[string]*string {
+				return update.Labels
+			},
+		)
 	})
 
 	assertAllProtectableResourcesCovered(t, covered)

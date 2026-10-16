@@ -1545,6 +1545,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: meter
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []
