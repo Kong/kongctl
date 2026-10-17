@@ -90,7 +90,6 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 			},
 			create: func(desiredCert resources.EventGatewayDataPlaneCertificateResource) error {
 				certName := desiredCert.GetMoniker()
-				// CREATE
 				p.logger.Debug(
 					"Planning data plane certificate CREATE",
 					"cert_name", certName,
@@ -106,7 +105,6 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 				current state.EventGatewayDataPlaneCertificate,
 			) error {
 				certName := desiredCert.GetMoniker()
-				// CHECK UPDATE
 				p.logger.Debug(
 					"Checking if data plane certificate needs update",
 					"cert_name", certName,

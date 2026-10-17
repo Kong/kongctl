@@ -15,6 +15,8 @@ type indexedChildOperations[D, C any] struct {
 // selected items succeed. The caller's index retains its eligibility and
 // duplicate-collapse rules; map pruning has no ordering guarantee. This helper
 // does not record matched payload identities or mutate the supplied index.
+// Desired items are not deduplicated; selected items sharing a key each dispatch
+// create or matched.
 func reconcileIndexedChildren[D, C any](
 	desired []D,
 	currentByKey map[string]C,
