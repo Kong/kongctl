@@ -551,6 +551,86 @@ steps:
                 "contains(depends_on, '1:c:portal:org-team-roles-portal-ref')": true
                 "contains(depends_on, '2:c:organization_team:portal-role-team')": true
 
+      - name: 001-apply-portal-entity-ref
+        outputFormat: json
+        run: ["apply", "-f", "{{ .workdir }}/config.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-portal
+        run: ["get", "portals", "-o", "json"]
+        recordVar:
+          name: portalEntityID
+          responsePath: "[?name=='{{ .vars.portalName }}'] | [0].id"
+        assertions:
+          - select: "length([?name=='{{ .vars.portalName }}'])"
+            expect:
+              fields:
+                "@": 1
+
+      - name: 003-get-team-roles-portal-entity-ref
+        run: ["get", "org", "team", "roles", "--team-name", "{{ .vars.portalRoleTeamName }}", "-o", "json"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: Portals
+                entity_region: us
+                entity_id: "{{ .vars.portalEntityID }}"
+
+      - name: 004-diff-noop-portal-entity-ref
+        run: ["diff", "-f", "{{ .workdir }}/config.yaml", "-o", "json"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "length(changes)"
+            expect:
+              fields:
+                "@": 0
+
+      - name: 005-plan-delete-portal-entity-ref
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/config.yaml", "--mode", "delete"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+
+      - name: 006-delete-portal-entity-ref
+        outputFormat: json
+        run: ["delete", "-f", "{{ .workdir }}/config.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - source:
+              get: "org teams"
+            select: "length([?name=='{{ .vars.portalRoleTeamName }}'])"
+            expect:
+              fields:
+                "@": 0
+          - source:
+              get: "portals"
+            select: "length([?name=='{{ .vars.portalName }}'])"
+            expect:
+              fields:
+                "@": 0
+
   - name: 009-plan-cp-entity-ref
     inputOverlayDirs:
       - overlays/005-cp-entity-ref
@@ -603,3 +683,83 @@ steps:
                 references.entity_id.ref: "__REF__:{{ .vars.cpRef }}#id"
                 "contains(depends_on, '1:c:control_plane:org-team-roles-cp-ref')": true
                 "contains(depends_on, '2:c:organization_team:cp-role-team')": true
+
+      - name: 001-apply-cp-entity-ref
+        outputFormat: json
+        run: ["apply", "-f", "{{ .workdir }}/config.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+
+      - name: 002-get-cp
+        run: ["get", "gateway", "control-planes", "-o", "json"]
+        recordVar:
+          name: cpEntityID
+          responsePath: "[?name=='{{ .vars.cpName }}'] | [0].id"
+        assertions:
+          - select: "length([?name=='{{ .vars.cpName }}'])"
+            expect:
+              fields:
+                "@": 1
+
+      - name: 003-get-team-roles-cp-entity-ref
+        run: ["get", "org", "team", "roles", "--team-name", "{{ .vars.cpRoleTeamName }}", "-o", "json"]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: Control Planes
+                entity_region: us
+                entity_id: "{{ .vars.cpEntityID }}"
+
+      - name: 004-diff-noop-cp-entity-ref
+        run: ["diff", "-f", "{{ .workdir }}/config.yaml", "-o", "json"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "length(changes)"
+            expect:
+              fields:
+                "@": 0
+
+      - name: 005-plan-delete-cp-entity-ref
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/config.yaml", "--mode", "delete"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 3
+                by_action.DELETE: 3
+
+      - name: 006-delete-cp-entity-ref
+        outputFormat: json
+        run: ["delete", "-f", "{{ .workdir }}/config.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+          - source:
+              get: "org teams"
+            select: "length([?name=='{{ .vars.cpRoleTeamName }}'])"
+            expect:
+              fields:
+                "@": 0
+          - source:
+              get: "gateway control-planes"
+            select: "length([?name=='{{ .vars.cpName }}'])"
+            expect:
+              fields:
+                "@": 0

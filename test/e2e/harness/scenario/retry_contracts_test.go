@@ -411,7 +411,8 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			faults := []string{"", "plan", "readback"}
-			if tc.name == "team-update" || tc.name == "cp-implementation-create" {
+			if tc.name == "team-update" || tc.name == "cp-implementation-create" ||
+				tc.name == "team-apply-create" || tc.name == "team-apply-update" {
 				faults = append(faults, "convergence")
 			}
 			for _, fault := range faults {
@@ -508,6 +509,9 @@ if verb == 'plan':
  n = count('plans')
  noop = {'summary': {'total_changes': 1 if fault == 'convergence' else 0}}
  emit({} if fault == 'plan' else data['plan'] if n == 1 else noop)
+elif verb == 'diff':
+ changes = [{'action': 'UPDATE'}] if fault == 'convergence' else []
+ emit({'summary': {'total_changes': len(changes)}, 'changes': changes})
 elif verb in ('apply', 'sync', 'delete'):
  if count('mutations') == 1:
   # Model a committed mutation whose response was lost. Retry has no work left.
