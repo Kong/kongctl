@@ -2132,287 +2132,97 @@ func (p *Planner) planAPIDocumentDelete(
 func (p *Planner) planAPIVersionsChanges(
 	ctx context.Context, plannerCtx *Config, desired []resources.APIVersionResource, plan *Plan,
 ) error {
-	// Group versions by parent API
-	versionsByAPI := make(map[string][]resources.APIVersionResource)
-	for _, version := range desired {
-		versionsByAPI[version.API] = append(versionsByAPI[version.API], version)
-	}
-
-	// For each API, plan version changes
-	for apiRef, versions := range versionsByAPI {
-		// Find the API ID from existing changes or state
-		apiID := ""
-		for _, change := range plan.Changes {
-			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
-				if change.Action == ActionCreate {
-					// API is being created, use dependency
-					// Get parent namespace from the API change
-					parentNamespace := change.Namespace
-					if parentNamespace == "" {
-						parentNamespace = DefaultNamespace
-					}
-					for _, v := range versions {
-						if plan.HasChange(ResourceTypeAPIVersion, v.GetRef()) {
-							continue
+	return planExtractedAPIChildren(p, desired,
+		func(child resources.APIVersionResource) string { return child.API },
+		func(apiRef string, versions []resources.APIVersionResource) apiChildGroupActions {
+			return apiChildGroupActions{
+				create: func(namespace, changeID string) {
+					for _, child := range versions {
+						if !plan.HasChange(ResourceTypeAPIVersion, child.GetRef()) {
+							p.planAPIVersionCreate(namespace, apiRef, "", child, []string{changeID}, plan)
 						}
-						p.planAPIVersionCreate(parentNamespace, apiRef, "", v, []string{change.ID}, plan)
 					}
-					continue
-				}
-				apiID = change.ResourceID
-				break
+				},
+				reconcile: func(namespace, apiID string) error {
+					return p.planAPIVersionChanges(ctx, plannerCtx, namespace, apiID, apiRef, versions, plan)
+				},
 			}
-		}
-
-		// If API not in changes, use the resolved ID from pre-resolution phase
-		if apiID == "" {
-			// Find the API resource by ref to get its resolved ID
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					resolvedID := api.GetKonnectID()
-					if resolvedID != "" {
-						apiID = resolvedID
-					}
-					break
-				}
-			}
-		}
-
-		if apiID != "" {
-			// Plan version changes for existing API
-			// Find parent namespace from the API resource
-			parentNamespace := DefaultNamespace
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-						parentNamespace = *api.Kongctl.Namespace
-					}
-					break
-				}
-			}
-			if err := p.planAPIVersionChanges(ctx, plannerCtx, parentNamespace, apiID, apiRef, versions, plan); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+		}, plan)
 }
 
 // planAPIPublicationsChanges plans changes for extracted API publication resources
 func (p *Planner) planAPIPublicationsChanges(
 	ctx context.Context, plannerCtx *Config, desired []resources.APIPublicationResource, plan *Plan,
 ) error {
-	// Group publications by parent API
-	publicationsByAPI := make(map[string][]resources.APIPublicationResource)
-	for _, pub := range desired {
-		publicationsByAPI[pub.API] = append(publicationsByAPI[pub.API], pub)
-	}
-
-	// For each API, plan publication changes
-	for apiRef, publications := range publicationsByAPI {
-		// Find the API ID from existing changes or state
-		apiID := ""
-		for _, change := range plan.Changes {
-			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
-				if change.Action == ActionCreate {
-					// API is being created, use dependency
-					// Get parent namespace from the API change
-					parentNamespace := change.Namespace
-					if parentNamespace == "" {
-						parentNamespace = DefaultNamespace
-					}
-					for _, pub := range publications {
-						if plan.HasChange(ResourceTypeAPIPublication, pub.GetRef()) {
-							continue
+	return planExtractedAPIChildren(p, desired,
+		func(child resources.APIPublicationResource) string { return child.API },
+		func(apiRef string, publications []resources.APIPublicationResource) apiChildGroupActions {
+			return apiChildGroupActions{
+				create: func(namespace, changeID string) {
+					for _, child := range publications {
+						if !plan.HasChange(ResourceTypeAPIPublication, child.GetRef()) {
+							p.planAPIPublicationCreate(namespace, apiRef, "", child, []string{changeID}, plan)
 						}
-						p.planAPIPublicationCreate(parentNamespace, apiRef, "", pub, []string{change.ID}, plan)
 					}
-					continue
-				}
-				apiID = change.ResourceID
-				break
+				},
+				reconcile: func(namespace, apiID string) error {
+					return p.planAPIPublicationChanges(ctx, plannerCtx, namespace, apiID, apiRef, publications, plan)
+				},
 			}
-		}
-
-		// If API not in changes, use the resolved ID from pre-resolution phase
-		if apiID == "" {
-			// Find the API resource by ref to get its resolved ID
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					resolvedID := api.GetKonnectID()
-					if resolvedID != "" {
-						apiID = resolvedID
-					}
-					break
-				}
-			}
-		}
-
-		if apiID != "" {
-			// Plan publication changes for existing API
-			// Find parent namespace from the API resource
-			parentNamespace := DefaultNamespace
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-						parentNamespace = *api.Kongctl.Namespace
-					}
-					break
-				}
-			}
-			if err := p.planAPIPublicationChanges(
-				ctx, plannerCtx, parentNamespace, apiID, apiRef, publications, plan,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+		}, plan)
 }
 
 // planAPIImplementationsChanges plans changes for extracted API implementation resources
 func (p *Planner) planAPIImplementationsChanges(
 	ctx context.Context, plannerCtx *Config, desired []resources.APIImplementationResource, plan *Plan,
 ) error {
-	// Group implementations by parent API
-	implementationsByAPI := make(map[string][]resources.APIImplementationResource)
-	for _, impl := range desired {
-		implementationsByAPI[impl.API] = append(implementationsByAPI[impl.API], impl)
-	}
-
-	// For each API, plan implementation changes
-	for apiRef, implementations := range implementationsByAPI {
-		// Find the API ID from existing changes or state
-		apiID := ""
-		for _, change := range plan.Changes {
-			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
-				if change.Action == ActionCreate {
-					parentNamespace := change.Namespace
-					if parentNamespace == "" {
-						parentNamespace = DefaultNamespace
-					}
-					for _, impl := range implementations {
-						if plan.HasChange(ResourceTypeAPIImplementation, impl.GetRef()) {
-							continue
+	return planExtractedAPIChildren(p, desired,
+		func(child resources.APIImplementationResource) string { return child.API },
+		func(apiRef string, implementations []resources.APIImplementationResource) apiChildGroupActions {
+			return apiChildGroupActions{
+				create: func(namespace, changeID string) {
+					for _, child := range implementations {
+						if !plan.HasChange(ResourceTypeAPIImplementation, child.GetRef()) {
+							p.planAPIImplementationCreate(namespace, apiRef, "", child, []string{changeID}, plan)
 						}
-						p.planAPIImplementationCreate(parentNamespace, apiRef, "", impl, []string{change.ID}, plan)
 					}
-					continue
-				}
-				apiID = change.ResourceID
-				break
+				},
+				reconcile: func(namespace, apiID string) error {
+					return p.planAPIImplementationChanges(
+						ctx,
+						plannerCtx,
+						namespace,
+						apiID,
+						apiRef,
+						implementations,
+						plan,
+					)
+				},
 			}
-		}
-
-		// If API not in changes, use the resolved ID from pre-resolution phase
-		if apiID == "" {
-			// Find the API resource by ref to get its resolved ID
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					resolvedID := api.GetKonnectID()
-					if resolvedID != "" {
-						apiID = resolvedID
-					}
-					break
-				}
-			}
-		}
-
-		if apiID != "" {
-			// Plan implementation changes for existing API
-			// Find parent namespace from the API resource
-			parentNamespace := DefaultNamespace
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-						parentNamespace = *api.Kongctl.Namespace
-					}
-					break
-				}
-			}
-			if err := p.planAPIImplementationChanges(
-				ctx, plannerCtx, parentNamespace, apiID, apiRef, implementations, plan,
-			); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+		}, plan)
 }
 
 // planAPIDocumentsChanges plans changes for extracted API document resources
 func (p *Planner) planAPIDocumentsChanges(
 	ctx context.Context, plannerCtx *Config, desired []resources.APIDocumentResource, plan *Plan,
 ) error {
-	// Group documents by parent API
-	documentsByAPI := make(map[string][]resources.APIDocumentResource)
-	for _, doc := range desired {
-		documentsByAPI[doc.API] = append(documentsByAPI[doc.API], doc)
-	}
-
-	// For each API, plan document changes
-	for apiRef, documents := range documentsByAPI {
-		lookup := p.buildAPIDocumentLookup(documents)
-		// Find the API ID from existing changes or state
-		apiID := ""
-		for _, change := range plan.Changes {
-			if change.ResourceType == ResourceTypeAPI && change.ResourceRef == apiRef {
-				if change.Action == ActionCreate {
-					// API is being created, use dependency
-					// Get parent namespace from the API change
-					parentNamespace := change.Namespace
-					if parentNamespace == "" {
-						parentNamespace = DefaultNamespace
-					}
-					for _, doc := range documents {
-						if plan.HasChange(ResourceTypeAPIDocument, doc.GetRef()) {
-							continue
+	return planExtractedAPIChildren(p, desired,
+		func(child resources.APIDocumentResource) string { return child.API },
+		func(apiRef string, documents []resources.APIDocumentResource) apiChildGroupActions {
+			lookup := p.buildAPIDocumentLookup(documents)
+			return apiChildGroupActions{
+				create: func(namespace, changeID string) {
+					for _, child := range documents {
+						if !plan.HasChange(ResourceTypeAPIDocument, child.GetRef()) {
+							p.planAPIDocumentCreate(namespace, apiRef, "", child, []string{changeID}, lookup, plan)
 						}
-						p.planAPIDocumentCreate(parentNamespace, apiRef, "", doc, []string{change.ID}, lookup, plan)
 					}
-					continue
-				}
-				apiID = change.ResourceID
-				break
+				},
+				reconcile: func(namespace, apiID string) error {
+					return p.planAPIDocumentChanges(ctx, plannerCtx, namespace, apiID, apiRef, documents, plan)
+				},
 			}
-		}
-
-		// If API not in changes, use the resolved ID from pre-resolution phase
-		if apiID == "" {
-			// Find the API resource by ref to get its resolved ID
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					resolvedID := api.GetKonnectID()
-					if resolvedID != "" {
-						apiID = resolvedID
-					}
-					break
-				}
-			}
-		}
-
-		if apiID != "" {
-			// Plan document changes for existing API
-			// Find parent namespace from the API resource
-			parentNamespace := DefaultNamespace
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-						parentNamespace = *api.Kongctl.Namespace
-					}
-					break
-				}
-			}
-			if err := p.planAPIDocumentChanges(ctx, plannerCtx, parentNamespace, apiID, apiRef, documents, plan); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+		}, plan)
 }
 
 // buildAPIDocumentLookup constructs helper metadata for desired API documents using their parent references.

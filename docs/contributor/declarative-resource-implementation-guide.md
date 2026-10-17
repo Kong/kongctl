@@ -553,6 +553,11 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
+  Extracted API versions, publications, implementations and documents share
+  [parent grouping and resolution][api-child-groups]. Typed adapters prepare
+  each collection and supply create/reconcile actions. Preserve CREATE scan
+  continuation, resolved-ID fallback, namespace sources and document lookup
+  timing; a CREATE is not an exclusive alternative to existing-parent planning.
 - **Indexed collections without payload binding:** Portal snippets, teams,
   email templates and Event Gateway data-plane certificates use
   [`reconcileIndexedChildren`][indexed-reconcile]. It owns ordered lookup,
@@ -1331,3 +1336,5 @@ engine contract. Each refactoring migration should:
 [membership-reconcile]: ../../internal/declarative/planner/team_membership_reconciler.go
 
 [indexed-reconcile]: ../../internal/declarative/planner/indexed_child_reconciler.go
+
+[api-child-groups]: ../../internal/declarative/planner/api_child_groups.go
