@@ -84,6 +84,18 @@ steps:
                 labels.focus: "frontend"
                 labels."KONGCTL-namespace": "teams-e2e"
 
+      - name: 003-diff-noop-after-create
+        run: ["diff", "-f", "{{ .workdir }}/teams.yaml", "-o", "json"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "length(changes)"
+            expect:
+              fields:
+                "@": 0
+
   - name: 002-apply-update
     inputOverlayDirs:
       - overlays/002-update-fields
@@ -174,6 +186,18 @@ steps:
                 labels.tier: "core"
                 labels.platform: "web-mobile"
                 system_team: false
+
+      - name: 004-diff-noop-after-update
+        run: ["diff", "-f", "{{ .workdir }}/teams.yaml", "-o", "json"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "length(changes)"
+            expect:
+              fields:
+                "@": 0
 
   - name: 003-delete-cleanup
     inputOverlayDirs:
