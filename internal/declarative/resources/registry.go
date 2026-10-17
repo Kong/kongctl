@@ -350,6 +350,10 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 	if ops.load != nil && (ops.collectionValidation != nil || ops.collectionValidationOmittedReason != "") {
 		panic("child loader already supplies the collection validation disposition: " + string(rt))
 	}
+	// Preserve option diagnostics, but reject duplicates before any inventory writes.
+	if _, exists := registry[rt]; exists {
+		panic("duplicate resource type registration: " + string(rt))
+	}
 	if ops.namespace != nil {
 		registerNamespaceParticipant(rt, *ops.namespace)
 	}
