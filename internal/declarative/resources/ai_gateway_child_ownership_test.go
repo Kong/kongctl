@@ -22,7 +22,7 @@ func TestChildOwnershipMetadataMergeAndCapacity(t *testing.T) {
 			"team-a",
 			true, "1.2.3"),
 			false),
-		"five-entry")
+		"5-entry")
 	for _, key := range []string{ChildNamespaceKey, ChildProtectedKey, ManagedByToolKey, ManagedByVersionKey} {
 		require.ErrorContains(t, ValidateChildManagedBy(map[string]string{key: "raw"}, true), "reserved")
 	}

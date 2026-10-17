@@ -47,6 +47,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayVaultResource { return &gateway.Vaults },
 			setParent:     func(child *AIGatewayVaultResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(120, "each Vault must declare an ai_gateway parent"),

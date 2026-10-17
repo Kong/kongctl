@@ -119,7 +119,7 @@ func (c *Client) CreateAIGatewayMCPServer(
 	req kkComps.CreateAIGatewayMCPServerRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayMCPServer, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayMCPServersAPI, "AI Gateway MCP Servers API"); err != nil {
@@ -151,7 +151,7 @@ func (c *Client) UpdateAIGatewayMCPServer(
 	req kkComps.UpdateAIGatewayMCPServerRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayMCPServer, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayMCPServersAPI, "AI Gateway MCP Servers API"); err != nil {

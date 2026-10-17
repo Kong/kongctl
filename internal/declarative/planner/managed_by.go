@@ -32,10 +32,11 @@ func stampPlanManagedBy(ctx context.Context, plan *Plan) error {
 		default:
 			return fmt.Errorf("%s %q managed_by must be an object", change.ResourceType, change.ResourceRef)
 		}
-		metadata = resources.ManagedByWithProvenance(metadata, build.Version(ctx))
-		if err := resources.ValidateChildManagedBy(metadata, false); err != nil {
+		prepared, err := resources.PrepareManagedBy(resources.ResourceType(change.ResourceType), metadata, build.Version(ctx))
+		if err != nil {
 			return fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
 		}
+		metadata = prepared
 		var stamped any = metadata
 		if _, generic := change.Fields[FieldManagedBy].(map[string]any); generic {
 			values := make(map[string]any, len(metadata))

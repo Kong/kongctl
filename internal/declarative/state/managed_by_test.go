@@ -124,115 +124,169 @@ func TestManagedByProvenancePreservesSDKPayloads(t *testing.T) {
 	)
 	t.Run(
 		"CreateModelProvider",
-		managedByStampCase[kkComps.CreateAIGatewayModelProviderRequest](modelProvider),
+		managedByStampCase[kkComps.CreateAIGatewayModelProviderRequest](
+			resources.ResourceTypeAIGatewayProvider, modelProvider,
+		),
 	)
 	t.Run(
 		"UpdateModelProvider",
-		managedByStampCase[kkComps.UpdateAIGatewayModelProviderRequest](modelProvider),
+		managedByStampCase[kkComps.UpdateAIGatewayModelProviderRequest](
+			resources.ResourceTypeAIGatewayProvider, modelProvider,
+		),
 	)
 	t.Run(
 		"CreateAuthStrategy",
-		managedByStampCase[kkComps.CreateAIGatewayAuthStrategyRequest](authStrategy),
+		managedByStampCase[kkComps.CreateAIGatewayAuthStrategyRequest](
+			resources.ResourceTypeAIGatewayAuthStrategy, authStrategy,
+		),
 	)
 	t.Run(
 		"UpdateAuthStrategy",
-		managedByStampCase[kkComps.UpdateAIGatewayAuthStrategyRequest](authStrategy),
+		managedByStampCase[kkComps.UpdateAIGatewayAuthStrategyRequest](
+			resources.ResourceTypeAIGatewayAuthStrategy, authStrategy,
+		),
 	)
 	t.Run(
 		"CreateAgent",
-		managedByStampCase[kkComps.CreateAIGatewayAgentRequest](agent),
+		managedByStampCase[kkComps.CreateAIGatewayAgentRequest](
+			resources.ResourceTypeAIGatewayAgent, agent,
+		),
 	)
 	t.Run(
 		"UpdateAgent",
-		managedByStampCase[kkComps.UpdateAIGatewayAgentRequest](agent),
+		managedByStampCase[kkComps.UpdateAIGatewayAgentRequest](
+			resources.ResourceTypeAIGatewayAgent, agent,
+		),
 	)
 	t.Run(
 		"CreateConsumer",
-		managedByStampCase[kkComps.CreateAIGatewayConsumerRequest](consumer),
+		managedByStampCase[kkComps.CreateAIGatewayConsumerRequest](
+			resources.ResourceTypeAIGatewayConsumer, consumer,
+		),
 	)
 	t.Run(
 		"UpdateConsumer",
-		managedByStampCase[kkComps.UpdateAIGatewayConsumerRequest](consumer),
+		managedByStampCase[kkComps.UpdateAIGatewayConsumerRequest](
+			resources.ResourceTypeAIGatewayConsumer, consumer,
+		),
 	)
 	t.Run(
 		"CreateConsumerGroup",
-		managedByStampCase[kkComps.CreateAIGatewayConsumerGroupRequest](consumerGroup),
+		managedByStampCase[kkComps.CreateAIGatewayConsumerGroupRequest](
+			resources.ResourceTypeAIGatewayConsumerGroup, consumerGroup,
+		),
 	)
 	t.Run(
 		"UpdateConsumerGroup",
-		managedByStampCase[kkComps.UpdateAIGatewayConsumerGroupRequest](consumerGroup),
+		managedByStampCase[kkComps.UpdateAIGatewayConsumerGroupRequest](
+			resources.ResourceTypeAIGatewayConsumerGroup, consumerGroup,
+		),
 	)
 	t.Run(
 		"CreateModel",
-		managedByStampCase[kkComps.CreateAIGatewayModelRequest](model),
+		managedByStampCase[kkComps.CreateAIGatewayModelRequest](
+			resources.ResourceTypeAIGatewayModel, model,
+		),
 	)
 	t.Run(
 		"UpdateModel",
-		managedByStampCase[kkComps.UpdateAIGatewayModelRequest](model),
+		managedByStampCase[kkComps.UpdateAIGatewayModelRequest](
+			resources.ResourceTypeAIGatewayModel, model,
+		),
 	)
 	t.Run(
 		"CreatePolicy",
-		managedByStampCase[kkComps.CreateAIGatewayPolicyRequest](policy),
+		managedByStampCase[kkComps.CreateAIGatewayPolicyRequest](
+			resources.ResourceTypeAIGatewayPolicy, policy,
+		),
 	)
 	t.Run(
 		"UpdatePolicy",
-		managedByStampCase[kkComps.UpdateAIGatewayPolicyRequest](policy),
+		managedByStampCase[kkComps.UpdateAIGatewayPolicyRequest](
+			resources.ResourceTypeAIGatewayPolicy, policy,
+		),
 	)
 	t.Run(
 		"CreateCustomPolicy",
-		managedByStampCase[kkComps.CreateAIGatewayCustomPolicyRequest](customPolicy),
+		managedByStampCase[kkComps.CreateAIGatewayCustomPolicyRequest](
+			resources.ResourceTypeAIGatewayCustomPolicy, customPolicy,
+		),
 	)
 	t.Run(
 		"UpdateCustomPolicy",
-		managedByStampCase[kkComps.UpdateAIGatewayCustomPolicyRequest](customPolicy),
+		managedByStampCase[kkComps.UpdateAIGatewayCustomPolicyRequest](
+			resources.ResourceTypeAIGatewayCustomPolicy, customPolicy,
+		),
 	)
 	t.Run(
 		"CreateMCPServer",
-		managedByStampCase[kkComps.CreateAIGatewayMCPServerRequest](mCPServer),
+		managedByStampCase[kkComps.CreateAIGatewayMCPServerRequest](
+			resources.ResourceTypeAIGatewayMCPServer, mCPServer,
+		),
 	)
 	t.Run(
 		"UpdateMCPServer",
-		managedByStampCase[kkComps.UpdateAIGatewayMCPServerRequest](mCPServer),
+		managedByStampCase[kkComps.UpdateAIGatewayMCPServerRequest](
+			resources.ResourceTypeAIGatewayMCPServer, mCPServer,
+		),
 	)
 	t.Run(
 		"CreateVault",
-		managedByStampCase[kkComps.CreateAIGatewayVaultRequest](vault),
+		managedByStampCase[kkComps.CreateAIGatewayVaultRequest](
+			resources.ResourceTypeAIGatewayVault, vault,
+		),
 	)
 	t.Run(
 		"UpdateVault",
-		managedByStampCase[kkComps.UpdateAIGatewayVaultRequest](vault),
+		managedByStampCase[kkComps.UpdateAIGatewayVaultRequest](
+			resources.ResourceTypeAIGatewayVault, vault,
+		),
 	)
 	t.Run(
 		"CreateCertificate",
-		managedByStampCase[kkComps.CreateAIGatewayCertificateRequest](certificate),
+		managedByStampCase[kkComps.CreateAIGatewayCertificateRequest](
+			resources.ResourceTypeAIGatewayCertificate, certificate,
+		),
 	)
 	t.Run(
 		"UpdateCertificate",
-		managedByStampCase[kkComps.UpdateAIGatewayCertificateRequest](certificate),
+		managedByStampCase[kkComps.UpdateAIGatewayCertificateRequest](
+			resources.ResourceTypeAIGatewayCertificate, certificate,
+		),
 	)
 	t.Run(
 		"CreateCACertificate",
-		managedByStampCase[kkComps.CreateAIGatewayCACertificateRequest](cACertificate),
+		managedByStampCase[kkComps.CreateAIGatewayCACertificateRequest](
+			resources.ResourceTypeAIGatewayCACertificate, cACertificate,
+		),
 	)
 	t.Run(
 		"UpdateCACertificate",
-		managedByStampCase[kkComps.UpdateAIGatewayCACertificateRequest](cACertificate),
+		managedByStampCase[kkComps.UpdateAIGatewayCACertificateRequest](
+			resources.ResourceTypeAIGatewayCACertificate, cACertificate,
+		),
 	)
 	t.Run(
 		"CreateSNI",
-		managedByStampCase[kkComps.CreateAIGatewaySNIRequest](sNI),
+		managedByStampCase[kkComps.CreateAIGatewaySNIRequest](
+			resources.ResourceTypeAIGatewaySNI, sNI,
+		),
 	)
 	t.Run(
 		"UpdateSNI",
-		managedByStampCase[kkComps.UpdateAIGatewaySNIRequest](sNI),
+		managedByStampCase[kkComps.UpdateAIGatewaySNIRequest](
+			resources.ResourceTypeAIGatewaySNI, sNI,
+		),
 	)
 	t.Run(
 		"CreateConsumerCredential",
-		managedByStampCase[kkComps.CreateAIGatewayConsumerCredentialRequest](consumerCredential),
+		managedByStampCase[kkComps.CreateAIGatewayConsumerCredentialRequest](
+			resources.ResourceTypeAIGatewayConsumerCredential, consumerCredential,
+		),
 	)
 }
 
-func managedByStampCase[T any](raw string) func(*testing.T) {
+func managedByStampCase[T any](kind resources.ResourceType, raw string) func(*testing.T) {
 	return func(t *testing.T) {
 		var req T
 		require.NoError(t, json.Unmarshal([]byte(raw), &req))
@@ -241,7 +295,7 @@ func managedByStampCase[T any](raw string) func(*testing.T) {
 		var before map[string]any
 		require.NoError(t, json.Unmarshal(data, &before))
 		ctx := context.WithValue(t.Context(), build.InfoKey, &build.Info{Version: "2.3.4"})
-		require.NoError(t, stampAIGatewayManagedBy(ctx, &req))
+		require.NoError(t, stampManagedByRequest(ctx, kind, &req))
 		data, err = json.Marshal(req)
 		require.NoError(t, err)
 		var after map[string]any
@@ -258,19 +312,32 @@ func TestManagedByExecutionOverridesSavedVersionAndEnforcesCapacity(t *testing.T
 		"tool": "old-tool", "version": "old-binary", "other": "preserved",
 	}}
 	ctx := context.WithValue(t.Context(), build.InfoKey, &build.Info{Version: "running-binary"})
-	require.NoError(t, stampAIGatewayManagedBy(ctx, &req))
+	require.NoError(t, stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req))
 	require.Equal(t,
 		map[string]string{"tool": "kongctl", "version": "running-binary", "other": "preserved"},
 		req.ManagedBy)
 	// The second pass must not mutate a map retained by the caller.
 	previous := req.ManagedBy
-	require.NoError(t, stampAIGatewayManagedBy(t.Context(), &req))
+	require.NoError(t, stampManagedByRequest(t.Context(), resources.ResourceTypeAIGatewayConsumer, &req))
 	require.Equal(t, "dev", req.ManagedBy["version"])
 	require.Equal(t, "running-binary", previous["version"])
 	req.ManagedBy = map[string]string{
 		resources.ChildNamespaceKey: "team-a", resources.ChildProtectedKey: "false",
 		"other": "keep", "extra": "keep-too",
 	}
-	require.ErrorContains(t, stampAIGatewayManagedBy(ctx, &req), "five-entry")
+	require.ErrorContains(t, stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req), "5-entry")
 	require.NotContains(t, req.ManagedBy, "tool", "overflow must fail without mutating the request")
+}
+
+func TestManagedByRequestRequiresEnrollmentAndSDKSupport(t *testing.T) {
+	type unsupportedRequest struct {
+		Name   string            `json:"name"`
+		Labels map[string]string `json:"labels"`
+	}
+	req := unsupportedRequest{Name: "example", Labels: map[string]string{"KONGCTL-namespace": "team-a"}}
+	require.NoError(t, stampManagedByRequest(t.Context(), resources.ResourceTypePortal, &req))
+	require.Equal(t, "team-a", req.Labels["KONGCTL-namespace"])
+	require.ErrorContains(t, stampManagedByRequest(t.Context(), resources.ResourceTypeAIGatewayProvider, &req),
+		"SDK request did not preserve managed_by")
+	require.Equal(t, "example", req.Name)
 }

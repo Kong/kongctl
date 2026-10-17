@@ -116,6 +116,12 @@ Raw reserved keys are invalid; unowned objects require an
 explicit API adoption, and foreign ownership requires an explicit transfer.
 The model helpers remain compatibility wrappers around the shared contract.
 
+For write-only enrollment and the later migration of label ownership, use
+[the incremental managed_by guide](managed-by.md). Register `WithManagedBy`
+on each verified resource with its own `ManagedByPolicy`, and use the shared
+state request stamper. This capability alone does not change label behavior
+or enable independent ownership.
+
 Call `CaptureOwnedChildCollection` per source after defaults and before nested
 extraction. Supply actual key presence and each child's independent namespace.
 An explicitly empty collection contributes its source's default namespace;

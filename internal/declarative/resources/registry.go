@@ -20,6 +20,7 @@ import (
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
+	managedBy                         *ManagedByPolicy
 	independentChildMeta              func(Resource) *KongctlMeta
 	captureOwnedChildScope            func(*ResourceSet, string)
 	get                               func(rs *ResourceSet) []Resource

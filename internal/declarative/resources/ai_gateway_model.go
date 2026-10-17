@@ -54,6 +54,7 @@ func init() {
 		WithIndependentChildOwnership(captureModelNamespaceScopes,
 			func(model *AIGatewayModelResource) *KongctlMeta { return model.Kongctl }),
 
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),

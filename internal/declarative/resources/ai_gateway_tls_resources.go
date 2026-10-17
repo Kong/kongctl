@@ -42,6 +42,7 @@ func init() {
 			setParent:     func(child *AIGatewayCertificateResource, ref string) { child.AIGateway = ref },
 		},
 		WithExternalUnsupportedReason("AI Gateway certificate lookup requires gateway-scoped name materialization"),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(140, "each resource must declare an ai_gateway parent"),
@@ -64,6 +65,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayCACertificateResource { return &gateway.CACertificates },
 			setParent:     func(child *AIGatewayCACertificateResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(150, "each resource must declare an ai_gateway parent"),
@@ -93,6 +95,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewaySNIResource { return &gateway.SNIs },
 			setParent:     func(child *AIGatewaySNIResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(160, "each resource must declare an ai_gateway parent"),

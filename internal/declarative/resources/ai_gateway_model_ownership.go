@@ -61,7 +61,3 @@ func ValidateModelOwnership(metadata map[string]string, namespace string) error 
 func NormalizedModelOwnership(model kkComps.AIGatewayModel) map[string]string {
 	return NormalizedChildOwnership(AIGatewayModelManagedBy(model))
 }
-
-func isMetadataAlphanumeric(value byte) bool {
-	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9'
-}
