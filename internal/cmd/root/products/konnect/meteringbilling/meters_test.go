@@ -20,6 +20,7 @@ import (
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	fixture "github.com/kong/kongctl/test/konnect"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ func TestMeterCommandsAndOutput(t *testing.T) {
 	for _, format := range []string{"text", "json", "yaml"} {
 		t.Run(format, func(t *testing.T) {
 			server := fixture.NewMeterServer(t, kkComps.Meter{ID: fixture.MeterID, Name: "Usage", Key: "usage"})
-			family := NewCommand(verbs.Get)
+			family := newTestCommand(t, verbs.Get)
 			leaf, _, err := family.Find([]string{"meter"})
 			require.NoError(t, err)
 			var output bytes.Buffer
@@ -55,7 +56,7 @@ func TestMeterCommandsAndOutput(t *testing.T) {
 		})
 	}
 	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Create, verbs.Update, verbs.Delete, verbs.Adopt} {
-		family := NewCommand(verb)
+		family := newTestCommand(t, verb)
 		require.NotNil(t, family)
 		require.Contains(t, family.Aliases, "mb")
 		leaf, _, err := family.Find([]string{"meter"})
@@ -82,7 +83,7 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 	)
 	path := filepath.Join(t.TempDir(), "request.yaml")
 	run := func(verb verbs.VerbValue, request string, args []string) error {
-		family := NewCommand(verb)
+		family := newTestCommand(t, verb)
 		leaf, _, err := family.Find([]string{"meters"})
 		require.NoError(t, err)
 		leaf.SetContext(ctx)
@@ -96,7 +97,7 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 	require.ErrorContains(t, run(verbs.Update, "aggregation: sum\n", []string{"usage"}), "unknown field")
 	require.NoError(t, run(verbs.Update, "name: Renamed\ndimensions: {}\n", []string{"usage"}))
 	{
-		family := NewCommand(verbs.Get)
+		family := newTestCommand(t, verbs.Get)
 		query, _, err := family.Find([]string{"meters", "query"})
 		require.NoError(t, err)
 		query.SetContext(ctx)
@@ -104,7 +105,7 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 		require.NoError(t, query.Flags().Set("file", path))
 		require.NoError(t, query.RunE(query, []string{"usage"}))
 	}
-	family := NewCommand(verbs.Adopt)
+	family := newTestCommand(t, verbs.Adopt)
 	leaf, _, err := family.Find([]string{"meter"})
 	require.NoError(t, err)
 	leaf.SetContext(ctx)
@@ -114,7 +115,7 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 	server.SetLabels(fixture.MeterID, map[string]string{labels.NamespaceKey: "billing", labels.ProtectedKey: "true"})
 	require.ErrorContains(t, run(verbs.Delete, "", []string{"usage"}), "protected")
 	server.SetLabels(fixture.MeterID, map[string]string{labels.NamespaceKey: "billing"})
-	family = NewCommand(verbs.Delete)
+	family = newTestCommand(t, verbs.Delete)
 	leaf, _, err = family.Find([]string{"meter"})
 	require.NoError(t, err)
 	leaf.SetContext(ctx)
@@ -123,4 +124,11 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 	require.NoError(t, leaf.RunE(leaf, []string{"usage"}))
 	values, _ := server.Snapshot()
 	require.Empty(t, values)
+}
+
+func newTestCommand(t *testing.T, verb verbs.VerbValue) *cobra.Command {
+	t.Helper()
+	command, err := NewCommand(verb)
+	require.NoError(t, err)
+	return command
 }

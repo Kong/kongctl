@@ -221,7 +221,11 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		},
 	}
 
-	if family := meteringbilling.NewCommand(verb); family != nil {
+	family, err := meteringbilling.NewCommand(verb)
+	if err != nil {
+		return nil, err
+	}
+	if family != nil {
 		cmd.AddCommand(family)
 	}
 
