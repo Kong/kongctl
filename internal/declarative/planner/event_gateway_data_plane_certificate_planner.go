@@ -83,61 +83,60 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 		}
 	}
 
-	// 3. Compare desired vs current
-	desiredNames := make(map[string]bool)
-	for _, desiredCert := range desired {
-		certName := desiredCert.GetMoniker()
-		desiredNames[certName] = true
-		current, exists := currentByName[certName]
-		if !exists {
-			// CREATE
-			p.logger.Debug(
-				"Planning data plane certificate CREATE",
-				"cert_name", certName,
-				"gateway_ref", gatewayRef,
-			)
-			p.planDataPlaneCertificateCreate(
-				namespace, gatewayRef, gatewayName, gatewayID, desiredCert, []string{}, plan,
-			)
-		} else {
-			// CHECK UPDATE
-			p.logger.Debug(
-				"Checking if data plane certificate needs update",
-				"cert_name", certName,
-				"cert_id", current.ID,
-			)
-
-			needsUpdate, updateFields := p.shouldUpdateDataPlaneCertificate(current, desiredCert)
-			if needsUpdate {
+	return reconcileIndexedChildren(desired, currentByName,
+		indexedChildOperations[resources.EventGatewayDataPlaneCertificateResource, state.EventGatewayDataPlaneCertificate]{
+			key: func(cert resources.EventGatewayDataPlaneCertificateResource) (string, bool) {
+				return cert.GetMoniker(), true
+			},
+			create: func(desiredCert resources.EventGatewayDataPlaneCertificateResource) error {
+				certName := desiredCert.GetMoniker()
+				// CREATE
 				p.logger.Debug(
-					"Planning data plane certificate UPDATE",
+					"Planning data plane certificate CREATE",
+					"cert_name", certName,
+					"gateway_ref", gatewayRef,
+				)
+				p.planDataPlaneCertificateCreate(
+					namespace, gatewayRef, gatewayName, gatewayID, desiredCert, []string{}, plan,
+				)
+				return nil
+			},
+			matched: func(
+				desiredCert resources.EventGatewayDataPlaneCertificateResource,
+				current state.EventGatewayDataPlaneCertificate,
+			) error {
+				certName := desiredCert.GetMoniker()
+				// CHECK UPDATE
+				p.logger.Debug(
+					"Checking if data plane certificate needs update",
 					"cert_name", certName,
 					"cert_id", current.ID,
-					"update_fields", updateFields,
 				)
-				p.planDataPlaneCertificateUpdate(
-					namespace, gatewayRef, gatewayName, gatewayID,
-					current.ID, desiredCert, updateFields, plan,
-				)
-			}
-		}
-	}
 
-	// 4. SYNC MODE: Delete unmanaged certificates
-	if plan.Metadata.Mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
+				needsUpdate, updateFields := p.shouldUpdateDataPlaneCertificate(current, desiredCert)
+				if needsUpdate {
+					p.logger.Debug(
+						"Planning data plane certificate UPDATE",
+						"cert_name", certName,
+						"cert_id", current.ID,
+						"update_fields", updateFields,
+					)
+					p.planDataPlaneCertificateUpdate(
+						namespace, gatewayRef, gatewayName, gatewayID,
+						current.ID, desiredCert, updateFields, plan,
+					)
+				}
+				return nil
+			},
+			remove: func(name string, current state.EventGatewayDataPlaneCertificate) {
 				p.logger.Debug(
 					"Planning data plane certificate DELETE (sync mode)",
 					"cert_name", name,
 					"cert_id", current.ID,
 				)
 				p.planDataPlaneCertificateDelete(namespace, gatewayRef, gatewayName, gatewayID, current.ID, name, plan)
-			}
-		}
-	}
-
-	return nil
+			},
+		}, plan.Metadata.Mode == PlanModeSync)
 }
 
 // planDataPlaneCertificateCreatesForNewGateway plans creates for certificates when the gateway

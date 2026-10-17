@@ -2730,61 +2730,57 @@ func (p *Planner) planPortalEmailTemplatesChanges(
 		}
 	}
 
-	desiredByName := make(map[string]resources.PortalEmailTemplateResource)
-
-	for _, tpl := range desired {
-		nameKey := string(tpl.Name)
-		desiredByName[nameKey] = tpl
-
-		if plan.HasChange(ResourceTypePortalEmailTemplate, tpl.GetRef()) {
-			continue
-		}
-
-		if current, ok := existing[nameKey]; ok {
-			var currentDetails *state.PortalEmailTemplate
-			if portalID != "" {
-				full, err := p.client.GetPortalCustomEmailTemplate(
-					ctx,
-					portalID,
-					kkComps.EmailTemplateName(current.Name),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to fetch portal email template %s for comparison: %w", current.Name, err)
+	return reconcileIndexedChildren(desired, existing,
+		indexedChildOperations[resources.PortalEmailTemplateResource, state.PortalEmailTemplate]{
+			key: func(tpl resources.PortalEmailTemplateResource) (string, bool) {
+				// Already-planned templates still retain their names during sync.
+				return string(tpl.Name), true
+			},
+			create: func(tpl resources.PortalEmailTemplateResource) error {
+				if !plan.HasChange(ResourceTypePortalEmailTemplate, tpl.GetRef()) {
+					p.planPortalEmailTemplateCreate(parentNamespace, tpl, portalID, portalRef, portalName, plan)
 				}
-				currentDetails = full
-			}
-			if currentDetails == nil {
-				currentDetails = &current
-			}
+				return nil
+			},
+			matched: func(tpl resources.PortalEmailTemplateResource, current state.PortalEmailTemplate) error {
+				if plan.HasChange(ResourceTypePortalEmailTemplate, tpl.GetRef()) {
+					return nil
+				}
+				var currentDetails *state.PortalEmailTemplate
+				if portalID != "" {
+					full, err := p.client.GetPortalCustomEmailTemplate(
+						ctx,
+						portalID,
+						kkComps.EmailTemplateName(current.Name),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to fetch portal email template %s for comparison: %w", current.Name, err)
+					}
+					currentDetails = full
+				}
+				if currentDetails == nil {
+					currentDetails = &current
+				}
 
-			needsUpdate, fields, changedFields := p.shouldUpdatePortalEmailTemplate(currentDetails, tpl)
-			if needsUpdate {
-				p.planPortalEmailTemplateUpdate(
-					parentNamespace,
-					tpl,
-					portalID,
-					portalRef,
-					portalName,
-					fields,
-					changedFields,
-					plan,
-				)
-			}
-		} else {
-			p.planPortalEmailTemplateCreate(parentNamespace, tpl, portalID, portalRef, portalName, plan)
-		}
-	}
-
-	if plan.Metadata.Mode == PlanModeSync && portalID != "" {
-		for name, tpl := range existing {
-			if _, ok := desiredByName[name]; ok {
-				continue
-			}
-			p.planPortalEmailTemplateDelete(parentNamespace, portalRef, portalID, portalName, tpl, plan)
-		}
-	}
-
-	return nil
+				needsUpdate, fields, changedFields := p.shouldUpdatePortalEmailTemplate(currentDetails, tpl)
+				if needsUpdate {
+					p.planPortalEmailTemplateUpdate(
+						parentNamespace,
+						tpl,
+						portalID,
+						portalRef,
+						portalName,
+						fields,
+						changedFields,
+						plan,
+					)
+				}
+				return nil
+			},
+			remove: func(_ string, tpl state.PortalEmailTemplate) {
+				p.planPortalEmailTemplateDelete(parentNamespace, portalRef, portalID, portalName, tpl, plan)
+			},
+		}, plan.Metadata.Mode == PlanModeSync && portalID != "")
 }
 
 func (p *Planner) planPortalEmailTemplateCreate(
@@ -3715,51 +3711,42 @@ func (p *Planner) planPortalSnippetsChanges(
 		}
 	}
 
-	// Process desired snippets
-	desiredNames := make(map[string]bool)
-	for _, desiredSnippet := range desired {
-		if plan.HasChange(ResourceTypePortalSnippet, desiredSnippet.GetRef()) {
-			continue
-		}
-		desiredNames[desiredSnippet.Name] = true
-		// Check if snippet exists by name
-		if existingSnippet, exists := existingSnippets[desiredSnippet.Name]; exists {
-			// Check if UPDATE is needed - must fetch full content first
-			if portalID != "" && existingSnippet.ID != "" {
-				fullSnippet, err := p.client.GetPortalSnippet(ctx, portalID, existingSnippet.ID)
-				if err != nil {
-					return fmt.Errorf("failed to fetch portal snippet %s for comparison: %w", existingSnippet.ID, err)
+	return reconcileIndexedChildren(desired, existingSnippets,
+		indexedChildOperations[resources.PortalSnippetResource, state.PortalSnippet]{
+			key: func(snippet resources.PortalSnippetResource) (string, bool) {
+				return snippet.Name, !plan.HasChange(ResourceTypePortalSnippet, snippet.GetRef())
+			},
+			create: func(snippet resources.PortalSnippetResource) error {
+				p.planPortalSnippetCreate(parentNamespace, snippet, portalRef, portalID, plan)
+				return nil
+			},
+			matched: func(desiredSnippet resources.PortalSnippetResource, existingSnippet state.PortalSnippet) error {
+				// Check if UPDATE is needed - must fetch full content first
+				if portalID != "" && existingSnippet.ID != "" {
+					fullSnippet, err := p.client.GetPortalSnippet(ctx, portalID, existingSnippet.ID)
+					if err != nil {
+						return fmt.Errorf("failed to fetch portal snippet %s for comparison: %w", existingSnippet.ID, err)
+					}
+
+					needsUpdate, updateFields, changedFields := p.shouldUpdatePortalSnippet(fullSnippet, desiredSnippet)
+					if needsUpdate {
+						p.planPortalSnippetUpdate(
+							parentNamespace,
+							existingSnippet,
+							desiredSnippet,
+							portalRef,
+							updateFields,
+							changedFields,
+							plan,
+						)
+					}
 				}
-
-				needsUpdate, updateFields, changedFields := p.shouldUpdatePortalSnippet(fullSnippet, desiredSnippet)
-				if needsUpdate {
-					p.planPortalSnippetUpdate(
-						parentNamespace,
-						existingSnippet,
-						desiredSnippet,
-						portalRef,
-						updateFields,
-						changedFields,
-						plan,
-					)
-				}
-			}
-		} else {
-			// CREATE new snippet
-			p.planPortalSnippetCreate(parentNamespace, desiredSnippet, portalRef, portalID, plan)
-		}
-	}
-
-	// In sync mode, delete snippets absent from the desired in-scope collection.
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, existingSnippet := range existingSnippets {
-			if !desiredNames[existingSnippet.Name] {
-				p.planPortalSnippetDelete(parentNamespace, portalRef, portalID, existingSnippet, plan)
-			}
-		}
-	}
-
-	return nil
+				return nil
+			},
+			remove: func(_ string, snippet state.PortalSnippet) {
+				p.planPortalSnippetDelete(parentNamespace, portalRef, portalID, snippet, plan)
+			},
+		}, plan.Metadata.Mode == PlanModeSync)
 }
 
 func (p *Planner) planPortalSnippetDelete(
@@ -4078,44 +4065,36 @@ func (p *Planner) planPortalTeamsChanges(
 		}
 	}
 
-	desiredNames := make(map[string]bool)
-	for _, desiredTeam := range desired {
-		if plan.HasChange(ResourceTypePortalTeam, desiredTeam.GetRef()) {
-			continue
-		}
-		desiredNames[desiredTeam.Name] = true
-
-		if existingTeam, exists := existingTeams[desiredTeam.Name]; exists {
-			// Team exists: check for updates
-			// Since name is the identifier, if name changes, it's a different resource
-			// Only description can be updated
-			if shouldUpdate, updateFields, changedFields := p.shouldUpdatePortalTeam(existingTeam, desiredTeam); shouldUpdate {
-				p.planPortalTeamUpdate(
-					parentNamespace,
-					existingTeam,
-					desiredTeam,
-					portalRef,
-					updateFields,
-					changedFields,
-					plan,
-				)
-			}
-		} else {
-			// Team doesn't exist: create
-			p.planPortalTeamCreate(parentNamespace, desiredTeam, portalID, plan)
-		}
-	}
-
-	// In SYNC mode: Delete teams not in desired state
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, existingTeam := range existingTeams {
-			if !desiredNames[existingTeam.Name] {
-				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, existingTeam, plan)
-			}
-		}
-	}
-
-	return nil
+	return reconcileIndexedChildren(desired, existingTeams,
+		indexedChildOperations[resources.PortalTeamResource, state.PortalTeam]{
+			key: func(team resources.PortalTeamResource) (string, bool) {
+				return team.Name, !plan.HasChange(ResourceTypePortalTeam, team.GetRef())
+			},
+			create: func(team resources.PortalTeamResource) error {
+				p.planPortalTeamCreate(parentNamespace, team, portalID, plan)
+				return nil
+			},
+			matched: func(desiredTeam resources.PortalTeamResource, existingTeam state.PortalTeam) error {
+				// Team exists: check for updates
+				// Since name is the identifier, if name changes, it's a different resource
+				// Only description can be updated
+				if shouldUpdate, updateFields, changedFields := p.shouldUpdatePortalTeam(existingTeam, desiredTeam); shouldUpdate {
+					p.planPortalTeamUpdate(
+						parentNamespace,
+						existingTeam,
+						desiredTeam,
+						portalRef,
+						updateFields,
+						changedFields,
+						plan,
+					)
+				}
+				return nil
+			},
+			remove: func(_ string, team state.PortalTeam) {
+				p.planPortalTeamDelete(parentNamespace, portalRef, portalID, team, plan)
+			},
+		}, plan.Metadata.Mode == PlanModeSync)
 }
 
 func (p *Planner) planPortalTeamCreate(

@@ -14,6 +14,7 @@ type mappedChildOperations[D, C any] struct {
 // then prunes the name index in sync mode. Map traversal deliberately has no
 // ordering guarantee and visits only the indexed observation for each name.
 // This differs from pruning every item of an ordered observation collection.
+// Successful matched reconciliation additionally records payload identity.
 func reconcileMappedChildren[D, C any](
 	p *Planner,
 	desired []D,
@@ -21,29 +22,17 @@ func reconcileMappedChildren[D, C any](
 	ops mappedChildOperations[D, C],
 	mode PlanMode,
 ) error {
-	desiredNames := make(map[string]bool, len(desired))
-	for _, item := range desired {
-		name := ops.desiredName(item)
-		desiredNames[name] = true
-		var err error
-		if current, exists := currentByName[name]; exists {
-			err = ops.matched(item, current)
-			if err == nil {
+	return reconcileIndexedChildren(desired, currentByName,
+		indexedChildOperations[D, C]{
+			key:    func(item D) (string, bool) { return ops.desiredName(item), true },
+			create: ops.create,
+			matched: func(item D, current C) error {
+				if err := ops.matched(item, current); err != nil {
+					return err
+				}
 				p.recordMatchedIdentity(&item, current)
-			}
-		} else {
-			err = ops.create(item)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	if mode == PlanModeSync {
-		for name, current := range currentByName {
-			if !desiredNames[name] {
-				ops.remove(name, current)
-			}
-		}
-	}
-	return nil
+				return nil
+			},
+			remove: ops.remove,
+		}, mode == PlanModeSync)
 }
