@@ -59,7 +59,11 @@ func NewAdoptCmd() (*cobra.Command, error) {
 		},
 	}
 
-	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	// Add Konnect-specific flags as persistent flags so they appear in help
 	cmd.PersistentFlags().String(common.BaseURLFlagName, "",

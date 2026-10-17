@@ -12,6 +12,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/stretchr/testify/require"
 )
@@ -148,33 +149,39 @@ func TestFeaturePlanningUnsupportedChangesAndOwnership(t *testing.T) {
 }
 
 func TestMeterDeletionRespectsObservedFeatureReferences(t *testing.T) {
-	for _, removeFeature := range []bool{false, true} {
-		t.Run(fmt.Sprint(removeFeature), func(t *testing.T) {
-			feature := observedFeature()
-			feature.Meter = &kkComps.MeterReference{ID: fixture.MeterID}
-			server := fixture.NewFeatureServer(t, feature)
-			meters := fixture.NewMeterServer(t, observedMeter())
-			p := NewPlanner(
-				state.NewClient(
-					state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI()},
-				),
-				slog.New(slog.NewTextHandler(io.Discard, nil)),
-			)
-			rs := &resources.ResourceSet{DefaultNamespace: "billing", SyncScope: resources.NewSyncScope()}
-			rs.SyncScope.AddRoot(resources.ResourceTypeMeter)
-			if removeFeature {
-				rs.SyncScope.AddRoot(resources.ResourceTypeFeature)
-			}
-			plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
-			if !removeFeature {
-				require.ErrorContains(t, err, "still references it")
-				return
-			}
-			require.NoError(t, err)
-			require.Len(t, plan.Changes, 2)
-			require.Contains(t, plan.Changes[0].DependsOn, plan.Changes[1].ID)
-			require.Equal(t, plan.Changes[1].ID, plan.ExecutionOrder[0])
-		})
+	for _, featureNamespace := range []string{"billing", "other"} {
+		for _, removeFeature := range []bool{false, true} {
+			t.Run(featureNamespace+"/"+fmt.Sprint(removeFeature), func(t *testing.T) {
+				feature := observedFeature()
+				feature.Labels[labels.NamespaceKey] = featureNamespace
+				feature.Meter = &kkComps.MeterReference{ID: fixture.MeterID}
+				server := fixture.NewFeatureServer(t, feature)
+				meters := fixture.NewMeterServer(t, observedMeter())
+				p := NewPlanner(
+					state.NewClient(
+						state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI()},
+					),
+					slog.New(slog.NewTextHandler(io.Discard, nil)),
+				)
+				rs := &resources.ResourceSet{DefaultNamespaces: []string{"billing"}, SyncScope: resources.NewSyncScope()}
+				if featureNamespace != "billing" {
+					rs.DefaultNamespaces = append(rs.DefaultNamespaces, featureNamespace)
+				}
+				rs.SyncScope.AddRoot(resources.ResourceTypeMeter)
+				if removeFeature {
+					rs.SyncScope.AddRoot(resources.ResourceTypeFeature)
+				}
+				plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+				if !removeFeature {
+					require.ErrorContains(t, err, "still references it")
+					return
+				}
+				require.NoError(t, err)
+				require.Len(t, plan.Changes, 2)
+				require.Contains(t, plan.Changes[0].DependsOn, plan.Changes[1].ID)
+				require.Equal(t, plan.Changes[1].ID, plan.ExecutionOrder[0])
+			})
+		}
 	}
 }
 
@@ -187,4 +194,31 @@ func TestFeatureCostAndFilterNormalization(t *testing.T) {
 		),
 	)
 	require.True(t, featureFiltersEqual(nil, map[string]kkComps.QueryFilterStringMapItem{}))
+}
+
+func TestFeatureDeleteDoesNotResolveMissingMeter(t *testing.T) {
+	for _, reference := range []string{"local-meter", tags.RefPlaceholderPrefix + "local-meter#id"} {
+		t.Run(reference, func(t *testing.T) {
+			desired := testFeature()
+			desired.Meter = &kkComps.CreateFeatureRequestMeterReference{ID: reference}
+			meter := testMeter()
+			meter.Ref = "local-meter"
+			current := observedFeature()
+			current.Meter = &kkComps.MeterReference{ID: fixture.MeterID}
+			features := fixture.NewFeatureServer(t, current)
+			meters := fixture.NewMeterServer(t)
+			p := NewPlanner(state.NewClient(state.ClientConfig{
+				FeaturesAPI: features.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI(),
+			}), slog.New(slog.NewTextHandler(io.Discard, nil)))
+			plan, err := p.GeneratePlan(t.Context(), &resources.ResourceSet{
+				Features: []resources.FeatureResource{desired}, Meters: []resources.MeterResource{meter},
+			}, Options{Mode: PlanModeDelete})
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 1)
+			require.Equal(t, ResourceTypeFeature, plan.Changes[0].ResourceType)
+			require.Equal(t, ActionDelete, plan.Changes[0].Action)
+			require.Equal(t, fixture.FeatureID, plan.Changes[0].ResourceID)
+			require.NotContains(t, plan.Changes[0].Fields, FieldMeter)
+		})
+	}
 }

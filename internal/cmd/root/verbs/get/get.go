@@ -158,7 +158,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(apiCmd)
 
-	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	analyticsCmd, err := NewDirectAnalyticsCmd()
 	if err != nil {

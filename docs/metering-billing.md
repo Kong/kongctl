@@ -192,7 +192,8 @@ features:
 ```
 
 `meter.id: !ref local-requests#id` is also supported. Newly created meters
-execute before features that reference them, including through saved plans.
+execute before features that reference them, including across namespaces and
+through saved plans.
 Dimension filters are preserved. For LLM cost lookup, use configuration such
 as:
 

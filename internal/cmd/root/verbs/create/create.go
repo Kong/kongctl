@@ -111,7 +111,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(meshCmd)
 
-	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {

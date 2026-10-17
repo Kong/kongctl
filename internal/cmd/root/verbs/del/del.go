@@ -117,7 +117,11 @@ Setting this value overrides tokens obtained from the login command.
 		fmt.Sprintf(`Retry selected retryable connection-level errors.
 - Config path: [ %s ]`, common.HTTPRetryOnConnectionErrorsConfigPath))
 
-	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	if err := addDeleteTokenCommands(cmd); err != nil {
 		return nil, err
@@ -165,7 +169,11 @@ func addDeleteTokenCommands(cmd *cobra.Command) error {
 		return err
 	}
 	konnectCmd.AddCommand(konnectOrgCmd)
-	konnectCmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return err
+	}
+	konnectCmd.AddCommand(family)
 	cmd.AddCommand(konnectCmd)
 
 	meshCmd, err := NewDirectMeshCmd()

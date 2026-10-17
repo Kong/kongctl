@@ -11,9 +11,17 @@ import (
 func NewUpdateCmd() (*cobra.Command, error) {
 	root := &cobra.Command{Use: "update", Short: "Update Konnect resources"}
 	cmd.ConfigureRequiresSubcommand(root)
-	root.AddCommand(meteringbilling.NewCommand(verbs.Update))
+	family, err := meteringbilling.NewCommand(verbs.Update)
+	if err != nil {
+		return nil, err
+	}
+	root.AddCommand(family)
 	product := &cobra.Command{Use: konnect.Product.String(), Short: "Update Konnect resources"}
-	product.AddCommand(meteringbilling.NewCommand(verbs.Update))
+	family, err = meteringbilling.NewCommand(verbs.Update)
+	if err != nil {
+		return nil, err
+	}
+	product.AddCommand(family)
 	root.AddCommand(product)
 	return root, nil
 }

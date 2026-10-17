@@ -142,7 +142,11 @@ Setting this value overrides tokens obtained from the login command.
 	}
 	cmd.AddCommand(gatewayCmd)
 
-	cmd.AddCommand(meteringbilling.NewCommand(Verb))
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	cmd.AddCommand(newThemesCmd())
 	cmd.AddCommand(extensioncmd.NewListExtensionsCmd())

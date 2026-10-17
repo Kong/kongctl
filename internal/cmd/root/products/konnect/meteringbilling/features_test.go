@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/maturity"
@@ -30,7 +32,7 @@ func TestFeatureCommandsAndOutput(t *testing.T) {
 	for _, format := range []string{"text", "json", "yaml"} {
 		t.Run(format, func(t *testing.T) {
 			server := fixture.NewFeatureServer(t, kkComps.Feature{ID: fixture.FeatureID, Name: "Usage", Key: "usage"})
-			family := NewCommand(verbs.Get)
+			family := newTestCommand(t, verbs.Get)
 			leaf, _, err := family.Find([]string{"feature"})
 			require.NoError(t, err)
 			var output bytes.Buffer
@@ -57,7 +59,7 @@ func TestFeatureCommandsAndOutput(t *testing.T) {
 		})
 	}
 	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Create, verbs.Update, verbs.Delete, verbs.Adopt} {
-		family := NewCommand(verb)
+		family := newTestCommand(t, verb)
 		require.NotNil(t, family)
 		require.Contains(t, family.Aliases, "mb")
 		leaf, _, err := family.Find([]string{"feature"})
@@ -84,7 +86,7 @@ func TestFeatureRequestsAndCostQuery(t *testing.T) {
 	)
 	path := filepath.Join(t.TempDir(), "request.yaml")
 	run := func(verb verbs.VerbValue, request string, args ...string) error {
-		leaf, _, err := NewCommand(verb).Find([]string{"features"})
+		leaf, _, err := newTestCommand(t, verb).Find([]string{"features"})
 		require.NoError(t, err)
 		leaf.SetContext(ctx)
 		if request != "" {
@@ -109,7 +111,7 @@ func TestFeatureRequestsAndCostQuery(t *testing.T) {
 	require.Nil(t, values[0].UnitCost)
 	require.Contains(t, writes[len(writes)-1], "unit_cost")
 	require.ErrorContains(t, run(verbs.Adopt, "", "usage"), "adoption is unsupported")
-	query, _, err := NewCommand(verbs.Get).Find([]string{"features", "cost-query"})
+	query, _, err := newTestCommand(t, verbs.Get).Find([]string{"features", "cost-query"})
 	require.NoError(t, err)
 	resolved, err := maturity.ResolveCommand(query)
 	require.NoError(t, err)
@@ -124,11 +126,19 @@ func TestFeatureRequestsAndCostQuery(t *testing.T) {
 	server.SetLabels(fixture.FeatureID, map[string]string{labels.ProtectedKey: "true"})
 	require.ErrorContains(t, run(verbs.Delete, "", "usage"), "protected")
 	server.SetLabels(fixture.FeatureID, nil)
-	leaf, _, err := NewCommand(verbs.Delete).Find([]string{"features"})
+	leaf, _, err := newTestCommand(t, verbs.Delete).Find([]string{"features"})
 	require.NoError(t, err)
 	leaf.SetContext(ctx)
 	cmdpkg.SetDeleteAutoApprove(leaf, true)
 	require.NoError(t, leaf.RunE(leaf, []string{"usage"}))
 	values, _ = server.Snapshot()
 	require.Empty(t, values)
+}
+
+func TestFeatureCommandReturnsMaturityAnnotationError(t *testing.T) {
+	command, err := newFeaturesCommand(verbs.Get, func(c *cobra.Command) {
+		c.Annotations = map[string]string{"kongctl.maturity": "{"}
+	})
+	require.Error(t, err)
+	require.Nil(t, command)
 }
