@@ -101,7 +101,7 @@ func adoptAPI(
 
 	ctx := adoptCommon.EnsureContext(helper.GetContext())
 
-	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq)
+	resp, err := apiClient.UpdateAPI(ctx, api.ID, updateReq, false)
 	if err != nil {
 		attrs := cmdpkg.TryConvertErrorToAttrs(err)
 		return nil, cmdpkg.PrepareExecutionError("failed to update API", err, helper.GetCmd(), attrs...)

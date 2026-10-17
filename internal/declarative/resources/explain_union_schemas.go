@@ -390,6 +390,14 @@ func apiExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		return nil, err
 	}
 	explainRemoveField(node, "spec_content")
+	if meta, ok := node.lookup([]string{"kongctl"}); ok {
+		policy := explainBoolNode("false")
+		policy.Notes = []string{
+			"Authorize operation removal under ACE on this API and its child version updates.",
+			"Execution policy only; not stored in Konnect or inferred by dump. Defaults to false.",
+		}
+		meta.addField(explainField("allow_operation_removal", policy, false, false))
+	}
 	return node, nil
 }
 

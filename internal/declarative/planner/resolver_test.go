@@ -179,6 +179,7 @@ func (m *MockAPIAPI) UpdateAPI(
 	ctx context.Context,
 	apiID string,
 	request kkComps.UpdateAPIRequest,
+	_ bool,
 	_ ...kkOps.Option,
 ) (*kkOps.UpdateAPIResponse, error) {
 	args := m.Called(ctx, apiID, request)

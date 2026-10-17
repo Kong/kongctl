@@ -638,6 +638,11 @@ func (l *Loader) applyNamespaceDefaults(rs *resources.ResourceSet, fileDefaults 
 	// namespace-bearing parent resource. External resources must not carry
 	// kongctl metadata.
 	return rs.ForEachNamespaceParticipant(func(participant resources.NamespaceParticipant) error {
+		if meta := *participant.Meta; meta != nil && meta.AllowOperationRemoval != nil &&
+			participant.Type != resources.ResourceTypeAPI {
+			return fmt.Errorf("%s '%s': kongctl.allow_operation_removal is supported only on APIs",
+				participant.Label, participant.Ref)
+		}
 		if participant.External {
 			if *participant.Meta != nil {
 				return fmt.Errorf(

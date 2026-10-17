@@ -151,7 +151,7 @@ func (a *APIVersionAdapter) Update(ctx context.Context, id string,
 	}
 
 	// Call client's UpdateAPIVersion
-	resp, err := a.client.UpdateAPIVersion(ctx, apiID, id, update)
+	resp, err := a.client.UpdateAPIVersion(ctx, apiID, id, update, execCtx.allowsOperationRemoval())
 	if err != nil {
 		return "", fmt.Errorf("failed to update API version: %w", err)
 	}

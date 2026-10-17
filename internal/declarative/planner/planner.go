@@ -343,6 +343,8 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	adjustAuthStrategyDeleteDependencies(basePlan.Changes)
 	adjustDCRProviderDeleteDependencies(basePlan.Changes)
 	adjustEventGatewayBackendClusterDeleteDependencies(basePlan.Changes)
+	applyAPIOperationRemovalAuthorization(basePlan.Changes, rs)
+	adjustAPIVersionTransitionDependencies(basePlan.Changes)
 
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {

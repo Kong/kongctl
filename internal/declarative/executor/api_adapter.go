@@ -75,9 +75,9 @@ func (p *APIAdapter) Create(ctx context.Context, req kkComps.CreateAPIRequest,
 
 // Update updates an existing API
 func (p *APIAdapter) Update(ctx context.Context, id string, req kkComps.UpdateAPIRequest,
-	namespace string, _ *ExecutionContext,
+	namespace string, execCtx *ExecutionContext,
 ) (string, error) {
-	resp, err := p.client.UpdateAPI(ctx, id, req, namespace)
+	resp, err := p.client.UpdateAPI(ctx, id, req, namespace, execCtx.allowsOperationRemoval())
 	if err != nil {
 		return "", err
 	}

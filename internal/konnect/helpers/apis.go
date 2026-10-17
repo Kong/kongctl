@@ -17,7 +17,7 @@ type APIAPI interface {
 		opts ...kkOps.Option) (*kkOps.FetchAPIResponse, error)
 	CreateAPI(ctx context.Context, request kkComps.CreateAPIRequest,
 		opts ...kkOps.Option) (*kkOps.CreateAPIResponse, error)
-	UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest,
+	UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest, force bool,
 		opts ...kkOps.Option) (*kkOps.UpdateAPIResponse, error)
 	DeleteAPI(ctx context.Context, apiID string,
 		opts ...kkOps.Option) (*kkOps.DeleteAPIResponse, error)
@@ -93,12 +93,15 @@ func (a *APIAPIImpl) CreateAPI(ctx context.Context, request kkComps.CreateAPIReq
 }
 
 // UpdateAPI implements the APIAPI interface
-func (a *APIAPIImpl) UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest,
+func (a *APIAPIImpl) UpdateAPI(ctx context.Context, apiID string, request kkComps.UpdateAPIRequest, force bool,
 	opts ...kkOps.Option,
 ) (*kkOps.UpdateAPIResponse, error) {
 	req := kkOps.UpdateAPIRequest{
 		APIID:            apiID,
 		UpdateAPIRequest: request,
+	}
+	if force {
+		req.Force = kkOps.QueryParamForceTrue.ToPointer()
 	}
 	return a.SDK.API.UpdateAPI(ctx, req, opts...)
 }
