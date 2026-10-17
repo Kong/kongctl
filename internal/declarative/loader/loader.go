@@ -377,6 +377,11 @@ func (l *Loader) parsePreparedYAML(prepared *preparedYAML) (*resources.ResourceS
 	if err := l.applyNamespaceDefaults(&placeholderRS, placeholderTemp.Defaults); err != nil {
 		return nil, fmt.Errorf("failed to apply namespace defaults: %w", err)
 	}
+	modelDefaultNamespace := "default"
+	if temp.Defaults != nil && temp.Defaults.Kongctl != nil && temp.Defaults.Kongctl.Namespace != nil {
+		modelDefaultNamespace = *temp.Defaults.Kongctl.Namespace
+	}
+	rs.CaptureAIGatewayNamespaceScopes(modelDefaultNamespace)
 
 	// Extract nested child resources to root level first
 	l.extractNestedResources(&rs)

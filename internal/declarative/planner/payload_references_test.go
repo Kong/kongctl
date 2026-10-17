@@ -109,6 +109,9 @@ func TestPayloadReferencesToUnchangedTargets(t *testing.T) {
 			var modelPayload map[string]any
 			require.NoError(t, json.Unmarshal(modelData, &modelPayload))
 			modelPayload[FieldID] = "model-id"
+			modelPayload[FieldManagedBy] = map[string]string{
+				resources.ModelNamespaceKey: "default", resources.ModelProtectedKey: "false",
+			}
 			modelPayload["created_at"] = "2026-01-01T00:00:00Z"
 			modelPayload["updated_at"] = "2026-01-01T00:00:00Z"
 			modelData, err = json.Marshal(modelPayload)

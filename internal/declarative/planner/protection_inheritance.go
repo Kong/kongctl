@@ -26,6 +26,9 @@ func (p *Planner) applyInheritedProtection(ctx context.Context, plan *Plan) erro
 
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
+		if change.ResourceType == ResourceTypeAIGatewayModel {
+			continue
+		}
 		if change.Parent == nil || change.Parent.Ref == "" {
 			continue
 		}
