@@ -70,49 +70,45 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 			existingByTeamID[membership.TeamID] = membership
 		}
 
-		desiredTeamIDs := make(map[string]bool)
-		for _, membership := range memberships {
-			team, teamID, teamName := t.resolveOrganizationTeamForAssignment(
-				membership.Team,
-				desiredTeams,
-				currentByName,
-			)
-			if team == nil {
-				continue
-			}
-			teamKey := teamID
-			if teamKey == "" {
-				teamKey = membership.Team
-			}
-			key := user.GetKonnectID() + "|" + teamKey
-			if desiredTeamIDs[key] {
-				return fmt.Errorf("duplicate organization user team membership %q", key)
-			}
-			desiredTeamIDs[key] = true
-			if teamID != "" {
-				if _, ok := existingByTeamID[teamID]; ok {
-					continue
-				}
-			}
-			t.planOrganizationUserTeamMembershipCreate(
-				namespace,
-				userRef,
-				user.GetKonnectID(),
-				membership.Ref,
-				membership.Team,
-				teamID,
-				teamName,
-				plan,
-			)
+		err = reconcileTeamMemberships(
+			user.GetKonnectID(),
+			memberships,
+			existingByTeamID,
+			teamMembershipOperations[
+				resources.OrganizationUserTeamMembershipResource,
+				state.OrganizationUserTeamMembership,
+			]{
+				resolve: func(
+					membership resources.OrganizationUserTeamMembershipResource,
+				) (teamMembershipTarget, bool) {
+					team, id, name := t.resolveOrganizationTeamForAssignment(
+						membership.Team,
+						desiredTeams,
+						currentByName,
+					)
+					return teamMembershipTarget{ref: membership.Team, id: id, name: name}, team != nil
+				},
+				duplicate: func(key string) error {
+					return fmt.Errorf("duplicate organization user team membership %q", key)
+				},
+				create: func(
+					membership resources.OrganizationUserTeamMembershipResource,
+					team teamMembershipTarget,
+				) {
+					t.planOrganizationUserTeamMembershipCreate(
+						namespace, userRef, user.GetKonnectID(), membership.Ref, team.ref, team.id, team.name, plan,
+					)
+				},
+				remove: func(existing state.OrganizationUserTeamMembership) {
+					t.planOrganizationUserTeamMembershipDelete(namespace, userRef, user.GetKonnectID(), existing, plan)
+				},
+			},
+			plan.Metadata.Mode == PlanModeSync,
+		)
+		if err != nil {
+			return err
 		}
 
-		if plan.Metadata.Mode == PlanModeSync {
-			for teamID, existing := range existingByTeamID {
-				if !desiredTeamIDs[user.GetKonnectID()+"|"+teamID] {
-					t.planOrganizationUserTeamMembershipDelete(namespace, userRef, user.GetKonnectID(), existing, plan)
-				}
-			}
-		}
 	}
 
 	return nil

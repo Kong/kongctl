@@ -588,10 +588,18 @@ Choose identity and operation semantics before selecting a reusable strategy:
   dependency construction and pruning eligibility. The helper detects duplicate
   desired keys before checking existing assignments, preserves earlier creates
   on error, and prunes only after successful desired traversal. It does not
-  record payload identities. Keep team membership matching separate: unresolved
-  team refs can identify duplicate declarations without matching remote IDs.
-  Membership sync visits selectors across namespaces; user/system-account role
-  sync visits selectors within the current namespace. Preserve these boundaries.
+  record payload identities.
+- **Team memberships:** User and system-account memberships share
+  [`reconcileTeamMemberships`][membership-reconcile] within one observed owner.
+  Callers retain owner selection, observation/errors, scoped-team filtering,
+  team resolution and dependency-bearing change builders. The helper resolves
+  desired memberships in order, skips unknown teams, and detects duplicates
+  before checking existing membership IDs. Unresolved teams use their refs in
+  duplicate keys but still request creation. Preserve earlier creates on error;
+  sync pruning runs only after successful desired traversal, using the existing
+  owner-plus-team key and caller-supplied map. Do not force this identity policy
+  into role-set reconciliation. Membership sync visits selectors across
+  namespaces; role sync visits selectors within the current namespace.
 - **Tool-local configuration:** `control_planes[]._deck` is validated by its
   parent and planned through [deck integration][deck-plan] with
   `ActionExternalTool`, dependencies, and external-tool summary accounting.
@@ -1304,3 +1312,5 @@ engine contract. Each refactoring migration should:
 [dcr-config-policy]: ../../internal/declarative/fieldcontracts/dcr_config.go
 
 [auth-config-policy]: ../../internal/declarative/fieldcontracts/auth_strategy_config.go
+
+[membership-reconcile]: ../../internal/declarative/planner/team_membership_reconciler.go
