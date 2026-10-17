@@ -551,9 +551,22 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
+- **Indexed collections without payload binding:** Portal snippets, teams,
+  email templates and Event Gateway data-plane certificates use
+  [`reconcileIndexedChildren`][indexed-reconcile]. It owns ordered lookup,
+  create/matched dispatch and optional map pruning; adapters retain observation,
+  detail reads, comparison and change builders. Returning false from `key`
+  skips both reconciliation and retention. Snippets/teams use this for existing
+  plan changes; templates retain the key and skip inside action callbacks.
+  Preserve that distinction, template nil-detail fallback and existing-parent
+  pruning gate, team duplicate preflight, and certificate nonnil-name indexing.
+  The helper does not record payload matches. Do not introduce binding merely
+  to reuse indexed traversal.
 - **Map-indexed Event Gateway children:** Backend clusters, listeners, schema
   registries, trust bundles, static keys, and cluster/listener/produce/consume
-  policies use [`reconcileMappedChildren`][mapped-reconcile]. Adapters supply
+  policies use [`reconcileMappedChildren`][mapped-reconcile], which wraps indexed
+  traversal and records identity only after successful matched reconciliation.
+  Adapters supply
   the existing name/moniker index, retaining duplicate collapse and eligibility:
   cluster/listener/consume policies exclude nil names; produce policies also
   exclude empty names. Desired traversal retains input order; create or matched
@@ -1314,3 +1327,5 @@ engine contract. Each refactoring migration should:
 [auth-config-policy]: ../../internal/declarative/fieldcontracts/auth_strategy_config.go
 
 [membership-reconcile]: ../../internal/declarative/planner/team_membership_reconciler.go
+
+[indexed-reconcile]: ../../internal/declarative/planner/indexed_child_reconciler.go
