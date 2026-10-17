@@ -23,6 +23,7 @@ func init() {
 			nested:    func(gateway *AIGatewayResource) *[]AIGatewayCustomPolicyResource { return &gateway.CustomPolicies },
 			setParent: func(child *AIGatewayCustomPolicyResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(25, "each custom policy must declare an ai_gateway parent")),
 		WithMaturity(maturity.Metadata{

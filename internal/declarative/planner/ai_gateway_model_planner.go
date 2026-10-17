@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -32,7 +33,7 @@ func (p *Planner) planAIGatewayModelChanges(
 
 	if gatewayID == "" {
 		p.planAIGatewayModelCreatesForNewGateway(
-			namespace,
+			ctx, namespace,
 			gatewayRef,
 			gatewayName,
 			gatewayChangeID,
@@ -67,6 +68,7 @@ func (p *Planner) planAIGatewayModelChanges(
 }
 
 func (p *Planner) planAIGatewayModelCreatesForNewGateway(
+	ctx context.Context,
 	namespace string,
 	gatewayRef string,
 	gatewayName string,
@@ -85,11 +87,12 @@ func (p *Planner) planAIGatewayModelCreatesForNewGateway(
 		for _, dep := range aiGatewayModelCreateDependencies(model, providerCreateDepsByName, policyCreateDepsByName) {
 			modelDependsOn = appendDependsOn(modelDependsOn, dep)
 		}
-		p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, "", model, modelDependsOn, plan)
+		p.planAIGatewayModelCreate(ctx, namespace, gatewayRef, gatewayName, "", model, modelDependsOn, plan)
 	}
 }
 
 func (p *Planner) planAIGatewayModelCreate(
+	ctx context.Context,
 	_ string,
 	gatewayRef string,
 	_ string,
@@ -105,7 +108,7 @@ func (p *Planner) planAIGatewayModelCreate(
 	}
 
 	fields[FieldManagedBy] = resources.BuildModelManagedBy(nil, model.ManagedBy(),
-		resources.GetNamespace(model.Kongctl), model.Protected())
+		resources.GetNamespace(model.Kongctl), model.Protected(), build.Version(ctx))
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayModel, model.Ref),

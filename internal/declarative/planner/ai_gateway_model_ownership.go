@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -30,7 +31,7 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 		observed, exists := byName[model.Name()]
 		if !exists {
 			if plan.Metadata.Mode != PlanModeDelete {
-				p.planAIGatewayModelCreate(namespace, gatewayRef, gatewayName, gatewayID, model,
+				p.planAIGatewayModelCreate(ctx, namespace, gatewayRef, gatewayName, gatewayID, model,
 					aiGatewayModelCreateDependencies(model, providerDeps, policyDeps), plan)
 			}
 			continue
@@ -69,7 +70,12 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 		if model.AIGatewayModelModel != nil {
 			owned.AIGatewayModelModel = new(*model.AIGatewayModelModel)
 		}
-		owned.SetManagedBy(resources.BuildModelManagedBy(metadata, model.ManagedBy(), namespace, model.Protected()))
+		owned.SetManagedBy(resources.BuildModelManagedBy(
+			metadata, model.ManagedBy(), namespace, model.Protected(), build.Version(ctx),
+		))
+		if err := resources.ValidateChildManagedBy(owned.ManagedBy(), false); err != nil {
+			return err
+		}
 		update, fields, changed, err := p.shouldUpdateAIGatewayModel(*full, owned)
 		if err != nil {
 			return err
@@ -84,11 +90,7 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 			)
 		}
 		if protected {
-			before := maps.Clone(metadata)
-			after := maps.Clone(owned.ManagedBy())
-			delete(before, resources.ModelProtectedKey)
-			delete(after, resources.ModelProtectedKey)
-			if !maps.Equal(before, after) {
+			if !resources.ChildUnprotectionMetadataOnly(metadata, owned.ManagedBy()) {
 				return fmt.Errorf(
 					"AI Gateway model %q is protected; only protection can change while unprotecting",
 					model.Name(),
@@ -155,7 +157,7 @@ func (p *Planner) modelGatewayDeclarations(gatewayRef, gatewayID string) (
 	namespaces := make(map[string]bool)
 	if p.resources.SyncScope != nil {
 		for alias := range aliases {
-			for namespace := range p.resources.SyncScope.ModelNamespaces[alias] {
+			for namespace := range p.resources.SyncScope.OwnedChildNamespaces(resources.ResourceTypeAIGatewayModel, alias) {
 				namespaces[namespace] = true
 			}
 		}

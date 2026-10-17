@@ -14,7 +14,7 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 	creates := make(map[string]string)
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(*change, gatewayRef) {
+		if !aiGatewayChangeMatchesGateway(*change, gatewayRef, gatewayID) {
 			continue
 		}
 		if change.ResourceType == ResourceTypeAIGatewayCustomPolicy {
@@ -26,8 +26,8 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 	}
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.Namespace != namespace || change.ResourceType != ResourceTypeAIGatewayPolicy ||
-			!aiGatewayChildChangeMatchesParent(*change, gatewayRef) || change.Action == ActionDelete {
+		if change.ResourceType != ResourceTypeAIGatewayPolicy ||
+			!aiGatewayChangeMatchesGateway(*change, gatewayRef, gatewayID) || change.Action == ActionDelete {
 			continue
 		}
 		typeName, _ := change.Fields[FieldType].(string)
@@ -36,6 +36,7 @@ func (p *Planner) resolveAIGatewayCustomPolicyDependencies(
 		}
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		gatewayID:  gatewayID,
 		targetType: ResourceTypeAIGatewayCustomPolicy,
 		usesTarget: func(kind string) bool { return kind == ResourceTypeAIGatewayPolicy },
 		observe: func(ctx context.Context) ([]observedReferenceUser, error) {

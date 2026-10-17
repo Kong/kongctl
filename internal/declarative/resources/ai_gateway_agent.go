@@ -49,6 +49,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayAgentResource { return &gateway.Agents },
 			setParent:     func(child *AIGatewayAgentResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(40, "each Agent must declare an ai_gateway parent"),

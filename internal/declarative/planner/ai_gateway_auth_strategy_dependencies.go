@@ -20,7 +20,7 @@ func (p *Planner) resolveAIGatewayAuthStrategyDeletes(
 		}
 	}
 	for _, change := range plan.Changes {
-		if change.Namespace == namespace && aiGatewayChildChangeMatchesParent(change, gatewayRef) &&
+		if aiGatewayChangeMatchesGateway(change, gatewayRef, gatewayID) &&
 			change.ResourceType == ResourceTypeAIGatewayAuthStrategy && change.Action == ActionCreate {
 			if name, ok := change.Fields[FieldName].(string); ok {
 				namesByRef[change.ResourceRef] = name
@@ -45,6 +45,7 @@ func (p *Planner) resolveAIGatewayAuthStrategyDeletes(
 		return references(deletion, resolved)
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		gatewayID:  gatewayID,
 		targetType: ResourceTypeAIGatewayAuthStrategy, usesTarget: aiGatewayResourceUsesAuthStrategies,
 		observe: func(ctx context.Context) ([]observedReferenceUser, error) {
 			users, err := p.listAIGatewayAuthStrategyUsers(ctx, gatewayID)
