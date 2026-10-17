@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newFeaturesCommand(verb verbs.VerbValue, configure func(*cobra.Command)) *cobra.Command {
+func newFeaturesCommand(verb verbs.VerbValue, configure func(*cobra.Command)) (*cobra.Command, error) {
 	leaf := &cobra.Command{Use: "features [key|ULID]", Aliases: []string{"feature"}, Short: "Manage billing features"}
 	configure(leaf)
 	//exhaustive:ignore // Scoped imperative verbs only.
@@ -43,11 +43,11 @@ func newFeaturesCommand(verb verbs.VerbValue, configure func(*cobra.Command)) *c
 		query.Flags().String("file", "", "JSON or YAML cost query request file (required)")
 		query.RunE = func(c *cobra.Command, args []string) error { return runFeatures(c, args, verb, true) }
 		if err := maturity.AnnotateCommand(query, maturity.Metadata{Level: maturity.LevelBeta}); err != nil {
-			panic(err)
+			return nil, err
 		}
 		leaf.AddCommand(query)
 	}
-	return leaf
+	return leaf, nil
 }
 
 func runFeatures(c *cobra.Command, args []string, verb verbs.VerbValue, query bool) error {

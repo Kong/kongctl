@@ -112,5 +112,5 @@ func (p *Planner) planRootChanges(ctx context.Context, opts Options, plannerCtx 
 			)
 		}
 	}
-	return p.resolveMeterFeatureDeletes(ctx, plan)
+	return nil
 }

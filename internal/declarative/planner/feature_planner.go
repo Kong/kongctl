@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
@@ -55,19 +54,6 @@ func (p *featurePlanner) PlanChanges(ctx context.Context, cfg *Config, plan *Pla
 					Namespace:    cfg.Namespace,
 					Protection:   featureProtected(m),
 				}
-				if m.Meter != nil && tags.IsRefPlaceholder(m.Meter.ID) {
-					expression := strings.TrimPrefix(m.Meter.ID, tags.RefPlaceholderPrefix)
-					ref, _, _ := strings.Cut(expression, "#")
-					change.PayloadReferences = []PayloadReference{
-						{Path: "/meter/id", ResourceType: ResourceTypeMeter, Ref: ref, Selector: FieldID},
-					}
-					for _, pending := range plan.Changes {
-						if pending.ResourceType == ResourceTypeMeter && pending.ResourceRef == ref &&
-							pending.Action == ActionCreate {
-							change.DependsOn = append(change.DependsOn, pending.ID)
-						}
-					}
-				}
 				plan.AddChange(change)
 				return change.ID
 			},
@@ -96,8 +82,8 @@ func (p *featurePlanner) PlanChanges(ctx context.Context, cfg *Config, plan *Pla
 	)
 	retained := map[string]bool{}
 	for _, d := range desired {
-		if d.Meter != nil && !helpers.IsMeterULID(d.Meter.ID) {
-			resolved, err := p.resolveFeatureMeter(d.Meter.ID, plan)
+		if plan.Metadata.Mode != PlanModeDelete && d.Meter != nil && !helpers.IsMeterULID(d.Meter.ID) {
+			resolved, err := p.resolveFeatureMeter(ctx, d.Meter.ID)
 			if err != nil {
 				return fmt.Errorf("feature %q: %w", d.Ref, err)
 			}
@@ -253,16 +239,17 @@ func featureDiff(c state.Feature, d resources.FeatureResource) (bool, map[string
 	return len(fields) > 0, fields, changed
 }
 
-func (p *featurePlanner) resolveFeatureMeter(value string, plan *Plan) (string, error) {
+func (p *featurePlanner) resolveFeatureMeter(ctx context.Context, value string) (string, error) {
 	ref := value
 	if tags.IsRefPlaceholder(value) {
-		expression := strings.TrimPrefix(value, tags.RefPlaceholderPrefix)
 		var selector string
-		ref, selector, _ = strings.Cut(expression, "#")
-		if selector != FieldID && selector != "ID" {
+		var ok bool
+		ref, selector, ok = tags.ParseRefPlaceholder(value)
+		if !ok || (selector != FieldID && selector != "ID") {
 			return "", fmt.Errorf("meter reference must select id")
 		}
 	}
+
 	resource, ok := p.planner.resources.GetResourceByRef(ref)
 	if !ok || resource.GetType() != resources.ResourceTypeMeter {
 		return "", fmt.Errorf("meter.id must be a meter ref or an uppercase ULID; meter %q not found", ref)
@@ -270,12 +257,21 @@ func (p *featurePlanner) resolveFeatureMeter(value string, plan *Plan) (string, 
 	if id := resource.GetKonnectID(); id != "" {
 		return id, nil
 	}
-	for _, change := range plan.Changes {
-		if change.ResourceType == ResourceTypeMeter && change.ResourceRef == ref && change.Action == ActionCreate {
-			return tags.RefPlaceholderPrefix + ref + "#" + FieldID, nil
+	// Namespace planning may visit the feature before its meter. Observe
+	// globally so existing meter identities are available in either order.
+	current, err := p.planner.listMeters(ctx)
+	if err != nil {
+		return "", err
+	}
+	desired := resource.(*resources.MeterResource)
+	for _, meter := range current {
+		if desired.ID != "" && meter.ID == desired.ID || desired.ID == "" && meter.Key == desired.Key {
+			return meter.ID, nil
 		}
 	}
-	return "", fmt.Errorf("meter %q has no resolved ID; include its namespace in this plan", ref)
+	// The complete plan must supply the meter creation before this binding
+	// can execute. Validate that dependency after namespace plans are merged.
+	return tags.RefPlaceholderPrefix + ref + "#" + FieldID, nil
 }
 
 func (p *featurePlanner) planUpdate(
@@ -301,4 +297,39 @@ func (p *featurePlanner) planUpdate(
 			Protection:    ProtectionChange{Old: labels.IsProtectedResource(c.Labels), New: featureProtected(d)},
 		},
 	)
+}
+
+// Bind new meter dependencies against the complete plan, across namespaces.
+func bindFeatureMeterReferences(plan *Plan) error {
+	creates := map[string]string{}
+	for _, change := range plan.Changes {
+		if change.ResourceType == ResourceTypeMeter && change.Action == ActionCreate {
+			creates[change.ResourceRef] = change.ID
+		}
+	}
+	for i := range plan.Changes {
+		change := &plan.Changes[i]
+		if change.ResourceType != ResourceTypeFeature || change.Action != ActionCreate {
+			continue
+		}
+		meter, _ := change.Fields[FieldMeter].(map[string]any)
+		value, _ := meter[FieldID].(string)
+		if !tags.IsRefPlaceholder(value) {
+			continue
+		}
+		ref, _, ok := tags.ParseRefPlaceholder(value)
+		dependency := creates[ref]
+		if !ok || dependency == "" {
+			return fmt.Errorf(
+				"feature %q: meter %q has no resolved ID or creation operation in this plan",
+				change.ResourceRef,
+				ref,
+			)
+		}
+		change.PayloadReferences = append(change.PayloadReferences, PayloadReference{
+			Path: "/meter/id", ResourceType: ResourceTypeMeter, Ref: ref, Selector: FieldID,
+		})
+		change.DependsOn = appendDependsOn(change.DependsOn, dependency)
+	}
+	return nil
 }

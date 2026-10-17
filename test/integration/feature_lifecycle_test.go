@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/kong/kongctl/internal/declarative/executor"
@@ -22,12 +23,18 @@ import (
 )
 
 func TestFeatureDeclarativeLifecycle(t *testing.T) {
-	for _, reference := range []string{"local-usage", "!ref local-usage#id"} {
-		t.Run(reference, func(t *testing.T) { testFeatureDeclarativeLifecycle(t, reference) })
+	for _, namespaces := range []struct{ meter, feature string }{
+		{"billing", "billing"}, {"a-meter", "z-feature"}, {"z-meter", "a-feature"},
+	} {
+		for _, reference := range []string{"local-usage", "!ref local-usage#id"} {
+			t.Run(namespaces.meter+"/"+namespaces.feature+"/"+reference, func(t *testing.T) {
+				testFeatureDeclarativeLifecycle(t, reference, namespaces.meter, namespaces.feature)
+			})
+		}
 	}
 }
 
-func testFeatureDeclarativeLifecycle(t *testing.T, meterReference string) {
+func testFeatureDeclarativeLifecycle(t *testing.T, meterReference, meterNamespace, featureNamespace string) {
 	server := fixture.NewFeatureServer(t)
 	meters := fixture.NewMeterServer(t)
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -44,12 +51,16 @@ func testFeatureDeclarativeLifecycle(t *testing.T, meterReference string) {
     namespace: billing
 meters:
   - ref: local-usage
+    kongctl:
+      namespace: `+meterNamespace+`
     name: Usage
     key: usage
     aggregation: count
     event_type: request
 features:
   - ref: local-feature
+    kongctl:
+      namespace: `+featureNamespace+`
     name: Requests
     key: requests
     meter:
@@ -80,11 +91,17 @@ features:
 	write("    unit_cost: {type: manual, amount: '0.02'}\n")
 	first := plan(planner.PlanModeApply)
 	require.Len(t, first.Changes, 2)
-	require.NotEmpty(t, first.Changes[1].DependsOn)
+	featureIndex := slices.IndexFunc(first.Changes, func(change planner.PlannedChange) bool {
+		return change.ResourceType == planner.ResourceTypeFeature
+	})
+	meterIndex := slices.IndexFunc(first.Changes, func(change planner.PlannedChange) bool {
+		return change.ResourceType == planner.ResourceTypeMeter
+	})
+	require.Contains(t, first.Changes[featureIndex].DependsOn, first.Changes[meterIndex].ID)
 	apply(first)
 	values, writes := server.Snapshot()
 	require.Equal(t, fixture.MeterID, values[0].Meter.ID)
-	require.Equal(t, "billing", values[0].Labels[labels.NamespaceKey])
+	require.Equal(t, featureNamespace, values[0].Labels[labels.NamespaceKey])
 	require.Len(t, writes, 1)
 	require.Empty(t, plan(planner.PlanModeApply).Changes)
 	write("")
@@ -105,11 +122,14 @@ features:
 	result := executor.New(client, nil, false).Execute(ctx, update)
 	require.Equal(t, 1, result.FailureCount)
 	require.Contains(t, result.Errors[0].Error, "no longer owned")
-	server.SetLabels(fixture.FeatureID, map[string]string{labels.NamespaceKey: "billing", labels.ProtectedKey: "true"})
+	server.SetLabels(
+		fixture.FeatureID,
+		map[string]string{labels.NamespaceKey: featureNamespace, labels.ProtectedKey: "true"},
+	)
 	result = executor.New(client, nil, false).Execute(ctx, update)
 	require.Equal(t, 1, result.FailureCount)
 	require.Contains(t, result.Errors[0].Error, "protected")
-	server.SetLabels(fixture.FeatureID, map[string]string{labels.NamespaceKey: "billing"})
+	server.SetLabels(fixture.FeatureID, map[string]string{labels.NamespaceKey: featureNamespace})
 	apply(update)
 	require.Empty(t, plan(planner.PlanModeApply).Changes)
 	server.Fail(403)

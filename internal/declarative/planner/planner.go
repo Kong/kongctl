@@ -268,6 +268,13 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
+	if err := p.resolveMeterFeatureDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := bindFeatureMeterReferences(basePlan); err != nil {
+		return nil, err
+	}
+
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
 
 	// Child matching discovers identities during resource planning. If these
