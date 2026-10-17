@@ -44,6 +44,8 @@ func init() {
 			return NamespaceParticipant{Ref: r.Ref, Label: "meter", SupportsProtected: true, Meta: &r.Kongctl}
 		}),
 		WithRootSyncScope(),
+		WithExternalUnsupportedReason("meter lookups use explicit remote ULIDs; "+
+			"external declarations and key-based lookups are not implemented"),
 		withCollectionValidation(190, meterCollectionValidation),
 	)
 }

@@ -2765,6 +2765,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		AIGatewaySNIsAPI:                  kkClient.GetAIGatewaySNIsAPI(),
 		DashboardsAPI:                     kkClient.GetDashboardsAPI(),
 		MetersAPI:                         kkClient.GetMetersAPI(),
+		FeaturesAPI:                       kkClient.GetFeaturesAPI(),
 
 		// Portal child resource APIs
 		PortalPageAPI:             kkClient.GetPortalPageAPI(),

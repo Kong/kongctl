@@ -42,6 +42,13 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 			},
 			func(rs *declresources.ResourceSet) *[]declresources.MeterResource { return &rs.Meters },
 			nil,
+		), rootCollector(
+			"features",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.FeatureResource, error) {
+				return collectDeclarativeFeatures(ctx, d.sdk.GetFeaturesAPI(), d.pageSize, d.filter)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.FeatureResource { return &rs.Features },
+			nil,
 		),
 		rootCollector(
 			"portals",

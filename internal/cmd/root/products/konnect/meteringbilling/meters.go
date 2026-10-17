@@ -25,7 +25,7 @@ import (
 const CommandName = "metering-billing"
 
 // NewCommand establishes the shared M&B namespace for subsequent resource families.
-func NewCommand(verb verbs.VerbValue) *cobra.Command {
+func NewCommand(verb verbs.VerbValue) (*cobra.Command, error) {
 	family := &cobra.Command{
 		Use:     CommandName,
 		Aliases: []string{"mb"},
@@ -41,7 +41,7 @@ func NewCommand(verb verbs.VerbValue) *cobra.Command {
 	case verbs.Update, verbs.Delete, verbs.Adopt:
 		leaf.Args = cobra.ExactArgs(1)
 	default:
-		return nil
+		return nil, nil
 	}
 	configure := func(c *cobra.Command) {
 		c.Flags().String(common.BaseURLFlagName, "", "Konnect API base URL")
@@ -120,7 +120,12 @@ func NewCommand(verb verbs.VerbValue) *cobra.Command {
 		leaf.AddCommand(query)
 	}
 	family.AddCommand(leaf)
-	return family
+	features, err := newFeaturesCommand(verb, configure)
+	if err != nil {
+		return nil, err
+	}
+	family.AddCommand(features)
+	return family, nil
 }
 
 func readRequest(c *cobra.Command, target any) error {
