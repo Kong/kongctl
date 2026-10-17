@@ -66,6 +66,8 @@ Registering a declaration does not complete those steps automatically.
   `AutoExplain[...]`. External-capable resources use
   `registerExternalResourceType`; see [references](#references-and-lookups).
   Use slice-accessor variants when storage is behind a grouping object.
+  Register each kind once. All variants reject duplicates after local option
+  validation and before changing resource, namespace or child inventories.
 - Add planner resource aliases and new `Field*` identifiers in
   [planner constants][constants]. Use typed `ResourceRef.Kind` values and
   constants for plan fields, references, required fields, and executor access.
@@ -375,8 +377,8 @@ Child options preserve compatibility policies beside registration:
   and fallback inference. Portal teams also scope portal team roles. Root
   `portal_teams` presence alone does not capture role scope in the loader.
 
-All ten roots and 53 child kinds register scope. Exceptional shapes retain
-explicit policies:
+Managed roots and children register scope; coverage tests check the registered
+inventory. Exceptional shapes retain explicit policies:
 
 - `WithNestedSyncScopeCapture` attaches a root's presence policy. The
   [Portal policy][portal-scope] derives direct child and singleton/map keys
