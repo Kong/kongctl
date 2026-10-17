@@ -19,10 +19,11 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
 		t.Skipf("python3 is required for the CLI fixture: %v", err)
 	}
 	for _, tc := range []struct {
-		name, scenario string
-		start, end     int
-		plan           string
-		reads          []string
+		name, scenario   string
+		start, end       int
+		plan             string
+		reads            []string
+		convergenceFault bool
 	}{
 		{
 			"team-create", "org/teams/sync", 1, 2,
@@ -61,6 +62,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     }
   }
 ]`},
+			false,
 		},
 		{
 			"team-update", "org/teams/sync", 2, 3,
@@ -101,6 +103,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     }
   }
 ]`},
+			true,
 		},
 		{
 			"team-delete", "org/teams/sync", 3, 4,
@@ -116,6 +119,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
   }
 }`,
 			[]string{`[]`},
+			false,
 		},
 		{
 			"declarative-delete", "delete/declarative", 2, 4,
@@ -137,6 +141,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
   ]
 }`,
 			[]string{`[]`, `[]`, `[]`, `[]`, `[]`, `[]`},
+			false,
 		},
 		{
 			"deck-create", "deck/sync", 1, 2,
@@ -173,6 +178,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     }
   }
 ]`},
+			false,
 		},
 		{
 			"team-apply-create", "org/teams/apply", 1, 2,
@@ -234,6 +240,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     }
   }
 ]`},
+			true,
 		},
 		{
 			"team-apply-update", "org/teams/apply", 2, 3,
@@ -329,6 +336,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     "system_team": false
   }
 ]`},
+			true,
 		},
 		{
 			"team-apply-delete", "org/teams/apply", 3, 4,
@@ -344,6 +352,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
   }
 }`,
 			[]string{`[]`},
+			false,
 		},
 		{
 			"cp-implementation-create", "apis/control-plane-implementation", 1, 3,
@@ -381,6 +390,7 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     }
   }
 ]`},
+			true,
 		},
 		{
 			"cp-implementation-delete", "apis/control-plane-implementation", 4, 5,
@@ -407,12 +417,12 @@ func TestScenarioContractsAfterPartialMutation(t *testing.T) {
     "name": "e2e-api-implementation-cp"
   }
 ]`},
+			false,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			faults := []string{"", "plan", "readback"}
-			if tc.name == "team-update" || tc.name == "cp-implementation-create" ||
-				tc.name == "team-apply-create" || tc.name == "team-apply-update" {
+			if tc.convergenceFault {
 				faults = append(faults, "convergence")
 			}
 			for _, fault := range faults {
