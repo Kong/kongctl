@@ -16,6 +16,12 @@ local development builds). Saved plans use the executing binary's version at
 write time. These provenance fields do not establish ownership or enable
 federation. A version change alone does not schedule a write.
 
+Writing is explicitly registered through `WithManagedBy` and each resource's
+`ManagedByPolicy`. The shared planner and state request helper also support
+later non-AI Gateway enrollment. See the
+[incremental migration guide](contributor/managed-by.md) for write-only
+enrollment alongside existing management labels and the later ownership step.
+
 Participating children also persist `kongctl-namespace` and
 `kongctl-protected` in `managed_by`. Their explicit namespace overrides the
 source file default, then the literal `default` namespace. Gateway metadata

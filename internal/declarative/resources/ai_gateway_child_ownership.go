@@ -35,17 +35,13 @@ func BuildChildManagedBy(
 }
 
 func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
-	if len(metadata) > ChildManagedByLimit {
-		return fmt.Errorf("managed_by exceeds the five-entry limit after merging generated metadata (%d entries)",
-			len(metadata))
+	if err := ValidateManagedBy(metadata, ManagedByPolicy{MaxEntries: ChildManagedByLimit}); err != nil {
+		return err
 	}
 	for key := range metadata {
 		if raw && (key == ChildNamespaceKey || key == ChildProtectedKey ||
 			key == ManagedByToolKey || key == ManagedByVersionKey) {
 			return fmt.Errorf("managed_by key %q is reserved for kongctl", key)
-		}
-		if len(key) < 1 || len(key) > 63 || !isMetadataAlphanumeric(key[0]) {
-			return fmt.Errorf("invalid managed_by key: keys must be 1–63 characters and start with an alphanumeric character")
 		}
 	}
 	return nil

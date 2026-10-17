@@ -75,7 +75,7 @@ func (c *Client) CreateAIGatewayCertificate(
 	req kkComps.CreateAIGatewayCertificateRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCertificate, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayCertificatesAPI, aiGatewayCertificatesAPIName); err != nil {
@@ -100,7 +100,7 @@ func (c *Client) UpdateAIGatewayCertificate(
 	req kkComps.UpdateAIGatewayCertificateRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCertificate, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayCertificatesAPI, aiGatewayCertificatesAPIName); err != nil {
@@ -195,7 +195,7 @@ func (c *Client) CreateAIGatewayCACertificate(
 	req kkComps.CreateAIGatewayCACertificateRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCACertificate, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayCACertificatesAPI, aiGatewayCACertificatesAPIName); err != nil {
@@ -220,7 +220,7 @@ func (c *Client) UpdateAIGatewayCACertificate(
 	req kkComps.UpdateAIGatewayCACertificateRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCACertificate, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayCACertificatesAPI, aiGatewayCACertificatesAPIName); err != nil {
@@ -312,7 +312,7 @@ func (c *Client) CreateAIGatewaySNI(
 	req kkComps.CreateAIGatewaySNIRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewaySNI, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewaySNIsAPI, aiGatewaySNIsAPIName); err != nil {
@@ -337,7 +337,7 @@ func (c *Client) UpdateAIGatewaySNI(
 	req kkComps.UpdateAIGatewaySNIRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewaySNI, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewaySNIsAPI, aiGatewaySNIsAPIName); err != nil {

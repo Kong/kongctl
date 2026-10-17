@@ -37,6 +37,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayProviderResource { return &gateway.Providers },
 			setParent:     func(child *AIGatewayProviderResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(10, "each Model Provider must declare an ai_gateway parent"),

@@ -55,6 +55,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayMCPServerResource { return &gateway.MCPServers },
 			setParent:     func(child *AIGatewayMCPServerResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(90, "each MCP Server must declare an ai_gateway parent"),

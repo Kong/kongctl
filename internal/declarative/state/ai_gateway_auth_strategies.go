@@ -145,7 +145,7 @@ func (c *Client) CreateAIGatewayAuthStrategy(
 	req kkComps.CreateAIGatewayAuthStrategyRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayAuthStrategy, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayAuthStrategiesAPI, "AI Gateway Auth Strategies API"); err != nil {
@@ -180,7 +180,7 @@ func (c *Client) UpdateAIGatewayAuthStrategy(
 	req kkComps.UpdateAIGatewayAuthStrategyRequest,
 	namespace string,
 ) (string, error) {
-	if err := stampAIGatewayManagedBy(ctx, &req); err != nil {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayAuthStrategy, &req); err != nil {
 		return "", err
 	}
 	if err := ValidateAPIClient(c.aiGatewayAuthStrategiesAPI, "AI Gateway Auth Strategies API"); err != nil {

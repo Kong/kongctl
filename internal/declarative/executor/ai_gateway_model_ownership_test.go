@@ -264,6 +264,6 @@ func TestModelExecutionRejectsFreshMetadataCapacityOverflow(t *testing.T) {
 		metadata[key] = "other-tool"
 	}
 	_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
-	require.ErrorContains(t, err, "five-entry")
+	require.ErrorContains(t, err, "5-entry")
 	require.Zero(t, api.updates)
 }
