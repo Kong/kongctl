@@ -1,0 +1,16 @@
+_defaults:
+  kongctl:
+    namespace: federated-team-b
+ai_gateway_models:
+  - ref: team-b-files
+    ai_gateway: !lookup {name: federated-models-e2e}
+    name: team-b-files
+    display_name: Team B files
+    type: api
+    config: {route: {}}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: shared-openai
+        config: {type: openai}
+    capabilities: [files]

@@ -1,0 +1,19 @@
+_defaults:
+  kongctl:
+    namespace: federated-platform
+ai_gateways:
+  - ref: shared
+    name: federated-models-e2e
+    display_name: Federated models E2E
+    model_providers:
+      - ref: openai
+        name: shared-openai
+        display_name: Shared OpenAI
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers:
+              - name: Authorization
+                value: !secret
+                  source: !env FEDERATED_MODEL_AUTH

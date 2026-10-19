@@ -1,0 +1,162 @@
+# Independent AI Gateway model ownership
+
+AI Gateway models have their own kongctl namespace and protection, independently
+of their gateway. This applies to both `type: model` and `type: api` and is the
+default behavior. Other AI Gateway children retain their existing reconciliation
+rules; providers do not gain independent namespace ownership.
+
+## Declaring ownership
+
+```yaml
+_defaults:
+  kongctl:
+    namespace: team-a
+
+ai_gateway_models:
+  - ref: team-chat
+    ai_gateway: !lookup {name: shared-ai-gateway}
+    kongctl:
+      protected: false
+    type: model
+    name: team-chat
+    display_name: Team chat
+    config:
+      route: {}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: shared-openai
+        config: {type: openai}
+    capabilities: [generate]
+```
+
+Explicit model `kongctl` values override file defaults. Without either, the
+model uses namespace `default` and protection `false`. Nested models follow the
+same rule: gateway metadata never supplies model namespace or protection.
+Namespace guardrails include models, including nested declarations.
+
+kongctl generates lifecycle metadata on the remote model:
+
+```yaml
+managed_by:
+  kongctl-namespace: team-a
+  kongctl-protected: "false"
+```
+
+These lowercase keys are reserved. Set them through `kongctl`, not raw
+`managed_by` manifest entries. Public labels continue to use their existing
+convention on other resources. Model ownership never uses public labels.
+Unrelated `managed_by` entries survive updates, including entries added after
+planning. Entries explicitly declared by the user are merged into that map.
+Dump converts the reserved keys back into model-level `kongctl` metadata and
+retains unrelated entries. Dumping an unowned model does not adopt it.
+
+Names remain gateway-wide identities: two namespaces cannot manage separate
+models with the same name on one gateway. A foreign-owned or unowned name match
+fails planning, including when the desired payload matches the remote payload.
+No usable partial plan is returned on failure.
+
+## Sync and deletion
+
+Apply creates and updates; it does not prune models. Sync reconciles the model
+namespaces explicitly in scope for that gateway. Unowned models and models in
+other namespaces are retained. A gateway lookup does not claim ownership of the
+gateway or put its providers in deletion scope.
+
+To remove a team's last model, identify the gateway and declare an empty nested
+collection in a file using that team's namespace:
+
+```yaml
+_defaults:
+  kongctl:
+    namespace: team-a
+ai_gateways:
+  - ref: shared
+    _external:
+      selector:
+        matchFields:
+          name: shared-ai-gateway
+    models: []
+```
+
+This deletes only unprotected models owned by `team-a`. An omitted `models` key
+leaves the collection alone. An empty root `ai_gateway_models: []` is rejected
+because it identifies no gateway. Empty nested scope uses the file namespace,
+not metadata on the gateway. Multi-file loading retains each source's model
+namespace scope independently.
+
+A protected model cannot be updated or deleted. To unprotect it, first apply
+only the protection change; make payload changes in a subsequent operation.
+Gateway protection does not implicitly protect independently owned models.
+Deleting a gateway itself remains a separate parent lifecycle operation.
+
+## Migrating and adopting existing models
+
+Models without `managed_by.kongctl-namespace` are unowned, even if their gateway
+is kongctl-managed or belongs to `default`. A file namespace default expresses
+desired ownership; it does not adopt remote models. Old gateway-wide model
+reconciliation is no longer used. Regenerate existing model plans after
+upgrading; execution rechecks ownership and rejects unowned or foreign models.
+
+Adoption is an explicit API update performed by the resource owner. Inspect the
+model and coordinate with anyone already managing it before assigning a
+namespace. For example, export a complete update payload and preserve other
+tools' metadata:
+
+```sh
+kongctl get ai-gateway models --gateway-id GATEWAY_ID MODEL_ID -o json |
+  jq --arg namespace team-a '
+    del(.id, .created_at, .updated_at) |
+    .managed_by = ((.managed_by // {}) + {
+      "kongctl-namespace": $namespace,
+      "kongctl-protected": "false"
+    })' > adopted-model.json
+
+curl --fail-with-body --request PUT \
+  "https://us.api.konghq.com/v1/ai-gateways/GATEWAY_ID/models/MODEL_ID" \
+  --header "Authorization: Bearer $KONNECT_PAT" \
+  --header "Content-Type: application/json" \
+  --data-binary @adopted-model.json
+```
+
+Use the organization's regional API URL and choose protection deliberately.
+The API replaces `managed_by`; sending only the reserved keys can erase other
+tools' metadata. Verify the result with GET and list, remove reserved keys from
+raw manifest `managed_by`, and replan with the matching model namespace.
+Teams can migrate independently, but every existing model declared in one load
+must have matching ownership before that load can reconcile successfully.
+
+Changing a manifest namespace does not transfer ownership. Transfer requires
+coordinating both owners, stopping their reconciliation pipelines, explicitly
+updating the remote namespace through the API, updating the destination
+configuration, and regenerating plans. kongctl does not automatically adopt or
+transfer ownership.
+
+## API behavior and limits
+
+Live verification on 2026-10-13 confirmed lowercase `kongctl-*` keys on create,
+update, GET, and list for both variants, and confirmed replacement of the map
+on update. List returns ownership metadata, so scope filtering needs no
+per-model GETs for pruning. Declared name matches still use GET for full payload
+diffing. One complete, unfiltered gateway observation cache is shared by all
+namespaces and reference checks during each planning run. Every page must
+succeed before planning can produce a usable plan; missing responses and
+repeated pagination cursors also fail planning.
+
+The tested GET responses returned no `ETag` or `Last-Modified`. PUT and DELETE
+with a deliberately invalid `If-Match` header still succeeded; that header did
+not provide a conditional mutation guard on the tested deployment.
+
+The pinned SDK exposes gateway and pagination parameters, without an ownership
+filter, snapshot token, or conditional update/delete parameter. Pagination is
+not treated as a consistent snapshot during concurrent writes. Every namespace
+reads the gateway's entire model collection, so cost grows with total gateway
+size and the number of pipelines.
+
+Execution checks current ownership and protection before mutation, including
+saved plans and direct executor deletion. These checks cannot close the race
+between reading metadata and writing the model. Ownership is cooperative
+client metadata, not API authorization: credentials can still access other
+teams' models through another client. Server filtering, conditional mutations,
+and authorization require separate API contracts. Targets remain nested model
+payload; this feature does not divide ownership within one model.
