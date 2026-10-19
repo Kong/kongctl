@@ -55,25 +55,10 @@ func (a *apiPlannerImpl) PlanChanges(ctx context.Context, plannerCtx *Config, pl
 		return nil
 	}
 
-	// Plan child resources that are defined separately
-	if err := a.planner.planAPIVersionsChanges(ctx, plannerCtx, a.GetDesiredAPIVersions(namespace), plan); err != nil {
-		return err
-	}
-
-	if err := a.planner.planAPIPublicationsChanges(
-		ctx, plannerCtx, a.GetDesiredAPIPublications(namespace), plan,
-	); err != nil {
-		return err
-	}
-
-	if err := a.planner.planAPIImplementationsChanges(
-		ctx, plannerCtx, a.GetDesiredAPIImplementations(namespace), plan,
-	); err != nil {
-		return err
-	}
-
-	if err := a.planner.planAPIDocumentsChanges(ctx, plannerCtx, a.GetDesiredAPIDocuments(namespace), plan); err != nil {
-		return err
+	for _, child := range a.planner.apiChildPlanningInventory() {
+		if err := child.extracted(ctx, plannerCtx, a.BasePlanner, namespace, plan); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -527,44 +512,8 @@ func (p *Planner) planAPIDelete(api state.API, plan *Plan) {
 func (p *Planner) planAPIChildResourcesCreate(
 	parentNamespace string, api resources.APIResource, apiChangeID string, plan *Plan,
 ) {
-	// Plan version creation - API ID is not yet known
-	for _, version := range p.getAPIVersionsForAPI(api) {
-		if plan.HasChange(ResourceTypeAPIVersion, version.GetRef()) {
-			continue
-		}
-		p.planAPIVersionCreate(parentNamespace, api.GetRef(), "", version, []string{apiChangeID}, plan)
-	}
-
-	// Plan publication creation - API ID is not yet known
-	for _, publication := range p.getAPIPublicationsForAPI(api) {
-		if plan.HasChange(ResourceTypeAPIPublication, publication.GetRef()) {
-			continue
-		}
-		p.planAPIPublicationCreate(parentNamespace, api.GetRef(), "", publication, []string{apiChangeID}, plan)
-	}
-
-	// Plan implementation creation - API ID is not yet known
-	for _, implementation := range p.getAPIImplementationsForAPI(api) {
-		if plan.HasChange(ResourceTypeAPIImplementation, implementation.GetRef()) {
-			continue
-		}
-		p.planAPIImplementationCreate(parentNamespace, api.GetRef(), "", implementation, []string{apiChangeID}, plan)
-	}
-
-	// Plan document creation - API ID is not yet known
-	for _, document := range p.getAPIDocumentsForAPI(api) {
-		if plan.HasChange(ResourceTypeAPIDocument, document.GetRef()) {
-			continue
-		}
-		p.planAPIDocumentCreate(
-			parentNamespace,
-			api.GetRef(),
-			"",
-			document,
-			[]string{apiChangeID},
-			apiDocumentLookup{},
-			plan,
-		)
+	for _, child := range p.apiChildPlanningInventory() {
+		child.create(parentNamespace, api, apiChangeID, plan)
 	}
 }
 
@@ -666,35 +615,9 @@ func (p *Planner) planAPIChildResourceChanges(
 		parentNamespace = *desired.Kongctl.Namespace
 	}
 
-	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIVersion) {
-		if err := p.planAPIVersionChanges(
-			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Versions, plan,
-		); err != nil {
-			return fmt.Errorf("failed to plan API version changes: %w", err)
-		}
-	}
-
-	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIPublication) {
-		if err := p.planAPIPublicationChanges(
-			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Publications, plan,
-		); err != nil {
-			return fmt.Errorf("failed to plan API publication changes: %w", err)
-		}
-	}
-
-	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIImplementation) {
-		if err := p.planAPIImplementationChanges(
-			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Implementations, plan,
-		); err != nil {
-			return fmt.Errorf("failed to plan API implementation changes: %w", err)
-		}
-	}
-
-	if p.shouldPlanChild(plan, resources.ResourceTypeAPI, desired.GetRef(), resources.ResourceTypeAPIDocument) {
-		if err := p.planAPIDocumentChanges(
-			ctx, plannerCtx, parentNamespace, current.ID, desired.GetRef(), desired.Documents, plan,
-		); err != nil {
-			return fmt.Errorf("failed to plan API document changes: %w", err)
+	for _, child := range p.apiChildPlanningInventory() {
+		if err := child.reconcile(ctx, plannerCtx, parentNamespace, current.ID, desired, plan); err != nil {
+			return err
 		}
 	}
 

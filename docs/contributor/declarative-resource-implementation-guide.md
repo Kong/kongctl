@@ -553,6 +553,12 @@ Choose identity and operation semantics before selecting a reusable strategy:
 - **Parents with managed children:** [API planning][api-plan] and
   [portal child planning][portal-children] demonstrate parent/child traversal.
   Preserve child planning for new, existing, and external parents.
+  Add API child dispatch once in the [planning inventory][api-child-inventory]:
+  versions, publications, implementations, then documents (not export order).
+  Typed adapters bind nested and extracted selection to existing lifecycle
+  methods. New parents combine nested/extracted declarations and skip planned
+  refs; existing parents use scoped nested collections before the extracted
+  phase. Keep document lookup preparation and external explicit deletes local.
   Extracted API versions, publications, implementations and documents share
   [parent grouping and resolution][api-child-groups]. Typed adapters prepare
   each collection and supply create/reconcile actions. Preserve CREATE scan
@@ -1338,3 +1344,5 @@ engine contract. Each refactoring migration should:
 [indexed-reconcile]: ../../internal/declarative/planner/indexed_child_reconciler.go
 
 [api-child-groups]: ../../internal/declarative/planner/api_child_groups.go
+
+[api-child-inventory]: ../../internal/declarative/planner/api_child_inventory.go
