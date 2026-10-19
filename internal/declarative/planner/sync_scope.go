@@ -2,6 +2,8 @@ package planner
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -17,6 +19,8 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 	childScopes := scope.ChildScopes()
 	rootChildTypes := scope.RootChildCollectionTypes()
 	metadata := &PlanSyncScope{
+		ModelNamespaces:            modelScopeNamespaces(scope),
+		GatewayNamespaces:          slices.Sorted(maps.Keys(scope.GatewayNamespaces)),
 		RootResourceTypes:          make([]string, 0, len(rootTypes)),
 		ChildResourceTypes:         make([]PlanSyncChildScope, 0, len(childScopes)),
 		RootChildResourceTypes:     make([]string, 0, len(rootChildTypes)),

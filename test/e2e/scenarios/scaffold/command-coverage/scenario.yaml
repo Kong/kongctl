@@ -143,7 +143,9 @@ steps:
                 "contains(stdout, '# type: api')": true
                 "contains(stdout, 'provider: openai')": false
                 "contains(stdout, 'ai_gateway: value')": false
-                "contains(stdout, 'kongctl:')": false
+                "contains(stdout, '# kongctl:')": true
+                "contains(stdout, '# namespace: default')": true
+                "contains(stdout, '# protected: false')": true
 
   - name: 008-scaffold-ai-gateway-data-plane-certificates
     skipInputs: true
