@@ -29,6 +29,10 @@ func validateAIGatewayScenarioExplainSchemas(t *testing.T, resourceSet *resource
 	t.Helper()
 
 	for i := range resourceSet.AIGateways {
+		if resourceSet.AIGateways[i].IsExternal() {
+			require.NoError(t, resourceSet.AIGateways[i].Validate())
+			continue
+		}
 		validateResourceAgainstExplainSchema(t, string(resources.ResourceTypeAIGateway), &resourceSet.AIGateways[i])
 	}
 	for i := range resourceSet.AIGatewayProviders {

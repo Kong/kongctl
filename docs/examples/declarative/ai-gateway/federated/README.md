@@ -27,6 +27,13 @@ ai-gateway/federated/
 
 ## Ownership
 
+Models have independent namespace and protection. The other children in this
+example retain gateway-scoped reconciliation. To independently sync a team's
+models, give its model file a team namespace and reference the shared gateway
+through an external lookup. Existing unowned models need explicit adoption.
+See [model ownership](../../../../ai-gateway-model-ownership.md) for migration
+and removal of a team's last model.
+
 - `central-team/ai-gateway.yaml` defines the shared AI Gateway, a shared
   key-auth strategy, and two nested model providers: OpenAI
   and Anthropic.
