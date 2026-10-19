@@ -62,6 +62,19 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 		if account == nil || account.GetKonnectID() == "" {
 			continue
 		}
+		// A lookup can place a desired membership in the external namespace
+		// while its managed team is also observed in this namespace.
+		desiredTeamIDs := make(map[string]bool)
+		for _, membership := range t.planner.resources.OrganizationSystemAccountTeamMemberships {
+			if membership.SystemAccount == accountRef {
+				_, id, _ := t.resolveOrganizationTeamForAssignment(
+					membership.Team, t.planner.resources.OrganizationTeams, currentByName,
+				)
+				if id != "" {
+					desiredTeamIDs[id] = true
+				}
+			}
+		}
 
 		currentMemberships, err := t.planner.client.ListOrganizationSystemAccountTeams(ctx, account.GetKonnectID())
 		if err != nil {
@@ -116,6 +129,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 					)
 				},
 				remove: func(existing state.OrganizationSystemAccountTeamMembership) {
+					if desiredTeamIDs[existing.TeamID] {
+						return
+					}
 					t.planOrganizationSystemAccountTeamMembershipDelete(
 						namespace,
 						accountRef,

@@ -53,6 +53,19 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 		if user == nil || user.GetKonnectID() == "" {
 			continue
 		}
+		// Memberships selected in another namespace still protect the same
+		// remote assignment from pruning here.
+		desiredTeamIDs := make(map[string]bool)
+		for _, membership := range t.planner.resources.OrganizationUserTeamMemberships {
+			if membership.User == userRef {
+				_, id, _ := t.resolveOrganizationTeamForAssignment(
+					membership.Team, t.planner.resources.OrganizationTeams, currentByName,
+				)
+				if id != "" {
+					desiredTeamIDs[id] = true
+				}
+			}
+		}
 
 		currentMemberships, err := t.planner.client.ListOrganizationUserTeams(ctx, user.GetKonnectID())
 		if err != nil {
@@ -100,6 +113,9 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 					)
 				},
 				remove: func(existing state.OrganizationUserTeamMembership) {
+					if desiredTeamIDs[existing.TeamID] {
+						return
+					}
 					t.planOrganizationUserTeamMembershipDelete(namespace, userRef, user.GetKonnectID(), existing, plan)
 				},
 			},
