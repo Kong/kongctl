@@ -64,6 +64,9 @@ func mapAIGatewayScenarioCreatePayloads(t *testing.T, resourceSet *resources.Res
 	t.Helper()
 
 	for _, resource := range resourceSet.AIGateways {
+		if resource.IsExternal() {
+			continue
+		}
 		fields := map[string]any{
 			planner.FieldName:        resource.Name,
 			planner.FieldDisplayName: resource.DisplayName,

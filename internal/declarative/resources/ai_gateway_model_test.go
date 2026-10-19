@@ -263,14 +263,30 @@ func TestAIGatewayModelResourceUnmarshalAPIVariant(t *testing.T) {
 	require.NoError(t, model.Validate())
 }
 
-func TestAIGatewayModelResourceRejectsKongctlMetadata(t *testing.T) {
+func TestAIGatewayModelResourceAcceptsKongctlMetadata(t *testing.T) {
 	payload := strings.Replace(aiGatewayModelJSON, `"ai_gateway": "support-gateway",`,
 		`"ai_gateway": "support-gateway", "kongctl": {"namespace": "default"},`, 1)
 
 	var model AIGatewayModelResource
 	err := json.Unmarshal([]byte(payload), &model)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "kongctl metadata")
+	require.NoError(t, err)
+	require.NoError(t, model.Validate())
+	require.Equal(t, "default", *model.Kongctl.Namespace)
+}
+
+func TestAIGatewayModelMetadataReservesOwnershipKeys(t *testing.T) {
+	for _, payload := range []string{aiGatewayModelJSON, aiGatewayAPIModelJSON} {
+		for _, key := range []string{ModelNamespaceKey, ModelProtectedKey, "", "_invalid", strings.Repeat("a", 64)} {
+			var model AIGatewayModelResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &model))
+			model.SetManagedBy(map[string]string{key: "value"})
+			require.Error(t, model.Validate())
+		}
+		var model AIGatewayModelResource
+		require.NoError(t, json.Unmarshal([]byte(payload), &model))
+		model.SetManagedBy(map[string]string{"other-tool": "retained"})
+		require.NoError(t, model.Validate())
+	}
 }
 
 func TestAIGatewayModelResourceMarshalPreservesParentAndPayload(t *testing.T) {

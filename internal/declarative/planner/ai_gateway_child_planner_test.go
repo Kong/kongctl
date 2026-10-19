@@ -76,7 +76,11 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 			for i, change := range children {
 				require.Equal(t, wantKinds[i], change.ResourceType)
 				require.Equal(t, ActionCreate, change.Action)
-				require.Equal(t, namespace, change.Namespace)
+				if change.ResourceType == ResourceTypeAIGatewayModel {
+					require.Equal(t, DefaultNamespace, change.Namespace)
+				} else {
+					require.Equal(t, namespace, change.Namespace)
+				}
 				if parent == "new" {
 					require.Nil(t, change.Parent)
 					require.Equal(t, gateway.Ref, change.References[FieldAIGatewayID].Ref)

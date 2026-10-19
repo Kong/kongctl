@@ -89,6 +89,11 @@ func (p *Planner) planAIGatewayChanges(
 	if plan.Metadata.Mode == PlanModeDelete {
 		for _, desiredGateway := range desired {
 			if desiredGateway.IsExternal() {
+				if err := p.planAIGatewayModelChanges(ctx, namespace, desiredGateway.Ref,
+					desiredGateway.Name, desiredGateway.GetKonnectID(), "", nil, nil,
+					p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref), plan); err != nil {
+					return err
+				}
 				continue
 			}
 			reconciler.deleteDesired(desiredGateway.Name, findManagedRoot(currentByName, desiredGateway.Name))
@@ -131,7 +136,7 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && p.aiGatewayRootSyncInScope(namespace) {
 		for _, current := range currentGateways {
 			if matchedCurrent[aiGatewayIdentity(current)] {
 				continue
@@ -141,6 +146,25 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 	return reconciler.errors.Error()
+}
+
+func (p *Planner) aiGatewayRootSyncInScope(namespace string) bool {
+	if p.resources.SyncScope == nil || !p.resources.SyncScope.RootInScope(resources.ResourceTypeAIGateway) {
+		return false
+	}
+	if p.resources.SyncScope.GatewayNamespaces != nil {
+		_, scoped := p.resources.SyncScope.GatewayNamespaces[namespace]
+		return scoped
+	}
+	if len(p.resources.AIGateways) == 0 {
+		return true
+	}
+	for _, gateway := range p.resources.AIGateways {
+		if !gateway.IsExternal() && resources.GetNamespace(gateway.Kongctl) == namespace {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Planner) planExternalAIGatewayChildren(
