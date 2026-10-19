@@ -35,8 +35,8 @@ func planExtractedAPIChildren[D any](
 					namespace = DefaultNamespace
 				}
 				actions.create(namespace, change.ID)
-				// Preserve the existing scan: CREATE does not suppress later changes or
-				// the resolved-ID fallback, even after it has appended child changes.
+				// A parent CREATE does not stop the scan: a later non-create change
+				// supplies the parent ID. An empty ID still uses the resolved-ID fallback.
 				continue
 			}
 			apiID = change.ResourceID
