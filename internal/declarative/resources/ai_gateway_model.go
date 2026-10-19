@@ -29,6 +29,28 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayModelResource { return &gateway.Models },
 			setParent:     func(child *AIGatewayModelResource, ref string) { child.AIGateway = ref },
 		},
+		WithNamespace(45, func(r *AIGatewayModelResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "ai_gateway_model",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+			}
+		}),
+		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]AIGatewayModelResource {
+			var models [][]AIGatewayModelResource
+			for i := range rs.AIGateways {
+				models = append(models, rs.AIGateways[i].Models)
+			}
+			return models
+		}, func(r *AIGatewayModelResource) NamespaceParticipant {
+			return NamespaceParticipant{
+				Ref:               r.Ref,
+				Label:             "ai_gateway_model",
+				SupportsProtected: true,
+				Meta:              &r.Kongctl,
+			}
+		}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(80, "each model must declare an ai_gateway parent"),
@@ -78,8 +100,17 @@ func (a AIGatewayModelResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway model ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway model %s", a.Ref)
+	for key := range a.ManagedBy() {
+		if key == ModelNamespaceKey || key == ModelProtectedKey {
+			return fmt.Errorf("managed_by key %q is reserved; use kongctl metadata on AI Gateway model %s", key, a.Ref)
+		}
+		if len(key) < 1 || len(key) > 63 || !isMetadataAlphanumeric(key[0]) {
+			return fmt.Errorf(
+				"invalid managed_by key on AI Gateway model %s: "+
+					"keys must be 1–63 characters and start with an alphanumeric character",
+				a.Ref,
+			)
+		}
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway model %s", a.Ref)
@@ -222,6 +253,9 @@ func (a AIGatewayModelResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -234,6 +268,9 @@ func (a AIGatewayModelResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -247,15 +284,12 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -277,7 +311,7 @@ func (a *AIGatewayModelResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayModelRequest = req
 	return nil
@@ -539,6 +573,21 @@ func AIGatewayModelResourceFromResponse(
 	if err != nil {
 		return AIGatewayModelResource{}, err
 	}
+	metadata := AIGatewayModelManagedBy(model)
+	var kongctl *KongctlMeta
+	if namespace := metadata[ModelNamespaceKey]; namespace != "" {
+		if err := ValidateModelOwnership(metadata, namespace); err != nil {
+			return AIGatewayModelResource{}, err
+		}
+		kongctl = &KongctlMeta{Namespace: new(namespace), Protected: new(metadata[ModelProtectedKey] == "true")}
+	}
+	if managed, ok := payload["managed_by"].(map[string]any); ok {
+		delete(managed, ModelNamespaceKey)
+		delete(managed, ModelProtectedKey)
+		if len(managed) == 0 {
+			delete(payload, "managed_by")
+		}
+	}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayModelResource{}, err
@@ -553,7 +602,7 @@ func AIGatewayModelResourceFromResponse(
 		ref = AIGatewayModelName(model)
 	}
 	return AIGatewayModelResource{
-		BaseResource:                BaseResource{Ref: ref},
+		BaseResource:                BaseResource{Ref: ref, Kongctl: kongctl},
 		AIGateway:                   gatewayRef,
 		CreateAIGatewayModelRequest: req,
 	}, nil
@@ -590,6 +639,7 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 
 	commonFields := []*ExplainField{
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-gpt"), true, true),
 		explainField("display_name", explainStringNode("Support GPT"), true, true),

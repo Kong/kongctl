@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: federated-team-a
+ai_gateway_models:
+  - ref: team-a-chat
+    ai_gateway: !lookup {name: federated-models-e2e}
+    name: team-a-chat
+    display_name: Team A chat
+    type: model
+    config: {route: {}}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: shared-openai
+        config: {type: openai}
+    capabilities: [generate]
+    managed_by:
+      other-tool: retain-me

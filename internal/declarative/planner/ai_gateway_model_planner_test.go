@@ -523,6 +523,7 @@ func testAIGatewayModel(id string, name string) kkComps.AIGatewayModel {
 			ID:          id,
 			Name:        name,
 			DisplayName: name,
+			ManagedBy:   map[string]string{resources.ModelNamespaceKey: "default", resources.ModelProtectedKey: "false"},
 		},
 	}
 }

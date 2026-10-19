@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: federated-platform
+ai_gateways: []
