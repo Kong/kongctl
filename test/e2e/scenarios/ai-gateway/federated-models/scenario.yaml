@@ -1,0 +1,116 @@
+baseInputsPath: testdata
+env:
+  FEDERATED_MODEL_AUTH: test-placeholder
+defaults:
+  retry:
+    attempts: 1
+steps:
+  - name: create-shared-gateway
+    commands:
+      - name: platform
+        run: [apply, -f, '{{ .workdir }}/platform.yaml', --auto-approve]
+  - name: independently-create-models
+    commands:
+      - name: team-a
+        run: [sync, -f, '{{ .workdir }}/team-a.yaml', --auto-approve]
+      - name: team-b
+        run: [sync, -f, '{{ .workdir }}/team-b.yaml', --auto-approve]
+      - name: models-retained
+        run: [get, ai-gateway, models, --gateway-name, federated-models-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 2
+                sort([].name): [team-a-chat, team-b-files]
+                '[?name == `"team-a-chat"`] | [0].managed_by."kongctl-namespace"': federated-team-a
+                '[?name == `"team-b-files"`] | [0].managed_by."kongctl-namespace"': federated-team-b
+  - name: converged-team-sync
+    commands:
+      - name: team-a-no-op
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: team-b-no-op
+        run: [plan, -f, '{{ .workdir }}/team-b.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: dump-and-reload-ownership
+    commands:
+      - name: dump-models
+        run:
+          - dump
+          - declarative
+          - --resources=ai-gateway
+          - --include-child-resources
+          - --filter-name=federated-models-e2e
+          - --output-file
+          - '{{ .workdir }}/dumped.yaml'
+        outputFormat: disable
+      - name: dumped-models-converge
+        run: [plan, -f, '{{ .workdir }}/dumped.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: apply-never-prunes
+    commands:
+      - name: empty-apply
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: remove-team-as-last-model
+    commands:
+      - name: scoped-delete-plan
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+      - name: empty-sync
+        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', --auto-approve]
+      - name: team-b-retained
+        run: [get, ai-gateway, models, --gateway-name, federated-models-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': team-b-files
+                '[0].managed_by."kongctl-namespace"': federated-team-b
+      - name: provider-retained
+        run: [get, ai-gateway, model-providers, --gateway-name, federated-models-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': shared-openai
+      - name: gateway-retained
+        run: [get, ai-gateways]
+        assertions:
+          - select: '[?name == `"federated-models-e2e"`]'
+            expect:
+              fields:
+                length(@): 1
+  - name: cleanup
+    commands:
+      - name: remove-gateway
+        run: [sync, -f, '{{ .workdir }}/cleanup.yaml', --auto-approve]

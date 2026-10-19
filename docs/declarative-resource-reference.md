@@ -27,7 +27,8 @@ the feature, commands, and options.
 ## File-level defaults (`_defaults`)
 
 Use `_defaults.kongctl` to apply default `namespace` and `protected` metadata
-to parent resources in this file. Resource-level `kongctl` values override
+to namespace-bearing resources, including AI Gateway models, in this file.
+Resource-level `kongctl` values override
 these defaults.
 
 ```yaml
@@ -891,9 +892,19 @@ ai_gateway_consumer_groups:
 AI Gateway Models can also be declared as root resources. Include
 `ai_gateway` to point at the parent gateway `ref`.
 
+Models have independent namespace and protection through `kongctl`, including
+when nested. File defaults apply to models; gateway metadata does not. Ownership
+is persisted in reserved lowercase `managed_by` keys. Existing unowned models
+require explicit adoption before updates or deletion. See
+[AI Gateway model ownership](ai-gateway-model-ownership.md) for sync scope,
+migration, and metadata preservation.
+
 ```yaml
 ai_gateway_models:
  - ref: string
+   kongctl:
+     namespace: team-a
+     protected: false
    ai_gateway: string required # AI Gateway ref
    type: model # or api
    name: string required
