@@ -84,7 +84,7 @@ jobs:
         run: |
           version=$(jq -er .version signed/metadata.json)
           bash scripts/homebrew/package-bottle.sh signed "$version" bottles
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-validation-${{ matrix.os }}
           path: bottles/
@@ -109,7 +109,7 @@ jobs:
         run: |
           version=$(jq -er '.[] .formula.pkg_version' bottles/*.bottle.json | sort -u)
           bash scripts/homebrew/prepare-publication.sh bottles "$version"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: package-validation-formula
           path: bottles/kongctl.rb

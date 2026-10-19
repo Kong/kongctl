@@ -84,7 +84,7 @@ jobs:
           REPLAY_SCENARIO: ${{ inputs.scenario }}
         run: |
           python3 -c 'import os; from scripts.e2e_replay_users import recording_org; print("org=" + recording_org(os.environ["REPLAY_SCENARIO"]))' >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: replay-binaries
           path: |
@@ -132,7 +132,7 @@ jobs:
             --output-dir .e2e-artifacts/replay-candidate
       # Never upload raw harness logs or temporary TLS keys. Only a successful,
       # sanitized candidate is published; this does not update tracked files.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: replay-candidate
           path: .e2e-artifacts/replay-candidate/*.json
@@ -199,7 +199,7 @@ jobs:
           for summary in .e2e-artifacts/replay-results/*/summary.json; do
             jq -c . "$summary" >> "$GITHUB_STEP_SUMMARY"
           done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: replay-results
           path: .e2e-artifacts/replay-results
