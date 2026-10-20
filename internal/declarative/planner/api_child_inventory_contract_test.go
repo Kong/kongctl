@@ -125,7 +125,6 @@ func TestAPIChildTraversalHonorsNestedSyncScope(t *testing.T) {
 
 func TestAPIChildNewParentMergesDeclarationsAndSkipsPlannedRefs(t *testing.T) {
 	p, _, parent := apiInventoryFixture()
-	// The root declarations repeat nested refs and add one distinct version.
 	// Declarations for another API must never enter this parent's create pass.
 	p.resources.APIVersions = append(append([]resources.APIVersionResource{}, parent.Versions...),
 		resources.APIVersionResource{
