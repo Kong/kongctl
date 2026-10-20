@@ -39,7 +39,7 @@ jobs:
     name: Build prerelease
     runs-on: ubuntu-latest
     env:
-      RELEASE_GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+      RELEASE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
