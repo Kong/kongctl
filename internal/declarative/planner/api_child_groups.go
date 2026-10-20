@@ -42,24 +42,19 @@ func planExtractedAPIChildren[D any](
 			apiID = change.ResourceID
 			break
 		}
-		if apiID == "" {
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
+		namespace := DefaultNamespace
+		for _, api := range p.GetDesiredAPIs() {
+			if api.GetRef() == apiRef {
+				if apiID == "" {
 					apiID = api.GetKonnectID()
-					break
 				}
+				if api.Kongctl != nil && api.Kongctl.Namespace != nil {
+					namespace = *api.Kongctl.Namespace
+				}
+				break
 			}
 		}
 		if apiID != "" {
-			namespace := DefaultNamespace
-			for _, api := range p.GetDesiredAPIs() {
-				if api.GetRef() == apiRef {
-					if api.Kongctl != nil && api.Kongctl.Namespace != nil {
-						namespace = *api.Kongctl.Namespace
-					}
-					break
-				}
-			}
 			if err := actions.reconcile(namespace, apiID); err != nil {
 				return err
 			}
