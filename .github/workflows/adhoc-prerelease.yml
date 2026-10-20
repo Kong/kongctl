@@ -80,6 +80,12 @@ jobs:
           ref: ${{ inputs.source_ref }}
           token: ${{ env.RELEASE_GITHUB_TOKEN }}
 
+      - name: Ensure SHA pinned actions
+        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@c4e71056006d29f90204b2d063be337109507d62 # v5.0.10
+        with:
+          allowlist: |
+            Kong/
+
       - name: Resolve source and release tags
         id: release
         shell: bash
