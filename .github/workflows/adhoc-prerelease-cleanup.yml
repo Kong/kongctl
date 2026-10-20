@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
-      GH_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
