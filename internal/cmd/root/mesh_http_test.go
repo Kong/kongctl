@@ -648,7 +648,10 @@ func TestMeshRequestHonoursTheConfiguredTimeout(t *testing.T) {
 	if elapsed > 5*time.Second {
 		t.Fatalf("request took %s; the configured 200ms timeout was not applied", elapsed)
 	}
-	if !strings.Contains(result.stderr, "Client.Timeout exceeded") {
+	// The client deadline can surface through either cancellation path;
+	// timer scheduling determines whether Go adds the Client.Timeout suffix.
+	if !strings.Contains(result.stderr, "Client.Timeout exceeded") &&
+		!strings.Contains(result.stderr, "context deadline exceeded") {
 		t.Fatalf("expected the HTTP client timeout to end the request\nstderr:\n%s", result.stderr)
 	}
 }
