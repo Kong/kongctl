@@ -1616,13 +1616,31 @@ func (p *Planner) planAPIDocumentChanges(
 		return nil
 	}
 
+	// Inline and root-level declarations share an API-wide sync deletion scope.
+	allDesired := desired
+	if plan.Metadata.Mode == PlanModeSync {
+		if api := p.resources.GetAPIByRef(apiRef); api != nil {
+			allDesired = make([]resources.APIDocumentResource, 0)
+			seen := make(map[string]struct{})
+			for _, group := range [][]resources.APIDocumentResource{desired, p.getAPIDocumentsForAPI(*api)} {
+				for _, document := range group {
+					if _, exists := seen[document.GetRef()]; exists {
+						continue
+					}
+					seen[document.GetRef()] = struct{}{}
+					allDesired = append(allDesired, document)
+				}
+			}
+		}
+	}
+
 	// List current documents
 	currentDocuments, err := p.client.ListAPIDocuments(ctx, apiID)
 	if err != nil {
 		return fmt.Errorf("failed to list current API documents: %w", err)
 	}
 
-	lookup := p.buildAPIDocumentLookup(desired)
+	lookup := p.buildAPIDocumentLookup(allDesired)
 	desiredPaths := lookup.paths
 	stateIndex := newAPIDocumentStateIndex(currentDocuments)
 
@@ -1671,6 +1689,18 @@ func (p *Planner) planAPIDocumentChanges(
 				)
 				return nil
 			}
+		}
+
+		for _, document := range allDesired {
+			stateIndex.markProcessed(lookup.paths[document.GetRef()])
+		}
+
+		// Earlier passes may already have scheduled updates or deletes for this API.
+		for _, change := range plan.Changes {
+			if change.ResourceType != ResourceTypeAPIDocument || change.Parent == nil || change.Parent.ID != apiID {
+				continue
+			}
+			stateIndex.markProcessed(stateIndex.idToPath[change.ResourceID])
 		}
 
 		remaining := stateIndex.unprocessed()
