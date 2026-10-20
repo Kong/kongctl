@@ -6,10 +6,12 @@ env:
 vars:
   namespace: portal-custom-domain
   portal1Ref: portal-1
+  portal1ID: ""
   portal1DomainRef: portal-1-custom-domain
   portal1Hostname: ""
   portal1ReplacementHostname: ""
   portal2Ref: portal-2
+  portal2ID: ""
   portal2DomainRef: portal-2-custom-domain
   portal2Hostname: ""
 
@@ -118,13 +120,27 @@ steps:
           - portals
           - -o
           - json
+        recordVar:
+          name: portal1ID
+          responsePath: "[?name=='{{ .vars.portal1Ref }}'] | [0].id"
         assertions:
           - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.portal1Ref }}"
-                canonical_domain: "{{ .vars.portal1Hostname }}"
-      - name: 003-plan-http-domain-no-op
+      # Verify configuration without requiring a verified DNS name or certificate.
+      - name: 003-get-http-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal1ID }}/custom-domain"
+        assertions:
+          - expect:
+              fields:
+                hostname: "{{ .vars.portal1Hostname }}"
+                enabled: true
+                ssl.domain_verification_method: http
+      - name: 004-plan-http-domain-no-op
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-http-domain-no-op.json"
         run:
@@ -222,12 +238,26 @@ steps:
                 failed: 0
       - name: 003-get-portals-custom
         run: ["get", "portals", "-o", "json"]
+        recordVar:
+          name: portal2ID
+          responsePath: "[?name=='{{ .vars.portal2Ref }}'] | [0].id"
         assertions:
           - select: "[?name=='{{ .vars.portal2Ref }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.portal2Ref }}"
-                canonical_domain: "{{ .vars.portal2Hostname }}"
+      - name: 004-get-custom-certificate-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal2ID }}/custom-domain"
+        assertions:
+          - expect:
+              fields:
+                hostname: "{{ .vars.portal2Hostname }}"
+                enabled: true
+                ssl.domain_verification_method: custom_certificate
+                ssl.skip_ca_check: true
 
   - name: 003-sync-remove-custom-domain
     inputOverlayDirs:
@@ -271,7 +301,18 @@ steps:
           - select: "[?name=='{{ .vars.portal1Ref }}'] | [0]"
             expect:
               fields:
-                canonical_domain: "{{ .vars.portal1Hostname }}"
+                name: "{{ .vars.portal1Ref }}"
+      - name: 003-get-retained-http-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal1ID }}/custom-domain"
+        assertions:
+          - expect:
+              fields:
+                hostname: "{{ .vars.portal1Hostname }}"
+                enabled: true
+                ssl.domain_verification_method: http
 
   - name: 004-replace-http-domain
     inputOverlayDirs:
@@ -327,8 +368,18 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.portal1Ref }}"
-                canonical_domain: "{{ .vars.portal1ReplacementHostname }}"
-      - name: 003-plan-replacement-no-op
+      - name: 003-get-replacement-http-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal1ID }}/custom-domain"
+        assertions:
+          - expect:
+              fields:
+                hostname: "{{ .vars.portal1ReplacementHostname }}"
+                enabled: true
+                ssl.domain_verification_method: http
+      - name: 004-plan-replacement-no-op
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-replacement-no-op.json"
         run:
@@ -387,7 +438,18 @@ steps:
               fields:
                 failed: 0
                 status: success
-      - name: 002-plan-disable-no-op
+      - name: 002-get-disabled-http-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal1ID }}/custom-domain"
+        assertions:
+          - expect:
+              fields:
+                hostname: "{{ .vars.portal1ReplacementHostname }}"
+                enabled: false
+                ssl.domain_verification_method: http
+      - name: 003-plan-disable-no-op
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-disable-no-op.json"
         run:
@@ -451,11 +513,14 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.portal1Ref }}"
-          - select: >-
-              [?name=='{{ .vars.portal1Ref }}'] | [0].canonical_domain != '{{ .vars.portal1ReplacementHostname }}'
-            expect:
-              fields:
-                "@": true
+      - name: 003-get-removed-http-domain
+        run:
+          - api
+          - get
+          - "/v3/portals/{{ .vars.portal1ID }}/custom-domain"
+        expectFailure:
+          exitCode: 1
+          contains: "request failed with status 404"
 
   - name: 007-dump-and-plan-round-trip
     inputOverlayDirs:
