@@ -18,7 +18,7 @@ type ExecutionContext struct {
 }
 
 func (c *ExecutionContext) allowsOperationRemoval() bool {
-	return c != nil && c.PlannedChange != nil && c.PlannedChange.AllowOperationRemoval
+	return c != nil && c.PlannedChange != nil && c.PlannedChange.ForceDelete
 }
 
 // NewExecutionContext creates a new ExecutionContext from a PlannedChange

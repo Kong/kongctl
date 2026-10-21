@@ -183,7 +183,7 @@ steps:
             expect:
               fields:
                 fields.version: beta.2
-                "contains(keys(@), 'allow_operation_removal')": false
+                "contains(keys(@), 'force_delete')": false
                 "contains(depends_on, '{{ .vars.apiVersionCreateChangeID }}')": true
           - select: >-
               changes[?resource_type=='api_version' && action=='DELETE'] | [0]
@@ -231,8 +231,7 @@ steps:
       - file: resources.yaml
         match: "apis[?ref=='control-plane-api']"
         set:
-          kongctl:
-            allow_operation_removal: true
+          force_delete: true
     commands:
       - name: 000-save-authorized-plan
         outputFormat: disable
@@ -256,7 +255,7 @@ steps:
           - select: "changes[?resource_type=='api'] | [0]"
             expect:
               fields:
-                allow_operation_removal: true
+                force_delete: true
                 fields.version: beta.2
           - select: "changes[?action=='DELETE'] | [0]"
             expect:

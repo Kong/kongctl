@@ -25,8 +25,8 @@ func applyAPIOperationRemovalAuthorization(changes []PlannedChange, rs *resource
 		default:
 			continue
 		}
-		if api := rs.GetAPIByRef(apiRef); api != nil && api.Kongctl != nil {
-			change.AllowOperationRemoval = api.Kongctl.AllowOperationRemoval != nil && *api.Kongctl.AllowOperationRemoval
+		if api := rs.GetAPIByRef(apiRef); api != nil {
+			change.ForceDelete = api.ForceDelete != nil && *api.ForceDelete
 		}
 	}
 }

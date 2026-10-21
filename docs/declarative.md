@@ -332,7 +332,7 @@ api_publications:
 
 The `kongctl` section provides metadata for resource management.
 Namespace and protection metadata are stored in Kong Konnect labels, which
-are only provided on parent resources. Execution policy stays in kongctl.
+are only provided on parent resources.
 Thus, `kongctl` metadata is
 **only supported on parent resources**.
 
@@ -340,21 +340,23 @@ Thus, `kongctl` metadata is
 
 When access control enforcement (ACE) is enabled, Konnect rejects updates
 that remove operations from the current API specification unless explicitly
-authorized. Set `allow_operation_removal` on the parent API to authorize
-these updates:
+authorized. Set the synthetic `force_delete` field directly on the parent
+API to authorize these updates:
 
 ```yaml
 apis:
   - ref: bookings
     name: Bookings
     version: beta.2
-    kongctl:
-      allow_operation_removal: true
+    force_delete: true
     versions:
       - ref: bookings-beta2
         version: beta.2
         spec: !file ./bookings-beta2.yaml
 ```
+
+This field permits operation removal during updates. It does not request
+API deletion or bypass other validation.
 
 This policy defaults to false and is supported only on managed APIs. It
 applies to updates of the API and its child versions, including versions
@@ -362,7 +364,7 @@ declared at the root with `api: bookings`. It cannot be set on children or
 in `_defaults`. It authorizes future updates while present in the manifest;
 remove it when that authorization is no longer intended.
 
-The planner records `allow_operation_removal: true` on authorized update
+The planner records `force_delete: true` on authorized update
 changes in saved JSON plans. Executing such a plan preserves that policy
 without consulting the original manifest. It maps to Konnect's `force=true`
 update query parameter, is never sent in the request body or labels, and

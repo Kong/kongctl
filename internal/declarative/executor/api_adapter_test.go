@@ -23,7 +23,7 @@ func TestAPIAdapter_UpdateOperationRemovalAuthorization(t *testing.T) {
 		{name: "missing plan", execCtx: &ExecutionContext{}},
 		{name: "not authorized", execCtx: NewExecutionContext(&planner.PlannedChange{})},
 		{name: "authorized", force: true, execCtx: NewExecutionContext(&planner.PlannedChange{
-			AllowOperationRemoval: true,
+			ForceDelete: true,
 		})},
 	} {
 		t.Run(test.name, func(t *testing.T) {

@@ -72,9 +72,10 @@ func TestAPIOperationRemovalAuthorization(t *testing.T) {
 	for _, allowed := range []*bool{nil, new(false), new(true)} {
 		rs := &resources.ResourceSet{APIs: []resources.APIResource{{
 			BaseResource: resources.BaseResource{
-				Ref: "api", Kongctl: &resources.KongctlMeta{AllowOperationRemoval: allowed},
+				Ref: "api",
 			},
 			CreateAPIRequest: kkComps.CreateAPIRequest{Name: "API"},
+			ForceDelete:      allowed,
 		}}}
 		changes := []PlannedChange{
 			{ResourceType: ResourceTypeAPI, ResourceRef: "api", Action: ActionUpdate},
@@ -84,10 +85,10 @@ func TestAPIOperationRemovalAuthorization(t *testing.T) {
 			{ResourceType: ResourceTypeAPIVersion, Action: ActionUpdate, Parent: &ParentInfo{Ref: "other-api"}},
 		}
 		applyAPIOperationRemovalAuthorization(changes, rs)
-		require.Equal(t, allowed != nil && *allowed, changes[0].AllowOperationRemoval)
-		require.Equal(t, changes[0].AllowOperationRemoval, changes[1].AllowOperationRemoval)
+		require.Equal(t, allowed != nil && *allowed, changes[0].ForceDelete)
+		require.Equal(t, changes[0].ForceDelete, changes[1].ForceDelete)
 		for _, change := range changes[2:] {
-			require.False(t, change.AllowOperationRemoval)
+			require.False(t, change.ForceDelete)
 		}
 	}
 }

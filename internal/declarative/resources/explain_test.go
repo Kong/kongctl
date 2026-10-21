@@ -40,7 +40,7 @@ func TestResolveExplainSubject_Resource(t *testing.T) {
 }
 
 func TestExplainOperationRemovalPolicyIsAPIScoped(t *testing.T) {
-	subject, err := ResolveExplainSubject("api.kongctl.allow_operation_removal")
+	subject, err := ResolveExplainSubject("api.force_delete")
 	require.NoError(t, err)
 	require.Equal(t, "boolean", subject.Node.Kind)
 	require.NotEmpty(t, subject.Node.Notes)
@@ -50,7 +50,7 @@ func TestExplainOperationRemovalPolicyIsAPIScoped(t *testing.T) {
 		}
 		doc, err := buildExplainDoc(resourceType)
 		require.NoError(t, err)
-		_, found := doc.Schema.lookup([]string{"kongctl", "allow_operation_removal"})
+		_, found := doc.Schema.lookup([]string{"force_delete"})
 		require.False(t, found, "%s must not expose API execution policy", resourceType)
 	}
 }

@@ -103,7 +103,7 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 					if err != nil {
 						return nil, fmt.Errorf("read request body: %w", err)
 					}
-					if strings.Contains(string(body), "allow_operation_removal") {
+					if strings.Contains(string(body), "force_delete") {
 						return nil, fmt.Errorf("operation removal policy leaked into request body")
 					}
 					r.Body = io.NopCloser(strings.NewReader(string(body)))
@@ -196,7 +196,7 @@ func TestSavedAPIVersionTransition(t *testing.T) {
 			}
 			policy := ""
 			if test.allowRemoval {
-				policy = "    kongctl:\n      allow_operation_removal: true\n"
+				policy = "    force_delete: true\n"
 			}
 			manifest := fmt.Sprintf(`apis:
   - ref: bookings

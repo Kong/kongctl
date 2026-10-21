@@ -205,7 +205,7 @@ func TestDiffShowsOperationRemovalAuthorization(t *testing.T) {
 		plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
 		plan.AddChange(planner.PlannedChange{
 			ID: "update-api", ResourceType: planner.ResourceTypeAPI, ResourceRef: "bookings",
-			Action: planner.ActionUpdate, AllowOperationRemoval: allowed,
+			Action: planner.ActionUpdate, ForceDelete: allowed,
 			ChangedFields: map[string]planner.FieldChange{planner.FieldVersion: {Old: "beta.1", New: "beta.2"}},
 		})
 		plan.SetExecutionOrder([]string{"update-api"})
@@ -213,7 +213,7 @@ func TestDiffShowsOperationRemovalAuthorization(t *testing.T) {
 		command := &cobra.Command{}
 		command.SetOut(&out)
 		require.NoError(t, displayTextDiff(command, plan, false))
-		assert.Equal(t, allowed, strings.Contains(out.String(), "allow_operation_removal: true"))
+		assert.Equal(t, allowed, strings.Contains(out.String(), "force_delete: true"))
 	}
 }
 
