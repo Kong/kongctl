@@ -738,6 +738,24 @@ class ReplayTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 MODULE.check_safe(value, fixtures)
 
+    def test_user_account_type_is_limited_to_documented_values(self):
+        directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
+        fixtures = MODULE.fixture_strings(directory)
+        identities = MODULE.UserIdentities({})
+        for account_type in (None, "google", "github", "microsoft", "basic-auth", "sso"):
+            with self.subTest(account_type=account_type):
+                normalized = identities.normalize({"email": "fixture@example.test", "account_type": account_type})
+                self.assertEqual(account_type, normalized["account_type"])
+                self.assertEqual("replay-user-4@example.invalid", normalized["email"])
+                MODULE.check_user_profiles(normalized)
+                MODULE.check_safe(normalized, fixtures)
+        for account_type in ("private-profile-value", "", 1, True, [], {}):
+            with self.subTest(account_type=account_type):
+                with self.assertRaisesRegex(ValueError, "profile schema"):
+                    identities.normalize({"email": "fixture@example.test", "account_type": account_type})
+                with self.assertRaisesRegex(ValueError, "user profile"):
+                    MODULE.check_user_profiles({"email": "replay-user-4@example.invalid", "account_type": account_type})
+
     def test_user_metadata_exceptions_are_bounded(self):
         directory = MODULE.ROOT / "test/e2e/scenarios/org/users/get"
         scenario = MODULE.parse_scenario((directory / "scenario.yaml").read_text())
