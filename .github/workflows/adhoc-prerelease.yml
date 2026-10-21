@@ -39,7 +39,7 @@ jobs:
     name: Build prerelease
     runs-on: ubuntu-latest
     env:
-      RELEASE_GITHUB_TOKEN: ${{ secrets.PAT || secrets.GITHUB_TOKEN }}
+      RELEASE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         shell: bash
@@ -79,6 +79,12 @@ jobs:
           persist-credentials: true
           ref: ${{ inputs.source_ref }}
           token: ${{ env.RELEASE_GITHUB_TOKEN }}
+
+      - name: Ensure SHA pinned actions
+        uses: zgosalvez/github-actions-ensure-sha-pinned-actions@c4e71056006d29f90204b2d063be337109507d62 # v5.0.10
+        with:
+          allowlist: |
+            Kong/
 
       - name: Resolve source and release tags
         id: release
