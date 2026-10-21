@@ -171,7 +171,7 @@ steps:
             expect:
               fields:
                 action: UPDATE
-                fields.konnect_mapping_enabled: false
+                fields.basic_auth_enabled: false
       - name: 001-sync-auth-settings
         run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
         assertions:
@@ -186,9 +186,9 @@ steps:
         assertions:
           - expect:
               fields:
-                basic_auth_enabled: true
+                basic_auth_enabled: false
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: false
+                konnect_mapping_enabled: true
       - name: 003-plan-sync-no-op
         outputFormat: disable
         run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
@@ -228,9 +228,9 @@ steps:
         assertions:
           - expect:
               fields:
-                basic_auth_enabled: true
+                basic_auth_enabled: false
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: false
+                konnect_mapping_enabled: true
 
   - name: 004-dump-and-plan-round-trip
     skipInputs: true
@@ -251,9 +251,9 @@ steps:
               portals[?name=='{{ .vars.portalRef }}'] | [0].auth_settings
             expect:
               fields:
-                basic_auth_enabled: true
+                basic_auth_enabled: false
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: false
+                konnect_mapping_enabled: true
       - name: 001-plan-from-dump
         outputFormat: disable
         run:
