@@ -1,6 +1,6 @@
 module github.com/kong/kongctl/docs/examples/extensions/go
 
-go 1.26.9
+go 1.26.10
 
 require github.com/kong/kongctl v1.20.2
 
