@@ -260,7 +260,39 @@ steps:
               fields:
                 failed: 0
                 status: success
-      - name: 001-delete-managed-resources
+      - name: 001-get-user-1-roles-after-cleanup
+        run: [get, org, user, roles, --user-email, "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}", -o, json]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+      - name: 002-get-user-2-roles-after-cleanup
+        run: [get, org, user, roles, --user-email, "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_2 }}", -o, json]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 0
+
+      - name: 003-get-teams-after-sync
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}']"
+            expect:
+              fields:
+                "length(@)": 0
+
+      - name: 004-diff-cleanup-noop
+        run: [diff, -f, "{{ .workdir }}/config.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+      - name: 005-delete-managed-resources
         outputFormat: json
         run:
           - delete
@@ -273,3 +305,11 @@ steps:
               fields:
                 failed: 0
                 status: success
+
+      - name: 006-get-apis-after-delete
+        run: [get, apis, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.apiRef }}']"
+            expect:
+              fields:
+                "length(@)": 0

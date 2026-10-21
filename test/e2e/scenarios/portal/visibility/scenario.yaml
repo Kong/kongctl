@@ -57,6 +57,7 @@ steps:
                 'labels."KONGCTL-namespace"': "default"
                 name: "{{ .vars.portalName }}"
                 rbac_enabled: false
+                sipr_enabled: false
 
       - name: 002-get-apis
         run: ["get", "apis"]
@@ -94,6 +95,9 @@ steps:
       - file: "portal.yaml"
         match: "portals[?ref=='getting-started-portal'] | [0]"
         set:
+          authentication_enabled: true
+          rbac_enabled: true
+          sipr_enabled: true
           auto_approve_applications: true
           default_api_visibility: "private"
     commands:
@@ -119,6 +123,9 @@ steps:
             expect:
               fields:
                 action: UPDATE
+                "fields.authentication_enabled": true
+                "fields.rbac_enabled": true
+                "fields.sipr_enabled": true
                 "fields.auto_approve_applications": true
                 "fields.default_api_visibility": "private"
       - name: 001-apply-portal-update
@@ -140,6 +147,9 @@ steps:
           - select: "[?name=='{{ .vars.portalName }}'] | [0]"
             expect:
               fields:
+                authentication_enabled: true
+                rbac_enabled: true
+                sipr_enabled: true
                 auto_approve_applications: true
                 default_api_visibility: "private"
       - name: 003-plan-no-op-after-update
@@ -163,6 +173,9 @@ steps:
       - file: "portal.yaml"
         match: "portals[?ref=='getting-started-portal'] | [0]"
         set:
+          authentication_enabled: true
+          rbac_enabled: true
+          sipr_enabled: true
           auto_approve_applications: true
           default_api_visibility: "private"
       - file: "apis.yaml"
@@ -213,6 +226,9 @@ steps:
       - file: "portal.yaml"
         match: "portals[?ref=='getting-started-portal'] | [0]"
         set:
+          authentication_enabled: true
+          rbac_enabled: true
+          sipr_enabled: true
           auto_approve_applications: true
           default_api_visibility: "private"
     commands:
@@ -324,10 +340,11 @@ steps:
           - select: "portals[?name=='{{ .vars.portalName }}'] | [0]"
             expect:
               fields:
+                authentication_enabled: true
+                rbac_enabled: true
+                sipr_enabled: true
                 auto_approve_applications: true
                 default_api_visibility: "private"
-                authentication_enabled: false
-                rbac_enabled: false
       - name: 003-plan-from-portal-dump
         outputFormat: disable
         run:

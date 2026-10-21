@@ -151,6 +151,87 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 003a-sync-auth-settings-update
+    inputOverlayDirs:
+      - overlays/003-sync-update
+    commands:
+      - name: 000-plan-sync-auth-settings
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/plan-sync.json"
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: >-
+              changes[?resource_type=='portal_auth_settings' &&
+                        resource_ref=='{{ .vars.authSettingsRef }}'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                fields.konnect_mapping_enabled: false
+      - name: 001-sync-auth-settings
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-auth-settings-after-sync
+        run: [get, portal, auth-settings, --portal-name, "{{ .vars.portalRef }}", -o, json]
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: true
+                idp_mapping_enabled: false
+                konnect_mapping_enabled: false
+      - name: 003-plan-sync-no-op
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003b-sync-with-auth-settings-omitted
+    inputOverlayDirs:
+      - overlays/004-sync-omit-auth
+    commands:
+      - name: 000-plan-sync-without-auth-settings
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: "changes[?resource_type=='portal_auth_settings' && action=='DELETE']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 001-sync-without-auth-settings
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                status: success
+      - name: 002-get-retained-auth-settings
+        run: [get, portal, auth-settings, --portal-name, "{{ .vars.portalRef }}", -o, json]
+        assertions:
+          - expect:
+              fields:
+                basic_auth_enabled: true
+                idp_mapping_enabled: false
+                konnect_mapping_enabled: false
+
   - name: 004-dump-and-plan-round-trip
     skipInputs: true
     commands:
@@ -172,7 +253,7 @@ steps:
               fields:
                 basic_auth_enabled: true
                 idp_mapping_enabled: false
-                konnect_mapping_enabled: true
+                konnect_mapping_enabled: false
       - name: 001-plan-from-dump
         outputFormat: disable
         run:

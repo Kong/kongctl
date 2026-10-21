@@ -47,6 +47,20 @@ steps:
     inputOverlayDirs:
       - overlays/001-update-description-labels
     commands:
+      - name: 000-diff-default-sync-update
+        run: [diff, -f, "{{ .workdir }}/control-plane.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: "changes[?resource_type=='control_plane' && resource_ref=='e2e-cp'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                fields.description: "Updated description for E2E sync test"
+
       - name: 000-sync-update
         run:
           - sync
@@ -114,6 +128,24 @@ steps:
     inputOverlayDirs:
       - overlays/002-sync-with-delete
     commands:
+      - name: 000-diff-default-sync-delete
+        run: [diff, -f, "{{ .workdir }}/control-plane.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 1
+                by_action.DELETE: 1
+          - select: "changes[?resource_type=='control_plane' && resource_ref=='kongctl-e2e-cp'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+          - select: "changes[?resource_type=='control_plane' && resource_ref=='e2e-cp-2'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+
       - name: 000-002-sync
         run:
           - sync
@@ -164,6 +196,41 @@ steps:
             expect:
               fields:
                 "@": "CLUSTER_TYPE_CONTROL_PLANE"
+
+  - name: 002a-dump-after-sync-delete
+    skipInputs: true
+    commands:
+      - name: 000-dump-replacement
+        run:
+          - dump
+          - declarative
+          - --resources=control_planes
+          - --filter-name=kongctl-e2e-cp-2
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: control_planes
+            expect:
+              fields:
+                "length(@)": 1
+          - select: control_planes[0]
+            expect:
+              fields:
+                name: kongctl-e2e-cp-2
+                description: "Second Test Control Plane for E2E testing via kongctl"
+          - select: "control_planes[?name=='kongctl-e2e-cp']"
+            expect:
+              fields:
+                "length(@)": 0
+      - name: 001-plan-sync-from-dump
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/dump.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003-delete-cleanup
     inputOverlayDirs:
