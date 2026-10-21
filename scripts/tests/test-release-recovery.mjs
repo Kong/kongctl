@@ -184,14 +184,14 @@ test("reject a tag outside trusted main before any publication", async () => {
 test("recovery never rebuilds or recreates tags, but draft recovery finishes Homebrew", () => {
   const createTag = workflow
     .split("  create_tag:\n")[1]
-    .split("  publish_release:\n")[0];
+    .split("  build_release:\n")[0];
   assert.match(
     createTag,
     /name: Create and push tag\n        if: env.RELEASE_BUILD_MODE == 'full' \|\| env.RELEASE_BUILD_MODE == 'smoke'/,
   );
   assert.match(
     workflow,
-    /name: Run GoReleaser \(full mode\)\n        if: env.RELEASE_BUILD_MODE == 'full'\n/,
+    /name: Build and generate without signing or publishing credentials\n        if: env.RELEASE_BUILD_MODE == 'full'\n/,
   );
   const homebrew = workflow
     .split("  publish_cask:\n")[1]
@@ -206,4 +206,27 @@ test("recovery never rebuilds or recreates tags, but draft recovery finishes Hom
     workflow,
     /run-id: \$\{\{ needs.config.outputs.recovery_run_id \}\}/,
   );
+});
+
+test("release build, signing, and publication have separate credential scopes", () => {
+  const build = workflow.split("  build_release:\n")[1].split("  sign_release:\n")[0];
+  const sign = workflow.split("  sign_release:\n")[1].split("  publish_release:\n")[0];
+  const publish = workflow.split("  publish_release:\n")[1].split("  verify_apple_release:\n")[0];
+  for (const stage of [build, sign]) {
+    assert.match(stage, /permissions:\n      contents: read\n/);
+    assert.doesNotMatch(stage, /persist-credentials: true/);
+    assert.doesNotMatch(stage, /contents: write|packages: write|TAP_GITHUB_TOKEN|DOCKER_TOKEN/);
+    assert.match(stage, /ref: \$\{\{ needs.config.outputs.release_commit \}\}/);
+  }
+  assert.deepEqual([...build.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]),
+    ["GH_TOKEN_PRIVATE_READ"]);
+  assert.match(build, /args: build --clean/);
+  assert.doesNotMatch(sign, /GH_TOKEN_PRIVATE_READ|secrets.GITHUB_TOKEN|actions\/setup-go|docker\/login-action/);
+  assert.match(sign, /args: release --clean --skip=before,publish,docker /);
+  assert.match(sign, /PATH=\$GITHUB_WORKSPACE\/scripts\/release-tools:\$PATH/);
+  assert.ok(sign.indexOf("release-handoff.py verify") < sign.indexOf("secrets.APPLE_"));
+  assert.doesNotMatch(publish, /secrets.APPLE_|GH_TOKEN_PRIVATE_READ|actions\/setup-go|goreleaser\/goreleaser-action/);
+  assert.match(publish, /needs: \["config", "build_release", "sign_release"\]/);
+  assert.ok(publish.indexOf("release-handoff.py verify signed") < publish.indexOf("gh release create"));
+  assert.match(publish, /cmp handoff\/handoff.json signed\/unsigned-handoff.json/);
 });

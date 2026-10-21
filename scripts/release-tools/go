@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# GoReleaser OSS has no prebuilt builder. Implement its build tool interface
+# by copying a verified binary, without invoking Go or executing the binary.
+set -euo pipefail
+# GoReleaser also queries the module name. Read the local declaration only.
+if [[ "$*" == 'list -m' ]]; then
+  awk '$1 == "module" { print $2; exit }' go.mod
+  exit 0
+fi
+[[ ${1:-} == build ]]
+shift
+output=
+while (($#)); do
+  case "$1" in
+    -o) output=$2; shift 2 ;;
+    -ldflags=*) shift ;;
+    .) shift ;;
+    *) echo "Unexpected packaging argument: $1" >&2; exit 1 ;;
+  esac
+done
+[[ -n "$output" ]]
+case "${GOOS:?}/${GOARCH:?}" in
+  linux/amd64|linux/arm64|darwin/amd64|darwin/arm64) suffix= ;;
+  windows/amd64|windows/arm64) suffix=.exe ;;
+  *) exit 1 ;;
+esac
+source_file="${RELEASE_INPUT:?}/binaries/${GOOS}_${GOARCH}/kongctl${suffix}"
+[[ -f "$source_file" && ! -L "$source_file" ]]
+cp "$source_file" "$output"
+chmod 755 "$output"

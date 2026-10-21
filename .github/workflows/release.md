@@ -77,6 +77,7 @@ jobs:
       release_tag: ${{ steps.compute_config.outputs.release_tag }}
       release_version: ${{ steps.compute_config.outputs.release_version }}
       recovery_run_id: ${{ steps.compute_config.outputs.recovery_run_id }}
+      release_commit: ${{ github.sha }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
@@ -400,78 +401,151 @@ jobs:
           git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
           git push origin "$RELEASE_TAG"
 
-  publish_release:
+  build_release:
     needs: ["config", "create_tag"]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     permissions:
-      contents: write
-      packages: write
-      actions: read
+      contents: read
     env:
       RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_COMMIT: ${{ needs.config.outputs.release_commit }}
+      GORELEASER_CURRENT_TAG: ${{ needs.config.outputs.release_tag }}
       RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
           egress-policy: audit
-      - name: Checkout repository
+      - name: Checkout exact release source
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/checkout@v6
         with:
+          repository: ${{ github.repository }}
+          ref: ${{ needs.config.outputs.release_commit }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Reuse existing release (recovery mode)
-        if: env.RELEASE_BUILD_MODE == 'recovery' || env.RELEASE_BUILD_MODE == 'draft-recovery'
-        run: |
-          echo "Recovery mode will reuse release $RELEASE_TAG"
-
-      - name: Configure private git reads for GoReleaser
+      - name: Validate source before building
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        run: python3 -c 'import runpy; runpy.run_path("scripts/release-handoff.py")["source"]()'
+      - name: Configure private module reads
         if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         env:
           GH_PRIVATE_READ_TOKEN: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
         run: |
           set -euo pipefail
-          if [ -n "${GH_PRIVATE_READ_TOKEN:-}" ]; then
+          if [[ -n "${GH_PRIVATE_READ_TOKEN:-}" ]]; then
             git config --global url."https://${GH_PRIVATE_READ_TOKEN}@github.com/".insteadOf https://github.com/
-          else
-            echo "GH_TOKEN_PRIVATE_READ not set; using default git auth"
           fi
-
-      - name: Setup Go (full mode)
-        if: env.RELEASE_BUILD_MODE == 'full'
+      - name: Setup Go
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           cache: false
-
-      - name: Set up QEMU (full mode)
+      - name: Build and generate without signing or publishing credentials
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.13.3
+          args: build --clean --timeout=60m
+        env:
+          CGO_ENABLED: "0"
+      - name: Stage unsigned binaries
+        if: env.RELEASE_BUILD_MODE == 'full'
+        run: |
+          set -euo pipefail
+          for os in darwin linux windows; do
+            for arch in amd64 arm64; do
+              variant=v1
+              [[ "$arch" == arm64 ]] && variant=v8.0
+              suffix=
+              [[ "$os" == windows ]] && suffix=.exe
+              mkdir -p "handoff/binaries/${os}_${arch}"
+              cp "dist/kongctl_${os}_${arch}_${variant}/kongctl${suffix}" \
+                "handoff/binaries/${os}_${arch}/kongctl${suffix}"
+            done
+          done
+      - name: Set up QEMU
         if: env.RELEASE_BUILD_MODE == 'full'
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-
-      - name: Set up Docker Buildx (full mode)
+      - name: Set up Docker Buildx
         if: env.RELEASE_BUILD_MODE == 'full'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Login to GHCR (full mode)
+      - name: Build container archives without registry credentials
         if: env.RELEASE_BUILD_MODE == 'full'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        run: |
+          set -euo pipefail
+          mkdir -p handoff/images container-context
+          cp Dockerfile container-context/
+          for arch in amd64 arm64; do
+            mkdir -p "container-context/linux/$arch"
+            cp "handoff/binaries/linux_$arch/kongctl" "container-context/linux/$arch/kongctl"
+            docker buildx build --platform "linux/$arch" --provenance=false \
+              --tag "kongctl-release:$arch" --output "type=docker,dest=handoff/images/$arch.tar" \
+              container-context
+          done
+      - name: Build smoke artifact
+        if: env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+          mkdir -p handoff
+          CGO_ENABLED=0 go build -trimpath \
+            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=$(git rev-parse --short HEAD) -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o handoff/kongctl-linux-amd64 .
+          tar -czf "handoff/kongctl-${RELEASE_VERSION}-linux-amd64-smoke.tar.gz" -C handoff kongctl-linux-amd64
+          rm handoff/kongctl-linux-amd64
+      - name: Record source and unsigned hashes
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        run: python3 scripts/release-handoff.py record handoff
+      - name: Upload unsigned handoff
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/upload-artifact@v7.0.1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          name: unsigned-${{ needs.config.outputs.release_tag }}
+          path: handoff/
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Login to Docker Hub (full mode)
-        if: env.RELEASE_BUILD_MODE == 'full' && env.DOCKER_USERNAME != ''
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+  sign_release:
+    needs: ["config", "build_release"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_COMMIT: ${{ needs.config.outputs.release_commit }}
+      GORELEASER_CURRENT_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
+          egress-policy: audit
+      - name: Checkout trusted packaging source
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.config.outputs.release_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download unsigned handoff
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-${{ needs.config.outputs.release_tag }}
+          path: handoff/
+      - name: Verify source and unsigned hashes before accessing Apple credentials
+        if: env.RELEASE_BUILD_MODE == 'full'
+        run: |
+          set -euo pipefail
+          python3 scripts/release-handoff.py verify handoff
+          # Downloaded data is not source; keep GoReleaser's dirty-tree check.
+          printf '%s\n' /handoff/ /signed/ >> .git/info/exclude
+          echo "PATH=$GITHUB_WORKSPACE/scripts/release-tools:$PATH" >> "$GITHUB_ENV"
       - name: Prepare Apple signing (full mode)
         if: env.RELEASE_BUILD_MODE == 'full'
         env:
@@ -483,37 +557,116 @@ jobs:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
           APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
         run: bash scripts/prepare-apple-signing.sh
-
-      - name: Run GoReleaser (full mode)
+      - name: Sign and package verified binaries without compilation
         if: env.RELEASE_BUILD_MODE == 'full'
-        id: goreleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
           version: v2.13.3
-          args: release --clean --parallelism=1 --timeout=80m
+          args: release --clean --skip=before,publish,docker --parallelism=1 --timeout=80m
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
-          CGO_ENABLED: "0"
+          RELEASE_INPUT: ${{ github.workspace }}/handoff
           APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
           APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
           APPLE_NOTARY_API_ISSUER_ID: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
           APPLE_NOTARY_API_KEY_ID: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
-
       - name: Remove temporary Apple API key
         if: always() && env.RELEASE_BUILD_MODE == 'full'
         run: rm -f "$RUNNER_TEMP/kongctl-notary-key.p8"
-
-      - name: Stage Homebrew release metadata
+      - name: Record final signed package hashes
         if: env.RELEASE_BUILD_MODE == 'full'
-        env:
-          GORELEASER_METADATA: ${{ steps.goreleaser.outputs.metadata }}
         run: |
           set -euo pipefail
-          mkdir -p dist/homebrew
-          jq -e . <<<"$GORELEASER_METADATA" > dist/homebrew/goreleaser-metadata.json
+          mkdir -p signed/homebrew
+          cp dist/kongctl_*.zip dist/checksums.txt signed/
+          cp -R dist/homebrew/. signed/homebrew/
+          cp dist/metadata.json signed/homebrew/goreleaser-metadata.json
+          cp handoff/handoff.json signed/unsigned-handoff.json
+          python3 scripts/release-handoff.py record signed
+      - name: Upload signed handoff
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: signed-${{ needs.config.outputs.release_tag }}
+          path: signed/
+          if-no-files-found: error
+          retention-days: 7
 
+  publish_release:
+    needs: ["config", "build_release", "sign_release"]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+    env:
+      RELEASE_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.config.outputs.release_version }}
+      RELEASE_COMMIT: ${{ needs.config.outputs.release_commit }}
+      GORELEASER_CURRENT_TAG: ${{ needs.config.outputs.release_tag }}
+      RELEASE_BUILD_MODE: ${{ needs.config.outputs.build_mode }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+      - name: Checkout trusted publication source
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.config.outputs.release_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Download unsigned handoff
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-${{ needs.config.outputs.release_tag }}
+          path: handoff/
+      - name: Download signed handoff
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: signed-${{ needs.config.outputs.release_tag }}
+          path: signed/
+      - name: Verify every handoff before publication
+        if: env.RELEASE_BUILD_MODE == 'full' || env.RELEASE_BUILD_MODE == 'smoke'
+        run: |
+          set -euo pipefail
+          python3 scripts/release-handoff.py verify handoff
+          mkdir -p dist
+          if [[ "$RELEASE_BUILD_MODE" == full ]]; then
+            python3 scripts/release-handoff.py verify signed
+            cmp handoff/handoff.json signed/unsigned-handoff.json
+            cp -R signed/homebrew dist/homebrew
+          else
+            cp handoff/*.tar.gz dist/
+          fi
+      - name: Create signed draft from verified assets
+        if: env.RELEASE_BUILD_MODE == 'full'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" --draft --title "$RELEASE_TAG" --generate-notes \
+            signed/kongctl_*.zip signed/checksums.txt signed/handoff.json
+      - name: Login to GHCR
+        if: env.RELEASE_BUILD_MODE == 'full'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to Docker Hub
+        if: env.RELEASE_BUILD_MODE == 'full' && env.DOCKER_USERNAME != ''
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Publish prebuilt container archives without rebuilding
+        if: env.RELEASE_BUILD_MODE == 'full'
+        run: bash scripts/publish-release-images.sh handoff/images
       - name: Recover original GoReleaser Homebrew metadata without rebuilding
         if: env.RELEASE_BUILD_MODE == 'draft-recovery'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -532,32 +685,6 @@ jobs:
           if-no-files-found: error
           overwrite: true
           retention-days: 7
-
-      - name: Setup Go (smoke mode)
-        if: env.RELEASE_BUILD_MODE == 'smoke'
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: false
-
-      - name: Build smoke artifact
-        if: env.RELEASE_BUILD_MODE == 'smoke'
-        run: |
-          set -euo pipefail
-
-          mkdir -p dist
-          COMMIT="$(git rev-parse --short HEAD)"
-          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          SMOKE_BIN="kongctl-linux-amd64"
-          SMOKE_TAR="kongctl-${RELEASE_TAG#v}-linux-amd64-smoke.tar.gz"
-
-          CGO_ENABLED=0 go build \
-            -trimpath \
-            -ldflags="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}" \
-            -o "dist/${SMOKE_BIN}" \
-            .
-
-          tar -czf "dist/${SMOKE_TAR}" -C dist "${SMOKE_BIN}"
 
       - name: Create GitHub release (smoke mode)
         if: env.RELEASE_BUILD_MODE == 'smoke'
