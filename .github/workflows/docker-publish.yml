@@ -160,8 +160,8 @@ jobs:
           push: true
           tags: ${{ steps.meta-ghcr.outputs.tags }}
           labels: ${{ steps.meta-ghcr.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Repository package updates do not invalidate Docker's RUN cache.
+          no-cache: true
 
       - name: Build and push to Docker Hub
         if: ${{ env.DOCKER_USERNAME != '' }}
@@ -173,5 +173,5 @@ jobs:
           push: true
           tags: ${{ steps.meta-dockerhub.outputs.tags }}
           labels: ${{ steps.meta-dockerhub.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Repository package updates do not invalidate Docker's RUN cache.
+          no-cache: true
