@@ -9,3 +9,18 @@ portals:
     description: Portal with auth settings managed declaratively
     kongctl:
       namespace: portal-auth-settings
+    identity_providers:
+      - ref: portal-auth-oidc
+        type: oidc
+        enabled: true
+        config:
+          issuer_url: !env KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+          client_id: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+          client_secret: !secret {source: !env KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET}
+          scopes:
+            - openid
+            - profile
+          claim_mappings:
+            name: name
+            email: email
+            groups: groups

@@ -3,6 +3,15 @@ baseInputsPath: testdata
 env:
   KONGCTL_LOG_LEVEL: debug
 
+test:
+  requiredEnvVars:
+    - KONGCTL_E2E_PORTAL_IDP_ISSUER_URL
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_ID
+    - KONGCTL_E2E_PORTAL_IDP_CLIENT_SECRET
+  info: >-
+    Auth-settings sync updates require an enabled IdP; use the existing
+    KONGCTL_E2E_PORTAL_IDP_* inputs shared by the identity-provider scenarios.
+
 vars:
   namespace: portal-auth-settings
   portalRef: portal-auth
@@ -151,7 +160,34 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003a-sync-auth-settings-update
+  - name: 003a-enable-identity-provider
+    inputOverlayDirs:
+      - overlays/003-enable-idp
+    commands:
+      - name: 000-apply-enabled-idp
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 001-get-enabled-idp
+        run: [get, portal, identity-providers, --portal-name, "{{ .vars.portalRef }}", -o, json]
+        assertions:
+          - select: "[?type=='oidc'] | [0]"
+            expect:
+              fields:
+                type: oidc
+                enabled: true
+
+  - name: 003b-sync-auth-settings-update
     inputOverlayDirs:
       - overlays/003-sync-update
     commands:
@@ -198,7 +234,7 @@ steps:
               fields:
                 total_changes: 0
 
-  - name: 003b-sync-with-auth-settings-omitted
+  - name: 003c-sync-with-auth-settings-omitted
     inputOverlayDirs:
       - overlays/004-sync-omit-auth
     commands:
@@ -269,6 +305,8 @@ steps:
                 total_changes: 0
 
   - name: 005-delete-cleanup
+    inputOverlayDirs:
+      - overlays/003-enable-idp
     commands:
       - name: 000-delete
         outputFormat: json
