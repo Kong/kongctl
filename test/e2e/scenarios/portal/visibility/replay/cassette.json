@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "portal/visibility",
-  "inputs_sha256": "sha256:005c798538bbad49e1d256d026a07e278c8ffd99c667ca2159fc45e3ab241be9",
+  "inputs_sha256": "sha256:72afd7f165faed8ad5396173ae5369f9601bf7a44c817f435d57249ef72ec884",
   "source": {
     "kind": "recorded",
-    "commit": "ebba14d9f47b3902ccc5a5c9138d42beb6bc464e",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/34609380360"
+    "commit": "71fd9e5aec833d26073dc06e20ba183192ab13a9",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/39667015919"
   },
   "parallel_phases": [
     {
@@ -80,13 +80,11 @@
     }
   ],
   "interaction_chunks": [
-    "dc1c6d39fb60fc58bd427603ddf6f5d908d4a3cefdaf6fb0307ac594cfc936e3",
-    "4bdf886baf4e19ffa5b551d506d3294e76bd328d9ffc3e792942d839090469b8",
-    "dd62c5a9c6a0c98699c7a1618657a6344d395ba203657615c120414e2bcdd343",
-    "7f483fd652294d31cc51ce3e09cbcb55160b7403a87bb28314ceab7e5d2d632c",
-    "18b27354991147a352ea378acd9c8d90c8c2bf40c65d0873453fd8b8ccb6c0e0",
-    "47533d29ab52d34e93829fe607bca6e3fb87d75d9dc08dbd6e073892cdff706a",
-    "7d89d0f81afc022b5dc9ee50bfccaa1fdd457a92b0fa5b10b08ba64514b59350",
-    "6c9b0dd032053f3eea5a31e8e90398277e05609cff97fccc6cc0382259a49319"
+    "d0d883ad2a1939e9263def07ff33141a8dfe316348e690fbcb40c048d2e6b020",
+    "1120f28e7c10f3b153cad6c073d7e52e46b419541c92009c380190683a8626c6",
+    "066f60cfea1c3e658816e1f4bf31508ba62315586f6cb68e607084020d29a334",
+    "ae0fcbfea8941cf08d7aeda55bcb8283c93e99cb0591964b229b83b76d67eb91",
+    "9a56025f3be43f4a08877bfeb948966f50451e20cd0e49856e5dbd0b770cd0c8",
+    "96c41531155d558ac32c8418afe0568274d1b123fee530f334384c45bfd63b73"
   ]
 }

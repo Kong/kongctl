@@ -40,14 +40,14 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [get]: https://github.com/Kong/kongctl/actions/runs/34377519108
 [apply]: https://github.com/Kong/kongctl/actions/runs/34427742802
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
-[sync]: https://github.com/Kong/kongctl/actions/runs/35249677971
-[sync-replay]: https://github.com/Kong/kongctl/actions/runs/35250398004
+[sync]: https://github.com/Kong/kongctl/actions/runs/39666956462
+[sync-replay]: https://github.com/Kong/kongctl/actions/runs/39670010464
 [consume-record]: https://github.com/Kong/kongctl/actions/runs/35115143565
 [consume-replay]: https://github.com/Kong/kongctl/actions/runs/35116004092
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
-[visibility-record]: https://github.com/Kong/kongctl/actions/runs/34609380360
-[visibility-replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
+[visibility-record]: https://github.com/Kong/kongctl/actions/runs/39667015919
+[visibility-replay]: https://github.com/Kong/kongctl/actions/runs/39669883194
 [docs-record]: https://github.com/Kong/kongctl/actions/runs/34860627806
 [docs-replay]: https://github.com/Kong/kongctl/actions/runs/34862188973
 [customization-record]: https://github.com/Kong/kongctl/actions/runs/35453473003
@@ -69,8 +69,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [user-apply-replay]: https://github.com/Kong/kongctl/actions/runs/35554062188
 [user-plan-sync-record]: https://github.com/Kong/kongctl/actions/runs/35553696438
 [user-plan-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35554143695
-[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/35553697766
-[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/35554145336
+[user-sync-record]: https://github.com/Kong/kongctl/actions/runs/39669819402
+[user-sync-replay]: https://github.com/Kong/kongctl/actions/runs/39670928048
 
 ## Routing
 
@@ -218,11 +218,12 @@ removal and API deletion remain barriers; reads from later scenario states
 cannot satisfy earlier requests. An annotation is a reviewed assertion about
 independent operations, not a general simulation of Konnect state.
 
-Control Plane sync annotates only exchanges 10–12: creating the new control
+Control Plane sync annotates only exchanges 12–14: creating the new control
 plane is independent of looking up/deleting the old one, but the old lookup
 must precede its deletion. All inventory and final-cleanup requests retain
 strict order. Its refreshed v2 cassette covers UPDATE and idempotency after
-CREATE and UPDATE, and passed three isolated replays of all 16 exchanges.
+CREATE and UPDATE, default sync-mode diffs and a dump-to-sync-plan round
+trip. Its validation covers all 20 exchanges.
 The [scenario replay review](scenarios/control-plane/sync/replay/README.md)
 documents the command boundaries and recording provenance.
 
@@ -308,8 +309,10 @@ CI environment. Recording normalizes those users to stable
 additional pseudonyms; they are not removed from list responses. User IDs
 use the existing UUID normalization. Names and account timestamps are
 pseudonymized; missing/null names, active states, collection ordering,
-memberships, and roles are preserved. Unknown user profile fields fail closed
-for review. No real-to-synthetic mapping is uploaded or committed.
+memberships, and roles are preserved. The optional `account_type` is retained
+only for the SDK's documented `google`, `github`, `microsoft`, `basic-auth`,
+and `sso` values (or null). Other values and unknown user profile fields fail
+closed for review. No real-to-synthetic mapping is uploaded or committed.
 
 Offline execution supplies synthetic inputs without inheriting the caller's
 email values or requiring registered users in any organization. Matching
