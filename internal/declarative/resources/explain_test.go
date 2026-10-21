@@ -39,6 +39,22 @@ func TestResolveExplainSubject_Resource(t *testing.T) {
 	assert.Equal(t, "object", subject.Node.Kind)
 }
 
+func TestExplainOperationRemovalPolicyIsAPIScoped(t *testing.T) {
+	subject, err := ResolveExplainSubject("api.force_delete")
+	require.NoError(t, err)
+	require.Equal(t, "boolean", subject.Node.Kind)
+	require.NotEmpty(t, subject.Node.Notes)
+	for _, resourceType := range RegisteredTypes() {
+		if resourceType == ResourceTypeAPI {
+			continue
+		}
+		doc, err := buildExplainDoc(resourceType)
+		require.NoError(t, err)
+		_, found := doc.Schema.lookup([]string{"force_delete"})
+		require.False(t, found, "%s must not expose API execution policy", resourceType)
+	}
+}
+
 func TestResolveExplainSubject_HyphenatedAlias(t *testing.T) {
 	subject, err := ResolveExplainSubject("event-gateway")
 	require.NoError(t, err)

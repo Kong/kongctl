@@ -200,6 +200,23 @@ func TestDiffPlanRoundTripAndLegacyFields(t *testing.T) {
 	}
 }
 
+func TestDiffShowsOperationRemovalAuthorization(t *testing.T) {
+	for _, allowed := range []bool{false, true} {
+		plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+		plan.AddChange(planner.PlannedChange{
+			ID: "update-api", ResourceType: planner.ResourceTypeAPI, ResourceRef: "bookings",
+			Action: planner.ActionUpdate, ForceDelete: allowed,
+			ChangedFields: map[string]planner.FieldChange{planner.FieldVersion: {Old: "beta.1", New: "beta.2"}},
+		})
+		plan.SetExecutionOrder([]string{"update-api"})
+		var out bytes.Buffer
+		command := &cobra.Command{}
+		command.SetOut(&out)
+		require.NoError(t, displayTextDiff(command, plan, false))
+		assert.Equal(t, allowed, strings.Contains(out.String(), "force_delete: true"))
+	}
+}
+
 func TestPolicyDiffRedactsCurrentDeferredEnvValues(t *testing.T) {
 	for _, legacy := range []bool{false, true} {
 		for _, fullContent := range []bool{false, true} {

@@ -1576,6 +1576,7 @@ func (c *Client) UpdateAPI(
 	id string,
 	api kkComps.UpdateAPIRequest,
 	_ string, // namespace - labels already built by executor
+	allowOperationRemoval bool,
 ) (*kkComps.APIResponseSchema, error) {
 	if c.apiAPI == nil {
 		return nil, fmt.Errorf("API client not configured")
@@ -1584,7 +1585,7 @@ func (c *Client) UpdateAPI(
 	// Labels have already been built by the executor using BuildUpdateLabels
 	// which includes namespace and protection labels with removal support
 
-	resp, err := c.apiAPI.UpdateAPI(ctx, id, api)
+	resp, err := c.apiAPI.UpdateAPI(ctx, id, api, allowOperationRemoval)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update API: %w", err)
 	}
@@ -2488,6 +2489,7 @@ func (c *Client) CreateAPIVersion(
 // UpdateAPIVersion updates an existing API version
 func (c *Client) UpdateAPIVersion(
 	ctx context.Context, apiID, versionID string, version kkComps.APIVersionRequest,
+	allowOperationRemoval bool,
 ) (*kkComps.APIVersionResponse, error) {
 	if c.apiVersionAPI == nil {
 		return nil, fmt.Errorf("API version client not configured")
@@ -2498,6 +2500,9 @@ func (c *Client) UpdateAPIVersion(
 		APIID:             apiID,
 		VersionID:         versionID,
 		APIVersionRequest: version,
+	}
+	if allowOperationRemoval {
+		req.Force = kkOps.UpdateAPIVersionQueryParamForceTrue.ToPointer()
 	}
 
 	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)

@@ -49,6 +49,10 @@ type APIResource struct {
 	kkComps.CreateAPIRequest `yaml:",inline" json:",inline"`
 	External                 *ExternalBlock `yaml:"_external,omitempty" json:"_external,omitempty"`
 
+	// ForceDelete permits ACE operation removal on API and child-version updates.
+	// This synthetic field maps to the force query parameter, not the request body.
+	ForceDelete *bool `yaml:"force_delete,omitempty" json:"force_delete,omitempty"`
+
 	// Nested child resources
 	Versions        []APIVersionResource        `yaml:"versions,omitempty"        json:"versions,omitempty"`
 	Publications    []APIPublicationResource    `yaml:"publications,omitempty"    json:"publications,omitempty"`
@@ -113,6 +117,9 @@ func (a APIResource) GetReferenceFieldMappings() map[string]string {
 func (a APIResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid API ref: %w", err)
+	}
+	if a.IsExternal() && a.ForceDelete != nil {
+		return fmt.Errorf("external API cannot use force_delete")
 	}
 	if err := a.External.Validate(); err != nil {
 		return fmt.Errorf("invalid _external block: %w", err)

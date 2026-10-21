@@ -331,9 +331,55 @@ api_publications:
 ## Kongctl Metadata
 
 The `kongctl` section provides metadata for resource management.
-This metadata is stored in Kong Konnect labels and labels are only 
-provided on parent resources. Thus, `kongctl` metadata is 
+Namespace and protection metadata are stored in Kong Konnect labels, which
+are only provided on parent resources.
+Thus, `kongctl` metadata is
 **only supported on parent resources**.
+
+### Authorizing API Operation Removal
+
+When access control enforcement (ACE) is enabled, Konnect rejects updates
+that remove operations from the current API specification unless explicitly
+authorized. Set the synthetic `force_delete` field directly on the parent
+API to authorize these updates:
+
+```yaml
+apis:
+  - ref: bookings
+    name: Bookings
+    version: beta.2
+    force_delete: true
+    versions:
+      - ref: bookings-beta2
+        version: beta.2
+        spec: !file ./bookings-beta2.yaml
+```
+
+This field permits operation removal during updates. It does not request
+API deletion or bypass other validation.
+
+This policy defaults to false and is supported only on managed APIs. It
+applies to updates of the API and its child versions, including versions
+declared at the root with `api: bookings`. It cannot be set on children or
+in `_defaults`. It authorizes future updates while present in the manifest;
+remove it when that authorization is no longer intended.
+
+The planner records `force_delete: true` on authorized update
+changes in saved JSON plans. Executing such a plan preserves that policy
+without consulting the original manifest. It maps to Konnect's `force=true`
+update query parameter, is never sent in the request body or labels, and
+is not inferred or exported by `dump`.
+
+When switching the current version, kongctl creates or updates the target
+child version before updating the API. In `sync` mode, deletion of the old
+current version waits for the switch to succeed. Keep the old version in
+`versions` to retain it; omitting it requests deletion when that collection
+is in sync scope. Other Konnect deletion restrictions still apply.
+
+Existing child specifications can also be updated in place. The same
+authorization is needed if such an update removes current operations under
+ACE. Changing the operations of the current version affects access control
+even if historical version records are retained.
 
 ### Protected Resources
 

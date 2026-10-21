@@ -126,3 +126,16 @@ func TestAPIResourceSetDefaults(t *testing.T) {
 		})
 	}
 }
+
+func TestAPIResourceExternalRejectsForceDelete(t *testing.T) {
+	for _, value := range []*bool{new(false), new(true)} {
+		api := APIResource{
+			BaseResource: BaseResource{Ref: "shared-api"},
+			External: &ExternalBlock{Selector: &ExternalSelector{
+				MatchFields: map[string]string{"name": "Shared API"},
+			}},
+			ForceDelete: value,
+		}
+		require.ErrorContains(t, api.Validate(), "external API cannot use force_delete")
+	}
+}

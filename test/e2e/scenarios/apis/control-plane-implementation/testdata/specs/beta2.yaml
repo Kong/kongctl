@@ -1,0 +1,11 @@
+openapi: 3.0.3
+info:
+  title: E2E Control Plane Implementation API
+  version: beta.2
+paths:
+  /bookings:
+    get:
+      operationId: listBookings
+      responses:
+        "200":
+          description: OK
