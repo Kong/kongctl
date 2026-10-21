@@ -23,8 +23,10 @@ func TestOrganizationMembershipLookupSync(t *testing.T) {
 			desired     bool
 			action      ActionType
 			declareTeam bool
+			stale       bool
 		}{
 			{name: "preserve existing", present: true, desired: true},
+			{name: "preserve desired and prune stale", present: true, desired: true, stale: true, action: ActionDelete},
 			{name: "create missing", desired: true, action: ActionCreate},
 			{name: "prune omitted", present: true, action: ActionDelete},
 			{name: "preserve with separate team manifest", present: true, desired: true, declareTeam: true},
@@ -32,6 +34,7 @@ func TestOrganizationMembershipLookupSync(t *testing.T) {
 		} {
 			t.Run(owner+"/"+tc.name, func(t *testing.T) {
 				const teamID = "a1111111-1111-4111-8111-111111111111"
+				const staleTeamID = "a2222222-2222-4222-8222-222222222222"
 				file := filepath.Join(t.TempDir(), "access.yaml")
 				memberships := "      teams: []"
 				if tc.desired {
@@ -78,15 +81,23 @@ organization:
 				if tc.present {
 					teams = append(teams, kkComps.Team{ID: new(teamID), Name: new("customer-data")})
 				}
+				observedTeams := []kkComps.TeamResponse{{
+					ID: teamID, Name: "customer-data",
+					Labels: map[string]string{labels.NamespaceKey: "platform"},
+				}}
+				if tc.stale {
+					teams = append(teams, kkComps.Team{ID: new(staleTeamID), Name: new("stale-team")})
+					observedTeams = append(observedTeams, kkComps.TeamResponse{
+						ID: staleTeamID, Name: "stale-team",
+						Labels: map[string]string{labels.NamespaceKey: "platform"},
+					})
+				}
 				client := state.NewClient(state.ClientConfig{
 					OrganizationTeamAPI: &organizationTeamAPIStub{
 						listOrganizationTeams: func(context.Context, kkOps.ListTeamsRequest) (*kkOps.ListTeamsResponse, error) {
 							return &kkOps.ListTeamsResponse{TeamCollectionResponse: &kkComps.TeamCollectionResponse{
-								Data: []kkComps.TeamResponse{{
-									ID: teamID, Name: "customer-data",
-									Labels: map[string]string{labels.NamespaceKey: "platform"},
-								}},
-								Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},
+								Data: observedTeams,
+								Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: float64(len(observedTeams))}},
 							}}, nil
 						},
 					},
@@ -115,7 +126,11 @@ organization:
 					require.Len(t, plan.Changes, 1)
 					require.Equal(t, tc.action, plan.Changes[0].Action)
 					require.Equal(t, kind, plan.Changes[0].ResourceType)
-					require.Equal(t, teamID, plan.Changes[0].References[FieldTeamID].ID)
+					wantTeamID := teamID
+					if tc.stale {
+						wantTeamID = staleTeamID
+					}
+					require.Equal(t, wantTeamID, plan.Changes[0].References[FieldTeamID].ID)
 				}
 			})
 		}

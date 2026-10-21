@@ -67,10 +67,11 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationSystemAccountTeamMembershi
 		desiredTeamIDs := make(map[string]bool)
 		for _, membership := range t.planner.resources.OrganizationSystemAccountTeamMemberships {
 			if membership.SystemAccount == accountRef {
-				_, id, _ := t.resolveOrganizationTeamForAssignment(
+				team, id, _ := t.resolveOrganizationTeamForAssignment(
 					membership.Team, t.planner.resources.OrganizationTeams, currentByName,
 				)
-				if id != "" {
+				// Foreign managed teams must not borrow this namespace's name-matched IDs.
+				if id != "" && (team.IsExternal() || resources.GetNamespace(team.Kongctl) == namespace) {
 					desiredTeamIDs[id] = true
 				}
 			}
