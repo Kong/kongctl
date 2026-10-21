@@ -32,7 +32,7 @@ apis:
         portal_id: !ref portal-nested#id
         visibility: "public"
         auth_strategy_ids:
-          - !ref auth-strategy-nested#id
+          - !ref auth-strategy-nested-replacement#id
         auto_approve_registrations: true
     implementations:
       - ref: api-nested-impl1
@@ -76,6 +76,15 @@ application_auth_strategies:
       key_auth:
         key_names:
           - "x-api-key"
+
+  - ref: auth-strategy-nested-replacement
+    name: "auth-strategy-nested-replacement"
+    display_name: "Auth Strategy Nested Replacement"
+    strategy_type: key_auth
+    configs:
+      key_auth:
+        key_names:
+          - "x-replacement-api-key"
 
 control_planes:
   - ref: control-plane-nested

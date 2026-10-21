@@ -113,6 +113,9 @@ steps:
                 action: CREATE
       - name: 001-get-api
         run: ["get", "apis", "-o", "json"]
+        recordVar:
+          name: apiID
+          responsePath: "[?name=='API Nested'] | [0].id"
         assertions:
           - select: "[?name=='API Nested'] | [0]"
             expect:
@@ -261,75 +264,104 @@ steps:
           exitCode: 1
           contains: "not found"
 
+      - name: 015-get-auth-strategy
+        run: ["get", "auth-strategies", "-o", "json"]
+        recordVar:
+          name: originalAuthStrategyID
+          responsePath: "[?name=='auth-strategy-nested'] | [0].id"
+        assertions:
+          - select: "length([?name=='auth-strategy-nested'])"
+            expect:
+              fields:
+                "@": 1
+
   - name: 003-apply-update
     inputOverlayDirs:
       - overlays/002-update
     commands:
-      - name: 000-apply-update
+      - name: 000-plan-update
+        outputFormat: disable
         run:
-          - apply
+          - plan
           - -f
           - "{{ .workdir }}/apis.yaml"
-          - --auto-approve
+          - --mode
+          - apply
         assertions:
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 7
-                by_action.UPDATE: 5
-                by_action.CREATE: 2
           - select: summary
             expect:
               fields:
-                applied: 7
-                failed: 0
-                status: success
-          - select: "plan.changes[?resource_ref=='api-nested'] | [0]"
+                total_changes: 8
+                by_action.UPDATE: 5
+                by_action.CREATE: 3
+          - select: "changes[?resource_ref=='api-nested'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 fields.version: "2.0.0"
                 fields.labels.owner: "platform-eng"
                 fields.labels.lifecycle: "stage"
-          - select: "plan.changes[?resource_ref=='api-nested-v1'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-v1'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 "contains(fields.spec.content, '/updated')": true
-          - select: "plan.changes[?resource_ref=='api-nested-v2'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-v2'] | [0]"
             expect:
               fields:
                 action: CREATE
-          - select: "plan.changes[?resource_ref=='api-nested-pub1'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-pub1'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 fields.visibility: "public"
                 fields.auto_approve_registrations: true
+                "fields.auth_strategy_ids[0]": "__REF__:auth-strategy-nested-replacement#id"
+                "changed_fields.auth_strategy_ids.old[0]": "{{ .vars.originalAuthStrategyID }}"
+                "changed_fields.auth_strategy_ids.new[0]": "__REF__:auth-strategy-nested-replacement#id"
+                "references.auth_strategy_ids.refs[0]": "__REF__:auth-strategy-nested-replacement#id"
+                references.auth_strategy_ids.is_array: true
           # Implementations are never planned on implementation_url: matching and
           # CREATE both use service id + control plane id only, so changing
           # implementation_url alone plans no change for the implementation.
-          - select: "plan.changes[?resource_ref=='api-nested-impl1']"
+          - select: "changes[?resource_ref=='api-nested-impl1']"
             expect:
               fields:
                 "length(@)": 0
-          - select: "plan.changes[?resource_ref=='api-nested-doc-root'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-doc-root'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 "contains(fields.content, 'Updated overview for version 2.0.0')": true
-          - select: "plan.changes[?resource_ref=='api-nested-doc-child'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-doc-child'] | [0]"
             expect:
               fields:
                 action: UPDATE
                 fields.status: "published"
-          - select: "plan.changes[?resource_ref=='api-nested-doc-new'] | [0]"
+          - select: "changes[?resource_ref=='api-nested-doc-new'] | [0]"
             expect:
               fields:
                 action: CREATE
                 fields.status: "unpublished"
-      - name: 001-get-versions
+          - select: "changes[?resource_ref=='auth-strategy-nested-replacement'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                resource_type: application_auth_strategy
+
+      - name: 001-apply-update
+        run: ["apply", "-f", "{{ .workdir }}/apis.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-get-versions
         run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
+        recordVar:
+          name: v2VersionID
+          responsePath: "[?version=='2.0.0'] | [0].id"
         assertions:
           - select: "[?version=='2.0.0'] | [0]"
             expect:
@@ -341,7 +373,7 @@ steps:
               fields:
                 version: "1.0.0"
                 "spec.type": "oas3"
-      - name: 002-get-version-by-string
+      - name: 003-get-version-by-string
         run: ["get", "api", "versions", "--api-name", "API Nested", "1.0.0", "-o", "json"]
         assertions:
           - select: "@"
@@ -351,7 +383,7 @@ steps:
                 "spec.type": "oas3"
                 "spec.content != null": true
                 "contains(spec.content, '/updated')": true
-      - name: 003-get-documents
+      - name: 004-get-documents
         run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[?title=='New Document'] | [0]"
@@ -364,7 +396,21 @@ steps:
               fields:
                 title: "Child Document"
                 status: "published"
-      - name: 004-get-publications
+      - name: 005-get-replacement-auth-strategy
+        run: ["get", "auth-strategies", "-o", "json"]
+        recordVar:
+          name: replacementAuthStrategyID
+          responsePath: "[?name=='auth-strategy-nested-replacement'] | [0].id"
+        assertions:
+          - select: "length([?name=='auth-strategy-nested-replacement'])"
+            expect:
+              fields:
+                "@": 1
+          - select: "[?name=='auth-strategy-nested'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.originalAuthStrategyID }}"
+      - name: 006-get-publications
         run: ["get", "api", "publications", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "[0]"
@@ -373,12 +419,13 @@ steps:
                 visibility: "public"
                 auto_approve_registrations: true
                 "length(auth_strategy_ids)": 1
-                "auth_strategy_ids[0] != null": true
+                "auth_strategy_ids[0]": "{{ .vars.replacementAuthStrategyID }}"
+                "contains(auth_strategy_ids, '{{ .vars.originalAuthStrategyID }}')": false
       # The update plans no implementation change, so the implementation created
       # in 002-apply-create must survive the update with the same id and service.
       # implementation_url is not returned by the list response, so the service
       # fields are the observable post-update state here.
-      - name: 005-get-implementations
+      - name: 007-get-implementations
         run: ["get", "api", "implementations", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - select: "@"
@@ -391,6 +438,188 @@ steps:
                 id: "{{ .vars.implID }}"
                 service.control_plane_id: "{{ .vars.controlPlaneID }}"
                 service.id: "{{ .vars.gatewayServiceID }}"
+
+      - name: 008-plan-update-noop
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/apis.yaml", "--mode", "apply"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003a-apply-standalone-children
+    inputOverlayDirs:
+      - overlays/002-update
+      - overlays/004-standalone-children
+    commands:
+      - name: 000-plan-standalone-children
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/children.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: "changes[?resource_ref=='api-nested-standalone-version'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                resource_type: api_version
+                fields.version: "3.0.0"
+                namespace: apis-nested
+                parent.ref: api-nested
+                parent.id: "{{ .vars.apiID }}"
+                references.api_id.ref: api-nested
+                references.api_id.id: "{{ .vars.apiID }}"
+          - select: "changes[?resource_ref=='api-nested-standalone-document'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                resource_type: api_document
+                fields.slug: standalone-document
+                namespace: apis-nested
+                parent.ref: api-nested
+                parent.id: "{{ .vars.apiID }}"
+                references.api_id.ref: api-nested
+                references.api_id.id: "{{ .vars.apiID }}"
+      - name: 001-apply-standalone-children
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/children.yaml"
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-get-mixed-versions
+        run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 3
+                "[?version=='1.0.0'] | [0].id": "{{ .vars.v1VersionID }}"
+                "[?version=='2.0.0'] | [0].id": "{{ .vars.v2VersionID }}"
+                "length([?version=='3.0.0'])": 1
+                "[?version=='3.0.0'] | [0].spec.type": oas3
+      - name: 003-get-mixed-documents
+        run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 4
+                "[?title=='Root Document'] | [0].id": "{{ .vars.rootDocID }}"
+                "[?title=='Child Document'] | [0].status": published
+                "[?title=='New Document'] | [0].status": unpublished
+          - select: "[?slug=='standalone-document'] | [0]"
+            expect:
+              fields:
+                title: "Standalone Document"
+                status: unpublished
+      - name: 004-plan-apply-mixed-noop
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/children.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 005-plan-sync-mixed-noop
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/apis.yaml"
+          - -f
+          - "{{ .workdir }}/children.yaml"
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003a2-sync-remove-standalone-children
+    inputOverlayDirs:
+      - overlays/002-update
+    commands:
+      - name: 000-plan-remove-standalone-children
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/apis.yaml", "--mode", "sync"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: "changes[?resource_type=='api_version'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                fields.version: "3.0.0"
+                parent.id: "{{ .vars.apiID }}"
+          - select: "changes[?resource_type=='api_document'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                fields.slug: standalone-document
+                parent.id: "{{ .vars.apiID }}"
+      - name: 001-sync-remove-standalone-children
+        run: ["sync", "-f", "{{ .workdir }}/apis.yaml", "--auto-approve"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: 002-get-surviving-versions
+        run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 2
+                "[?version=='1.0.0'] | [0].id": "{{ .vars.v1VersionID }}"
+                "[?version=='2.0.0'] | [0].id": "{{ .vars.v2VersionID }}"
+                "length([?version=='3.0.0'])": 0
+      - name: 003-get-surviving-documents
+        run: ["get", "api", "documents", "--api-name", "API Nested", "-o", "json"]
+        assertions:
+          - expect:
+              fields:
+                "length(@)": 3
+                "[?title=='Root Document'] | [0].id": "{{ .vars.rootDocID }}"
+                "[?title=='Child Document'] | [0].status": published
+                "[?title=='New Document'] | [0].status": unpublished
+                "length([?slug=='standalone-document'])": 0
+      - name: 004-plan-sync-pruned-noop
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/apis.yaml", "--mode", "sync"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
 
   - name: 003b-dump-and-round-trip
     skipInputs: true
@@ -495,31 +724,52 @@ steps:
     inputOverlayDirs:
       - overlays/003-sync-delete
     commands:
-      - name: 000-sync-delete
+      - name: 000-plan-sync-delete
+        outputFormat: disable
+        run: ["plan", "-f", "{{ .workdir }}/apis.yaml", "--mode", "sync"]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.DELETE: 4
+          - expect:
+              fields:
+                "length(changes[?resource_type=='api'])": 1
+                "length(changes[?resource_type=='portal'])": 1
+                "length(changes[?resource_type=='application_auth_strategy'])": 2
+      - name: 001-sync-delete
         run:
           - sync
           - -f
           - "{{ .workdir }}/apis.yaml"
           - --auto-approve
         assertions:
-          - select: plan.summary
-            expect:
-              fields:
-                total_changes: 3
-                by_action.DELETE: 3
           - select: summary
             expect:
               fields:
-                applied: 3
                 failed: 0
                 status: success
-      - name: 001-get-apis
+      - name: 002-get-apis
         run: ["get", "apis", "-o", "json"]
         assertions:
           - select: "[?name=='API Nested']"
             expect:
               fields:
                 "length(@)": 0
+
+          - source:
+              get: "auth-strategies"
+            select: "length([?name=='auth-strategy-nested' || name=='auth-strategy-nested-replacement'])"
+            expect:
+              fields:
+                "@": 0
+          - source:
+              get: "portals"
+            select: "length([?name=='Portal Nested'])"
+            expect:
+              fields:
+                "@": 0
 
   - name: 006-final-reset
     skipInputs: true
