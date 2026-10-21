@@ -56,6 +56,10 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 				refs: []string{"stale-id", "known"}, creates: []int{0},
 			},
 			{
+				name: "foreign unapplied team cannot protect same-named observed membership", mode: PlanModeSync,
+				refs: []string{"known", "foreign"}, deletes: []string{"stale-id"},
+			},
+			{
 				name: "empty sync prunes scoped observations", mode: PlanModeSync,
 				deletes: []string{"known-id", "stale-id"},
 			},
@@ -68,10 +72,14 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 				account.SetKonnectID("owner-id")
 				rs := &resources.ResourceSet{Organization: &resources.OrganizationResource{}}
 				var desiredTeams []resources.OrganizationTeamResource
-				for _, ref := range []string{"known", "alias", "ghost", "new-a", "new-b", "stale-id", "missing"} {
+				for _, ref := range []string{"known", "alias", "ghost", "new-a", "new-b", "stale-id", "missing", "foreign"} {
 					team := resources.OrganizationTeamResource{
 						BaseResource: resources.BaseResource{Ref: ref, Kongctl: plannerNamespaceMeta(namespace)},
 						CreateTeam:   kkComps.CreateTeam{Name: ref},
+					}
+					if ref == "foreign" {
+						team.Name = "stale"
+						team.Kongctl = plannerNamespaceMeta("other-namespace")
 					}
 					if ref == "alias" {
 						team.SetKonnectID("known-id")
@@ -81,7 +89,7 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 					}
 					rs.OrganizationTeams = append(rs.OrganizationTeams, team)
 					// Keep the declaration selectable while testing resolution's skip contract.
-					if ref != "missing" {
+					if ref != "missing" && ref != "foreign" {
 						desiredTeams = append(desiredTeams, team)
 					}
 				}
