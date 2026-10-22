@@ -8,6 +8,7 @@ vars:
   egwName: egw-cp-for-bc-vc-test
   bcRef: default-backend-cluster
   vcRef: default-virtual-cluster
+  namespace: event-gateways-vc-comprehensive-test
 
 defaults:
   mask:
@@ -274,6 +275,10 @@ steps:
         parseAs: yaml
         stdoutFile: "{{ .workdir }}/dump.yaml"
         assertions:
+          - select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
           - select: >-
               event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0]
             expect:
