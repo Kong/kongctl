@@ -66,6 +66,36 @@ func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	}
 }
 
+func TestCreateHelpDoesNotShowReadExamples(t *testing.T) {
+	for _, path := range []string{
+		"create",
+		"create konnect",
+		"create organization",
+		"create konnect organization",
+		"create organization system-account",
+		"create konnect organization system-account",
+		"create mesh",
+		"create konnect mesh",
+	} {
+		t.Run(path, func(t *testing.T) {
+			args := append(strings.Fields(path), "--help")
+			result := executeRootForTest(t, args...)
+			if result.exitCode != 0 {
+				t.Fatalf("expected help to succeed: %s", result.stderr)
+			}
+			for _, forbidden := range []string{
+				"kongctl get ",
+				"Get current organization information",
+				"retrieves data about the currently authenticated Konnect organization",
+			} {
+				if strings.Contains(result.stdout, forbidden) {
+					t.Fatalf("unexpected read help %q in:\n%s", forbidden, result.stdout)
+				}
+			}
+		})
+	}
+}
+
 func TestOutputFlagHelpVisibility(t *testing.T) {
 	tests := []struct {
 		name      string

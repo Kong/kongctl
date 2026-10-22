@@ -36,10 +36,9 @@ func NewSystemAccountCmd(
 	parentPreRun func(*cobra.Command, []string) error,
 ) (*cobra.Command, error) {
 	baseCmd := cobra.Command{
-		Use:     systemAccountUse,
-		Short:   systemAccountShort,
-		Long:    systemAccountLong,
-		Example: systemAccountExample,
+		Use:   systemAccountUse,
+		Short: systemAccountShort,
+		Long:  systemAccountLong,
 		Aliases: []string{
 			"systemaccount", "systemaccounts", "system-accounts", "system_account", "system_accounts",
 			"sa", "sas", "SA", "SAS",
@@ -48,6 +47,7 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
+		baseCmd.Example = systemAccountExample
 		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
 		cmd.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
 		cmd.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))

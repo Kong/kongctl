@@ -251,7 +251,6 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		Use:     konnectUse,
 		Short:   konnectShort,
 		Long:    konnectLong,
-		Example: konnectExamples,
 		Aliases: []string{"k", "K"},
 		PersistentPreRunE: func(c *cobra.Command, args []string) error {
 			ctx := c.Context()
@@ -263,6 +262,10 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			c.SetContext(ctx)
 			return bindFlags(c, args)
 		},
+	}
+
+	if verb == verbs.Get || verb == verbs.List {
+		cmd.Example = konnectExamples
 	}
 
 	if verb == verbs.Inspect {
@@ -284,6 +287,12 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Create {
+		cmd.Example = normalizers.Examples(fmt.Sprintf(`
+		# Create a Konnect personal access token
+		%[1]s create konnect pat --name ci --expires-in 30d -o token
+		# Create a Konnect system account access token
+		%[1]s create konnect spat --system-account-name ci-bot --name ci --expires-in 30d -o env
+		`, meta.CLIName))
 		if err := addTokenCommands(cmd, verb, addFlags, preRunE); err != nil {
 			return nil, err
 		}

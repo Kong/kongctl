@@ -43,18 +43,20 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		Use:     organizationUse,
 		Short:   organizationShort,
 		Long:    organizationLong,
-		Example: organizationExample,
 		Aliases: []string{"org", "orgs"},
 	}
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
+		baseCmd.Example = organizationExample
 		return newGetOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	}
 	if verb == verbs.Adopt {
 		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	}
 	if verb == verbs.Create || verb == verbs.Delete {
+		baseCmd.Short = "Manage Konnect organization resources"
+		baseCmd.Long = "Manage resources within the currently authenticated Konnect organization."
 		if parentPreRun != nil {
 			baseCmd.PreRunE = parentPreRun
 		}

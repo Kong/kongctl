@@ -16,6 +16,41 @@ func TestNewKonnectCmdCreateDoesNotExposeAuditLogs(t *testing.T) {
 	require.False(t, hasSubcommandNamed(cmd, "audit-logs"))
 }
 
+func TestNewKonnectCmdCreateExamples(t *testing.T) {
+	t.Parallel()
+
+	cmd, err := NewKonnectCmd(verbs.Create)
+	require.NoError(t, err)
+	require.Contains(t, cmd.Example, "kongctl create konnect pat")
+
+	var checkExamples func(*cobra.Command)
+	checkExamples = func(cmd *cobra.Command) {
+		require.NotContains(t, cmd.Example, "kongctl get ", cmd.CommandPath())
+		for _, child := range cmd.Commands() {
+			checkExamples(child)
+		}
+	}
+	checkExamples(cmd)
+
+	org, _, err := cmd.Find([]string{"organization"})
+	require.NoError(t, err)
+	require.NotContains(t, org.Short, "Get current organization")
+	require.NotContains(t, org.Long, "retrieves data")
+}
+
+func TestNewKonnectCmdNonReadVerbsDoNotInheritGetExamples(t *testing.T) {
+	t.Parallel()
+
+	for _, verb := range []verbs.VerbValue{verbs.Inspect, verbs.Listen, verbs.Adopt} {
+		t.Run(verb.String(), func(t *testing.T) {
+			t.Parallel()
+			cmd, err := NewKonnectCmd(verb)
+			require.NoError(t, err)
+			require.NotContains(t, cmd.Example, "kongctl get ")
+		})
+	}
+}
+
 func TestNewKonnectCmdListenExposesAuditLogs(t *testing.T) {
 	t.Parallel()
 
