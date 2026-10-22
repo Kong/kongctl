@@ -5,6 +5,8 @@ vars:
   gateway_name: AI Gateway Runtime TLS E2E
 
 defaults:
+  # TLS resources share one gateway; concurrent mutations can conflict in Konnect.
+  maxConcurrency: 1
   mask:
     dropKeys:
       - id

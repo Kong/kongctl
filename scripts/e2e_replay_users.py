@@ -19,7 +19,16 @@ USER_SCENARIOS = {
 EMAIL = re.compile(r"[\w.+-]+@[\w.-]+\.[a-z]{2,}", re.I)
 SYNTHETIC_EMAIL = re.compile(r"replay-user-[1-9][0-9]*@example\.invalid")
 USER_FIELDS = {"id", "email", "full_name", "preferred_name", "active",
-               "inferred_region", "created_at", "updated_at"}
+               "inferred_region", "created_at", "updated_at", "account_type"}
+
+
+# Match the SDK User.AccountType enum; arbitrary profile strings stay rejected.
+ACCOUNT_TYPES = {"google", "github", "microsoft", "basic-auth", "sso"}
+
+
+def valid_account_type(value):
+    account_type = value.get("account_type")
+    return account_type is None or isinstance(account_type, str) and account_type in ACCOUNT_TYPES
 
 
 def replay_inputs(scenario):
@@ -49,7 +58,7 @@ def check_user_profiles(value):
         if {"email", "full_name", "preferred_name"} & value.keys():
             email = value.get("email")
             if (set(value) - USER_FIELDS or not isinstance(email, str)
-                    or not SYNTHETIC_EMAIL.fullmatch(email)):
+                    or not SYNTHETIC_EMAIL.fullmatch(email) or not valid_account_type(value)):
                 raise ValueError("unreviewed or unsanitized organization user profile")
             label = email.split("@", 1)[0]
             if any(value.get(key) not in (None, "", "n/a", label) for key in ("full_name", "preferred_name")):
@@ -82,7 +91,7 @@ class UserIdentities:
         if isinstance(value, dict):
             if "email" in value:
                 if (set(value) - USER_FIELDS or not isinstance(value["email"], str)
-                        or not EMAIL.fullmatch(value["email"])):
+                        or not EMAIL.fullmatch(value["email"]) or not valid_account_type(value)):
                     raise ValueError("unreviewed organization user profile schema")
                 email = self.email(value["email"])
                 label = email.split("@", 1)[0]

@@ -9,7 +9,8 @@
     "description": "A comprehensive developer portal with guides, API documentation, and getting started content",
     "display_name": "A Getting Started Portal",
     "name": "My First Portal",
-    "rbac_enabled": false
+    "rbac_enabled": false,
+    "sipr_enabled": false
   },
   "namespace": "default",
   "protection": false,

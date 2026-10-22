@@ -1,16 +1,14 @@
 # Portal visibility replay
 
-The unchanged scenario was recorded against live Konnect in
-[run 34609380360][record]. It passed all assertions and both recording resets,
-capturing 390 exchanges. Recording's 50.07-second scenario duration includes
-proxy overhead and is not the normal live baseline.
+The expanded scenario was recorded against live Konnect in
+[run 39667015919][record] from commit `71fd9e5a`. It passed all assertions and
+both recording resets, capturing 390 exchanges. Coverage includes explicit
+SIPR false at creation, authentication/RBAC/SIPR false-to-true updates,
+readback, no-op planning and preservation through dump/plan round-trip.
 
-[Three loopback-only CI replays][replay] passed all 390 interactions each.
-Wrapper durations were 4.805, 4.958 and 4.951 seconds; scenario durations were
-4.122, 4.177 and 4.096 seconds. The historical normal live median is 38.695
-seconds across 20 observations, not a same-source or workflow comparison.
-Thirty repeated local replays also passed. The packed cassette expands to
-exactly the validated CI cassette; no exchanges or assertions were removed.
+Three [network-isolated CI replays][replay] passed all 390 exchanges each.
+The packed cassette expands to the identical validated CI output and retains
+the current input fingerprint. Ordering review changes only scheduling.
 
 The annotation in `parallel-phases.json` is bound to the exact SHA-256 of that
 candidate. It permits independent operations inside these one-based ranges;
@@ -36,21 +34,21 @@ a different recording without reviewing the new command boundaries.
 | 385–390 | Independent cleanup lookups/deletions |
 
 All other exchanges stay strictly ordered. In particular, the Portal PATCH
-at 126 and publication PUTs at 213 (private) and 260 (public) are barriers,
+at 126 includes all three security booleans. It and the publication PUTs
+at 213 (private) and 260 (public) are barriers,
 as are their immediately preceding lookups and following assertion reads.
 Cleanup lookups must precede their corresponding deletions. No response from
 a later visibility state can cross the intervening mutation.
 
-The live recording passed, but strict replay failed because independent root
-creation arrived in a different order (requests at recorded indices 9/10
-arrived while strict replay expected 8). Exact request comparison confirmed
-matching contents, not a request-body or transport discrepancy. The phase
-annotations address this scheduling difference without changing assertions.
+The live recording passed, but strict replay failed at interaction 9 when
+independent root creation arrived in a different order. Exact request
+comparison confirmed matching contents. The reviewed phase annotations
+address scheduling without changing requests, responses or assertions.
 
 Each planning phase also has two publication-list GETs filtered by different
 API IDs. Their order varies independently of the returned contents. The
 read-only phase permits this query-specific reordering, while repeated
 identical requests and all mutating phases retain their stream dependencies.
 
-[record]: https://github.com/Kong/kongctl/actions/runs/34609380360
-[replay]: https://github.com/Kong/kongctl/actions/runs/34610832683
+[record]: https://github.com/Kong/kongctl/actions/runs/39667015919
+[replay]: https://github.com/Kong/kongctl/actions/runs/39669883194
