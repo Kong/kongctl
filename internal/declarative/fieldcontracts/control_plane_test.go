@@ -29,7 +29,7 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 		AuthType: "pinned_client_certs", CloudGateway: true, ProxyUrls: []kkComps.ProxyURL{first, second},
 	}}
 	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
-	require.Equal(t, map[string]fieldcontracts.ControlPlaneFieldChange{
+	require.Equal(t, map[string]fieldcontracts.FieldChange{
 		fieldcontracts.FieldDescription: {Old: "old", New: ""},
 		fieldcontracts.FieldProxyURLs:   {Old: current.Config.ProxyUrls, New: desired.ProxyUrls},
 	}, changes, "empty auth and create-only fields must not become updates; URL order matters")

@@ -4075,9 +4075,6 @@ func (p *Planner) planPortalTeamsChanges(
 				return nil
 			},
 			matched: func(desiredTeam resources.PortalTeamResource, existingTeam state.PortalTeam) error {
-				// Team exists: check for updates
-				// Since name is the identifier, if name changes, it's a different resource
-				// Only description can be updated
 				if shouldUpdate, updateFields, changedFields := p.shouldUpdatePortalTeam(existingTeam, desiredTeam); shouldUpdate {
 					p.planPortalTeamUpdate(
 						parentNamespace,

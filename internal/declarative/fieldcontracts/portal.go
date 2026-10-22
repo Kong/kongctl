@@ -2,13 +2,6 @@ package fieldcontracts
 
 import kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
-// PortalFieldChange carries normalized diagnostic values. An unknown boolean
-// remains nil; string-valued observations retain their comparison semantics.
-type PortalFieldChange struct {
-	Old any
-	New any
-}
-
 // ExtractPortalFields projects the nine ordinary optional fields. Identity,
 // labels, references and secrets remain the caller's responsibility.
 func ExtractPortalFields(desired kkComps.CreatePortal, fields map[string]any) {
@@ -17,9 +10,10 @@ func ExtractPortalFields(desired kkComps.CreatePortal, fields map[string]any) {
 }
 
 // ComparePortalFields compares only declared ordinary fields against list state.
+// Unknown boolean observations remain nil in diagnostics.
 func ComparePortalFields(
 	desired kkComps.CreatePortal, current kkComps.ListPortalsResponsePortal,
-) map[string]PortalFieldChange {
+) map[string]FieldChange {
 	observed := portalListObservation{&current}
 	changes := comparePortalText(desired, observed)
 	for name, change := range comparePortalBooleans(desired, observed) {
@@ -27,7 +21,7 @@ func ComparePortalFields(
 		if change.Old != nil {
 			old = *change.Old
 		}
-		changes[name] = PortalFieldChange{Old: old, New: change.New}
+		changes[name] = FieldChange{Old: old, New: change.New}
 	}
 	return changes
 }

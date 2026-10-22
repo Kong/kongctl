@@ -104,8 +104,8 @@ func extractPortalText(desired kkComps.CreatePortal, fields map[string]any) {
 	}
 }
 
-func comparePortalText(desired kkComps.CreatePortal, current portalTextObservation) map[string]PortalFieldChange {
-	changes := make(map[string]PortalFieldChange)
+func comparePortalText(desired kkComps.CreatePortal, current portalTextObservation) map[string]FieldChange {
+	changes := make(map[string]FieldChange)
 	for _, field := range portalTextFields {
 		value := field.declaration(&desired)
 		if value == nil {
@@ -116,7 +116,7 @@ func comparePortalText(desired kkComps.CreatePortal, current portalTextObservati
 			old = *observed
 		}
 		if old != *value {
-			changes[field.name] = PortalFieldChange{Old: old, New: *value}
+			changes[field.name] = FieldChange{Old: old, New: *value}
 		}
 	}
 	return changes

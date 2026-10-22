@@ -22,7 +22,7 @@ func TestAPITextPresenceAcrossProjections(t *testing.T) {
 	require.Equal(t, desired, create)
 
 	changes := fieldcontracts.CompareAPIFields(desired, current)
-	require.Equal(t, map[string]fieldcontracts.APIFieldChange{
+	require.Equal(t, map[string]fieldcontracts.FieldChange{
 		fieldcontracts.FieldVersion: {Old: previous, New: version},
 		fieldcontracts.FieldSlug:    {Old: previous, New: empty},
 	}, changes)
