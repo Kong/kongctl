@@ -95,7 +95,7 @@ jobs:
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           distribution: goreleaser
-          version: v2.13.3
+          version: v2.18.3
           install-only: true
       - name: Test release metadata and signing failure gates without secrets
         run: |
