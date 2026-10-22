@@ -55,6 +55,7 @@ steps:
               fields:
                 action: CREATE
                 resource_ref: "{{ .vars.bcRef }}"
+                fields.insecure_allow_anonymous_virtual_cluster_auth: true
       - name: 002-apply-create
         replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
@@ -96,6 +97,7 @@ steps:
                   - "egw-backend-1.example.com:9092"
                   - "egw-backend-2.example.com:9092"
                 authentication.type: anonymous
+                insecure_allow_anonymous_virtual_cluster_auth: true
       - name: 004-record-egw-id
         run: ["get", "event-gateways", "-o", "json"]
         recordVar:
@@ -206,6 +208,9 @@ steps:
               fields:
                 action: UPDATE
                 resource_ref: "{{ .vars.bcRef }}"
+                fields.insecure_allow_anonymous_virtual_cluster_auth: false
+                changed_fields.insecure_allow_anonymous_virtual_cluster_auth.old: true
+                changed_fields.insecure_allow_anonymous_virtual_cluster_auth.new: false
       - name: 002-apply-update
         replanOnRetry: ["{{ .workdir }}/egw-bc.yaml"]
         outputFormat: json
@@ -239,6 +244,7 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test updated description"
+                insecure_allow_anonymous_virtual_cluster_auth: false
                 metadata_update_interval_seconds: 60
                 labels:
                   env: production
@@ -253,6 +259,19 @@ steps:
                 tls.tls_versions:
                   - "tls12"
                   - "tls13"
+      - name: 004-idempotency-check
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/egw-bc.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
   - name: 003-plan-update-to-sasl-scram
     inputOverlayDirs:
       - overlays/002-update-to-sasl-scram
@@ -425,6 +444,7 @@ steps:
               fields:
                 name: "{{ .vars.bcRef }}"
                 description: "First Backend Cluster for Test updated description"
+                insecure_allow_anonymous_virtual_cluster_auth: false
                 metadata_update_interval_seconds: 60
                 labels:
                   env: production

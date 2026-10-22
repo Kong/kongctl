@@ -287,7 +287,19 @@ steps:
           - "{{ .workdir }}/apis.yaml"
           - --mode
           - apply
+        recordVars:
+          - name: nestedV2CreateChangeID
+            responsePath: "changes[?resource_ref=='api-nested-v2'] | [0].id"
+          - name: nestedVersionSwitchChangeID
+            responsePath: "changes[?resource_ref=='api-nested'] | [0].id"
         assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(execution_groups) >= `2`": true
+                "contains(execution_groups[0], '{{ .vars.nestedV2CreateChangeID }}')": true
+                "contains(execution_groups[0], '{{ .vars.nestedVersionSwitchChangeID }}')": false
+                "contains(execution_groups[1], '{{ .vars.nestedVersionSwitchChangeID }}')": true
           - select: summary
             expect:
               fields:
@@ -299,6 +311,7 @@ steps:
               fields:
                 action: UPDATE
                 fields.version: "2.0.0"
+                "contains(depends_on, '{{ .vars.nestedV2CreateChangeID }}')": true
                 fields.labels.owner: "platform-eng"
                 fields.labels.lifecycle: "stage"
           - select: "changes[?resource_ref=='api-nested-v1'] | [0]"
@@ -644,8 +657,14 @@ steps:
                 "length(versions)": 2
                 "versions[?version=='1.0.0'] | length(@)": 1
                 "versions[?version=='2.0.0'] | length(@)": 1
-                "length(documents) >= `1`": true
+                "length(documents)": 1
                 "documents[?title=='Root Document'] | length(@)": 1
+                "documents[?title=='Root Document'] | [0].status": published
+                "documents[?title=='Root Document'] | [0].children | length(@)": 2
+                "documents[?title=='Root Document'] | [0].children[?title=='Child Document'] | length(@)": 1
+                "documents[?title=='Root Document'] | [0].children[?title=='New Document'] | length(@)": 1
+                "documents[?title=='Root Document'] | [0].children[?title=='Child Document'] | [0].status": published
+                "documents[?title=='Root Document'] | [0].children[?title=='New Document'] | [0].status": unpublished
                 "length(publications)": 1
                 "publications[0].visibility": "public"
                 "length(implementations)": 1

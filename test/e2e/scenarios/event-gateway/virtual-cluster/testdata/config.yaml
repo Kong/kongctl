@@ -24,6 +24,9 @@ event_gateways:
     virtual_clusters:
       - ref: default-virtual-cluster
         name: default-virtual-cluster
+        namespace:
+          mode: hide_prefix
+          prefix: e2e_initial_
         description: "Virtual Cluster for Test"
         labels:
           env: test

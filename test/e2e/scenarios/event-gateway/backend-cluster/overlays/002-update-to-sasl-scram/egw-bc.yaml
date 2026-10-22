@@ -9,6 +9,7 @@ event_gateways:
     backend_clusters:
       - ref: default-backend-cluster
         name: default-backend-cluster
+        insecure_allow_anonymous_virtual_cluster_auth: false
         description: "Backend Cluster with SCRAM auth"
         bootstrap_servers:
           - "egw-backend-1.example.com:9094"

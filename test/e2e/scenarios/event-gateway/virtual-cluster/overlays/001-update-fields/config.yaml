@@ -24,6 +24,9 @@ event_gateways:
     virtual_clusters:
       - ref: default-virtual-cluster
         name: default-virtual-cluster
+        namespace:
+          mode: enforce_prefix
+          prefix: e2e_updated_
         description: "Virtual Cluster for Test Updated"
         labels:
           env: staging
