@@ -35,6 +35,7 @@ func newGetSystemAccountCmd(
 			Use:     base.Use,
 			Short:   "List or get Konnect system accounts",
 			Long:    `Use the get verb with the system account command to query Konnect system accounts.`,
+			Example: base.Example,
 			Aliases: base.Aliases,
 			PreRunE: parentPreRun,
 		},

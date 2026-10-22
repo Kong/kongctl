@@ -21,14 +21,17 @@ var (
 		"Manage Konnect system account resources")
 	systemAccountLong = normalizers.LongDesc(i18n.T("root.products.konnect.systemaccount.systemAccountLong",
 		`The systemAccount command allows you to work with Konnect system account resources.`))
-	systemAccountExample = normalizers.Examples(i18n.T("root.products.konnect.systemaccount.systemAccountExamples",
-		fmt.Sprintf(`
-# List all system-accounts
-%[1]s get system-accounts
-# Get a specific system account
-%[1]s get system-account <id|name>
-`, meta.CLIName)))
 )
+
+func systemAccountExamples(verb verbs.VerbValue) string {
+	return normalizers.Examples(i18n.T("root.products.konnect.systemaccount.systemAccountExamples",
+		fmt.Sprintf(`
+# List all system accounts
+%[1]s %[2]s organization system-accounts
+# Get a specific system account
+%[1]s %[2]s organization system-account <id|name>
+`, meta.CLIName, verb)))
+}
 
 func NewSystemAccountCmd(
 	verb verbs.VerbValue,
@@ -47,7 +50,7 @@ func NewSystemAccountCmd(
 
 	// Handle supported verbs
 	if verb == verbs.Get || verb == verbs.List {
-		baseCmd.Example = systemAccountExample
+		baseCmd.Example = systemAccountExamples(verb)
 		cmd := newGetSystemAccountCmd(verb, &baseCmd, addParentFlags, parentPreRun)
 		cmd.AddCommand(newGetSystemAccountRolesCmd(verb, addParentFlags, parentPreRun))
 		cmd.AddCommand(newGetSystemAccountTeamsCmd(verb, addParentFlags, parentPreRun))

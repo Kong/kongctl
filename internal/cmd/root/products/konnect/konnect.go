@@ -42,10 +42,13 @@ var (
 	konnectShort = i18n.T("root.products.konnect.konnectShort", "Manage Konnect resources")
 	konnectLong  = normalizers.LongDesc(i18n.T("root.products.konnect.konnectLong",
 		`The konnect command allows you to manage Kong Konnect resources.`))
-	konnectExamples = normalizers.Examples(i18n.T("root.products.konnect.konnectExamples",
-		fmt.Sprintf(`# Retrieve the Konnect Kong Gateway control planes from the current organization
-		 %[1]s get konnect gateway control-planes`, meta.CLIName)))
 )
+
+func konnectExamples(verb verbs.VerbValue) string {
+	return normalizers.Examples(i18n.T("root.products.konnect.konnectExamples",
+		fmt.Sprintf(`# Retrieve the Konnect Kong Gateway control planes from the current organization
+		 %[1]s %[2]s konnect gateway control-planes`, meta.CLIName, verb)))
+}
 
 func addFlags(verb verbs.VerbValue, cmd *cobra.Command) {
 	if verb != verbs.Login && verb != verbs.Logout {
@@ -265,7 +268,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Get || verb == verbs.List {
-		cmd.Example = konnectExamples
+		cmd.Example = konnectExamples(verb)
 	}
 
 	if verb == verbs.Inspect {

@@ -83,6 +83,16 @@ func TestCreateHelpDoesNotShowReadExamples(t *testing.T) {
 			if result.exitCode != 0 {
 				t.Fatalf("expected help to succeed: %s", result.stderr)
 			}
+			if path == "create mesh" || path == "create konnect mesh" {
+				for _, want := range []string{
+					"kongctl create mesh zone-token",
+					"kongctl create mesh dataplane-token",
+				} {
+					if !strings.Contains(result.stdout, want) {
+						t.Fatalf("expected Mesh token example %q in:\n%s", want, result.stdout)
+					}
+				}
+			}
 			for _, forbidden := range []string{
 				"kongctl get ",
 				"Get current organization information",
