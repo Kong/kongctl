@@ -118,6 +118,21 @@ following sequence; it has not yet been exercised as a real release:
    executables as bottles, verify local and public pouring, and publish the
    completed formula metadata through a tap PR. See [Homebrew](homebrew.md).
 
+The signed handoff also includes GoReleaser's generated `CHANGELOG.md`.
+Its hash is verified before the publisher uses it as the draft release body,
+preserving the ordering and exclusion filters in `.goreleaser.yml`.
+
+Container provenance is a deliberate tradeoff in this workflow split. The
+previous GoReleaser buildx registry export could attach default BuildKit
+provenance attestations. The new build job exports Docker image archives with
+`--provenance=false`; this format cannot preserve those attestations through
+`docker load` and `docker push`. Published images therefore lose that build
+provenance. The handoff manifest verifies archive bytes and records the source
+commit, but it is not a container provenance attestation. This keeps container
+builds away from publishing credentials and avoids rebuilding during
+publication. Preserving container attestations requires a separate change to
+the image transport and publication path.
+
 The publication-policy test uses an offline GitHub API double; it never
 publishes a test release. Mac validation also runs this test with real signed
 ZIPs and native verification. Fixture Linux/Windows assets are placeholders,
