@@ -92,26 +92,58 @@ settings as the validation configuration. The `Release` workflow stages the
 following sequence; it has not yet been exercised as a real release:
 
 1. Full releases and recovery must run from `Kong/kongctl` main.
-2. Require all five Apple secrets and both variables. Create a temporary API
-   key file, then sign/notarize before producing ZIPs and checksums.
-3. Upload GitHub assets into a **draft** release. The existing GoReleaser
-   container publication still occurs here; Linux container images do not
-   depend on Apple signing. This is not an atomic multi-registry transaction.
-4. Fresh Intel and ARM Macs download the draft assets, verify checksums,
+2. Resolve the dispatch commit, require the release tag to point to that
+   commit on main, and check out that exact source. A read-only build job
+   runs generation, Go compilation, and container builds without signing or
+   publishing secrets. Only private-module read credentials are available.
+   Record the source and SHA-256 inventory in `unsigned-<tag>`.
+3. A fresh read-only signing job verifies that handoff before accessing Apple
+   secrets. GoReleaser uses the copy-only `scripts/release-tools/go` adapter;
+   it cannot compile, generate, or install Go dependencies. It signs/notarizes
+   before producing ZIPs and checksums, skips container builds/publication,
+   and records final hashes in `signed-<tag>`.
+4. A fresh publisher verifies both inventories and their common source before
+   uploading assets into a **draft** release and pushing the prebuilt
+   container images. It has no Apple or private-module credentials. Linux
+   container publication does not depend on native Apple verification. This
+   is not an atomic multi-registry transaction.
+5. Fresh Intel and ARM Macs download the draft assets, verify checksums,
    signatures and notarization, execute their native binary with quarantine,
    and exercise the installer against those same assets. No Apple private
    credentials are available in these jobs.
-5. Each Mac records the release ID and exact asset identities. Both receipts
+6. Each Mac records the release ID and exact asset identities. Both receipts
    must match each other and the current GitHub assets before publication.
    Replacing, deleting, or uploading an asset invalidates that approval.
-6. Only then publish the release and update the cask. Package the same upstream
+7. Only then publish the release and update the cask. Package the same upstream
    executables as bottles, verify local and public pouring, and publish the
    completed formula metadata through a tap PR. See [Homebrew](homebrew.md).
+
+The signed handoff also includes GoReleaser's generated `CHANGELOG.md`.
+Its hash is verified before the publisher uses it as the draft release body,
+preserving the ordering and exclusion filters in `.goreleaser.yml`.
+
+Container provenance is a deliberate tradeoff in this workflow split. The
+previous GoReleaser buildx registry export could attach default BuildKit
+provenance attestations. The new build job exports Docker image archives with
+`--provenance=false`; this format cannot preserve those attestations through
+`docker load` and `docker push`. Published images therefore lose that build
+provenance. The handoff manifest verifies archive bytes and records the source
+commit, but it is not a container provenance attestation. This keeps container
+builds away from publishing credentials and avoids rebuilding during
+publication. Preserving container attestations requires a separate change to
+the image transport and publication path.
 
 The publication-policy test uses an offline GitHub API double; it never
 publishes a test release. Mac validation also runs this test with real signed
 ZIPs and native verification. Fixture Linux/Windows assets are placeholders,
 not tests of those executables or the actual GitHub publication API.
+
+Run `python3 scripts/tests/test-release-handoff.py` with GoReleaser 2.13.3
+installed for an offline handoff dry run. It rejects changed/missing/extra
+files and unexpected sources, then runs the real GoReleaser packaging pipeline
+with signing and publication disabled and the real Go tool blocked. All six
+ZIP executables must match their prebuilt inputs byte for byte. This does not
+exercise Apple services, registry pushes, or real release creation.
 
 ### Failure and recovery
 

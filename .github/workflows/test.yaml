@@ -91,8 +91,15 @@ jobs:
       - name: test installer
         run: |
           make test-installer
+      - name: Install the production release packager for the offline handoff test
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: v2.13.3
+          install-only: true
       - name: Test release metadata and signing failure gates without secrets
         run: |
+          python3 scripts/tests/test-release-handoff.py
           bash scripts/tests/test-homebrew-formula.sh
           bash scripts/tests/test-homebrew-bottles.sh
           bash scripts/tests/test-prepare-apple-signing.sh
