@@ -464,8 +464,12 @@ jobs:
               suffix=
               [[ "$os" == windows ]] && suffix=.exe
               mkdir -p "handoff/binaries/${os}_${arch}"
-              cp "dist/kongctl_${os}_${arch}_${variant}/kongctl${suffix}" \
-                "handoff/binaries/${os}_${arch}/kongctl${suffix}"
+              src="dist/kongctl_${os}_${arch}_${variant}/kongctl${suffix}"
+              if [[ ! -f "$src" ]]; then
+                echo "::error::Missing GoReleaser build output: $src; check the configured targets and GoReleaser version"
+                exit 1
+              fi
+              cp "$src" "handoff/binaries/${os}_${arch}/kongctl${suffix}"
             done
           done
       - name: Set up QEMU
@@ -579,6 +583,7 @@ jobs:
           set -euo pipefail
           mkdir -p signed/homebrew
           cp dist/kongctl_*.zip dist/checksums.txt signed/
+          cp dist/CHANGELOG.md signed/CHANGELOG.md
           cp -R dist/homebrew/. signed/homebrew/
           cp dist/metadata.json signed/homebrew/goreleaser-metadata.json
           cp handoff/handoff.json signed/unsigned-handoff.json
@@ -649,7 +654,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          gh release create "$RELEASE_TAG" --draft --title "$RELEASE_TAG" --generate-notes \
+          gh release create "$RELEASE_TAG" --draft --title "$RELEASE_TAG" --notes-file signed/CHANGELOG.md \
             signed/kongctl_*.zip signed/checksums.txt signed/handoff.json
       - name: Login to GHCR
         if: env.RELEASE_BUILD_MODE == 'full'

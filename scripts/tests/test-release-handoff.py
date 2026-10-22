@@ -7,10 +7,22 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import textwrap
 import unittest
 import zipfile
 
 REPO = Path(__file__).resolve().parents[2]
+
+
+def workflow_script(name):
+    workflow = (REPO / ".github/workflows/release.md").read_text()
+    step = workflow.split(f"      - name: {name}\n", 1)[1].split("      - name:", 1)[0]
+    lines = []
+    for line in step.split("        run: |\n", 1)[1].splitlines():
+        if line.strip() and not line.startswith("          "):
+            break
+        lines.append(line)
+    return textwrap.dedent("\n".join(lines))
 
 
 class HandoffTests(unittest.TestCase):
@@ -31,6 +43,10 @@ class HandoffTests(unittest.TestCase):
         (self.root / "README.md").write_text("Release fixture\n")
         self.run_command("git", "add", ".")
         self.run_command("git", "commit", "-m", "fixture")
+        self.run_command("git", "tag", "v9.9.8")
+        for message in ("docs: hidden documentation", "test: hidden tests",
+                        "fix: zeta change", "feat: alpha change"):
+            self.run_command("git", "commit", "--allow-empty", "-m", message)
         commit = self.run_command("git", "rev-parse", "HEAD").stdout.strip()
         self.env["RELEASE_COMMIT"] = commit
         self.run_command("git", "tag", "v9.9.9")
@@ -107,6 +123,58 @@ class HandoffTests(unittest.TestCase):
         metadata = json.loads((self.root / "dist/metadata.json").read_text())
         self.assertEqual(metadata["version"], "9.9.9")
         self.assertEqual(metadata["commit"], self.env["RELEASE_COMMIT"])
+
+        # Exercise the production staging block against GoReleaser's actual
+        # per-target output directories, not a separately assumed fixture layout.
+        original = self.root / "original-input"
+        self.input.rename(original)
+        self.run_command("bash", "-c", workflow_script("Stage unsigned binaries"))
+        staged = sorted(path.relative_to(self.input).as_posix()
+                        for path in self.input.rglob("*") if path.is_file())
+        expected = sorted(path.relative_to(original).as_posix()
+                          for path in original.rglob("*")
+                          if path.is_file() and path.name != "handoff.json")
+        self.assertEqual(staged, expected)
+        for name in staged:
+            self.assertEqual((self.input / name).read_bytes(), (original / name).read_bytes())
+        self.handoff("record")
+
+        # Carry GoReleaser's configured notes through the signed hash manifest
+        # and the real publication command, with only the GitHub API replaced.
+        changelog = (self.root / "dist/CHANGELOG.md").read_text()
+        self.assertNotIn("hidden documentation", changelog)
+        self.assertNotIn("hidden tests", changelog)
+        self.assertLess(changelog.index("feat: alpha change"), changelog.index("fix: zeta change"))
+        self.run_command("bash", "-c", workflow_script("Record final signed package hashes"))
+        self.run_command("python3", "scripts/release-handoff.py", "verify", "signed")
+        notes = self.root / "signed/CHANGELOG.md"
+        notes.write_text("tampered notes")
+        rejected = self.run_command("python3", "scripts/release-handoff.py", "verify", "signed", check=False)
+        self.assertNotEqual(rejected.returncode, 0)
+        notes.write_text(changelog)
+        # A fresh publisher has no distribution output from the packaging job.
+        shutil.rmtree(self.root / "dist/homebrew")
+        self.run_command("bash", "-c", workflow_script("Verify every handoff before publication"))
+        gh = sentinel / "gh"
+        gh.write_text("#!/usr/bin/env python3\n"
+                      "import json, pathlib, sys\n"
+                      "args = sys.argv[1:]\n"
+                      "notes = pathlib.Path(args[args.index('--notes-file') + 1]).read_text()\n"
+                      "pathlib.Path('publication.json').write_text(json.dumps({'args': args, 'notes': notes}))\n")
+        gh.chmod(0o755)
+        self.run_command("bash", "-c", workflow_script("Create signed draft from verified assets"))
+        publication = json.loads((self.root / "publication.json").read_text())
+        self.assertEqual(publication["notes"], changelog)
+        self.assertNotIn("--generate-notes", publication["args"])
+
+        # A changed GoReleaser directory convention must fail with the missing
+        # source path and an actionable diagnostic before any handoff upload.
+        output = self.root / "dist/kongctl_darwin_amd64_v1/kongctl"
+        self.assertTrue(output.is_file())
+        output.rename(output.with_name("moved-kongctl"))
+        rejected = self.run_command("bash", "-c", workflow_script("Stage unsigned binaries"), check=False)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn("Missing GoReleaser build output: dist/kongctl_darwin_amd64_v1/kongctl", rejected.stdout)
 
 
 if __name__ == "__main__":
