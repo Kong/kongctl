@@ -113,9 +113,9 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 				if owner == "team-a" && !protected {
 					require.NoError(t, err)
 					require.Equal(t, 1, api.updates)
-					p, err := providerRequestPayload(api.last)
+					p, err := ownedChildPayload(api.last)
 					require.NoError(t, err)
-					require.Equal(t, "preserved", providerPayloadMetadata(p)["other-tool"])
+					require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
 					require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 				} else {
 					require.Error(t, err)

@@ -1,0 +1,8 @@
+_defaults:
+  kongctl: {namespace: auth-model-team}
+ai_gateways:
+  - ref: model-owner-alias
+    _external:
+      selector:
+        matchFields: {name: federated-auth-strategies-e2e}
+    models: []

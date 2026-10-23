@@ -80,7 +80,8 @@ Registering a declaration does not complete those steps automatically.
   children inherit namespace and protection from their parent; do not give
   them independent `kongctl` configuration.
 
-  AI Gateway models and model providers are intentional exceptions: `WithNamespace` supplies
+  AI Gateway models, providers, and auth strategies are intentional
+  exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
   Model namespace scope is captured per source, separately from gateway scope;
@@ -94,7 +95,8 @@ Registering a declaration does not complete those steps automatically.
 
 ### Independently owned AI Gateway children
 
-Models and providers enroll through `WithIndependentChildOwnership` alongside `WithNamespace`
+Models, providers, and auth strategies enroll through
+`WithIndependentChildOwnership` alongside `WithNamespace`
 and `WithNestedNamespaceGroups`. This capability supplies source scope capture
 and typed metadata access for auxiliary writes. It also bypasses inherited
 parent protection in planning and execution. Enroll other families only after
@@ -115,6 +117,14 @@ secret-only execution must stamp the executing version and recheck capacity.
 Raw reserved keys are invalid; unowned objects require an
 explicit API adoption, and foreign ownership requires an explicit transfer.
 The model helpers remain compatibility wrappers around the shared contract.
+
+Full-PUT mapped provider and auth-strategy adapters share
+`prepareOwnedMappedChildUpdate` in the executor. Supply the mutable payload
+from a fresh detail read; the helper checks identity, ownership, planned
+protection, public-label preservation, metadata capacity, and metadata-only
+unprotection. Keep SDK mapping and config merge/secret omission rules in the
+resource adapter and planner. Do not enroll another family until its live
+credential-preservation contract is verified.
 
 For write-only enrollment and the later migration of label ownership, use
 [the incremental managed_by guide](managed-by.md). Register `WithManagedBy`
