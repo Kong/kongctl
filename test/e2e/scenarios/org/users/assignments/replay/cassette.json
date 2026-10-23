@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "org/users/assignments",
-  "inputs_sha256": "sha256:29fb1b9c22e915941d1c266f4a65e8869440c3f447c0f0f8c196ec04c6130aa9",
+  "inputs_sha256": "sha256:53d6b5a16f324a1b5f827d4644c10ce969d13cabb00659e4960ecec855b03bce",
   "source": {
     "kind": "recorded",
-    "commit": "1956ec7e2c35c8c62fd49331349426b3b47d9549",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/39983071496"
+    "commit": "bb9e299d35b05b305b5f9b84227e85ef8594c9af",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/40006916027"
   },
   "interactions": [
     {
@@ -426,6 +426,43 @@
     },
     {
       "request": {
+        "endpoint": "regional",
+        "method": "POST",
+        "path": "/v3/apis",
+        "query": [],
+        "body": {
+          "description": "API used by the organization user assignments E2E scenario",
+          "labels": {
+            "KONGCTL-namespace": "org-user-assignments-e2e"
+          },
+          "name": "org-user-assignments-api"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "name": "org-user-assignments-api",
+          "version": null,
+          "description": "API used by the organization user assignments E2E scenario",
+          "labels": {
+            "KONGCTL-namespace": "org-user-assignments-e2e"
+          },
+          "created_at": "2026-10-23T18:58:24.335Z",
+          "updated_at": "2026-10-23T18:58:24.335Z",
+          "slug": "org-user-assignments-api",
+          "api_spec_ids": [],
+          "implementation_mode": null,
+          "current_version_summary": null,
+          "portals": [],
+          "attributes": {},
+          "images": null
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
         "endpoint": "global",
         "method": "POST",
         "path": "/v3/teams",
@@ -442,9 +479,9 @@
       "response": {
         "status": 201,
         "body": {
-          "created_at": "2026-10-23T16:06:17.015280565Z",
+          "created_at": "2026-10-23T18:58:24.720547918Z",
           "description": "Team used by the organization user assignments E2E scenario",
-          "id": "00000000-0000-4000-8000-000000000019",
+          "id": "00000000-0000-4000-8000-000000000020",
           "konnect_managed": false,
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -452,44 +489,7 @@
           },
           "name": "Organization User Assignments Team",
           "system_team": false,
-          "updated_at": "2026-10-23T16:06:17.015280888Z"
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "regional",
-        "method": "POST",
-        "path": "/v3/apis",
-        "query": [],
-        "body": {
-          "description": "API used by the organization user assignments E2E scenario",
-          "labels": {
-            "KONGCTL-namespace": "org-user-assignments-e2e"
-          },
-          "name": "org-user-assignments-api"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000020",
-          "name": "org-user-assignments-api",
-          "version": null,
-          "description": "API used by the organization user assignments E2E scenario",
-          "labels": {
-            "KONGCTL-namespace": "org-user-assignments-e2e"
-          },
-          "created_at": "2026-10-23T16:06:17.234Z",
-          "updated_at": "2026-10-23T16:06:17.234Z",
-          "slug": "org-user-assignments-api",
-          "api_spec_ids": [],
-          "implementation_mode": null,
-          "current_version_summary": null,
-          "portals": [],
-          "attributes": {},
-          "images": null
+          "updated_at": "2026-10-23T18:58:24.720548264Z"
         },
         "content_type": "application/json"
       }
@@ -526,7 +526,7 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
         "query": [],
         "body": {
           "id": "00000000-0000-4000-8000-000000000004"
@@ -542,51 +542,7 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
-        "query": [],
-        "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000020",
-          "entity_region": "us",
-          "entity_type_name": "APIs",
-          "role_name": "Viewer"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000022",
-          "role_name": "Viewer",
-          "entity_id": "00000000-0000-4000-8000-000000000020",
-          "entity_type_name": "APIs",
-          "entity_region": "us",
-          "entity_ids": [
-            "00000000-0000-4000-8000-000000000020"
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
-        "query": [],
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000006"
-        }
-      },
-      "response": {
-        "status": 201,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": {
           "entity_id": "*",
@@ -598,7 +554,7 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000023",
+          "id": "00000000-0000-4000-8000-000000000022",
           "role_name": "Admin",
           "entity_id": "*",
           "entity_type_name": "APIs",
@@ -614,7 +570,23 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
+        "query": [],
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000006"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
         "query": [],
         "body": {
           "id": "00000000-0000-4000-8000-000000000005"
@@ -630,10 +602,38 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
+        "query": [],
+        "body": {
+          "entity_id": "00000000-0000-4000-8000-000000000019",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Viewer"
+        }
+      },
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000023",
+          "role_name": "Viewer",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000019"
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "POST",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [],
         "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000020",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
           "entity_region": "us",
           "entity_type_name": "APIs",
           "role_name": "Viewer"
@@ -644,11 +644,11 @@
         "body": {
           "id": "00000000-0000-4000-8000-000000000024",
           "role_name": "Viewer",
-          "entity_id": "00000000-0000-4000-8000-000000000020",
+          "entity_id": "00000000-0000-4000-8000-000000000019",
           "entity_type_name": "APIs",
           "entity_region": "us",
           "entity_ids": [
-            "00000000-0000-4000-8000-000000000020"
+            "00000000-0000-4000-8000-000000000019"
           ]
         },
         "content_type": "application/json"
@@ -676,15 +676,15 @@
         "body": {
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000020",
+              "id": "00000000-0000-4000-8000-000000000019",
               "name": "org-user-assignments-api",
               "version": null,
               "description": "API used by the organization user assignments E2E scenario",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-10-23T16:06:17.234Z",
-              "updated_at": "2026-10-23T16:06:17.234Z",
+              "created_at": "2026-10-23T18:58:24.335Z",
+              "updated_at": "2026-10-23T18:58:24.335Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -856,9 +856,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -866,7 +866,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -964,7 +964,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": null
       },
@@ -981,6 +981,16 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
@@ -988,62 +998,6 @@
               "entity_ids": [
                 "*"
               ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "name": "Organization User Assignments Team",
-              "description": "Team used by the organization user assignments E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "org-user-assignments-e2e",
-                "scenario": "org-user-assignments"
-              },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
-              "konnect_managed": false
             }
           ]
         },
@@ -1079,7 +1033,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -1087,8 +1041,8 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -1125,7 +1079,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -1133,8 +1087,54 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "Organization User Assignments Team",
+              "description": "Team used by the organization user assignments E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "org-user-assignments-e2e",
+                "scenario": "org-user-assignments"
+              },
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -1166,9 +1166,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -1259,9 +1259,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -1269,7 +1269,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             }
           ],
           "meta": {
@@ -1287,7 +1287,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": null
       },
@@ -1304,6 +1304,16 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
@@ -1311,16 +1321,6 @@
               "entity_ids": [
                 "*"
               ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
             }
           ]
         },
@@ -1609,9 +1609,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -1772,9 +1772,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -1806,9 +1806,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -1842,9 +1842,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -1852,7 +1852,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             }
           ],
           "meta": {
@@ -1870,7 +1870,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": null
       },
@@ -1887,22 +1887,22 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
               "entity_id": "*",
               "entity_ids": [
                 "*"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
               ]
             }
           ]
@@ -1914,7 +1914,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users",
         "query": [
           [
             "page[number]",
@@ -1974,6 +1974,29 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000006/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [],
         "body": null
@@ -1994,9 +2017,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -2034,29 +2057,6 @@
               ]
             }
           ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 0
-            }
-          },
-          "data": []
         },
         "content_type": "application/json"
       }
@@ -2280,9 +2280,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -2290,7 +2290,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -2408,9 +2408,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -2456,7 +2456,7 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/assigned-roles",
         "query": [],
         "body": null
       },
@@ -2473,22 +2473,22 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
               "entity_id": "*",
               "entity_ids": [
                 "*"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
               ]
             }
           ]
@@ -2525,7 +2525,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -2533,8 +2533,8 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -2571,7 +2571,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -2579,8 +2579,8 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -2617,7 +2617,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -2625,8 +2625,8 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -2656,15 +2656,15 @@
         "body": {
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000020",
+              "id": "00000000-0000-4000-8000-000000000019",
               "name": "org-user-assignments-api",
               "version": null,
               "description": "API used by the organization user assignments E2E scenario",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-10-23T16:06:17.234Z",
-              "updated_at": "2026-10-23T16:06:17.234Z",
+              "created_at": "2026-10-23T18:58:24.335Z",
+              "updated_at": "2026-10-23T18:58:24.335Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -2836,9 +2836,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -2846,7 +2846,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -2944,6 +2944,52 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000020",
+              "name": "Organization User Assignments Team",
+              "description": "Team used by the organization user assignments E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "org-user-assignments-e2e",
+                "scenario": "org-user-assignments"
+              },
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
         "query": [
           [
@@ -2969,7 +3015,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -2977,8 +3023,8 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
             }
           ]
@@ -3015,7 +3061,7 @@
           },
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "name": "Organization User Assignments Team",
               "description": "Team used by the organization user assignments E2E scenario",
               "system_team": false,
@@ -3023,89 +3069,9 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
+              "created_at": "2026-10-23T18:58:24Z",
+              "updated_at": "2026-10-23T18:58:24Z",
               "konnect_managed": false
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "name": "Organization User Assignments Team",
-              "description": "Team used by the organization user assignments E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "org-user-assignments-e2e",
-                "scenario": "org-user-assignments"
-              },
-              "created_at": "2026-10-23T16:06:17Z",
-              "updated_at": "2026-10-23T16:06:17Z",
-              "konnect_managed": false
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 10,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000024",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
             }
           ]
         },
@@ -3173,6 +3139,40 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000024",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000019"
+              ]
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
         "query": [],
         "body": null
@@ -3207,7 +3207,7 @@
       "request": {
         "endpoint": "global",
         "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000006",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users/00000000-0000-4000-8000-000000000005",
         "query": [],
         "body": null
       },
@@ -3221,7 +3221,7 @@
       "request": {
         "endpoint": "global",
         "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000004",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users/00000000-0000-4000-8000-000000000006",
         "query": [],
         "body": null
       },
@@ -3255,9 +3255,9 @@
               "role_name": "Viewer",
               "entity_region": "us",
               "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_id": "00000000-0000-4000-8000-000000000019",
               "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
+                "00000000-0000-4000-8000-000000000019"
               ]
             }
           ]
@@ -3269,7 +3269,7 @@
       "request": {
         "endpoint": "global",
         "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000005",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000020/users/00000000-0000-4000-8000-000000000004",
         "query": [],
         "body": null
       },
@@ -3329,15 +3329,15 @@
         "body": {
           "data": [
             {
-              "id": "00000000-0000-4000-8000-000000000020",
+              "id": "00000000-0000-4000-8000-000000000019",
               "name": "org-user-assignments-api",
               "version": null,
               "description": "API used by the organization user assignments E2E scenario",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-10-23T16:06:17.234Z",
-              "updated_at": "2026-10-23T16:06:17.234Z",
+              "created_at": "2026-10-23T18:58:24.335Z",
+              "updated_at": "2026-10-23T18:58:24.335Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -3491,22 +3491,22 @@
       "request": {
         "endpoint": "regional",
         "method": "GET",
-        "path": "/v3/apis/00000000-0000-4000-8000-000000000020",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
         "query": [],
         "body": null
       },
       "response": {
         "status": 200,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000020",
+          "id": "00000000-0000-4000-8000-000000000019",
           "name": "org-user-assignments-api",
           "version": null,
           "description": "API used by the organization user assignments E2E scenario",
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-e2e"
           },
-          "created_at": "2026-10-23T16:06:17.234Z",
-          "updated_at": "2026-10-23T16:06:17.234Z",
+          "created_at": "2026-10-23T18:58:24.335Z",
+          "updated_at": "2026-10-23T18:58:24.335Z",
           "slug": "org-user-assignments-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -3522,7 +3522,7 @@
       "request": {
         "endpoint": "regional",
         "method": "DELETE",
-        "path": "/v3/apis/00000000-0000-4000-8000-000000000020",
+        "path": "/v3/apis/00000000-0000-4000-8000-000000000019",
         "query": [],
         "body": null
       },
@@ -3715,9 +3715,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -3725,7 +3725,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -3872,7 +3872,7 @@
           "name": "org-user-assignments-portal",
           "display_name": "org-user-assignments-portal",
           "description": "Portal used by the organization user role entity ref E2E scenario",
-          "default_domain": "5279360a6939.us.kongportals.com",
+          "default_domain": "abc9aacb8047.us.kongportals.com",
           "authentication_enabled": false,
           "rbac_enabled": false,
           "auto_approve_developers": false,
@@ -3883,9 +3883,9 @@
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-portal-e2e"
           },
-          "updated_at": "2026-10-23T16:06:31.357Z",
-          "created_at": "2026-10-23T16:06:31.357Z",
-          "canonical_domain": "5279360a6939.us.kongportals.com",
+          "updated_at": "2026-10-23T18:58:38.791Z",
+          "created_at": "2026-10-23T18:58:38.791Z",
+          "canonical_domain": "abc9aacb8047.us.kongportals.com",
           "sipr_enabled": false,
           "notifications_developer_pii_visibility_enabled": false
         },
@@ -3964,10 +3964,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "5279360a6939.us.kongportals.com",
-              "default_domain": "5279360a6939.us.kongportals.com",
-              "created_at": "2026-10-23T16:06:31.357Z",
-              "updated_at": "2026-10-23T16:06:31.357Z",
+              "canonical_domain": "abc9aacb8047.us.kongportals.com",
+              "default_domain": "abc9aacb8047.us.kongportals.com",
+              "created_at": "2026-10-23T18:58:38.791Z",
+              "updated_at": "2026-10-23T18:58:38.791Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -4167,9 +4167,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -4177,7 +4177,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -4544,10 +4544,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "5279360a6939.us.kongportals.com",
-              "default_domain": "5279360a6939.us.kongportals.com",
-              "created_at": "2026-10-23T16:06:31.357Z",
-              "updated_at": "2026-10-23T16:06:31.357Z",
+              "canonical_domain": "abc9aacb8047.us.kongportals.com",
+              "default_domain": "abc9aacb8047.us.kongportals.com",
+              "created_at": "2026-10-23T18:58:38.791Z",
+              "updated_at": "2026-10-23T18:58:38.791Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -4715,9 +4715,9 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-10-23T16:06:17.01528Z",
+              "created_at": "2026-10-23T18:58:24.720547Z",
               "description": "Team used by the organization user assignments E2E scenario",
-              "id": "00000000-0000-4000-8000-000000000019",
+              "id": "00000000-0000-4000-8000-000000000020",
               "konnect_managed": false,
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e",
@@ -4725,7 +4725,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-10-23T16:06:17.01528Z"
+              "updated_at": "2026-10-23T18:58:24.720548Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -4977,10 +4977,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "5279360a6939.us.kongportals.com",
-              "default_domain": "5279360a6939.us.kongportals.com",
-              "created_at": "2026-10-23T16:06:31.357Z",
-              "updated_at": "2026-10-23T16:06:31.357Z",
+              "canonical_domain": "abc9aacb8047.us.kongportals.com",
+              "default_domain": "abc9aacb8047.us.kongportals.com",
+              "created_at": "2026-10-23T18:58:38.791Z",
+              "updated_at": "2026-10-23T18:58:38.791Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -5170,10 +5170,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "5279360a6939.us.kongportals.com",
-              "default_domain": "5279360a6939.us.kongportals.com",
-              "created_at": "2026-10-23T16:06:31.357Z",
-              "updated_at": "2026-10-23T16:06:31.357Z",
+              "canonical_domain": "abc9aacb8047.us.kongportals.com",
+              "default_domain": "abc9aacb8047.us.kongportals.com",
+              "created_at": "2026-10-23T18:58:38.791Z",
+              "updated_at": "2026-10-23T18:58:38.791Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -5234,10 +5234,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "5279360a6939.us.kongportals.com",
-              "default_domain": "5279360a6939.us.kongportals.com",
-              "created_at": "2026-10-23T16:06:31.357Z",
-              "updated_at": "2026-10-23T16:06:31.357Z",
+              "canonical_domain": "abc9aacb8047.us.kongportals.com",
+              "default_domain": "abc9aacb8047.us.kongportals.com",
+              "created_at": "2026-10-23T18:58:38.791Z",
+              "updated_at": "2026-10-23T18:58:38.791Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
