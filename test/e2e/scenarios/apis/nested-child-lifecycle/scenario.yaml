@@ -519,6 +519,9 @@ steps:
                 failed: 0
                 status: success
       - name: 002-get-mixed-versions
+        recordVar:
+          name: standaloneVersionID
+          responsePath: "[?version=='3.0.0'] | [0].id"
         run: ["get", "api", "versions", "--api-name", "API Nested", "-o", "json"]
         assertions:
           - expect:
@@ -567,6 +570,74 @@ steps:
           - "{{ .workdir }}/children.yaml"
           - --mode
           - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003a1-update-standalone-version
+    inputOverlayDirs:
+      - overlays/002-update
+      - overlays/005-update-standalone-version
+    commands:
+      - name: 000-plan-standalone-update
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/apis.yaml", -f, "{{ .workdir }}/children.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: "changes[?resource_ref=='api-nested-standalone-version'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                resource_type: api_version
+                parent.id: "{{ .vars.apiID }}"
+                "contains(fields.spec.content, '/standalone-updated')": true
+      - name: 001-apply-standalone-update
+        run: [apply, -f, "{{ .workdir }}/apis.yaml", -f, "{{ .workdir }}/children.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-updated-standalone-version
+        run: [get, api, versions, --api-name, API Nested, '3.0.0', -o, json]
+        assertions:
+          - expect:
+              fields:
+                id: "{{ .vars.standaloneVersionID }}"
+                version: '3.0.0'
+                "contains(spec.content, '/standalone-updated')": true
+      - name: 003-plan-standalone-update-noop
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/apis.yaml", -f, "{{ .workdir }}/children.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: 004-dump-mixed-children
+        run: [dump, declarative, --resources=apis, --include-child-resources, --filter-name=API Nested]
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/mixed-dump.yaml"
+        assertions:
+          - select: "apis[?name=='API Nested'] | [0]"
+            expect:
+              fields:
+                "length(versions)": 3
+                "versions[?version=='3.0.0'] | [0].spec.content != null": true
+                "contains(versions[?version=='3.0.0'] | [0].spec.content, '/standalone-updated')": true
+                "length(documents)": 2
+      - name: 005-plan-from-mixed-dump
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/mixed-dump.yaml", --mode, apply]
         assertions:
           - select: summary
             expect:

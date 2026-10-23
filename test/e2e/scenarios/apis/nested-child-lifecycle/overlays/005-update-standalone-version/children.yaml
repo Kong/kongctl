@@ -1,0 +1,26 @@
+api_versions:
+  - ref: api-nested-standalone-version
+    api: api-nested
+    version: "3.0.0"
+    spec:
+      content: |
+        openapi: 3.0.0
+        info:
+          title: API Nested Standalone
+          version: 3.0.0
+        paths:
+          /standalone-updated:
+            get:
+              responses:
+                '200':
+                  description: OK
+
+api_documents:
+  - ref: api-nested-standalone-document
+    api: api-nested
+    title: "Standalone Document"
+    slug: standalone-document
+    status: unpublished
+    content: |
+      # Standalone Documentation
+      Root-level document for API Nested.

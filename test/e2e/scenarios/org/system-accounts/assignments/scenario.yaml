@@ -147,6 +147,22 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
+      - name: 003b-list-system-account-roles-text
+        run: [list, org, system-account, roles, --system-account-name, "{{ .vars.systemAccountName }}"]
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ROLE')": true
+                "contains(stdout, 'ENTITY TYPE')": true
+                "contains(stdout, 'REGION')": true
+                "contains(stdout, 'Viewer')": true
+                "contains(stdout, 'APIs')": true
+                "contains(stdout, 'us')": true
+                "contains(stdout, 'ENTITY ID')": false
+                "contains(stdout, 'SYSTEM ACCOUNT ID')": false
+
       - name: 004-get-system-account-roles-by-id
         run:
           - get
@@ -180,6 +196,18 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.teamName }}"
+
+      - name: 005b-list-system-account-teams-text
+        run: [list, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}", --no-trunc]
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ID')": true
+                "contains(stdout, 'NAME')": true
+                "contains(stdout, '{{ .vars.teamName }}')": true
+                "contains(stdout, 'SYSTEM ACCOUNT ID')": false
 
       - name: 006-get-system-account-teams-by-id
         run:
