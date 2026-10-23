@@ -336,6 +336,23 @@ are only provided on parent resources.
 Thus, `kongctl` metadata is
 **only supported on parent resources**.
 
+### Control Plane Labels
+
+For managed control planes, `plan`, `diff`, and direct `apply`/`sync` validate
+label keys and values while loading the configuration, before API calls.
+Keys and values must contain 1–63 ASCII characters, start and end with a
+letter or digit, and contain only letters, digits, hyphens, underscores,
+or periods. Keys cannot start with the reserved prefixes `kong`, `konnect`,
+`mesh`, `kic`, or `_`. The `KONGCTL-` prefix is managed by kongctl;
+user-supplied labels with that prefix are ignored.
+
+Control planes allow at most 50 labels in total. kongctl adds
+`KONGCTL-namespace`, leaving room for **49 user labels**. Setting
+`kongctl.protected: true` adds `KONGCTL-protected`, leaving room for
+**48 user labels**. These checks apply to both control planes and control
+plane groups. Other resource APIs may impose different label constraints;
+planning does not guarantee that every API field value will be accepted.
+
 ### Authorizing API Operation Removal
 
 When access control enforcement (ACE) is enabled, Konnect rejects updates

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/labels"
 )
 
 func init() {
@@ -85,6 +86,16 @@ func (c ControlPlaneResource) Validate() error {
 	}
 	if !c.IsExternal() && strings.TrimSpace(c.Name) == "" {
 		return fmt.Errorf("name is required for control plane %s", c.Ref)
+	}
+	if !c.IsExternal() {
+		// Konnect allows 50 labels, including namespace and optional protection.
+		maxUserLabels := 49
+		if c.Kongctl.IsProtected() {
+			maxUserLabels--
+		}
+		if err := labels.ValidateLabels(labels.GetUserLabels(c.Labels), maxUserLabels); err != nil {
+			return fmt.Errorf("control plane %q: invalid labels (budget includes kongctl management labels): %w", c.Ref, err)
+		}
 	}
 
 	if len(c.GatewayServices) > 0 && c.IsGroup() {

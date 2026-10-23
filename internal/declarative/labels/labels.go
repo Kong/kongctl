@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"regexp"
+	"slices"
 	"strings"
 )
+
+var labelPattern = regexp.MustCompile(`^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$`)
 
 // Label keys used by kongctl
 const (
@@ -136,19 +140,46 @@ func ValidateLabel(key string) error {
 		return fmt.Errorf("label key must be 1-63 characters: %s", key)
 	}
 
-	// Allow our KONGCTL labels
-	if strings.HasPrefix(key, KongctlPrefix) || strings.HasPrefix(key, "kongctl-") {
-		return nil
-	}
-
 	// Check forbidden prefixes
 	forbidden := []string{"kong", "konnect", "mesh", "kic", "_"}
 	for _, prefix := range forbidden {
-		if len(key) >= len(prefix) && key[:len(prefix)] == prefix {
+		if strings.HasPrefix(key, prefix) {
 			return fmt.Errorf("label key cannot start with %s: %s", prefix, key)
 		}
 	}
+	if !labelPattern.MatchString(key) {
+		return fmt.Errorf("label key %q must start and end with an alphanumeric character "+
+			"and contain only letters, digits, '-', '_', or '.'", key)
+	}
 
+	return nil
+}
+
+// ValidateLabelValue ensures a non-empty label value follows Konnect rules.
+func ValidateLabelValue(value string) error {
+	if len(value) < 1 || len(value) > 63 {
+		return fmt.Errorf("label value must be 1-63 characters")
+	}
+	if !labelPattern.MatchString(value) {
+		return fmt.Errorf("label value must start and end with an alphanumeric character " +
+			"and contain only letters, digits, '-', '_', or '.'")
+	}
+	return nil
+}
+
+// ValidateLabels validates label keys, values, and the available label budget.
+func ValidateLabels(values map[string]string, maxCount int) error {
+	if len(values) > maxCount {
+		return fmt.Errorf("too many labels: got %d, maximum is %d", len(values), maxCount)
+	}
+	for _, key := range slices.Sorted(maps.Keys(values)) {
+		if err := ValidateLabel(key); err != nil {
+			return err
+		}
+		if err := ValidateLabelValue(values[key]); err != nil {
+			return fmt.Errorf("label %q: %w", key, err)
+		}
+	}
 	return nil
 }
 

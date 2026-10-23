@@ -354,8 +354,14 @@ func TestValidateLabel(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "kongctl prefix allowed",
+			name:    "lowercase kongctl prefix reserved",
 			key:     "kongctl-managed",
+			wantErr: true,
+			errMsg:  "label key cannot start with kong",
+		},
+		{
+			name:    "KONGCTL prefix allowed",
+			key:     "KONGCTL-managed",
 			wantErr: false,
 		},
 	}
