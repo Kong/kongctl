@@ -20,6 +20,7 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 	rootChildTypes := scope.RootChildCollectionTypes()
 	metadata := &PlanSyncScope{
 		ModelNamespaces:            modelScopeNamespaces(scope),
+		ChildNamespaces:            childScopeNamespaces(scope),
 		GatewayNamespaces:          slices.Sorted(maps.Keys(scope.GatewayNamespaces)),
 		RootResourceTypes:          make([]string, 0, len(rootTypes)),
 		ChildResourceTypes:         make([]PlanSyncChildScope, 0, len(childScopes)),
@@ -190,4 +191,19 @@ func (p *Planner) shouldPlanOrganizationSystemAccounts(plan *Plan) bool {
 		return true
 	}
 	return scope.OrganizationSystemAccountsInScope()
+}
+
+func childScopeNamespaces(scope *resources.SyncScope) map[string]map[string][]string {
+	if scope == nil || len(scope.ChildNamespaces) == 0 {
+		return nil
+	}
+	result := make(map[string]map[string][]string)
+	for kind, parents := range scope.ChildNamespaces {
+		values := make(map[string][]string)
+		for parent, namespaces := range parents {
+			values[parent] = slices.Sorted(maps.Keys(namespaces))
+		}
+		result[string(kind)] = values
+	}
+	return result
 }

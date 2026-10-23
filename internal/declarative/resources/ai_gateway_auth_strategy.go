@@ -39,6 +39,7 @@ func init() {
 			setParent:     func(child *AIGatewayAuthStrategyResource, ref string) { child.AIGateway = ref },
 		},
 		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(20, "each Auth Strategy must declare an ai_gateway parent"),

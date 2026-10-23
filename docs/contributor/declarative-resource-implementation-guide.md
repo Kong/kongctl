@@ -92,6 +92,83 @@ Registering a declaration does not complete those steps automatically.
   with registration. Maturity is discovery metadata, not runtime gating or
   plan, result, or telemetry data.
 
+### Independently owned AI Gateway children
+
+Models enroll through `WithIndependentChildOwnership` alongside `WithNamespace`
+and `WithNestedNamespaceGroups`. This capability supplies source scope capture
+and typed metadata access for auxiliary writes. It also bypasses inherited
+parent protection in planning and execution. Enroll other families only after
+the resource PR verifies their live metadata and credential contracts. Config
+stores and data plane certificates are excluded from ownership federation.
+
+Use `BuildChildManagedBy`, `ValidateChildManagedBy`, `ValidateChildOwnership`,
+and `NormalizedChildOwnership` in resources. Preserve unrelated entries during
+both planning and execution, and validate the complete merged map against the
+five-entry limit. All AI Gateway writes supporting `managed_by` stamp
+`tool: kongctl`
+and `version` from the executing binary, independently of ownership enrollment.
+Owned children reserve those two entries plus namespace and protection, leaving
+one unrelated entry. Compare provenance as last-writer metadata: a binary
+upgrade
+alone must not schedule writes or modify protected children. Saved-plan and
+secret-only execution must stamp the executing version and recheck capacity.
+Raw reserved keys are invalid; unowned objects require an
+explicit API adoption, and foreign ownership requires an explicit transfer.
+The model helpers remain compatibility wrappers around the shared contract.
+
+For write-only enrollment and the later migration of label ownership, use
+[the incremental managed_by guide](managed-by.md). Register `WithManagedBy`
+on each verified resource with its own `ManagedByPolicy`, and use the shared
+state request stamper. This capability alone does not change label behavior
+or enable independent ownership.
+
+Call `CaptureOwnedChildCollection` per source after defaults and before nested
+extraction. Supply actual key presence and each child's independent namespace.
+An explicitly empty collection contributes its source's default namespace;
+omission contributes nothing. `ChildNamespaces` is keyed by resource family
+and parent, merges across sources, and rebinds to canonical gateway identities.
+It must never widen `GatewayNamespaces` or root pruning. Saved plans include
+this scope; `ModelNamespaces` remains compatible with older model callers.
+
+Observe complete unfiltered collections through the typed `listAIGateway*`
+planner caches. Cache keys are canonical gateway IDs, with a distinct cache
+per resource family. Never cache a reconciliation-filtered view. State list
+methods must follow every cursor, reject repeated or malformed cursors and
+missing collection responses, and return no usable partial result on failure.
+An empty complete collection is cacheable; a failed observation is not.
+
+Register resource-specific deletion policies in `aiGatewayDeleteResolvers`.
+They run against the complete final plan, after all namespaces, aliases,
+secret-write synthesis, and reference resolution. `observedReferenceUser`
+includes foreign and unowned users. `updateDetaches` must prove detachment
+using the actual API's PUT contract, including omitted-field behavior. Final
+creation edges also cover literal names and name expressions across aliases.
+Do not validate destructive dependencies while assembling a namespace plan.
+Certificate/SNI deletion uses the same final observation policy.
+
+Participating executors must re-fetch ownership on the actual create, update,
+delete, and replacement paths. Use the shared payload, collision, protection,
+and protection-only checks in `executor/ai_gateway_child_ownership.go`.
+Parent linkage identifies the collection and grants no mutation authority.
+Validate merged capacity again after re-fetching; saved plans must not discard
+metadata added by another tool after planning. Protection-only unprotection
+requires an unchanged public payload and no secret writes. Secret-only writes
+must use independent child metadata rather than inherit their gateway's.
+
+Gateway deletion is a separate authority: the gateway owner can cascade through
+foreign, unowned, and protected descendants. Preserve planner warnings by
+family, namespace, names, counts, and protected descendants in saved plans.
+Descendant protection warns; the gateway's own protection still blocks deletion.
+Use the existing approval flow without an additional cascade confirmation.
+
+Write-only object arrays must retain public siblings such as auth header names
+when values are unselected. Direct scalar arrays remain omitted as a group;
+null placeholders would overwrite credentials. Partial secret-array selection
+still fails. Inspect each family's other write-only shapes and establish live
+credential continuity before enrollment. A redacted GET retaining the public
+shape is insufficient evidence. See
+[shared ownership and validation limits][child-ownership].
+
 ### Namespace capabilities
 
 [`WithNamespace`][namespaces] supplies a typed `NamespaceParticipant` accessor
@@ -1354,3 +1431,4 @@ engine contract. Each refactoring migration should:
 [api-child-groups]: ../../internal/declarative/planner/api_child_groups.go
 
 [api-child-inventory]: ../../internal/declarative/planner/api_child_inventory.go
+[child-ownership]: ../ai-gateway-child-ownership.md

@@ -48,6 +48,7 @@ func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) (
 	const defaultPageSize int64 = 100
 	pageSize := defaultPageSize
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	var all []AIGatewayProvider
 
 	for {
@@ -64,7 +65,7 @@ func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) (
 			return nil, WrapAPIError(err, "list AI Gateway Model Providers", nil)
 		}
 		if resp == nil || resp.ListAIGatewayModelProvidersResponse == nil {
-			return all, nil
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		for _, provider := range resp.ListAIGatewayModelProvidersResponse.Data {
@@ -75,7 +76,10 @@ func (c *Client) ListAIGatewayProviders(ctx context.Context, gatewayID string) (
 			all = append(all, normalized)
 		}
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelProvidersResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayModelProvidersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -139,6 +143,9 @@ func (c *Client) CreateAIGatewayProvider(
 	req kkComps.CreateAIGatewayModelProviderRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayProvider, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return "", err
 	}
@@ -171,6 +178,9 @@ func (c *Client) UpdateAIGatewayProvider(
 	req kkComps.UpdateAIGatewayModelProviderRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayProvider, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayProvidersAPI, "AI Gateway Model Providers API"); err != nil {
 		return "", err
 	}

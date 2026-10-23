@@ -20,6 +20,7 @@ func (p *Planner) resolveAIGatewayPolicyDeletes(
 		})
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		gatewayID:  gatewayID,
 		targetType: ResourceTypeAIGatewayPolicy, usesTarget: aiGatewayResourceUsesPolicies,
 		observe: func(ctx context.Context) ([]observedReferenceUser, error) {
 			users, err := p.listAIGatewayPolicyUsers(ctx, gatewayID)

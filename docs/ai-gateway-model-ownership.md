@@ -39,17 +39,23 @@ kongctl generates lifecycle metadata on the remote model:
 
 ```yaml
 managed_by:
+  tool: kongctl
+  version: "1.2.3" # The version of the binary performing the write.
   kongctl-namespace: team-a
   kongctl-protected: "false"
 ```
 
-These lowercase keys are reserved. Set them through `kongctl`, not raw
+All four keys are reserved. Tool and version are generated automatically;
+configure namespace and protection through `kongctl`, not raw
 `managed_by` manifest entries. Public labels continue to use their existing
 convention on other resources. Model ownership never uses public labels.
 Unrelated `managed_by` entries survive updates, including entries added after
-planning. Entries explicitly declared by the user are merged into that map.
-Dump converts the reserved keys back into model-level `kongctl` metadata and
-retains unrelated entries. Dumping an unowned model does not adopt it.
+planning. Entries explicitly declared by the user are merged into that map. The complete
+merged map cannot exceed five entries, including all four generated keys. This
+leaves room for one unrelated entry; additional entries fail without data loss.
+Dump omits tool/version and converts namespace/protection into model-level
+`kongctl` metadata. It retains unrelated entries. Dumping an unowned model does
+not adopt it.
 
 Names remain gateway-wide identities: two namespaces cannot manage separate
 models with the same name on one gateway. A foreign-owned or unowned name match
@@ -88,7 +94,11 @@ namespace scope independently.
 A protected model cannot be updated or deleted. To unprotect it, first apply
 only the protection change; make payload changes in a subsequent operation.
 Gateway protection does not implicitly protect independently owned models.
-Deleting a gateway itself remains a separate parent lifecycle operation.
+Deleting a gateway itself remains a separate parent lifecycle operation. Its
+owner may delete the complete gateway, including protected, foreign, and
+unowned children. Descendant protection produces persisted cascade warnings;
+the gateway's own protection still blocks deletion. See
+[shared ownership infrastructure](ai-gateway-child-ownership.md).
 
 ## Migrating and adopting existing models
 
