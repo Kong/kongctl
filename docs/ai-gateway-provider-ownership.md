@@ -100,7 +100,10 @@ identity services using synthetic credentials.
 
 Dumps translate provider ownership to `kongctl` and remove generated
 `managed_by` entries. They retain public labels and unrelated metadata;
-write-only credentials are not reconstructed from API responses.
+write-only credentials are not reconstructed from API responses. If a
+provider has protection metadata without an ownership namespace, dump warns
+before omitting that ineffective protection key. It does not infer ownership
+or adopt the provider.
 
 See [the shared ownership contract](ai-gateway-child-ownership.md) and
 [runnable manifests](examples/declarative/ai-gateway-federated-providers).

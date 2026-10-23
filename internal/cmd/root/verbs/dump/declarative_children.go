@@ -222,6 +222,11 @@ func buildAIGatewayProviders(
 				Namespace: new(namespace),
 				Protected: new(metadata[declresources.ChildProtectedKey] == "true"),
 			}
+		} else if _, present := metadata[declresources.ChildProtectedKey]; present {
+			logWarn(logger,
+				"AI Gateway Model Provider has protection metadata without an ownership namespace; "+
+					"omitting unowned protection metadata from dump",
+				provider.ID, provider.Name, nil)
 		}
 		for _, key := range []string{
 			declresources.ChildNamespaceKey, declresources.ChildProtectedKey,
