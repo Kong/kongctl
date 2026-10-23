@@ -34,7 +34,7 @@ ai_gateways:
                 value: !secret {source: !env KONGCTL_E2E_MODEL_MATRIX_AZURE_KEY}
             params:
               - name: api-version
-                value: "2024-06-01"
+                value: !secret {source: !env KONGCTL_E2E_MODEL_PROVIDER_API_VERSION}
                 location: query
       - ref: matrix-foundry
         name: matrix-foundry

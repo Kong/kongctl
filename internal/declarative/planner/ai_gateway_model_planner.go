@@ -247,7 +247,7 @@ func normalizeAIGatewayModelSelectorForComparison(
 	return currentPayload, desiredPayload
 }
 
-func aiGatewayProviderCreateDependencies(plan *Plan, namespace string, gatewayRef string) map[string]string {
+func aiGatewayProviderCreateDependencies(plan *Plan, _ string, gatewayRef string) map[string]string {
 	if plan == nil {
 		return nil
 	}
@@ -256,7 +256,6 @@ func aiGatewayProviderCreateDependencies(plan *Plan, namespace string, gatewayRe
 	for _, change := range plan.Changes {
 		if change.Action != ActionCreate ||
 			change.ResourceType != ResourceTypeAIGatewayProvider ||
-			change.Namespace != namespace ||
 			!aiGatewayChildChangeMatchesParent(change, gatewayRef) {
 			continue
 		}

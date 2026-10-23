@@ -100,7 +100,8 @@ func TestPayloadReferencesToUnchangedTargets(t *testing.T) {
 			}
 			var remoteProvider kkComps.AIGatewayModelProvider
 			require.NoError(t, json.Unmarshal([]byte(`{
-  "id":"provider-id", "name":"support-openai", "display_name":"OpenAI", "type":"openai",
+  "managed_by":{"kongctl-namespace":"default","kongctl-protected":"false"},
+"id":"provider-id", "name":"support-openai", "display_name":"OpenAI", "type":"openai",
   "config":{"auth":{"type":"basic"}}, "created_at":"2026-01-01T00:00:00Z", "updated_at":"2026-01-01T00:00:00Z"
 }`), &remoteProvider))
 			model := testAIGatewayModelResource(t)

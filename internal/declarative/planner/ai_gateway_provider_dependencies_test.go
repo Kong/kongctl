@@ -80,7 +80,8 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			}
 
 			rawProvider := map[string]any{
-				"id": "provider-id", "name": "support-openai", "display_name": "OpenAI", "type": "openai",
+				"managed_by": map[string]string{resources.ChildNamespaceKey: "default", resources.ChildProtectedKey: "false"},
+				"id":         "provider-id", "name": "support-openai", "display_name": "OpenAI", "type": "openai",
 				"config":     map[string]any{"auth": map[string]any{"type": "basic"}},
 				"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
 			}
@@ -91,6 +92,7 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
 			scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayProvider)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayProvider, "support-gateway", "default")
 			if !tt.unscoped {
 				scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayModel)
 			}

@@ -20,10 +20,7 @@ func NormalizeAIGatewayProvider(provider kkComps.AIGatewayModelProvider) (AIGate
 	}
 
 	labels := stringMapFromRaw(raw["labels"])
-	normalizedLabels := labels
-	if normalizedLabels == nil {
-		normalizedLabels = make(map[string]string)
-	}
+	normalizedLabels := resources.NormalizedChildOwnership(stringMapFromRaw(raw["managed_by"]))
 
 	return AIGatewayProvider{
 		ID:               stringFromRaw(raw["id"]),
