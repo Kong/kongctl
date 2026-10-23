@@ -80,7 +80,7 @@ Registering a declaration does not complete those steps automatically.
   children inherit namespace and protection from their parent; do not give
   them independent `kongctl` configuration.
 
-  AI Gateway models are an intentional exception: `WithNamespace` supplies
+  AI Gateway models and model providers are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
   Model namespace scope is captured per source, separately from gateway scope;
@@ -94,7 +94,7 @@ Registering a declaration does not complete those steps automatically.
 
 ### Independently owned AI Gateway children
 
-Models enroll through `WithIndependentChildOwnership` alongside `WithNamespace`
+Models and providers enroll through `WithIndependentChildOwnership` alongside `WithNamespace`
 and `WithNestedNamespaceGroups`. This capability supplies source scope capture
 and typed metadata access for auxiliary writes. It also bypasses inherited
 parent protection in planning and execution. Enroll other families only after

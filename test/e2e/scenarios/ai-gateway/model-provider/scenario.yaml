@@ -1,6 +1,8 @@
 baseInputsPath: testdata
 
 env:
+  KONGCTL_E2E_MODEL_PROVIDER_API_VERSION: "2024-06-01"
+  KONGCTL_E2E_MODEL_PROVIDER_UPDATED_API_VERSION: "2024-10-01-preview"
   KONGCTL_LOG_LEVEL: info
   KONGCTL_E2E_MODEL_PROVIDER_BEDROCK_SECRET: fake-secret-access-key
   KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY: fake-azure-api-key
@@ -140,7 +142,7 @@ steps:
               fields:
                 total_changes: 5
                 by_action.CREATE: 5
-                secret_writes: 4
+                secret_writes: 5
           - select: >-
               length(changes[?resource_type=='ai_gateway_model_provider'])
             expect:
@@ -166,7 +168,7 @@ steps:
                 fields.name: support-azure
                 fields.type: azure
                 fields.config.instance: support-openai-resource
-                fields.config.auth.params[0].value: "2024-06-01"
+                fields.config.auth.params[0].value: null
                 secret_writes[0].field: /config/auth/headers/0/value
                 secret_writes[0].expression.parts[0].source.kind: env
                 secret_writes[0].expression.parts[0].source.reference: KONGCTL_E2E_MODEL_PROVIDER_AZURE_KEY
@@ -357,7 +359,7 @@ steps:
               fields:
                 total_changes: 4
                 by_action.UPDATE: 4
-                secret_writes: 4
+                secret_writes: 5
           - select: >-
               length(changes[?resource_type=='ai_gateway_model_provider' && secret_writes])
             expect:
@@ -393,13 +395,15 @@ steps:
           - apply
           - --write-secret
           - "support-azure#config.auth.headers[].value"
+          - --write-secret
+          - "support-azure#config.auth.params[].value"
         assertions:
           - select: summary
             expect:
               fields:
                 total_changes: 1
                 by_action.UPDATE: 1
-                secret_writes: 1
+                secret_writes: 2
           - select: >-
               changes[?resource_type=='ai_gateway_model_provider' && resource_ref=='{{ .vars.azure_provider_ref }}'] | [0]
             expect:
@@ -408,7 +412,7 @@ steps:
                 fields.name: "{{ .vars.azure_provider_name }}"
                 fields.display_name: "{{ .vars.azure_provider_updated_display_name }}"
                 fields.labels.team: platform
-                fields.config.auth.params[0].value: "2024-10-01-preview"
+                fields.config.auth.params[0].value: null
                 secret_writes[0].field: /config/auth/headers/0/value
       - name: 001-apply-update
         outputFormat: json
