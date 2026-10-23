@@ -128,6 +128,29 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			}),
 		},
 		{
+			name: "provider parameter value", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/params/0/value", selector: "config.auth.params[].value",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{
+					"type": "basic", "params": []any{map[string]any{"name": "api-key", "location": "query", "value": secret}},
+				}}
+			}),
+		},
+		{
+			name: "provider AWS session", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/session_token", selector: "config.auth.session_token",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "aws", "session_token": secret}}
+			}),
+		},
+		{
+			name: "provider nested AWS session", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/aws/session_token", selector: "config.auth.aws.session_token",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "sagemaker", "aws": map[string]any{"session_token": secret}}}
+			}),
+		},
+		{
 			name: "provider client secret", resourceType: resources.ResourceTypeAIGatewayProvider,
 			resourceRef: "provider", field: "/config/auth/client_secret", selector: "config.auth.client_secret",
 			resourceSet: provider(func(secret string) map[string]any {

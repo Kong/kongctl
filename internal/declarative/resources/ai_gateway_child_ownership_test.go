@@ -47,8 +47,9 @@ func TestOwnedChildScopeMergeAndCanonicalRebind(t *testing.T) {
 
 func TestSharedInfrastructureDoesNotEnrollUnverifiedFamilies(t *testing.T) {
 	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayModel))
+	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayProvider))
 	for _, kind := range []ResourceType{
-		ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayConsumer, ResourceTypeAIGatewayConsumerGroup,
+		ResourceTypeAIGatewayConsumer, ResourceTypeAIGatewayConsumerGroup,
 		ResourceTypeAIGatewayConfigStore, ResourceTypeAIGatewayDataPlaneCertificate,
 	} {
 		require.False(t, HasIndependentChildOwnership(kind))

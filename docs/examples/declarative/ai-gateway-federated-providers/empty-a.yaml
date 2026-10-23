@@ -1,0 +1,8 @@
+_defaults:
+  kongctl: {namespace: provider-team-a}
+ai_gateways:
+  - ref: alias-a
+    _external:
+      selector:
+        matchFields: {name: federated-providers-e2e}
+    model_providers: []

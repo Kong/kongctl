@@ -117,7 +117,7 @@ func IsSensitiveFieldPath(path []string) bool {
 func isSensitiveFieldAt(key, parentKey string, insideConfig bool) bool {
 	normalized := normalizeKey(key)
 	return isSensitiveNormalizedKey(normalized) || (insideConfig && normalized == "key") ||
-		(normalizeKey(parentKey) == "headers" && normalized == "value")
+		((normalizeKey(parentKey) == "headers" || normalizeKey(parentKey) == "params") && normalized == "value")
 }
 
 // RedactSensitiveFieldsWithExactKeys redacts known sensitive fields plus caller-scoped exact field keys.
