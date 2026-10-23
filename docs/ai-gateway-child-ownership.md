@@ -1,12 +1,10 @@
 # Shared AI Gateway ownership infrastructure
 
-Models currently support independent kongctl namespace ownership. The shared
-infrastructure prepares other mutable children for separate resource PRs; it
-does not enable provider, consumer, or group federation. Config stores and data
+Models and model providers support independent kongctl namespace ownership.
+The shared infrastructure prepares other mutable children for separate resource
+PRs; it does not enable consumer or group federation. Config stores and data
 plane certificates remain excluded. See [model ownership and migration][models]
-for the supported manifest and explicit
-adoption
-workflow.
+and [provider ownership](ai-gateway-provider-ownership.md).
 
 ## Ownership and collection scope
 
@@ -31,7 +29,7 @@ preserved, including entries added after planning. The merged map may contain
 at most five entries, including all four generated entries. Overflow fails
 before a write without discarding metadata. This leaves one unrelated entry
 for independently owned children and three for children carrying provenance
-only. Model dumps omit generated entries and
+only. Model and provider dumps omit generated entries and
 translate namespace/protection into `kongctl` metadata. Unprotection may update
 automatic provenance, but still cannot change other metadata or payload fields.
 
@@ -98,10 +96,11 @@ Live evidence covers provider basic-header credential continuity only. Other
 write-only shapes still need their own evidence. Retaining a redacted GET
 shape alone is insufficient.
 
-Inspection also identified catalog gaps: provider auth parameter values and AWS
-session tokens currently lack reviewed `!secret` path capabilities. Their safe
-write/preservation contract must be added and validated in the provider
-integration; this PR does not expand that resource's secret declarations.
+Provider auth parameter values and AWS session tokens now use the same
+reviewed `!secret` declaration machinery as header values. Public parameter
+names and locations remain in unselected PUT payloads; parameter values are
+write-only, including values such as an API version. Declare them through a
+deferred source and select them explicitly when changing them.
 
 Provider basic header/parameter arrays, Azure client secrets, AWS secret access
 keys/session tokens, and GCP service-account JSON use distinct write-only

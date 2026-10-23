@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 
@@ -211,13 +212,30 @@ func buildAIGatewayProviders(
 			ref = provider.Name
 		}
 
+		metadata := maps.Clone(provider.ManagedBy)
+		var kongctl *declresources.KongctlMeta
+		if namespace := metadata[declresources.ChildNamespaceKey]; namespace != "" {
+			if err := declresources.ValidateChildOwnership("AI Gateway provider", metadata, namespace); err != nil {
+				return nil, err
+			}
+			kongctl = &declresources.KongctlMeta{
+				Namespace: new(namespace),
+				Protected: new(metadata[declresources.ChildProtectedKey] == "true"),
+			}
+		}
+		for _, key := range []string{
+			declresources.ChildNamespaceKey, declresources.ChildProtectedKey,
+			declresources.ManagedByToolKey, declresources.ManagedByVersionKey,
+		} {
+			delete(metadata, key)
+		}
 		results = append(results, declresources.AIGatewayProviderResource{
-			BaseResource: declresources.BaseResource{Ref: ref},
+			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
 			Name:         provider.Name,
 			Type:         provider.Type,
 			DisplayName:  provider.DisplayName,
 			Labels:       provider.Labels,
-			ManagedBy:    provider.ManagedBy,
+			ManagedBy:    metadata,
 			Config:       provider.Config,
 		})
 	}

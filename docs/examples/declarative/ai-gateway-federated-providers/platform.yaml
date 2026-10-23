@@ -1,0 +1,6 @@
+_defaults:
+  kongctl: {namespace: federated-provider-platform}
+ai_gateways:
+  - ref: shared
+    name: federated-providers-e2e
+    display_name: Federated providers E2E
