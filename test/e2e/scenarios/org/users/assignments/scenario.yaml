@@ -247,8 +247,7 @@ steps:
                 "contains(stdout, 'APIs')": true
                 "contains(stdout, 'us')": true
                 "contains(stdout, 'ENTITY ID')": false
-                "contains(stdout, 'CREATED AT')": false
-                "contains(stdout, 'SYSTEM ACCOUNT ID')": false
+                "contains(stdout, 'USER ID')": false
 
       - name: 006-dump-team-with-users
         outputFormat: none

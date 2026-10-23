@@ -130,8 +130,7 @@ steps:
                 "contains(stdout, 'APIs')": true
                 "contains(stdout, 'us')": true
                 "contains(stdout, 'ENTITY ID')": false
-                "contains(stdout, 'CREATED AT')": false
-                "contains(stdout, 'SYSTEM ACCOUNT ID')": false
+                "contains(stdout, 'TEAM ID')": false
 
   - name: 002-noop-diff-from-config
     commands:

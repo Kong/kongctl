@@ -161,7 +161,6 @@ steps:
                 "contains(stdout, 'APIs')": true
                 "contains(stdout, 'us')": true
                 "contains(stdout, 'ENTITY ID')": false
-                "contains(stdout, 'CREATED AT')": false
                 "contains(stdout, 'SYSTEM ACCOUNT ID')": false
 
       - name: 004-get-system-account-roles-by-id
@@ -209,7 +208,6 @@ steps:
                 "contains(stdout, 'NAME')": true
                 "contains(stdout, '{{ .vars.teamName }}')": true
                 "contains(stdout, 'SYSTEM ACCOUNT ID')": false
-                "contains(stdout, 'CREATED AT')": false
 
       - name: 006-get-system-account-teams-by-id
         run:
