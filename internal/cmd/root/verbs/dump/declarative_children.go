@@ -212,28 +212,12 @@ func buildAIGatewayProviders(
 			ref = provider.Name
 		}
 
-		metadata := maps.Clone(provider.ManagedBy)
-		var kongctl *declresources.KongctlMeta
-		if namespace := metadata[declresources.ChildNamespaceKey]; namespace != "" {
-			if err := declresources.ValidateChildOwnership("AI Gateway provider", metadata, namespace); err != nil {
-				return nil, err
-			}
-			kongctl = &declresources.KongctlMeta{
-				Namespace: new(namespace),
-				Protected: new(metadata[declresources.ChildProtectedKey] == "true"),
-			}
-		} else if _, present := metadata[declresources.ChildProtectedKey]; present {
-			logWarn(logger,
-				"AI Gateway Model Provider has protection metadata without an ownership namespace; "+
-					"omitting unowned protection metadata from dump",
-				provider.ID, provider.Name, nil)
+		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model Provider",
+			provider.ID, provider.Name, provider.ManagedBy)
+		if err != nil {
+			return nil, err
 		}
-		for _, key := range []string{
-			declresources.ChildNamespaceKey, declresources.ChildProtectedKey,
-			declresources.ManagedByToolKey, declresources.ManagedByVersionKey,
-		} {
-			delete(metadata, key)
-		}
+
 		results = append(results, declresources.AIGatewayProviderResource{
 			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
 			Name:         provider.Name,
@@ -294,13 +278,18 @@ func buildAIGatewayAuthStrategies(
 			ref = provider.Name
 		}
 
+		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Auth Strategy",
+			provider.ID, provider.Name, provider.ManagedBy)
+		if err != nil {
+			return nil, err
+		}
 		results = append(results, declresources.AIGatewayAuthStrategyResource{
-			BaseResource: declresources.BaseResource{Ref: ref},
+			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
 			Name:         provider.Name,
 			Type:         provider.Type,
 			DisplayName:  provider.DisplayName,
 			Labels:       provider.Labels,
-			ManagedBy:    provider.ManagedBy,
+			ManagedBy:    metadata,
 			Config:       provider.Config,
 		})
 	}
@@ -2776,4 +2765,30 @@ func buildAIGatewayCustomPolicies(
 	})
 
 	return result, nil
+}
+
+func buildAIGatewayChildOwnership(logger *slog.Logger, kind, id, name string,
+	managedBy map[string]string,
+) (map[string]string, *declresources.KongctlMeta, error) {
+	metadata := maps.Clone(managedBy)
+	var kongctl *declresources.KongctlMeta
+	if namespace := metadata[declresources.ChildNamespaceKey]; namespace != "" {
+		if err := declresources.ValidateChildOwnership(kind, metadata, namespace); err != nil {
+			return nil, nil, err
+		}
+		kongctl = &declresources.KongctlMeta{
+			Namespace: new(namespace),
+			Protected: new(metadata[declresources.ChildProtectedKey] == "true"),
+		}
+	} else if _, present := metadata[declresources.ChildProtectedKey]; present {
+		logWarn(logger, kind+" has protection metadata without an ownership namespace; "+
+			"omitting unowned protection metadata from dump", id, name, nil)
+	}
+	for _, key := range []string{
+		declresources.ChildNamespaceKey, declresources.ChildProtectedKey,
+		declresources.ManagedByToolKey, declresources.ManagedByVersionKey,
+	} {
+		delete(metadata, key)
+	}
+	return metadata, kongctl, nil
 }
