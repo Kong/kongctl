@@ -23,6 +23,8 @@ steps:
               fields:
                 length(@): 2
                 sort([].name): [team-a-chat, team-b-files]
+                sort([].managed_by.tool): [kongctl, kongctl]
+                'length([?managed_by.version])': 2
                 '[?name == `"team-a-chat"`] | [0].managed_by."kongctl-namespace"': federated-team-a
                 '[?name == `"team-b-files"`] | [0].managed_by."kongctl-namespace"': federated-team-b
   - name: converged-team-sync

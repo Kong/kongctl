@@ -19,7 +19,7 @@ func TestAIGatewayDeletePoliciesSkipUnneededObservation(t *testing.T) {
 		t.Run(adapter.targetType, func(t *testing.T) {
 			plan := &Plan{Changes: []PlannedChange{{
 				ID: "other-delete", ResourceType: adapter.targetType, Action: ActionDelete,
-				Namespace: "other", Parent: &ParentInfo{Ref: "gateway"},
+				Namespace: "other", Parent: &ParentInfo{Ref: "gateway", ID: "other-id"},
 			}, {
 				ID: "other-gateway-delete", ResourceType: adapter.targetType, Action: ActionDelete,
 				Namespace: "default", Parent: &ParentInfo{Ref: "other-gateway"},

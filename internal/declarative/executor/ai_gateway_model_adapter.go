@@ -84,7 +84,7 @@ func (a *AIGatewayModelAdapter) Create(
 	}
 	for _, model := range models {
 		if resources.AIGatewayModelName(model.AIGatewayModel) == name {
-			return "", fmt.Errorf("AI Gateway model %q already exists; replan and explicitly adopt it if unowned", name)
+			return "", childCreationCollision("AI Gateway model", name)
 		}
 	}
 	return a.client.CreateAIGatewayModel(ctx, gatewayID, req, namespace)
@@ -119,6 +119,9 @@ func (a *AIGatewayModelAdapter) Update(
 	if err := resources.ValidateModelOwnership(metadata, namespace); err != nil {
 		return "", err
 	}
+	if err := validateChildPlannedProtection("AI Gateway model", metadata, execCtx.PlannedChange); err != nil {
+		return "", err
+	}
 	if metadata[resources.ModelProtectedKey] == "true" {
 		if !modelUnprotectOnly(execCtx.PlannedChange, metadata, modelUpdateMetadata(req)) ||
 			!modelUnprotectPayloadUnchanged(current.AIGatewayModel, req) {
@@ -130,6 +133,9 @@ func (a *AIGatewayModelAdapter) Update(
 		merged = make(map[string]string)
 	}
 	maps.Copy(merged, modelUpdateMetadata(req))
+	if err := resources.ValidateChildManagedBy(merged, false); err != nil {
+		return "", err
+	}
 	if req.AIGatewayModelAPI != nil {
 		req.AIGatewayModelAPI.ManagedBy = merged
 	} else {
@@ -225,26 +231,12 @@ func modelUpdateMetadata(req kkComps.UpdateAIGatewayModelRequest) map[string]str
 func validateModelPayloadOwnership(metadata map[string]string, execCtx *ExecutionContext) error {
 	if execCtx == nil {
 		return nil
-	}
-	if err := resources.ValidateModelOwnership(metadata, execCtx.Namespace); err != nil {
-		return err
-	}
-	if metadata[resources.ModelProtectedKey] != "true" && metadata[resources.ModelProtectedKey] != "false" {
-		return fmt.Errorf("AI Gateway model payload requires generated protection metadata; regenerate the plan")
-	}
-	return nil
+	} // Payload mapping alone is also used for schema inspection.
+	return validateChildPayloadOwnership("AI Gateway model", metadata, execCtx.Namespace)
 }
 
 func modelUnprotectOnly(change *planner.PlannedChange, current, desired map[string]string) bool {
-	if change == nil || len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
-		desired[resources.ModelProtectedKey] != "false" {
-		return false
-	}
-	before := maps.Clone(current)
-	after := maps.Clone(desired)
-	delete(before, resources.ModelProtectedKey)
-	delete(after, resources.ModelProtectedKey)
-	return maps.Equal(before, after)
+	return childUnprotectOnly(change, current, desired)
 }
 
 // GetByName is not supported without a parent gateway context.

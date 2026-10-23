@@ -100,7 +100,11 @@ func diffAIGatewayPayloads(
 		keys[key] = struct{}{}
 	}
 	for key := range keys {
-		if !reflect.DeepEqual(currentCompare[key], desiredCompare[key]) {
+		equal := reflect.DeepEqual(currentCompare[key], desiredCompare[key])
+		if key == FieldManagedBy {
+			equal = managedByValuesEqual(currentCompare[key], desiredCompare[key])
+		}
+		if !equal {
 			changedFields[key] = FieldChange{Old: currentPayload[key], New: desiredPayload[key]}
 		}
 	}
