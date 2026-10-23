@@ -37,6 +37,16 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayProviderResource { return &gateway.Providers },
 			setParent:     func(child *AIGatewayProviderResource, ref string) { child.AIGateway = ref },
 		},
+		WithNamespace(44, providerNamespaceParticipant),
+		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]AIGatewayProviderResource {
+			var groups [][]AIGatewayProviderResource
+			for i := range rs.AIGateways {
+				groups = append(groups, rs.AIGateways[i].Providers)
+			}
+			return groups
+		}, providerNamespaceParticipant),
+		WithIndependentChildOwnership(captureProviderNamespaceScopes,
+			func(r *AIGatewayProviderResource) *KongctlMeta { return r.Kongctl }),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
@@ -81,8 +91,12 @@ func (a AIGatewayProviderResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Model Provider ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Model Provider %s", a.Ref)
+	if err := ValidateChildManagedBy(a.ManagedBy, true); err != nil {
+		return err
+	}
+	if err := ValidateChildManagedBy(BuildChildManagedBy(nil, a.ManagedBy,
+		GetNamespace(a.Kongctl), a.Protected(), ""), false); err != nil {
+		return err
 	}
 	if a.Name == "" {
 		return fmt.Errorf("name is required for AI Gateway Model Provider %s", a.Ref)
@@ -196,6 +210,9 @@ func (a AIGatewayProviderResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload["kongctl"] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -208,13 +225,16 @@ func (a AIGatewayProviderResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload["kongctl"] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
 	return payload, nil
 }
 
-// UnmarshalJSON rejects kongctl metadata on child provider resources.
+// UnmarshalJSON decodes the handwritten provider declaration separately from its SDK payload.
 func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Ref         string            `json:"ref"`
@@ -225,16 +245,13 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 		Labels      map[string]string `json:"labels,omitempty"`
 		ManagedBy   map[string]string `json:"managed_by,omitempty"`
 		Config      map[string]any    `json:"config"`
-		Kongctl     any               `json:"kongctl,omitempty"`
+		Kongctl     *KongctlMeta      `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	if raw.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
-	}
 
-	a.BaseResource = BaseResource{Ref: raw.Ref}
+	a.BaseResource = BaseResource{Ref: raw.Ref, Kongctl: raw.Kongctl}
 	a.AIGateway = raw.AIGateway
 	a.Name = raw.Name
 	a.Type = raw.Type
@@ -332,6 +349,7 @@ func aiGatewayProviderSDKExplainBranch(
 	branch = explainWithCommonFields(
 		branch,
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 	)
 	explainSetConstStringField(branch, aiGatewayProviderFieldType, providerType)
@@ -379,8 +397,37 @@ func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
 			explainSecretEnvCompositionNode("Bearer ", "MODEL_PROVIDER_API_KEY"),
 		)
 	}
+	explainReplacePath(auth, []string{"params", "value"}, explainSecretEnvNode("MODEL_PROVIDER_PARAMETER"))
 	explainReplacePath(auth, []string{"client_secret"}, explainSecretEnvNode("AZURE_CLIENT_SECRET"))
 	explainReplacePath(auth, []string{"secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
 	explainReplacePath(auth, []string{"aws", "secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
+	explainReplacePath(auth, []string{"session_token"}, explainSecretEnvNode("AWS_SESSION_TOKEN"))
+	explainReplacePath(auth, []string{"aws", "session_token"}, explainSecretEnvNode("AWS_SESSION_TOKEN"))
 	explainReplacePath(auth, []string{"service_account_json"}, explainSecretEnvNode("GCP_SERVICE_ACCOUNT_JSON"))
+}
+
+func providerNamespaceParticipant(r *AIGatewayProviderResource) NamespaceParticipant {
+	return NamespaceParticipant{
+		Ref: r.Ref, Label: string(ResourceTypeAIGatewayProvider),
+		SupportsProtected: true, Meta: &r.Kongctl,
+	}
+}
+
+func (a AIGatewayProviderResource) Protected() bool {
+	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+}
+
+func captureProviderNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	for _, gateway := range rs.AIGateways {
+		var namespaces []string
+		for _, provider := range gateway.Providers {
+			namespaces = append(namespaces, GetNamespace(provider.Kongctl))
+		}
+		CaptureOwnedChildCollection(scope, ResourceTypeAIGatewayProvider, gateway.Ref, defaultNamespace,
+			scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, ResourceTypeAIGatewayProvider), namespaces)
+	}
+	for _, provider := range rs.AIGatewayProviders {
+		scope.AddChildNamespace(ResourceTypeAIGatewayProvider, provider.AIGateway, GetNamespace(provider.Kongctl))
+	}
 }

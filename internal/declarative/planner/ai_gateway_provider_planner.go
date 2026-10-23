@@ -43,44 +43,7 @@ func (p *Planner) planAIGatewayProviderChanges(
 		return fmt.Errorf("failed to list AI Gateway Model Providers for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayProvider, desired, currentProviders,
-		nameMatchedChildOperations[resources.AIGatewayProviderResource, state.AIGatewayProvider]{
-			desiredName: func(desired resources.AIGatewayProviderResource) string {
-				return desired.Name
-			},
-			currentName: func(current state.AIGatewayProvider) string {
-				return current.Name
-			},
-			fetch: func(
-				_ resources.AIGatewayProviderResource,
-				current state.AIGatewayProvider,
-			) (*state.AIGatewayProvider, error) {
-				full, err := p.client.GetAIGatewayProvider(ctx, gatewayID, current.ID)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway Model Provider %s: %w", current.ID, err)
-				}
-				return full, nil
-			},
-			diff: shouldUpdateAIGatewayProvider,
-			create: func(desired resources.AIGatewayProviderResource) {
-				p.planAIGatewayProviderCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
-			},
-			update: func(
-				current state.AIGatewayProvider,
-				desired resources.AIGatewayProviderResource,
-				fields map[string]any,
-				changed map[string]FieldChange,
-			) {
-				p.planAIGatewayProviderUpdate(namespace, gatewayRef, gatewayID,
-					current.ID, desired, fields, changed, plan)
-			},
-			protected: func(current state.AIGatewayProvider) bool {
-				return labels.IsProtectedResource(current.NormalizedLabels)
-			},
-			remove: func(current state.AIGatewayProvider) {
-				p.planAIGatewayProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
-			},
-		}, plan)
+	return p.reconcileOwnedAIGatewayProviders(ctx, gatewayRef, gatewayName, gatewayID, desired, currentProviders, plan)
 }
 
 func (p *Planner) planAIGatewayProviderCreatesForNewGateway(
@@ -102,7 +65,7 @@ func (p *Planner) planAIGatewayProviderCreatesForNewGateway(
 }
 
 func (p *Planner) planAIGatewayProviderCreate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
@@ -110,13 +73,16 @@ func (p *Planner) planAIGatewayProviderCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
+	provider.ManagedBy = resources.BuildChildManagedBy(nil, provider.ManagedBy,
+		resources.GetNamespace(provider.Kongctl), provider.Protected(), "")
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayProvider, provider.Ref),
 		ResourceType: ResourceTypeAIGatewayProvider,
 		ResourceRef:  provider.Ref,
 		Action:       ActionCreate,
 		Fields:       extractAIGatewayProviderFields(provider),
-		Namespace:    namespace,
+		Namespace:    resources.GetNamespace(provider.Kongctl),
+		Protection:   provider.Protected(),
 		DependsOn:    dependsOn,
 	}
 
@@ -140,7 +106,7 @@ func (p *Planner) planAIGatewayProviderCreate(
 }
 
 func (p *Planner) planAIGatewayProviderUpdate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	gatewayID string,
 	providerID string,
@@ -161,7 +127,7 @@ func (p *Planner) planAIGatewayProviderUpdate(
 		Action:        ActionUpdate,
 		Fields:        updateFields,
 		ChangedFields: changedFields,
-		Namespace:     namespace,
+		Namespace:     resources.GetNamespace(provider.Kongctl),
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,
@@ -215,9 +181,9 @@ func shouldUpdateAIGatewayProvider(
 		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
 	}
 
-	if desired.Labels != nil && labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
+	if desired.Labels != nil && labels.CompareUserLabels(current.Labels, desired.Labels) {
 		changedFields[FieldLabels] = FieldChange{
-			Old: labels.GetUserLabels(current.NormalizedLabels),
+			Old: labels.GetUserLabels(current.Labels),
 			New: labels.GetUserLabels(desired.Labels),
 		}
 	}

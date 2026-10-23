@@ -184,6 +184,24 @@ func TestAIGatewayProviderExplainNodeUsesGoogleAuth(t *testing.T) {
 	require.True(t, geminiAuth.propertyExists("use_gcp_service_account"))
 }
 
+func TestProviderExplainMarksParameterAndSessionValuesAsSecrets(t *testing.T) {
+	node, err := aiGatewayProviderExplainNode(ExplainBuildContext{})
+	require.NoError(t, err)
+	for _, variant := range []struct {
+		provider, auth string
+		path           []string
+	}{
+		{"azure", "basic", []string{"params", "value"}},
+		{"bedrock", "aws", []string{"session_token"}},
+		{"sagemaker", "sagemaker", []string{"aws", "session_token"}},
+	} {
+		auth := aiGatewayProviderAuthExplainBranch(t, node, variant.provider, variant.auth)
+		value, ok := auth.lookup(variant.path)
+		require.True(t, ok)
+		require.Equal(t, "!secret", value.PreferredTag)
+	}
+}
+
 func aiGatewayProviderAuthExplainBranch(
 	t *testing.T,
 	node *ExplainNode,
