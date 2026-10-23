@@ -28,6 +28,26 @@ findings when changing that dependency. Source paths below refer to the
   not expose a `CustomFunctionsDir` field in this version. The issue's
   automated triage should not be used as an API specification.
 
+## Related implementations and recorded decisions
+
+kongctl's lint engine calls vacuum directly; go-apiops is a dependency for
+other functionality, including patching. decK likewise calls vacuum directly
+in `lint/lint.go`, using go-apiops `filebasics` helpers for file I/O. Neither
+client supplies `CustomFunctions` in its current motor invocation.
+
+[decK PR #1312][deck-functions] proposed adding a custom-function directory
+flag and vacuum plugin loading in May 2024. On May 31, rspurgeon requested
+that it remain a draft pending discussion as a product feature, documentation
+alignment, and other items. On August 21, hbagdi closed it for inactivity,
+inviting reopening if needed. The PR was never merged.
+
+This is evidence of deliberate feature deferral in decK, not an explicit
+security prohibition. Its comments and inline reviews do not state that custom
+functions were rejected for security reasons. The identified security risks
+are findings from this evaluation, not an established historical rationale.
+Describe the present behavior as unsupported or not wired up; "intentionally
+disabled for security" is not supported by the reviewed evidence.
+
 ## Security and compatibility findings
 
 ### Loading functions executes code
@@ -149,3 +169,4 @@ developer-site or go-apiops files are changed by this evaluation; any future
 changes there require separate PRs and confirmation before filing them.
 
 [vacuum]: https://github.com/daveshanley/vacuum/tree/v0.30.6
+[deck-functions]: https://github.com/Kong/deck/pull/1312
