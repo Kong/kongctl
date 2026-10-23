@@ -76,7 +76,7 @@ func TestAIGatewayChildTraversalParentRoutingAndDependencies(t *testing.T) {
 			for i, change := range children {
 				require.Equal(t, wantKinds[i], change.ResourceType)
 				require.Equal(t, ActionCreate, change.Action)
-				if change.ResourceType == ResourceTypeAIGatewayModel {
+				if resources.HasIndependentChildOwnership(resources.ResourceType(change.ResourceType)) {
 					require.Equal(t, DefaultNamespace, change.Namespace)
 				} else {
 					require.Equal(t, namespace, change.Namespace)
