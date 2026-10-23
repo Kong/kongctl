@@ -191,15 +191,19 @@ command, which does not load custom functions.
 The kongctl PR can ship the compatibility guide and CLI help immediately.
 It should reference #2581 without closing the feature evaluation.
 
-For the developer site, propose adding a "Spectral compatibility limits"
-section before command usage in `app/kongctl/lint/index.md`, covering the same
-three limits as `docs/lint.md`. Regenerate its CLI help include using the site's
-normal workflow after the kongctl change is available. Keep the existing
-vacuum explanation and worked example on the current upstream page.
+The developer site's `app/kongctl/lint/index.md` includes generated CLI usage
+from `app/_includes/kongctl/help/lint/index.md`. Its
+`tools/kongctl-versions/extract-help.js` keeps output starting at `Usage:` and
+stops before `Global Flags:`; the command's long description is omitted.
+Keep all three compatibility limits in `--ruleset` help so they appear in
+that generated include. The site's `sync-kongctl.yml` workflow extracts help
+from the installed release and opens a normal documentation-sync PR.
 
-Open a separate developer-site PR only after the maintainer confirms. No
-developer-site files are changed by this evaluation; any future changes there
-require a separate PR and confirmation before filing it.
+The compatibility notices can reach the lint page through that release/docs
+sync; a separate manual page edit is not required for these notices. Preserve
+the page's existing vacuum explanation and worked example. No developer-site
+files are changed by this evaluation. Any separately scoped site edits require
+maintainer confirmation before filing a PR.
 
 [vacuum]: https://github.com/daveshanley/vacuum/tree/v0.30.6
 [deck-functions]: https://github.com/Kong/deck/pull/1312

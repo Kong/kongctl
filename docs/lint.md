@@ -25,6 +25,10 @@ Use `kongctl lint --help` for input, output, and severity options. The default
 failure threshold is `error`; violations at or above the selected threshold
 produce a nonzero exit code.
 
+Engine errors returned separately from vacuum's rule results are currently
+not propagated by kongctl. An empty result set can therefore exit successfully
+even when the engine reports such an error.
+
 ## Spectral compatibility limits
 
 ### Custom functions
@@ -40,9 +44,11 @@ See the [vacuum function reference](https://quobix.com/vacuum/functions/).
 
 ### Declarative tags and templates
 
-Each input is read and linted as written, independently of the declarative
-loader used by `plan` and `apply`. Lint does not resolve `!file`, `!ref`, or
-`!env`, or expand `_templates` and `_extends`.
+Each input is read independently of the declarative loader used by `plan` and
+`apply`. Lint does not resolve `!file`, `!ref`, or `!env`, or expand
+`_templates` and `_extends`. OpenAPI `$ref` resolution is separate and may
+read and check referenced content, including through network requests.
+This is not declarative tag expansion.
 
 Rules can inspect fields present in the raw file, including template
 definitions, but cannot inspect values that would appear only after expansion.

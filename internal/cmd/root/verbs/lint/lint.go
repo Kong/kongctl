@@ -43,8 +43,9 @@ var (
 Linting uses vacuum with Spectral-compatible YAML or JSON rulesets.
 Compatibility is partial:
   - Custom functions (functions/functionsDir) and --functions are not supported.
-  - Input files are linted as written. Declarative tags (!file, !ref, !env)
-    and templates (_templates, _extends) are not expanded before linting.
+  - Declarative tags (!file, !ref, !env) and templates (_templates, _extends)
+    are not expanded before linting. OpenAPI $ref resolution is separate
+    and may access referenced content or the network.
   - --ruleset must name a local file. Local paths in extends resolve from
     the working directory, not the ruleset directory. URLs can be used
     inside extends.
