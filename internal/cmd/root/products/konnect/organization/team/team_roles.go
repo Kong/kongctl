@@ -179,6 +179,7 @@ func renderOrganizationTeamRoles(
 		records = append(records, organizationTeamRoleToRecord(role, teamID))
 	}
 
+	view := buildOrganizationTeamRolesChildView(teamID, roles)
 	return tableview.RenderForFormat(
 		helper,
 		false,
@@ -188,6 +189,7 @@ func renderOrganizationTeamRoles(
 		records,
 		roles,
 		"",
+		tableview.WithCustomTable(view.Headers, view.Rows),
 		tableview.WithRootLabel("roles"),
 		tableview.WithDetailHelper(helper),
 	)

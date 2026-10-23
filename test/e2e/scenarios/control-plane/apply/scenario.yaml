@@ -111,6 +111,98 @@ steps:
               fields:
                 total_changes: 0
 
+  - name: 003a-modify-remove-labels
+    inputOverlayDirs:
+      - overlays/003-modify-remove-labels
+    commands:
+      - name: 000-plan-label-changes
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/control-plane.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: "changes[?resource_ref=='e2e-cp'] | [0]"
+            expect:
+              fields:
+                action: UPDATE
+                changed_fields.labels.old.env: e2e
+                changed_fields.labels.old.owner: kongctl-test
+                changed_fields.labels.new.env: production
+                changed_fields.labels.new.owner: null
+                changed_fields.labels.new.region: us-east-1
+                fields.labels:
+                  env: production
+                  region: us-east-1
+      - name: 001-apply-label-changes
+        run: [apply, -f, "{{ .workdir }}/control-plane.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: 002-get-modified-labels
+        run: [get, gateway, control-plane, kongctl-e2e-cp, -o, json]
+        assertions:
+          - expect:
+              fields:
+                labels.env: production
+                "contains(keys(labels), 'owner')": false
+                labels.region: us-east-1
+                'labels."KONGCTL-namespace"': default
+      - name: 003-plan-labels-noop
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/control-plane.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003b-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 000-dump-control-plane
+        run:
+          - dump
+          - declarative
+          - --resources=control_planes
+          - --filter-name=kongctl-e2e-cp
+          - --default-namespace=default
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: default
+          - select: control_planes
+            expect:
+              fields:
+                "length(@)": 1
+          - select: "control_planes[?name=='kongctl-e2e-cp'] | [0]"
+            expect:
+              fields:
+                name: kongctl-e2e-cp
+                description: Updated description for E2E apply test
+                cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+                labels.env: production
+                "contains(keys(labels), 'owner')": false
+                labels.region: us-east-1
+      - name: 001-plan-from-dump
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/dump.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 004-delete-cleanup
     commands:
       - name: 004-000-delete

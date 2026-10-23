@@ -116,6 +116,23 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
+      - name: 002-list-team-roles-text
+        run: [list, org, team, roles, --team-name, "{{ .vars.teamName }}"]
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'ROLE')": true
+                "contains(stdout, 'ENTITY TYPE')": true
+                "contains(stdout, 'REGION')": true
+                "contains(stdout, 'Viewer')": true
+                "contains(stdout, 'APIs')": true
+                "contains(stdout, 'us')": true
+                "contains(stdout, 'ENTITY ID')": false
+                "contains(stdout, 'CREATED AT')": false
+                "contains(stdout, 'SYSTEM ACCOUNT ID')": false
+
   - name: 002-noop-diff-from-config
     commands:
       - name: 000-diff-noop

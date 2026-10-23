@@ -174,6 +174,7 @@ func renderOrganizationUserRoles(
 		records = append(records, organizationUserRoleToRecord(role, userID))
 	}
 
+	view := buildOrganizationUserRolesChildView(userID, roles)
 	return tableview.RenderForFormat(
 		helper,
 		false,
@@ -183,6 +184,7 @@ func renderOrganizationUserRoles(
 		records,
 		records,
 		"",
+		tableview.WithCustomTable(view.Headers, view.Rows),
 		tableview.WithRootLabel("roles"),
 		tableview.WithDetailHelper(helper),
 	)
