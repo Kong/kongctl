@@ -101,7 +101,27 @@ func (a *AIGatewayAdapter) Update(
 }
 
 // Delete deletes an AI Gateway.
-func (a *AIGatewayAdapter) Delete(ctx context.Context, id string, _ *ExecutionContext) error {
+func (a *AIGatewayAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
+	if execCtx == nil || execCtx.Namespace == "" {
+		return fmt.Errorf("AI Gateway execution namespace required for cascade deletion")
+	}
+	current, err := a.client.GetAIGatewayByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	owner := current.NormalizedLabels[labels.NamespaceKey]
+	if owner == "" || owner != execCtx.Namespace {
+		return fmt.Errorf(
+			"AI Gateway belongs to namespace %q, not %q; only its owner can delete the gateway",
+			owner, execCtx.Namespace,
+		)
+	}
+	if labels.IsProtectedResource(current.NormalizedLabels) {
+		return fmt.Errorf("AI Gateway is protected and cannot be deleted")
+	}
 	return a.client.DeleteAIGateway(ctx, id)
 }
 

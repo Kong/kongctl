@@ -107,7 +107,7 @@ func TestNewCatalogFieldWritePlans(t *testing.T) {
 				rs.AddSecretSource("target", path, expression, false)
 				plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
 				if action == ActionCreate {
-					fields, err := secretResourceFields(resource, action)
+					fields, err := secretResourceFields(t.Context(), resource, action)
 					require.NoError(t, err)
 					plan.AddChange(PlannedChange{
 						ID: "create", ResourceRef: "target", ResourceType: string(kind),

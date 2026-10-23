@@ -85,6 +85,7 @@ func TestModelExecutionPreservesFreshMetadataAndProtection(t *testing.T) {
 	for _, variant := range []string{"model", "api"} {
 		t.Run(variant, func(t *testing.T) {
 			model := executorOwnedModel(t, variant)
+			delete(resources.AIGatewayModelManagedBy(model), "other-tool")
 			payload, err := resources.AIGatewayModelMutablePayloadMap(model)
 			require.NoError(t, err)
 			change := planner.PlannedChange{
@@ -133,7 +134,7 @@ func TestProtectedModelsOnlyAllowPayloadPreservingUnprotection(t *testing.T) {
 			metadata[resources.ModelProtectedKey] = "true"
 			fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 			require.NoError(t, err)
-			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false)
+			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
 			change := planner.PlannedChange{
 				Namespace: "team-a", Fields: fields,
 				Parent:     &planner.ParentInfo{ID: "gateway-id"},
@@ -150,6 +151,11 @@ func TestProtectedModelsOnlyAllowPayloadPreservingUnprotection(t *testing.T) {
 			_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
 			require.NoError(t, err)
 			require.Equal(t, 1, api.updates)
+			change.SecretWrites = []planner.SecretWriteIntent{{Field: "/config/secret"}}
+			_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
+			require.ErrorContains(t, err, "protected")
+			require.Equal(t, 1, api.updates)
+			change.SecretWrites = nil
 			if req.AIGatewayModelAPI != nil {
 				req.AIGatewayModelAPI.DisplayName = "tampered"
 			} else {
@@ -206,4 +212,58 @@ func (a *modelOwnershipExecutionAPI) DeleteAiGatewayModel(
 ) (*kkOps.DeleteAiGatewayModelResponse, error) {
 	a.deletes++
 	return &kkOps.DeleteAiGatewayModelResponse{}, nil
+}
+
+func TestSavedModelUnprotectionRejectsConcurrentProtectionChange(t *testing.T) {
+	model := executorOwnedModel(t, "model")
+	metadata := resources.AIGatewayModelManagedBy(model)
+	metadata[resources.ModelProtectedKey] = "true"
+	fields, err := resources.AIGatewayModelMutablePayloadMap(model)
+	require.NoError(t, err)
+	fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
+	change := planner.PlannedChange{
+		Namespace: "team-a",
+		Fields:    fields,
+		Parent:    &planner.ParentInfo{ID: "gateway-id"},
+		Protection: planner.ProtectionChange{
+			Old: true,
+			New: false,
+		},
+		ChangedFields: map[string]planner.FieldChange{planner.FieldManagedBy: {
+			Old: metadata,
+			New: fields[planner.FieldManagedBy],
+		}},
+	}
+	data, err := json.Marshal(change)
+	require.NoError(t, err)
+	var saved planner.PlannedChange
+	require.NoError(t, json.Unmarshal(data, &saved))
+	api := &modelOwnershipExecutionAPI{model: model}
+	adapter := NewAIGatewayModelAdapter(state.NewClient(state.ClientConfig{AIGatewayModelAPI: api}))
+	execCtx := NewExecutionContext(&saved)
+	var req kkComps.UpdateAIGatewayModelRequest
+	require.NoError(t, adapter.MapUpdateFields(t.Context(), execCtx, saved.Fields, &req, nil))
+	metadata[resources.ModelProtectedKey] = "false"
+	_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
+	require.ErrorContains(t, err, "protection changed after planning")
+	require.Zero(t, api.updates)
+}
+
+func TestModelExecutionRejectsFreshMetadataCapacityOverflow(t *testing.T) {
+	model := executorOwnedModel(t, "model")
+	fields, err := resources.AIGatewayModelMutablePayloadMap(model)
+	require.NoError(t, err)
+	change := planner.PlannedChange{Namespace: "team-a", Fields: fields, Parent: &planner.ParentInfo{ID: "gateway-id"}}
+	api := &modelOwnershipExecutionAPI{model: model}
+	adapter := NewAIGatewayModelAdapter(state.NewClient(state.ClientConfig{AIGatewayModelAPI: api}))
+	execCtx := NewExecutionContext(&change)
+	var req kkComps.UpdateAIGatewayModelRequest
+	require.NoError(t, adapter.MapUpdateFields(t.Context(), execCtx, fields, &req, nil))
+	metadata := resources.AIGatewayModelManagedBy(api.model)
+	for _, key := range []string{"new-one", "new-two", "new-three", "new-four"} {
+		metadata[key] = "other-tool"
+	}
+	_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
+	require.ErrorContains(t, err, "5-entry")
+	require.Zero(t, api.updates)
 }

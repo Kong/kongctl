@@ -48,6 +48,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConsumerResource { return &gateway.Consumers },
 			setParent:     func(child *AIGatewayConsumerResource, ref string) { child.AIGateway = ref },
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithExternalUnsupportedReason("scoped AI Gateway consumer lookup is planned for domain enablement"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
