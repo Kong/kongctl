@@ -11,20 +11,21 @@ import (
 )
 
 type planningResourceCache struct {
-	aiGatewaySNIs           map[string][]state.AIGatewaySNI
-	aiGatewayCACertificates map[string][]state.AIGatewayCACertificate
-	aiGatewayCertificates   map[string][]state.AIGatewayCertificate
-	aiGatewayVaults         map[string][]state.AIGatewayVault
-	aiGatewayCustomPolicies map[string][]state.AIGatewayCustomPolicy
-	aiGatewayAuthStrategies map[string][]state.AIGatewayAuthStrategy
-	aiGatewayProviders      map[string][]state.AIGatewayProvider
-	aiGatewayAgents         map[string][]state.AIGatewayAgent
-	aiGatewayConsumers      map[string][]state.AIGatewayConsumer
-	aiGatewayConsumerGroups map[string][]state.AIGatewayConsumerGroup
-	aiGatewayPolicies       map[string][]state.AIGatewayPolicy
-	aiGatewayModels         map[string][]state.AIGatewayModel
-	aiGatewayModelsPlanned  map[string]bool
-	aiGatewayMCPServers     map[string][]state.AIGatewayMCPServer
+	aiGatewaySNIs             map[string][]state.AIGatewaySNI
+	aiGatewayCACertificates   map[string][]state.AIGatewayCACertificate
+	aiGatewayCertificates     map[string][]state.AIGatewayCertificate
+	aiGatewayVaults           map[string][]state.AIGatewayVault
+	aiGatewayCustomPolicies   map[string][]state.AIGatewayCustomPolicy
+	aiGatewayAuthStrategies   map[string][]state.AIGatewayAuthStrategy
+	aiGatewayProviders        map[string][]state.AIGatewayProvider
+	aiGatewayAgents           map[string][]state.AIGatewayAgent
+	aiGatewayConsumers        map[string][]state.AIGatewayConsumer
+	aiGatewayConsumerGroups   map[string][]state.AIGatewayConsumerGroup
+	aiGatewayPolicies         map[string][]state.AIGatewayPolicy
+	aiGatewayModels           map[string][]state.AIGatewayModel
+	aiGatewayModelsPlanned    map[string]bool
+	aiGatewayProvidersPlanned map[string]bool
+	aiGatewayMCPServers       map[string][]state.AIGatewayMCPServer
 
 	managedControlPlanes             observationCache[state.ControlPlane]
 	managedEventGatewayControlPlanes observationCache[state.EventGatewayControlPlane]
@@ -44,20 +45,21 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
-		aiGatewaySNIs:           make(map[string][]state.AIGatewaySNI),
-		aiGatewayCACertificates: make(map[string][]state.AIGatewayCACertificate),
-		aiGatewayCertificates:   make(map[string][]state.AIGatewayCertificate),
-		aiGatewayVaults:         make(map[string][]state.AIGatewayVault),
-		aiGatewayCustomPolicies: make(map[string][]state.AIGatewayCustomPolicy),
-		aiGatewayAuthStrategies: make(map[string][]state.AIGatewayAuthStrategy),
-		aiGatewayProviders:      make(map[string][]state.AIGatewayProvider),
-		aiGatewayAgents:         make(map[string][]state.AIGatewayAgent),
-		aiGatewayConsumers:      make(map[string][]state.AIGatewayConsumer),
-		aiGatewayConsumerGroups: make(map[string][]state.AIGatewayConsumerGroup),
-		aiGatewayPolicies:       make(map[string][]state.AIGatewayPolicy),
-		aiGatewayModels:         make(map[string][]state.AIGatewayModel),
-		aiGatewayModelsPlanned:  make(map[string]bool),
-		aiGatewayMCPServers:     make(map[string][]state.AIGatewayMCPServer),
+		aiGatewaySNIs:             make(map[string][]state.AIGatewaySNI),
+		aiGatewayCACertificates:   make(map[string][]state.AIGatewayCACertificate),
+		aiGatewayCertificates:     make(map[string][]state.AIGatewayCertificate),
+		aiGatewayVaults:           make(map[string][]state.AIGatewayVault),
+		aiGatewayCustomPolicies:   make(map[string][]state.AIGatewayCustomPolicy),
+		aiGatewayAuthStrategies:   make(map[string][]state.AIGatewayAuthStrategy),
+		aiGatewayProviders:        make(map[string][]state.AIGatewayProvider),
+		aiGatewayAgents:           make(map[string][]state.AIGatewayAgent),
+		aiGatewayConsumers:        make(map[string][]state.AIGatewayConsumer),
+		aiGatewayConsumerGroups:   make(map[string][]state.AIGatewayConsumerGroup),
+		aiGatewayPolicies:         make(map[string][]state.AIGatewayPolicy),
+		aiGatewayModels:           make(map[string][]state.AIGatewayModel),
+		aiGatewayModelsPlanned:    make(map[string]bool),
+		aiGatewayProvidersPlanned: make(map[string]bool),
+		aiGatewayMCPServers:       make(map[string][]state.AIGatewayMCPServer),
 
 		managedControlPlanes:              newObservationCache[state.ControlPlane](),
 		managedEventGatewayControlPlanes:  newObservationCache[state.EventGatewayControlPlane](),
