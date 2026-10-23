@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/tags"
+	"github.com/kong/kongctl/internal/declarative/values"
 )
 
 // Discover top-level label maps through SDK embeddings and union variants.
@@ -64,7 +67,7 @@ func (rs *ResourceSet) ValidateLabels() error {
 		ops := registry[kind]
 		var validationErr error
 		ops.forEach(rs, func(resource Resource) bool {
-			validationErr = validateResourceLabels(resource)
+			validationErr = rs.validateResourceLabels(resource, resource.GetRef(), "")
 			return validationErr == nil
 		})
 		if validationErr != nil {
@@ -74,7 +77,7 @@ func (rs *ResourceSet) ValidateLabels() error {
 	return nil
 }
 
-func validateResourceLabels(resource Resource) error {
+func (rs *ResourceSet) validateResourceLabels(resource Resource, sourceRef, sourcePath string) error {
 	if external, ok := resource.(interface{ IsExternal() bool }); ok && external.IsExternal() {
 		return nil
 	}
@@ -103,15 +106,28 @@ func validateResourceLabels(resource Resource) error {
 		if ops.namespace != nil {
 			values = labels.GetUserLabels(values)
 		}
-		if err := labels.ValidateLabels(values, maxCount); err != nil {
+		deferred := make(map[string]bool)
+		for key, value := range values {
+			path := sourcePath + "/labels/" + escapeJSONPointerToken(key)
+			if rs.GetEnvSources(sourceRef)[path] != "" || rs.LiteralSources[sourceRef][path] != "" {
+				continue
+			}
+			_, _, reference := tags.ParseRefPlaceholder(value)
+			_, lookup := tags.ParseExternalPlaceholder(value)
+			deferred[key] = reference || lookup
+		}
+		if err := labels.ValidateLabelsWithDeferredValues(values, maxCount, deferred); err != nil {
 			return fmt.Errorf("invalid %s %q labels: %w", resource.GetType(), resource.GetRef(), err)
 		}
 	}
 	// Some children, including Event Gateway policies, remain nested after load.
 	for _, index := range ops.labelChildren {
 		children := value.Field(index)
+		name, _, _ := strings.Cut(value.Type().Field(index).Tag.Get("json"), ",")
+		childPath := values.Child(sourcePath, name)
 		for i := range children.Len() {
-			if err := validateResourceLabels(children.Index(i).Addr().Interface().(Resource)); err != nil {
+			if err := rs.validateResourceLabels(children.Index(i).Addr().Interface().(Resource),
+				sourceRef, values.Child(childPath, strconv.Itoa(i))); err != nil {
 				return err
 			}
 		}

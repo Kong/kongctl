@@ -153,6 +153,7 @@ func TestExecutorSyncControlPlaneGroupMembersOnCreate(t *testing.T) {
 
 	change := &planner.PlannedChange{
 		ResourceType: "control_plane",
+		Namespace:    "default",
 		Fields: map[string]any{
 			"name":    "group-cp",
 			"members": []map[string]string{{"id": "__REF__:child-cp#id"}},

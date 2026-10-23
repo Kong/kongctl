@@ -172,12 +172,21 @@ func ValidateLabelValue(value string) error {
 
 // ValidateLabels validates label keys, values, and the available label budget.
 func ValidateLabels(values map[string]string, maxCount int) error {
+	return ValidateLabelsWithDeferredValues(values, maxCount, nil)
+}
+
+// ValidateLabelsWithDeferredValues checks every key and counts deferred values,
+// but postpones their value checks until the caller has resolved them.
+func ValidateLabelsWithDeferredValues(values map[string]string, maxCount int, deferred map[string]bool) error {
 	if len(values) > maxCount {
 		return fmt.Errorf("too many labels: got %d, maximum is %d", len(values), maxCount)
 	}
 	for _, key := range slices.Sorted(maps.Keys(values)) {
 		if err := ValidateLabel(key); err != nil {
 			return err
+		}
+		if deferred[key] {
+			continue
 		}
 		if err := ValidateLabelValue(values[key]); err != nil {
 			return fmt.Errorf("label %q: %w", key, err)

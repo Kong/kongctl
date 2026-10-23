@@ -68,7 +68,7 @@ func (p *Planner) resolveKnownPayloadReferences(ctx context.Context, rs *resourc
 			return false, fmt.Errorf("%s %q: %w", resource.GetType(), resource.GetRef(), err)
 		}
 	}
-	return changed, nil
+	return changed, rs.ValidateLabels()
 }
 
 func (p *Planner) bindPayloadReferences(plan *Plan, rs *resources.ResourceSet) error {

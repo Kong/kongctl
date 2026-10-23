@@ -458,6 +458,18 @@ func TestValidateLabels(t *testing.T) {
 	}
 }
 
+func TestValidateLabelsWithDeferredValues(t *testing.T) {
+	values := map[string]string{"owner": "__REF__:source#id"}
+	deferred := map[string]bool{"owner": true}
+	require.NoError(t, ValidateLabelsWithDeferredValues(values, 1, deferred))
+	require.ErrorContains(t, ValidateLabelsWithDeferredValues(values, 0, deferred), "too many labels")
+	require.ErrorContains(t, ValidateLabels(values, 1), `label "owner"`)
+	require.ErrorContains(t, ValidateLabelsWithDeferredValues(map[string]string{"bad key": "__REF__:source#id"},
+		1, map[string]bool{"bad key": true}), "label key")
+	values["env"] = "has space"
+	require.ErrorContains(t, ValidateLabelsWithDeferredValues(values, 2, deferred), `label "env"`)
+}
+
 func mapsEqual(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false
