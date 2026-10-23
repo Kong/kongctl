@@ -270,5 +270,5 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
-	return p.resolveAIGatewayReferenceDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
+	return nil
 }

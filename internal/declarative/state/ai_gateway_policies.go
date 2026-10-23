@@ -18,6 +18,7 @@ func (c *Client) ListAIGatewayPolicies(ctx context.Context, gatewayID string) ([
 
 	var allData []kkComps.AIGatewayPolicy
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -33,12 +34,15 @@ func (c *Client) ListAIGatewayPolicies(ctx context.Context, gatewayID string) ([
 		}
 
 		if resp == nil || resp.ListAIGatewayPoliciesResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayPoliciesResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayPoliciesResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayPoliciesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -114,6 +118,9 @@ func (c *Client) CreateAIGatewayPolicy(
 	req kkComps.CreateAIGatewayPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayPolicy, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayPoliciesAPI, "AI Gateway Policies API"); err != nil {
 		return "", err
 	}
@@ -143,6 +150,9 @@ func (c *Client) UpdateAIGatewayPolicy(
 	req kkComps.UpdateAIGatewayPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayPolicy, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayPoliciesAPI, "AI Gateway Policies API"); err != nil {
 		return "", err
 	}

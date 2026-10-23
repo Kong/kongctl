@@ -12,11 +12,6 @@ import (
 	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
-type pendingAIGatewayCertificateDelete struct {
-	certificate state.AIGatewayCertificate
-	change      PlannedChange
-}
-
 func (p *Planner) planAIGatewayTLSChanges(
 	ctx context.Context,
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
@@ -35,7 +30,7 @@ func (p *Planner) planAIGatewayTLSChanges(
 	caCertificates := p.resources.GetAIGatewayCACertificatesForGateway(gatewayRef)
 	snis := p.resources.GetAIGatewaySNIsForGateway(gatewayRef)
 
-	var pendingDeletes []pendingAIGatewayCertificateDelete
+	var pendingDeletes []PlannedChange
 	if certificateScoped && (len(certificates) > 0 || plan.Metadata.Mode == PlanModeSync) {
 		var err error
 		pendingDeletes, err = p.planAIGatewayCertificateUpserts(
@@ -53,23 +48,18 @@ func (p *Planner) planAIGatewayTLSChanges(
 		}
 	}
 
-	var currentSNIs []state.AIGatewaySNI
 	if sniScoped && (len(snis) > 0 || plan.Metadata.Mode == PlanModeSync) {
-		var err error
-		currentSNIs, err = p.planAIGatewaySNIChanges(
+		err := p.planAIGatewaySNIChanges(
 			ctx, namespace, gatewayRef, gatewayID, gatewayChangeID, snis, plan,
 		)
 		if err != nil {
 			return err
 		}
-	} else if len(pendingDeletes) > 0 && gatewayID != "" {
-		var err error
-		currentSNIs, err = p.client.ListAIGatewaySNIs(ctx, gatewayID)
-		if err != nil {
-			return fmt.Errorf("failed to inspect AI Gateway SNIs before deleting certificates: %w", err)
-		}
 	}
-	return p.planAIGatewayCertificateDeletes(pendingDeletes, currentSNIs, plan)
+	for _, deletion := range pendingDeletes {
+		plan.AddChange(deletion)
+	}
+	return nil
 }
 
 func (p *Planner) planAIGatewayCertificateUpserts(
@@ -77,7 +67,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewayCertificateResource,
 	plan *Plan,
-) ([]pendingAIGatewayCertificateDelete, error) {
+) ([]PlannedChange, error) {
 	p.logger.Debug("Planning AI Gateway certificate changes",
 		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
 	if gatewayID == "" {
@@ -89,7 +79,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		}
 		return nil, nil
 	}
-	current, err := p.client.ListAIGatewayCertificates(ctx, gatewayID)
+	current, err := p.listAIGatewayCertificates(ctx, gatewayID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list AI Gateway certificates: %w", err)
 	}
@@ -116,19 +106,16 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		}
 	}
 
-	var deletes []pendingAIGatewayCertificateDelete
+	var deletes []PlannedChange
 	if plan.Metadata.Mode == PlanModeSync {
 		for _, certificate := range current {
 			if desiredNames[certificate.Name] {
 				continue
 			}
-			deletes = append(deletes, pendingAIGatewayCertificateDelete{
-				certificate: certificate,
-				change: newAIGatewayTLSDelete(
-					p, ResourceTypeAIGatewayCertificate, namespace, gatewayRef, gatewayID,
-					certificate.ID, certificate.Name,
-				),
-			})
+			deletes = append(deletes, newAIGatewayTLSDelete(
+				p, ResourceTypeAIGatewayCertificate, namespace, gatewayRef, gatewayID,
+				certificate.ID, certificate.Name,
+			))
 		}
 	}
 	return deletes, nil
@@ -151,7 +138,7 @@ func (p *Planner) planAIGatewayCACertificateChanges(
 		}
 		return nil
 	}
-	current, err := p.client.ListAIGatewayCACertificates(ctx, gatewayID)
+	current, err := p.listAIGatewayCACertificates(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway CA certificates: %w", err)
 	}
@@ -195,7 +182,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 	namespace, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewaySNIResource,
 	plan *Plan,
-) ([]state.AIGatewaySNI, error) {
+) error {
 	p.logger.Debug("Planning AI Gateway SNI changes",
 		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
 	if gatewayID == "" {
@@ -203,7 +190,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 			fields := sni.PayloadMap()
 			certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
 			if err != nil {
-				return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+				return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
 			}
 			fields[FieldCertificate] = certificate
 			dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
@@ -212,11 +199,11 @@ func (p *Planner) planAIGatewaySNIChanges(
 				"", sni.Ref, fields, dependsOn, plan,
 			)
 		}
-		return nil, nil
+		return nil
 	}
-	current, err := p.client.ListAIGatewaySNIs(ctx, gatewayID)
+	current, err := p.listAIGatewaySNIs(ctx, gatewayID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
+		return fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
 	}
 	byName := indexAIGatewaySNIs(current)
 	desiredNames := make(map[string]bool, len(desired))
@@ -227,7 +214,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 		fields := sni.PayloadMap()
 		certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
 		if err != nil {
-			return nil, fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
+			return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
 		}
 		fields[FieldCertificate] = certificate
 		dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
@@ -254,47 +241,6 @@ func (p *Planner) planAIGatewaySNIChanges(
 				))
 			}
 		}
-	}
-	return current, nil
-}
-
-func (p *Planner) planAIGatewayCertificateDeletes(
-	deletes []pendingAIGatewayCertificateDelete,
-	currentSNIs []state.AIGatewaySNI,
-	plan *Plan,
-) error {
-	for _, pending := range deletes {
-		for _, change := range plan.Changes {
-			if change.ResourceType != ResourceTypeAIGatewaySNI ||
-				(change.Action != ActionCreate && change.Action != ActionUpdate) ||
-				change.Namespace != pending.change.Namespace ||
-				change.Parent == nil || pending.change.Parent == nil ||
-				change.Parent.ID != pending.change.Parent.ID {
-				continue
-			}
-			if change.Fields[FieldCertificate] == pending.certificate.Name {
-				return fmt.Errorf(
-					"cannot delete AI Gateway certificate %q while planned SNI %q still references it",
-					pending.certificate.Name, change.ResourceRef,
-				)
-			}
-		}
-		for _, sni := range currentSNIs {
-			if sni.Certificate != pending.certificate.Name {
-				continue
-			}
-			change := findAIGatewayTLSChange(plan, ResourceTypeAIGatewaySNI, sni.ID)
-			if change == nil || (change.Action == ActionUpdate &&
-				change.Fields[FieldCertificate] == pending.certificate.Name) {
-				return fmt.Errorf(
-					"cannot delete AI Gateway certificate %q while SNI %q still references it",
-					pending.certificate.Name, sni.Name,
-				)
-			}
-			pending.change.DependsOn = append(pending.change.DependsOn, change.ID)
-		}
-		slices.Sort(pending.change.DependsOn)
-		plan.AddChange(pending.change)
 	}
 	return nil
 }
@@ -400,11 +346,17 @@ func addAIGatewayTLSCurrentMetadata(fields map[string]any, labels, managedBy map
 func diffAIGatewayTLSPayloads(current, desired map[string]any) map[string]FieldChange {
 	changed := make(map[string]FieldChange)
 	for field, desiredValue := range desired {
+		if field == FieldManagedBy && managedByValuesEqual(current[field], desiredValue) {
+			continue
+		}
 		if !aigatewayTLSValuesEqual(current[field], desiredValue) {
 			changed[field] = FieldChange{Old: current[field], New: desiredValue}
 		}
 	}
 	for field, currentValue := range current {
+		if field == FieldManagedBy && managedByValuesEqual(currentValue, desired[field]) {
+			continue
+		}
 		if _, exists := desired[field]; !exists && !emptyAIGatewayTLSMap(currentValue) {
 			changed[field] = FieldChange{Old: currentValue, New: nil}
 		}
@@ -454,16 +406,6 @@ func certificateChangeDependency(plan *Plan, namespace, reference string) []stri
 		if change.Namespace == namespace && change.ResourceType == ResourceTypeAIGatewayCertificate &&
 			change.ResourceRef == targetRef && change.Action != ActionDelete {
 			return []string{change.ID}
-		}
-	}
-	return nil
-}
-
-func findAIGatewayTLSChange(plan *Plan, resourceType, resourceID string) *PlannedChange {
-	for i := range plan.Changes {
-		change := &plan.Changes[i]
-		if change.ResourceType == resourceType && change.ResourceID == resourceID {
-			return change
 		}
 	}
 	return nil

@@ -48,6 +48,8 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			var actual map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&actual))
+			require.Equal(t, map[string]any{"tool": "kongctl", "version": "dev"}, actual[planner.FieldManagedBy])
+			delete(actual, planner.FieldManagedBy)
 			require.Equal(t, fields, actual)
 		}
 		if r.Method == http.MethodPost {

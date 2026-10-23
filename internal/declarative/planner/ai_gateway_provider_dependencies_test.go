@@ -21,11 +21,18 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 		wantError                                                   string
 		embeddings                                                  bool
 		unrelatedUpdate                                             bool
+		foreignNamespace                                            bool
+		providerID                                                  bool
 	}{
 		{name: "delete model before provider"},
+		{name: "cross-namespace model detach precedes provider deletion", replace: true, foreignNamespace: true},
 		{name: "delete semantic model before embedding provider", embeddings: true},
 		{name: "replacement provider then model update then old provider", replace: true},
 		{name: "retained model blocks deletion", retain: true, wantError: "still references it"},
+		{
+			name: "retained provider ID reference blocks deletion", providerID: true, unscoped: true,
+			wantError: "still references it",
+		},
 		{name: "unrelated model update retains provider", unrelatedUpdate: true, wantError: "planned model"},
 		{name: "unscoped model blocks deletion", unscoped: true, wantError: "still references it"},
 		{name: "new model cannot reference deleted provider", plannedReference: true, wantError: "planned model"},
@@ -46,6 +53,9 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 					"vectordb": map[string]any{"type": "pgvector", "dimensions": 384, "distance_metric": "cosine"},
 				}
 			}
+			if tt.providerID {
+				currentPayload[FieldTargets].([]any)[0].(map[string]any)[FieldProvider] = "provider-id"
+			}
 			currentPayload["id"] = "model-id"
 			currentPayload["created_at"], currentPayload["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
 			data, err := json.Marshal(currentPayload)
@@ -54,6 +64,10 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			require.NoError(t, json.Unmarshal(data, &current))
 			current.AIGatewayModelAIGatewayModelModel.ManagedBy = map[string]string{
 				resources.ModelNamespaceKey: "default", resources.ModelProtectedKey: "false",
+			}
+			if tt.foreignNamespace {
+				current.AIGatewayModelAIGatewayModelModel.ManagedBy[resources.ModelNamespaceKey] = "team-b"
+				desiredModel.Kongctl = &resources.KongctlMeta{Namespace: new("team-b")}
 			}
 			modelAPI := &providerOrderModelAPI{
 				testAIGatewayModelAPI: testAIGatewayModelAPI{models: []kkComps.AIGatewayModel{current}},
@@ -108,6 +122,9 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			}
 			if tt.replace || tt.retain || tt.plannedReference || tt.unrelatedUpdate {
 				rs.AIGatewayModels = []resources.AIGatewayModelResource{desiredModel}
+			}
+			if tt.foreignNamespace {
+				rs.AIGatewayModels[0].Kongctl = &resources.KongctlMeta{Namespace: new("team-b")}
 			}
 			p := NewPlanner(state.NewClient(state.ClientConfig{
 				AIGatewayAPI:          &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
