@@ -198,7 +198,7 @@ steps:
                 name: "{{ .vars.teamName }}"
 
       - name: 005b-list-system-account-teams-text
-        run: [list, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}"]
+        run: [list, org, system-account, teams, --system-account-name, "{{ .vars.systemAccountName }}", --no-trunc]
         outputFormat: text
         parseAs: raw
         assertions:
