@@ -188,8 +188,9 @@ command, which does not load custom functions.
 
 ## Documentation coordination
 
-The kongctl PR can ship the compatibility guide and CLI help immediately.
-It should reference #2581 without closing the feature evaluation.
+The kongctl PR ships the compatibility guide and CLI help and closes the
+documentation issue #2581. Optional linting of expanded declarative input is
+tracked independently in #2584. Custom-function support remains a proposal.
 
 The developer site's `app/kongctl/lint/index.md` includes generated CLI usage
 from `app/_includes/kongctl/help/lint/index.md`. Its
