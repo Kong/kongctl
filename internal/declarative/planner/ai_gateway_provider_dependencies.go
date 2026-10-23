@@ -14,9 +14,13 @@ func (p *Planner) resolveAIGatewayProviderDeletes(
 ) error {
 	references := func(deletion PlannedChange, values []string) bool {
 		name, _ := deletion.Fields[FieldName].(string)
-		return slices.Contains(values, name)
+		return slices.ContainsFunc(values, func(value string) bool {
+			value = canonicalAIGatewayReference(value, nil)
+			return value != "" && (value == name || value == deletion.ResourceID)
+		})
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		gatewayID:  gatewayID,
 		targetType: ResourceTypeAIGatewayProvider,
 		usesTarget: func(kind string) bool { return kind == ResourceTypeAIGatewayModel },
 		observe: func(ctx context.Context) ([]observedReferenceUser, error) {

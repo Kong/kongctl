@@ -45,7 +45,7 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 		return nil
 	}
 
-	currentProviders, err := p.client.ListAIGatewayAuthStrategies(ctx, gatewayID)
+	currentProviders, err := p.listAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
 	}
@@ -229,7 +229,7 @@ func shouldUpdateAIGatewayAuthStrategy(
 		}
 	}
 
-	if desired.ManagedBy != nil && !reflect.DeepEqual(current.ManagedBy, desired.ManagedBy) {
+	if desired.ManagedBy != nil && !managedByValuesEqual(current.ManagedBy, desired.ManagedBy) {
 		changedFields[FieldManagedBy] = FieldChange{Old: current.ManagedBy, New: desired.ManagedBy}
 	}
 

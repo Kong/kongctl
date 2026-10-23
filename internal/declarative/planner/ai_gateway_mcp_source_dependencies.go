@@ -17,6 +17,7 @@ func (p *Planner) resolveAIGatewayMCPSourceDeletes(
 		return name != "" && slices.Contains(values, name)
 	}
 	return resolveObservedReferenceDeletes(ctx, namespace, gatewayRef, plan, observedReferenceDeletePolicy{
+		gatewayID:  gatewayID,
 		targetType: ResourceTypeAIGatewayMCPServer,
 		usesTarget: func(kind string) bool { return kind == ResourceTypeAIGatewayMCPServer },
 		observe: func(ctx context.Context) ([]observedReferenceUser, error) {
