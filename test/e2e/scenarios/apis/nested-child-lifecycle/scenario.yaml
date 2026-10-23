@@ -595,7 +595,6 @@ steps:
               fields:
                 action: UPDATE
                 resource_type: api_version
-                resource_id: "{{ .vars.standaloneVersionID }}"
                 parent.id: "{{ .vars.apiID }}"
                 "contains(fields.spec.content, '/standalone-updated')": true
       - name: 001-apply-standalone-update

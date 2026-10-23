@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
   "scenario": "org/users/assignments",
-  "inputs_sha256": "sha256:7c9544c9aac40fad3c5447192a91b575fe07d9b88230be9c3372d5cf6e32b1f8",
+  "inputs_sha256": "sha256:29fb1b9c22e915941d1c266f4a65e8869440c3f447c0f0f8c196ec04c6130aa9",
   "source": {
     "kind": "recorded",
-    "commit": "6df0ef9433855d51ca6aeb47b0b77ce4314b4cdf",
-    "run_url": "https://github.com/Kong/kongctl/actions/runs/35553692188"
+    "commit": "1956ec7e2c35c8c62fd49331349426b3b47d9549",
+    "run_url": "https://github.com/Kong/kongctl/actions/runs/39983071496"
   },
   "interactions": [
     {
@@ -84,7 +84,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -93,7 +94,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -129,7 +131,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -138,7 +141,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -147,7 +151,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -156,7 +161,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -280,38 +286,6 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 0
-            }
-          },
-          "data": []
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
         "query": [
           [
@@ -345,6 +319,38 @@
         "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 0
+            }
+          },
+          "data": []
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
         "query": [
           [
             "page[number]",
@@ -436,7 +442,7 @@
       "response": {
         "status": 201,
         "body": {
-          "created_at": "2026-09-21T02:22:29.411910959Z",
+          "created_at": "2026-10-23T16:06:17.015280565Z",
           "description": "Team used by the organization user assignments E2E scenario",
           "id": "00000000-0000-4000-8000-000000000019",
           "konnect_managed": false,
@@ -446,7 +452,7 @@
           },
           "name": "Organization User Assignments Team",
           "system_team": false,
-          "updated_at": "2026-09-21T02:22:29.411911192Z"
+          "updated_at": "2026-10-23T16:06:17.015280888Z"
         },
         "content_type": "application/json"
       }
@@ -475,8 +481,8 @@
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-e2e"
           },
-          "created_at": "2026-09-21T02:22:29.647Z",
-          "updated_at": "2026-09-21T02:22:29.647Z",
+          "created_at": "2026-10-23T16:06:17.234Z",
+          "updated_at": "2026-10-23T16:06:17.234Z",
           "slug": "org-user-assignments-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -536,15 +542,27 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
         "query": [],
         "body": {
-          "id": "00000000-0000-4000-8000-000000000005"
+          "entity_id": "00000000-0000-4000-8000-000000000020",
+          "entity_region": "us",
+          "entity_type_name": "APIs",
+          "role_name": "Viewer"
         }
       },
       "response": {
         "status": 201,
-        "body": null,
+        "body": {
+          "id": "00000000-0000-4000-8000-000000000022",
+          "role_name": "Viewer",
+          "entity_id": "00000000-0000-4000-8000-000000000020",
+          "entity_type_name": "APIs",
+          "entity_region": "us",
+          "entity_ids": [
+            "00000000-0000-4000-8000-000000000020"
+          ]
+        },
         "content_type": "application/json"
       }
     },
@@ -580,7 +598,7 @@
       "response": {
         "status": 201,
         "body": {
-          "id": "00000000-0000-4000-8000-000000000022",
+          "id": "00000000-0000-4000-8000-000000000023",
           "role_name": "Admin",
           "entity_id": "*",
           "entity_type_name": "APIs",
@@ -596,27 +614,15 @@
       "request": {
         "endpoint": "global",
         "method": "POST",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/assigned-roles",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users",
         "query": [],
         "body": {
-          "entity_id": "00000000-0000-4000-8000-000000000020",
-          "entity_region": "us",
-          "entity_type_name": "APIs",
-          "role_name": "Viewer"
+          "id": "00000000-0000-4000-8000-000000000005"
         }
       },
       "response": {
         "status": 201,
-        "body": {
-          "id": "00000000-0000-4000-8000-000000000023",
-          "role_name": "Viewer",
-          "entity_id": "00000000-0000-4000-8000-000000000020",
-          "entity_type_name": "APIs",
-          "entity_region": "us",
-          "entity_ids": [
-            "00000000-0000-4000-8000-000000000020"
-          ]
-        },
+        "body": null,
         "content_type": "application/json"
       }
     },
@@ -677,8 +683,8 @@
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-09-21T02:22:29.647Z",
-              "updated_at": "2026-09-21T02:22:29.647Z",
+              "created_at": "2026-10-23T16:06:17.234Z",
+              "updated_at": "2026-10-23T16:06:17.234Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -743,7 +749,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -752,7 +759,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -788,7 +796,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -797,7 +806,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -806,7 +816,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -815,7 +826,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -844,7 +856,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -854,7 +866,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -969,16 +981,6 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
@@ -986,96 +988,16 @@
               "entity_ids": [
                 "*"
               ]
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
+            },
             {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "name": "Organization User Assignments Team",
-              "description": "Team used by the organization user assignments E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "org-user-assignments-e2e",
-                "scenario": "org-user-assignments"
-              },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "name": "Organization User Assignments Team",
-              "description": "Team used by the organization user assignments E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "org-user-assignments-e2e",
-                "scenario": "org-user-assignments"
-              },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000020"
+              ]
             }
           ]
         },
@@ -1119,8 +1041,101 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "Organization User Assignments Team",
+              "description": "Team used by the organization user assignments E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "org-user-assignments-e2e",
+                "scenario": "org-user-assignments"
+              },
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "Organization User Assignments Team",
+              "description": "Team used by the organization user assignments E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "org-user-assignments-e2e",
+                "scenario": "org-user-assignments"
+              },
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -1244,7 +1259,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -1254,7 +1269,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             }
           ],
           "meta": {
@@ -1289,16 +1304,6 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
@@ -1306,6 +1311,16 @@
               "entity_ids": [
                 "*"
               ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000020"
+              ]
             }
           ]
         },
@@ -1356,7 +1371,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -1365,7 +1381,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -1401,7 +1418,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -1410,7 +1428,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -1419,7 +1438,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -1428,7 +1448,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -1479,7 +1500,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -1488,7 +1510,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -1524,7 +1547,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -1533,7 +1557,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -1542,7 +1567,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -1551,7 +1577,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -1636,7 +1663,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -1645,7 +1673,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -1681,7 +1710,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -1690,7 +1720,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -1699,7 +1730,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -1708,7 +1740,42 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 10,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000024",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000020"
+              ]
             }
           ]
         },
@@ -1775,7 +1842,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -1785,7 +1852,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             }
           ],
           "meta": {
@@ -1820,22 +1887,22 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
               "entity_id": "*",
               "entity_ids": [
                 "*"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000020"
               ]
             }
           ]
@@ -2106,7 +2173,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -2115,7 +2183,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -2151,7 +2220,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -2160,7 +2230,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -2169,7 +2240,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -2178,7 +2250,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -2207,7 +2280,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -2217,7 +2290,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -2400,22 +2473,22 @@
           "data": [
             {
               "id": "00000000-0000-4000-8000-000000000023",
-              "role_name": "Viewer",
-              "entity_region": "us",
-              "entity_type_name": "APIs",
-              "entity_id": "00000000-0000-4000-8000-000000000020",
-              "entity_ids": [
-                "00000000-0000-4000-8000-000000000020"
-              ]
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000022",
               "role_name": "Admin",
               "entity_region": "*",
               "entity_type_name": "APIs",
               "entity_id": "*",
               "entity_ids": [
                 "*"
+              ]
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000022",
+              "role_name": "Viewer",
+              "entity_region": "us",
+              "entity_type_name": "APIs",
+              "entity_id": "00000000-0000-4000-8000-000000000020",
+              "entity_ids": [
+                "00000000-0000-4000-8000-000000000020"
               ]
             }
           ]
@@ -2460,8 +2533,9 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -2505,8 +2579,9 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -2550,8 +2625,9 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -2587,8 +2663,8 @@
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-09-21T02:22:29.647Z",
-              "updated_at": "2026-09-21T02:22:29.647Z",
+              "created_at": "2026-10-23T16:06:17.234Z",
+              "updated_at": "2026-10-23T16:06:17.234Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -2653,7 +2729,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -2662,7 +2739,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -2698,7 +2776,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -2707,7 +2786,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -2716,7 +2796,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -2725,7 +2806,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -2754,7 +2836,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -2764,7 +2846,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -2862,51 +2944,6 @@
       "request": {
         "endpoint": "global",
         "method": "GET",
-        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
-        "query": [
-          [
-            "page[number]",
-            "1"
-          ],
-          [
-            "page[size]",
-            "100"
-          ]
-        ],
-        "body": null
-      },
-      "response": {
-        "status": 200,
-        "body": {
-          "meta": {
-            "page": {
-              "number": 1,
-              "size": 100,
-              "total": 1
-            }
-          },
-          "data": [
-            {
-              "id": "00000000-0000-4000-8000-000000000019",
-              "name": "Organization User Assignments Team",
-              "description": "Team used by the organization user assignments E2E scenario",
-              "system_team": false,
-              "labels": {
-                "KONGCTL-namespace": "org-user-assignments-e2e",
-                "scenario": "org-user-assignments"
-              },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
-            }
-          ]
-        },
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000006/teams",
         "query": [
           [
@@ -2940,8 +2977,9 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -2985,8 +3023,55 @@
                 "KONGCTL-namespace": "org-user-assignments-e2e",
                 "scenario": "org-user-assignments"
               },
-              "created_at": "2026-09-21T02:22:29Z",
-              "updated_at": "2026-09-21T02:22:29Z"
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
+            }
+          ]
+        },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "GET",
+        "path": "/v3/users/00000000-0000-4000-8000-000000000005/teams",
+        "query": [
+          [
+            "page[number]",
+            "1"
+          ],
+          [
+            "page[size]",
+            "100"
+          ]
+        ],
+        "body": null
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "meta": {
+            "page": {
+              "number": 1,
+              "size": 100,
+              "total": 1
+            }
+          },
+          "data": [
+            {
+              "id": "00000000-0000-4000-8000-000000000019",
+              "name": "Organization User Assignments Team",
+              "description": "Team used by the organization user assignments E2E scenario",
+              "system_team": false,
+              "labels": {
+                "KONGCTL-namespace": "org-user-assignments-e2e",
+                "scenario": "org-user-assignments"
+              },
+              "created_at": "2026-10-23T16:06:17Z",
+              "updated_at": "2026-10-23T16:06:17Z",
+              "konnect_managed": false
             }
           ]
         },
@@ -3087,48 +3172,6 @@
     {
       "request": {
         "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000004",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000006",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
-        "method": "DELETE",
-        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000005",
-        "query": [],
-        "body": null
-      },
-      "response": {
-        "status": 204,
-        "body": null,
-        "content_type": "application/json"
-      }
-    },
-    {
-      "request": {
-        "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000005/assigned-roles",
         "query": [],
@@ -3163,6 +3206,34 @@
     {
       "request": {
         "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000006",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000004",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
         "method": "GET",
         "path": "/v3/users/00000000-0000-4000-8000-000000000004/assigned-roles",
         "query": [],
@@ -3191,6 +3262,20 @@
             }
           ]
         },
+        "content_type": "application/json"
+      }
+    },
+    {
+      "request": {
+        "endpoint": "global",
+        "method": "DELETE",
+        "path": "/v3/teams/00000000-0000-4000-8000-000000000019/users/00000000-0000-4000-8000-000000000005",
+        "query": [],
+        "body": null
+      },
+      "response": {
+        "status": 204,
+        "body": null,
         "content_type": "application/json"
       }
     },
@@ -3251,8 +3336,8 @@
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-e2e"
               },
-              "created_at": "2026-09-21T02:22:29.647Z",
-              "updated_at": "2026-09-21T02:22:29.647Z",
+              "created_at": "2026-10-23T16:06:17.234Z",
+              "updated_at": "2026-10-23T16:06:17.234Z",
               "slug": "org-user-assignments-api",
               "api_spec_ids": [],
               "implementation_mode": null,
@@ -3317,7 +3402,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -3326,7 +3412,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -3362,7 +3449,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -3371,7 +3459,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -3380,7 +3469,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -3389,7 +3479,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -3414,8 +3505,8 @@
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-e2e"
           },
-          "created_at": "2026-09-21T02:22:29.647Z",
-          "updated_at": "2026-09-21T02:22:29.647Z",
+          "created_at": "2026-10-23T16:06:17.234Z",
+          "updated_at": "2026-10-23T16:06:17.234Z",
           "slug": "org-user-assignments-api",
           "api_spec_ids": [],
           "implementation_mode": null,
@@ -3517,7 +3608,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -3526,7 +3618,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -3562,7 +3655,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -3571,7 +3665,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -3580,7 +3675,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -3589,7 +3685,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -3618,7 +3715,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -3628,7 +3725,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -3775,7 +3872,7 @@
           "name": "org-user-assignments-portal",
           "display_name": "org-user-assignments-portal",
           "description": "Portal used by the organization user role entity ref E2E scenario",
-          "default_domain": "b94ae2535330.us.kongportals.com",
+          "default_domain": "5279360a6939.us.kongportals.com",
           "authentication_enabled": false,
           "rbac_enabled": false,
           "auto_approve_developers": false,
@@ -3786,9 +3883,9 @@
           "labels": {
             "KONGCTL-namespace": "org-user-assignments-portal-e2e"
           },
-          "updated_at": "2026-09-21T02:22:46.762Z",
-          "created_at": "2026-09-21T02:22:46.762Z",
-          "canonical_domain": "b94ae2535330.us.kongportals.com",
+          "updated_at": "2026-10-23T16:06:31.357Z",
+          "created_at": "2026-10-23T16:06:31.357Z",
+          "canonical_domain": "5279360a6939.us.kongportals.com",
           "sipr_enabled": false,
           "notifications_developer_pii_visibility_enabled": false
         },
@@ -3867,10 +3964,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "b94ae2535330.us.kongportals.com",
-              "default_domain": "b94ae2535330.us.kongportals.com",
-              "created_at": "2026-09-21T02:22:46.762Z",
-              "updated_at": "2026-09-21T02:22:46.762Z",
+              "canonical_domain": "5279360a6939.us.kongportals.com",
+              "default_domain": "5279360a6939.us.kongportals.com",
+              "created_at": "2026-10-23T16:06:31.357Z",
+              "updated_at": "2026-10-23T16:06:31.357Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -3931,7 +4028,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -3940,7 +4038,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -3976,7 +4075,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -3985,7 +4085,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -3994,7 +4095,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -4003,7 +4105,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -4064,7 +4167,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -4074,7 +4177,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -4278,7 +4381,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -4287,7 +4391,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -4323,7 +4428,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -4332,7 +4438,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -4341,7 +4448,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -4350,7 +4458,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -4435,10 +4544,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "b94ae2535330.us.kongportals.com",
-              "default_domain": "b94ae2535330.us.kongportals.com",
-              "created_at": "2026-09-21T02:22:46.762Z",
-              "updated_at": "2026-09-21T02:22:46.762Z",
+              "canonical_domain": "5279360a6939.us.kongportals.com",
+              "default_domain": "5279360a6939.us.kongportals.com",
+              "created_at": "2026-10-23T16:06:31.357Z",
+              "updated_at": "2026-10-23T16:06:31.357Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -4499,7 +4608,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -4508,7 +4618,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -4544,7 +4655,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -4553,7 +4665,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -4562,7 +4675,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -4571,7 +4685,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -4600,7 +4715,7 @@
         "body": {
           "data": [
             {
-              "created_at": "2026-09-21T02:22:29.41191Z",
+              "created_at": "2026-10-23T16:06:17.01528Z",
               "description": "Team used by the organization user assignments E2E scenario",
               "id": "00000000-0000-4000-8000-000000000019",
               "konnect_managed": false,
@@ -4610,7 +4725,7 @@
               },
               "name": "Organization User Assignments Team",
               "system_team": false,
-              "updated_at": "2026-09-21T02:22:29.411911Z"
+              "updated_at": "2026-10-23T16:06:17.01528Z"
             },
             {
               "created_at": "2025-09-02T15:25:34.312498Z",
@@ -4862,10 +4977,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "b94ae2535330.us.kongportals.com",
-              "default_domain": "b94ae2535330.us.kongportals.com",
-              "created_at": "2026-09-21T02:22:46.762Z",
-              "updated_at": "2026-09-21T02:22:46.762Z",
+              "canonical_domain": "5279360a6939.us.kongportals.com",
+              "default_domain": "5279360a6939.us.kongportals.com",
+              "created_at": "2026-10-23T16:06:31.357Z",
+              "updated_at": "2026-10-23T16:06:31.357Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -4926,7 +5041,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "google"
             },
             {
               "id": "00000000-0000-4000-8000-000000000003",
@@ -4935,7 +5051,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000004",
@@ -4971,7 +5088,8 @@
               "preferred_name": "replay-user-7",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000008",
@@ -4980,7 +5098,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000009",
@@ -4989,7 +5108,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             },
             {
               "id": "00000000-0000-4000-8000-000000000010",
@@ -4998,7 +5118,8 @@
               "preferred_name": "",
               "active": true,
               "created_at": "2026-01-01T00:00:00Z",
-              "updated_at": "2026-01-01T00:00:00Z"
+              "updated_at": "2026-01-01T00:00:00Z",
+              "account_type": "basic-auth"
             }
           ]
         },
@@ -5049,10 +5170,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "b94ae2535330.us.kongportals.com",
-              "default_domain": "b94ae2535330.us.kongportals.com",
-              "created_at": "2026-09-21T02:22:46.762Z",
-              "updated_at": "2026-09-21T02:22:46.762Z",
+              "canonical_domain": "5279360a6939.us.kongportals.com",
+              "default_domain": "5279360a6939.us.kongportals.com",
+              "created_at": "2026-10-23T16:06:31.357Z",
+              "updated_at": "2026-10-23T16:06:31.357Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -5113,10 +5234,10 @@
               },
               "auto_approve_developers": false,
               "auto_approve_applications": false,
-              "canonical_domain": "b94ae2535330.us.kongportals.com",
-              "default_domain": "b94ae2535330.us.kongportals.com",
-              "created_at": "2026-09-21T02:22:46.762Z",
-              "updated_at": "2026-09-21T02:22:46.762Z",
+              "canonical_domain": "5279360a6939.us.kongportals.com",
+              "default_domain": "5279360a6939.us.kongportals.com",
+              "created_at": "2026-10-23T16:06:31.357Z",
+              "updated_at": "2026-10-23T16:06:31.357Z",
               "labels": {
                 "KONGCTL-namespace": "org-user-assignments-portal-e2e"
               }
@@ -5170,23 +5291,23 @@
       "after": {}
     },
     {
-      "start": 38,
-      "end": 40,
+      "start": 39,
+      "end": 41,
       "after": {}
     },
     {
-      "start": 45,
-      "end": 50,
+      "start": 46,
+      "end": 51,
       "after": {}
     },
     {
-      "start": 54,
-      "end": 59,
+      "start": 55,
+      "end": 60,
       "after": {}
     },
     {
-      "start": 60,
-      "end": 66,
+      "start": 61,
+      "end": 67,
       "after": {}
     }
   ]
