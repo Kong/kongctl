@@ -3,6 +3,8 @@ package labels
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestNormalizeLabels(t *testing.T) {
@@ -374,6 +376,83 @@ func TestValidateLabel(t *testing.T) {
 			}
 			if err != nil && tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 				t.Errorf("ValidateLabel(%s) error = %v, want error containing %s", tt.key, err, tt.errMsg)
+			}
+		})
+	}
+}
+
+func TestValidateLabelValue(t *testing.T) {
+	const formatError = "label value must start and end with an alphanumeric character " +
+		"and contain only letters, digits, '-', '_', or '.'"
+	tests := []struct {
+		name    string
+		value   string
+		wantErr string
+	}{
+		{name: "single character", value: "A"},
+		{name: "63 characters", value: strings.Repeat("a", 63)},
+		{name: "allowed punctuation", value: "A-b_c.123"},
+		{name: "empty", wantErr: "label value must be 1-63 characters"},
+		{name: "64 characters", value: strings.Repeat("a", 64), wantErr: "label value must be 1-63 characters"},
+		{name: "space", value: "has space", wantErr: formatError},
+		{name: "at sign", value: "user@example", wantErr: formatError},
+		{name: "leading punctuation", value: "-team", wantErr: formatError},
+		{name: "trailing punctuation", value: "team_", wantErr: formatError},
+		{name: "non-ASCII", value: "café", wantErr: formatError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateLabelValue(tt.value)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateLabels(t *testing.T) {
+	tests := []struct {
+		name     string
+		values   map[string]string
+		maxCount int
+		wantErr  string
+	}{
+		{name: "nil labels"},
+		{name: "empty labels", values: map[string]string{}},
+		{
+			name: "at budget", values: map[string]string{"owner": "team", "env": "dev"}, maxCount: 2,
+		},
+		{
+			name: "over budget", values: map[string]string{"owner": "team", "env": "dev"}, maxCount: 1,
+			wantErr: "too many labels: got 2, maximum is 1",
+		},
+		{
+			name: "invalid key", values: map[string]string{"konnect_owner": "team"}, maxCount: 1,
+			wantErr: "label key cannot start with konnect: konnect_owner",
+		},
+		{
+			name: "wrapped value length error", values: map[string]string{"owner": ""}, maxCount: 1,
+			wantErr: `label "owner": label value must be 1-63 characters`,
+		},
+		{
+			name: "wrapped value format error", values: map[string]string{"owner": "has space"}, maxCount: 1,
+			wantErr: `label "owner": label value must start and end with an alphanumeric character ` +
+				"and contain only letters, digits, '-', '_', or '.'",
+		},
+		{
+			name: "deterministic first error", values: map[string]string{"zebra": "", "alpha": ""}, maxCount: 2,
+			wantErr: `label "alpha": label value must be 1-63 characters`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateLabels(tt.values, tt.maxCount)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tt.wantErr)
 			}
 		})
 	}
