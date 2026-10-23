@@ -91,6 +91,42 @@ before checking its context and does not interrupt the VM. An infinite loop
 can therefore prevent completion. A timeout on the caller alone would not
 terminate that work or impose a memory limit.
 
+### Existing protections and newer upstream changes
+
+Vacuum provides useful fetch restrictions: HTTPS and certificate verification
+by default, private-address checks including checks on resolved addresses,
+redirect-target validation, a 30-second request timeout, and a 10 MB response
+limit. These reduce exposure but still permit outbound requests to public
+HTTPS endpoints. See the [official JavaScript function documentation][js-docs]
+and the pinned `plugin/javascript/eventloop/fetch` implementation. This review
+has not independently established that every address/DNS bypass is prevented.
+
+Version matters. As of October 23, 2026, upstream [v0.35.0][latest-reviewed]
+contains improvements absent from kongctl's pinned v0.30.6:
+
+- [Metadata hardening][metadata-hardening] adds VM interruption around
+  `RunScript`, `CheckScript`, and schema discovery. It also adds
+  `LoadFunctionsStrict`, which rejects directories containing invalid scripts
+  instead of retaining a partial set of functions.
+- [Fetch cancellation][fetch-cancellation] ties requests to the active
+  invocation context. The pinned version starts requests with
+  `context.Background()`, so they can outlive the rule's asynchronous timeout
+  until their own request timeout expires.
+
+The v0.35.0 legacy `plugin/javascript` runtime still enables the default
+`require` registry, executes top-level code before entering the event loop,
+and invokes synchronous callbacks without VM interruption. Its metadata fix
+does not establish complete execution bounds. A new isolated JavaScript
+ruleset runtime in `plugin/jsruleset` is a separate implementation; its
+protections must not be assumed to cover legacy custom functions.
+
+Treat custom functions as trusted executable code unless stronger isolation
+is implemented and verified. Loading only reviewed local functions is a
+different trust model from accepting function files supplied by an untrusted
+pull request in a CI job with credentials. These are integration risks and
+source-level findings, not a demonstrated exploit of kongctl's current lint
+command, which does not load custom functions.
+
 ## Proposed implementation sequence
 
 1. Confirm the trust model with maintainers before implementing support.
@@ -167,3 +203,9 @@ require a separate PR and confirmation before filing it.
 
 [vacuum]: https://github.com/daveshanley/vacuum/tree/v0.30.6
 [deck-functions]: https://github.com/Kong/deck/pull/1312
+[js-docs]: https://quobix.com/vacuum/api/custom-javascript-functions/
+[latest-reviewed]: https://github.com/daveshanley/vacuum/releases/tag/v0.35.0
+[metadata-hardening]:
+  https://github.com/daveshanley/vacuum/commit/dc827bd7045f
+[fetch-cancellation]:
+  https://github.com/daveshanley/vacuum/commit/42bc66a676f5
