@@ -84,9 +84,9 @@ Run from a consistent working directory or use absolute local paths for
 reproducible local inheritance. URL-based inheritance may access the network;
 these path constraints do not make lint an offline command.
 
-## Planned evaluation
+## Feature follow-ups
 
-Custom-function support is under evaluation. The
-[custom-function proposal](contributor/lint-custom-functions.md) records the
-implementation approach, security concerns, and acceptance criteria for a
-possible follow-up. It describes proposed behavior, not available flags.
+Proposed extensions are tracked separately from current behavior:
+
+- [Custom JavaScript functions](https://github.com/Kong/kongctl/issues/2585)
+- [Lint expanded declarative input](https://github.com/Kong/kongctl/issues/2584)
