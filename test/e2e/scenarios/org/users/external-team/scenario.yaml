@@ -1,0 +1,246 @@
+baseInputsPath: ./testdata
+
+env:
+  KONGCTL_LOG_LEVEL: info
+
+test:
+  requiredEnvVars:
+    - KONGCTL_E2E_ORG_USER_EMAIL_1
+  info: >-
+    User membership in a team created outside declarative management:
+    resolve the external team by name, apply, verify idempotency, and sync away
+    the membership while preserving the unmanaged team.
+
+vars:
+  teamName: e2e-user-external-team
+  membershipRef: external-team-membership
+
+defaults:
+  mask:
+    dropKeys:
+      - change_id
+      - resource_id
+      - generated_at
+      - created_at
+      - updated_at
+      - email
+
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+
+  - name: 001-bootstrap-external-team-and-user-lookup
+    skipInputs: true
+    commands:
+      - name: 000-create-external-team
+        create:
+          resource: organization_team
+          payload:
+            inline:
+              name: "{{ .vars.teamName }}"
+              description: Team created outside declarative management
+          recordVar:
+            name: team_id
+            responsePath: id
+
+      - name: 001-resolve-existing-user
+        run: [get, org, user, "{{ .env.KONGCTL_E2E_ORG_USER_EMAIL_1 }}", -o, json]
+        recordVar:
+          name: user_id
+          responsePath: id
+        assertions:
+          - select: "@"
+            expect:
+              fields:
+                "length(id) > `0`": true
+
+      - name: 002-get-unmanaged-team
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                name: "{{ .vars.teamName }}"
+                'labels."KONGCTL-namespace"': null
+
+  - name: 002-plan-external-team-membership
+    commands:
+      - name: 000-plan
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+                by_resource.organization_user_team_membership: 1
+          - select: changes[?resource_type=='organization_team']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: >-
+              changes[?resource_type=='organization_user_team_membership' &&
+                      resource_ref=='{{ .vars.membershipRef }}'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                namespace: ""
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.user_id.id: "{{ .vars.user_id }}"
+
+  - name: 003-apply-external-team-membership
+    commands:
+      - name: 000-apply
+        outputFormat: json
+        run:
+          - apply
+          - -f
+          - "{{ .workdir }}/config.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+                by_resource.organization_user_team_membership: 1
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      # A removal plan reads the live membership; there is no user teams CLI.
+      - name: 001-verify-live-membership
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/cleanup.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: "changes[?resource_type=='organization_user_team_membership'] | [0]"
+            expect:
+              fields:
+                action: DELETE
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.user_id.id: "{{ .vars.user_id }}"
+
+      - name: 001b-get-unmanaged-team-after-apply
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                'labels."KONGCTL-namespace"': null
+
+      - name: 002-diff-noop
+        run: [diff, -f, "{{ .workdir }}/config.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 003b-sync-preserves-membership
+    commands:
+      - name: 000-sync-noop
+        run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 0
+                status: success
+
+  - name: 004-sync-remove-membership
+    commands:
+      - name: 000-sync
+        outputFormat: json
+        run:
+          - sync
+          - -f
+          - "{{ .workdir }}/cleanup.yaml"
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+                by_resource.organization_user_team_membership: 1
+          - select: >-
+              plan.changes[?resource_type=='organization_user_team_membership'] | [0]
+            expect:
+              fields:
+                action: DELETE
+                namespace: ""
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.user_id.id: "{{ .vars.user_id }}"
+          - select: plan.changes[?resource_type=='organization_team']
+            expect:
+              fields:
+                "length(@)": 0
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+
+      # Re-adding would require CREATE only if sync actually removed the membership.
+      - name: 001-verify-membership-removed
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: "changes[?resource_type=='organization_user_team_membership'] | [0]"
+            expect:
+              fields:
+                action: CREATE
+                references.team_id.id: "{{ .vars.team_id }}"
+                references.user_id.id: "{{ .vars.user_id }}"
+
+      - name: 002-get-external-team-after-sync
+        run: [get, org, teams, -o, json]
+        assertions:
+          - select: "[?name=='{{ .vars.teamName }}'] | [0]"
+            expect:
+              fields:
+                id: "{{ .vars.team_id }}"
+                name: "{{ .vars.teamName }}"
+                'labels."KONGCTL-namespace"': null
+
+      - name: 003-diff-noop-after-sync
+        run: [diff, -f, "{{ .workdir }}/cleanup.yaml", -o, json]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 005-reset-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

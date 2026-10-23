@@ -8,6 +8,7 @@ vars:
   egwName: egw-cp-for-bc-vc-test
   bcRef: default-backend-cluster
   vcRef: default-virtual-cluster
+  namespace: event-gateways-vc-comprehensive-test
 
 defaults:
   mask:
@@ -60,6 +61,8 @@ steps:
             expect:
               fields:
                 action: CREATE
+                fields.namespace.mode: hide_prefix
+                fields.namespace.prefix: e2e_initial_
                 resource_ref: "{{ .vars.vcRef }}"
                 fields.labels.env: test
                 fields.labels.team: platform
@@ -119,6 +122,8 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.vcRef }}"
+                namespace.mode: hide_prefix
+                namespace.prefix: e2e_initial_
                 description: "Virtual Cluster for Test"
                 acl_mode: passthrough
                 dns_label: vc-default
@@ -190,6 +195,12 @@ steps:
             expect:
               fields:
                 action: UPDATE
+                fields.namespace.mode: enforce_prefix
+                fields.namespace.prefix: e2e_updated_
+                changed_fields.namespace.old.mode: hide_prefix
+                changed_fields.namespace.old.prefix: e2e_initial_
+                changed_fields.namespace.new.mode: enforce_prefix
+                changed_fields.namespace.new.prefix: e2e_updated_
                 resource_ref: "{{ .vars.vcRef }}"
                 fields.labels.env: staging
                 fields.labels.team: platform
@@ -226,6 +237,8 @@ steps:
             expect:
               fields:
                 name: "{{ .vars.vcRef }}"
+                namespace.mode: enforce_prefix
+                namespace.prefix: e2e_updated_
                 description: "Virtual Cluster for Test Updated"
                 acl_mode: enforce_on_gateway
                 dns_label: vc-default-updated
@@ -247,6 +260,41 @@ steps:
             expect:
               fields:
                 total_changes: 0
+  - name: 002b-dump-round-trip
+    skipInputs: true
+    commands:
+      - name: 001-dump
+        run:
+          - dump
+          - declarative
+          - "--resources=event_gateways"
+          - --include-child-resources
+          - "--filter-name={{ .vars.egwName }}"
+          - "--default-namespace={{ .vars.namespace }}"
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: "{{ .workdir }}/dump.yaml"
+        assertions:
+          - select: _defaults.kongctl
+            expect:
+              fields:
+                namespace: "{{ .vars.namespace }}"
+          - select: >-
+              event_gateways[?name=='{{ .vars.egwName }}'] | [0].virtual_clusters[?name=='{{ .vars.vcRef }}'] | [0]
+            expect:
+              fields:
+                name: "{{ .vars.vcRef }}"
+                namespace.mode: enforce_prefix
+                namespace.prefix: e2e_updated_
+      - name: 002-plan-from-dump
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/dump.yaml", --mode, sync]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
   - name: 003-sync-delete
     inputOverlayDirs:
       - overlays/002-sync-delete
