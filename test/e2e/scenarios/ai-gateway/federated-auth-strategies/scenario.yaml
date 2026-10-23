@@ -1,0 +1,97 @@
+baseInputsPath: testdata
+env:
+  FEDERATED_OIDC_FIRST_SECRET: first-synthetic-secret
+  FEDERATED_OIDC_SECOND_SECRET: second-synthetic-secret
+  FEDERATED_OIDC_HTTP_PROXY_AUTH: synthetic-http-proxy-auth
+  FEDERATED_OIDC_HTTPS_PROXY_AUTH: synthetic-https-proxy-auth
+defaults:
+  retry: {attempts: 1}
+steps:
+  - name: create-shared-gateway
+    commands:
+      - name: platform
+        run: [apply, -f, '{{ .workdir }}/platform.yaml', --auto-approve]
+  - name: independently-create-auth-strategies
+    commands:
+      - name: team-a
+        run: [sync, -f, '{{ .workdir }}/team-a.yaml', --auto-approve]
+      - name: team-b
+        run: [sync, -f, '{{ .workdir }}/team-b.yaml', --auto-approve]
+      - name: both-retained
+        run: [get, ai-gateway, auth-strategies, --gateway-name, federated-auth-strategies-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 2
+                sort([].name): [auth-a, auth-b]
+                sort([].managed_by.tool): [kongctl, kongctl]
+                sort([].managed_by."kongctl-namespace"): [auth-team-a, auth-team-b]
+  - name: cross-team-reference
+    commands:
+      - name: create-foreign-consumer
+        run: [apply, -f, '{{ .workdir }}/model-team.yaml', --auto-approve]
+  - name: convergence-and-dump
+    commands:
+      - name: combined-plan
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', -f, '{{ .workdir }}/team-b.yaml', -f, '{{ .workdir }}/model-team.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: dump-auth-strategies
+        run: [dump, declarative, --resources=ai-gateway, --include-child-resources, --filter-name=federated-auth-strategies-e2e, --output-file, '{{ .workdir }}/dumped.yaml']
+        outputFormat: disable
+      - name: reload
+        run: [plan, -f, '{{ .workdir }}/dumped.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+  - name: scoped-removal
+    commands:
+      - name: omitted-no-op
+        run: [plan, -f, '{{ .workdir }}/omitted-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: empty-apply-no-op
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: retained-foreign-model-blocks-auth-strategy-delete
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, sync]
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: 'still references it'
+      - name: remove-last-a-with-consumer-in-another-namespace
+        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', -f, '{{ .workdir }}/empty-model-team.yaml', --auto-approve]
+      - name: model-deleted-before-auth-strategy
+        run: [get, ai-gateway, models, --gateway-name, federated-auth-strategies-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
+      - name: team-b-retained
+        run: [get, ai-gateway, auth-strategies, --gateway-name, federated-auth-strategies-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': auth-b
+                '[0].managed_by."kongctl-namespace"': auth-team-b
+                '[0].managed_by."other-tool"': retained
+  - name: cleanup
+    commands:
+      - name: remove-gateway
+        run: [sync, -f, '{{ .workdir }}/cleanup.yaml', --auto-approve]
