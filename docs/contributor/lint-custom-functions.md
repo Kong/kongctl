@@ -17,8 +17,7 @@ findings when changing that dependency. Source paths below refer to the
 
 - `internal/lint/lint.go` supplies no `CustomFunctions` to vacuum's motor.
   The command reads a local ruleset and raw input files, without invoking the
-  declarative loader. No go-apiops change is needed to document this behavior
-  or to pass custom functions to the motor.
+  declarative loader.
 - The original [lint PR #443](https://github.com/Kong/kongctl/pull/443) and its
   review discussion describe parity with decK and binary-size concerns. The
   reviewed discussion provides no explicit security rationale for omitting
@@ -30,9 +29,7 @@ findings when changing that dependency. Source paths below refer to the
 
 ## Related implementations and recorded decisions
 
-kongctl's lint engine calls vacuum directly; go-apiops is a dependency for
-other functionality, including patching. decK likewise calls vacuum directly
-in `lint/lint.go`, using go-apiops `filebasics` helpers for file I/O. Neither
+kongctl and decK both call vacuum directly for lint rule evaluation. Neither
 client supplies `CustomFunctions` in its current motor invocation.
 
 [decK PR #1312][deck-functions] proposed adding a custom-function directory
@@ -165,8 +162,8 @@ normal workflow after the kongctl change is available. Keep the existing
 vacuum explanation and worked example on the current upstream page.
 
 Open a separate developer-site PR only after the maintainer confirms. No
-developer-site or go-apiops files are changed by this evaluation; any future
-changes there require separate PRs and confirmation before filing them.
+developer-site files are changed by this evaluation; any future changes there
+require a separate PR and confirmation before filing it.
 
 [vacuum]: https://github.com/daveshanley/vacuum/tree/v0.30.6
 [deck-functions]: https://github.com/Kong/deck/pull/1312
