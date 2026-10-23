@@ -9,12 +9,6 @@ const (
 	FieldAttributes = "attributes"
 )
 
-// APIFieldChange carries normalized values for plan payloads and diagnostics.
-type APIFieldChange struct {
-	Old any
-	New any
-}
-
 type apiTextField struct {
 	name        string
 	declaration func(*kkComps.CreateAPIRequest) **string
@@ -59,8 +53,8 @@ func ExtractAPIFields(desired kkComps.CreateAPIRequest, fields map[string]any) {
 
 // CompareAPIFields compares only declared fields; attributes retain their
 // request representation in diagnostics rather than comparison canonicalization.
-func CompareAPIFields(desired kkComps.CreateAPIRequest, current kkComps.APIResponseSchema) map[string]APIFieldChange {
-	changes := make(map[string]APIFieldChange)
+func CompareAPIFields(desired kkComps.CreateAPIRequest, current kkComps.APIResponseSchema) map[string]FieldChange {
+	changes := make(map[string]FieldChange)
 	for _, field := range apiTextFields {
 		value := *field.declaration(&desired)
 		if value == nil {
@@ -71,14 +65,14 @@ func CompareAPIFields(desired kkComps.CreateAPIRequest, current kkComps.APIRespo
 			old = *observed
 		}
 		if old != *value {
-			changes[field.name] = APIFieldChange{Old: old, New: *value}
+			changes[field.name] = FieldChange{Old: old, New: *value}
 		}
 	}
 	if desired.Attributes != nil {
 		old := normalizeAPIAttributes(current.Attributes)
 		value := normalizeAPIAttributes(desired.Attributes)
 		if !attributesEqual(old, value) {
-			changes[FieldAttributes] = APIFieldChange{Old: old, New: value}
+			changes[FieldAttributes] = FieldChange{Old: old, New: value}
 		}
 	}
 	return changes

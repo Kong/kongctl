@@ -1620,17 +1620,7 @@ func (p *Planner) planAPIDocumentChanges(
 	allDesired := desired
 	if plan.Metadata.Mode == PlanModeSync {
 		if api := p.resources.GetAPIByRef(apiRef); api != nil {
-			allDesired = make([]resources.APIDocumentResource, 0)
-			seen := make(map[string]struct{})
-			for _, group := range [][]resources.APIDocumentResource{desired, p.getAPIDocumentsForAPI(*api)} {
-				for _, document := range group {
-					if _, exists := seen[document.GetRef()]; exists {
-						continue
-					}
-					seen[document.GetRef()] = struct{}{}
-					allDesired = append(allDesired, document)
-				}
-			}
+			allDesired = p.getAPIDocumentsForAPI(*api)
 		}
 	}
 

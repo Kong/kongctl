@@ -15,9 +15,6 @@ const (
 	FieldProxyURLs    = "proxy_urls"
 )
 
-// ControlPlaneFieldChange retains the observed and declared diagnostic values.
-type ControlPlaneFieldChange struct{ Old, New any }
-
 type controlPlaneTextField struct {
 	name         string
 	declaration  func(*kkComps.CreateControlPlaneRequest) *string
@@ -100,19 +97,19 @@ func ExtractControlPlaneFields(desired kkComps.CreateControlPlaneRequest, fields
 // matters; nil and empty observed lists compare equally to a declared empty list.
 func CompareControlPlaneFields(
 	desired kkComps.CreateControlPlaneRequest, current kkComps.ControlPlane,
-) map[string]ControlPlaneFieldChange {
-	changes := make(map[string]ControlPlaneFieldChange)
+) map[string]FieldChange {
+	changes := make(map[string]FieldChange)
 	for _, field := range controlPlaneTextFields {
 		value := field.declaration(&desired)
 		if field.update == nil || value == nil || (!field.compareEmpty && *value == "") {
 			continue
 		}
 		if old := field.observation(current); old != *value {
-			changes[field.name] = ControlPlaneFieldChange{Old: old, New: *value}
+			changes[field.name] = FieldChange{Old: old, New: *value}
 		}
 	}
 	if desired.ProxyUrls != nil && !proxyURLsEqual(current.Config.ProxyUrls, desired.ProxyUrls) {
-		changes[FieldProxyURLs] = ControlPlaneFieldChange{Old: current.Config.ProxyUrls, New: desired.ProxyUrls}
+		changes[FieldProxyURLs] = FieldChange{Old: current.Config.ProxyUrls, New: desired.ProxyUrls}
 	}
 	return changes
 }

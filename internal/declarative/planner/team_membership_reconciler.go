@@ -26,7 +26,7 @@ func reconcileTeamMemberships[D, C any](
 	ops teamMembershipOperations[D, C],
 	prune bool,
 ) error {
-	desiredKeys := make(map[string]bool)
+	desiredKeys := make(map[string]bool, len(desired))
 	for _, membership := range desired {
 		team, ok := ops.resolve(membership)
 		if !ok {

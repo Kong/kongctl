@@ -55,18 +55,12 @@ func (t *OrganizationTeamPlannerImpl) planOrganizationUserTeamMembershipChanges(
 		}
 		// Lookup memberships selected in the external namespace still protect
 		// the same remote assignment from pruning here.
-		desiredTeamIDs := make(map[string]bool)
-		for _, membership := range t.planner.resources.OrganizationUserTeamMemberships {
-			if membership.User == userRef {
-				team, id, _ := t.resolveOrganizationTeamForAssignment(
-					membership.Team, t.planner.resources.OrganizationTeams, currentByName,
-				)
-				// Foreign managed teams must not borrow this namespace's name-matched IDs.
-				if id != "" && (team.IsExternal() || resources.GetNamespace(team.Kongctl) == namespace) {
-					desiredTeamIDs[id] = true
-				}
-			}
-		}
+		desiredTeamIDs := buildDesiredTeamIDs(
+			t, t.planner.resources.OrganizationUserTeamMemberships,
+			func(m resources.OrganizationUserTeamMembershipResource) bool { return m.User == userRef },
+			func(m resources.OrganizationUserTeamMembershipResource) string { return m.Team },
+			namespace, currentByName,
+		)
 
 		currentMemberships, err := t.planner.client.ListOrganizationUserTeams(ctx, user.GetKonnectID())
 		if err != nil {

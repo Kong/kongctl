@@ -2,6 +2,7 @@ package fieldcontracts
 
 import (
 	"fmt"
+	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -82,17 +83,7 @@ func convertProxyInterfaceSlice(items []any) ([]kkComps.ProxyURL, error) {
 }
 
 func proxyURLsEqual(current, desired []kkComps.ProxyURL) bool {
-	if len(current) != len(desired) {
-		return false
-	}
-
-	for i := range current {
-		if current[i].Host != desired[i].Host ||
-			current[i].Port != desired[i].Port ||
-			current[i].Protocol != desired[i].Protocol {
-			return false
-		}
-	}
-
-	return true
+	return slices.EqualFunc(current, desired, func(a, b kkComps.ProxyURL) bool {
+		return a.Host == b.Host && a.Port == b.Port && a.Protocol == b.Protocol
+	})
 }

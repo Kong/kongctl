@@ -63,7 +63,6 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 		"desired_count", len(desired),
 	)
 
-	// 1. List current data plane certificates for this gateway
 	currentCerts, err := p.listDataPlaneCertificates(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list data plane certificates for gateway %s: %w", gatewayID, err)
@@ -75,7 +74,6 @@ func (p *Planner) planDataPlaneCertificateChangesForExistingGateway(
 		"current_count", len(currentCerts),
 	)
 
-	// 2. Index by name
 	currentByName := make(map[string]state.EventGatewayDataPlaneCertificate)
 	for _, cert := range currentCerts {
 		if cert.Name != nil {
