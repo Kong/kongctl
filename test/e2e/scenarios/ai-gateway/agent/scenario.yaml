@@ -119,6 +119,8 @@ steps:
                 fields.config.upstream.auth.region: us-east-1
                 fields.config.proxy.proxy_scheme: http
                 fields.labels.phase: create
+                fields.access.acls.deny_when:
+                  - "http.headers.x_end_user_id == null"
                 fields.access.auth_strategies[0]: "__REF__:{{ .vars.auth_strategy_ref }}#id"
                 references."access.auth_strategies.0".ref: "__REF__:{{ .vars.auth_strategy_ref }}#name"
       - name: 001-apply-create
@@ -160,6 +162,8 @@ steps:
                 config.upstream.auth.region: us-east-1
                 config.proxy.proxy_scheme: http
                 "length(access.auth_strategies)": 1
+                access.acls.deny_when:
+                  - "http.headers.x_end_user_id == null"
       - name: 003-get-agent-by-name
         run:
           - get
@@ -222,6 +226,9 @@ steps:
                 fields.display_name: "{{ .vars.agent_updated_display_name }}"
                 fields.config.url: https://booking-agent-v2.example.com
                 fields.labels.phase: update
+                fields.access.acls.allow_when:
+                  - "http.headers.x_end_user_id != null"
+                "contains(keys(fields.access.acls), 'deny_when')": false
       - name: 001-apply-update
         replanOnRetry: ["{{ .workdir }}/config.yaml"]
         outputFormat: json
@@ -253,6 +260,9 @@ steps:
                 display_name: "{{ .vars.agent_updated_display_name }}"
                 config.url: https://booking-agent-v2.example.com
                 labels.phase: update
+                access.acls.allow_when:
+                  - "http.headers.x_end_user_id != null"
+                "contains(keys(access.acls), 'deny_when')": false
       - name: 003-diff-no-changes
         outputFormat: text
         parseAs: raw
@@ -289,6 +299,9 @@ steps:
                 display_name: "{{ .vars.agent_updated_display_name }}"
                 config.url: https://booking-agent-v2.example.com
                 "length(access.auth_strategies)": 1
+                access.acls.allow_when:
+                  - "http.headers.x_end_user_id != null"
+                "contains(keys(access.acls), 'deny_when')": false
           - select: >-
               ai_gateways[?display_name=='{{ .vars.gateway_name }}'] | [0].auth_strategies[?name=='{{ .vars.auth_strategy_name }}'] | [0]
             expect:
