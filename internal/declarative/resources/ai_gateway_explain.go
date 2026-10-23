@@ -21,6 +21,10 @@ func aiGatewayACLsExplainNode() *ExplainNode {
 	return explainUnionNode(
 		explainObject(explainField("allow", explainArrayOf(explainStringNode("consumer-group")), true, true)),
 		explainObject(explainField("deny", explainArrayOf(explainStringNode("consumer-group")), true, true)),
+		explainObject(explainField("allow_when",
+			explainArrayOf(explainStringNode("http.headers.x_end_user_id != null")), true, true)),
+		explainObject(explainField("deny_when",
+			explainArrayOf(explainStringNode("http.headers.x_end_user_id == null")), true, true)),
 	)
 }
 

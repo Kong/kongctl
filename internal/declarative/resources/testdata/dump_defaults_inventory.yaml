@@ -1627,6 +1627,10 @@ resources:
         type: boolean
         value: true
         source: sdk
+      - path: customization.spec_renderer.try_it_ui_audience
+        type: string
+        value: all
+        source: sdk
       - path: identity_providers.config.claim_mappings.email
         type: string
         value: email
@@ -1726,6 +1730,10 @@ resources:
       - path: spec_renderer.try_it_ui
         type: boolean
         value: true
+        source: sdk
+      - path: spec_renderer.try_it_ui_audience
+        type: string
+        value: all
         source: sdk
     overrides: []
     exclusions: []

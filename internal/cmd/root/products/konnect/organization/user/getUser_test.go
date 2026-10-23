@@ -281,9 +281,17 @@ func (p testPrinter) Print(v any) {
 func (p testPrinter) Flush() {}
 
 func usersResponse(users []kkComps.User, total int) *kkOps.ListUsersResponse {
+	items := make([]kkComps.UserCollectionItem, 0, len(users))
+	for _, user := range users {
+		items = append(items, kkComps.UserCollectionItem{
+			ID: user.ID, Email: user.Email, FullName: user.FullName,
+			PreferredName: user.PreferredName, Active: user.Active,
+			InferredRegion: user.InferredRegion, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
+		})
+	}
 	return &kkOps.ListUsersResponse{
 		UserCollection: &kkComps.UserCollection{
-			Data: users,
+			Data: items,
 			Meta: &kkComps.PaginatedMeta{
 				Page: kkComps.PageMeta{Total: float64(total)},
 			},

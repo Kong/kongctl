@@ -281,7 +281,7 @@ type GatewayService struct {
 	ID             string
 	Name           string
 	ControlPlaneID string
-	Service        kkComps.ServiceOutput
+	Service        kkComps.Service
 }
 
 // CatalogService represents a catalog service for internal use.
@@ -5367,17 +5367,17 @@ func (c *Client) ListOrganizationUserTeams(
 				UseEnhanced:  true,
 			})
 		}
-		if resp == nil || resp.TeamCollection == nil {
+		if resp == nil || resp.UserTeamMembershipCollection == nil {
 			return memberships, nil
 		}
-		for _, team := range resp.TeamCollection.Data {
+		for _, team := range resp.UserTeamMembershipCollection.Data {
 			memberships = append(memberships, OrganizationUserTeamMembership{
 				UserID:   userID,
-				TeamID:   getString(team.ID),
-				TeamName: getString(team.Name),
+				TeamID:   team.ID,
+				TeamName: team.Name,
 			})
 		}
-		total := resp.TeamCollection.GetMeta().GetPage().Total
+		total := resp.UserTeamMembershipCollection.GetMeta().GetPage().Total
 		if total <= float64(pageSize*pageNumber) {
 			return memberships, nil
 		}
@@ -5409,17 +5409,17 @@ func (c *Client) ListOrganizationTeamUsers(
 				UseEnhanced:  true,
 			})
 		}
-		if resp == nil || resp.UserCollection == nil {
+		if resp == nil || resp.TeamUserMembershipCollection == nil {
 			return memberships, nil
 		}
-		for _, user := range resp.UserCollection.Data {
+		for _, user := range resp.TeamUserMembershipCollection.Data {
 			memberships = append(memberships, OrganizationUserTeamMembership{
 				UserID:    getString(user.ID),
 				UserEmail: getString(user.Email),
 				TeamID:    teamID,
 			})
 		}
-		total := resp.UserCollection.GetMeta().GetPage().Total
+		total := resp.TeamUserMembershipCollection.GetMeta().GetPage().Total
 		if total <= float64(pageSize*pageNumber) {
 			return memberships, nil
 		}

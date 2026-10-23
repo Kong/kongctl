@@ -25,6 +25,18 @@ an optional `condition` expression. MCP `listener` and
 Models can expose multiple selector aliases through
 `config.route.model.values`, for example `[support, support-alias]`.
 
+Models and agents support conditional access rules under `access.acls` with
+AI Gateway runtime 2.2 or later. Configure exactly one of `allow`, `deny`,
+`allow_when`, or `deny_when`. The conditional variants accept arrays of CEL
+boolean expressions evaluated against the request context, for example:
+
+```yaml
+access:
+  acls:
+    deny_when:
+      - "http.headers.x_end_user_id == null"
+```
+
 - [ai-gateway.yaml](ai-gateway.yaml) defines a root AI Gateway resource with
   a nested OpenAI provider, env vault, data plane certificate, policies,
   consumer, agent, consumer group, model that targets that provider, and a

@@ -39,7 +39,7 @@ func (s stubDeckTokenSource) Token(context.Context) (string, error) {
 }
 
 type stubGatewayServiceAPI struct {
-	services []kkComps.ServiceOutput
+	services []kkComps.Service
 }
 
 func (s *stubGatewayServiceAPI) ListService(
@@ -67,7 +67,7 @@ func TestExecuteDeckStepUpdatesImplementation(t *testing.T) {
 	runner := &stubDeckRunner{}
 	stateClient := state.NewClient(state.ClientConfig{
 		GatewayServiceAPI: &stubGatewayServiceAPI{
-			services: []kkComps.ServiceOutput{
+			services: []kkComps.Service{
 				{
 					ID:   &serviceID,
 					Name: &selectorName,
