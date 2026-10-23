@@ -24,10 +24,14 @@ steps:
                 sort([].name): [provider-a, provider-b]
                 sort([].managed_by.tool): [kongctl, kongctl]
                 sort([].managed_by."kongctl-namespace"): [provider-team-a, provider-team-b]
+  - name: cross-team-reference
+    commands:
+      - name: create-foreign-consumer
+        run: [apply, -f, '{{ .workdir }}/model-team.yaml', --auto-approve]
   - name: convergence-and-dump
     commands:
       - name: combined-plan
-        run: [plan, -f, '{{ .workdir }}/team-a.yaml', -f, '{{ .workdir }}/team-b.yaml', --mode, sync]
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', -f, '{{ .workdir }}/team-b.yaml', -f, '{{ .workdir }}/model-team.yaml', --mode, sync]
         outputFormat: disable
         assertions:
           - select: summary
@@ -59,8 +63,21 @@ steps:
           - select: summary
             expect:
               fields: {total_changes: 0}
-      - name: remove-last-a
-        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', --auto-approve]
+      - name: retained-foreign-model-blocks-provider-delete
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, sync]
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: 'still references it'
+      - name: remove-last-a-with-consumer-in-another-namespace
+        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', -f, '{{ .workdir }}/empty-model-team.yaml', --auto-approve]
+      - name: model-deleted-before-provider
+        run: [get, ai-gateway, models, --gateway-name, federated-providers-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
       - name: team-b-retained
         run: [get, ai-gateway, model-providers, --gateway-name, federated-providers-e2e]
         assertions:

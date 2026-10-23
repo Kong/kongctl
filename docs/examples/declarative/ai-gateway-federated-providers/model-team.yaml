@@ -1,0 +1,15 @@
+_defaults:
+  kongctl: {namespace: provider-model-team}
+ai_gateway_models:
+  - ref: shared-consumer
+    ai_gateway: !lookup {name: federated-providers-e2e}
+    name: shared-consumer
+    display_name: Cross-team provider consumer
+    type: model
+    config: {route: {paths: [/provider-consumer]}}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: provider-a
+        config: {type: openai}
+    capabilities: [generate]

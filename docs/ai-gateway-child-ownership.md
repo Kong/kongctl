@@ -92,9 +92,12 @@ cache, synchronized to Konnect's expected config version. The public header
 definition and updated metadata were also retained. Credentials were compared
 in memory and were not printed or embedded in plans.
 
-Live evidence covers provider basic-header credential continuity only. Other
-write-only shapes still need their own evidence. Retaining a redacted GET
-shape alone is insufficient.
+Provider basic-header continuity is verified behaviorally. The provider
+integration also verifies identical parameter values, Azure client secrets,
+AWS keys/session tokens and GCP service-account JSON in fresh runtimes after
+metadata-only protection and unprotection PUTs. See [provider evidence and
+limits](ai-gateway-provider-ownership.md). Retaining a redacted GET shape
+alone is insufficient; other child families still need their own evidence.
 
 Provider auth parameter values and AWS session tokens now use the same
 reviewed `!secret` declaration machinery as header values. Public parameter

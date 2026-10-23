@@ -90,6 +90,7 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 				require.NoError(t, json.Unmarshal(encoded, &saved))
 				observed := map[string]any{}
 				maps.Copy(observed, fields)
+				observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 				observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
 					nil,
 					map[string]string{"other-tool": "preserved"},
@@ -115,6 +116,7 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					p, err := providerRequestPayload(api.last)
 					require.NoError(t, err)
 					require.Equal(t, "preserved", providerPayloadMetadata(p)["other-tool"])
+					require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 				} else {
 					require.Error(t, err)
 					require.Zero(t, api.updates)

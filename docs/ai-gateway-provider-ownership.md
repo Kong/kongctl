@@ -35,7 +35,9 @@ keys `kongctl-namespace` and `kongctl-protected`, alongside `tool: kongctl`
 and the executing binary's `version`. These four entries leave room for one
 unrelated entry within the five-entry API limit. All four keys are reserved
 in manifests. Unrelated metadata is merged again immediately before PUT.
-Public labels remain user data and are preserved when omitted.
+Public labels remain user data. Omitted labels are preserved from a fresh
+execution-time read, including labels added since planning. An explicit
+empty label map clears public labels.
 
 Ownership is cooperative client behavior. To adopt an existing provider,
 review its current owner, dependencies, protection, complete public payload,
@@ -82,9 +84,19 @@ values are write-only even for public inputs such as `api-version`; put
 those values in a deferred source too. Select `--write-secret` or
 `--write-secrets` for explicit updates. Unselected object-array values are
 omitted while names/locations remain. No ownership change resolves or
-rotates credentials implicitly. The shared infrastructure's behavioral
-credential evidence covers basic headers; other authentication variants
-still require live backend evidence before this PR is ready to merge.
+rotates credentials implicitly.
+
+Live validation covers ownership metadata on all 20 provider types. Typesafe
+requires a gateway minimum runtime of 2.2; the other tested types accept 2.1.
+A behavioral probe verified identical basic-header credentials before and
+after a CLI metadata-only PUT. For basic headers and parameters, Azure client
+secrets, AWS keys/session tokens (including nested SageMaker credentials),
+and GCP service-account JSON, fresh runtimes synchronized to Konnect's
+expected config version retained identical credential fields after both
+protection and unprotection PUTs. Values were compared in memory, never
+printed or embedded in plans. These runtime checks verify backend credential
+preservation; they do not claim successful OAuth exchanges with cloud
+identity services using synthetic credentials.
 
 Dumps translate provider ownership to `kongctl` and remove generated
 `managed_by` entries. They retain public labels and unrelated metadata;

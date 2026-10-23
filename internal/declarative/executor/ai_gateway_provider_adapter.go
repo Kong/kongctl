@@ -117,7 +117,11 @@ func (a *AIGatewayProviderAdapter) Update(
 		return "", fmt.Errorf("AI Gateway provider name and type are immutable")
 	}
 	if _, present := payload[planner.FieldLabels]; !present {
-		payload[planner.FieldLabels] = current.Labels
+		if desired, explicit := execCtx.PlannedChange.Fields[planner.FieldLabels]; explicit {
+			payload[planner.FieldLabels] = desired
+		} else {
+			payload[planner.FieldLabels] = current.Labels
+		}
 	}
 	metadata := providerPayloadMetadata(payload)
 	if current.ManagedBy[resources.ChildProtectedKey] == "true" {

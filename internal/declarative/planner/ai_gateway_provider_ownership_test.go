@@ -95,6 +95,7 @@ func TestFederatedProvidersScopeAndCollisions(t *testing.T) {
 
 func TestProviderProtectionAndMetadataCapacity(t *testing.T) {
 	desired, observed := ownedProvider(t, "provider-a", "team-a")
+	observed.AIGatewayModelProviderAIGatewayModelProviderOpenai.Labels = map[string]string{"public": "retained"}
 	desired.Kongctl.Protected = new(true)
 	api := &nameIdentityProviderAPI{children: []kkComps.AIGatewayModelProvider{observed}}
 	client := state.NewClient(state.ClientConfig{AIGatewayProvidersAPI: api})
@@ -104,6 +105,7 @@ func TestProviderProtectionAndMetadataCapacity(t *testing.T) {
 	).GeneratePlan(t.Context(), providerResourceSet(desired), Options{Mode: PlanModeApply})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
+	require.NotContains(t, plan.Changes[0].Fields, FieldLabels, "omitted labels are preserved at execution")
 	metadata := plan.Changes[0].Fields[FieldManagedBy].(map[string]string)
 	require.Equal(t, "true", metadata[resources.ChildProtectedKey])
 	require.Equal(t, "retained", metadata["other-tool"])

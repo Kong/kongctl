@@ -3,7 +3,6 @@ package planner
 import (
 	"context"
 	"fmt"
-	"maps"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -118,9 +117,9 @@ func (p *Planner) reconcileOwnedAIGatewayProviders(
 			fields = providerObservedFields(*full)
 			fields[FieldManagedBy] = provider.ManagedBy
 		}
-		// PUT replaces labels too. Omission in the manifest preserves existing public labels.
+		// Leave omitted labels out of the plan so execution preserves the latest public labels.
 		if provider.Labels == nil {
-			fields[FieldLabels] = maps.Clone(full.Labels)
+			delete(fields, FieldLabels)
 		}
 		p.planAIGatewayProviderUpdate(namespace, gatewayRef, gatewayID, full.ID, provider, fields, changed, plan)
 		if protected != provider.Protected() {

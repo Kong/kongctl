@@ -397,14 +397,20 @@ func configureAIGatewayProviderAuthExplain(auth *ExplainNode) {
 			explainSecretEnvCompositionNode("Bearer ", "MODEL_PROVIDER_API_KEY"),
 		)
 	}
+	explainReplacePath(auth, []string{"params", "value"}, explainSecretEnvNode("MODEL_PROVIDER_PARAMETER"))
 	explainReplacePath(auth, []string{"client_secret"}, explainSecretEnvNode("AZURE_CLIENT_SECRET"))
 	explainReplacePath(auth, []string{"secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
 	explainReplacePath(auth, []string{"aws", "secret_access_key"}, explainSecretEnvNode("AWS_SECRET_ACCESS_KEY"))
+	explainReplacePath(auth, []string{"session_token"}, explainSecretEnvNode("AWS_SESSION_TOKEN"))
+	explainReplacePath(auth, []string{"aws", "session_token"}, explainSecretEnvNode("AWS_SESSION_TOKEN"))
 	explainReplacePath(auth, []string{"service_account_json"}, explainSecretEnvNode("GCP_SERVICE_ACCOUNT_JSON"))
 }
 
 func providerNamespaceParticipant(r *AIGatewayProviderResource) NamespaceParticipant {
-	return NamespaceParticipant{Ref: r.Ref, Label: "ai_gateway_model_provider", SupportsProtected: true, Meta: &r.Kongctl}
+	return NamespaceParticipant{
+		Ref: r.Ref, Label: string(ResourceTypeAIGatewayProvider),
+		SupportsProtected: true, Meta: &r.Kongctl,
+	}
 }
 
 func (a AIGatewayProviderResource) Protected() bool {
