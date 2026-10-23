@@ -62,6 +62,8 @@ func prepareOwnedMappedChildUpdate(
 	return desired, nil
 }
 
+// Keep serialization errors sanitized: custom marshalers can include resolved
+// credentials in their error text. Do not wrap the underlying error here.
 func ownedChildPayload(request any) (map[string]any, error) {
 	encoded, err := json.Marshal(request)
 	if err != nil {

@@ -58,16 +58,16 @@ func TestAuthStrategyDumpWarnsAboutProtectionWithoutOwnership(t *testing.T) {
 			client := state.NewClient(state.ClientConfig{AIGatewayAuthStrategiesAPI: sdk.GetAIGatewayAuthStrategiesAPI()})
 			var logs bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&logs, nil))
-			strategys, err := buildAIGatewayAuthStrategies(t.Context(), logger, client, "gateway-id", "Gateway")
+			strategies, err := buildAIGatewayAuthStrategies(t.Context(), logger, client, "gateway-id", "Gateway")
 			require.NoError(t, err)
-			require.Len(t, strategys, 1)
-			require.Equal(t, map[string]string{"other-tool": "retained"}, strategys[0].ManagedBy)
+			require.Len(t, strategies, 1)
+			require.Equal(t, map[string]string{"other-tool": "retained"}, strategies[0].ManagedBy)
 			if tc.namespace == "" {
 				// An orphaned protection key must never imply adoption into a default namespace.
-				require.Nil(t, strategys[0].Kongctl)
+				require.Nil(t, strategies[0].Kongctl)
 			} else {
-				require.Equal(t, tc.namespace, resources.GetNamespace(strategys[0].Kongctl))
-				require.Equal(t, *tc.protection == "true", strategys[0].Protected())
+				require.Equal(t, tc.namespace, resources.GetNamespace(strategies[0].Kongctl))
+				require.Equal(t, *tc.protection == "true", strategies[0].Protected())
 			}
 			if tc.warn {
 				require.Contains(t, logs.String(), "protection metadata without an ownership namespace")
