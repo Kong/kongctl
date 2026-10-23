@@ -40,7 +40,15 @@ var (
 	lintLong = normalizers.LongDesc(i18n.T("root.verbs.lint.lintLong",
 		`Validate configuration files against a linting ruleset.
 
-The ruleset file must be a Spectral-compatible YAML or JSON ruleset.
+Linting uses vacuum with Spectral-compatible YAML or JSON rulesets.
+Compatibility is partial:
+  - Custom functions (functions/functionsDir) and --functions are not supported.
+  - Input files are linted as written. Declarative tags (!file, !ref, !env)
+    and templates (_templates, _extends) are not expanded before linting.
+  - --ruleset must name a local file. Local paths in extends resolve from
+    the working directory, not the ruleset directory. URLs can be used
+    inside extends.
+
 For more information on Spectral rulesets, see:
   https://docs.stoplight.io/docs/spectral/
 
@@ -87,7 +95,8 @@ func NewLintCmd() (*cobra.Command, error) {
 	lintCmd.Flags().BoolP(recursiveFlagName, recursiveFlagShort, false,
 		"Process the directory used in -f, --filename recursively")
 	lintCmd.Flags().StringP(rulesetFlagName, rulesetFlagShort, "",
-		"Path to a Spectral-compatible linting ruleset file (YAML or JSON)")
+		"Local YAML or JSON ruleset for vacuum (partial Spectral compatibility; no custom functions). "+
+			"Input tags/templates are not expanded; extends paths use the working directory (URLs allowed in extends).")
 	lintCmd.Flags().StringP(failSeverityFlagName, failSeverityFlagShort, "error",
 		"Results of this severity or above will trigger a failure exit code. "+
 			"Allowed: [ error | warn | info | hint ]")

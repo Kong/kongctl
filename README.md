@@ -240,6 +240,8 @@ backend.
 
 ## Documentation Listing
 
+- **[Linting Guide](docs/lint.md)** - Rulesets, Spectral compatibility limits,
+  and declarative input behavior
 - **[Kong Mesh Guide](docs/mesh.md)** - Control-plane selection, resources,
   export, inspection, and tokens
 - **[Kong Mesh Examples](docs/examples/mesh/README.md)** - Native
