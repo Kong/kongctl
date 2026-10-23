@@ -1,11 +1,8 @@
 package organization
 
 import (
-	"fmt"
-
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization/systemaccount"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
 	"github.com/spf13/cobra"
@@ -23,16 +20,6 @@ var (
 
 	organizationLong = normalizers.LongDesc(i18n.T("root.products.konnect.organization.organizationLong",
 		`The organization command retrieves data about the currently authenticated Konnect organization.`))
-
-	organizationExample = normalizers.Examples(
-		i18n.T("root.products.konnect.organization.organizationExamples",
-			fmt.Sprintf(`
-	# Get current organization information
-	%[1]s get organization
-	# Get current organization information using explicit product
-	%[1]s get konnect organization
-	`, meta.CLIName)),
-	)
 )
 
 func NewOrganizationCmd(verb verbs.VerbValue,
@@ -43,7 +30,6 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		Use:     organizationUse,
 		Short:   organizationShort,
 		Long:    organizationLong,
-		Example: organizationExample,
 		Aliases: []string{"org", "orgs"},
 	}
 
@@ -55,6 +41,8 @@ func NewOrganizationCmd(verb verbs.VerbValue,
 		return newAdoptOrganizationCmd(verb, &baseCmd, addParentFlags, parentPreRun).Command, nil
 	}
 	if verb == verbs.Create || verb == verbs.Delete {
+		baseCmd.Short = "Manage Konnect organization resources"
+		baseCmd.Long = "Manage resources within the currently authenticated Konnect organization."
 		if parentPreRun != nil {
 			baseCmd.PreRunE = parentPreRun
 		}

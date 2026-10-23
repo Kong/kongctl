@@ -10,7 +10,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
-	"github.com/kong/kongctl/internal/meta"
 	"github.com/spf13/cobra"
 )
 
@@ -57,19 +56,5 @@ func NewDirectMeshCmd() (*cobra.Command, error) {
 		return nil
 	}
 
-	meshCmd, err := mesh.NewMeshCmd(Verb, addFlags, preRunE)
-	if err != nil {
-		return nil, err
-	}
-
-	meshCmd.Example = fmt.Sprintf(`  # Issue a token that proves a zone's identity to the global control plane
-  %[1]s create mesh zone-token --zone zone1 --valid-for 720h --control-plane-id <id>
-
-  # Issue a token that proves a dataplane's identity
-  %[1]s create mesh dataplane-token --mesh default --name backend-01 --control-plane-id <id>
-
-  # Mesh resources are written with apply, since a write creates or replaces
-  %[1]s apply mesh -f policy.yaml --control-plane-id <id>`, meta.CLIName)
-
-	return meshCmd, nil
+	return mesh.NewMeshCmd(Verb, addFlags, preRunE)
 }

@@ -94,6 +94,18 @@ func NewMeshCmd(
 	}
 	//exhaustive:ignore // Other verbs use the shared Mesh help above.
 	switch verb {
+	case verbs.Create:
+		baseCmd.Short = "Create Kong Mesh access tokens"
+		baseCmd.Example = normalizers.Examples(fmt.Sprintf(`
+		# Issue a token that proves a zone's identity to the global control plane
+		%[1]s create mesh zone-token --zone zone1 --valid-for 720h --control-plane-id <id>
+
+		# Issue a token that proves a dataplane's identity
+		%[1]s create mesh dataplane-token --mesh default --name backend-01 --control-plane-id <id>
+
+		# Mesh resources are written with apply, since a write creates or replaces
+		%[1]s apply mesh -f policy.yaml --control-plane-id <id>
+		`, meta.CLIName))
 	case verbs.Apply:
 		baseCmd.Short = "Apply Kong Mesh resource documents"
 		baseCmd.Long = normalizers.LongDesc(`Apply resource documents directly to a Kong Mesh 3.0 or later control plane.
