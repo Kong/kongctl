@@ -1,0 +1,16 @@
+_defaults:
+  kongctl: {namespace: auth-model-team}
+ai_gateway_models:
+  - ref: shared-consumer
+    ai_gateway: !lookup {name: federated-auth-strategies-e2e}
+    name: shared-consumer
+    display_name: Cross-team auth consumer
+    type: model
+    config: {route: {paths: [/provider-consumer]}}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: shared-provider
+        config: {type: openai}
+    access: {auth_strategies: [auth-a]}
+    capabilities: [generate]

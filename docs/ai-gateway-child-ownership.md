@@ -1,10 +1,12 @@
 # Shared AI Gateway ownership infrastructure
 
-Models and model providers support independent kongctl namespace ownership.
+Models, model providers, and auth strategies support independent kongctl
+namespace ownership.
 The shared infrastructure prepares other mutable children for separate resource
 PRs; it does not enable consumer or group federation. Config stores and data
 plane certificates remain excluded. See [model ownership and migration][models]
-and [provider ownership](ai-gateway-provider-ownership.md).
+and [provider ownership](ai-gateway-provider-ownership.md) and
+[auth-strategy ownership](ai-gateway-auth-strategy-ownership.md).
 
 ## Ownership and collection scope
 
@@ -29,7 +31,7 @@ preserved, including entries added after planning. The merged map may contain
 at most five entries, including all four generated entries. Overflow fails
 before a write without discarding metadata. This leaves one unrelated entry
 for independently owned children and three for children carrying provenance
-only. Model and provider dumps omit generated entries and
+only. Model, provider, and auth-strategy dumps omit generated entries and
 translate namespace/protection into `kongctl` metadata. Unprotection may update
 automatic provenance, but still cannot change other metadata or payload fields.
 
@@ -97,7 +99,11 @@ integration also verifies identical parameter values, Azure client secrets,
 AWS keys/session tokens and GCP service-account JSON in fresh runtimes after
 metadata-only protection and unprotection PUTs. See [provider evidence and
 limits](ai-gateway-provider-ownership.md). Retaining a redacted GET shape
-alone is insufficient; other child families still need their own evidence.
+alone is insufficient. Auth-strategy OIDC client-secret arrays and proxy
+authorization values were also compared in fresh synchronized runtimes after
+protection and unprotection PUTs; see [auth-strategy evidence and
+limits](ai-gateway-auth-strategy-ownership.md). Other child families still
+need their own evidence.
 
 Provider auth parameter values and AWS session tokens now use the same
 reviewed `!secret` declaration machinery as header values. Public parameter
@@ -107,9 +113,10 @@ deferred source and select them explicitly when changing them.
 
 Provider basic header/parameter arrays, Azure client secrets, AWS secret access
 keys/session tokens, and GCP service-account JSON use distinct write-only
-shapes. Auth-strategy scalar client-secret arrays, vault credentials, and
-runtime certificate keys need their resource-specific omission/replacement
-contracts verified before federation. Certificate key writes remain explicit
+shapes. Auth-strategy scalar client-secret arrays must be selected as a
+complete group when rotating them. Vault credentials and runtime certificate
+keys still need their resource-specific omission/replacement contracts
+verified before federation. Certificate key writes remain explicit
 and required for current certificate updates; this infrastructure does not
 invent a preserve-on-omission contract for them.
 
