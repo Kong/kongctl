@@ -19,6 +19,7 @@ func (c *Client) ListAIGatewayVaults(ctx context.Context, gatewayID string) ([]A
 
 	var allData []kkComps.AIGatewayVault
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -34,12 +35,15 @@ func (c *Client) ListAIGatewayVaults(ctx context.Context, gatewayID string) ([]A
 		}
 
 		if resp == nil || resp.ListAIGatewayVaultsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayVaultsResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayVaultsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayVaultsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -115,6 +119,9 @@ func (c *Client) CreateAIGatewayVault(
 	req kkComps.CreateAIGatewayVaultRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayVault, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayVaultsAPI, "AI Gateway Vaults API"); err != nil {
 		return "", err
 	}
@@ -144,6 +151,9 @@ func (c *Client) UpdateAIGatewayVault(
 	req kkComps.UpdateAIGatewayVaultRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayVault, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayVaultsAPI, "AI Gateway Vaults API"); err != nil {
 		return "", err
 	}
