@@ -2,10 +2,7 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"maps"
-	"reflect"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 
@@ -63,11 +60,11 @@ func (a *AIGatewayProviderAdapter) Create(
 	if err != nil {
 		return "", err
 	}
-	payload, err := providerRequestPayload(req)
+	payload, err := ownedChildPayload(req)
 	if err != nil {
 		return "", err
 	}
-	if err := validateProviderWriteContext(execCtx, payload, namespace); err != nil {
+	if err := validateChildWriteContext("AI Gateway provider", execCtx, payload, namespace); err != nil {
 		return "", err
 	}
 	providers, err := a.client.ListAIGatewayProviders(ctx, gatewayID)
@@ -93,11 +90,11 @@ func (a *AIGatewayProviderAdapter) Update(
 	if err != nil {
 		return "", err
 	}
-	payload, err := providerRequestPayload(req)
+	payload, err := ownedChildPayload(req)
 	if err != nil {
 		return "", err
 	}
-	if err := validateProviderWriteContext(execCtx, payload, namespace); err != nil {
+	if err := validateChildWriteContext("AI Gateway provider", execCtx, payload, namespace); err != nil {
 		return "", err
 	}
 	current, err := a.client.GetAIGatewayProvider(ctx, gatewayID, id)
@@ -107,57 +104,13 @@ func (a *AIGatewayProviderAdapter) Update(
 	if current == nil {
 		return "", fmt.Errorf("AI Gateway provider no longer exists")
 	}
-	if err := resources.ValidateChildOwnership("AI Gateway provider", current.ManagedBy, namespace); err != nil {
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway provider", map[string]any{
+		planner.FieldName: current.Name, planner.FieldType: current.Type, planner.FieldDisplayName: current.DisplayName,
+		planner.FieldConfig: current.Config, planner.FieldLabels: current.Labels, planner.FieldManagedBy: current.ManagedBy,
+	}, payload, execCtx)
+	if err != nil {
 		return "", err
 	}
-	if err := validateChildPlannedProtection("AI Gateway provider", current.ManagedBy, execCtx.PlannedChange); err != nil {
-		return "", err
-	}
-	if current.Type != payload[planner.FieldType] || current.Name != payload[planner.FieldName] {
-		return "", fmt.Errorf("AI Gateway provider name and type are immutable")
-	}
-	if _, present := payload[planner.FieldLabels]; !present {
-		if desired, explicit := execCtx.PlannedChange.Fields[planner.FieldLabels]; explicit {
-			payload[planner.FieldLabels] = desired
-		} else {
-			payload[planner.FieldLabels] = current.Labels
-		}
-	}
-	metadata := providerPayloadMetadata(payload)
-	if current.ManagedBy[resources.ChildProtectedKey] == "true" {
-		before := map[string]any{
-			planner.FieldName: current.Name, planner.FieldType: current.Type,
-			planner.FieldDisplayName: current.DisplayName,
-			planner.FieldConfig:      current.Config, planner.FieldLabels: current.Labels,
-		}
-		encoded, err := json.Marshal(before)
-		if err != nil {
-			return "", fmt.Errorf("cannot compare provider protection payload")
-		}
-		var observedPayload map[string]any
-		if err := json.Unmarshal(encoded, &observedPayload); err != nil {
-			return "", fmt.Errorf("cannot compare provider protection payload")
-		}
-		after := maps.Clone(payload)
-		delete(after, planner.FieldManagedBy)
-		after, err = providerRequestPayload(after)
-		if err != nil {
-			return "", err
-		}
-		if !childUnprotectOnly(execCtx.PlannedChange, current.ManagedBy, metadata) ||
-			!reflect.DeepEqual(observedPayload, after) {
-			return "", fmt.Errorf("AI Gateway provider is protected; unprotect it in a separate update")
-		}
-	}
-	merged := maps.Clone(current.ManagedBy)
-	if merged == nil {
-		merged = make(map[string]string)
-	}
-	maps.Copy(merged, metadata)
-	if err := resources.ValidateChildManagedBy(merged, false); err != nil {
-		return "", err
-	}
-	payload[planner.FieldManagedBy] = merged
 	if err := mapAIGatewaySDKRequest("AI Gateway provider update", payload, &req); err != nil {
 		return "", err
 	}
@@ -290,35 +243,4 @@ func (a *aiGatewayProviderResourceInfo) GetLabels() map[string]string {
 
 func (a *aiGatewayProviderResourceInfo) GetNormalizedLabels() map[string]string {
 	return a.provider.NormalizedLabels
-}
-
-func providerRequestPayload(request any) (map[string]any, error) {
-	encoded, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("cannot encode provider payload")
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(encoded, &payload); err != nil {
-		return nil, fmt.Errorf("cannot decode provider payload")
-	}
-	return payload, nil
-}
-
-func providerPayloadMetadata(payload map[string]any) map[string]string {
-	metadata := make(map[string]string)
-	if values, ok := payload[planner.FieldManagedBy].(map[string]any); ok {
-		for k, v := range values {
-			if text, ok := v.(string); ok {
-				metadata[k] = text
-			}
-		}
-	}
-	return metadata
-}
-
-func validateProviderWriteContext(execCtx *ExecutionContext, payload map[string]any, namespace string) error {
-	if execCtx == nil || execCtx.PlannedChange == nil || namespace != execCtx.Namespace {
-		return fmt.Errorf("AI Gateway provider execution namespace mismatch")
-	}
-	return validateChildPayloadOwnership("AI Gateway provider", providerPayloadMetadata(payload), namespace)
 }
