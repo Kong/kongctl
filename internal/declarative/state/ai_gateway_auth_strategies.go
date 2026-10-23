@@ -19,10 +19,7 @@ func NormalizeAIGatewayAuthStrategy(provider kkComps.AIGatewayAuthStrategy) (AIG
 	}
 
 	labels := stringMapFromRaw(raw["labels"])
-	normalizedLabels := labels
-	if normalizedLabels == nil {
-		normalizedLabels = make(map[string]string)
-	}
+	normalizedLabels := resources.NormalizedChildOwnership(stringMapFromRaw(raw["managed_by"]))
 
 	return AIGatewayAuthStrategy{
 		ID:               stringFromRaw(raw["id"]),

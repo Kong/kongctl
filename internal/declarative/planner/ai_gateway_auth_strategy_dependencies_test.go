@@ -160,6 +160,7 @@ func TestAIGatewayAuthStrategyDeleteInspectsOutOfScopeResources(t *testing.T) {
 			cfg := authStrategyOrderClientConfig(t, kind, "old-authStrategy")
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayAuthStrategy, "support-gateway", "default")
 			scope.AddChild(
 				resources.ResourceTypeAIGateway,
 				"support-gateway",
@@ -316,6 +317,7 @@ func authStrategyOrderClientConfig(t *testing.T, kind, reference string) state.C
 	require.NoError(t, json.Unmarshal([]byte(`{
 		"id":"authStrategy-id","name":"old-authStrategy","display_name":"Old Auth",
 		"type":"key-auth","config":{"key_names":["apikey"]},
+"managed_by":{"kongctl-namespace":"default","kongctl-protected":"false"},
 		"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"
 	}`), &strategy))
 	return state.ClientConfig{

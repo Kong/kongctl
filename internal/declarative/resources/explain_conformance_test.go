@@ -127,7 +127,7 @@ func TestAIGatewayAuthStrategyExplainBranchesTrackSDKRequestShapes(t *testing.T)
 	require.NoError(t, err)
 
 	allowOverlay := func(path, name string) bool {
-		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "type") {
+		if path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == "kongctl" || name == "type") {
 			return true
 		}
 		return false
