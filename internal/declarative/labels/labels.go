@@ -13,6 +13,9 @@ var labelPattern = regexp.MustCompile(`^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?
 
 // Label keys used by kongctl
 const (
+	// MaxCount is the Konnect label limit, including kongctl management labels.
+	MaxCount = 50
+
 	// Label prefix
 	KongctlPrefix = "KONGCTL-"
 

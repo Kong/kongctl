@@ -60,7 +60,7 @@ func TestLoaderControlPlaneLabels(t *testing.T) {
 			}
 			_, err := New().LoadFile(writeLoaderTestFile(t, input.String()))
 			if tt.wantErr {
-				require.ErrorContains(t, err, "control plane")
+				require.ErrorContains(t, err, "control_plane")
 				require.ErrorContains(t, err, "label")
 			} else {
 				require.NoError(t, err)

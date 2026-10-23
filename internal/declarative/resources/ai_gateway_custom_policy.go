@@ -35,12 +35,13 @@ func init() {
 // AIGatewayCustomPolicyResource defines an installed or streaming plugin.
 type AIGatewayCustomPolicyResource struct {
 	BaseResource `        yaml:",inline"              json:",inline"`
-	AIGateway    string  `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name         string  `yaml:"name"                 json:"name"`
-	Type         string  `yaml:"type"                 json:"type"`
-	DisplayName  string  `yaml:"display_name"         json:"display_name"`
-	Schema       string  `yaml:"schema"               json:"schema"`
-	Handler      *string `yaml:"handler,omitempty"    json:"handler,omitempty"`
+	AIGateway    string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	Name         string            `yaml:"name"                 json:"name"`
+	Type         string            `yaml:"type"                 json:"type"`
+	DisplayName  string            `yaml:"display_name"         json:"display_name"`
+	Schema       string            `yaml:"schema"               json:"schema"`
+	Handler      *string           `yaml:"handler,omitempty"    json:"handler,omitempty"`
+	Labels       map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
 }
 
 func (a AIGatewayCustomPolicyResource) GetType() ResourceType {
@@ -116,6 +117,13 @@ func (a AIGatewayCustomPolicyResource) Validate() error {
 
 func (a AIGatewayCustomPolicyResource) MutablePayloadMap() (map[string]any, error) {
 	fields := map[string]any{"name": a.Name, "type": a.Type, "display_name": a.DisplayName, "schema": a.Schema}
+	if a.Labels != nil {
+		values := make(map[string]any, len(a.Labels))
+		for key, value := range a.Labels {
+			values[key] = value
+		}
+		fields["labels"] = values
+	}
 	if a.Handler != nil {
 		fields["handler"] = *a.Handler
 	}

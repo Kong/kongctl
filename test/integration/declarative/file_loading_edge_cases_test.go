@@ -392,7 +392,7 @@ func TestFileTagCaching(t *testing.T) {
 	// Create data file
 	dataContent := `
 cached_data:
-  timestamp: "2024-01-01T00:00:00Z"
+  timestamp: "20240101T000000Z"
   counter: "42"
   message: "this content should be cached"
 `
@@ -444,7 +444,7 @@ apis:
 
 	// Verify all resources have consistent values (proving cache worked)
 	expectedMessage := "this content should be cached"
-	expectedTimestamp := "2024-01-01T00:00:00Z"
+	expectedTimestamp := "20240101T000000Z"
 	expectedCounter := "42"
 
 	for _, portal := range resourceSet.Portals {
