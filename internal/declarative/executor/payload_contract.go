@@ -35,7 +35,10 @@ func (c upsertPayloadContract[TRequest]) ValidatePayload(
 		if err := c.base.ops.MapCreateFields(ctx, execCtx, change.Fields, &request); err != nil {
 			return err
 		}
-		return validateMappedPayload(c.base.ops.ResourceType(), change.Action, change.Fields, request)
+		if err := validateMappedPayload(c.base.ops.ResourceType(), change.Action, change.Fields, request); err != nil {
+			return err
+		}
+		return validateRequestLabels(request, &change)
 	case planner.ActionDelete:
 		return nil
 	case planner.ActionExternalTool:

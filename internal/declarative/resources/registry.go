@@ -20,6 +20,8 @@ import (
 
 // resourceOps provides operations for a specific resource type within a ResourceSet.
 type resourceOps struct {
+	labelFields                       [][]int
+	labelChildren                     []int
 	get                               func(rs *ResourceSet) []Resource
 	append                            func(dest, src *ResourceSet)
 	forEach                           func(rs *ResourceSet, fn func(Resource) bool) bool
@@ -292,6 +294,8 @@ func registerResourceTypeWithSliceAccessors[R any, RPtr interface {
 	options ...ResourceRegistrationOption,
 ) {
 	ops := resourceOps{
+		labelFields:   labelFieldPaths(reflect.TypeFor[R]()),
+		labelChildren: labelChildFields(reflect.TypeFor[R]()),
 		get: func(rs *ResourceSet) []Resource {
 			slicePtr := getSlicePtr(rs)
 			if slicePtr == nil {

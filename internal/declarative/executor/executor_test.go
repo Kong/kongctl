@@ -426,6 +426,7 @@ func TestExecutor_Execute_DryRun(t *testing.T) {
 		ResourceType: "portal",
 		ResourceRef:  "dev-portal",
 		Action:       planner.ActionCreate,
+		Namespace:    "default",
 		Fields: map[string]any{
 			"name":        "Developer Portal",
 			"description": "Main developer portal",
@@ -884,6 +885,7 @@ func TestExecutor_ExecutionOrder(t *testing.T) {
 			Action:       planner.ActionCreate,
 			ResourceType: "portal",
 			Fields:       map[string]any{"name": "Portal 1-c-portal"},
+			Namespace:    "default",
 		},
 		{
 			ID:           "2-u-portal",
@@ -891,6 +893,7 @@ func TestExecutor_ExecutionOrder(t *testing.T) {
 			ResourceType: "portal",
 			ResourceID:   "portal-2", // Required for UPDATE
 			Fields:       map[string]any{"name": "Portal 2-u-portal"},
+			Namespace:    "default",
 		},
 	}
 
@@ -964,6 +967,7 @@ func TestExecutor_ExecuteGroupsConcurrent_DryRun_IsConcurrencySafe(t *testing.T)
 			ResourceType: "portal",
 			ResourceRef:  fmt.Sprintf("portal-%d", i),
 			Action:       planner.ActionCreate,
+			Namespace:    "default",
 			Fields: map[string]any{
 				"name": fmt.Sprintf("Portal %d", i),
 			},
@@ -1004,6 +1008,7 @@ func TestExecutor_ExecuteGroupsConcurrent_BlocksDependentsInNextGroups(t *testin
 		ResourceType: "portal",
 		ResourceRef:  "portal-dependent",
 		Action:       planner.ActionCreate,
+		Namespace:    "default",
 		DependsOn:    []string{missingChangeID},
 		Fields: map[string]any{
 			"name": "Portal Dependent",
@@ -1015,6 +1020,7 @@ func TestExecutor_ExecuteGroupsConcurrent_BlocksDependentsInNextGroups(t *testin
 		ResourceType: "portal",
 		ResourceRef:  "portal-independent",
 		Action:       planner.ActionCreate,
+		Namespace:    "default",
 		Fields: map[string]any{
 			"name": "Portal Independent",
 		},

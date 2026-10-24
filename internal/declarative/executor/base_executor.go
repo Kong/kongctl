@@ -95,7 +95,10 @@ func (b *BaseExecutor[TCreate, TUpdate]) ValidatePayload(
 		if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
 			return err
 		}
-		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create)
+		if err := validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create); err != nil {
+			return err
+		}
+		return validateRequestLabels(create, &change)
 	case planner.ActionUpdate:
 		if !b.ops.SupportsUpdate() {
 			return fmt.Errorf("action %q is not supported", change.Action)
@@ -105,7 +108,10 @@ func (b *BaseExecutor[TCreate, TUpdate]) ValidatePayload(
 			return err
 		}
 		b.mapUpdateLabels(execCtx, change.Fields, &update, nil)
-		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, update)
+		if err := validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, update); err != nil {
+			return err
+		}
+		return validateRequestLabels(update, &change)
 	case planner.ActionDelete:
 		return nil
 	case planner.ActionExternalTool:

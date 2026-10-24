@@ -90,7 +90,7 @@ func validateResolvedPayload(request any) error {
 
 func validateResolvedRequest(ctx context.Context, request any) error {
 	deferred, _ := ctx.Value(deferredPayloadPathsKey{}).(map[string]bool)
-	return values.Transform(request, func(path string, value string) (any, error) {
+	if err := values.Transform(request, func(path string, value string) (any, error) {
 		if deferred[path] {
 			return value, nil
 		}
@@ -98,5 +98,8 @@ func validateResolvedRequest(ctx context.Context, request any) error {
 			return nil, fmt.Errorf("unresolved reference expression in request payload")
 		}
 		return value, nil
-	})
+	}); err != nil {
+		return err
+	}
+	return validateRequestLabels(request, nil)
 }

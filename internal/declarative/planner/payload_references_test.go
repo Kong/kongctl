@@ -60,6 +60,36 @@ func TestPayloadReferencesNewAndExistingGateway(t *testing.T) {
 	}
 }
 
+func TestResolvedLookupLabelValidation(t *testing.T) {
+	for _, id := range []string{"gateway-id", "has space", ""} {
+		t.Run(id, func(t *testing.T) {
+			var document yaml.Node
+			require.NoError(t, yaml.Unmarshal([]byte(`value: !lookup {resource_type: ai_gateway, name: gateway}`), &document))
+			placeholder, err := tags.NewExternalTagResolver(tags.TagLookup).Resolve(document.Content[0].Content[1])
+			require.NoError(t, err)
+			rs := &resources.ResourceSet{AIGatewayProviders: []resources.AIGatewayProviderResource{{
+				BaseResource: resources.BaseResource{Ref: "provider"},
+				Labels:       map[string]string{"gateway_id": placeholder.(string)},
+			}}}
+			require.NoError(t, rs.ValidateLabels())
+			p := NewPlanner(nil, slog.Default())
+			p.externalResolver = newExternalLookupResolver(p)
+			p.externalResolver.adapters[resources.ResourceTypeAIGateway] = func(
+				context.Context, externalLookupRequest,
+			) (string, error) {
+				return id, nil
+			}
+			_, err = p.resolveKnownPayloadReferences(t.Context(), rs)
+			if id == "gateway-id" {
+				require.NoError(t, err)
+				require.Equal(t, id, rs.AIGatewayProviders[0].Labels["gateway_id"])
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
 func TestRelationshipReferenceValidationPreservesForwardReferences(t *testing.T) {
 	portal := resources.PortalResource{BaseResource: resources.BaseResource{Ref: "portal"}}
 	portal.DefaultApplicationAuthStrategyID = new("__REF__:auth#id")
