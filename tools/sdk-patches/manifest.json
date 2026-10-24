@@ -3,6 +3,7 @@
   "overlays": [
     "backend-cluster-tls-defaults.yaml",
     "patch-custom-portal-email-template-defaults.yaml",
+    "portal-customization-spec-renderer-defaults.yaml",
     "portal-customization-theme-defaults.yaml",
     "portal-team-konnect-managed-defaults.yaml",
     "update-dcr-config-http-defaults.yaml",
