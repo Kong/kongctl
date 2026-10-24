@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -9,6 +10,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPortalCustomizationAdapterMapUpdateFieldsOmitsUnsetAudience(t *testing.T) {
+	fields := map[string]any{
+		planner.FieldSpecRenderer: map[string]any{planner.FieldTryItUI: false},
+	}
+	var update kkComps.PortalCustomization
+	require.NoError(t, NewPortalCustomizationAdapter(nil).MapUpdateFields(t.Context(), fields, &update))
+	body, err := json.Marshal(update)
+	require.NoError(t, err)
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal(body, &payload))
+	specRenderer := payload[planner.FieldSpecRenderer].(map[string]any)
+	require.NotContains(t, specRenderer, "try_it_ui_audience")
+	require.Equal(t, false, specRenderer[planner.FieldTryItUI])
+}
 
 func TestPortalCustomizationAdapterMapUpdateFieldsMenuMain_MapSlice(t *testing.T) {
 	adapter := NewPortalCustomizationAdapter(nil)
