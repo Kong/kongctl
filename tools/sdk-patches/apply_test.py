@@ -30,10 +30,12 @@ class PatchTests(unittest.TestCase):
 
     def test_installs_overlays_in_upstream_workflow(self):
         result = patches.configure_workflow(
-            "speakeasyVersion: latest\nsources:\n    konnect:\n        registry:\n",
+            "speakeasyVersion: latest\nsources:\n    konnect:\n        registry:\n"
+            "targets:\n    go:\n        codeSamples:\n            registry:\n                location: samples\n",
             self.manifest,
         )
         self.assertIn("        overlays:\n", result)
+        self.assertIn("            registry:\n                location: samples\n", result)
 
     def test_rejects_tag_drift_and_duplicate_fields(self):
         patch = self.manifest["post_generation"][0]

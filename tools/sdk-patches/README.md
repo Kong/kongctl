@@ -6,10 +6,14 @@ Keep changes here on kongctl's normal development branches and merge them into
 copy to maintain. No patches run during ordinary kongctl builds.
 
 `manifest.json` lists the OpenAPI overlays, post-generation replacements, and
-regression tests. The eight overlays remove automatic defaults from optional
+regression tests. The overlays remove automatic defaults from optional
 request fields. The targeted `identity_realms` replacement changes `omitempty`
 to `omitzero`, preserving explicit empty arrays while still omitting unset
 arrays. It is a generated-code patch, not a Speakeasy OpenAPI extension.
+
+Portal customization patches preserve omitted theme names and Try It UI
+audiences. Explicit audience values remain supported; an unset audience must
+not become `all` in a PATCH request.
 
 ## Prepare and generate a patched SDK
 

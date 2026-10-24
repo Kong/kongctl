@@ -210,7 +210,7 @@ func (s *organizationTeamMembershipAPIStub) ListUserTeams(
 	if s.listUserTeams != nil {
 		return s.listUserTeams(ctx, req, opts...)
 	}
-	return &kkOps.ListUserTeamsResponse{TeamCollection: teamCollection()}, nil
+	return &kkOps.ListUserTeamsResponse{UserTeamMembershipCollection: userTeamMembershipCollection()}, nil
 }
 
 func (s *organizationTeamMembershipAPIStub) AddUserToTeam(
@@ -271,6 +271,19 @@ func plannerNamespaceMeta(namespace string) *resources.KongctlMeta {
 func teamCollection(teams ...kkComps.Team) *kkComps.TeamCollection {
 	return &kkComps.TeamCollection{
 		Data: teams,
+		Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: float64(len(teams))}},
+	}
+}
+
+func userTeamMembershipCollection(teams ...kkComps.Team) *kkComps.UserTeamMembershipCollection {
+	memberships := make([]kkComps.UserTeamMembership, 0, len(teams))
+	for _, team := range teams {
+		memberships = append(memberships, kkComps.UserTeamMembership{
+			ID: getString(team.ID), Name: getString(team.Name),
+		})
+	}
+	return &kkComps.UserTeamMembershipCollection{
+		Data: memberships,
 		Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: float64(len(teams))}},
 	}
 }
@@ -495,7 +508,7 @@ func TestOrganizationUserTeamMembershipSyncDeletesScopedTeamForSelectorInDiffere
 			) (*kkOps.ListUserTeamsResponse, error) {
 				queriedUserIDs = append(queriedUserIDs, req.UserID)
 				return &kkOps.ListUserTeamsResponse{
-					TeamCollection: teamCollection(kkComps.Team{
+					UserTeamMembershipCollection: userTeamMembershipCollection(kkComps.Team{
 						ID:   &teamIDValue,
 						Name: &teamNameValue,
 					}),
@@ -708,7 +721,7 @@ func TestOrganizationUserExternalTeamMembershipSync(t *testing.T) {
 					) (*kkOps.ListUserTeamsResponse, error) {
 						require.Equal(t, userID, req.UserID)
 						return &kkOps.ListUserTeamsResponse{
-							TeamCollection: teamCollection(
+							UserTeamMembershipCollection: userTeamMembershipCollection(
 								kkComps.Team{ID: new(teamID), Name: new(teamName)},
 								kkComps.Team{ID: new("unrelated-team-123"), Name: new("Unrelated Team")},
 							),

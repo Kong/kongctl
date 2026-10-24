@@ -236,6 +236,8 @@ steps:
                 fields.config.route.model.values[0]: "{{ .vars.model_name }}"
                 fields.targets[0].name: gpt-4o
                 fields.targets[1].name: gpt-4o-mini
+                fields.access.acls.deny_when:
+                  - "http.headers.x_end_user_id == null"
       - name: 007-apply-create
         outputFormat: json
         run:
@@ -250,7 +252,24 @@ steps:
                 applied: 3
                 failed: 0
                 status: success
-      - name: 008-diff-no-changes
+      - name: 008-get-model-conditional-acl
+        run:
+          - get
+          - ai-gateway
+          - models
+          - --gateway-name
+          - "{{ .vars.gateway_name }}"
+          - --model-name
+          - "{{ .vars.model_name }}"
+          - -o
+          - json
+        assertions:
+          - select: access.acls
+            expect:
+              fields:
+                deny_when:
+                  - "http.headers.x_end_user_id == null"
+      - name: 009-diff-no-changes
         outputFormat: text
         parseAs: raw
         run:
@@ -264,7 +283,7 @@ steps:
             expect:
               fields:
                 "contains(@, 'No changes detected. Konnect is up to date.')": true
-      - name: 009-dump-filtered-gateway-with-models
+      - name: 010-dump-filtered-gateway-with-models
         skipInputs: true
         run:
           - dump
@@ -285,6 +304,8 @@ steps:
               fields:
                 name: "{{ .vars.model_name }}"
                 display_name: "Support GPT"
+                access.acls.deny_when:
+                  - "http.headers.x_end_user_id == null"
 
   - name: 002-sync-delete
     inputOverlayDirs:

@@ -1,8 +1,9 @@
 {
-  "speakeasy_version": "1.801.0",
+  "speakeasy_version": "1.802.0",
   "overlays": [
     "backend-cluster-tls-defaults.yaml",
     "patch-custom-portal-email-template-defaults.yaml",
+    "portal-customization-spec-renderer-defaults.yaml",
     "portal-customization-theme-defaults.yaml",
     "portal-team-konnect-managed-defaults.yaml",
     "update-dcr-config-http-defaults.yaml",

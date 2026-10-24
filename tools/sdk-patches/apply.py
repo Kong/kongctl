@@ -34,10 +34,9 @@ def configure_workflow(text, manifest):
     if section:
         text = text[:section.start()] + replacement + text[section.end():]
     else:
-        anchor = "        registry:\n"
-        if text.count(anchor) != 1:
+        text, count = re.subn(r"^        registry:\n", replacement + "        registry:\n", text, flags=re.M)
+        if count != 1:
             raise ValueError("expected one Konnect registry block in workflow.yaml")
-        text = text.replace(anchor, replacement + anchor, 1)
     text, count = re.subn(r"^speakeasyVersion: .*", "speakeasyVersion: " + manifest["speakeasy_version"], text, flags=re.M)
     if count != 1:
         raise ValueError("expected one Speakeasy version in workflow.yaml")
