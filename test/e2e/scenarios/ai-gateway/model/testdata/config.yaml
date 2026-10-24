@@ -6,6 +6,8 @@ ai_gateways:
   - ref: ai-gateway-model-e2e
     name: ai-gateway-model-e2e
     display_name: "AI Gateway Model E2E"
+    min_runtime_version: "2.2"
+    runtime_auto_upgrade: false
     description: "AI Gateway Model e2e"
     proxy_urls:
       - host: ai-gateway-model-e2e.example.com
@@ -48,6 +50,10 @@ ai_gateways:
             provider: support-openai
             config:
               type: openai
+        access:
+          acls:
+            deny_when:
+              - "http.headers.x_end_user_id == null"
         policies: []
         capabilities:
           - generate

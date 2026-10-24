@@ -15,8 +15,8 @@ type GatewayServiceAPI interface {
 }
 
 func GetAllGatewayServices(ctx context.Context, requestPageSize int64, cpID string, kkClient *kk.SDK,
-) ([]kkComps.ServiceOutput, error) {
-	var allData []kkComps.ServiceOutput
+) ([]kkComps.Service, error) {
+	var allData []kkComps.Service
 
 	offset := ""
 	for {

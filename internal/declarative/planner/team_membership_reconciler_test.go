@@ -119,7 +119,7 @@ func TestOrganizationMembershipReconciliation(t *testing.T) {
 						) (*kkOps.ListUserTeamsResponse, error) {
 							require.Equal(t, "owner-id", req.UserID)
 							queries++
-							return &kkOps.ListUserTeamsResponse{TeamCollection: teamCollection(observed...)}, nil
+							return &kkOps.ListUserTeamsResponse{UserTeamMembershipCollection: userTeamMembershipCollection(observed...)}, nil
 						},
 					}
 				} else {

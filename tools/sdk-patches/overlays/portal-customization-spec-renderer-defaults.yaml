@@ -1,0 +1,7 @@
+overlay: 1.0.0
+info:
+  title: Preserve omitted Try It UI audiences in portal customization requests
+  version: 0.0.1
+actions:
+  - target: $.components.schemas.PortalCustomizationV3.properties.spec_renderer.properties.try_it_ui_audience.allOf[*].default
+    remove: true

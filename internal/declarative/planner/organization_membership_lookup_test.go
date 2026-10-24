@@ -106,7 +106,7 @@ organization:
 							_ context.Context, req kkOps.ListUserTeamsRequest, _ ...kkOps.Option,
 						) (*kkOps.ListUserTeamsResponse, error) {
 							require.Equal(t, ownerID, req.UserID)
-							return &kkOps.ListUserTeamsResponse{TeamCollection: teamCollection(teams...)}, nil
+							return &kkOps.ListUserTeamsResponse{UserTeamMembershipCollection: userTeamMembershipCollection(teams...)}, nil
 						},
 					},
 					SystemAccountMembershipAPI: &systemAccountTeamMembershipAPIStub{

@@ -61,7 +61,7 @@ func (s *stubDeckRunner) Run(_ context.Context, opts deck.RunOptions) (*deck.Run
 }
 
 type stubGatewayServiceAPI struct {
-	services []kkComps.ServiceOutput
+	services []kkComps.Service
 }
 
 func (s *stubGatewayServiceAPI) ListService(
@@ -347,7 +347,7 @@ func TestResolveGatewayServiceIdentitiesDeckConfigMatchesExisting(t *testing.T) 
 
 	stateClient := state.NewClient(state.ClientConfig{
 		GatewayServiceAPI: &stubGatewayServiceAPI{
-			services: []kkComps.ServiceOutput{{ID: &serviceID, Name: &serviceName}},
+			services: []kkComps.Service{{ID: &serviceID, Name: &serviceName}},
 		},
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

@@ -554,7 +554,7 @@ func collectDeclarativeEventGateways(
 		// or ID filtering client-side below.
 		if filter.name != "" {
 			_, val := parseFilterName(filter.name)
-			req.Filter = &kkComps.EventGatewayCommonFilter{
+			req.Filter = &kkComps.EventGatewaysFilter{
 				Name: &kkComps.StringFieldContainsFilter{Contains: val},
 			}
 		}

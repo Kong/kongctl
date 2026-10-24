@@ -178,7 +178,13 @@ func runListUsers(
 
 		data := res.UserCollection.Data
 		totalFetched += len(data)
-		allData = append(allData, data...)
+		for _, item := range data {
+			allData = append(allData, kkComps.User{
+				ID: item.ID, Email: item.Email, FullName: item.FullName,
+				PreferredName: item.PreferredName, Active: item.Active,
+				InferredRegion: item.InferredRegion, CreatedAt: item.CreatedAt, UpdatedAt: item.UpdatedAt,
+			})
+		}
 
 		totalItems := res.UserCollection.Meta.Page.Total
 		if totalFetched >= int(totalItems) {
