@@ -306,6 +306,7 @@ func buildAIGatewayAuthStrategies(
 
 func buildAIGatewayPolicies(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -320,6 +321,11 @@ func buildAIGatewayPolicies(
 		resource, err := declresources.AIGatewayPolicyResourceFromResponse(gatewayRef, policy.AIGatewayPolicy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Policy for gateway %s: %w", gatewayName, err)
+		}
+		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
+			policy.ID, policy.Name, policy.ManagedBy)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, resource)
 	}

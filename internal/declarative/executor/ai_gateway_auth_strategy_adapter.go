@@ -107,7 +107,7 @@ func (a *AIGatewayAuthStrategyAdapter) Update(
 	payload, err = prepareOwnedMappedChildUpdate("AI Gateway auth strategy", map[string]any{
 		planner.FieldName: current.Name, planner.FieldType: current.Type, planner.FieldDisplayName: current.DisplayName,
 		planner.FieldConfig: current.Config, planner.FieldLabels: current.Labels, planner.FieldManagedBy: current.ManagedBy,
-	}, payload, execCtx)
+	}, payload, execCtx, planner.FieldType)
 	if err != nil {
 		return "", err
 	}
