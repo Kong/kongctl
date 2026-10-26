@@ -41,15 +41,16 @@ func (p *Planner) reconcileOwnedAIGatewayPolicies(
 	for _, policy := range current {
 		byName[policy.Name] = policy
 	}
-	declared := make(map[string]bool)
+	declared := make(map[string]string)
 	for _, policy := range rs.AIGatewayPolicies {
 		if !aliases[resources.NormalizeResourceRef(policy.AIGateway)] {
 			continue
 		}
-		if declared[policy.Name] {
-			return fmt.Errorf("duplicate desired AI Gateway policy name %q on gateway %q", policy.Name, gatewayRef)
+		if firstRef, exists := declared[policy.Name]; exists {
+			return fmt.Errorf("duplicate desired AI Gateway policy name %q on gateway %q (refs %q and %q)",
+				policy.Name, gatewayRef, firstRef, policy.Ref)
 		}
-		declared[policy.Name] = true
+		declared[policy.Name] = policy.Ref
 	}
 	retained := make(map[string]bool)
 	for _, policy := range rs.AIGatewayPolicies {

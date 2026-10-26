@@ -126,8 +126,8 @@ func TestPolicyProtectionAndMetadataCapacity(t *testing.T) {
 }
 
 func TestPolicyAliasesShareOneCompleteReconciliation(t *testing.T) {
-	a, observedA := ownedPolicy(t, "auth-a", "team-a")
-	b, observedB := ownedPolicy(t, "auth-b", "team-b")
+	a, observedA := ownedPolicy(t, "policy-a", "team-a")
+	b, observedB := ownedPolicy(t, "policy-b", "team-b")
 	b.AIGateway = "alias-b"
 	rs := policyResourceSet(a, b)
 	alias := rs.AIGateways[0]
@@ -142,7 +142,9 @@ func TestPolicyAliasesShareOneCompleteReconciliation(t *testing.T) {
 	a.Name = b.Name
 	rs.AIGatewayPolicies = []resources.AIGatewayPolicyResource{a, b}
 	_, err = NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
-	require.ErrorContains(t, err, "duplicate desired AI Gateway policy name")
+	require.ErrorContains(t, err,
+		`duplicate desired AI Gateway policy name "policy-b" on gateway "shared" `+
+			`(refs "policy-a" and "policy-b")`)
 }
 
 func policyEmptyUsersConfig(api *testAIGatewayPolicyAPI) state.ClientConfig {
