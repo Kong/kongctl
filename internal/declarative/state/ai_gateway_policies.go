@@ -193,9 +193,5 @@ func (c *Client) DeleteAIGatewayPolicy(ctx context.Context, gatewayID string, po
 }
 
 func normalizedAIGatewayPolicyLabels(policy kkComps.AIGatewayPolicy) map[string]string {
-	normalized := resources.AIGatewayPolicyLabels(policy)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(policy.ManagedBy)
 }

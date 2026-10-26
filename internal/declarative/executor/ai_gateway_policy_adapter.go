@@ -3,6 +3,8 @@ package executor
 import (
 	"context"
 	"fmt"
+	"maps"
+	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -58,6 +60,22 @@ func (a *AIGatewayPolicyAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway policy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	policies, err := a.client.ListAIGatewayPolicies(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, policy := range policies {
+		if policy.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway policy", policy.Name)
+		}
+	}
 	return a.client.CreateAIGatewayPolicy(ctx, gatewayID, req, namespace)
 }
 
@@ -73,6 +91,35 @@ func (a *AIGatewayPolicyAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway policy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayPolicy(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway policy no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayPolicyMutablePayloadMap(current.AIGatewayPolicy)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preservePolicyMetadataUpdatePayload(currentPayload, payload, execCtx)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway policy", currentPayload, payload, execCtx)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway policy update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayPolicy(ctx, gatewayID, id, req, namespace)
 }
 
@@ -81,6 +128,21 @@ func (a *AIGatewayPolicyAdapter) Delete(ctx context.Context, id string, execCtx 
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayPolicy(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway policy", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway policy is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayPolicy(ctx, gatewayID, id)
 }
@@ -159,4 +221,38 @@ func (a *aiGatewayPolicyResourceInfo) GetLabels() map[string]string {
 
 func (a *aiGatewayPolicyResourceInfo) GetNormalizedLabels() map[string]string {
 	return a.policy.NormalizedLabels
+}
+
+// A metadata-only write preserves config and other public fields from the fresh
+// read. Policy config is arbitrary JSON and can contain readable credentials;
+// keep that observed config in memory rather than copying it into saved plans.
+func preservePolicyMetadataUpdatePayload(current, requested map[string]any,
+	execCtx *ExecutionContext,
+) (map[string]any, error) {
+	change := execCtx.PlannedChange
+	if len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
+		len(change.SecretWrites) != 0 {
+		return requested, nil
+	}
+	if current[planner.FieldName] != requested[planner.FieldName] ||
+		current[planner.FieldType] != requested[planner.FieldType] {
+		return nil, fmt.Errorf("AI Gateway policy identity changed during metadata-only update; regenerate the plan")
+	}
+	var planned kkComps.UpdateAIGatewayPolicyRequest
+	if err := mapAIGatewaySDKRequest("AI Gateway policy update", change.Fields, &planned); err != nil {
+		return nil, err
+	}
+	expected, err := ownedChildPayload(planned)
+	if err != nil {
+		return nil, err
+	}
+	actual := maps.Clone(requested)
+	delete(expected, planner.FieldManagedBy)
+	delete(actual, planner.FieldManagedBy)
+	if !reflect.DeepEqual(actual, expected) {
+		return nil, fmt.Errorf("AI Gateway policy metadata-only payload differs from planned fields")
+	}
+	preserved := maps.Clone(current)
+	preserved[planner.FieldManagedBy] = requested[planner.FieldManagedBy]
+	return preserved, nil
 }

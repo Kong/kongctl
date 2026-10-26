@@ -13,8 +13,9 @@ import (
 // Full-PUT mapped child adapters supply the observed mutable payload after a
 // fresh read. Identity, namespace, protection and metadata capacity are checked
 // here; adapters retain their SDK mapping and resource-specific config rules.
+// Names are immutable; adapters specify any additional immutable scalar fields.
 func prepareOwnedMappedChildUpdate(
-	kind string, current, desired map[string]any, execCtx *ExecutionContext,
+	kind string, current, desired map[string]any, execCtx *ExecutionContext, immutableFields ...string,
 ) (map[string]any, error) {
 	metadata := childPayloadManagedBy(current)
 	if err := resources.ValidateChildOwnership(kind, metadata, execCtx.Namespace); err != nil {
@@ -23,15 +24,19 @@ func prepareOwnedMappedChildUpdate(
 	if err := validateChildPlannedProtection(kind, metadata, execCtx.PlannedChange); err != nil {
 		return nil, err
 	}
-	if current[planner.FieldType] != desired[planner.FieldType] ||
-		current[planner.FieldName] != desired[planner.FieldName] {
-		return nil, fmt.Errorf("%s name and type are immutable", kind)
+	if current[planner.FieldName] != desired[planner.FieldName] {
+		return nil, fmt.Errorf("%s name is immutable", kind)
+	}
+	for _, field := range immutableFields {
+		if current[field] != desired[field] {
+			return nil, fmt.Errorf("%s %s is immutable", kind, field)
+		}
 	}
 	if _, present := desired[planner.FieldLabels]; !present {
 		if labels, explicit := execCtx.PlannedChange.Fields[planner.FieldLabels]; explicit {
 			desired[planner.FieldLabels] = labels
-		} else {
-			desired[planner.FieldLabels] = current[planner.FieldLabels]
+		} else if labels, present := current[planner.FieldLabels]; present {
+			desired[planner.FieldLabels] = labels
 		}
 	}
 	requested := childPayloadManagedBy(desired)

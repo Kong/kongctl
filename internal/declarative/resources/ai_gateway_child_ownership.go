@@ -66,6 +66,11 @@ func ValidateChildOwnership(kind string, metadata map[string]string, namespace s
 	return nil
 }
 
+// IsChildProtected reads protection from the child's ownership metadata.
+func IsChildProtected(metadata map[string]string) bool {
+	return metadata[ChildProtectedKey] == "true"
+}
+
 func NormalizedChildOwnership(metadata map[string]string) map[string]string {
 	if metadata[ChildNamespaceKey] == "" {
 		return nil
