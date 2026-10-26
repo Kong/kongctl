@@ -64,14 +64,14 @@ func TestAIGatewayPolicyResourceDefaults(t *testing.T) {
 	require.ErrorContains(t, policy.Validate(), "display_name is required")
 }
 
-func TestAIGatewayPolicyResourceRejectsKongctlMetadata(t *testing.T) {
+func TestAIGatewayPolicyResourceAcceptsKongctlMetadata(t *testing.T) {
 	payload := strings.Replace(aiGatewayPolicyJSON, `"ai_gateway": "support-gateway",`,
 		`"ai_gateway": "support-gateway", "kongctl": {"namespace": "default"},`, 1)
 
 	var policy AIGatewayPolicyResource
 	err := json.Unmarshal([]byte(payload), &policy)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "kongctl metadata")
+	require.NoError(t, err)
+	require.Equal(t, "default", GetNamespace(policy.Kongctl))
 }
 
 func TestAIGatewayPolicyResourceMarshalPreservesParentAndPayload(t *testing.T) {

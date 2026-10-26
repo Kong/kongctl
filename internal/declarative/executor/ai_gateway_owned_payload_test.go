@@ -2,7 +2,11 @@ package executor
 
 import (
 	"errors"
+	"maps"
 	"testing"
+
+	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 
 	"github.com/stretchr/testify/require"
 )
@@ -39,4 +43,23 @@ func TestOwnedChildPayloadErrorsDoNotExposeCredentials(t *testing.T) {
 			require.NotErrorIs(t, err, cause)
 		})
 	}
+}
+
+func TestOwnedChildUnprotectPreservesOmittedLabels(t *testing.T) {
+	currentMetadata := resources.BuildChildManagedBy(nil, nil, "team-a", true, "dev")
+	requestedMetadata := resources.BuildChildManagedBy(currentMetadata, nil, "team-a", false, "dev")
+	current := map[string]any{
+		planner.FieldName: "policy", planner.FieldType: "rate-limiting",
+		planner.FieldGlobal: true, planner.FieldConfig: map[string]any{}, planner.FieldManagedBy: currentMetadata,
+	}
+	desired := maps.Clone(current)
+	desired[planner.FieldManagedBy] = requestedMetadata
+	change := planner.PlannedChange{
+		Namespace: "team-a", Fields: desired,
+		ChangedFields: map[string]planner.FieldChange{planner.FieldManagedBy: {Old: currentMetadata, New: requestedMetadata}},
+		Protection:    planner.ProtectionChange{Old: true, New: false},
+	}
+	payload, err := prepareOwnedMappedChildUpdate("AI Gateway policy", current, desired, NewExecutionContext(&change))
+	require.NoError(t, err)
+	require.NotContains(t, payload, planner.FieldLabels)
 }
