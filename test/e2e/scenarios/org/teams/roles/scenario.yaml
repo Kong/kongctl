@@ -104,6 +104,9 @@ steps:
           - "{{ .vars.teamName }}"
           - -o
           - json
+        recordVar:
+          name: teamID
+          responsePath: "[0].team_id"
         assertions:
           - select: "length(@)"
             expect:
@@ -112,6 +115,21 @@ steps:
           - select: "[?role_name=='Viewer'] | [0]"
             expect:
               fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
+      - name: 001a-get-team-roles-by-id
+        run: [get, org, team, roles, --team-id, "{{ .vars.teamID }}", -o, json]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                team_id: "{{ .vars.teamID }}"
                 role_name: Viewer
                 entity_type_name: APIs
                 entity_region: us
