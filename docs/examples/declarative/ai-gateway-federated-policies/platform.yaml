@@ -1,0 +1,12 @@
+_defaults:
+  kongctl: {namespace: federated-policy-platform}
+ai_gateways:
+  - ref: shared
+    name: federated-policies-e2e
+    display_name: Federated policies E2E
+    model_providers:
+      - ref: shared-provider
+        name: shared-provider
+        display_name: Shared provider
+        type: openai
+        config: {auth: {type: basic}}

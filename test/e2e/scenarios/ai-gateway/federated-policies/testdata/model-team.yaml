@@ -1,0 +1,16 @@
+_defaults:
+  kongctl: {namespace: policy-model-team}
+ai_gateway_models:
+  - ref: shared-consumer
+    ai_gateway: !lookup {name: federated-policies-e2e}
+    name: shared-consumer
+    display_name: Cross-team policy consumer
+    type: model
+    config: {route: {paths: [/policy-consumer]}}
+    formats: [{type: openai}]
+    targets:
+      - name: gpt-4o-mini
+        provider: shared-provider
+        config: {type: openai}
+    policies: [policy-a]
+    capabilities: [generate]

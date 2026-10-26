@@ -80,7 +80,7 @@ Registering a declaration does not complete those steps automatically.
   children inherit namespace and protection from their parent; do not give
   them independent `kongctl` configuration.
 
-  AI Gateway models, providers, and auth strategies are intentional
+  AI Gateway models, providers, auth strategies, and policies are intentional
   exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
@@ -95,7 +95,7 @@ Registering a declaration does not complete those steps automatically.
 
 ### Independently owned AI Gateway children
 
-Models, providers, and auth strategies enroll through
+Models, providers, auth strategies, and policies enroll through
 `WithIndependentChildOwnership` alongside `WithNamespace`
 and `WithNestedNamespaceGroups`. This capability supplies source scope capture
 and typed metadata access for auxiliary writes. It also bypasses inherited
@@ -118,13 +118,19 @@ Raw reserved keys are invalid; unowned objects require an
 explicit API adoption, and foreign ownership requires an explicit transfer.
 The model helpers remain compatibility wrappers around the shared contract.
 
-Full-PUT mapped provider and auth-strategy adapters share
+Full-PUT mapped provider, auth-strategy, and policy adapters share
 `prepareOwnedMappedChildUpdate` in the executor. Supply the mutable payload
 from a fresh detail read; the helper checks identity, ownership, planned
 protection, public-label preservation, metadata capacity, and metadata-only
-unprotection. Keep SDK mapping and config merge/secret omission rules in the
+unprotection. Pass each family's immutable scalar fields explicitly: provider/auth-strategy
+types are immutable, while policy types follow the mutable backend contract.
+Keep SDK mapping and config merge/secret omission rules in the
 resource adapter and planner. Do not enroll another family until its live
 credential-preservation contract is verified.
+Policies additionally preserve fresh arbitrary config for metadata-only writes
+without copying observed credentials into saved plans. Validate the mapped
+request against planned fields before replacing it with the fresh payload.
+Keep this distinction from normal full-PUT payload changes explicit.
 
 For write-only enrollment and the later migration of label ownership, use
 [the incremental managed_by guide](managed-by.md). Register `WithManagedBy`

@@ -136,6 +136,7 @@ func TestAIGatewayPolicyDeleteInspectsOutOfScopeResources(t *testing.T) {
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
 			scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayPolicy)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayPolicy, "support-gateway", "default")
 			rs := &resources.ResourceSet{
 				AIGateways: []resources.AIGatewayResource{testAIGatewayResource()}, SyncScope: scope,
 			}
