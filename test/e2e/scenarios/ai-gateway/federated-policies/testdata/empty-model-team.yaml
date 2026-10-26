@@ -1,0 +1,8 @@
+_defaults:
+  kongctl: {namespace: policy-model-team}
+ai_gateways:
+  - ref: model-owner-alias
+    _external:
+      selector:
+        matchFields: {name: federated-policies-e2e}
+    models: []

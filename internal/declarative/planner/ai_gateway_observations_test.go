@@ -36,6 +36,7 @@ func TestAIGatewayPolicyObservationsSharedAndReset(t *testing.T) {
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
 			scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayPolicy)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayPolicy, "support-gateway", "default")
 			kinds := []resources.ResourceType{
 				resources.ResourceTypeAIGatewayAgent, resources.ResourceTypeAIGatewayConsumer,
 				resources.ResourceTypeAIGatewayConsumerGroup, resources.ResourceTypeAIGatewayModel,
