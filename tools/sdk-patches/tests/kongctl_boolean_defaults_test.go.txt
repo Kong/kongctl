@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+func TestKongctlEmptyAuditWebhookPatchStaysEmpty(t *testing.T) {
+	encoded, err := json.Marshal(UpdatePortalAuditLogWebhook{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(encoded, &body); err != nil {
+		t.Fatal(err)
+	}
+	if len(body) != 0 {
+		t.Fatalf("empty PATCH added fields: %v", body)
+	}
+}
+
 func TestKongctlPatchedBooleansPreserveExplicitValues(t *testing.T) {
 	for _, value := range []*bool{nil, new(false), new(true)} {
 		for name, test := range map[string]struct {
