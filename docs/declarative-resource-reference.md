@@ -1215,7 +1215,8 @@ event_gateways:
        name: string required (1-255 chars)
        description: string (max 512 chars)
        authentication: object required
-         type: One of (anonymous | sasl_plain | sasl_scram) required
+         # anonymous, sasl_plain, sasl_scram, or sasl_aws_iam
+         type: string required
          username: string # required for sasl_plain/sasl_scram
          password: string # required for sasl_plain/sasl_scram
          algorithm: One of (sha256 | sha512) # required for sasl_scram
@@ -1295,9 +1296,11 @@ Additional nested Event Gateway resources include `schema_registries`,
 `static_keys`, `tls_trust_bundles`, `data_plane_certificates`,
 `cluster_policies`, `produce_policies`, and `consume_policies`.
 
-Produce policies support `modify_headers`, `schema_validation`, `encrypt`, and
-`encrypt_fields`. Consume policies support `modify_headers`,
-`schema_validation`, `decrypt`, `skip_record`, and `decrypt_fields`.
+Cluster policies support `acls` and `request_rule_validator`. Produce policies
+support `modify_headers`, `schema_validation`, `encrypt`, `encrypt_fields`,
+`mask_fields`, and `transcode`. Consume policies support `modify_headers`,
+`schema_validation`, `decrypt`, `skip_record`, `decrypt_fields`, `mask_fields`,
+and `transcode`.
 Field-level encryption policy types require Event Gateway runtime `1.2` or
 newer.
 
@@ -1344,6 +1347,40 @@ consume_policies:
       decrypt_fields:
         paths: record.value.content.customer.ssn
 ```
+
+### Event Gateway 1.3
+
+Set `min_runtime_version: "1.3"` on the Event Gateway control plane to use
+Request Rule Validator, Mask Fields, Transcode, or AWS IAM backend
+authentication. See the
+[1.3 example](examples/declarative/event-gateway/event-gateway-1.3.yaml).
+
+- `request_rule_validator` is a cluster policy. Its `config.requests` groups
+  Kafka request types with CEL `rules`, each specifying a `rule`,
+  `description`, and `action` (`reject` or `passthrough`).
+- `mask_fields` and `transcode` must reference a `schema_validation` parent
+  in the same produce or consume policy collection using `parent_policy_id`.
+  Mask selectors pair `paths` with a `replace`, `keep_chars`, or `email`
+  strategy. Produce transcoding supports Avro output; consume transcoding
+  supports JSON or Avro. Avro output requires `schema_source`, either an
+  inline schema or a schema registry reference. Use `!ref registry#id` for
+  `config.schema_source.schema_registry.id`.
+- Field selectors accept CEL expressions, including schema registry tags:
+  `paths: 'record.value.schema.metadata.tags["PII"]'`. This works in
+  `encrypt_fields`, `decrypt_fields`, and `mask_fields`. Register the schema
+  and its tags in the external schema registry; the schema-validation parent
+  provides the metadata when processing records.
+- Backend `authentication.type: sasl_aws_iam` accepts a nested `sasl_aws_iam`
+  object with `type: default_provider_chain` or `type: assume_role`. The role
+  variant requires `arn` and optionally accepts `session_name`. Credentials
+  are resolved on the data plane using the AWS provider chain. Enable backend
+  TLS and configure compatible virtual-cluster client authentication.
+
+These policies support plan/apply/sync, configuration and metadata updates,
+and declarative dump. Changing a policy's type or a record policy's parent
+requires recreation; configure the full desired policy when planning changes.
+The CLI manages configuration; processing Kafka records requires a connected
+Event Gateway data plane.
 
 ## Organization
 

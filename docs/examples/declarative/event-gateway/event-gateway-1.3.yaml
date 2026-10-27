@@ -1,0 +1,163 @@
+# Requires an Event Gateway 1.3 data plane to process Kafka traffic.
+# Replace broker addresses, the role ARN, and the schema registry endpoint.
+# The static key below is example data; supply your own encryption key.
+_defaults:
+  kongctl:
+    namespace: event-gateway-1-3-example
+
+event_gateways:
+  - ref: egw-v13
+    name: egw-v13
+    min_runtime_version: "1.3"
+    backend_clusters:
+      - ref: iam-default
+        name: iam-default
+        bootstrap_servers: ["broker.example.com:9098"]
+        authentication:
+          type: sasl_aws_iam
+          sasl_aws_iam:
+            type: default_provider_chain
+        insecure_allow_anonymous_virtual_cluster_auth: true
+        tls:
+          enabled: true
+      - ref: iam-role
+        name: iam-role
+        bootstrap_servers: ["broker.example.com:9098"]
+        authentication:
+          type: sasl_aws_iam
+          sasl_aws_iam:
+            type: assume_role
+            arn: arn:aws:iam::123456789012:role/event-gateway
+            session_name: kongctl-e2e
+        tls:
+          enabled: true
+    schema_registries:
+      - ref: registry
+        name: registry
+        type: confluent
+        config:
+          schema_type: avro
+          endpoint: https://schema-registry.example.com
+    static_keys:
+      - ref: field-key
+        name: field-key
+        value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+    virtual_clusters:
+      - ref: vc-v13
+        name: vc-v13
+        destination:
+          id: !ref iam-default#id
+        authentication:
+          - type: anonymous
+        acl_mode: enforce_on_gateway
+        dns_label: vc-v13
+        cluster_policies:
+          - ref: request-rules
+            name: request-rules
+            type: request_rule_validator
+            description: Request rules for Kafka producers
+            enabled: true
+            labels:
+              env: test
+            config:
+              requests:
+                - type: produce
+                  rules:
+                    - action: reject
+                      description: Require all acknowledgements
+                      rule: "context.produce.acks == -1"
+        produce_policies:
+          - ref: produce-schema
+            name: produce-schema
+            type: schema_validation
+            config:
+              type: confluent_schema_registry
+              schema_registry:
+                id: !ref registry#id
+              validate_value: true
+              failure_mode: reject
+          - ref: produce-json-schema
+            name: produce-json-schema
+            type: schema_validation
+            config:
+              type: json
+              validate_value: true
+              failure_mode: reject
+          - ref: produce-mask
+            name: produce-mask
+            type: mask_fields
+            parent_policy_id: !ref produce-schema#id
+            config:
+              failure_mode: reject
+              mask_fields:
+                - paths: 'record.value.schema.metadata.tags["PII"]'
+                  strategy:
+                    type: replace
+                    phrase: "[REDACTED]"
+          - ref: produce-transcode
+            name: produce-transcode
+            type: transcode
+            parent_policy_id: !ref produce-json-schema#id
+            config:
+              output_format: avro
+              failure_mode: reject
+              schema_source:
+                type: reference
+                schema_registry:
+                  id: !ref registry#id
+                subject: "'orders-value'"
+                version: "'latest'"
+                schema_ref_destination:
+                  type: confluent_format
+          - ref: produce-encrypt
+            name: produce-encrypt
+            type: encrypt_fields
+            parent_policy_id: !ref produce-schema#id
+            config:
+              failure_mode: reject
+              encrypt_fields:
+                - paths: 'record.value.schema.metadata.tags["PII"]'
+                  encryption_key:
+                    type: static
+                    key:
+                      id: !ref field-key#id
+        consume_policies:
+          - ref: consume-schema
+            name: consume-schema
+            type: schema_validation
+            config:
+              type: confluent_schema_registry
+              validate_value: true
+              schema_registry:
+                id: !ref registry#id
+              failure_mode: error
+          - ref: consume-mask
+            name: consume-mask
+            type: mask_fields
+            parent_policy_id: !ref consume-schema#id
+            config:
+              failure_mode: error
+              mask_fields:
+                - paths: 'record.value.schema.metadata.tags["PII"]'
+                  strategy:
+                    type: keep_chars
+                    first: 0
+                    last: 4
+                    phrase: "****"
+          - ref: consume-transcode
+            name: consume-transcode
+            type: transcode
+            parent_policy_id: !ref consume-schema#id
+            config:
+              output_format: json
+              failure_mode: error
+          - ref: consume-decrypt
+            name: consume-decrypt
+            type: decrypt_fields
+            parent_policy_id: !ref consume-schema#id
+            config:
+              failure_mode: error
+              key_sources:
+                - type: static
+              decrypt_fields:
+                paths: 'record.value.schema.metadata.tags["PII"]'

@@ -127,6 +127,30 @@ func (p *Planner) planClusterPolicyChangesForExistingVirtualCluster(
 
 				needsUpdate, updateFields, changedFields := p.shouldUpdateClusterPolicy(current, desiredPolicy)
 				if needsUpdate {
+					if _, typeChanged := changedFields[FieldType]; typeChanged {
+						deleteID := p.planClusterPolicyDelete(
+							namespace,
+							gatewayID,
+							gatewayRef,
+							virtualClusterID,
+							virtualClusterRef,
+							current.ID,
+							policyName,
+							plan,
+						)
+						p.planClusterPolicyCreate(
+							namespace,
+							gatewayID,
+							gatewayRef,
+							virtualClusterID,
+							virtualClusterRef,
+							virtualClusterName,
+							desiredPolicy,
+							[]string{deleteID},
+							plan,
+						)
+						return nil
+					}
 					p.logger.Debug(
 						"Planning cluster policy UPDATE",
 						"policy_name", policyName,
@@ -308,7 +332,7 @@ func (p *Planner) planClusterPolicyDelete(
 	policyID string,
 	policyName string,
 	plan *Plan,
-) {
+) string {
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionDelete, ResourceTypeEventGatewayClusterPolicy, policyName),
 		ResourceType: ResourceTypeEventGatewayClusterPolicy,
@@ -338,6 +362,7 @@ func (p *Planner) planClusterPolicyDelete(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
+	return change.ID
 }
 
 // clusterPolicyToFields converts a cluster policy resource to a fields map.
@@ -371,6 +396,10 @@ func (p *Planner) extractClusterPolicyLabels(
 	if policy.EventGatewayACLsPolicy != nil && policy.EventGatewayACLsPolicy.Labels != nil {
 		return policy.EventGatewayACLsPolicy.Labels
 	}
+	if policy.EventGatewayRequestRuleValidatorPolicy != nil &&
+		policy.EventGatewayRequestRuleValidatorPolicy.Labels != nil {
+		return policy.EventGatewayRequestRuleValidatorPolicy.Labels
+	}
 	return nil
 }
 
@@ -381,6 +410,22 @@ func (p *Planner) shouldUpdateClusterPolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+
+	currentCondition := ""
+	if current.Condition != nil {
+		currentCondition = *current.Condition
+	}
+	desiredCondition, _ := p.clusterPolicyToFields(desired)[FieldCondition].(string)
+	if currentCondition != desiredCondition {
+		needsUpdate = true
+		changes[FieldCondition] = FieldChange{Old: currentCondition, New: desiredCondition}
+	}
+
+	desiredType, _ := p.clusterPolicyToFields(desired)[FieldType].(string)
+	if current.Type != desiredType {
+		needsUpdate = true
+		changes[FieldType] = FieldChange{Old: current.Type, New: desiredType}
+	}
 
 	// Compare name
 	desiredName := desired.GetMoniker()
@@ -470,6 +515,10 @@ func (p *Planner) getClusterPolicyDescription(
 	if policy.EventGatewayACLsPolicy != nil && policy.EventGatewayACLsPolicy.Description != nil {
 		return *policy.EventGatewayACLsPolicy.Description
 	}
+	if policy.EventGatewayRequestRuleValidatorPolicy != nil &&
+		policy.EventGatewayRequestRuleValidatorPolicy.Description != nil {
+		return *policy.EventGatewayRequestRuleValidatorPolicy.Description
+	}
 	return ""
 }
 
@@ -480,6 +529,10 @@ func (p *Planner) getClusterPolicyEnabled(
 	if policy.EventGatewayACLsPolicy != nil && policy.EventGatewayACLsPolicy.Enabled != nil {
 		return *policy.EventGatewayACLsPolicy.Enabled
 	}
+	if policy.EventGatewayRequestRuleValidatorPolicy != nil &&
+		policy.EventGatewayRequestRuleValidatorPolicy.Enabled != nil {
+		return *policy.EventGatewayRequestRuleValidatorPolicy.Enabled
+	}
 	return true // default is enabled
 }
 
@@ -488,12 +541,17 @@ func (p *Planner) getClusterPolicyEnabled(
 func (p *Planner) extractClusterPolicyConfig(
 	policy resources.EventGatewayClusterPolicyResource,
 ) map[string]any {
-	if policy.EventGatewayACLsPolicy == nil {
+	var configValue any
+	switch {
+	case policy.EventGatewayACLsPolicy != nil:
+		configValue = policy.EventGatewayACLsPolicy.Config
+	case policy.EventGatewayRequestRuleValidatorPolicy != nil:
+		configValue = policy.EventGatewayRequestRuleValidatorPolicy.Config
+	default:
 		return nil
 	}
 
-	// Marshal the config struct to JSON and back to map[string]any
-	data, err := json.Marshal(policy.EventGatewayACLsPolicy.Config)
+	data, err := json.Marshal(configValue)
 	if err != nil {
 		return nil
 	}

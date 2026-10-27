@@ -22,7 +22,7 @@ func TestEventGatewayClusterPolicyResource_UnmarshalJSON_ValidationErrors(t *tes
 		{
 			name:        "wrong type value",
 			input:       `{"ref":"p","type":"unknown","config":{"rules":[{"action":"deny"}]}}`,
-			errContains: "cluster policy 'type' must be 'acls'",
+			errContains: "cluster policy 'type' must be one of",
 		},
 		{
 			name:        "type is not a string",
@@ -38,6 +38,21 @@ func TestEventGatewayClusterPolicyResource_UnmarshalJSON_ValidationErrors(t *tes
 			name:        "config is not an object",
 			input:       `{"ref":"p","type":"acls","config":"bad"}`,
 			errContains: "cluster policy 'config' must be an object",
+		},
+		{
+			name:        "request validator missing requests",
+			input:       `{"ref":"p","type":"request_rule_validator","config":{}}`,
+			errContains: "request rule validator config requires a non-empty 'requests' array",
+		},
+		{
+			name:        "request validator empty requests",
+			input:       `{"ref":"p","type":"request_rule_validator","config":{"requests":[]}}`,
+			errContains: "request rule validator config requires a non-empty 'requests' array",
+		},
+		{
+			name:        "request validator unknown request type",
+			input:       `{"ref":"p","type":"request_rule_validator","config":{"requests":[{"type":"unknown","rules":[]}]}}`,
+			errContains: "failed to unmarshal cluster policy",
 		},
 		{
 			name:        "missing config.rules field",

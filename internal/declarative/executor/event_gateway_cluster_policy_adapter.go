@@ -35,7 +35,7 @@ func (a *EventGatewayClusterPolicyAdapter) MapCreateFields(
 ) error {
 	// The cluster policy is a union type. We serialize the fields to JSON
 	// and delegate unmarshaling to the SDK union type which handles discriminating
-	// based on the "type" field (currently only "acls" is supported).
+	// based on the "type" field.
 	data, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("failed to marshal cluster policy fields: %w", err)

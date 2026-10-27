@@ -318,6 +318,7 @@ const (
 )
 
 const (
-	FieldSchema  = "schema"
-	FieldHandler = "handler"
+	FieldCondition = "condition"
+	FieldSchema    = "schema"
+	FieldHandler   = "handler"
 )
