@@ -99,6 +99,7 @@ func TestAIGatewayAgentPlannerIgnoresAPIDefaults(t *testing.T) {
 		}
 	}`), &current))
 
+	current.ManagedBy = resources.BuildChildManagedBy(nil, nil, "default", false, "dev")
 	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
 		state.AIGatewayAgent{AIGatewayAgent: current},
 		agent,
@@ -138,6 +139,7 @@ func TestAIGatewayAgentPlannerIgnoresRedactedUpstreamCredentials(t *testing.T) {
 		}
 	}`), &current))
 
+	current.ManagedBy = resources.BuildChildManagedBy(nil, nil, "default", false, "dev")
 	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayAgent(
 		state.AIGatewayAgent{AIGatewayAgent: current},
 		agent,
@@ -153,6 +155,7 @@ func TestAIGatewayAgentPlannerSyncDeletesScopedAgents(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayAgent)
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayAgent, "support-gateway", "default")
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -382,6 +385,7 @@ func testAIGatewayAgentResourceWithConfigAndPolicies(
 		"type":         "a2a",
 		"display_name": "Booking Agent",
 		"config":       json.RawMessage(config),
+		"managed_by":   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
 	}
 	if policies != nil {
 		payload[FieldPolicies] = policies
@@ -397,6 +401,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 	enabled := true
 	return kkComps.AIGatewayAgent{
 		ID:          "agent-id",
+		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
 		Name:        "booking-agent",
 		Type:        kkComps.TypeA2a,
 		DisplayName: "Booking Agent",

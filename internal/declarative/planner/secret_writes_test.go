@@ -101,7 +101,45 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 		}
 	}
 
+	agent := func(config string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			resource := testAIGatewayAgentResourceWithConfig(t, strings.ReplaceAll(config, "SECRET", placeholder))
+			resource.AIGateway = testAIGatewaySecretRef
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
 	cases := []testCase{
+		{
+			name:         "agent AWS key",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/upstream/auth/secret_access_key",
+			selector:     "config.upstream.auth.secret_access_key",
+			resourceSet: agent(
+				`{"url":"https://example.com","upstream":{"auth":{"type":"aws","secret_access_key":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "agent AWS session",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/upstream/auth/session_token",
+			selector:     "config.upstream.auth.session_token",
+			resourceSet: agent(
+				`{"url":"https://example.com","upstream":{"auth":{"type":"aws","session_token":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "agent proxy password",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/proxy/auth/password",
+			selector:     "config.proxy.auth.password",
+			resourceSet: agent(
+				`{"url":"https://example.com","proxy":{"auth":{"username":"user","password":"SECRET"}}}`,
+			),
+		},
 		{
 			name: "https proxy authorization", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 			resourceRef: "auth-strategy", field: "/config/https_proxy_authorization",
@@ -147,7 +185,9 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			name: "provider nested AWS session", resourceType: resources.ResourceTypeAIGatewayProvider,
 			resourceRef: "provider", field: "/config/auth/aws/session_token", selector: "config.auth.aws.session_token",
 			resourceSet: provider(func(secret string) map[string]any {
-				return map[string]any{"auth": map[string]any{"type": "sagemaker", "aws": map[string]any{"session_token": secret}}}
+				return map[string]any{
+					"auth": map[string]any{"type": "sagemaker", "aws": map[string]any{"session_token": secret}},
+				}
 			}),
 		},
 		{
@@ -837,6 +877,8 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 	gateway.SetKonnectID("gateway-id")
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 	switch typed := resource.(type) {
+	case *resources.AIGatewayAgentResource:
+		rs.AIGatewayAgents = []resources.AIGatewayAgentResource{*typed}
 	case *resources.AIGatewayProviderResource:
 		rs.AIGatewayProviders = []resources.AIGatewayProviderResource{*typed}
 	case *resources.AIGatewayAuthStrategyResource:
@@ -858,7 +900,9 @@ func TestUnselectedObjectArraySecretsPreservePublicSiblings(t *testing.T) {
 		ResourceTypeAIGatewayPolicy,
 	} {
 		t.Run(family, func(t *testing.T) {
-			headers := []any{map[string]any{"name": "Authorization", "value": "__SECRET__:never-written", "location": "header"}}
+			headers := []any{
+				map[string]any{"name": "Authorization", "value": "__SECRET__:never-written", "location": "header"},
+			}
 			change := PlannedChange{
 				ResourceType: family,
 				Fields:       map[string]any{"config": map[string]any{"auth": map[string]any{"headers": headers}}},
