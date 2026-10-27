@@ -43,8 +43,10 @@ ai_gateways:
             auth:
               type: aws
               access_key_id: fake-agent-access-key
-              secret_access_key: fake-agent-secret-key
-              session_token: fake-agent-session-token
+              secret_access_key: !secret
+                source: !env AGENT_AWS_SECRET_ACCESS_KEY
+              session_token: !secret
+                source: !env AGENT_AWS_SESSION_TOKEN
               region: us-east-1
           proxy:
             proxy_scheme: http

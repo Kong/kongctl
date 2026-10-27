@@ -16,6 +16,9 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/secret_access_key", true, true},
+	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/session_token", true, true},
+	{resources.ResourceTypeAIGatewayAgent, "/config/proxy/auth/password", true, true},
 	{resources.ResourceTypePortalCustomDomain, "/ssl/custom_private_key", true, true},
 	{resources.ResourceTypeEventGatewayBackendCluster, "/authentication/password", true, true},
 	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/http_proxy_authorization", true, true},

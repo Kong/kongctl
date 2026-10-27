@@ -342,6 +342,7 @@ func buildAIGatewayPolicies(
 
 func buildAIGatewayAgents(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -359,6 +360,16 @@ func buildAIGatewayAgents(
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Agent for gateway %s: %w", gatewayName, err)
+		}
+		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway Agent",
+			agent.ID,
+			agent.Name,
+			agent.ManagedBy,
+		)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, resource)
 	}
