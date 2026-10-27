@@ -100,7 +100,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 	}
 
 	// 3. Compare desired vs current
-	return reconcileMappedChildren(p, desired, currentByName,
+	err = reconcileMappedChildren(p, desired, currentByName,
 		mappedChildOperations[resources.EventGatewayConsumePolicyResource, state.EventGatewayConsumePolicyInfo]{
 			desiredName: func(desired resources.EventGatewayConsumePolicyResource) string { return desired.GetMoniker() },
 			create: func(desiredPolicy resources.EventGatewayConsumePolicyResource) error {
@@ -174,6 +174,17 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 				)
 			},
 		}, plan.Metadata.Mode)
+	if err != nil {
+		return err
+	}
+	parents := make(map[string]string)
+	for _, policy := range currentPolicies {
+		if policy.ParentPolicyID != nil {
+			parents[policy.ID] = *policy.ParentPolicyID
+		}
+	}
+	adjustEventGatewayPolicyDeleteDependencies(plan.Changes, ResourceTypeEventGatewayConsumePolicy, parents)
+	return nil
 }
 
 // planConsumePolicyCreatesForNewVirtualCluster plans creates for consume policies
@@ -569,6 +580,12 @@ func consumePolicyType(policy resources.EventGatewayConsumePolicyResource) strin
 	if policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil {
 		return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.GetType()
 	}
+	if policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil {
+		return policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate.GetType()
+	}
+	if policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil {
+		return policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.GetType()
+	}
 	return ""
 }
 
@@ -590,6 +607,10 @@ func consumePolicyParentPolicyID(policy resources.EventGatewayConsumePolicyResou
 		return ""
 	case policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil:
 		return policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate.ParentPolicyID
+	case policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil:
+		return policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate.ParentPolicyID
+	case policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil:
+		return policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.ParentPolicyID
 	default:
 		return ""
 	}
@@ -612,6 +633,14 @@ func consumePolicyWithParentPolicyID(
 		variant := *policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate
 		variant.ParentPolicyID = parentPolicyID
 		policy.EventGatewayParsedRecordDecryptFieldsPolicyCreate = &variant
+	case policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordTranscodeConsumePolicyCreate = &variant
+	case policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate = &variant
 	}
 	return policy
 }
@@ -623,6 +652,16 @@ func (p *Planner) shouldUpdateConsumePolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+
+	currentCondition := ""
+	if current.Condition != nil {
+		currentCondition = *current.Condition
+	}
+	desiredCondition, _ := p.consumePolicyToFields(desired)[FieldCondition].(string)
+	if currentCondition != desiredCondition {
+		needsUpdate = true
+		changes[FieldCondition] = FieldChange{Old: currentCondition, New: desiredCondition}
+	}
 
 	// Type changes are not supported by the API and require a DELETE+CREATE.
 	currentType := current.Type
@@ -699,6 +738,8 @@ func (p *Planner) shouldUpdateConsumePolicy(
 	var updateFields map[string]any
 	if needsUpdate {
 		updateFields = p.consumePolicyToFields(desired)
+		// Parent assignment is create-only; parent changes use DELETE + CREATE.
+		delete(updateFields, FieldParentPolicyID)
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
 

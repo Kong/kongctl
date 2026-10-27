@@ -29,10 +29,10 @@ func init() {
 // EventGatewayConsumePolicyResource represents a consume policy in declarative configuration.
 // Consume policies are grandchildren: Event Gateway → Virtual Cluster → Consume Policy.
 // The SDK represents consume policies as a discriminated union type (EventGatewayConsumePolicyCreate)
-// with five variants: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields.
+// with variants: modify_headers, schema_validation, decrypt, skip_record, decrypt_fields, transcode, mask_fields.
 // The "type" discriminator field is required.
 type EventGatewayConsumePolicyResource struct {
-	kkComps.EventGatewayConsumePolicyCreate `yaml:",inline" json:",inline"`
+	kkComps.EventGatewayConsumePolicyCreate `       yaml:",inline"                   json:",inline"`
 	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`
@@ -69,6 +69,14 @@ func (e EventGatewayConsumePolicyResource) GetMoniker() string {
 		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name != nil {
 		return *e.EventGatewayParsedRecordDecryptFieldsPolicyCreate.Name
 	}
+	if e.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil &&
+		e.EventGatewayParsedRecordTranscodeConsumePolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordTranscodeConsumePolicyCreate.Name
+	}
+	if e.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil &&
+		e.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate.Name
+	}
 	return e.Ref
 }
 
@@ -95,7 +103,9 @@ func (e EventGatewayConsumePolicyResource) Validate() error {
 		e.EventGatewayConsumeSchemaValidationPolicy != nil ||
 		e.EventGatewayDecryptPolicy != nil ||
 		e.EventGatewaySkipRecordPolicyCreate != nil ||
-		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil
+		e.EventGatewayParsedRecordDecryptFieldsPolicyCreate != nil ||
+		e.EventGatewayParsedRecordTranscodeConsumePolicyCreate != nil ||
+		e.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate != nil
 	if !hasVariant {
 		return fmt.Errorf(
 			"consume policy must specify 'type' field (one of: %s)",
@@ -258,5 +268,7 @@ func validConsumePolicyTypeStrings() []string {
 		string(kkComps.EventGatewayConsumePolicyCreateTypeDecrypt),
 		string(kkComps.EventGatewayConsumePolicyCreateTypeSkipRecord),
 		string(kkComps.EventGatewayConsumePolicyCreateTypeDecryptFields),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeMaskFields),
+		string(kkComps.EventGatewayConsumePolicyCreateTypeTranscode),
 	}
 }

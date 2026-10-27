@@ -91,7 +91,7 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		return err
 	}
 
-	return reconcileMappedChildren(
+	err = reconcileMappedChildren(
 		p,
 		desired,
 		currentByName,
@@ -164,6 +164,17 @@ func (p *Planner) planProducePolicyChangesForExistingVirtualCluster(
 		},
 		plan.Metadata.Mode,
 	)
+	if err != nil {
+		return err
+	}
+	parents := make(map[string]string)
+	for _, policy := range currentPolicies {
+		if policy.ParentPolicyID != nil {
+			parents[policy.ID] = *policy.ParentPolicyID
+		}
+	}
+	adjustEventGatewayPolicyDeleteDependencies(plan.Changes, ResourceTypeEventGatewayProducePolicy, parents)
+	return nil
 }
 
 func (p *Planner) planProducePolicyCreatesForNewVirtualCluster(
@@ -555,6 +566,10 @@ func (p *Planner) producePolicyToFields(policy resources.EventGatewayProducePoli
 		variantData, err = json.Marshal(policy.EventGatewayEncryptPolicy)
 	} else if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
 		variantData, err = json.Marshal(policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate)
+	} else if policy.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil {
+		variantData, err = json.Marshal(policy.EventGatewayParsedRecordTranscodeProducePolicyCreate)
+	} else if policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil {
+		variantData, err = json.Marshal(policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate)
 	}
 
 	if err != nil {
@@ -593,6 +608,12 @@ func producePolicyType(policy resources.EventGatewayProducePolicyResource) strin
 	if policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil {
 		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.GetType()
 	}
+	if policy.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil {
+		return policy.EventGatewayParsedRecordTranscodeProducePolicyCreate.GetType()
+	}
+	if policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil {
+		return policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.GetType()
+	}
 	return ""
 }
 
@@ -609,6 +630,10 @@ func producePolicyParentPolicyID(policy resources.EventGatewayProducePolicyResou
 		return ""
 	case policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil:
 		return policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate.ParentPolicyID
+	case policy.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil:
+		return policy.EventGatewayParsedRecordTranscodeProducePolicyCreate.ParentPolicyID
+	case policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil:
+		return policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.ParentPolicyID
 	default:
 		return ""
 	}
@@ -627,6 +652,14 @@ func producePolicyWithParentPolicyID(
 		variant := *policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate
 		variant.ParentPolicyID = parentPolicyID
 		policy.EventGatewayParsedRecordEncryptFieldsPolicyCreate = &variant
+	case policy.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordTranscodeProducePolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordTranscodeProducePolicyCreate = &variant
+	case policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil:
+		variant := *policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate
+		variant.ParentPolicyID = parentPolicyID
+		policy.EventGatewayParsedRecordMaskFieldsProducePolicyCreate = &variant
 	}
 	return policy
 }
@@ -637,6 +670,16 @@ func (p *Planner) shouldUpdateProducePolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+
+	currentCondition := ""
+	if current.Condition != nil {
+		currentCondition = *current.Condition
+	}
+	desiredCondition, _ := p.producePolicyToFields(desired)[FieldCondition].(string)
+	if currentCondition != desiredCondition {
+		needsUpdate = true
+		changes[FieldCondition] = FieldChange{Old: currentCondition, New: desiredCondition}
+	}
 
 	// Type comparison - type changes are not supported by the API and require a DELETE+CREATE.
 	currentType := current.Type
@@ -713,6 +756,8 @@ func (p *Planner) shouldUpdateProducePolicy(
 	var updateFields map[string]any
 	if needsUpdate {
 		updateFields = p.producePolicyToFields(desired)
+		// Parent assignment is create-only; parent changes use DELETE + CREATE.
+		delete(updateFields, FieldParentPolicyID)
 		// Include current labels to allow the executor to remove labels when needed
 		updateFields[FieldCurrentLabels] = current.Labels
 	}

@@ -10,6 +10,29 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEventGatewayPolicyDeleteDependencies(t *testing.T) {
+	for _, resourceType := range []string{ResourceTypeEventGatewayProducePolicy, ResourceTypeEventGatewayConsumePolicy} {
+		t.Run(resourceType, func(t *testing.T) {
+			changes := []PlannedChange{
+				{ID: "parent-delete", ResourceType: resourceType, ResourceID: "parent", Action: ActionDelete},
+				{ID: "mask-delete", ResourceType: resourceType, ResourceID: "mask", Action: ActionDelete},
+				{ID: "transcode-delete", ResourceType: resourceType, ResourceID: "transcode", Action: ActionDelete},
+				{ID: "other-update", ResourceType: resourceType, ResourceID: "other", Action: ActionUpdate},
+				{ID: "other-kind", ResourceType: ResourceTypePortal, ResourceID: "portal", Action: ActionDelete},
+			}
+			parents := map[string]string{
+				"mask": "parent", "transcode": "parent", "other": "parent", "portal": "parent",
+			}
+			adjustEventGatewayPolicyDeleteDependencies(changes, resourceType, parents)
+			adjustEventGatewayPolicyDeleteDependencies(changes, resourceType, parents)
+			require.ElementsMatch(t, []string{"mask-delete", "transcode-delete"}, changes[0].DependsOn)
+			for _, change := range changes[1:] {
+				require.Empty(t, change.DependsOn)
+			}
+		})
+	}
+}
+
 func TestPlannerEventGatewayChildPruning(t *testing.T) {
 	for _, test := range []struct {
 		name        string

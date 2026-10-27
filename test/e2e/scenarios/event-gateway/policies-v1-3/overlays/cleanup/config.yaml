@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-policies-v1-3
+
+event_gateways: []

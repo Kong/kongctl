@@ -139,7 +139,12 @@ func stringsForResourceRef(kind ResourceType) string {
 
 func explainKongctlField() *ExplainField {
 	return explainField("kongctl", explainObject(
-		explainField("protected", &ExplainNode{Kind: explainKindBoolean, Nullable: true, Literal: "false"}, false, false),
+		explainField(
+			"protected",
+			&ExplainNode{Kind: explainKindBoolean, Nullable: true, Literal: "false"},
+			false,
+			false,
+		),
 		explainField(
 			"namespace",
 			&ExplainNode{Kind: explainKindString, Nullable: true, Literal: "default"},
@@ -714,17 +719,18 @@ func eventGatewaySchemaRegistryExplainNode(_ ExplainBuildContext) (*ExplainNode,
 }
 
 func eventGatewayClusterPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	acls, err := autoExplainConcreteNode[kkComps.EventGatewayACLsPolicy](nil)
+	acls, err := explainVariantNode[kkComps.EventGatewayACLsPolicy]("type", "acls")
 	if err != nil {
 		return nil, err
 	}
-	explainSetConstStringField(acls, "type", "acls")
-	return explainUnionNode(explainWithCommonFields(
-		acls,
-		explainResourceRefField(),
-		explainRefField("virtual_cluster", ResourceTypeEventGatewayVirtualCluster, false),
-		explainRefField(SchemaFieldEventGateway, ResourceTypeEventGatewayControlPlane, false),
-	)), nil
+	validator, err := explainVariantNode[kkComps.EventGatewayRequestRuleValidatorPolicy](
+		"type",
+		"request_rule_validator",
+	)
+	if err != nil {
+		return nil, err
+	}
+	return eventGatewayVirtualClusterPolicyUnion(acls, validator), nil
 }
 
 func eventGatewayProducePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
@@ -755,7 +761,38 @@ func eventGatewayProducePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		[]string{"parent_policy_id"},
 		explainRefField("parent_policy_id", ResourceTypeEventGatewayProducePolicy, true).Node,
 	)
-	return eventGatewayVirtualClusterPolicyUnion(modifyHeaders, schemaValidation, encrypt, encryptFields), nil
+	transcode, err := explainVariantNode[kkComps.EventGatewayParsedRecordTranscodeProducePolicyCreate](
+		"type",
+		"transcode",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		transcode,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayProducePolicy, true).Node,
+	)
+	maskFields, err := explainVariantNode[kkComps.EventGatewayParsedRecordMaskFieldsProducePolicyCreate](
+		"type",
+		"mask_fields",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		maskFields,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayProducePolicy, true).Node,
+	)
+	return eventGatewayVirtualClusterPolicyUnion(
+		modifyHeaders,
+		schemaValidation,
+		encrypt,
+		encryptFields,
+		transcode,
+		maskFields,
+	), nil
 }
 
 func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
@@ -790,12 +827,38 @@ func eventGatewayConsumePolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, 
 		[]string{"parent_policy_id"},
 		explainRefField("parent_policy_id", ResourceTypeEventGatewayConsumePolicy, true).Node,
 	)
+	transcode, err := explainVariantNode[kkComps.EventGatewayParsedRecordTranscodeConsumePolicyCreate](
+		"type",
+		"transcode",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		transcode,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayConsumePolicy, true).Node,
+	)
+	maskFields, err := explainVariantNode[kkComps.EventGatewayParsedRecordMaskFieldsConsumePolicyCreate](
+		"type",
+		"mask_fields",
+	)
+	if err != nil {
+		return nil, err
+	}
+	explainReplacePath(
+		maskFields,
+		[]string{"parent_policy_id"},
+		explainRefField("parent_policy_id", ResourceTypeEventGatewayConsumePolicy, true).Node,
+	)
 	return eventGatewayVirtualClusterPolicyUnion(
 		modifyHeaders,
 		schemaValidation,
 		decrypt,
 		skipRecord,
 		decryptFields,
+		transcode,
+		maskFields,
 	), nil
 }
 

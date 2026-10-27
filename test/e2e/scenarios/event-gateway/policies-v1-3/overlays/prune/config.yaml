@@ -1,0 +1,54 @@
+_defaults:
+  kongctl:
+    namespace: event-gateway-policies-v1-3
+
+event_gateways:
+  - ref: egw-v13
+    name: egw-v13
+    min_runtime_version: "1.3"
+    backend_clusters:
+      - ref: iam-default
+        name: iam-default
+        bootstrap_servers: ["broker.example.com:9098"]
+        authentication:
+          type: sasl_aws_iam
+          sasl_aws_iam:
+            type: assume_role
+            arn: arn:aws:iam::123456789012:role/event-gateway
+        insecure_allow_anonymous_virtual_cluster_auth: true
+        tls:
+          enabled: true
+      - ref: iam-role
+        name: iam-role
+        bootstrap_servers: ["broker.example.com:9098"]
+        authentication:
+          type: sasl_aws_iam
+          sasl_aws_iam:
+            type: assume_role
+            arn: arn:aws:iam::123456789012:role/event-gateway
+            session_name: kongctl-e2e-updated
+        tls:
+          enabled: true
+    schema_registries:
+      - ref: registry
+        name: registry
+        type: confluent
+        config:
+          schema_type: avro
+          endpoint: https://schema-registry.example.com
+    static_keys:
+      - ref: field-key
+        name: field-key
+        value: "YXNkZmdoamthc2RmZ2hqa2FzZGZnaGprYXNkZmdoams="
+    virtual_clusters:
+      - ref: vc-v13
+        name: vc-v13
+        destination:
+          id: !ref iam-default#id
+        authentication:
+          - type: anonymous
+        acl_mode: enforce_on_gateway
+        dns_label: vc-v13
+        cluster_policies: []
+        produce_policies: []
+        consume_policies: []

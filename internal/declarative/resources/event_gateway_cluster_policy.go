@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 )
@@ -24,7 +26,7 @@ func init() {
 
 // EventGatewayClusterPolicyResource represents a cluster-level policy in declarative configuration.
 // The SDK represents cluster policies as a union type (EventGatewayClusterPolicyModify)
-// with the "acls" variant (EventGatewayACLsPolicy).
+// with acls and request_rule_validator variants.
 type EventGatewayClusterPolicyResource struct {
 	kkComps.EventGatewayClusterPolicyModify `yaml:",inline" json:",inline"`
 	Ref                                     string `yaml:"ref"                       json:"ref"`
@@ -49,6 +51,9 @@ func (e EventGatewayClusterPolicyResource) GetMoniker() string {
 	if e.EventGatewayACLsPolicy != nil && e.EventGatewayACLsPolicy.Name != nil {
 		return *e.EventGatewayACLsPolicy.Name
 	}
+	if e.EventGatewayRequestRuleValidatorPolicy != nil && e.EventGatewayRequestRuleValidatorPolicy.Name != nil {
+		return *e.EventGatewayRequestRuleValidatorPolicy.Name
+	}
 	return e.Ref
 }
 
@@ -72,8 +77,12 @@ func (e EventGatewayClusterPolicyResource) Validate() error {
 
 	// Ensure exactly one union variant is set
 	hasACLs := e.EventGatewayACLsPolicy != nil
-	if !hasACLs {
-		return fmt.Errorf("cluster policy must specify the 'acls' type")
+	hasValidator := e.EventGatewayRequestRuleValidatorPolicy != nil
+	if !hasACLs && !hasValidator {
+		return fmt.Errorf("cluster policy must specify the 'acls' or 'request_rule_validator' type")
+	}
+	if hasACLs && hasValidator {
+		return fmt.Errorf("cluster policy must specify exactly one type")
 	}
 
 	return nil
@@ -156,7 +165,7 @@ func (e EventGatewayClusterPolicyResource) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON handles the union type correctly.
 // It rejects kongctl metadata and delegates to the SDK union type for the policy body.
 // The SDK union type requires a "type" discriminator field to determine which variant
-// to use. Currently only "acls" type is supported (EventGatewayACLsPolicy).
+// to use: acls or request_rule_validator.
 func (e *EventGatewayClusterPolicyResource) UnmarshalJSON(data []byte) error {
 	// First extract our metadata fields
 	var meta struct {
@@ -199,15 +208,19 @@ func (e *EventGatewayClusterPolicyResource) UnmarshalJSON(data []byte) error {
 }
 
 // validateClusterPolicyType ensures the required type discriminator is present.
-// - Policy level: "type" is required (currently only "acls" is supported)
+// - Policy level: "type" is required.
 func validateClusterPolicyType(raw map[string]any) error {
 	// Define allowed types from SDK constants
-	aclsType := string(kkComps.EventGatewayClusterPolicyModifyTypeAcls)
+	validTypes := []string{
+		string(kkComps.EventGatewayClusterPolicyModifyTypeAcls),
+		string(kkComps.EventGatewayClusterPolicyModifyTypeRequestRuleValidator),
+	}
+	validTypesFmt := strings.Join(validTypes, ", ")
 
 	// Validate policy type
 	policyType, hasType := raw["type"]
 	if !hasType {
-		return fmt.Errorf("cluster policy requires 'type' field ('%s')", aclsType)
+		return fmt.Errorf("cluster policy requires 'type' field (one of: %s)", validTypesFmt)
 	}
 
 	policyTypeStr, ok := policyType.(string)
@@ -215,14 +228,14 @@ func validateClusterPolicyType(raw map[string]any) error {
 		return fmt.Errorf("cluster policy 'type' must be a string")
 	}
 
-	if policyTypeStr != aclsType {
-		return fmt.Errorf("cluster policy 'type' must be '%s', got '%s'", aclsType, policyTypeStr)
+	if !slices.Contains(validTypes, policyTypeStr) {
+		return fmt.Errorf("cluster policy 'type' must be one of [%s], got %q", validTypesFmt, policyTypeStr)
 	}
 
 	return nil
 }
 
-// validateClusterPolicyConfigMap ensures config is present and config.rules has at least one element.
+// validateClusterPolicyConfigMap checks the collection required by each policy type.
 func validateClusterPolicyConfigMap(raw map[string]any) error {
 	config, hasConfig := raw["config"]
 	if !hasConfig {
@@ -232,6 +245,14 @@ func validateClusterPolicyConfigMap(raw map[string]any) error {
 	configMap, ok := config.(map[string]any)
 	if !ok {
 		return fmt.Errorf("cluster policy 'config' must be an object")
+	}
+
+	if raw["type"] == string(kkComps.EventGatewayClusterPolicyModifyTypeRequestRuleValidator) {
+		requests, ok := configMap["requests"].([]any)
+		if !ok || len(requests) == 0 {
+			return fmt.Errorf("request rule validator config requires a non-empty 'requests' array")
+		}
+		return nil
 	}
 
 	rules, hasRules := configMap["rules"]
