@@ -303,11 +303,15 @@ func AIGatewayPolicyGlobal(policy any) *bool {
 }
 
 func AIGatewayPolicyLabels(policy any) map[string]string {
+	return aiGatewayPolicyStringMapField(policy, aiGatewayPolicyFieldLabels)
+}
+
+func aiGatewayPolicyStringMapField(policy any, field string) map[string]string {
 	payload, err := marshalObjectToMap(policy, "AI Gateway policy")
 	if err != nil {
 		return nil
 	}
-	raw, ok := payload[aiGatewayPolicyFieldLabels].(map[string]any)
+	raw, ok := payload[field].(map[string]any)
 	if !ok {
 		return nil
 	}

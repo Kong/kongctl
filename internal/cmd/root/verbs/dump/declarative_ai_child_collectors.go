@@ -34,7 +34,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway Custom Policies",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayCustomPolicyResource, error) {
-				return buildAIGatewayCustomPolicies(ctx, d.client, d.parentID, d.parentName, "")
+				return buildAIGatewayCustomPolicies(ctx, d.logger, d.client, d.parentID, d.parentName, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayCustomPolicyResource {
 				return &g.CustomPolicies

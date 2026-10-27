@@ -1,0 +1,8 @@
+_defaults:
+  kongctl: {namespace: custom-instance-team}
+ai_gateways:
+  - ref: instance-owner-alias
+    _external:
+      selector:
+        matchFields: {name: federated-custom-policies-e2e}
+    policies: []

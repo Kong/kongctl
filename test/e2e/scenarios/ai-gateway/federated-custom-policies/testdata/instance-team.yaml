@@ -1,0 +1,9 @@
+_defaults:
+  kongctl: {namespace: custom-instance-team}
+ai_gateway_policies:
+  - ref: shared-instance
+    ai_gateway: !lookup {name: federated-custom-policies-e2e}
+    name: shared-instance
+    display_name: Cross-team policy instance
+    type: installed-a
+    config: {}

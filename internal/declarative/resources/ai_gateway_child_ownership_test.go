@@ -50,6 +50,7 @@ func TestSharedInfrastructureDoesNotEnrollUnverifiedFamilies(t *testing.T) {
 	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayProvider))
 	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayAuthStrategy))
 	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayPolicy))
+	require.True(t, HasIndependentChildOwnership(ResourceTypeAIGatewayCustomPolicy))
 	for _, kind := range []ResourceType{
 		ResourceTypeAIGatewayConsumer, ResourceTypeAIGatewayConsumerGroup,
 		ResourceTypeAIGatewayConfigStore, ResourceTypeAIGatewayDataPlaneCertificate,
