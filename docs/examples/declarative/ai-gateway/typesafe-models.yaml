@@ -1,9 +1,8 @@
-# Requires a backend/runtime that enables the pre-GA AI Gateway 2.2 features.
-# Feature reference: AIGW OAS 2.1.15; ai-deck-converter v0.19.0.
+# Requires AI Gateway runtime 2.2 or later and Typesafe/Jev credentials.
 ai_gateways:
   - ref: aigw-22
     name: aigw-22
-    display_name: AI Gateway 2.2 Development
+    display_name: AI Gateway Typesafe Models
     min_runtime_version: "2.2"
     model_providers:
       - ref: jev
