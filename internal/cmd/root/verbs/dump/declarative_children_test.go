@@ -518,8 +518,8 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 						Type:    &oidcType,
 						Enabled: &oidcEnabled,
 						Config: &kkComps.PortalIdentityProviderConfig{
-							Type: kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput,
-							OIDCIdentityProviderConfigOutput: &kkComps.OIDCIdentityProviderConfigOutput{
+							Type: kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput,
+							PortalOIDCIdentityProviderConfigOutput: &kkComps.PortalOIDCIdentityProviderConfigOutput{
 								IssuerURL: "https://issuer.example.test",
 								ClientID:  "client-id",
 								Scopes:    []string{"openid", "email"},

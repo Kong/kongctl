@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -31,6 +32,47 @@ func TestPortalUpdateIdentityProviderFromUpdateOmitsLoginPath(t *testing.T) {
 	}
 	if converted.Config != nil {
 		t.Fatalf("expected empty update body, got %#v", converted)
+	}
+}
+
+func TestPortalUpdateIdentityProviderPreservesConfigFields(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name   string
+		input  kkComps.UpdateIdentityProviderConfig
+		config string
+	}{
+		{
+			name: "oidc",
+			input: kkComps.CreateUpdateIdentityProviderConfigOIDCIdentityProviderConfig(
+				kkComps.OIDCIdentityProviderConfig{
+					IssuerURL:     "https://issuer.example.test",
+					ClientID:      "client-id",
+					ClientSecret:  new("secret"),
+					Scopes:        []string{"openid", "email"},
+					ClaimMappings: &kkComps.OIDCIdentityProviderClaimMappings{Groups: new("teams")},
+				},
+			),
+			config: `{"issuer_url":"https://issuer.example.test","client_id":"client-id",` +
+				`"client_secret":"secret","scopes":["openid","email"],"claim_mappings":{"groups":"teams"}}`,
+		},
+		{
+			name: "saml",
+			input: kkComps.CreateUpdateIdentityProviderConfigSAMLIdentityProviderConfigInput(
+				kkComps.SAMLIdentityProviderConfigInput{IdpMetadataURL: new("https://idp.example.test/metadata")},
+			),
+			config: `{"idp_metadata_url":"https://idp.example.test/metadata"}`,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			input := kkComps.UpdateIdentityProvider{Enabled: new(false), Config: &tt.input}
+			converted, err := portalUpdateIdentityProviderFromUpdate(input)
+			require.NoError(t, err)
+			encoded, err := json.Marshal(converted)
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"enabled":false,"config":`+tt.config+`}`, string(encoded))
+		})
 	}
 }
 

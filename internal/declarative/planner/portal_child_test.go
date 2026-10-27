@@ -1051,8 +1051,8 @@ func TestPlanPortalIdentityProviders_UpdateWhenStateDiffers(t *testing.T) {
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-				kkComps.OIDCIdentityProviderConfigOutput{
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigPortalOIDCIdentityProviderConfigOutput(
+				kkComps.PortalOIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-old",
 					Scopes:    []string{"openid"},
@@ -1125,8 +1125,8 @@ func TestPlanPortalIdentityProviders_IgnoresWriteOnlyClientSecret(t *testing.T) 
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-				kkComps.OIDCIdentityProviderConfigOutput{
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigPortalOIDCIdentityProviderConfigOutput(
+				kkComps.PortalOIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-1",
 					Scopes:    []string{"openid", "profile"},
@@ -1201,8 +1201,8 @@ func TestPlanPortalIdentityProviders_IgnoresOIDCScopeOrderChanges(t *testing.T) 
 			_ kkOps.GetPortalIdentityProvidersRequest,
 			_ ...kkOps.Option,
 		) (*kkOps.GetPortalIdentityProvidersResponse, error) {
-			currentConfig := kkComps.CreatePortalIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-				kkComps.OIDCIdentityProviderConfigOutput{
+			currentConfig := kkComps.CreatePortalIdentityProviderConfigPortalOIDCIdentityProviderConfigOutput(
+				kkComps.PortalOIDCIdentityProviderConfigOutput{
 					IssuerURL: "https://accounts.google.com",
 					ClientID:  "client-id-1",
 					Scopes:    []string{"profile", "openid"},

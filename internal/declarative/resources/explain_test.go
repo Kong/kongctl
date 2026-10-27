@@ -427,6 +427,36 @@ func TestAutoExplainSDKUnionRetainsPrivateStringDiscriminator(t *testing.T) {
 	require.Equal(t, "basic", typeField.Node.Const)
 }
 
+func TestExplainBackendAWSIAMVariants(t *testing.T) {
+	subject, err := ResolveExplainSubject("event_gateways.backend_clusters.authentication")
+	require.NoError(t, err)
+	schema := RenderExplainSchema(subject)
+	require.NotNil(t, schema)
+
+	for _, branch := range schema.OneOf {
+		if branch.Properties["type"].Const != "sasl_aws_iam" {
+			continue
+		}
+		iam := branch.Properties["sasl_aws_iam"]
+		require.NotNil(t, iam)
+		require.Len(t, iam.OneOf, 2)
+		variants := make(map[string]bool)
+		for _, variant := range iam.OneOf {
+			kind, ok := variant.Properties["type"].Const.(string)
+			require.True(t, ok)
+			variants[kind] = true
+			if kind == "assume_role" {
+				require.NotNil(t, variant.Properties["arn"])
+				require.Contains(t, variant.Required, "arn")
+				require.NotNil(t, variant.Properties["session_name"])
+			}
+		}
+		require.Equal(t, map[string]bool{"default_provider_chain": true, "assume_role": true}, variants)
+		return
+	}
+	t.Fatal("AWS IAM authentication is missing from explain")
+}
+
 func TestRenderExplainText_AnalyticsDashboardAllowedValues(t *testing.T) {
 	subject, err := ResolveExplainSubject("analytics.dashboards.definition.tiles.definition.query.datasource")
 	require.NoError(t, err)

@@ -689,6 +689,7 @@ func eventGatewayBackendClusterExplainNode(_ ExplainBuildContext) (*ExplainNode,
 		explainVariant[kkComps.BackendClusterAuthenticationAnonymous]("type", "anonymous"),
 		explainVariant[kkComps.BackendClusterAuthenticationSaslPlain]("type", "sasl_plain"),
 		explainVariant[kkComps.BackendClusterAuthenticationSaslScram]("type", "sasl_scram"),
+		explainVariant[kkComps.BackendClusterAuthenticationSaslAwsIam]("type", "sasl_aws_iam"),
 	)
 	explainReplacePath(node, []string{"authentication"}, auth)
 	return node, nil

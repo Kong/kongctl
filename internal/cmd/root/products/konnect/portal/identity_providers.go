@@ -212,31 +212,31 @@ func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComp
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
-		if config.OIDCIdentityProviderConfigOutput == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
+		if config.PortalOIDCIdentityProviderConfigOutput == nil {
 			return
 		}
 		fmt.Fprintf(b, "config.type: oidc\n")
-		fmt.Fprintf(b, "config.issuer_url: %s\n", config.OIDCIdentityProviderConfigOutput.IssuerURL)
-		fmt.Fprintf(b, "config.client_id: %s\n", config.OIDCIdentityProviderConfigOutput.ClientID)
-		if len(config.OIDCIdentityProviderConfigOutput.Scopes) > 0 {
-			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.OIDCIdentityProviderConfigOutput.Scopes, ", "))
+		fmt.Fprintf(b, "config.issuer_url: %s\n", config.PortalOIDCIdentityProviderConfigOutput.IssuerURL)
+		fmt.Fprintf(b, "config.client_id: %s\n", config.PortalOIDCIdentityProviderConfigOutput.ClientID)
+		if len(config.PortalOIDCIdentityProviderConfigOutput.Scopes) > 0 {
+			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.PortalOIDCIdentityProviderConfigOutput.Scopes, ", "))
 		}
-		if config.OIDCIdentityProviderConfigOutput.ClaimMappings != nil {
+		if config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings != nil {
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.name: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Name),
+				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Name),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.email: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Email),
+				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Email),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.groups: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
+				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
 			)
 		}
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:
