@@ -149,6 +149,12 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 		if err := json.Unmarshal(data, &update.Authentication); err != nil {
 			return fmt.Errorf("failed to decode authentication update: %w", err)
 		}
+		if update.Authentication.Type == kkComps.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslAwsIam {
+			awsIAM := update.Authentication.BackendClusterAuthenticationSaslAwsIam
+			if err := validateBackendAWSIAMAuthentication(awsIAM); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Handle bootstrap_servers as []interface{} or []string
@@ -264,6 +270,9 @@ func extractLabelsField(fields map[string]any) map[string]string {
 func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticationScheme, error) {
 	// If it's already the SDK type, return it directly
 	if auth, ok := authField.(kkComps.BackendClusterAuthenticationScheme); ok {
+		if auth.Type == kkComps.BackendClusterAuthenticationSchemeTypeSaslAwsIam {
+			return auth, validateBackendAWSIAMAuthentication(auth.BackendClusterAuthenticationSaslAwsIam)
+		}
 		return auth, nil
 	}
 
@@ -342,12 +351,31 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 		if err := json.Unmarshal(data, &auth); err != nil {
 			return kkComps.BackendClusterAuthenticationScheme{}, fmt.Errorf("failed to decode AWS IAM authentication: %w", err)
 		}
-		return auth, nil
+		return auth, validateBackendAWSIAMAuthentication(auth.BackendClusterAuthenticationSaslAwsIam)
 
 	default:
 		return kkComps.BackendClusterAuthenticationScheme{},
 			fmt.Errorf("unsupported authentication type: %s", authType)
 	}
+}
+
+func validateBackendAWSIAMAuthentication(auth *kkComps.BackendClusterAuthenticationSaslAwsIam) error {
+	if auth == nil {
+		return fmt.Errorf("sasl_aws_iam is required and must be an object")
+	}
+	switch auth.SaslAwsIam.Type {
+	case kkComps.SaslAwsIamTypeDefaultProviderChain:
+		if auth.GetSaslAwsIamDefaultProviderChain() == nil {
+			return fmt.Errorf("sasl_aws_iam default_provider_chain config is required")
+		}
+	case kkComps.SaslAwsIamTypeAssumeRole:
+		if role := auth.GetSaslAwsIamAssumeRole(); role == nil || role.Arn == "" {
+			return fmt.Errorf("sasl_aws_iam.arn is required for assume_role")
+		}
+	default:
+		return fmt.Errorf("sasl_aws_iam.type must be default_provider_chain or assume_role")
+	}
+	return nil
 }
 
 // Create creates a new backend cluster

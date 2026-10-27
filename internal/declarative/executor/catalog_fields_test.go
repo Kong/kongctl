@@ -62,24 +62,37 @@ func TestBackendAWSIAMSavedPlanFields(t *testing.T) {
 			body := `{"type":"sasl_aws_iam","sasl_aws_iam":` + config + `}`
 			var auth map[string]any
 			require.NoError(t, json.Unmarshal([]byte(body), &auth))
-			fields := map[string]any{
-				planner.FieldName:             "backend",
-				planner.FieldAuthentication:   auth,
-				planner.FieldBootstrapServers: []any{"broker.example.test:9098"},
-				planner.FieldTLS:              map[string]any{"enabled": true},
-			}
-			adapter := &EventGatewayBackendClusterAdapter{}
-			var create kkComps.CreateBackendClusterRequest
-			require.NoError(t, adapter.MapCreateFields(t.Context(), nil, fields, &create))
-			encoded, err := json.Marshal(create.Authentication)
-			require.NoError(t, err)
-			require.JSONEq(t, body, string(encoded))
+			var typedAuth kkComps.BackendClusterAuthenticationScheme
+			require.NoError(t, json.Unmarshal([]byte(body), &typedAuth))
+			for name, authField := range map[string]any{
+				"saved plan":    auth,
+				"typed request": typedAuth,
+				"planner fields": map[string]any{
+					planner.FieldType: "sasl_aws_iam",
+					"sasl_aws_iam":    typedAuth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam,
+				},
+			} {
+				t.Run(name, func(t *testing.T) {
+					fields := map[string]any{
+						planner.FieldName:             "backend",
+						planner.FieldAuthentication:   authField,
+						planner.FieldBootstrapServers: []any{"broker.example.test:9098"},
+						planner.FieldTLS:              map[string]any{"enabled": true},
+					}
+					adapter := &EventGatewayBackendClusterAdapter{}
+					var create kkComps.CreateBackendClusterRequest
+					require.NoError(t, adapter.MapCreateFields(t.Context(), nil, fields, &create))
+					encoded, err := json.Marshal(create.Authentication)
+					require.NoError(t, err)
+					require.JSONEq(t, body, string(encoded))
 
-			var update kkComps.UpdateBackendClusterRequest
-			require.NoError(t, adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil))
-			encoded, err = json.Marshal(update.Authentication)
-			require.NoError(t, err)
-			require.JSONEq(t, body, string(encoded))
+					var update kkComps.UpdateBackendClusterRequest
+					require.NoError(t, adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil))
+					encoded, err = json.Marshal(update.Authentication)
+					require.NoError(t, err)
+					require.JSONEq(t, body, string(encoded))
+				})
+			}
 		})
 	}
 }
@@ -100,6 +113,37 @@ func TestBackendUpdateRejectsMalformedAuthentication(t *testing.T) {
 			err := (&EventGatewayBackendClusterAdapter{}).MapUpdateFields(t.Context(), nil,
 				map[string]any{planner.FieldAuthentication: auth}, &request, nil)
 			require.Error(t, err)
+		})
+	}
+}
+
+func TestBackendAWSIAMRejectsMalformedAuthentication(t *testing.T) {
+	for name, auth := range map[string]any{
+		"missing inner object": map[string]any{"type": "sasl_aws_iam"},
+		"missing arn": map[string]any{
+			"type": "sasl_aws_iam", "sasl_aws_iam": map[string]any{"type": "assume_role"},
+		},
+		"empty arn": map[string]any{
+			"type": "sasl_aws_iam", "sasl_aws_iam": map[string]any{"type": "assume_role", "arn": ""},
+		},
+		"typed empty arn": kkComps.CreateBackendClusterAuthenticationSchemeSaslAwsIam(
+			kkComps.BackendClusterAuthenticationSaslAwsIam{
+				SaslAwsIam: kkComps.CreateSaslAwsIamAssumeRole(kkComps.BackendClusterAuthenticationSaslAwsIamAssumeRole{}),
+			},
+		),
+	} {
+		t.Run(name, func(t *testing.T) {
+			fields := map[string]any{
+				planner.FieldName:             "backend",
+				planner.FieldAuthentication:   auth,
+				planner.FieldBootstrapServers: []any{"broker.example.test:9098"},
+				planner.FieldTLS:              map[string]any{"enabled": true},
+			}
+			adapter := &EventGatewayBackendClusterAdapter{}
+			var create kkComps.CreateBackendClusterRequest
+			require.Error(t, adapter.MapCreateFields(t.Context(), nil, fields, &create))
+			var update kkComps.UpdateBackendClusterRequest
+			require.Error(t, adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil))
 		})
 	}
 }
