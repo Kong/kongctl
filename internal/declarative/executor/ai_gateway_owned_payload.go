@@ -102,3 +102,37 @@ func validateChildWriteContext(kind string, execCtx *ExecutionContext, payload m
 	}
 	return validateChildPayloadOwnership(kind, childPayloadManagedBy(payload), namespace)
 }
+
+// A metadata-only full PUT retains fresh public API defaults and configuration.
+// Compare against the mapped saved fields first so injected payload or credentials
+// cannot be disguised as unprotection. Resolved secret writes use the normal path.
+func preserveOwnedMappedChildMetadataUpdate[Request any](kind string,
+	current, requested map[string]any, execCtx *ExecutionContext,
+) (map[string]any, error) {
+	change := execCtx.PlannedChange
+	if len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
+		len(change.SecretWrites) != 0 {
+		return requested, nil
+	}
+	if current[planner.FieldName] != requested[planner.FieldName] ||
+		current[planner.FieldType] != requested[planner.FieldType] {
+		return nil, fmt.Errorf("%s identity changed during metadata-only update; regenerate the plan", kind)
+	}
+	var planned Request
+	if err := mapAIGatewaySDKRequest(kind+" update", change.Fields, &planned); err != nil {
+		return nil, err
+	}
+	expected, err := ownedChildPayload(planned)
+	if err != nil {
+		return nil, err
+	}
+	actual := maps.Clone(requested)
+	delete(expected, planner.FieldManagedBy)
+	delete(actual, planner.FieldManagedBy)
+	if !reflect.DeepEqual(actual, expected) {
+		return nil, fmt.Errorf("%s metadata-only payload differs from planned fields", kind)
+	}
+	preserved := maps.Clone(current)
+	preserved[planner.FieldManagedBy] = requested[planner.FieldManagedBy]
+	return preserved, nil
+}

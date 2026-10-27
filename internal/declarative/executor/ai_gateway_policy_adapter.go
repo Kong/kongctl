@@ -3,8 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"maps"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -229,30 +227,10 @@ func (a *aiGatewayPolicyResourceInfo) GetNormalizedLabels() map[string]string {
 func preservePolicyMetadataUpdatePayload(current, requested map[string]any,
 	execCtx *ExecutionContext,
 ) (map[string]any, error) {
-	change := execCtx.PlannedChange
-	if len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
-		len(change.SecretWrites) != 0 {
-		return requested, nil
-	}
-	if current[planner.FieldName] != requested[planner.FieldName] ||
-		current[planner.FieldType] != requested[planner.FieldType] {
-		return nil, fmt.Errorf("AI Gateway policy identity changed during metadata-only update; regenerate the plan")
-	}
-	var planned kkComps.UpdateAIGatewayPolicyRequest
-	if err := mapAIGatewaySDKRequest("AI Gateway policy update", change.Fields, &planned); err != nil {
-		return nil, err
-	}
-	expected, err := ownedChildPayload(planned)
-	if err != nil {
-		return nil, err
-	}
-	actual := maps.Clone(requested)
-	delete(expected, planner.FieldManagedBy)
-	delete(actual, planner.FieldManagedBy)
-	if !reflect.DeepEqual(actual, expected) {
-		return nil, fmt.Errorf("AI Gateway policy metadata-only payload differs from planned fields")
-	}
-	preserved := maps.Clone(current)
-	preserved[planner.FieldManagedBy] = requested[planner.FieldManagedBy]
-	return preserved, nil
+	return preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayPolicyRequest](
+		"AI Gateway policy",
+		current,
+		requested,
+		execCtx,
+	)
 }

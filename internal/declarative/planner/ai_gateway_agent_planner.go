@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -48,46 +47,16 @@ func (p *Planner) planAIGatewayAgentChanges(
 		return fmt.Errorf("failed to list AI Gateway Agents for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayAgent, desired, currentAgents,
-		nameMatchedChildOperations[resources.AIGatewayAgentResource, state.AIGatewayAgent]{
-			desiredName: func(desired resources.AIGatewayAgentResource) string {
-				return desired.Name
-			},
-			currentName: func(current state.AIGatewayAgent) string {
-				return resources.AIGatewayAgentName(current.AIGatewayAgent)
-			},
-			fetch: func(desired resources.AIGatewayAgentResource, current state.AIGatewayAgent) (*state.AIGatewayAgent, error) {
-				id := resources.AIGatewayAgentID(current.AIGatewayAgent)
-				if agent := p.resources.GetAIGatewayAgentByRef(desired.Ref); agent != nil {
-					agent.SetKonnectID(id)
-				}
-				full, err := p.client.GetAIGatewayAgent(ctx, gatewayID, id)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway Agent %s: %w", id, err)
-				}
-				return full, nil
-			},
-			diff: p.shouldUpdateAIGatewayAgent,
-			create: func(desired resources.AIGatewayAgentResource) {
-				p.planAIGatewayAgentCreate(namespace, gatewayRef, gatewayName, gatewayID, desired,
-					aiGatewayAgentPolicyCreateDependencies(desired, policyCreateDepsByRefOrName), plan)
-			},
-			update: func(current state.AIGatewayAgent, desired resources.AIGatewayAgentResource,
-				fields map[string]any, changed map[string]FieldChange,
-			) {
-				p.planAIGatewayAgentUpdate(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayAgentID(current.AIGatewayAgent), desired, fields, changed,
-					aiGatewayAgentPolicyCreateDependencies(desired, policyCreateDepsByRefOrName), plan)
-			},
-			protected: func(current state.AIGatewayAgent) bool {
-				return labels.IsProtectedResource(current.NormalizedLabels)
-			},
-			remove: func(current state.AIGatewayAgent) {
-				p.planAIGatewayAgentDelete(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayAgentID(current.AIGatewayAgent),
-					resources.AIGatewayAgentName(current.AIGatewayAgent), plan)
-			},
-		}, plan)
+	return p.reconcileOwnedAIGatewayAgents(
+		ctx,
+		gatewayRef,
+		gatewayName,
+		gatewayID,
+		desired,
+		currentAgents,
+		policyCreateDepsByRefOrName,
+		plan,
+	)
 }
 
 func (p *Planner) planAIGatewayAgentCreatesForNewGateway(
@@ -113,7 +82,7 @@ func (p *Planner) planAIGatewayAgentCreatesForNewGateway(
 }
 
 func (p *Planner) planAIGatewayAgentCreate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
@@ -121,6 +90,13 @@ func (p *Planner) planAIGatewayAgentCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
+	agent.ManagedBy = resources.BuildChildManagedBy(
+		nil,
+		agent.ManagedBy,
+		resources.GetNamespace(agent.Kongctl),
+		agent.Protected(),
+		"",
+	)
 	fields, err := agent.MutablePayloadMap()
 	if err != nil {
 		plan.AddWarning(agent.GetRef(), fmt.Sprintf("failed to build AI Gateway Agent create payload: %s", err))
@@ -133,7 +109,8 @@ func (p *Planner) planAIGatewayAgentCreate(
 		ResourceRef:  agent.Ref,
 		Action:       ActionCreate,
 		Fields:       fields,
-		Namespace:    namespace,
+		Namespace:    resources.GetNamespace(agent.Kongctl),
+		Protection:   agent.Protected(),
 		DependsOn:    dependsOn,
 	}
 	if gatewayID != "" {
@@ -153,7 +130,7 @@ func (p *Planner) planAIGatewayAgentCreate(
 }
 
 func (p *Planner) planAIGatewayAgentUpdate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	gatewayID string,
 	agentID string,
@@ -171,7 +148,7 @@ func (p *Planner) planAIGatewayAgentUpdate(
 		Action:        ActionUpdate,
 		Fields:        updateFields,
 		ChangedFields: changedFields,
-		Namespace:     namespace,
+		Namespace:     resources.GetNamespace(agent.Kongctl),
 		DependsOn:     dependsOn,
 		Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
 	}
@@ -218,9 +195,14 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 		)
 	}
 
+	if desired.Labels == nil {
+		desiredPayload[FieldLabels] = currentPayload[FieldLabels]
+	} else {
+		desiredPayload[FieldLabels] = desired.Labels
+	}
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
-	currentCompare = scrubAIGatewayUpstreamWriteOnlyFields(currentCompare).(map[string]any)
-	desiredCompare = scrubAIGatewayUpstreamWriteOnlyFields(desiredCompare).(map[string]any)
+	currentCompare = scrubAIGatewayAgentWriteOnlyFields(currentCompare)
+	desiredCompare = scrubAIGatewayAgentWriteOnlyFields(desiredCompare)
 	updateFields := clonePayloadMap(desiredPayload)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
 		currentCompare,
@@ -250,4 +232,18 @@ func aiGatewayAgentPolicyCreateDependencies(
 		return nil
 	}
 	return aiGatewayPolicyReferenceDependencies(payload, policyCreateDepsByRefOrName)
+}
+
+func scrubAIGatewayAgentWriteOnlyFields(payload map[string]any) map[string]any {
+	result := normalizeAIGatewayJSONMap(payload)
+	config, _ := result[FieldConfig].(map[string]any)
+	upstream, _ := config["upstream"].(map[string]any)
+	if auth, ok := upstream["auth"].(map[string]any); ok {
+		upstream["auth"] = scrubAIGatewayUpstreamWriteOnlyFields(auth)
+	}
+	proxy, _ := config["proxy"].(map[string]any)
+	if auth, ok := proxy["auth"].(map[string]any); ok {
+		proxy["auth"] = scrubAIGatewayWriteOnlyFields(auth, func(key string) bool { return key == "password" })
+	}
+	return result
 }

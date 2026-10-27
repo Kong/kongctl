@@ -74,7 +74,7 @@ func TestNameMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 			wantDeleteIDs: []string{boundID, refID, nameID, staleID},
 		},
 		{
-			name:          "missing detail recreates and sync retains only the desired name",
+			name:          "missing detail fails closed",
 			boundID:       boundID,
 			ref:           refID,
 			missingDetail: true,
@@ -114,6 +114,11 @@ func TestNameMatchedChildReconcilerIdentityAndSyncPruning(t *testing.T) {
 			err := p.planAIGatewayAgentChanges(t.Context(), "default", "support-gateway", "Support Gateway",
 				"gateway-id", "", nil, rs.AIGatewayAgents, plan)
 
+			if tt.missingDetail {
+				require.ErrorContains(t, err, "disappeared during planning")
+				require.Empty(t, plan.Changes)
+				return
+			}
 			require.NoError(t, err)
 			require.Equal(t, tt.wantGetIDs, api.getIDs)
 			if len(tt.wantGetIDs) > 0 {

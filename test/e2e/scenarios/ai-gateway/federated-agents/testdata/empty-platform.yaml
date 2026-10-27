@@ -1,0 +1,7 @@
+_defaults:
+  kongctl: {namespace: federated-agents-platform}
+ai_gateways:
+  - ref: shared-alias
+    _external: {selector: {matchFields: {name: federated-agents-e2e}}}
+    auth_strategies: []
+    policies: []
