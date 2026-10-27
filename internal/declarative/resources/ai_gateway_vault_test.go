@@ -26,7 +26,7 @@ func TestAIGatewayVaultExplainTracksSDKRequests(t *testing.T) {
 			assertExplainNodeDeeplySupportsSDKShape(t, "", branch,
 				explainUnionBranchByType(t, actual, kind.Node.Const.(string)),
 				func(path, name string) bool {
-					return path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway)
+					return path == "" && (name == SchemaFieldRef || name == SchemaFieldAIGateway || name == SchemaFieldKongctl)
 				})
 		}
 	}

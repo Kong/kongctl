@@ -68,6 +68,13 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 			current := maps.Clone(vault)
 			current[FieldConfig] = currentConfig
 			current[FieldID] = "vault-id"
+			current[FieldManagedBy] = resources.BuildChildManagedBy(
+				nil,
+				nil,
+				"default",
+				false,
+				"dev",
+			)
 			current["created_at"] = "2026-01-01T00:00:00Z"
 			current["updated_at"] = "2026-01-01T00:00:00Z"
 			data, err = json.Marshal(current)
@@ -252,6 +259,13 @@ func TestAIGatewayVaultPlansPreserveAPIConfigurations(t *testing.T) {
 
 				current := maps.Clone(vault)
 				current[FieldID] = "vault-id"
+				current[FieldManagedBy] = resources.BuildChildManagedBy(
+					nil,
+					nil,
+					"default",
+					false,
+					"dev",
+				)
 				current["created_at"] = "2026-01-01T00:00:00Z"
 				current["updated_at"] = "2026-01-01T00:00:00Z"
 				data, err = json.Marshal(current)
@@ -489,14 +503,15 @@ func TestAIGatewayVaultPlannerSyncDeletesScopedVaults(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayVault)
-	client := state.NewClient(state.ClientConfig{
-		AIGatewayAPI: &testAIGatewayAPI{
-			gateways: []kkComps.AIGateway{testAIGateway()},
-		},
-		AIGatewayVaultsAPI: &testAIGatewayVaultAPI{
-			vaults: []kkComps.AIGatewayVault{testAIGatewayVault(t, "vault-id", "support-env", "SUPPORT_")},
-		},
-	})
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayVault, "support-gateway", "default")
+	cfg := emptyAIGatewayCollectionsConfig()
+	cfg.AIGatewayAPI = &testAIGatewayAPI{
+		gateways: []kkComps.AIGateway{testAIGateway()},
+	}
+	cfg.AIGatewayVaultsAPI = &testAIGatewayVaultAPI{
+		vaults: []kkComps.AIGatewayVault{testAIGatewayVault(t, "vault-id", "support-env", "SUPPORT_")},
+	}
+	client := state.NewClient(cfg)
 	rs := &resources.ResourceSet{
 		AIGateways: []resources.AIGatewayResource{{
 			BaseResource: resources.BaseResource{
@@ -541,6 +556,7 @@ func testAIGatewayVault(t *testing.T, id string, name string, prefix string) kkC
 	t.Helper()
 	payload := `{
 		"id": "` + id + `",
+ "managed_by":{"kongctl-namespace":"default","kongctl-protected":"false","tool":"kongctl","version":"dev"},
 		"type": "env",
 		"name": "` + name + `",
 		"description": "Support environment variables",
@@ -550,7 +566,7 @@ func testAIGatewayVault(t *testing.T, id string, name string, prefix string) kkC
 	}`
 	var vault kkComps.AIGatewayVault
 	require.NoError(t, json.Unmarshal([]byte(payload), &vault))
-	return vault
+	return ownedAIGatewayObservation(t, vault, "default", false)
 }
 
 type testAIGatewayVaultAPI struct {

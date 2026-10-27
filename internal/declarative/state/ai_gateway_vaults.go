@@ -194,11 +194,7 @@ func (c *Client) DeleteAIGatewayVault(ctx context.Context, gatewayID string, vau
 }
 
 func normalizedAIGatewayVaultLabels(vault kkComps.AIGatewayVault) map[string]string {
-	normalized := resources.AIGatewayVaultLabels(vault)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(resources.AIGatewayVaultManagedBy(vault))
 }
 
 func aiGatewayVaultCreateRequestName(req kkComps.CreateAIGatewayVaultRequest) string {
