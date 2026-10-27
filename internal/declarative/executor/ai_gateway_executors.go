@@ -53,6 +53,9 @@ func (e *Executor) registerAIGatewayExecutors() {
 		NewBaseExecutor(NewAIGatewayMCPServerAdapter(client), client, dryRun),
 	))
 	registerChild(crudResourceExecutor(
+		NewBaseExecutor(NewAIGatewayDatastoreAdapter(client), client, dryRun),
+	))
+	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewAIGatewayVaultAdapter(client), client, dryRun),
 	))
 	registerChild(crudResourceExecutor(

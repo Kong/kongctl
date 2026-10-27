@@ -36,18 +36,37 @@ type RelationshipDescriptor struct {
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 	ResourceTypeAPIVersion: {
-		{FieldPath: "api", TargetType: ResourceTypeAPI, Kind: RelationshipKindKongctlParentSelector, RootOnly: true},
+		{
+			FieldPath:  "api",
+			TargetType: ResourceTypeAPI,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
 	},
 	ResourceTypeAPIPublication: {
-		{FieldPath: "api", TargetType: ResourceTypeAPI, Kind: RelationshipKindKongctlParentSelector, RootOnly: true},
-		{FieldPath: "portal_id", TargetType: ResourceTypePortal, Kind: RelationshipKindAPIForeignKey},
+		{
+			FieldPath:  "api",
+			TargetType: ResourceTypeAPI,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
+		{
+			FieldPath:  "portal_id",
+			TargetType: ResourceTypePortal,
+			Kind:       RelationshipKindAPIForeignKey,
+		},
 		{
 			FieldPath: "auth_strategy_ids", TargetType: ResourceTypeApplicationAuthStrategy,
 			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList,
 		},
 	},
 	ResourceTypeAPIImplementation: {
-		{FieldPath: "api", TargetType: ResourceTypeAPI, Kind: RelationshipKindKongctlParentSelector, RootOnly: true},
+		{
+			FieldPath:  "api",
+			TargetType: ResourceTypeAPI,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
 		{
 			FieldPath:  "control_plane.control_plane_id",
 			TargetType: ResourceTypeControlPlane,
@@ -64,7 +83,12 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 		},
 	},
 	ResourceTypeAPIDocument: {
-		{FieldPath: "api", TargetType: ResourceTypeAPI, Kind: RelationshipKindKongctlParentSelector, RootOnly: true},
+		{
+			FieldPath:  "api",
+			TargetType: ResourceTypeAPI,
+			Kind:       RelationshipKindKongctlParentSelector,
+			RootOnly:   true,
+		},
 		{
 			FieldPath: "parent_document_ref", TargetType: ResourceTypeAPIDocument,
 			Kind: RelationshipKindKongctlParentSelector, ScopeFieldPath: "api",
@@ -77,7 +101,11 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 		},
 	},
 	ResourceTypeApplicationAuthStrategy: {
-		{FieldPath: "dcr_provider_id", TargetType: ResourceTypeDCRProvider, Kind: RelationshipKindAPIForeignKey},
+		{
+			FieldPath:  "dcr_provider_id",
+			TargetType: ResourceTypeDCRProvider,
+			Kind:       RelationshipKindAPIForeignKey,
+		},
 	},
 	ResourceTypePortalPage: {
 		{
@@ -99,8 +127,12 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 		{
 			FieldPath: "entity_id", TargetDiscriminatorFieldPath: "entity_type_name",
 			TargetTypeResolver: RoleEntityResourceType,
-			TargetTypes:        []ResourceType{ResourceTypeAPI, ResourceTypePortal, ResourceTypeControlPlane},
-			Kind:               RelationshipKindAPIForeignKey,
+			TargetTypes: []ResourceType{
+				ResourceTypeAPI,
+				ResourceTypePortal,
+				ResourceTypeControlPlane,
+			},
+			Kind: RelationshipKindAPIForeignKey,
 		},
 	},
 	ResourceTypeAIGatewayConsumerCredential: {
@@ -139,24 +171,36 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 		{
 			FieldPath: "entity_id", TargetDiscriminatorFieldPath: "entity_type_name",
 			TargetTypeResolver: RoleEntityResourceType,
-			TargetTypes:        []ResourceType{ResourceTypeAPI, ResourceTypePortal, ResourceTypeControlPlane},
-			Kind:               RelationshipKindAPIForeignKey,
+			TargetTypes: []ResourceType{
+				ResourceTypeAPI,
+				ResourceTypePortal,
+				ResourceTypeControlPlane,
+			},
+			Kind: RelationshipKindAPIForeignKey,
 		},
 	},
 	ResourceTypeOrganizationUserRole: {
 		{
 			FieldPath: "entity_id", TargetDiscriminatorFieldPath: "entity_type_name",
 			TargetTypeResolver: RoleEntityResourceType,
-			TargetTypes:        []ResourceType{ResourceTypeAPI, ResourceTypePortal, ResourceTypeControlPlane},
-			Kind:               RelationshipKindAPIForeignKey,
+			TargetTypes: []ResourceType{
+				ResourceTypeAPI,
+				ResourceTypePortal,
+				ResourceTypeControlPlane,
+			},
+			Kind: RelationshipKindAPIForeignKey,
 		},
 	},
 	ResourceTypeOrganizationSystemAccountRole: {
 		{
 			FieldPath: "entity_id", TargetDiscriminatorFieldPath: "entity_type_name",
 			TargetTypeResolver: RoleEntityResourceType,
-			TargetTypes:        []ResourceType{ResourceTypeAPI, ResourceTypePortal, ResourceTypeControlPlane},
-			Kind:               RelationshipKindAPIForeignKey,
+			TargetTypes: []ResourceType{
+				ResourceTypeAPI,
+				ResourceTypePortal,
+				ResourceTypeControlPlane,
+			},
+			Kind: RelationshipKindAPIForeignKey,
 		},
 	},
 	ResourceTypeOrganizationUserTeamMembership: {
@@ -227,6 +271,7 @@ var aiGatewayChildTypes = []ResourceType{
 	ResourceTypeAIGatewayMCPServer,
 	ResourceTypeAIGatewayConfigStore,
 	ResourceTypeAIGatewayVault,
+	ResourceTypeAIGatewayDatastore,
 	ResourceTypeAIGatewayDataPlaneCertificate,
 	ResourceTypeAIGatewayCertificate,
 	ResourceTypeAIGatewayCACertificate,
@@ -261,11 +306,46 @@ var eventGatewayChildTypes = []ResourceType{
 }
 
 func init() {
+	for _, resourceType := range []ResourceType{ResourceTypeAIGatewayAgent, ResourceTypeAIGatewayMCPServer} {
+		for _, reference := range []struct {
+			path   string
+			target ResourceType
+		}{
+			{"config.certificates", ResourceTypeAIGatewayCertificate},
+			{"config.ca_certificates", ResourceTypeAIGatewayCACertificate},
+		} {
+			relationshipDescriptors[resourceType] = append(
+				relationshipDescriptors[resourceType],
+				RelationshipDescriptor{
+					FieldPath: reference.path, TargetType: reference.target,
+					Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList,
+					ResultField: RelationshipResultFieldName, ScopeFieldPath: SchemaFieldAIGateway,
+				},
+			)
+		}
+	}
+
+	for _, resourceType := range []ResourceType{
+		ResourceTypeAIGatewayProvider, ResourceTypeAIGatewayAuthStrategy, ResourceTypeAIGatewayMCPServer,
+		ResourceTypeAIGatewayPolicy, ResourceTypeAIGatewayModel,
+	} {
+		relationshipDescriptors[resourceType] = append(
+			relationshipDescriptors[resourceType],
+			RelationshipDescriptor{
+				FieldPath: "datastores[].name", TargetType: ResourceTypeAIGatewayDatastore, Kind: RelationshipKindAPIForeignKey,
+				ResultField: RelationshipResultFieldName, ScopeFieldPath: SchemaFieldAIGateway,
+			},
+		)
+	}
+
 	for _, resourceType := range aiGatewayChildTypes {
-		relationshipDescriptors[resourceType] = append(relationshipDescriptors[resourceType], RelationshipDescriptor{
-			FieldPath: SchemaFieldAIGateway, TargetType: ResourceTypeAIGateway,
-			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
-		})
+		relationshipDescriptors[resourceType] = append(
+			relationshipDescriptors[resourceType],
+			RelationshipDescriptor{
+				FieldPath: SchemaFieldAIGateway, TargetType: ResourceTypeAIGateway,
+				Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+			},
+		)
 	}
 	relationshipDescriptors[ResourceTypeAIGatewayConfigStoreSecret] = []RelationshipDescriptor{{
 		FieldPath: SchemaFieldAIGatewayConfigStore, TargetType: ResourceTypeAIGatewayConfigStore,
@@ -304,16 +384,22 @@ func init() {
 		)
 	}
 	for _, resourceType := range portalChildTypes {
-		relationshipDescriptors[resourceType] = append(relationshipDescriptors[resourceType], RelationshipDescriptor{
-			FieldPath: SchemaFieldPortal, TargetType: ResourceTypePortal,
-			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
-		})
+		relationshipDescriptors[resourceType] = append(
+			relationshipDescriptors[resourceType],
+			RelationshipDescriptor{
+				FieldPath: SchemaFieldPortal, TargetType: ResourceTypePortal,
+				Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+			},
+		)
 	}
 	for _, resourceType := range eventGatewayChildTypes {
-		relationshipDescriptors[resourceType] = append(relationshipDescriptors[resourceType], RelationshipDescriptor{
-			FieldPath: SchemaFieldEventGateway, TargetType: ResourceTypeEventGatewayControlPlane,
-			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
-		})
+		relationshipDescriptors[resourceType] = append(
+			relationshipDescriptors[resourceType],
+			RelationshipDescriptor{
+				FieldPath: SchemaFieldEventGateway, TargetType: ResourceTypeEventGatewayControlPlane,
+				Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+			},
+		)
 	}
 }
 

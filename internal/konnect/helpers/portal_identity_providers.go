@@ -140,8 +140,15 @@ func createPortalIdentityProviderConfig(
 		if config.OIDCIdentityProviderConfig == nil {
 			return nil, fmt.Errorf("oidc identity provider config is required")
 		}
-		converted := kkComps.CreatePortalCreateIdentityProviderConfigPortalOIDCIdentityProviderConfig(
-			kkComps.PortalOIDCIdentityProviderConfig(*config.OIDCIdentityProviderConfig),
+		oidc := config.OIDCIdentityProviderConfig
+		converted := kkComps.CreatePortalCreateIdentityProviderConfigPortalOIDCIdentityProviderConfigInput(
+			kkComps.PortalOIDCIdentityProviderConfigInput{
+				IssuerURL:     oidc.IssuerURL,
+				ClientID:      oidc.ClientID,
+				ClientSecret:  oidc.ClientSecret,
+				Scopes:        oidc.Scopes,
+				ClaimMappings: oidc.ClaimMappings,
+			},
 		)
 		return &converted, nil
 	case kkComps.CreateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:

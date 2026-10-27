@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/output/jq"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicostmanagement"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
@@ -227,6 +228,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(aiGatewayCmd)
+	cmd.AddCommand(aicostmanagement.NewCommand(Verb, addAIGatewayFlags, func(c *cobra.Command, args []string) error {
+		ctx := context.WithValue(c.Context(), products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
+		c.SetContext(ctx)
+		return bindAIGatewayFlags(c, args)
+	}))
 
 	auditLogsCmd, err := NewDirectAuditLogsCmd()
 	if err != nil {

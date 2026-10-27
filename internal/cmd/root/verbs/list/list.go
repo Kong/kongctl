@@ -7,12 +7,15 @@ import (
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/cmd/output/columns"
 	"github.com/kong/kongctl/internal/cmd/output/jq"
+	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicostmanagement"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	profileCmd "github.com/kong/kongctl/internal/cmd/root/profile"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	extensioncmd "github.com/kong/kongctl/internal/cmd/root/verbs/extensions"
 	"github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
 	"github.com/kong/kongctl/internal/util/normalizers"
@@ -155,6 +158,12 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(aiGatewayCmd)
+	cmd.AddCommand(aicostmanagement.NewCommand(Verb, addAIGatewayFlags, func(c *cobra.Command, args []string) error {
+		ctx := context.WithValue(c.Context(), products.Product, konnect.Product)
+		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(Verb))
+		c.SetContext(ctx)
+		return bindAIGatewayFlags(c, args)
+	}))
 
 	return cmd, nil
 }

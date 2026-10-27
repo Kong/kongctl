@@ -235,8 +235,14 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
 	currentCompare = scrubAIGatewayMCPWriteOnlyFields(currentCompare)
 	desiredCompare = scrubAIGatewayMCPWriteOnlyFields(desiredCompare)
+	for _, payload := range []map[string]any{currentCompare, desiredCompare} {
+		if vault, ok := payload[FieldTokenVault]; ok {
+			payload[FieldTokenVault] = scrubAIGatewayUpstreamWriteOnlyFields(vault)
+		}
+	}
 	updateFields := clonePayloadMap(desiredPayload)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(currentCompare, desiredCompare)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(desiredCompare, currentCompare)

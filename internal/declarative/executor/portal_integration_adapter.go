@@ -118,7 +118,7 @@ func mapGoogleTagManagerIntegration(value any) (*kkComps.GoogleTagManagerIntegra
 
 	return &kkComps.GoogleTagManagerIntegration{
 		Enabled:    enabled,
-		Type:       kkComps.GoogleTagManagerIntegrationType(integrationType),
+		Type:       kkComps.Type(integrationType),
 		ConfigData: config,
 	}, nil
 }

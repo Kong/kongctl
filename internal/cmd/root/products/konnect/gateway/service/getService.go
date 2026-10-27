@@ -48,7 +48,7 @@ type textDisplayRecord struct {
 	ID       string
 }
 
-func serviceToDisplayRecord(s *kkComps.Service) textDisplayRecord {
+func serviceToDisplayRecord(s *kkComps.ServiceOutput) textDisplayRecord {
 	missing := "n/a"
 
 	name := missing
@@ -98,7 +98,7 @@ func serviceToDisplayRecord(s *kkComps.Service) textDisplayRecord {
 	}
 }
 
-func serviceDetailView(s *kkComps.Service) string {
+func serviceDetailView(s *kkComps.ServiceOutput) string {
 	if s == nil {
 		return ""
 	}

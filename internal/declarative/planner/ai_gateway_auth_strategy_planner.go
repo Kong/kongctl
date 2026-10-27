@@ -47,7 +47,11 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 
 	currentProviders, err := p.listAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
-		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
+		return fmt.Errorf(
+			"failed to list AI Gateway Auth Strategies for gateway %s: %w",
+			gatewayID,
+			err,
+		)
 	}
 
 	return p.reconcileOwnedAIGatewayAuthStrategies(
@@ -69,7 +73,15 @@ func (p *Planner) planAIGatewayAuthStrategyCreatesForNewGateway(
 	}
 
 	for _, provider := range providers {
-		p.planAIGatewayAuthStrategyCreate(namespace, gatewayRef, gatewayName, "", provider, dependsOn, plan)
+		p.planAIGatewayAuthStrategyCreate(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			"",
+			provider,
+			dependsOn,
+			plan,
+		)
 	}
 }
 
@@ -130,7 +142,11 @@ func (p *Planner) planAIGatewayAuthStrategyUpdate(
 	}
 
 	change := PlannedChange{
-		ID:            p.nextChangeID(ActionUpdate, ResourceTypeAIGatewayAuthStrategy, provider.Ref),
+		ID: p.nextChangeID(
+			ActionUpdate,
+			ResourceTypeAIGatewayAuthStrategy,
+			provider.Ref,
+		),
 		ResourceType:  ResourceTypeAIGatewayAuthStrategy,
 		ResourceRef:   provider.Ref,
 		ResourceID:    providerID,
@@ -175,6 +191,7 @@ func (p *Planner) planAIGatewayAuthStrategyDelete(
 func shouldUpdateAIGatewayAuthStrategy(
 	current state.AIGatewayAuthStrategy,
 	desired resources.AIGatewayAuthStrategyResource,
+	resourceSets ...*resources.ResourceSet,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
@@ -188,7 +205,10 @@ func shouldUpdateAIGatewayAuthStrategy(
 	}
 
 	if current.DisplayName != desired.DisplayName {
-		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
+		changedFields[FieldDisplayName] = FieldChange{
+			Old: current.DisplayName,
+			New: desired.DisplayName,
+		}
 	}
 
 	if desired.Labels != nil && labels.CompareUserLabels(current.Labels, desired.Labels) {
@@ -203,11 +223,25 @@ func shouldUpdateAIGatewayAuthStrategy(
 	}
 
 	if desired.Config != nil && aiGatewayAuthStrategyConfigChanged(current.Config, desired.Config) {
-		currentConfig, desiredConfig := comparableAIGatewayAuthStrategyConfigs(current.Config, desired.Config)
+		currentConfig, desiredConfig := comparableAIGatewayAuthStrategyConfigs(
+			current.Config,
+			desired.Config,
+		)
 		changedFields[FieldConfig] = FieldChange{
 			Old: currentConfig,
 			New: desiredConfig,
 		}
+	}
+
+	desiredPayload, err := desired.PayloadMap()
+	if err != nil {
+		return false, nil, nil, err
+	}
+	if err := addAIGatewayTokenVaultChanges(
+		current.Datastores, current.TokenVault, desiredPayload, changedFields,
+		firstResourceSet(resourceSets), desired.AIGateway,
+	); err != nil {
+		return false, nil, nil, err
 	}
 
 	if len(changedFields) == 0 {
@@ -233,7 +267,9 @@ func extractAIGatewayAuthStrategyUpdateFields(
 	return fields
 }
 
-func extractAIGatewayAuthStrategyFields(provider resources.AIGatewayAuthStrategyResource) map[string]any {
+func extractAIGatewayAuthStrategyFields(
+	provider resources.AIGatewayAuthStrategyResource,
+) map[string]any {
 	fields := map[string]any{
 		FieldName:        provider.Name,
 		FieldType:        provider.Type,
@@ -246,6 +282,12 @@ func extractAIGatewayAuthStrategyFields(provider resources.AIGatewayAuthStrategy
 	if provider.ManagedBy != nil {
 		fields[FieldManagedBy] = provider.ManagedBy
 	}
+	if provider.Datastores != nil {
+		fields[FieldDatastores] = provider.Datastores
+	}
+	if provider.TokenVault != nil {
+		fields[FieldTokenVault] = provider.TokenVault
+	}
 	return fields
 }
 
@@ -254,7 +296,9 @@ func aiGatewayAuthStrategyConfigChanged(current, desired map[string]any) bool {
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
 }
 
-func comparableAIGatewayAuthStrategyConfigs(current, desired map[string]any) (map[string]any, map[string]any) {
+func comparableAIGatewayAuthStrategyConfigs(
+	current, desired map[string]any,
+) (map[string]any, map[string]any) {
 	return comparableAIGatewayWriteOnlyPayloads(
 		current,
 		desired,
@@ -273,7 +317,10 @@ func normalizeAIGatewayAuthStrategyConfigsForComparison(
 	return currentComparable, desiredComparable
 }
 
-func projectAIGatewayAuthStrategyConfigForComparison(currentCompare map[string]any, desiredCompare map[string]any) {
+func projectAIGatewayAuthStrategyConfigForComparison(
+	currentCompare map[string]any,
+	desiredCompare map[string]any,
+) {
 	if currentCompare == nil || desiredCompare == nil {
 		return
 	}

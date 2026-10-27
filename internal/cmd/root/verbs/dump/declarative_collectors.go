@@ -36,6 +36,28 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		rootCollector(
+			"ai_cost_management_tags",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.AICostManagementTagsResource, error) {
+				value, err := d.stateClient.GetAICostManagementTags(ctx)
+				if err != nil {
+					return nil, err
+				}
+				return []declresources.AICostManagementTagsResource{
+					{
+						BaseResource: declresources.BaseResource{Ref: "ai-cost-management-tags"},
+						Headers:      value.Headers,
+						Prefixes:     value.Prefixes,
+						Labels:       value.Labels,
+						ManagedBy:    value.ManagedBy,
+					},
+				}, nil
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.AICostManagementTagsResource {
+				return &rs.AICostManagementTags
+			},
+			nil,
+		),
+		rootCollector(
 			"portals",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.PortalResource, error) {
 				return collectDeclarativePortals(ctx, d.sdk.GetPortalAPI(), d.pageSize, d.filter)
@@ -61,7 +83,12 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 		rootCollector(
 			"application_auth_strategies",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.ApplicationAuthStrategyResource, error) {
-				return collectDeclarativeAuthStrategies(ctx, d.sdk.GetAppAuthStrategiesAPI(), d.pageSize, d.filter)
+				return collectDeclarativeAuthStrategies(
+					ctx,
+					d.sdk.GetAppAuthStrategiesAPI(),
+					d.pageSize,
+					d.filter,
+				)
 			},
 			func(rs *declresources.ResourceSet) *[]declresources.ApplicationAuthStrategyResource {
 				return &rs.ApplicationAuthStrategies
@@ -71,7 +98,12 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 		rootCollector(
 			"dcr_providers",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.DCRProviderResource, error) {
-				return collectDeclarativeDCRProviders(ctx, d.sdk.GetDCRProvidersAPI(), d.pageSize, d.filter)
+				return collectDeclarativeDCRProviders(
+					ctx,
+					d.sdk.GetDCRProvidersAPI(),
+					d.pageSize,
+					d.filter,
+				)
 			},
 			func(rs *declresources.ResourceSet) *[]declresources.DCRProviderResource { return &rs.DCRProviders }, nil,
 		),
@@ -92,7 +124,12 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 		rootCollector(
 			resourceAnalyticsDashboards,
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.DashboardResource, error) {
-				return collectDeclarativeDashboards(ctx, d.sdk.GetDashboardsAPI(), d.pageSize, d.filter)
+				return collectDeclarativeDashboards(
+					ctx,
+					d.sdk.GetDashboardsAPI(),
+					d.pageSize,
+					d.filter,
+				)
 			},
 			func(rs *declresources.ResourceSet) *[]declresources.DashboardResource {
 				if rs.Analytics == nil {
@@ -123,7 +160,12 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 		rootCollector(
 			"ai_gateways",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.AIGatewayResource, error) {
-				return collectDeclarativeAIGateways(ctx, d.sdk.GetAIGatewayAPI(), d.pageSize, d.filter)
+				return collectDeclarativeAIGateways(
+					ctx,
+					d.sdk.GetAIGatewayAPI(),
+					d.pageSize,
+					d.filter,
+				)
 			},
 			func(rs *declresources.ResourceSet) *[]declresources.AIGatewayResource { return &rs.AIGateways },
 			func(ctx context.Context, d *declarativeDumpContext, values []declresources.AIGatewayResource) error {
@@ -145,7 +187,9 @@ func buildDeclarativeCollectors() map[string]declarativeCollector {
 	return collectors
 }
 
-func indexDeclarativeCollectors(registrations []declarativeCollector) (map[string]declarativeCollector, error) {
+func indexDeclarativeCollectors(
+	registrations []declarativeCollector,
+) (map[string]declarativeCollector, error) {
 	collectors := make(map[string]declarativeCollector)
 	kinds := make([]declresources.ResourceType, 0, len(registrations))
 	var allKinds []declresources.ResourceType
@@ -154,13 +198,20 @@ func indexDeclarativeCollectors(registrations []declarativeCollector) (map[strin
 		allKinds = append(allKinds, registration.kind)
 		allKinds = append(allKinds, registration.children...)
 		if strings.TrimSpace(registration.omittedReason) != "" {
-			if registration.selector != "" || registration.collect != nil || len(registration.children) != 0 {
-				return nil, fmt.Errorf("declarative dump omission conflicts with collector: %s", registration.kind)
+			if registration.selector != "" || registration.collect != nil ||
+				len(registration.children) != 0 {
+				return nil, fmt.Errorf(
+					"declarative dump omission conflicts with collector: %s",
+					registration.kind,
+				)
 			}
 			continue
 		}
 		if registration.selector == "" || registration.collect == nil {
-			return nil, fmt.Errorf("declarative dump requires a selector and collector: %s", registration.kind)
+			return nil, fmt.Errorf(
+				"declarative dump requires a selector and collector: %s",
+				registration.kind,
+			)
 		}
 		if _, exists := collectors[registration.selector]; exists {
 			return nil, fmt.Errorf("duplicate declarative dump selector: %s", registration.selector)
@@ -190,7 +241,12 @@ func rootCollector[R any, RPtr interface {
 		panic(fmt.Sprintf("declarative dump %s requires collection and storage", selector))
 	}
 	if len(children) > 0 && populate == nil {
-		panic(fmt.Sprintf("declarative dump %s requires child population for child coverage", selector))
+		panic(
+			fmt.Sprintf(
+				"declarative dump %s requires child population for child coverage",
+				selector,
+			),
+		)
 	}
 	return declarativeCollector{
 		kind:     RPtr(new(R)).GetType(),
@@ -237,7 +293,12 @@ func collectOrganizationForDump(
 	d *declarativeDumpContext,
 	rs *declresources.ResourceSet,
 ) error {
-	teams, err := collectDeclarativeOrganizationTeams(ctx, d.sdk.GetOrganizationTeamAPI(), d.pageSize, d.filter)
+	teams, err := collectDeclarativeOrganizationTeams(
+		ctx,
+		d.sdk.GetOrganizationTeamAPI(),
+		d.pageSize,
+		d.filter,
+	)
 	if err != nil {
 		return err
 	}
@@ -255,7 +316,12 @@ func collectOrganizationForDump(
 		)
 		rs.Organization.SystemAccounts = append(
 			rs.Organization.SystemAccounts,
-			collectOrganizationSystemAccountsFromTeamMemberships(ctx, d.logger, d.stateClient, teams)...,
+			collectOrganizationSystemAccountsFromTeamMemberships(
+				ctx,
+				d.logger,
+				d.stateClient,
+				teams,
+			)...,
 		)
 	}
 	return nil

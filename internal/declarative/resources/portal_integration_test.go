@@ -70,7 +70,7 @@ func TestPortalIntegrationValidateRejectsInvalidIDs(t *testing.T) {
 func testGoogleTagManagerIntegration(id string) kkComps.GoogleTagManagerIntegration {
 	return kkComps.GoogleTagManagerIntegration{
 		Enabled: true,
-		Type:    kkComps.GoogleTagManagerIntegrationTypeTracking,
+		Type:    kkComps.TypeTracking,
 		ConfigData: kkComps.ConfigData{
 			ID: id,
 		},

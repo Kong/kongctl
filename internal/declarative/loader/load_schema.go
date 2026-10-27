@@ -337,7 +337,7 @@ func declarativeSchemaPropertiesAt(
 	for name := range currentSchema.Properties {
 		properties[name] = struct{}{}
 	}
-	for _, branch := range currentSchema.OneOf {
+	for _, branch := range slices.Concat(currentSchema.OneOf, currentSchema.AnyOf) {
 		branch = resolveDeclarativeSchemaRef(root, branch)
 		for name := range branch.Properties {
 			properties[name] = struct{}{}
@@ -369,7 +369,7 @@ func declarativeConstValuesAt(
 	name := path[len(path)-1]
 	var values []string
 	seen := make(map[string]struct{})
-	for _, branch := range parent.OneOf {
+	for _, branch := range slices.Concat(parent.OneOf, parent.AnyOf) {
 		branch = resolveDeclarativeSchemaRef(root, branch)
 		if branch == nil {
 			continue
@@ -395,7 +395,7 @@ func declarativeSchemaConstValues(root *resources.JSONSchema, schema *resources.
 	}
 
 	var values []string
-	for _, branch := range schema.OneOf {
+	for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
 		values = append(values, declarativeSchemaConstValues(root, branch)...)
 	}
 	return values
@@ -454,11 +454,11 @@ func selectDeclarativeSchema(
 	nextToken string,
 ) *resources.JSONSchema {
 	schema = resolveDeclarativeSchemaRef(root, schema)
-	if schema == nil || len(schema.OneOf) == 0 {
+	if schema == nil || len(schema.OneOf)+len(schema.AnyOf) == 0 {
 		return schema
 	}
 	var matches []*resources.JSONSchema
-	for _, branch := range schema.OneOf {
+	for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
 		branch = resolveDeclarativeSchemaRef(root, branch)
 		if declarativeSchemaBranchMatches(root, branch, value) {
 			matches = append(matches, branch)
@@ -472,7 +472,7 @@ func selectDeclarativeSchema(
 			return branch
 		}
 	}
-	for _, branch := range schema.OneOf {
+	for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
 		branch = resolveDeclarativeSchemaRef(root, branch)
 		if _, ok := branch.Properties[nextToken]; ok {
 			return branch

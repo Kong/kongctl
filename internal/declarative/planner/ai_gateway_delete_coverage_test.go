@@ -22,6 +22,42 @@ func TestAIGatewayForeignKeyDeleteCoverage(t *testing.T) {
 	}
 	coverage := map[relationship]disposition{}
 	for _, user := range []resources.ResourceType{
+		resources.ResourceTypeAIGatewayAgent,
+		resources.ResourceTypeAIGatewayMCPServer,
+	} {
+		coverage[relationship{
+			user,
+			FieldConfig + "." + FieldCertificates,
+			resources.ResourceTypeAIGatewayCertificate,
+		}] = disposition{
+			adapter: ResourceTypeAIGatewayCertificate,
+		}
+		coverage[relationship{
+			user,
+			FieldConfig + "." + FieldCACertificates,
+			resources.ResourceTypeAIGatewayCACertificate,
+		}] = disposition{
+			adapter: ResourceTypeAIGatewayCACertificate,
+		}
+	}
+
+	for _, user := range []resources.ResourceType{
+		resources.ResourceTypeAIGatewayProvider,
+		resources.ResourceTypeAIGatewayAuthStrategy,
+		resources.ResourceTypeAIGatewayMCPServer,
+		resources.ResourceTypeAIGatewayPolicy,
+		resources.ResourceTypeAIGatewayModel,
+	} {
+		coverage[relationship{
+			user,
+			FieldDatastores + "[]." + FieldName,
+			resources.ResourceTypeAIGatewayDatastore,
+		}] = disposition{
+			adapter: ResourceTypeAIGatewayDatastore,
+		}
+	}
+
+	for _, user := range []resources.ResourceType{
 		resources.ResourceTypeAIGatewayAgent, resources.ResourceTypeAIGatewayModel,
 		resources.ResourceTypeAIGatewayMCPServer,
 	} {
@@ -53,7 +89,11 @@ func TestAIGatewayForeignKeyDeleteCoverage(t *testing.T) {
 		resources.ResourceTypeAIGatewayConsumerGroup, resources.ResourceTypeAIGatewayModel,
 		resources.ResourceTypeAIGatewayMCPServer,
 	} {
-		coverage[relationship{user, FieldPolicies, resources.ResourceTypeAIGatewayPolicy}] = disposition{
+		coverage[relationship{
+			user,
+			FieldPolicies,
+			resources.ResourceTypeAIGatewayPolicy,
+		}] = disposition{
 			adapter: ResourceTypeAIGatewayPolicy,
 		}
 	}
@@ -91,7 +131,13 @@ func TestAIGatewayForeignKeyDeleteCoverage(t *testing.T) {
 		adapters[policy.targetType] = true
 	}
 	for key, value := range coverage {
-		require.NotEqual(t, value.adapter != "", value.exception != "", "ambiguous disposition for %+v", key)
+		require.NotEqual(
+			t,
+			value.adapter != "",
+			value.exception != "",
+			"ambiguous disposition for %+v",
+			key,
+		)
 		if value.adapter != "" {
 			require.True(t, adapters[value.adapter], "unregistered adapter for %+v", key)
 			require.Equal(t, string(key.target), value.adapter)

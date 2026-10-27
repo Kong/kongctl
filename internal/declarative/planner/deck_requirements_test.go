@@ -61,7 +61,7 @@ func (s *stubDeckRunner) Run(_ context.Context, opts deck.RunOptions) (*deck.Run
 }
 
 type stubGatewayServiceAPI struct {
-	services []kkComps.Service
+	services []kkComps.ServiceOutput
 }
 
 func (s *stubGatewayServiceAPI) ListService(
@@ -115,8 +115,8 @@ func TestPlanDeckDependenciesAdded(t *testing.T) {
 		Ref: "impl",
 		API: "api",
 		APIImplementation: kkComps.APIImplementation{
-			Type: kkComps.APIImplementationTypeServiceReference,
-			ServiceReference: &kkComps.ServiceReference{
+			Type: kkComps.APIImplementationTypeServiceReferenceInput,
+			ServiceReferenceInput: &kkComps.ServiceReferenceInput{
 				Service: &kkComps.APIImplementationService{
 					ID:             "gw-service",
 					ControlPlaneID: cpID,
@@ -347,7 +347,7 @@ func TestResolveGatewayServiceIdentitiesDeckConfigMatchesExisting(t *testing.T) 
 
 	stateClient := state.NewClient(state.ClientConfig{
 		GatewayServiceAPI: &stubGatewayServiceAPI{
-			services: []kkComps.Service{{ID: &serviceID, Name: &serviceName}},
+			services: []kkComps.ServiceOutput{{ID: &serviceID, Name: &serviceName}},
 		},
 	})
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

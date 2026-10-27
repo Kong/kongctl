@@ -108,27 +108,28 @@ type ExplainScaffoldNode struct {
 }
 
 type ExplainNode struct {
-	Kind         string
-	Description  string
-	Default      any
-	DefaultFrom  string
-	Enum         []any
-	Const        any
-	Nullable     bool
-	Recommended  bool
-	PreferredTag string
-	RefKind      string
-	Relationship *ExplainRelationship
-	Notes        []string
-	Literal      string
-	Properties   []*ExplainField
-	propIndex    map[string]*ExplainField
-	Items        *ExplainNode
-	Additional   *ExplainNode
-	OneOf        []*ExplainNode
-	truncated    bool
-	loadOpaque   bool
-	loadRejected map[string]string
+	Kind           string
+	Description    string
+	Default        any
+	DefaultFrom    string
+	Enum           []any
+	Const          any
+	Nullable       bool
+	Recommended    bool
+	PreferredTag   string
+	RefKind        string
+	Relationship   *ExplainRelationship
+	Notes          []string
+	Literal        string
+	Properties     []*ExplainField
+	propIndex      map[string]*ExplainField
+	Items          *ExplainNode
+	Additional     *ExplainNode
+	OneOf          []*ExplainNode
+	inclusiveUnion bool
+	truncated      bool
+	loadOpaque     bool
+	loadRejected   map[string]string
 }
 
 type ExplainField struct {
@@ -151,6 +152,7 @@ type JSONSchema struct {
 	Items         *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
 	Additional    any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
 	OneOf         []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
+	AnyOf         []*JSONSchema           `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
 	Const         any                     `json:"const,omitempty" yaml:"const,omitempty"`
 	Enum          []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
 	Default       any                     `json:"default,omitempty" yaml:"default,omitempty"`
@@ -1537,7 +1539,10 @@ func renderExplainFields(b *strings.Builder, node *ExplainNode, path string, dep
 	}
 	if node.Kind == explainKindObject && len(node.OneOf) > 0 {
 		for _, branch := range node.OneOf {
-			fmt.Fprintf(b, "%soneOf option: %s\n", strings.Repeat("  ", depth), scaffoldOneOfOptionLabel(branch))
+			fmt.Fprintf(
+				b, "%s%s option: %s\n",
+				strings.Repeat("  ", depth), explainUnionKeyword(node), scaffoldOneOfOptionLabel(branch),
+			)
 			renderExplainFields(b, branch, path, depth+1)
 		}
 		return
@@ -1962,7 +1967,7 @@ func renderScaffoldOneOfObject(
 			continue
 		}
 		branchComment := comment || i > 0
-		renderScaffoldOneOfOptionLabel(write, depth, branch)
+		renderScaffoldOneOfOptionLabel(write, depth, branch, explainUnionKeyword(node))
 		for _, field := range fields {
 			required := field.Required || field.Recommended
 			renderScaffoldField(write, depth, field, omit, branchComment || !required)
@@ -1992,13 +1997,20 @@ func scaffoldRenderableBranchFields(
 	return fields
 }
 
-func renderScaffoldOneOfOptionLabel(write scaffoldWriter, depth int, branch *ExplainNode) {
+func explainUnionKeyword(node *ExplainNode) string {
+	if node.inclusiveUnion {
+		return "anyOf"
+	}
+	return "oneOf"
+}
+
+func renderScaffoldOneOfOptionLabel(write scaffoldWriter, depth int, branch *ExplainNode, keyword string) {
 	indent := strings.Repeat("  ", depth)
 	if label := scaffoldOneOfOptionLabel(branch); label != "" {
-		write(indent + "# oneOf option: " + label)
+		write(indent + "# " + keyword + " option: " + label)
 		return
 	}
-	write(indent + "# oneOf option")
+	write(indent + "# " + keyword + " option")
 }
 
 func scaffoldOneOfOptionLabel(branch *ExplainNode) string {
@@ -2223,24 +2235,25 @@ func (n *ExplainNode) clone() *ExplainNode {
 		return nil
 	}
 	cloned := &ExplainNode{
-		Kind:         n.Kind,
-		Description:  n.Description,
-		Default:      n.Default,
-		DefaultFrom:  n.DefaultFrom,
-		Enum:         append([]any(nil), n.Enum...),
-		Const:        n.Const,
-		Nullable:     n.Nullable,
-		Recommended:  n.Recommended,
-		PreferredTag: n.PreferredTag,
-		RefKind:      n.RefKind,
-		Notes:        append([]string(nil), n.Notes...),
-		Literal:      n.Literal,
-		Items:        n.Items.clone(),
-		Additional:   n.Additional.clone(),
-		truncated:    n.truncated,
-		loadOpaque:   n.loadOpaque,
-		loadRejected: maps.Clone(n.loadRejected),
-		propIndex:    make(map[string]*ExplainField),
+		Kind:           n.Kind,
+		Description:    n.Description,
+		Default:        n.Default,
+		DefaultFrom:    n.DefaultFrom,
+		Enum:           append([]any(nil), n.Enum...),
+		Const:          n.Const,
+		Nullable:       n.Nullable,
+		Recommended:    n.Recommended,
+		PreferredTag:   n.PreferredTag,
+		RefKind:        n.RefKind,
+		Notes:          append([]string(nil), n.Notes...),
+		Literal:        n.Literal,
+		Items:          n.Items.clone(),
+		Additional:     n.Additional.clone(),
+		inclusiveUnion: n.inclusiveUnion,
+		truncated:      n.truncated,
+		loadOpaque:     n.loadOpaque,
+		loadRejected:   maps.Clone(n.loadRejected),
+		propIndex:      make(map[string]*ExplainField),
 	}
 	if n.Relationship != nil {
 		relationship := *n.Relationship
@@ -2304,7 +2317,11 @@ func (n *ExplainNode) toJSONSchema() *JSONSchema {
 	}
 
 	for _, branch := range n.OneOf {
-		schema.OneOf = append(schema.OneOf, branch.toJSONSchema())
+		if n.inclusiveUnion {
+			schema.AnyOf = append(schema.AnyOf, branch.toJSONSchema())
+		} else {
+			schema.OneOf = append(schema.OneOf, branch.toJSONSchema())
+		}
 	}
 
 	return schema

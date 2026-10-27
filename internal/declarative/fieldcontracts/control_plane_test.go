@@ -25,7 +25,7 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 	var create kkComps.CreateControlPlaneRequest
 	require.NoError(t, fieldcontracts.MapControlPlaneCreateFields(fields, &create))
 	require.Equal(t, desired, create)
-	current := kkComps.ControlPlane{Description: "old", Config: kkComps.ControlPlaneConfig{
+	current := kkComps.ControlPlane{Description: "old", Config: kkComps.Config{
 		AuthType: "pinned_client_certs", CloudGateway: true, ProxyUrls: []kkComps.ProxyURL{first, second},
 	}}
 	changes := fieldcontracts.CompareControlPlaneFields(desired, current)
@@ -50,10 +50,10 @@ func TestControlPlaneProjectionParticipation(t *testing.T) {
 func TestControlPlaneExportOmissions(t *testing.T) {
 	var target kkComps.CreateControlPlaneRequest
 	fieldcontracts.ExportControlPlaneFields(kkComps.ControlPlane{
-		Description: " \t", Config: kkComps.ControlPlaneConfig{ProxyUrls: []kkComps.ProxyURL{}},
+		Description: " \t", Config: kkComps.Config{ProxyUrls: []kkComps.ProxyURL{}},
 	}, &target)
 	require.Equal(t, kkComps.CreateControlPlaneRequest{}, target)
-	current := kkComps.ControlPlane{Description: " spaced ", Config: kkComps.ControlPlaneConfig{
+	current := kkComps.ControlPlane{Description: " spaced ", Config: kkComps.Config{
 		ClusterType: "CLUSTER_TYPE_HYBRID", AuthType: "pinned_client_certs", CloudGateway: true,
 		ProxyUrls: []kkComps.ProxyURL{{Host: "proxy", Port: 443, Protocol: "https"}},
 	}}

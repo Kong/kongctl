@@ -82,6 +82,12 @@ const (
 	aiGatewayVaultIDConfigPath   = "konnect.ai-gateway.vault.id"
 	aiGatewayVaultNameConfigPath = "konnect.ai-gateway.vault.name"
 
+	aiGatewayDatastoreIDFlagName   = "datastore-id"
+	aiGatewayDatastoreNameFlagName = "datastore-name"
+
+	aiGatewayDatastoreIDConfigPath   = "konnect.ai-gateway.datastore.id"
+	aiGatewayDatastoreNameConfigPath = "konnect.ai-gateway.datastore.name"
+
 	aiGatewayNodeIDFlagName   = "node-id"
 	aiGatewayNodeIDConfigPath = "konnect.ai-gateway.node.id"
 
@@ -283,6 +289,15 @@ var (
 		nameFlag: aiGatewayVaultNameFlagName,
 		namePath: aiGatewayVaultNameConfigPath,
 		nameHelp: "The name of the AI Gateway Vault to retrieve.",
+	}
+
+	aiGatewayDatastoreFlags = pairedAIGatewayFlags{
+		idFlag:   aiGatewayDatastoreIDFlagName,
+		idPath:   aiGatewayDatastoreIDConfigPath,
+		idHelp:   "The ID of the AI Gateway Datastore to retrieve.",
+		nameFlag: aiGatewayDatastoreNameFlagName,
+		namePath: aiGatewayDatastoreNameConfigPath,
+		nameHelp: "The name of the AI Gateway Datastore to retrieve.",
 	}
 
 	aiGatewayConfigStoreFlags = pairedAIGatewayFlags{
@@ -502,6 +517,18 @@ func bindAIGatewayVaultFlags(c *cobra.Command, args []string) error {
 
 func getAIGatewayVaultIdentifiers(cfg config.Hook) (id string, name string) {
 	return getPairedAIGatewayIdentifiers(cfg, aiGatewayVaultIDConfigPath, aiGatewayVaultNameConfigPath)
+}
+
+func addAIGatewayDatastoreFlags(c *cobra.Command) {
+	addPairedAIGatewayFlags(c, aiGatewayDatastoreFlags)
+}
+
+func bindAIGatewayDatastoreFlags(c *cobra.Command, args []string) error {
+	return bindAIGatewayFlags(c, args, pairedAIGatewayBindings(aiGatewayDatastoreFlags)...)
+}
+
+func getAIGatewayDatastoreIdentifiers(cfg config.Hook) (id string, name string) {
+	return getPairedAIGatewayIdentifiers(cfg, aiGatewayDatastoreIDConfigPath, aiGatewayDatastoreNameConfigPath)
 }
 
 func addAIGatewayNodeFlags(c *cobra.Command) {

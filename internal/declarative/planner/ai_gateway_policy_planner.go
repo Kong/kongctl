@@ -29,7 +29,14 @@ func (p *Planner) planAIGatewayPolicyChanges(
 	)
 
 	if gatewayID == "" {
-		p.planAIGatewayPolicyCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		p.planAIGatewayPolicyCreatesForNewGateway(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			gatewayChangeID,
+			desired,
+			plan,
+		)
 		return nil
 	}
 
@@ -72,7 +79,10 @@ func (p *Planner) planAIGatewayPolicyCreate(
 	)
 	fields, err := policy.MutablePayloadMap()
 	if err != nil {
-		plan.AddWarning(policy.GetRef(), fmt.Sprintf("failed to build AI Gateway Policy create payload: %s", err))
+		plan.AddWarning(
+			policy.GetRef(),
+			fmt.Sprintf("failed to build AI Gateway Policy create payload: %s", err),
+		)
 		return
 	}
 
@@ -152,6 +162,7 @@ func (p *Planner) planAIGatewayPolicyDelete(
 func shouldUpdateAIGatewayPolicy(
 	current state.AIGatewayPolicy,
 	desired resources.AIGatewayPolicyResource,
+	resourceSets ...*resources.ResourceSet,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	currentPayload, err := resources.AIGatewayPolicyMutablePayloadMap(current.AIGatewayPolicy)
 	if err != nil {
@@ -159,7 +170,11 @@ func shouldUpdateAIGatewayPolicy(
 	}
 	desiredPayload, err := desired.MutablePayloadMap()
 	if err != nil {
-		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Policy %q: %w", desired.Ref, err)
+		return false, nil, nil, fmt.Errorf(
+			"failed to normalize desired AI Gateway Policy %q: %w",
+			desired.Ref,
+			err,
+		)
 	}
 
 	if desired.Labels == nil {
@@ -171,6 +186,7 @@ func shouldUpdateAIGatewayPolicy(
 		desiredPayload[FieldManagedBy] = currentPayload[FieldManagedBy]
 	}
 	currentCompare, desiredCompare := normalizeAIGatewayPolicyPayloadsForComparison(currentPayload, desiredPayload)
+	normalizeAIGateway23References(desiredCompare, firstResourceSet(resourceSets), desired.AIGateway)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil

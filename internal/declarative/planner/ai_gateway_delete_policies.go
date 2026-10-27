@@ -11,14 +11,25 @@ type aiGatewayDeleteResolver struct {
 // policies also supply creation edges when there are no deletions.
 var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
 	{ResourceTypeAIGatewayVault, (*Planner).resolveAIGatewayVaultDeletes},
-	{ResourceTypeAIGatewayCACertificate, (*Planner).resolveAIGatewayCACertificateDeletes},
+	{ResourceTypeAIGatewayCACertificate, func(p *Planner, ctx context.Context, ns, ref, id string, plan *Plan) error {
+		if err := p.resolveAIGatewayCACertificateDeletes(ctx, ns, ref, id, plan); err != nil {
+			return err
+		}
+		return p.resolveAIGatewayOutboundTLSDeletes(ctx, ns, ref, id, ResourceTypeAIGatewayCACertificate, FieldCACertificates, plan)
+	}},
 	{ResourceTypeAIGatewaySNI, (*Planner).resolveAIGatewaySNIDeletes},
+	{ResourceTypeAIGatewayDatastore, (*Planner).resolveAIGatewayDatastoreDeletes},
 	{ResourceTypeAIGatewayProvider, (*Planner).resolveAIGatewayProviderDeletes},
 	{ResourceTypeAIGatewayPolicy, (*Planner).resolveAIGatewayPolicyDeletes},
 	{ResourceTypeAIGatewayAuthStrategy, (*Planner).resolveAIGatewayAuthStrategyDeletes},
 	{ResourceTypeAIGatewayCustomPolicy, (*Planner).resolveAIGatewayCustomPolicyDependencies},
 	{ResourceTypeAIGatewayMCPServer, (*Planner).resolveAIGatewayMCPSourceDeletes},
-	{ResourceTypeAIGatewayCertificate, (*Planner).resolveAIGatewayCertificateDeletes},
+	{ResourceTypeAIGatewayCertificate, func(p *Planner, ctx context.Context, ns, ref, id string, plan *Plan) error {
+		if err := p.resolveAIGatewayCertificateDeletes(ctx, ns, ref, id, plan); err != nil {
+			return err
+		}
+		return p.resolveAIGatewayOutboundTLSDeletes(ctx, ns, ref, id, ResourceTypeAIGatewayCertificate, FieldCertificates, plan)
+	}},
 }
 
 func (p *Planner) resolveAIGatewayReferenceDeletes(

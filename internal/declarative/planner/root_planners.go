@@ -23,6 +23,11 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{
+			resourceType: resources.ResourceTypeAICostManagementTags,
+			displayName:  "AI cost management tags",
+			planner:      &aiCostManagementTagsPlanner{BasePlanner: base},
+		},
+		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
 			planner:      NewDCRProviderPlanner(base),
@@ -85,7 +90,12 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	return roots
 }
 
-func (p *Planner) planRootChanges(ctx context.Context, opts Options, plannerCtx *Config, plan *Plan) error {
+func (p *Planner) planRootChanges(
+	ctx context.Context,
+	opts Options,
+	plannerCtx *Config,
+	plan *Plan,
+) error {
 	for _, root := range p.rootPlanners() {
 		var inScope bool
 		if root.inScope != nil {

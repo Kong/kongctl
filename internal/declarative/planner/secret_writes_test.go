@@ -206,14 +206,20 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			resourceRef: "auth-strategy", field: "/config/https_proxy_authorization",
 			selector: "config.https_proxy_authorization",
 			resourceSet: authStrategy(func(secret string) map[string]any {
-				return map[string]any{"issuer": "https://issuer.example.test", "https_proxy_authorization": secret}
+				return map[string]any{
+					"issuer":                    "https://issuer.example.test",
+					"https_proxy_authorization": secret,
+				}
 			}),
 		},
 		{
 			name: "http proxy authorization", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 			resourceRef: "auth-strategy", field: "/config/http_proxy_authorization", selector: "config.http_proxy_authorization",
 			resourceSet: authStrategy(func(secret string) map[string]any {
-				return map[string]any{"issuer": "https://issuer.example.test", "http_proxy_authorization": secret}
+				return map[string]any{
+					"issuer":                   "https://issuer.example.test",
+					"http_proxy_authorization": secret,
+				}
 			}),
 		},
 		{
@@ -255,7 +261,9 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			name: "provider client secret", resourceType: resources.ResourceTypeAIGatewayProvider,
 			resourceRef: "provider", field: "/config/auth/client_secret", selector: "config.auth.client_secret",
 			resourceSet: provider(func(secret string) map[string]any {
-				return map[string]any{"auth": map[string]any{"type": "oauth2", FieldClientSecret: secret}}
+				return map[string]any{
+					"auth": map[string]any{"type": "oauth2", FieldClientSecret: secret},
+				}
 			}),
 		},
 		{
@@ -263,7 +271,9 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			resourceRef: "provider", field: "/config/auth/secret_access_key",
 			selector: "config.auth.secret_access_key",
 			resourceSet: provider(func(secret string) map[string]any {
-				return map[string]any{"auth": map[string]any{"type": "aws", "secret_access_key": secret}}
+				return map[string]any{
+					"auth": map[string]any{"type": "aws", "secret_access_key": secret},
+				}
 			}),
 		},
 		{
@@ -281,21 +291,29 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			resourceRef: "provider", field: "/config/auth/service_account_json",
 			selector: "config.auth.service_account_json",
 			resourceSet: provider(func(secret string) map[string]any {
-				return map[string]any{"auth": map[string]any{"type": "gcp", "service_account_json": secret}}
+				return map[string]any{
+					"auth": map[string]any{"type": "gcp", "service_account_json": secret},
+				}
 			}),
 		},
 		{
 			name: "auth strategy client secret array", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 			resourceRef: "auth-strategy", field: "/config/client_secret/0", selector: "config.client_secret[]",
 			resourceSet: authStrategy(func(secret string) map[string]any {
-				return map[string]any{"issuer": "https://issuer.example.test", FieldClientSecret: []any{secret}}
+				return map[string]any{
+					"issuer":          "https://issuer.example.test",
+					FieldClientSecret: []any{secret},
+				}
 			}),
 		},
 		{
 			name: "auth strategy scalar client secret", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 			resourceRef: "auth-strategy", field: "/config/client_secret", selector: "config.client_secret",
 			resourceSet: authStrategy(func(secret string) map[string]any {
-				return map[string]any{"issuer": "https://issuer.example.test", FieldClientSecret: secret}
+				return map[string]any{
+					"issuer":          "https://issuer.example.test",
+					FieldClientSecret: secret,
+				}
 			}),
 		},
 		{
@@ -386,7 +404,9 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
 				t.Helper()
 				certificate := resources.AIGatewayCertificateResource{
-					BaseResource: resources.BaseResource{Ref: "certificate"}, AIGateway: testAIGatewaySecretRef,
+					BaseResource: resources.BaseResource{
+						Ref: "certificate",
+					}, AIGateway: testAIGatewaySecretRef,
 					Name: "certificate", Cert: "public-certificate", Key: placeholder,
 				}
 				certificate.SetKonnectID("remote-id")
@@ -400,7 +420,9 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 				t.Helper()
 				certificateAlt := "alternative-public-certificate"
 				certificate := resources.AIGatewayCertificateResource{
-					BaseResource: resources.BaseResource{Ref: "certificate"}, AIGateway: testAIGatewaySecretRef,
+					BaseResource: resources.BaseResource{
+						Ref: "certificate",
+					}, AIGateway: testAIGatewaySecretRef,
 					Name: "certificate", Cert: "public-certificate", CertAlt: &certificateAlt, KeyAlt: &placeholder,
 				}
 				certificate.SetKonnectID("remote-id")
@@ -408,6 +430,95 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			},
 		},
 	}
+	for _, datastore := range []struct{ field, kind string }{
+		{"password", "redis-ce"},
+		{"ssl_cert_key", "vectordb"},
+		{"sentinel_password", "redis-ee"},
+		{"cloud_authentication.aws_secret_access_key", "redis-ce"},
+		{"cloud_authentication.gcp_service_account_json", "redis-ce"},
+		{"cloud_authentication.azure_client_secret", "redis-ce"},
+		{"keys.0.key", "token-vault"},
+	} {
+		cases = append(cases, testCase{
+			name: "datastore " + datastore.field, resourceType: resources.ResourceTypeAIGatewayDatastore,
+			resourceRef: "datastore", field: "/config/" + strings.ReplaceAll(datastore.field, ".", "/"),
+			selector: "config." + strings.ReplaceAll(datastore.field, ".0.", "[]."),
+			resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
+				t.Helper()
+				config := map[string]any{"host": "database.test"}
+				if datastore.kind == "vectordb" {
+					config["database"] = "kong"
+				}
+				switch {
+				case datastore.field == "keys.0.key":
+					config = map[string]any{
+						"directory": "credentials", "current_version": "v1",
+						"keys": []any{map[string]any{"version": "v1", "key": placeholder}},
+					}
+				case strings.HasPrefix(datastore.field, "cloud_authentication."):
+					key := strings.TrimPrefix(datastore.field, "cloud_authentication.")
+					config["cloud_authentication"] = map[string]any{key: placeholder}
+				default:
+					config[datastore.field] = placeholder
+				}
+				data, err := json.Marshal(map[string]any{
+					"ref": "datastore", "ai_gateway": testAIGatewaySecretRef, "name": "datastore",
+					"display_name": "Datastore", "type": datastore.kind, "config": config,
+				})
+				require.NoError(t, err)
+				var resource resources.AIGatewayDatastoreResource
+				require.NoError(t, json.Unmarshal(data, &resource))
+				resource.SetKonnectID("remote-id")
+				return aiGatewaySecretResourceSet(&resource)
+			},
+		})
+	}
+	for _, kind := range []resources.ResourceType{
+		resources.ResourceTypeAIGatewayProvider, resources.ResourceTypeAIGatewayMCPServer,
+	} {
+		for _, authentication := range []struct{ kind, field string }{
+			{"aws", "secret_access_key"}, {"azure", "client_secret"}, {"gcp", "service_account_json"},
+		} {
+			cases = append(cases, testCase{
+				name: string(kind) + " Token Vault cache " + authentication.kind, resourceType: kind,
+				resourceRef: "token-vault-user", field: "/token_vault/cache/redis/cloud_authentication/" + authentication.field,
+				selector: "token_vault.cache.redis.cloud_authentication." + authentication.field,
+				resourceSet: func(t *testing.T, placeholder string) *resources.ResourceSet {
+					t.Helper()
+					entityType := "openai"
+					config := map[string]any{"auth": map[string]any{"type": "basic", "headers": []any{}}}
+					if kind == resources.ResourceTypeAIGatewayMCPServer {
+						entityType = "upstream-server"
+						config = map[string]any{"url": "https://upstream.test", "tools_cache_ttl_seconds": 60}
+					}
+					data, err := json.Marshal(map[string]any{
+						"ref": "token-vault-user", "ai_gateway": testAIGatewaySecretRef, "name": "user",
+						"display_name": "User", "type": entityType, "config": config,
+						"token_vault": map[string]any{"provider": "upstream", "cache": map[string]any{
+							"redis": map[string]any{"cloud_authentication": map[string]any{
+								"type": authentication.kind, authentication.field: placeholder,
+							}},
+						}},
+					})
+					require.NoError(t, err)
+					var resource resources.Resource
+					if kind == resources.ResourceTypeAIGatewayProvider {
+						value := &resources.AIGatewayProviderResource{}
+						require.NoError(t, json.Unmarshal(data, value))
+						value.SetKonnectID("remote-id")
+						resource = value
+					} else {
+						value := &resources.AIGatewayMCPServerResource{}
+						require.NoError(t, json.Unmarshal(data, value))
+						value.SetKonnectID("remote-id")
+						resource = value
+					}
+					return aiGatewaySecretResourceSet(resource)
+				},
+			})
+		}
+	}
+
 	coveredCapabilities := make(map[string]bool, len(cases))
 	for _, tc := range cases {
 		capability, ok := secrets.Match(tc.resourceType, tc.field)
@@ -478,7 +589,12 @@ func TestApplySecretWriteIntentsMergesIntoOrdinaryUpdate(t *testing.T) {
 		Fields: map[string]any{FieldDisplayName: "Updated"}, Namespace: DefaultNamespace,
 	})
 
-	err := (&Planner{}).applySecretWriteIntents(context.Background(), plan, resourceSet, Options{WriteSecrets: true})
+	err := (&Planner{}).applySecretWriteIntents(
+		context.Background(),
+		plan,
+		resourceSet,
+		Options{WriteSecrets: true},
+	)
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
 	assert.Equal(t, "Updated", plan.Changes[0].Fields[FieldDisplayName])
@@ -523,7 +639,12 @@ func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t
 	resourceSet := &resources.ResourceSet{
 		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{credential},
 	}
-	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_API_KEY"), false)
+	resourceSet.AddSecretSource(
+		"consumer-key",
+		"/api_key",
+		envSecretExpression("CONSUMER_API_KEY"),
+		false,
+	)
 	fields, err := credential.MutablePayloadMap()
 	require.NoError(t, err)
 	plan := NewPlan("1.0", "test", PlanModeApply)
@@ -536,7 +657,10 @@ func TestApplySecretWriteIntentsKeepsConsumerCredentialParentOutOfCreateFields(t
 		Namespace:    DefaultNamespace,
 	})
 
-	require.NoError(t, (&Planner{}).applySecretWriteIntents(context.Background(), plan, resourceSet, Options{}))
+	require.NoError(
+		t,
+		(&Planner{}).applySecretWriteIntents(context.Background(), plan, resourceSet, Options{}),
+	)
 	require.Len(t, plan.Changes, 1)
 	change := plan.Changes[0]
 	assert.NotContains(t, change.Fields, resources.SchemaFieldAIGatewayConsumer)
@@ -570,7 +694,9 @@ func TestResolveSecretResourceIDLooksUpAIGatewayConfigStoreSecretByKey(t *testin
 		getSecret: &kkComps.AIGatewayConfigStoreSecret{Key: "openai-auth-header"},
 	}
 	client := state.NewClient(state.ClientConfig{AIGatewayConfigStoresAPI: api})
-	gateway := resources.AIGatewayResource{BaseResource: resources.BaseResource{Ref: "support-gateway"}}
+	gateway := resources.AIGatewayResource{
+		BaseResource: resources.BaseResource{Ref: "support-gateway"},
+	}
 	gateway.SetKonnectID("gateway-id")
 	store := resources.AIGatewayConfigStoreResource{
 		BaseResource: resources.BaseResource{Ref: "support-store"},
@@ -636,10 +762,17 @@ func TestApplySecretWriteIntentsWarnsForExistingCreateOnlyCredentialWithWriteSec
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
 	}
 	credential.SetKonnectID("remote-credential-id")
-	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
-		credential,
-	}}
-	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+	resourceSet := &resources.ResourceSet{
+		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+			credential,
+		},
+	}
+	resourceSet.AddSecretSource(
+		"consumer-key",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY"),
+		false,
+	)
 
 	plan := NewPlan("1.0", "test", PlanModeApply)
 	require.NoError(t, (&Planner{}).applySecretWriteIntents(
@@ -662,9 +795,22 @@ func TestApplySecretWriteIntentsReportsAllUnwritableSecrets(t *testing.T) {
 		BaseResource: resources.BaseResource{Ref: "consumer-key-b"},
 	}
 	second.SetKonnectID("remote-credential-b")
-	resourceSet.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{first, second}
-	resourceSet.AddSecretSource("consumer-key-a", "/api_key", envSecretExpression("CONSUMER_KEY_A"), false)
-	resourceSet.AddSecretSource("consumer-key-b", "/api_key", envSecretExpression("CONSUMER_KEY_B"), false)
+	resourceSet.AIGatewayConsumerCredentials = []resources.AIGatewayConsumerCredentialResource{
+		first,
+		second,
+	}
+	resourceSet.AddSecretSource(
+		"consumer-key-a",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY_A"),
+		false,
+	)
+	resourceSet.AddSecretSource(
+		"consumer-key-b",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY_B"),
+		false,
+	)
 	plan := NewPlan("1.0", "test", PlanModeApply)
 
 	err := (&Planner{}).applySecretWriteIntents(
@@ -703,10 +849,17 @@ func TestApplySecretWriteIntentsRejectsExplicitExistingCreateOnlyCredential(t *t
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
 	}
 	credential.SetKonnectID("remote-credential-id")
-	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
-		credential,
-	}}
-	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+	resourceSet := &resources.ResourceSet{
+		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+			credential,
+		},
+	}
+	resourceSet.AddSecretSource(
+		"consumer-key",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY"),
+		false,
+	)
 
 	err := (&Planner{}).applySecretWriteIntents(
 		context.Background(),
@@ -723,10 +876,17 @@ func TestApplySecretWriteIntentsExplicitSelectorRemainsStrictWithWriteSecrets(t 
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
 	}
 	credential.SetKonnectID("remote-credential-id")
-	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
-		credential,
-	}}
-	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+	resourceSet := &resources.ResourceSet{
+		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+			credential,
+		},
+	}
+	resourceSet.AddSecretSource(
+		"consumer-key",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY"),
+		false,
+	)
 
 	err := (&Planner{}).applySecretWriteIntents(
 		context.Background(),
@@ -742,14 +902,23 @@ func TestApplySecretWriteIntentsRejectsSelectingCreateOnlyFieldDuringReplacement
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
 	}
 	credential.SetKonnectID("remote-credential-id")
-	resourceSet := &resources.ResourceSet{AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
-		credential,
-	}}
-	resourceSet.AddSecretSource("consumer-key", "/api_key", envSecretExpression("CONSUMER_KEY"), false)
+	resourceSet := &resources.ResourceSet{
+		AIGatewayConsumerCredentials: []resources.AIGatewayConsumerCredentialResource{
+			credential,
+		},
+	}
+	resourceSet.AddSecretSource(
+		"consumer-key",
+		"/api_key",
+		envSecretExpression("CONSUMER_KEY"),
+		false,
+	)
 	plan := NewPlan("1.0", "test", PlanModeApply)
 	plan.AddChange(PlannedChange{
-		ID:           "2:create:ai_gateway_consumer_credential:consumer-key",
-		ResourceType: string(resources.ResourceTypeAIGatewayConsumerCredential), ResourceRef: "consumer-key",
+		ID: "2:create:ai_gateway_consumer_credential:consumer-key",
+		ResourceType: string(
+			resources.ResourceTypeAIGatewayConsumerCredential,
+		), ResourceRef: "consumer-key",
 		Action: ActionCreate, Fields: map[string]any{},
 	})
 
@@ -872,9 +1041,21 @@ func TestApplySecretWriteIntentsOrdersSecretOnlyChangesDeterministically(t *test
 	second := dcrSecretResourceSet(t).DCRProviders[0]
 	second.Ref = "a-provider"
 	second.Name = "a-provider"
-	resourceSet := &resources.ResourceSet{DCRProviders: []resources.DCRProviderResource{first, second}}
-	resourceSet.AddSecretSource("z-provider", "/dcr_config/api_key", envSecretExpression("Z_API_KEY"), false)
-	resourceSet.AddSecretSource("a-provider", "/dcr_config/api_key", envSecretExpression("A_API_KEY"), false)
+	resourceSet := &resources.ResourceSet{
+		DCRProviders: []resources.DCRProviderResource{first, second},
+	}
+	resourceSet.AddSecretSource(
+		"z-provider",
+		"/dcr_config/api_key",
+		envSecretExpression("Z_API_KEY"),
+		false,
+	)
+	resourceSet.AddSecretSource(
+		"a-provider",
+		"/dcr_config/api_key",
+		envSecretExpression("A_API_KEY"),
+		false,
+	)
 
 	for range 20 {
 		plan := NewPlan("1.0", "test", PlanModeApply)
@@ -934,7 +1115,9 @@ func envSecretExpression(reference string) tags.SecretExpression {
 }
 
 func aiGatewaySecretResourceSet(resource resources.Resource) *resources.ResourceSet {
-	gateway := resources.AIGatewayResource{BaseResource: resources.BaseResource{Ref: testAIGatewaySecretRef}}
+	gateway := resources.AIGatewayResource{
+		BaseResource: resources.BaseResource{Ref: testAIGatewaySecretRef},
+	}
 	gateway.SetKonnectID("gateway-id")
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 	switch typed := resource.(type) {
@@ -946,6 +1129,10 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 		rs.AIGatewayProviders = []resources.AIGatewayProviderResource{*typed}
 	case *resources.AIGatewayAuthStrategyResource:
 		rs.AIGatewayAuthStrategies = []resources.AIGatewayAuthStrategyResource{*typed}
+	case *resources.AIGatewayMCPServerResource:
+		rs.AIGatewayMCPServers = []resources.AIGatewayMCPServerResource{*typed}
+	case *resources.AIGatewayDatastoreResource:
+		rs.AIGatewayDatastores = []resources.AIGatewayDatastoreResource{*typed}
 	case *resources.AIGatewayVaultResource:
 		rs.AIGatewayVaults = []resources.AIGatewayVaultResource{*typed}
 	case *resources.AIGatewayConfigStoreSecretResource:

@@ -96,7 +96,7 @@ func (p *Planner) reconcileOwnedAIGatewayProviders(
 		if err := resources.ValidateChildManagedBy(provider.ManagedBy, false); err != nil {
 			return err
 		}
-		update, fields, changed, err := shouldUpdateAIGatewayProvider(*full, provider)
+		update, fields, changed, err := shouldUpdateAIGatewayProvider(*full, provider, p.resources)
 		if err != nil {
 			return err
 		}

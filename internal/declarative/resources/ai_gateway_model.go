@@ -20,7 +20,13 @@ func init() {
 				"ai-gateway-models",
 				"ai_gateway.models",
 			),
-			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "type", "name", "display_name"),
+			WithExplainRecommendedFields(
+				"ref",
+				SchemaFieldAIGateway,
+				"type",
+				"name",
+				"display_name",
+			),
 			WithExplainSchemaBuilder(aiGatewayModelExplainNode),
 		),
 		aiGatewayChildLoad[AIGatewayModelResource]{
@@ -368,7 +374,9 @@ func normalizeAIGatewayRouteModel(raw map[string]json.RawMessage) error {
 	}
 	if routeModel, ok := route["model"]; ok && !isJSONNull(routeModel) {
 		if hasLegacyAlias {
-			return fmt.Errorf("AI Gateway model cannot specify both config.model.alias and config.route.model")
+			return fmt.Errorf(
+				"AI Gateway model cannot specify both config.model.alias and config.route.model",
+			)
 		}
 		return nil
 	}
@@ -641,6 +649,16 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("display_name", explainStringNode("Support GPT"), true, true),
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("access", aiGatewayAccessExplainNode(true), false, false),
+		explainField(
+			"datastores",
+			explainArrayOf(
+				explainObject(
+					explainField("name", explainStringNode("datastore-name"), true, true),
+				),
+			),
+			false,
+			false,
+		),
 		explainField("formats", explainArrayOf(explainObject(
 			explainField("type", explainStringNode("openai"), true, true),
 		)), true, true),
@@ -652,7 +670,12 @@ func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 				Description: "AI Gateway Model Provider name in the parent gateway",
 			}, true, true),
 			explainField("config", targetConfig, true, true),
-			explainField("weight", &ExplainNode{Kind: explainKindInteger, Literal: "100"}, false, false),
+			explainField(
+				"weight",
+				&ExplainNode{Kind: explainKindInteger, Literal: "100"},
+				false,
+				false,
+			),
 			explainField("semantic_description", explainStringNode("Primary target"), false, false),
 			explainField("allow_auth_override", explainBoolNode("false"), false, false),
 		)), true, true),
@@ -695,7 +718,12 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 		explainField("values", explainArrayOf(explainStringNode("support-gpt")), false, true),
 	)
 	route := explainObject(
-		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField(
+			"headers",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
 		explainField("hosts", explainArrayOf(explainStringNode("api.example.com")), false, false),
 		explainField(
 			"https_redirect_status_code",
@@ -704,10 +732,20 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 			false,
 		),
 		explainField("methods", explainArrayOf(explainStringNode("POST")), false, false),
-		explainField("paths", explainArrayOf(explainStringNode("/v1/chat/completions")), false, false),
+		explainField(
+			"paths",
+			explainArrayOf(explainStringNode("/v1/chat/completions")),
+			false,
+			false,
+		),
 		explainField("preserve_host", explainBoolNode("false"), false, false),
 		explainField("protocols", explainArrayOf(explainStringNode("https")), false, false),
-		explainField("regex_priority", &ExplainNode{Kind: explainKindInteger, Literal: "0"}, false, false),
+		explainField(
+			"regex_priority",
+			&ExplainNode{Kind: explainKindInteger, Literal: "0"},
+			false,
+			false,
+		),
 		explainField("request_buffering", explainBoolNode("true"), false, false),
 		explainField("response_buffering", explainBoolNode("true"), false, false),
 		explainField("strip_path", explainBoolNode("true"), false, false),
@@ -721,9 +759,24 @@ func aiGatewayModelConfigExplainNode(includeModelConfig bool) *ExplainNode {
 			explainField("payloads", explainBoolNode("false"), false, false),
 		), false, false),
 		explainField("response_streaming", explainStringNode("allow"), false, false),
-		explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
-		explainField("balancer", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
-		explainField("proxy", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField(
+			"max_request_body_size",
+			&ExplainNode{Kind: explainKindInteger, Literal: "8388608"},
+			false,
+			false,
+		),
+		explainField(
+			"balancer",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
+		explainField(
+			"proxy",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
 	}
 	if includeModelConfig {
 		fields = append(fields, explainField(
@@ -747,6 +800,9 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 		{"azure", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetAzureConfig]("type", "azure")
 		}},
+		{"baseten", func() (*ExplainNode, error) {
+			return explainVariantNode[kkComps.AIGatewayTargetBasetenConfig]("type", "baseten")
+		}},
 		{"bedrock", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetBedrockConfig]("type", "bedrock")
 		}},
@@ -769,7 +825,10 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetGeminiConfig]("type", "gemini")
 		}},
 		{"huggingface", func() (*ExplainNode, error) {
-			return explainVariantNode[kkComps.AIGatewayTargetHuggingfaceConfig]("type", "huggingface")
+			return explainVariantNode[kkComps.AIGatewayTargetHuggingfaceConfig](
+				"type",
+				"huggingface",
+			)
 		}},
 		{"kimi", func() (*ExplainNode, error) {
 			return explainVariantNode[kkComps.AIGatewayTargetKimiConfig]("type", "kimi")
@@ -807,7 +866,11 @@ func aiGatewayTargetConfigExplainNode() (*ExplainNode, error) {
 	for _, variant := range variants {
 		node, err := variant.node()
 		if err != nil {
-			return nil, fmt.Errorf("failed to build %s AI Gateway target config schema: %w", variant.name, err)
+			return nil, fmt.Errorf(
+				"failed to build %s AI Gateway target config schema: %w",
+				variant.name,
+				err,
+			)
 		}
 		branches = append(branches, node)
 	}

@@ -47,6 +47,8 @@ type ClientConfig struct {
 	AIGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
 	AIGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	AIGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
+	AIGatewayDatastoresAPI            helpers.AIGatewayDatastoresAPI
+	AICostManagementTagsAPI           helpers.AICostManagementTagsAPI
 	AIGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	AIGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
 	AIGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
@@ -125,6 +127,8 @@ type Client struct {
 	aiGatewayMCPServersAPI            helpers.AIGatewayMCPServersAPI
 	aiGatewayConfigStoresAPI          helpers.AIGatewayConfigStoresAPI
 	aiGatewayVaultsAPI                helpers.AIGatewayVaultsAPI
+	aiGatewayDatastoresAPI            helpers.AIGatewayDatastoresAPI
+	aiCostManagementTagsAPI           helpers.AICostManagementTagsAPI
 	aiGatewayDataPlaneCertificatesAPI helpers.AIGatewayDataPlaneCertificatesAPI
 	aiGatewayCertificatesAPI          helpers.AIGatewayCertificatesAPI
 	aiGatewayCACertificatesAPI        helpers.AIGatewayCACertificatesAPI
@@ -204,6 +208,8 @@ func NewClient(config ClientConfig) *Client {
 		aiGatewayMCPServersAPI:            config.AIGatewayMCPServersAPI,
 		aiGatewayConfigStoresAPI:          config.AIGatewayConfigStoresAPI,
 		aiGatewayVaultsAPI:                config.AIGatewayVaultsAPI,
+		aiGatewayDatastoresAPI:            config.AIGatewayDatastoresAPI,
+		aiCostManagementTagsAPI:           config.AICostManagementTagsAPI,
 		aiGatewayDataPlaneCertificatesAPI: config.AIGatewayDataPlaneCertificatesAPI,
 		aiGatewayCertificatesAPI:          config.AIGatewayCertificatesAPI,
 		aiGatewayCACertificatesAPI:        config.AIGatewayCACertificatesAPI,
@@ -281,7 +287,7 @@ type GatewayService struct {
 	ID             string
 	Name           string
 	ControlPlaneID string
-	Service        kkComps.Service
+	Service        kkComps.ServiceOutput
 }
 
 // CatalogService represents a catalog service for internal use.
@@ -309,6 +315,8 @@ type AIGatewayProvider struct {
 	UpdatedAt        string
 	Raw              map[string]any
 	NormalizedLabels map[string]string
+	Datastores       []kkComps.AIGatewayDatastoreRef
+	TokenVault       *kkComps.AIGatewayTokenVaultInput
 }
 
 // AIGatewayAuthStrategy represents a Konnect AI Gateway Auth Strategy for internal use.
@@ -324,6 +332,8 @@ type AIGatewayAuthStrategy struct {
 	UpdatedAt        string
 	Raw              map[string]any
 	NormalizedLabels map[string]string
+	Datastores       []kkComps.AIGatewayDatastoreRef
+	TokenVault       *kkComps.AIGatewayTokenVaultCredentialManagerInput
 }
 
 // AIGatewayPolicy represents a Konnect AI Gateway Policy for internal use.
@@ -381,6 +391,12 @@ type AIGatewayConfigStoreSecret struct {
 // AIGatewayVault represents a Konnect AI Gateway Vault for internal use.
 type AIGatewayVault struct {
 	kkComps.AIGatewayVault
+	NormalizedLabels map[string]string
+}
+
+type AIGatewayDatastore struct {
+	KonnectManaged bool
+	kkComps.AIGatewayDatastore
 	NormalizedLabels map[string]string
 }
 
@@ -2508,7 +2524,7 @@ func (c *Client) UpdateAPIVersion(
 		APIVersionRequest: version,
 	}
 	if allowOperationRemoval {
-		req.Force = kkOps.UpdateAPIVersionQueryParamForceTrue.ToPointer()
+		req.Force = kkOps.QueryParamForceTrue.ToPointer()
 	}
 
 	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
@@ -4094,12 +4110,18 @@ func normalizePortalIdentityProviderConfig(
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
-		if config.PortalOIDCIdentityProviderConfigOutput == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig:
+		if config.PortalOIDCIdentityProviderConfig == nil {
 			return nil
 		}
+		oidc := config.PortalOIDCIdentityProviderConfig
 		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-			kkComps.OIDCIdentityProviderConfigOutput(*config.PortalOIDCIdentityProviderConfigOutput),
+			kkComps.OIDCIdentityProviderConfigOutput{
+				IssuerURL:     oidc.IssuerURL,
+				ClientID:      oidc.ClientID,
+				Scopes:        oidc.Scopes,
+				ClaimMappings: oidc.ClaimMappings,
+			},
 		)
 		return &converted
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:

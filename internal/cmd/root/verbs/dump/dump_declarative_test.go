@@ -81,7 +81,7 @@ func TestRunDeclarativeDumpIncludesSystemAccountAssignments(t *testing.T) {
 	roleName := "Viewer"
 	entityID := "*"
 	entityTypeName := "APIs"
-	entityRegion := kkComps.AssignedRoleEntityRegion("us")
+	entityRegion := kkComps.EntityRegion("us")
 
 	sdk := &helpers.MockKonnectSDK{
 		CPAPIFactory: func() helpers.ControlPlaneAPI { return nil },

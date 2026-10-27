@@ -454,6 +454,7 @@ This section covers the root AI Gateway resource backed by the Konnect
 Gateway Auth Strategies, AI Gateway MCP Servers, AI Gateway Agents, AI
 Gateway Consumers, AI Gateway Consumer Credentials, AI Gateway Consumer Groups,
 AI Gateway Config Stores, AI Gateway Config Store Secrets, AI Gateway Vaults,
+AI Gateway Datastores,
 AI Gateway Data Plane Certificates, runtime Certificates, CA Certificates, and
 SNIs. Use
 `kongctl explain ai_gateway --output yaml`,
@@ -467,7 +468,8 @@ SNIs. Use
 `kongctl explain ai_gateway.mcp_servers --output yaml`,
 `kongctl explain ai_gateway.config_stores --output yaml`,
 `kongctl explain ai_gateway.config_stores.secrets --output yaml`,
-`kongctl explain ai_gateway.vaults --output yaml`, and
+`kongctl explain ai_gateway.vaults --output yaml`,
+`kongctl explain ai_gateway.datastores --output yaml`, and
 `kongctl explain ai_gateway.data_plane_certificates --output yaml`,
 `kongctl explain ai_gateway.certificates --output yaml`,
 `kongctl explain ai_gateway.ca_certificates --output yaml`, and
