@@ -80,8 +80,8 @@ Registering a declaration does not complete those steps automatically.
   children inherit namespace and protection from their parent; do not give
   them independent `kongctl` configuration.
 
-  AI Gateway models, providers, auth strategies, and policies are intentional
-  exceptions: `WithNamespace` supplies
+  AI Gateway models, providers, auth strategies, policies, and custom policy
+  definitions are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
   Model namespace scope is captured per source, separately from gateway scope;
@@ -95,7 +95,8 @@ Registering a declaration does not complete those steps automatically.
 
 ### Independently owned AI Gateway children
 
-Models, providers, auth strategies, and policies enroll through
+Models, providers, auth strategies, policies, and custom definitions enroll
+through
 `WithIndependentChildOwnership` alongside `WithNamespace`
 and `WithNestedNamespaceGroups`. This capability supplies source scope capture
 and typed metadata access for auxiliary writes. It also bypasses inherited
@@ -118,12 +119,14 @@ Raw reserved keys are invalid; unowned objects require an
 explicit API adoption, and foreign ownership requires an explicit transfer.
 The model helpers remain compatibility wrappers around the shared contract.
 
-Full-PUT mapped provider, auth-strategy, and policy adapters share
+Full-PUT mapped provider, auth-strategy, policy, and custom-definition
+adapters share
 `prepareOwnedMappedChildUpdate` in the executor. Supply the mutable payload
 from a fresh detail read; the helper checks identity, ownership, planned
 protection, public-label preservation, metadata capacity, and metadata-only
-unprotection. Pass each family's immutable scalar fields explicitly: provider/auth-strategy
-types are immutable, while policy types follow the mutable backend contract.
+unprotection. Pass each family's immutable scalar fields explicitly:
+provider/auth-strategy/custom-definition types are immutable, while policy
+instance types follow the mutable backend contract.
 Keep SDK mapping and config merge/secret omission rules in the
 resource adapter and planner. Do not enroll another family until its live
 credential-preservation contract is verified.

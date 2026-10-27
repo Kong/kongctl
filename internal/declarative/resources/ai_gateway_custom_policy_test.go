@@ -30,7 +30,11 @@ func TestAIGatewayCustomPolicyValidation(t *testing.T) {
 			func(p *AIGatewayCustomPolicyResource) { p.Handler = new("return {}") },
 			"only supported for streaming",
 		},
-		{"metadata", func(p *AIGatewayCustomPolicyResource) { p.Kongctl = &KongctlMeta{} }, "metadata not supported"},
+		{
+			"reserved metadata",
+			func(p *AIGatewayCustomPolicyResource) { p.ManagedBy = map[string]string{ChildNamespaceKey: "raw"} },
+			"reserved",
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			policy := valid

@@ -49,10 +49,15 @@ func (a *customPolicyPlannerAPI) ListAiGatewayCustomPolicies(
 
 func (a *customPolicyPlannerAPI) GetAiGatewayCustomPolicy(
 	_ context.Context,
-	_, _ string,
+	_ string, id string,
 	_ ...kkOps.Option,
 ) (*kkOps.GetAiGatewayCustomPolicyResponse, error) {
-	return &kkOps.GetAiGatewayCustomPolicyResponse{AIGatewayCustomPolicy: &a.policies[0]}, nil
+	for _, policy := range a.policies {
+		if resources.AIGatewayCustomPolicyID(policy) == id {
+			return &kkOps.GetAiGatewayCustomPolicyResponse{AIGatewayCustomPolicy: &policy}, nil
+		}
+	}
+	return &kkOps.GetAiGatewayCustomPolicyResponse{}, nil
 }
 
 func TestAIGatewayCustomPolicyReconciliation(t *testing.T) {
@@ -61,6 +66,7 @@ func TestAIGatewayCustomPolicyReconciliation(t *testing.T) {
 		t,
 		json.Unmarshal([]byte(`{"id":"custom-id","name":"plugin","type":"streaming","display_name":"Plugin",
 "schema":"return {}","handler":"return {}",
+"managed_by":{"kongctl-namespace":"default","kongctl-protected":"false","tool":"kongctl","version":"dev"},
 "created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`), &current),
 	)
 	desired, err := resources.AIGatewayCustomPolicyResourceFromResponse("gateway", current)
