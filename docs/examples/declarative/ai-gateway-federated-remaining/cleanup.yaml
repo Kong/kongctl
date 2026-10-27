@@ -1,0 +1,4 @@
+_defaults:
+  kongctl:
+    namespace: remaining-platform
+ai_gateways: []

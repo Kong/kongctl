@@ -1,0 +1,396 @@
+baseInputsPath: testdata
+defaults:
+  retry:
+    attempts: 1
+  maxConcurrency: 1
+steps:
+- name: federated-lifecycle
+  commands:
+  - name: generate-and-create-platform
+    exec:
+    - python3
+    - '{{ .repo_dir }}/test/e2e/scenarios/ai-gateway/runtime-tls/testdata/generate_runtime_tls.py'
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    - --profile
+    - e2e
+    - apply
+    - -f
+    - '{{ .workdir }}/platform.yaml'
+    - --auto-approve
+  - name: initial-a
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/initial-a.yaml'
+    - --auto-approve
+  - name: team-b
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/team-b.yaml'
+    - --auto-approve
+  - name: team-a-with-foreign-members
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/team-a.yaml'
+    - --auto-approve
+  - name: both-mcp-servers
+    run:
+    - get
+    - ai-gateway
+    - mcp-servers
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: both-vaults
+    run:
+    - get
+    - ai-gateway
+    - vaults
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: both-consumers
+    run:
+    - get
+    - ai-gateway
+    - consumers
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: both-consumer-groups
+    run:
+    - get
+    - ai-gateway
+    - consumer-groups
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: both-ca-certificates
+    run:
+    - get
+    - ai-gateway
+    - ca-certificates
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: both-snis
+    run:
+    - get
+    - ai-gateway
+    - snis
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+          sort([].managed_by."kongctl-namespace"):
+          - remaining-team-a
+          - remaining-team-b
+          sort([].managed_by.tool):
+          - kongctl
+          - kongctl
+  - name: combined-convergence
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/team-a.yaml'
+    - -f
+    - '{{ .workdir }}/team-b.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: dump
+    run:
+    - dump
+    - declarative
+    - --resources=ai-gateway
+    - --include-child-resources
+    - --filter-name=federated-remaining-e2e
+    - --output-file
+    - '{{ .workdir }}/dumped.yaml'
+    outputFormat: disable
+  - name: reload
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/dumped.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: omission-preserves
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/omitted-a.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: apply-does-not-prune
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/empty-a.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: membership-omission-preserves
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/membership-omitted-a.yaml'
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: membership-empty-clears
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/membership-empty-a.yaml'
+    - --auto-approve
+  - name: empty-membership-observed
+    run:
+    - dump
+    - declarative
+    - --resources=ai-gateway
+    - --include-child-resources
+    - --filter-name=federated-remaining-e2e
+    outputFormat: none
+    parseAs: yaml
+    assertions:
+    - select: ai_gateways[0].consumer_groups[?name=='group-a'] | [0]
+      expect:
+        fields:
+          name: group-a
+          length(consumers || `[]`): 0
+  - name: foreign-consumer-retained
+    run:
+    - get
+    - ai-gateway
+    - consumers
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 2
+  - name: restore-membership
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/team-a.yaml'
+    - --auto-approve
+  - name: protect-all-six
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/protected-a.yaml'
+    - --auto-approve
+  - name: protected-prune-rejected
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/empty-a.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    expectFailure:
+      exitCode: 1
+      contains: protected
+  - name: unprotect-all-six
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/team-a.yaml'
+    - --auto-approve
+  - name: remove-only-a
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/empty-a.yaml'
+    - --auto-approve
+  - name: consumer-deletion-removes-foreign-membership
+    run:
+    - dump
+    - declarative
+    - --resources=ai-gateway
+    - --include-child-resources
+    - --filter-name=federated-remaining-e2e
+    outputFormat: none
+    parseAs: yaml
+    assertions:
+    - select: ai_gateways[0].consumer_groups[?name=='group-b'] | [0]
+      expect:
+        fields:
+          name: group-b
+          length(consumers || `[]`): 0
+  - name: retained-mcp-servers
+    run:
+    - get
+    - ai-gateway
+    - mcp-servers
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+  - name: retained-vaults
+    run:
+    - get
+    - ai-gateway
+    - vaults
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+  - name: retained-consumers
+    run:
+    - get
+    - ai-gateway
+    - consumers
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+  - name: retained-consumer-groups
+    run:
+    - get
+    - ai-gateway
+    - consumer-groups
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+  - name: retained-ca-certificates
+    run:
+    - get
+    - ai-gateway
+    - ca-certificates
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+  - name: retained-snis
+    run:
+    - get
+    - ai-gateway
+    - snis
+    - --gateway-name
+    - federated-remaining-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+          '[0].managed_by."kongctl-namespace"': remaining-team-b
+          '[0].managed_by.inventory': retained
+- name: cleanup
+  commands:
+  - name: cascade-platform
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/cleanup.yaml'
+    - --auto-approve

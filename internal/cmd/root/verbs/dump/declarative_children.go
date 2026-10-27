@@ -386,6 +386,7 @@ func buildAIGatewayAgents(
 
 func buildAIGatewayConsumers(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -422,6 +423,18 @@ func buildAIGatewayConsumers(
 				resource.Credentials = credentials
 			}
 		}
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway Consumer",
+			consumer.ID,
+			consumer.Name,
+			consumer.ManagedBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.ManagedBy = metadata
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -477,6 +490,7 @@ func buildAIGatewayConsumerCredentials(
 
 func buildAIGatewayConsumerGroups(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -518,6 +532,18 @@ func buildAIGatewayConsumerGroups(
 				resource.Consumers = consumerNames
 			}
 		}
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway ConsumerGroup",
+			group.ID,
+			group.Name,
+			group.ManagedBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.ManagedBy = metadata
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -563,6 +589,7 @@ func buildAIGatewayModels(
 
 func buildAIGatewayMCPServers(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -578,6 +605,18 @@ func buildAIGatewayMCPServers(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway MCP Server for gateway %s: %w", gatewayName, err)
 		}
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway MCPServer",
+			declresources.AIGatewayMCPServerID(server.AIGatewayMCPServer),
+			declresources.AIGatewayMCPServerName(server.AIGatewayMCPServer),
+			declresources.AIGatewayMCPServerManagedBy(server.AIGatewayMCPServer),
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.SetChildManagedBy(metadata)
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -593,6 +632,7 @@ func buildAIGatewayMCPServers(
 
 func buildAIGatewayVaults(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -608,6 +648,18 @@ func buildAIGatewayVaults(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Vault for gateway %s: %w", gatewayName, err)
 		}
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway Vault",
+			declresources.AIGatewayVaultID(vault.AIGatewayVault),
+			declresources.AIGatewayVaultName(vault.AIGatewayVault),
+			declresources.AIGatewayVaultManagedBy(vault.AIGatewayVault),
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.SetChildManagedBy(metadata)
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -730,6 +782,7 @@ func buildAIGatewayCertificates(
 
 func buildAIGatewayCACertificates(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID, gatewayRef string,
 ) ([]declresources.AIGatewayCACertificateResource, error) {
@@ -739,9 +792,22 @@ func buildAIGatewayCACertificates(
 	}
 	result := make([]declresources.AIGatewayCACertificateResource, 0, len(certificates))
 	for _, certificate := range certificates {
-		result = append(result, declresources.AIGatewayCACertificateResourceFromResponse(
+		resource := declresources.AIGatewayCACertificateResourceFromResponse(
 			gatewayRef, certificate.AIGatewayCACertificate,
-		))
+		)
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway CACertificate",
+			certificate.ID,
+			certificate.Name,
+			certificate.ManagedBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.ManagedBy = metadata
+		resource.Kongctl = owner
+		result = append(result, resource)
 	}
 	slices.SortFunc(result, func(a, b declresources.AIGatewayCACertificateResource) int {
 		return cmp.Compare(a.Name, b.Name)
@@ -751,6 +817,7 @@ func buildAIGatewayCACertificates(
 
 func buildAIGatewaySNIs(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID, gatewayRef string,
 ) ([]declresources.AIGatewaySNIResource, error) {
@@ -764,6 +831,18 @@ func buildAIGatewaySNIs(
 		if err != nil {
 			return nil, err
 		}
+		metadata, owner, err := buildAIGatewayChildOwnership(
+			logger,
+			"AI Gateway SNI",
+			sni.ID,
+			sni.Name,
+			sni.ManagedBy,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resource.ManagedBy = metadata
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 	slices.SortFunc(result, func(a, b declresources.AIGatewaySNIResource) int {

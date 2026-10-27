@@ -1,15 +1,18 @@
 # Shared AI Gateway ownership infrastructure
 
-Models, model providers, auth strategies, policies, custom policy
-definitions, and agents support independent kongctl namespace ownership.
-The shared infrastructure prepares other mutable children for separate resource
-PRs; it does not enable consumer or group federation. Config stores and data
-plane certificates remain excluded. See [model ownership and migration][models]
-and [provider ownership](ai-gateway-provider-ownership.md) and
-[auth-strategy ownership](ai-gateway-auth-strategy-ownership.md), plus
-[policy ownership](ai-gateway-policy-ownership.md) and
-[custom definition ownership](ai-gateway-custom-policy-ownership.md) and
-[agent ownership](ai-gateway-agent-ownership.md).
+Models, providers, auth strategies, policies, custom policy definitions,
+agents, MCP servers, vaults, consumers, consumer groups, CA certificates, and
+SNIs support independent kongctl namespace ownership. Runtime certificates
+remain deferred pending a credential-preserving metadata PATCH API. Config
+stores, their secrets, and data plane certificates remain excluded.
+
+See [model ownership and migration][models],
+[provider ownership](ai-gateway-provider-ownership.md),
+[auth-strategy ownership](ai-gateway-auth-strategy-ownership.md),
+[policy ownership](ai-gateway-policy-ownership.md),
+[custom definition ownership](ai-gateway-custom-policy-ownership.md),
+[agent ownership](ai-gateway-agent-ownership.md), and
+[the remaining six families](ai-gateway-remaining-child-ownership.md).
 
 ## Ownership and collection scope
 
@@ -50,7 +53,8 @@ and gateway aliases merge their scopes without expanding gateway pruning.
 Dependency checks use complete gateway observations and the entire final plan.
 A retained foreign or unowned user blocks direct deletion of a referenced
 child. Planned detachments and user deletions precede target deletion, and new
-referenced resources precede the writes which attach them. Same-name replacements
+referenced resources precede the writes which attach them. Same-name
+replacements
 delete existing users before
 deleting/recreating their target and creating replacement users. Updating a
 retained user to the same target name does not establish detachment. Saved plans
@@ -76,8 +80,9 @@ Direct child deletion still requires the child's ownership and unprotected
 state. To unprotect a child, apply only that metadata change first; do not
 combine it with payload mutation or secret rotation.
 
-Existing consumer group-side membership behavior is unchanged. Broader
-consumer/group ownership integration belongs to the remaining-child workstream.
+Existing group-side membership behavior is unchanged: the group owner manages
+the complete optional member set, including foreign consumers. Credentials
+inherit their consumer's independently owned namespace and lifecycle.
 
 ## Credentials and remaining validation
 
