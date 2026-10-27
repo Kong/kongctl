@@ -456,8 +456,6 @@ func compareAuthenticationSchemes(
 	}
 
 	switch a.Type {
-	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslAwsIam:
-		return reflect.DeepEqual(a.BackendClusterAuthenticationSaslAwsIam, b.BackendClusterAuthenticationSaslAwsIam)
 	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeAnonymous:
 		// Nothing to compare within anonymous
 		return true
@@ -481,6 +479,11 @@ func compareAuthenticationSchemes(
 		scramB := b.BackendClusterAuthenticationSaslScram
 		return scramA.Username == scramB.Username &&
 			sameBackendPassword(scramA.Password, scramB.Password)
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslAwsIam:
+		if a.BackendClusterAuthenticationSaslAwsIam == nil || b.BackendClusterAuthenticationSaslAwsIam == nil {
+			return false
+		}
+		return reflect.DeepEqual(a.BackendClusterAuthenticationSaslAwsIam, b.BackendClusterAuthenticationSaslAwsIam)
 	}
 	return false
 }
@@ -573,10 +576,6 @@ func sameBackendPassword(current *string, desired string) bool {
 func backendClusterAuthenticationFields(auth components.BackendClusterAuthenticationScheme) map[string]any {
 	fields := map[string]any{FieldType: string(auth.Type)}
 	switch auth.Type {
-	case components.BackendClusterAuthenticationSchemeTypeSaslAwsIam:
-		if auth.BackendClusterAuthenticationSaslAwsIam != nil {
-			fields[FieldSASLAWSIAM] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
-		}
 	case components.BackendClusterAuthenticationSchemeTypeAnonymous:
 	case components.BackendClusterAuthenticationSchemeTypeSaslPlain:
 		if auth.BackendClusterAuthenticationSaslPlain != nil {
@@ -588,6 +587,10 @@ func backendClusterAuthenticationFields(auth components.BackendClusterAuthentica
 			fields["username"] = auth.BackendClusterAuthenticationSaslScram.Username
 			fields["password"] = auth.BackendClusterAuthenticationSaslScram.Password
 			fields["algorithm"] = string(auth.BackendClusterAuthenticationSaslScram.Algorithm)
+		}
+	case components.BackendClusterAuthenticationSchemeTypeSaslAwsIam:
+		if auth.BackendClusterAuthenticationSaslAwsIam != nil {
+			fields[FieldSASLAWSIAM] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
 		}
 	}
 	return fields

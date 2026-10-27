@@ -1,5 +1,28 @@
 package planner
 
+// Deleting a schema-validation policy cascades to its children. Order explicit
+// child deletes first so concurrent execution cannot race that cascade.
+func adjustEventGatewayPolicyDeleteDependencies(
+	changes []PlannedChange,
+	resourceType string,
+	parents map[string]string,
+) {
+	deletes := make(map[string]int)
+	for i, change := range changes {
+		if change.ResourceType == resourceType && change.Action == ActionDelete {
+			deletes[change.ResourceID] = i
+		}
+	}
+	for _, child := range changes {
+		if child.ResourceType != resourceType || child.Action != ActionDelete {
+			continue
+		}
+		if parent, deleted := deletes[parents[child.ResourceID]]; deleted {
+			changes[parent].DependsOn = appendDependsOn(changes[parent].DependsOn, child.ID)
+		}
+	}
+}
+
 // Backend deletion cascades to its virtual clusters. Delete explicitly pruned
 // virtual clusters first, using their observed destinations rather than desired
 // resources (which no longer contain the deleted children).

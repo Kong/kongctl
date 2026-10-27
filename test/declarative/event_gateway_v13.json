@@ -1,0 +1,214 @@
+[
+  {
+    "phase": "produce",
+    "body": {
+      "ref": "produce-mask-ref",
+      "name": "produce-mask",
+      "type": "mask_fields",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "reject",
+        "mask_fields": [
+          {
+            "paths": "record.value.schema.metadata.tags[\"PII\"]",
+            "strategy": {
+              "type": "replace",
+              "phrase": "[REDACTED]"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "phase": "produce",
+    "body": {
+      "ref": "produce-transcode-inline-ref",
+      "name": "produce-transcode-inline",
+      "type": "transcode",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "reject",
+        "output_format": "avro",
+        "schema_source": {
+          "type": "inline",
+          "inline": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"
+        },
+        "on_unknown_field": "fail"
+      }
+    }
+  },
+  {
+    "phase": "produce",
+    "body": {
+      "ref": "produce-transcode-reference-ref",
+      "name": "produce-transcode-reference",
+      "type": "transcode",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "reject",
+        "output_format": "avro",
+        "schema_source": {
+          "type": "reference",
+          "schema_registry": {
+            "id": "registry-id"
+          },
+          "subject": "'orders-value'",
+          "version": "'latest'",
+          "schema_ref_destination": {
+            "type": "confluent_format"
+          }
+        },
+        "on_unknown_field": "fail"
+      }
+    }
+  },
+  {
+    "phase": "consume",
+    "body": {
+      "ref": "consume-mask-ref",
+      "name": "consume-mask",
+      "type": "mask_fields",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "error",
+        "mask_fields": [
+          {
+            "paths": "record.value.schema.metadata.tags[\"PII\"]",
+            "strategy": {
+              "type": "replace",
+              "phrase": "[REDACTED]"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "phase": "consume",
+    "body": {
+      "ref": "consume-transcode-inline-ref",
+      "name": "consume-transcode-inline",
+      "type": "transcode",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "error",
+        "output_format": "avro",
+        "schema_source": {
+          "type": "inline",
+          "inline": "{\"type\":\"record\",\"name\":\"Order\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"
+        },
+        "on_unknown_field": "fail"
+      }
+    }
+  },
+  {
+    "phase": "consume",
+    "body": {
+      "ref": "consume-transcode-reference-ref",
+      "name": "consume-transcode-reference",
+      "type": "transcode",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "error",
+        "output_format": "avro",
+        "schema_source": {
+          "type": "reference",
+          "schema_registry": {
+            "id": "registry-id"
+          },
+          "subject": "'orders-value'",
+          "version": "'latest'",
+          "schema_ref_destination": {
+            "type": "confluent_format"
+          }
+        },
+        "on_unknown_field": "fail"
+      }
+    }
+  },
+  {
+    "phase": "consume",
+    "body": {
+      "ref": "consume-transcode-json-ref",
+      "name": "consume-transcode-json",
+      "type": "transcode",
+      "description": "Policy description",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "record.value != null",
+      "parent_policy_id": "parent-id",
+      "config": {
+        "failure_mode": "error",
+        "output_format": "json",
+        "on_unknown_field": "fail"
+      }
+    }
+  },
+  {
+    "phase": "cluster",
+    "body": {
+      "ref": "validator-ref",
+      "name": "validator",
+      "type": "request_rule_validator",
+      "description": "Request validation",
+      "enabled": false,
+      "labels": {
+        "env": "test"
+      },
+      "condition": "true",
+      "config": {
+        "requests": [
+          {
+            "type": "produce",
+            "rules": [
+              {
+                "action": "reject",
+                "description": "Require acknowledgements",
+                "rule": "context.produce.acks == -1"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+]

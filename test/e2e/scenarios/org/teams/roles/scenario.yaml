@@ -116,6 +116,35 @@ steps:
                 entity_type_name: APIs
                 entity_region: us
 
+      - name: 001a-get-team-id
+        run: [get, org, teams, "{{ .vars.teamName }}", -o, json]
+        recordVar:
+          name: teamID
+          responsePath: "[?name=='{{ .vars.teamName }}'] | [0].id"
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                name: "{{ .vars.teamName }}"
+
+      - name: 001b-get-team-roles-by-id
+        run: [get, org, team, roles, --team-id, "{{ .vars.teamID }}", -o, json]
+        assertions:
+          - select: "length(@)"
+            expect:
+              fields:
+                "@": 1
+          - select: "[0]"
+            expect:
+              fields:
+                role_name: Viewer
+                entity_type_name: APIs
+                entity_region: us
+
       - name: 002-list-team-roles-text
         run: [list, org, team, roles, --team-name, "{{ .vars.teamName }}"]
         outputFormat: text

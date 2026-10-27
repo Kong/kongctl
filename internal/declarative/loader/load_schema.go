@@ -160,7 +160,7 @@ func formatDeclarativeSchemaError(
 		)
 	}
 
-	leaf := firstDeclarativeValidationLeaf(validationErr)
+	leaf := firstDeclarativeValidationLeaf(validationErr, schema, document)
 	path := declarativePath(leaf.InstanceLocation)
 	if message := portalSingletonNullSchemaError(path); message != "" {
 		return errors.New(message)
@@ -252,7 +252,11 @@ func collectUnknownDeclarativeFields(validationErr *jsonschema.ValidationError) 
 	return result
 }
 
-func firstDeclarativeValidationLeaf(validationErr *jsonschema.ValidationError) *jsonschema.ValidationError {
+func firstDeclarativeValidationLeaf(
+	validationErr *jsonschema.ValidationError,
+	schema *resources.JSONSchema,
+	document any,
+) *jsonschema.ValidationError {
 	if validationErr == nil || len(validationErr.Causes) == 0 {
 		return validationErr
 	}
@@ -260,6 +264,16 @@ func firstDeclarativeValidationLeaf(validationErr *jsonschema.ValidationError) *
 	var collect func(*jsonschema.ValidationError)
 	collect = func(current *jsonschema.ValidationError) {
 		if len(current.Causes) == 0 {
+			// A nonmatching union branch may reject fields accepted by the
+			// selected branch. Keep the selected branch's actual shape error.
+			if additional, ok := current.ErrorKind.(*kind.AdditionalProperties); ok {
+				known := declarativeSchemaPropertiesAt(schema, document, current.InstanceLocation)
+				if len(additional.Properties) > 0 && slices.ContainsFunc(additional.Properties, func(field string) bool {
+					return slices.Contains(known, field)
+				}) {
+					return
+				}
+			}
 			leaves = append(leaves, current)
 			return
 		}
@@ -268,6 +282,9 @@ func firstDeclarativeValidationLeaf(validationErr *jsonschema.ValidationError) *
 		}
 	}
 	collect(validationErr)
+	if len(leaves) == 0 {
+		return validationErr
+	}
 	sort.SliceStable(leaves, func(i, j int) bool {
 		return declarativePath(leaves[i].InstanceLocation) < declarativePath(leaves[j].InstanceLocation)
 	})

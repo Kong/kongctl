@@ -1,0 +1,471 @@
+# Event Gateway 1.3 management; no Kafka brokers or AWS credentials required.
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+steps:
+- name: 001-create
+  commands:
+  - name: plan-create
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/create.json'
+  - name: execute-create
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/create.json'
+    - --auto-approve
+    replanOnRetry:
+    - '{{ .workdir }}/config.yaml'
+    outputFormat: json
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          failed: 0
+          status: success
+  - name: get-request-rules
+    run:
+    - get
+    - event-gateway
+    - vc
+    - cluster-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - request-rules
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: request_rule_validator
+          name: request-rules
+          config.requests[0].rules[0].rule: context.produce.acks == -1
+  - name: get-produce-schema
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-schema
+    recordVar:
+      name: produceSchemaID
+      responsePath: id
+  - name: get-produce-json-schema
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-json-schema
+    recordVar:
+      name: produceJsonSchemaID
+      responsePath: id
+  - name: get-consume-schema
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - consume-schema
+    recordVar:
+      name: consumeSchemaID
+      responsePath: id
+  - name: get-produce-mask
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-mask
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: mask_fields
+          parent_policy_id: '{{ .vars.produceSchemaID }}'
+          config.mask_fields[0].paths: record.value.schema.metadata.tags["PII"]
+  - name: get-produce-transcode
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-transcode
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: transcode
+          parent_policy_id: '{{ .vars.produceJsonSchemaID }}'
+          config.output_format: avro
+  - name: get-consume-mask
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - consume-mask
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: mask_fields
+          parent_policy_id: '{{ .vars.consumeSchemaID }}'
+          config.mask_fields[0].paths: record.value.schema.metadata.tags["PII"]
+  - name: get-consume-transcode
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - consume-transcode
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: transcode
+          parent_policy_id: '{{ .vars.consumeSchemaID }}'
+          config.output_format: json
+  - name: create-converges
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+- name: 002-update
+  inputOverlayDirs:
+  - overlays/update
+  commands:
+  - name: plan-update
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/update.json'
+  - name: execute-update
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/update.json'
+    - --auto-approve
+    replanOnRetry:
+    - '{{ .workdir }}/config.yaml'
+    outputFormat: json
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          failed: 0
+          status: success
+  - name: get-request-rules
+    run:
+    - get
+    - event-gateway
+    - vc
+    - cluster-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - request-rules
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          description: Updated request rules
+          labels.env: production
+          config.requests[0].rules[0].rule: context.produce.acks != 0
+          enabled: false
+  - name: get-produce-mask
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-mask
+    assertions:
+    - select: config.mask_fields[0].strategy
+      expect:
+        fields:
+          type: replace
+          phrase: '[MASKED]'
+  - name: get-consume-mask
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - consume-mask
+    assertions:
+    - select: config.mask_fields[0].strategy
+      expect:
+        fields:
+          type: email
+          local_part.type: replace
+          domain.type: keep_all
+  - name: get-produce-transcode
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - produce-transcode
+    assertions:
+    - select: config
+      expect:
+        fields:
+          on_unknown_field: drop
+          output_format: avro
+          schema_source.type: inline
+  - name: get-consume-transcode
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    - consume-transcode
+    assertions:
+    - select: config
+      expect:
+        fields:
+          output_format: avro
+          schema_source.type: reference
+  - name: get-iam-role
+    run:
+    - get
+    - event-gateway
+    - backend-clusters
+    - --gateway-name
+    - egw-v13
+    - iam-role
+    assertions:
+    - select: authentication
+      expect:
+        fields:
+          type: sasl_aws_iam
+          sasl_aws_iam.session_name: kongctl-e2e-updated
+  - name: update-converges
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - apply
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+  - name: dump
+    run:
+    - dump
+    - declarative
+    - --resources=event_gateways
+    - --filter-name=egw-v13
+    - --include-child-resources
+    - --default-namespace=event-gateway-policies-v1-3
+    outputFormat: none
+    parseAs: yaml
+    stdoutFile: '{{ .workdir }}/dump.yaml'
+    assertions:
+    - select: event_gateways[0]
+      expect:
+        fields:
+          length(backend_clusters): 2
+          virtual_clusters[0].cluster_policies[0].type: request_rule_validator
+          length(virtual_clusters[0].produce_policies): 5
+          length(virtual_clusters[0].consume_policies): 4
+    - select: event_gateways[0].backend_clusters[?name=='iam-role'] | [0].authentication
+      expect:
+        fields:
+          type: sasl_aws_iam
+          sasl_aws_iam.type: assume_role
+  - name: dump-round-trip
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+- name: 003-prune-policies
+  inputOverlayDirs:
+  - overlays/prune
+  commands:
+  - name: plan-prune
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/prune.json'
+  - name: execute-prune
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --auto-approve
+    outputFormat: json
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          failed: 0
+          status: success
+  - name: get-cluster-policies
+    run:
+    - get
+    - event-gateway
+    - vc
+    - cluster-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    assertions:
+    - select: length(@)
+      expect:
+        fields:
+          '@': 0
+  - name: get-produce-policies
+    run:
+    - get
+    - event-gateway
+    - vc
+    - produce-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    assertions:
+    - select: length(@)
+      expect:
+        fields:
+          '@': 0
+  - name: get-consume-policies
+    run:
+    - get
+    - event-gateway
+    - vc
+    - consume-policies
+    - --gateway-name
+    - egw-v13
+    - --virtual-cluster-name
+    - vc-v13
+    assertions:
+    - select: length(@)
+      expect:
+        fields:
+          '@': 0
+  - name: prune-converges
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+- name: 004-cleanup
+  inputOverlayDirs:
+  - overlays/cleanup
+  commands:
+  - name: delete-root
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --auto-approve
+    outputFormat: json
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          failed: 0
+          status: success
+  - name: cleanup-converges
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/config.yaml'
+    - --mode
+    - sync
+    outputFormat: disable
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0

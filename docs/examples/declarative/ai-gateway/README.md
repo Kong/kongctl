@@ -67,6 +67,16 @@ access:
   an OpenAI model provider to a shared Token Vault datastore with AI Gateway
   runtime 2.3. Each resolves the caller's upstream credential through the named
   Token Vault provider registration.
+- [typesafe-models.yaml](typesafe-models.yaml) demonstrates a Typesafe/Jev
+  provider and targets, the `decisions` capability, multiple model selector
+  aliases, and a skills API model with passthrough format. Requires AI Gateway
+  runtime 2.2 or later. Set `JEV_AUTHORIZATION` to the provider's full
+  authorization header value before applying it.
+- [custom-policies.yaml](custom-policies.yaml) defines a streaming custom
+  policy with Lua schema and handler source, plus a policy instance that uses
+  it. Requires AI Gateway runtime 2.2 or later and a backend with the custom
+  policy API available. See [Custom policies](#custom-policies) for maturity
+  and lifecycle details.
 - [federated](federated) shows a multi-folder
   layout where a central team owns an AI Gateway and providers, while a peer
   team owns root-level policies, agents, consumers, consumer groups, models, MCP
@@ -90,9 +100,6 @@ private key at `certs/runtime.pem` and `certs/runtime.key`, and place the CA
 certificate at `certs/ca.pem`. The private-key file is intentionally not
 included in this repository.
 
-For pre-GA AI Gateway 2.2 development, see
-[the feature notes and examples](PRE_GA_2_2.md).
-
 Before applying `token-vault.yaml`, set `TOKEN_VAULT_ENCRYPTION_KEY` to the
 encryption key for version `v1` and replace the example MCP URL with your
 upstream server URL. The Token Vault directory `support-credentials` and its
@@ -113,3 +120,38 @@ Load this example on its own:
 kongctl plan --mode apply -f docs/examples/declarative/ai-gateway/token-vault.yaml
 kongctl apply -f docs/examples/declarative/ai-gateway/token-vault.yaml
 ```
+
+## Policy configuration
+
+Policy `config` is passed through as an arbitrary map. Use the policy schema
+for your target runtime version to choose valid options; kongctl does not
+validate plugin-specific configuration fields.
+
+## Custom policies
+
+Custom policies currently carry beta maturity in kongctl and require a backend
+with custom-policy API support. This designation is specific to kongctl's
+custom-policy resources and commands.
+
+Declare definitions under a gateway's `custom_policies` collection, or use
+root-level `ai_gateway_custom_policies` with an explicit `ai_gateway` ref.
+Both `installed` and `streaming` definitions require `name`, `type`,
+`display_name`, and Lua `schema`. Streaming definitions also require Lua
+`handler` source. Installed definitions require the plugin implementation to
+be available in the runtime independently of the declarative definition.
+
+Create policy instances under `policies`, using the custom definition's name
+as their `type`, as shown in `custom-policies.yaml`. Definitions inherit their
+gateway's protection and namespace scope. Plan/apply/sync create definitions
+before instances that use them. Remove referencing instances before deleting
+a definition. Updates send the complete definition because the API uses PUT.
+Definition names are immutable; changing a name creates a new definition.
+
+Read definitions through `get` or `list`:
+
+```sh
+kongctl get ai-gateway custom-policies --gateway-id GATEWAY_ID
+kongctl get ai-gateway custom-policies --gateway-id GATEWAY_ID PLUGIN_NAME
+```
+
+Dumps include custom definitions with their Lua schema and handler source.

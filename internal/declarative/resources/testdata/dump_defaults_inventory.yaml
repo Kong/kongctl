@@ -1,4 +1,4 @@
-sdk_version: v0.73.1
+sdk_version: v0.76.0
 schema_version: 1
 resources:
   - resource_type: ai_cost_management_tags

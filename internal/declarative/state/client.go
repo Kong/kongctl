@@ -4030,15 +4030,21 @@ func portalUpdateIdentityProviderConfigFromUpdate(
 		if config.OIDCIdentityProviderConfig == nil {
 			return nil, fmt.Errorf("oidc identity provider config is required")
 		}
-		data, err := json.Marshal(config.OIDCIdentityProviderConfig)
-		if err != nil {
-			return nil, fmt.Errorf("encode OIDC identity provider config: %w", err)
+		oidc := config.OIDCIdentityProviderConfig
+		updated := kkComps.UpdateOIDCIdentityProviderConfig{
+			IssuerURL:    &oidc.IssuerURL,
+			ClientID:     &oidc.ClientID,
+			ClientSecret: oidc.ClientSecret,
+			Scopes:       oidc.Scopes,
 		}
-		var oidc kkComps.UpdateOIDCIdentityProviderConfig
-		if err := json.Unmarshal(data, &oidc); err != nil {
-			return nil, fmt.Errorf("convert OIDC identity provider config: %w", err)
+		if oidc.ClaimMappings != nil {
+			updated.ClaimMappings = &kkComps.UpdateOIDCIdentityProviderClaimMappings{
+				Name:   oidc.ClaimMappings.Name,
+				Email:  oidc.ClaimMappings.Email,
+				Groups: oidc.ClaimMappings.Groups,
+			}
 		}
-		converted := kkComps.CreatePortalUpdateIdentityProviderConfigUpdateOIDCIdentityProviderConfig(oidc)
+		converted := kkComps.CreatePortalUpdateIdentityProviderConfigUpdateOIDCIdentityProviderConfig(updated)
 		return &converted, nil
 	case kkComps.UpdateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
 		if config.SAMLIdentityProviderConfigInput == nil {

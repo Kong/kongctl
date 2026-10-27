@@ -26,9 +26,9 @@ func init() {
 
 // EventGatewayProducePolicyResource represents a produce policy in declarative configuration.
 // The SDK represents produce policies as a union type (EventGatewayProducePolicyCreate)
-// with variants: modify_headers, schema_validation, encrypt, and encrypt_fields.
+// with variants: modify_headers, schema_validation, encrypt, encrypt_fields, transcode, and mask_fields.
 type EventGatewayProducePolicyResource struct {
-	kkComps.EventGatewayProducePolicyCreate `yaml:",inline" json:",inline"`
+	kkComps.EventGatewayProducePolicyCreate `       yaml:",inline"                   json:",inline"`
 	Ref                                     string `yaml:"ref"                       json:"ref"`
 	// Parent Event Gateway Virtual Cluster reference (for root-level definitions)
 	VirtualCluster string `yaml:"virtual_cluster,omitempty" json:"virtual_cluster,omitempty"`
@@ -60,6 +60,14 @@ func (e EventGatewayProducePolicyResource) GetMoniker() string {
 	if e.EventGatewayParsedRecordEncryptFieldsPolicyCreate != nil &&
 		e.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name != nil {
 		return *e.EventGatewayParsedRecordEncryptFieldsPolicyCreate.Name
+	}
+	if e.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil &&
+		e.EventGatewayParsedRecordTranscodeProducePolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordTranscodeProducePolicyCreate.Name
+	}
+	if e.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil &&
+		e.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.Name != nil {
+		return *e.EventGatewayParsedRecordMaskFieldsProducePolicyCreate.Name
 	}
 	return e.Ref
 }
@@ -97,13 +105,23 @@ func (e EventGatewayProducePolicyResource) Validate() error {
 		variantCount++
 	}
 
+	if e.EventGatewayParsedRecordTranscodeProducePolicyCreate != nil {
+		variantCount++
+	}
+
+	if e.EventGatewayParsedRecordMaskFieldsProducePolicyCreate != nil {
+		variantCount++
+	}
+
 	if variantCount == 0 {
 		return fmt.Errorf(
-			"produce policy must specify one of: '%s', '%s', '%s', or '%s' type",
+			"produce policy must specify one of: '%s', '%s', '%s', '%s', '%s', or '%s' type",
 			kkComps.EventGatewayProducePolicyCreateTypeModifyHeaders,
 			kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation,
 			kkComps.EventGatewayProducePolicyCreateTypeEncrypt,
 			kkComps.EventGatewayProducePolicyCreateTypeEncryptFields,
+			kkComps.EventGatewayProducePolicyCreateTypeTranscode,
+			kkComps.EventGatewayProducePolicyCreateTypeMaskFields,
 		)
 	}
 	if variantCount > 1 {
@@ -190,7 +208,7 @@ func (e EventGatewayProducePolicyResource) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON handles the union type correctly.
 // It rejects kongctl metadata and delegates to the SDK union type for the policy body.
 // The SDK union type requires a "type" discriminator field to determine which variant
-// to use. Supported types: modify_headers, schema_validation, encrypt, encrypt_fields.
+// to use. Supported types: modify_headers, schema_validation, encrypt, encrypt_fields, transcode, mask_fields.
 func (e *EventGatewayProducePolicyResource) UnmarshalJSON(data []byte) error {
 	// First extract our metadata fields
 	var meta struct {
@@ -244,6 +262,8 @@ func validateProducePolicyTypeField(raw map[string]any) error {
 		string(kkComps.EventGatewayProducePolicyCreateTypeSchemaValidation),
 		string(kkComps.EventGatewayProducePolicyCreateTypeEncrypt),
 		string(kkComps.EventGatewayProducePolicyCreateTypeEncryptFields),
+		string(kkComps.EventGatewayProducePolicyCreateTypeMaskFields),
+		string(kkComps.EventGatewayProducePolicyCreateTypeTranscode),
 	}
 	validTypesFmt := "[" + strings.Join(validTypes, ", ") + "]"
 
