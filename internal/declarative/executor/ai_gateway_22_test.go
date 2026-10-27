@@ -15,7 +15,7 @@ import (
 
 func TestAIGateway22ManifestPreservesModelAndProviderPayloads(t *testing.T) {
 	t.Setenv("JEV_AUTHORIZATION", "Bearer test-placeholder")
-	path := filepath.Join("..", "..", "..", "docs", "examples", "declarative", "ai-gateway", "pre-ga-2.2.yaml")
+	path := filepath.Join("..", "..", "..", "docs", "examples", "declarative", "ai-gateway", "typesafe-models.yaml")
 	rs, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
 	require.NoError(t, err)
 	require.Len(t, rs.AIGatewayProviders, 1)
