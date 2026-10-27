@@ -192,6 +192,6 @@ func (c *Client) DeleteAIGatewayCustomPolicy(ctx context.Context, gatewayID stri
 	return nil
 }
 
-func normalizedAIGatewayCustomPolicyLabels(_ kkComps.AIGatewayCustomPolicy) map[string]string {
-	return map[string]string{}
+func normalizedAIGatewayCustomPolicyLabels(policy kkComps.AIGatewayCustomPolicy) map[string]string {
+	return resources.NormalizedChildOwnership(resources.AIGatewayCustomPolicyManagedBy(policy))
 }

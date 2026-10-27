@@ -55,6 +55,23 @@ func (a *AIGatewayCustomPolicyAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway custom policy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	policies, err := a.client.ListAIGatewayCustomPolicies(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, policy := range policies {
+		name := resources.AIGatewayCustomPolicyName(policy.AIGatewayCustomPolicy)
+		if name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway custom policy", name)
+		}
+	}
 	return a.client.CreateAIGatewayCustomPolicy(ctx, gatewayID, req, namespace)
 }
 
@@ -70,6 +87,33 @@ func (a *AIGatewayCustomPolicyAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway custom policy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayCustomPolicy(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway custom policy no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayCustomPolicyMutablePayloadMap(current.AIGatewayCustomPolicy)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway custom policy", currentPayload, payload, execCtx, planner.FieldType,
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway custom policy update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayCustomPolicy(ctx, gatewayID, id, req, namespace)
 }
 
@@ -78,6 +122,22 @@ func (a *AIGatewayCustomPolicyAdapter) Delete(ctx context.Context, id string, ex
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayCustomPolicy(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	metadata := resources.AIGatewayCustomPolicyManagedBy(current.AIGatewayCustomPolicy)
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway custom policy", metadata, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(metadata) {
+		return fmt.Errorf("AI Gateway custom policy is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayCustomPolicy(ctx, gatewayID, id)
 }
@@ -104,7 +164,7 @@ func (a *AIGatewayCustomPolicyAdapter) GetByID(
 
 // GetByName is not supported without a parent gateway context.
 func (a *AIGatewayCustomPolicyAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
-	return nil, fmt.Errorf("GetByName not supported for AI Gateway Custom Policies")
+	return nil, fmt.Errorf("GetByName not supported for AI Gateway Policies")
 }
 
 // ResourceType returns the resource type.
@@ -151,7 +211,7 @@ func (a *aiGatewayCustomPolicyResourceInfo) GetName() string {
 }
 
 func (a *aiGatewayCustomPolicyResourceInfo) GetLabels() map[string]string {
-	return nil
+	return resources.AIGatewayCustomPolicyLabels(a.policy.AIGatewayCustomPolicy)
 }
 
 func (a *aiGatewayCustomPolicyResourceInfo) GetNormalizedLabels() map[string]string {
