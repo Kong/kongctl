@@ -4014,19 +4014,31 @@ func portalUpdateIdentityProviderConfigFromUpdate(
 		if config.OIDCIdentityProviderConfig == nil {
 			return nil, fmt.Errorf("oidc identity provider config is required")
 		}
-		converted := kkComps.CreatePortalUpdateIdentityProviderConfigOIDCIdentityProviderConfig(
-			*config.OIDCIdentityProviderConfig,
-		)
+		oidc := config.OIDCIdentityProviderConfig
+		updated := kkComps.UpdateOIDCIdentityProviderConfig{
+			IssuerURL:    &oidc.IssuerURL,
+			ClientID:     &oidc.ClientID,
+			ClientSecret: oidc.ClientSecret,
+			Scopes:       oidc.Scopes,
+		}
+		if oidc.ClaimMappings != nil {
+			updated.ClaimMappings = &kkComps.UpdateOIDCIdentityProviderClaimMappings{
+				Name:   oidc.ClaimMappings.Name,
+				Email:  oidc.ClaimMappings.Email,
+				Groups: oidc.ClaimMappings.Groups,
+			}
+		}
+		converted := kkComps.CreatePortalUpdateIdentityProviderConfigUpdateOIDCIdentityProviderConfig(updated)
 		return &converted, nil
 	case kkComps.UpdateIdentityProviderConfigTypeSAMLIdentityProviderConfigInput:
 		if config.SAMLIdentityProviderConfigInput == nil {
 			return nil, fmt.Errorf("saml identity provider config is required")
 		}
-		convertedSAML := kkComps.PortalSAMLIdentityProviderConfigInput{
+		convertedSAML := kkComps.UpdateSAMLIdentityProviderConfig{
 			IdpMetadataURL: config.SAMLIdentityProviderConfigInput.IdpMetadataURL,
 			IdpMetadataXML: config.SAMLIdentityProviderConfigInput.IdpMetadataXML,
 		}
-		converted := kkComps.CreatePortalUpdateIdentityProviderConfigPortalSAMLIdentityProviderConfigInput(
+		converted := kkComps.CreatePortalUpdateIdentityProviderConfigUpdateSAMLIdentityProviderConfig(
 			convertedSAML,
 		)
 		return &converted, nil
@@ -4076,12 +4088,12 @@ func normalizePortalIdentityProviderConfig(
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
-		if config.OIDCIdentityProviderConfigOutput == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
+		if config.PortalOIDCIdentityProviderConfigOutput == nil {
 			return nil
 		}
 		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-			*config.OIDCIdentityProviderConfigOutput,
+			kkComps.OIDCIdentityProviderConfigOutput(*config.PortalOIDCIdentityProviderConfigOutput),
 		)
 		return &converted
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:

@@ -333,6 +333,17 @@ func buildAuthenticationScheme(authField any) (kkComps.BackendClusterAuthenticat
 			},
 		), nil
 
+	case "sasl_aws_iam":
+		data, err := json.Marshal(authMap)
+		if err != nil {
+			return kkComps.BackendClusterAuthenticationScheme{}, fmt.Errorf("failed to encode AWS IAM authentication: %w", err)
+		}
+		var auth kkComps.BackendClusterAuthenticationScheme
+		if err := json.Unmarshal(data, &auth); err != nil {
+			return kkComps.BackendClusterAuthenticationScheme{}, fmt.Errorf("failed to decode AWS IAM authentication: %w", err)
+		}
+		return auth, nil
+
 	default:
 		return kkComps.BackendClusterAuthenticationScheme{},
 			fmt.Errorf("unsupported authentication type: %s", authType)

@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/Kong/sdk-konnect-go/models/components"
@@ -8,6 +9,32 @@ import (
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBackendClusterAWSIAMAuthentication(t *testing.T) {
+	t.Parallel()
+
+	for _, config := range []string{
+		`{"type":"default_provider_chain"}`,
+		`{"type":"assume_role","arn":"arn:aws:iam::123456789012:role/backend","session_name":"kong"}`,
+	} {
+		t.Run(config, func(t *testing.T) {
+			body := `{"type":"sasl_aws_iam","sasl_aws_iam":` + config + `}`
+			var current components.BackendClusterAuthenticationSensitiveDataAwareScheme
+			var desired components.BackendClusterAuthenticationScheme
+			require.NoError(t, json.Unmarshal([]byte(body), &current))
+			require.NoError(t, json.Unmarshal([]byte(body), &desired))
+			require.True(t, compareAuthenticationSchemes(current, desired), "matching IAM configuration must converge")
+			encoded, err := json.Marshal(backendClusterAuthenticationFields(desired))
+			require.NoError(t, err)
+			require.JSONEq(t, body, string(encoded), "PUT payload must preserve IAM configuration")
+
+			desired.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam = components.CreateSaslAwsIamAssumeRole(
+				components.BackendClusterAuthenticationSaslAwsIamAssumeRole{Arn: "arn:aws:iam::123456789012:role/other"},
+			)
+			require.False(t, compareAuthenticationSchemes(current, desired), "changed IAM configuration needs an update")
+		})
+	}
+}
 
 func TestShouldUpdateBackendCluster_EmptyLabelKeyChanged(t *testing.T) {
 	t.Parallel()

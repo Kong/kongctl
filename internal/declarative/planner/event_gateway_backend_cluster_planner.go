@@ -479,6 +479,11 @@ func compareAuthenticationSchemes(
 		scramB := b.BackendClusterAuthenticationSaslScram
 		return scramA.Username == scramB.Username &&
 			sameBackendPassword(scramA.Password, scramB.Password)
+	case components.BackendClusterAuthenticationSensitiveDataAwareSchemeTypeSaslAwsIam:
+		if a.BackendClusterAuthenticationSaslAwsIam == nil || b.BackendClusterAuthenticationSaslAwsIam == nil {
+			return false
+		}
+		return reflect.DeepEqual(a.BackendClusterAuthenticationSaslAwsIam, b.BackendClusterAuthenticationSaslAwsIam)
 	}
 	return false
 }
@@ -582,6 +587,10 @@ func backendClusterAuthenticationFields(auth components.BackendClusterAuthentica
 			fields["username"] = auth.BackendClusterAuthenticationSaslScram.Username
 			fields["password"] = auth.BackendClusterAuthenticationSaslScram.Password
 			fields["algorithm"] = string(auth.BackendClusterAuthenticationSaslScram.Algorithm)
+		}
+	case components.BackendClusterAuthenticationSchemeTypeSaslAwsIam:
+		if auth.BackendClusterAuthenticationSaslAwsIam != nil {
+			fields["sasl_aws_iam"] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
 		}
 	}
 	return fields

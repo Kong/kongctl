@@ -1,6 +1,6 @@
 # AI Gateway 2.2 development
 
-This branch uses public SDK v0.73.1 with the kongctl request-default
+This branch uses public SDK v0.76.0 with the kongctl request-default
 patches, including omission of portal customization theme names and
 preservation of explicit empty AI Gateway identity-realm arrays.
 Existing AI Gateway 2.2 surfaces remain available.
@@ -9,7 +9,7 @@ ai-deck-converter v0.19.0; the converter is a runtime reference, not a
 kongctl dependency.
 
 ```go
-replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.73.2-0.20261014221212-c75dd6e4af7d
+replace github.com/Kong/sdk-konnect-go => github.com/Kong/sdk-konnect-go v0.76.1-0.20261027142913-02252393a413
 ```
 
 The patched public SDK needs no private-module authentication,
@@ -19,11 +19,11 @@ The canonical patch definitions and preparation script live in
 [tools/sdk-patches](../../../../tools/sdk-patches/README.md).
 The generated SDK snapshot records the source kongctl commit and file hashes.
 SDK patch provenance is in
-[KONGCTL_PATCHES.md](https://github.com/Kong/sdk-konnect-go/blob/c75dd6e4af7daf74d1ca0f6385c6fb9cff4a066d/KONGCTL_PATCHES.md).
+[KONGCTL_PATCHES.md](https://github.com/Kong/sdk-konnect-go/blob/02252393a413353c140f5da4a0712eda2667f2ce/KONGCTL_PATCHES.md).
 
 The public schema omits internal-only MCP token-vault configuration,
-Event Gateway AWS IAM authentication and some internal policy variants,
-and portal AI settings. Those incidental internal SDK surfaces are not
+some internal policy variants, and portal AI settings.
+Those incidental internal SDK surfaces are not
 part of the requested AI Gateway 2.2 feature set. Explain and the reviewed
 dump-default inventory now follow the public schema.
 

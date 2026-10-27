@@ -53,6 +53,37 @@ func TestBackendUpdatePreservesOmittedPassword(t *testing.T) {
 	}
 }
 
+func TestBackendAWSIAMSavedPlanFields(t *testing.T) {
+	for _, config := range []string{
+		`{"type":"default_provider_chain"}`,
+		`{"type":"assume_role","arn":"arn:aws:iam::123456789012:role/backend","session_name":"kong"}`,
+	} {
+		t.Run(config, func(t *testing.T) {
+			body := `{"type":"sasl_aws_iam","sasl_aws_iam":` + config + `}`
+			var auth map[string]any
+			require.NoError(t, json.Unmarshal([]byte(body), &auth))
+			fields := map[string]any{
+				planner.FieldName:             "backend",
+				planner.FieldAuthentication:   auth,
+				planner.FieldBootstrapServers: []any{"broker.example.test:9098"},
+				planner.FieldTLS:              map[string]any{"enabled": true},
+			}
+			adapter := &EventGatewayBackendClusterAdapter{}
+			var create kkComps.CreateBackendClusterRequest
+			require.NoError(t, adapter.MapCreateFields(t.Context(), nil, fields, &create))
+			encoded, err := json.Marshal(create.Authentication)
+			require.NoError(t, err)
+			require.JSONEq(t, body, string(encoded))
+
+			var update kkComps.UpdateBackendClusterRequest
+			require.NoError(t, adapter.MapUpdateFields(t.Context(), nil, fields, &update, nil))
+			encoded, err = json.Marshal(update.Authentication)
+			require.NoError(t, err)
+			require.JSONEq(t, body, string(encoded))
+		})
+	}
+}
+
 func TestBackendUpdateRejectsMalformedAuthentication(t *testing.T) {
 	for name, auth := range map[string]any{
 		"unsupported type":        map[string]any{"type": "unsupported"},
