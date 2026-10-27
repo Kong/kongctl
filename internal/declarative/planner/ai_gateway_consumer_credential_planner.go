@@ -30,6 +30,18 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		slog.Int("desired_count", len(desired)),
 	)
 
+	owner, err := p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
+	if err != nil {
+		return err
+	}
+	if owner == nil {
+		return fmt.Errorf("AI Gateway consumer disappeared during credential planning")
+	}
+	if err := resources.ValidateChildOwnership("AI Gateway consumer", owner.ManagedBy, namespace); err != nil {
+		return err
+	}
+	initialChanges := len(plan.Changes)
+
 	currentCredentials, err := p.client.ListAIGatewayConsumerCredentials(ctx, gatewayID, consumerID)
 	if err != nil {
 		return fmt.Errorf(
@@ -132,6 +144,10 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 				plan,
 			)
 		}
+	}
+
+	if len(plan.Changes) > initialChanges && resources.IsChildProtected(owner.ManagedBy) {
+		return fmt.Errorf("AI Gateway consumer is protected; credential writes are not allowed")
 	}
 
 	return nil

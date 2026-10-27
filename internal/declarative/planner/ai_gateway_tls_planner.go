@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
-	"slices"
+	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -74,7 +74,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		for _, certificate := range desired {
 			p.planAIGatewayTLSCreate(
 				ResourceTypeAIGatewayCertificate, namespace, gatewayRef, gatewayChangeID,
-				"", certificate.Ref, certificate.PayloadMap(), nil, plan,
+				"", certificate.Ref, certificate.PayloadMap(), plan,
 			)
 		}
 		return nil, nil
@@ -92,7 +92,7 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 		if !exists {
 			p.planAIGatewayTLSCreate(
 				ResourceTypeAIGatewayCertificate, namespace, gatewayRef, "",
-				gatewayID, certificate.Ref, certificate.PayloadMap(), nil, plan,
+				gatewayID, certificate.Ref, certificate.PayloadMap(), plan,
 			)
 			continue
 		}
@@ -123,136 +123,243 @@ func (p *Planner) planAIGatewayCertificateUpserts(
 
 func (p *Planner) planAIGatewayCACertificateChanges(
 	ctx context.Context,
-	namespace, gatewayRef, gatewayID, gatewayChangeID string,
+	_, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewayCACertificateResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning AI Gateway CA certificate changes",
-		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
+	create := func(child resources.AIGatewayCACertificateResource) {
+		fields := child.PayloadMap()
+		fields[FieldCert] = strings.TrimSpace(child.Cert)
+		fields[FieldManagedBy] = resources.BuildChildManagedBy(
+			nil,
+			child.ManagedBy,
+			resources.GetNamespace(child.Kongctl),
+			child.Protected(),
+			"",
+		)
+		before := len(plan.Changes)
+		p.planAIGatewayTLSCreate(
+			ResourceTypeAIGatewayCACertificate,
+			resources.GetNamespace(child.Kongctl),
+			gatewayRef,
+			gatewayChangeID,
+			gatewayID,
+			child.Ref,
+			fields,
+			plan,
+		)
+		plan.Changes[before].Protection = child.Protected()
+	}
 	if gatewayID == "" {
-		for _, certificate := range desired {
-			p.planAIGatewayTLSCreate(
-				ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, gatewayChangeID,
-				"", certificate.Ref, certificate.PayloadMap(), nil, plan,
-			)
+		for _, child := range desired {
+			create(child)
 		}
 		return nil
 	}
 	current, err := p.listAIGatewayCACertificates(ctx, gatewayID)
 	if err != nil {
-		return fmt.Errorf("failed to list AI Gateway CA certificates: %w", err)
+		return err
 	}
-	byName := indexAIGatewayCACertificates(current)
-	desiredNames := make(map[string]bool, len(desired))
-	for i := range desired {
-		certificate := &desired[i]
-		matched, exists := byName[certificate.Name]
-		desiredNames[certificate.Name] = true
-		if !exists {
-			p.planAIGatewayTLSCreate(
-				ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, "",
-				gatewayID, certificate.Ref, certificate.PayloadMap(), nil, plan,
-			)
-			continue
-		}
-		certificate.SetKonnectID(matched.ID)
-		fields, changed := diffAIGatewayCACertificate(matched, *certificate)
-		if len(changed) > 0 {
-			p.planAIGatewayTLSUpdate(
-				ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, gatewayID,
-				matched.ID, certificate.Ref, fields, changed, nil, plan,
-			)
-		}
-	}
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, certificate := range current {
-			if !desiredNames[certificate.Name] {
-				plan.AddChange(newAIGatewayTLSDelete(
-					p, ResourceTypeAIGatewayCACertificate, namespace, gatewayRef, gatewayID,
-					certificate.ID, certificate.Name,
-				))
-			}
-		}
-	}
-	return nil
+	return reconcileNameMatchedChildren(
+		p,
+		ResourceTypeAIGatewayCACertificate,
+		desired,
+		current,
+		nameMatchedChildOperations[resources.AIGatewayCACertificateResource, state.AIGatewayCACertificate]{
+			ownership:   &ownedChildCollectionScope{gatewayRef, gatewayID},
+			desiredName: func(child resources.AIGatewayCACertificateResource) string { return child.Name },
+			currentName: func(current state.AIGatewayCACertificate) string { return current.Name },
+			fetch: func(_ resources.AIGatewayCACertificateResource,
+				current state.AIGatewayCACertificate) (*state.AIGatewayCACertificate,
+				error,
+			) {
+				return p.client.GetAIGatewayCACertificate(ctx, gatewayID, current.ID)
+			},
+			create: create,
+			diff: func(current state.AIGatewayCACertificate,
+				child resources.AIGatewayCACertificateResource) (bool,
+				map[string]any,
+				map[string]FieldChange,
+				error,
+			) {
+				fields := child.PayloadMap()
+				fields[FieldCert] = strings.TrimSpace(child.Cert)
+				observed := map[string]any{
+					FieldName:      current.Name,
+					FieldCert:      current.Cert,
+					FieldLabels:    current.Labels,
+					FieldManagedBy: current.ManagedBy,
+				}
+				if err := prepareOwnedChildDiff(observed, fields, &child, child.Labels); err != nil {
+					return false, nil, nil, err
+				}
+				changed := diffAIGatewayTLSPayloads(observed, fields)
+				return len(changed) > 0, fields, changed, nil
+			},
+			update: func(current state.AIGatewayCACertificate,
+				child resources.AIGatewayCACertificateResource,
+				fields map[string]any,
+				changed map[string]FieldChange,
+			) {
+				p.planAIGatewayTLSUpdate(
+					ResourceTypeAIGatewayCACertificate,
+					resources.GetNamespace(child.Kongctl),
+					gatewayRef,
+					gatewayID,
+					current.ID,
+					child.Ref, fields, changed, nil, plan,
+				)
+			},
+			remove: func(current state.AIGatewayCACertificate) {
+				plan.AddChange(
+					newAIGatewayTLSDelete(
+						p, ResourceTypeAIGatewayCACertificate,
+						current.ManagedBy[resources.ChildNamespaceKey],
+						gatewayRef,
+						gatewayID,
+						current.ID,
+						current.Name,
+					),
+				)
+			},
+		},
+		plan,
+	)
 }
 
 func (p *Planner) planAIGatewaySNIChanges(
 	ctx context.Context,
-	namespace, gatewayRef, gatewayID, gatewayChangeID string,
+	_, gatewayRef, gatewayID, gatewayChangeID string,
 	desired []resources.AIGatewaySNIResource,
 	plan *Plan,
 ) error {
-	p.logger.Debug("Planning AI Gateway SNI changes",
-		slog.String("gateway_ref", gatewayRef), slog.Int("desired_count", len(desired)))
+	payload := func(child resources.AIGatewaySNIResource) (map[string]any, error) {
+		fields := child.PayloadMap()
+		certificate, err := normalizeAIGatewaySNICertificateReference(
+			child.Certificate, p.resources,
+		)
+		if err != nil {
+			return nil, err
+		}
+		fields[FieldCertificate] = certificate
+		return fields, nil
+	}
+	create := func(child resources.AIGatewaySNIResource) {
+		fields, err := payload(child)
+		if err != nil {
+			plan.AddWarning(child.Ref, "failed to build TLS payload")
+			return
+		}
+		fields[FieldManagedBy] = resources.BuildChildManagedBy(
+			nil,
+			child.ManagedBy,
+			resources.GetNamespace(child.Kongctl),
+			child.Protected(),
+			"",
+		)
+		before := len(plan.Changes)
+		p.planAIGatewayTLSCreate(
+			ResourceTypeAIGatewaySNI,
+			resources.GetNamespace(child.Kongctl),
+			gatewayRef,
+			gatewayChangeID,
+			gatewayID,
+			child.Ref,
+			fields,
+			plan,
+		)
+		plan.Changes[before].Protection = child.Protected()
+	}
 	if gatewayID == "" {
-		for _, sni := range desired {
-			fields := sni.PayloadMap()
-			certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
-			if err != nil {
-				return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
-			}
-			fields[FieldCertificate] = certificate
-			dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
-			p.planAIGatewayTLSCreate(
-				ResourceTypeAIGatewaySNI, namespace, gatewayRef, gatewayChangeID,
-				"", sni.Ref, fields, dependsOn, plan,
-			)
+		for _, child := range desired {
+			create(child)
 		}
 		return nil
 	}
 	current, err := p.listAIGatewaySNIs(ctx, gatewayID)
 	if err != nil {
-		return fmt.Errorf("failed to list AI Gateway SNIs: %w", err)
+		return err
 	}
-	byName := indexAIGatewaySNIs(current)
-	desiredNames := make(map[string]bool, len(desired))
-	for i := range desired {
-		sni := &desired[i]
-		matched, exists := byName[sni.Name]
-		desiredNames[sni.Name] = true
-		fields := sni.PayloadMap()
-		certificate, err := normalizeAIGatewaySNICertificateReference(sni.Certificate, p.resources)
-		if err != nil {
-			return fmt.Errorf("AI Gateway SNI %q: %w", sni.Ref, err)
-		}
-		fields[FieldCertificate] = certificate
-		dependsOn := certificateChangeDependency(plan, namespace, sni.Certificate)
-		if !exists {
-			p.planAIGatewayTLSCreate(
-				ResourceTypeAIGatewaySNI, namespace, gatewayRef, "", gatewayID, sni.Ref, fields, dependsOn, plan,
-			)
-			continue
-		}
-		sni.SetKonnectID(matched.ID)
-		updateFields, changed := diffAIGatewaySNI(matched, fields)
-		if len(changed) > 0 {
-			p.planAIGatewayTLSUpdate(
-				ResourceTypeAIGatewaySNI, namespace, gatewayRef, gatewayID,
-				matched.ID, sni.Ref, updateFields, changed, dependsOn, plan,
-			)
-		}
-	}
-	if plan.Metadata.Mode == PlanModeSync {
-		for _, sni := range current {
-			if !desiredNames[sni.Name] {
-				plan.AddChange(newAIGatewayTLSDelete(
-					p, ResourceTypeAIGatewaySNI, namespace, gatewayRef, gatewayID, sni.ID, sni.Name,
-				))
-			}
-		}
-	}
-	return nil
+	return reconcileNameMatchedChildren(
+		p,
+		ResourceTypeAIGatewaySNI,
+		desired,
+		current,
+		nameMatchedChildOperations[resources.AIGatewaySNIResource, state.AIGatewaySNI]{
+			ownership:   &ownedChildCollectionScope{gatewayRef, gatewayID},
+			desiredName: func(child resources.AIGatewaySNIResource) string { return child.Name },
+			currentName: func(current state.AIGatewaySNI) string { return current.Name },
+			fetch: func(_ resources.AIGatewaySNIResource, current state.AIGatewaySNI) (*state.AIGatewaySNI, error) {
+				return p.client.GetAIGatewaySNI(ctx, gatewayID, current.ID)
+			},
+			create: create,
+			diff: func(current state.AIGatewaySNI,
+				child resources.AIGatewaySNIResource) (bool,
+				map[string]any,
+				map[string]FieldChange,
+				error,
+			) {
+				fields, err := payload(child)
+				if err != nil {
+					return false, nil, nil, err
+				}
+				observed := map[string]any{
+					FieldName:        current.Name,
+					FieldDisplayName: current.DisplayName,
+					FieldHostname:    current.Hostname,
+					FieldCertificate: current.Certificate,
+					FieldLabels:      current.Labels,
+					FieldManagedBy:   current.ManagedBy,
+				}
+				if err := prepareOwnedChildDiff(observed, fields, &child, child.Labels); err != nil {
+					return false, nil, nil, err
+				}
+				changed := diffAIGatewayTLSPayloads(observed, fields)
+				return len(changed) > 0, fields, changed, nil
+			},
+			update: func(current state.AIGatewaySNI,
+				child resources.AIGatewaySNIResource,
+				fields map[string]any,
+				changed map[string]FieldChange,
+			) {
+				p.planAIGatewayTLSUpdate(
+					ResourceTypeAIGatewaySNI,
+					resources.GetNamespace(child.Kongctl),
+					gatewayRef,
+					gatewayID,
+					current.ID,
+					child.Ref,
+					fields,
+					changed,
+					nil,
+					plan,
+				)
+			},
+			remove: func(current state.AIGatewaySNI) {
+				plan.AddChange(
+					newAIGatewayTLSDelete(
+						p, ResourceTypeAIGatewaySNI,
+						current.ManagedBy[resources.ChildNamespaceKey],
+						gatewayRef,
+						gatewayID,
+						current.ID,
+						current.Name,
+					),
+				)
+			},
+		},
+		plan,
+	)
 }
 
 func (p *Planner) planAIGatewayTLSCreate(
 	resourceType, namespace, gatewayRef, gatewayChangeID, gatewayID, resourceRef string,
 	fields map[string]any,
-	dependsOn []string,
 	plan *Plan,
 ) {
+	var dependsOn []string
 	if gatewayChangeID != "" {
-		dependsOn = append(slices.Clone(dependsOn), gatewayChangeID)
+		dependsOn = append(dependsOn, gatewayChangeID)
 	}
 	change := PlannedChange{
 		ID: p.nextChangeID(ActionCreate, resourceType, resourceRef), ResourceType: resourceType,
@@ -310,28 +417,6 @@ func diffAIGatewayCertificate(
 	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
 	changed := diffAIGatewayTLSPayloads(currentFields, fields)
 	return fields, changed
-}
-
-func diffAIGatewayCACertificate(
-	current state.AIGatewayCACertificate,
-	desired resources.AIGatewayCACertificateResource,
-) (map[string]any, map[string]FieldChange) {
-	fields := desired.PayloadMap()
-	currentFields := map[string]any{FieldName: current.Name, FieldCert: current.Cert}
-	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
-	return fields, diffAIGatewayTLSPayloads(currentFields, fields)
-}
-
-func diffAIGatewaySNI(
-	current state.AIGatewaySNI,
-	fields map[string]any,
-) (map[string]any, map[string]FieldChange) {
-	currentFields := map[string]any{
-		FieldName: current.Name, FieldDisplayName: current.DisplayName, FieldHostname: current.Hostname,
-		FieldCertificate: current.Certificate,
-	}
-	addAIGatewayTLSCurrentMetadata(currentFields, current.Labels, current.ManagedBy)
-	return fields, diffAIGatewayTLSPayloads(currentFields, fields)
 }
 
 func addAIGatewayTLSCurrentMetadata(fields map[string]any, labels, managedBy map[string]string) {
@@ -397,44 +482,12 @@ func normalizeAIGatewaySNICertificateReference(value string, rs *resources.Resou
 	return value, nil
 }
 
-func certificateChangeDependency(plan *Plan, namespace, reference string) []string {
-	targetRef := resources.NormalizeResourceRef(reference)
-	if parsed, _, ok := tags.ParseRefPlaceholder(reference); ok {
-		targetRef = parsed
-	}
-	for _, change := range plan.Changes {
-		if change.Namespace == namespace && change.ResourceType == ResourceTypeAIGatewayCertificate &&
-			change.ResourceRef == targetRef && change.Action != ActionDelete {
-			return []string{change.ID}
-		}
-	}
-	return nil
-}
-
 func indexAIGatewayCertificates(
 	current []state.AIGatewayCertificate,
 ) map[string]state.AIGatewayCertificate {
 	byName := make(map[string]state.AIGatewayCertificate, len(current))
 	for _, certificate := range current {
 		byName[certificate.Name] = certificate
-	}
-	return byName
-}
-
-func indexAIGatewayCACertificates(
-	current []state.AIGatewayCACertificate,
-) map[string]state.AIGatewayCACertificate {
-	byName := make(map[string]state.AIGatewayCACertificate, len(current))
-	for _, certificate := range current {
-		byName[certificate.Name] = certificate
-	}
-	return byName
-}
-
-func indexAIGatewaySNIs(current []state.AIGatewaySNI) map[string]state.AIGatewaySNI {
-	byName := make(map[string]state.AIGatewaySNI, len(current))
-	for _, sni := range current {
-		byName[sni.Name] = sni
 	}
 	return byName
 }

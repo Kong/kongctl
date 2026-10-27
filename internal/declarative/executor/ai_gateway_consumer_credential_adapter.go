@@ -6,12 +6,14 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 // AIGatewayConsumerCredentialAdapter implements create/delete operations for AI Gateway Consumer Credentials.
 type AIGatewayConsumerCredentialAdapter struct {
-	client *state.Client
+	client                     *state.Client
+	initiallyProtectedConsumer func(string) bool
 }
 
 // NewAIGatewayConsumerCredentialAdapter creates a new AI Gateway Consumer Credential adapter.
@@ -50,6 +52,18 @@ func (a *AIGatewayConsumerCredentialAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	if err := a.validateConsumerWrite(ctx, gatewayID, consumerID, namespace, true); err != nil {
+		return "", err
+	}
+	credentials, err := a.client.ListAIGatewayConsumerCredentials(ctx, gatewayID, consumerID)
+	if err != nil {
+		return "", err
+	}
+	for _, credential := range credentials {
+		if credential.Name == req.Name {
+			return "", childCreationCollision("AI Gateway consumer credential", req.Name)
+		}
+	}
 	return a.client.CreateAIGatewayConsumerCredential(ctx, gatewayID, consumerID, req, namespace)
 }
 
@@ -61,6 +75,9 @@ func (a *AIGatewayConsumerCredentialAdapter) Delete(ctx context.Context, id stri
 	}
 	consumerID, err := a.getAIGatewayConsumerIDFromExecutionContext(execCtx)
 	if err != nil {
+		return err
+	}
+	if err := a.validateConsumerWrite(ctx, gatewayID, consumerID, execCtx.Namespace, false); err != nil {
 		return err
 	}
 	return a.client.DeleteAIGatewayConsumerCredential(ctx, gatewayID, consumerID, id)
@@ -113,4 +130,26 @@ func (a *AIGatewayConsumerCredentialAdapter) getAIGatewayConsumerIDFromExecution
 	}
 
 	return "", fmt.Errorf("AI Gateway Consumer ID required for Consumer Credential operations")
+}
+
+func (a *AIGatewayConsumerCredentialAdapter) validateConsumerWrite(
+	ctx context.Context,
+	gatewayID, consumerID, namespace string,
+	allowInitial bool,
+) error {
+	consumer, err := a.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
+	if err != nil {
+		return err
+	}
+	if consumer == nil {
+		return fmt.Errorf("AI Gateway consumer no longer exists")
+	}
+	if err := resources.ValidateChildOwnership("AI Gateway consumer", consumer.ManagedBy, namespace); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(consumer.ManagedBy) &&
+		(!allowInitial || a.initiallyProtectedConsumer == nil || !a.initiallyProtectedConsumer(consumerID)) {
+		return fmt.Errorf("AI Gateway consumer is protected; credential writes are not allowed")
+	}
+	return nil
 }

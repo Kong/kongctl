@@ -155,7 +155,9 @@ func (c *Client) ListAIGatewayCACertificates(ctx context.Context, gatewayID stri
 			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 		for _, item := range resp.ListAIGatewayCACertificatesResponse.Data {
-			result = append(result, AIGatewayCACertificate{AIGatewayCACertificate: item, NormalizedLabels: item.Labels})
+			result = append(result, AIGatewayCACertificate{
+				AIGatewayCACertificate: item, NormalizedLabels: resources.NormalizedChildOwnership(item.ManagedBy),
+			})
 		}
 		next, err := cursors.Next(resp.ListAIGatewayCACertificatesResponse.Meta.Page.Next)
 		if err != nil {
@@ -185,7 +187,9 @@ func (c *Client) GetAIGatewayCACertificate(ctx context.Context, gatewayID, id st
 	}
 	return &AIGatewayCACertificate{
 		AIGatewayCACertificate: *resp.AIGatewayCACertificate,
-		NormalizedLabels:       resp.AIGatewayCACertificate.Labels,
+		NormalizedLabels: resources.NormalizedChildOwnership(
+			resp.AIGatewayCACertificate.ManagedBy,
+		),
 	}, nil
 }
 
@@ -275,7 +279,9 @@ func (c *Client) ListAIGatewaySNIs(ctx context.Context, gatewayID string) ([]AIG
 			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 		for _, item := range resp.ListAIGatewaySNIsResponse.Data {
-			result = append(result, AIGatewaySNI{AIGatewaySNI: item, NormalizedLabels: item.Labels})
+			result = append(result, AIGatewaySNI{
+				AIGatewaySNI: item, NormalizedLabels: resources.NormalizedChildOwnership(item.ManagedBy),
+			})
 		}
 		next, err := cursors.Next(resp.ListAIGatewaySNIsResponse.Meta.Page.Next)
 		if err != nil {
@@ -303,7 +309,9 @@ func (c *Client) GetAIGatewaySNI(ctx context.Context, gatewayID, id string) (*AI
 	if resp == nil || resp.AIGatewaySNI == nil {
 		return nil, nil
 	}
-	return &AIGatewaySNI{AIGatewaySNI: *resp.AIGatewaySNI, NormalizedLabels: resp.AIGatewaySNI.Labels}, nil
+	return &AIGatewaySNI{
+		AIGatewaySNI: *resp.AIGatewaySNI, NormalizedLabels: resources.NormalizedChildOwnership(resp.AIGatewaySNI.ManagedBy),
+	}, nil
 }
 
 func (c *Client) CreateAIGatewaySNI(

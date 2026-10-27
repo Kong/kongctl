@@ -49,7 +49,16 @@ func certificateIdentityResources(kind, ref, name string) (certificateIdentityRe
 		return &resources.AIGatewayCACertificateResource{
 				BaseResource: base, AIGateway: "gateway", Name: name, Cert: "new-cert",
 			}, func(id, name string) any {
-				return kkComps.AIGatewayCACertificate{ID: id, Name: name, Cert: "old-cert"}
+				return kkComps.AIGatewayCACertificate{
+					ID: id, Name: name, Cert: "old-cert",
+					ManagedBy: resources.BuildChildManagedBy(
+						nil,
+						nil,
+						DefaultNamespace,
+						false,
+						"dev",
+					),
+				}
 			}
 	default:
 		return &resources.AIGatewaySNIResource{
@@ -58,6 +67,11 @@ func certificateIdentityResources(kind, ref, name string) (certificateIdentityRe
 			}, func(id, name string) any {
 				return kkComps.AIGatewaySNI{
 					ID: id, Name: name, Hostname: "old.example.test", Certificate: "unchanged-cert",
+					ManagedBy: resources.BuildChildManagedBy(nil,
+						nil,
+						DefaultNamespace,
+						false,
+						"dev"),
 				}
 			}
 	}
@@ -266,6 +280,16 @@ func TestAIGatewayCertificateIdentitySNIDependencies(t *testing.T) {
 			if tc.keepReference {
 				rs.AIGatewaySNIs[0].Certificate = "old-cert"
 			}
+			for i := range api.snis {
+				api.snis[i] = ownedAIGatewayObservation(t, api.snis[i], DefaultNamespace, false)
+			}
+			if !tc.omitSNIScope {
+				rs.SyncScope.AddChildNamespace(
+					resources.ResourceTypeAIGatewaySNI,
+					"gateway",
+					DefaultNamespace,
+				)
+			}
 			p := NewPlanner(api.client(), slog.Default())
 			p.resources = rs
 			plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
@@ -273,7 +297,11 @@ func TestAIGatewayCertificateIdentitySNIDependencies(t *testing.T) {
 			if err == nil {
 				err = p.resolveFinalAIGatewayDependencies(t.Context(), plan)
 			}
-			require.Equal(t, []string{"gateway-id", "gateway-id"}, api.gatewayIDs)
+			wantLists := []string{"gateway-id", "gateway-id"}
+			if tc.renameSNI {
+				wantLists = append(wantLists, "gateway-id")
+			}
+			require.Equal(t, wantLists, api.gatewayIDs)
 			if tc.keepReference || tc.omitSNIScope {
 				require.ErrorContains(
 					t,
@@ -354,6 +382,9 @@ func TestAIGatewayCertificateDeleteRejectsPlannedSNIReference(t *testing.T) {
 				rs.SyncScope.AddChild(
 					resources.ResourceTypeAIGateway, "gateway", resources.ResourceTypeAIGatewayCertificate,
 				)
+			}
+			for i := range api.snis {
+				api.snis[i] = ownedAIGatewayObservation(t, api.snis[i], DefaultNamespace, false)
 			}
 			p := NewPlanner(api.client(), slog.Default())
 			p.resources = rs
@@ -437,10 +468,12 @@ type certificateIdentityAPI struct {
 }
 
 func (a *certificateIdentityAPI) client() *state.Client {
-	return state.NewClient(state.ClientConfig{
-		AIGatewayDataPlaneCertificatesAPI: a, AIGatewayCertificatesAPI: a,
-		AIGatewayCACertificatesAPI: a, AIGatewaySNIsAPI: a,
-	})
+	cfg := emptyAIGatewayCollectionsConfig()
+	cfg.AIGatewayDataPlaneCertificatesAPI = a
+	cfg.AIGatewayCertificatesAPI = a
+	cfg.AIGatewayCACertificatesAPI = a
+	cfg.AIGatewaySNIsAPI = a
+	return state.NewClient(cfg)
 }
 
 func (a *certificateIdentityAPI) ListAiGatewayDataPlaneCertificates(
@@ -479,4 +512,32 @@ func (a *certificateIdentityAPI) ListAiGatewaySnis(
 	return &kkOps.ListAiGatewaySnisResponse{
 		ListAIGatewaySNIsResponse: &kkComps.ListAIGatewaySNIsResponse{Data: a.snis},
 	}, nil
+}
+
+func (a *certificateIdentityAPI) GetAiGatewayCaCertificate(
+	_ context.Context,
+	_ string,
+	id string,
+	_ ...kkOps.Option,
+) (*kkOps.GetAiGatewayCaCertificateResponse, error) {
+	for _, v := range a.cas {
+		if v.ID == id {
+			return &kkOps.GetAiGatewayCaCertificateResponse{AIGatewayCACertificate: &v}, nil
+		}
+	}
+	return nil, nil
+}
+
+func (a *certificateIdentityAPI) GetAiGatewaySni(
+	_ context.Context,
+	_ string,
+	id string,
+	_ ...kkOps.Option,
+) (*kkOps.GetAiGatewaySniResponse, error) {
+	for _, v := range a.snis {
+		if v.ID == id {
+			return &kkOps.GetAiGatewaySniResponse{AIGatewaySNI: &v}, nil
+		}
+	}
+	return nil, nil
 }

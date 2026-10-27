@@ -46,6 +46,13 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConsumerGroupResource { return &gateway.ConsumerGroups },
 			setParent:     func(child *AIGatewayConsumerGroupResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(
+			51,
+			ResourceTypeAIGatewayConsumerGroup,
+			func(g *AIGatewayResource) *[]AIGatewayConsumerGroupResource { return &g.ConsumerGroups },
+			func(r *AIGatewayConsumerGroupResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewayConsumerGroupResource) string { return r.AIGateway },
+		),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
@@ -56,10 +63,10 @@ func init() {
 
 // AIGatewayConsumerGroupResource represents a Consumer Group nested under a Konnect AI Gateway.
 type AIGatewayConsumerGroupResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `         yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string   `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Consumers []string `yaml:"consumers,omitempty" json:"consumers,omitempty"`
+	Consumers []string `yaml:"consumers,omitempty"  json:"consumers,omitempty"`
 
 	kkComps.CreateAIGatewayConsumerGroupRequest `yaml:",inline" json:",inline"`
 }
@@ -97,8 +104,10 @@ func (a AIGatewayConsumerGroupResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Consumer Group ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Consumer Group %s", a.Ref)
+	if err := validateChildDeclarationManagedBy(
+		aiGatewayPolicyStringMapField(a.CreateRequest(), "managed_by"), a.Kongctl,
+	); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway Consumer Group %s", a.Ref)
@@ -195,6 +204,9 @@ func (a AIGatewayConsumerGroupResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -207,6 +219,9 @@ func (a AIGatewayConsumerGroupResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -220,16 +235,13 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Consumers []string        `json:"consumers,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Consumers []string     `json:"consumers,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -246,7 +258,7 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.Consumers = meta.Consumers
 	a.CreateAIGatewayConsumerGroupRequest = req
@@ -392,6 +404,7 @@ func aiGatewayConsumerGroupStringField(value any, key string) string {
 func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("premium-users"), true, true),
 		explainField("display_name", explainStringNode("Premium Users"), true, true),
@@ -420,4 +433,8 @@ func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 			false,
 		),
 	), nil
+}
+
+func (a AIGatewayConsumerGroupResource) Protected() bool {
+	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
 }
