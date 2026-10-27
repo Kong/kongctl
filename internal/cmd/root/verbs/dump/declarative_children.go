@@ -2742,6 +2742,7 @@ func isNotFound(err error) bool {
 
 func buildAIGatewayCustomPolicies(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -2759,6 +2760,11 @@ func buildAIGatewayCustomPolicies(
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Custom Policy for gateway %s: %w", gatewayName, err)
+		}
+		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
+			declresources.AIGatewayCustomPolicyID(policy.AIGatewayCustomPolicy), resource.Name, resource.ManagedBy)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, resource)
 	}

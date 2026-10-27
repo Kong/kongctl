@@ -1,13 +1,14 @@
 # Shared AI Gateway ownership infrastructure
 
-Models, model providers, auth strategies, and policies support independent
-kongctl namespace ownership.
+Models, model providers, auth strategies, policies, and custom policy
+definitions support independent kongctl namespace ownership.
 The shared infrastructure prepares other mutable children for separate resource
 PRs; it does not enable consumer or group federation. Config stores and data
 plane certificates remain excluded. See [model ownership and migration][models]
 and [provider ownership](ai-gateway-provider-ownership.md) and
 [auth-strategy ownership](ai-gateway-auth-strategy-ownership.md), plus
-[policy ownership](ai-gateway-policy-ownership.md).
+[policy ownership](ai-gateway-policy-ownership.md) and
+[custom definition ownership](ai-gateway-custom-policy-ownership.md).
 
 ## Ownership and collection scope
 
