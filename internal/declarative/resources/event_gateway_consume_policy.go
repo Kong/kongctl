@@ -195,6 +195,8 @@ func (e EventGatewayConsumePolicyResource) MarshalJSON() ([]byte, error) {
 //   - "decrypt" → EventGatewayDecryptPolicy
 //   - "skip_record" → EventGatewaySkipRecordPolicyCreate
 //   - "decrypt_fields" → EventGatewayParsedRecordDecryptFieldsPolicyCreate
+//   - "transcode" → EventGatewayParsedRecordTranscodeConsumePolicyCreate
+//   - "mask_fields" → EventGatewayParsedRecordMaskFieldsConsumePolicyCreate
 func (e *EventGatewayConsumePolicyResource) UnmarshalJSON(data []byte) error {
 	// Extract our metadata fields
 	var meta struct {
