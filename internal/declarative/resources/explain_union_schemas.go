@@ -927,3 +927,32 @@ func explainVariantNode[T any](discriminator, value string) (*ExplainNode, error
 	explainSetConstStringField(node, discriminator, value)
 	return node, nil
 }
+
+func explainReplaceUnionPath(node *ExplainNode, path []string, replacement *ExplainNode) bool {
+	if node == nil || len(path) == 0 {
+		return false
+	}
+	if len(node.OneOf) > 0 {
+		changed := false
+		for _, branch := range node.OneOf {
+			changed = explainReplaceUnionPath(branch, path, replacement) || changed
+		}
+		if changed {
+			explainRefreshUnionAggregate(node)
+		}
+		return changed
+	}
+	field, ok := node.property(path[0])
+	if !ok {
+		return false
+	}
+	if len(path) == 1 {
+		field.Node = replacement
+		return true
+	}
+	child := field.Node
+	if child.Kind == explainKindArray {
+		child = child.Items
+	}
+	return explainReplaceUnionPath(child, path[1:], replacement)
+}

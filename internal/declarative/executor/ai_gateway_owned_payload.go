@@ -107,7 +107,7 @@ func validateChildWriteContext(kind string, execCtx *ExecutionContext, payload m
 // Compare against the mapped saved fields first so injected payload or credentials
 // cannot be disguised as unprotection. Resolved secret writes use the normal path.
 func preserveOwnedMappedChildMetadataUpdate[Request any](kind string,
-	current, requested map[string]any, execCtx *ExecutionContext,
+	current, requested map[string]any, execCtx *ExecutionContext, excludedFields ...string,
 ) (map[string]any, error) {
 	change := execCtx.PlannedChange
 	if len(change.ChangedFields) != 1 || change.ChangedFields[planner.FieldManagedBy].New == nil ||
@@ -119,7 +119,11 @@ func preserveOwnedMappedChildMetadataUpdate[Request any](kind string,
 		return nil, fmt.Errorf("%s identity changed during metadata-only update; regenerate the plan", kind)
 	}
 	var planned Request
-	if err := mapAIGatewaySDKRequest(kind+" update", change.Fields, &planned); err != nil {
+	plannedFields := maps.Clone(change.Fields)
+	for _, field := range excludedFields {
+		delete(plannedFields, field)
+	}
+	if err := mapAIGatewaySDKRequest(kind+" update", plannedFields, &planned); err != nil {
 		return nil, err
 	}
 	expected, err := ownedChildPayload(planned)

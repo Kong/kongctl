@@ -154,3 +154,77 @@ func ChildUnprotectionMetadataOnly(current, desired map[string]string) bool {
 	delete(after, ManagedByVersionKey)
 	return maps.Equal(before, after)
 }
+
+// WithAIGatewayOwnedChildNamespace binds independent ownership to the original
+// nested slices and root declarations. Scope capture runs before extraction.
+func WithAIGatewayOwnedChildNamespace[R any](
+	order int, kind ResourceType,
+	nested func(*AIGatewayResource) *[]R,
+	base func(*R) *BaseResource,
+	parent func(*R) string,
+) ResourceRegistrationOption {
+	participant := func(r *R) NamespaceParticipant {
+		b := base(r)
+		return NamespaceParticipant{
+			Ref:               b.Ref,
+			Label:             string(kind),
+			SupportsProtected: true,
+			Meta:              &b.Kongctl,
+		}
+	}
+	groups := func(rs *ResourceSet) [][]R {
+		result := make([][]R, 0, len(rs.AIGateways))
+		for i := range rs.AIGateways {
+			result = append(result, *nested(&rs.AIGateways[i]))
+		}
+		return result
+	}
+	capture := func(rs *ResourceSet, defaultNamespace string) {
+		scope := rs.EnsureSyncScope()
+		for i := range rs.AIGateways {
+			gateway := &rs.AIGateways[i]
+			var namespaces []string
+			for j := range *nested(gateway) {
+				namespaces = append(namespaces, GetNamespace(base(&(*nested(gateway))[j]).Kongctl))
+			}
+			CaptureOwnedChildCollection(
+				scope,
+				kind,
+				gateway.Ref,
+				defaultNamespace,
+				scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, kind),
+				namespaces,
+			)
+		}
+		for _, resource := range rs.AllResourcesByType(kind) {
+			r := any(resource).(*R)
+			scope.AddChildNamespace(kind, parent(r), GetNamespace(base(r).Kongctl))
+		}
+	}
+	return func(ops *resourceOps) error {
+		for _, option := range []ResourceRegistrationOption{
+			WithNamespace(order,
+				participant),
+			WithNestedNamespaceGroups(groups,
+				participant),
+			WithIndependentChildOwnership(capture,
+				func(r *R) *KongctlMeta { return base(r).Kongctl }),
+		} {
+			if err := option(ops); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func validateChildDeclarationManagedBy(metadata map[string]string, meta *KongctlMeta) error {
+	if err := ValidateChildManagedBy(metadata, true); err != nil {
+		return err
+	}
+	protected := meta != nil && meta.Protected != nil && *meta.Protected
+	return ValidateChildManagedBy(
+		BuildChildManagedBy(nil, metadata, GetNamespace(meta), protected, ""),
+		false,
+	)
+}

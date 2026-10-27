@@ -11,6 +11,7 @@ import (
 )
 
 type planningResourceCache struct {
+	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
 	aiGatewayCACertificates        map[string][]state.AIGatewayCACertificate
 	aiGatewayCertificates          map[string][]state.AIGatewayCertificate
@@ -49,6 +50,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),
 		aiGatewayCACertificates:        make(map[string][]state.AIGatewayCACertificate),
 		aiGatewayCertificates:          make(map[string][]state.AIGatewayCertificate),
