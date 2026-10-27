@@ -244,11 +244,10 @@ func (p *Planner) planAIGatewaySNIChanges(
 		fields[FieldCertificate] = certificate
 		return fields, nil
 	}
-	create := func(child resources.AIGatewaySNIResource) {
+	create := func(child resources.AIGatewaySNIResource) error {
 		fields, err := payload(child)
 		if err != nil {
-			plan.AddWarning(child.Ref, "failed to build TLS payload")
-			return
+			return fmt.Errorf("failed to build AI Gateway SNI %q create payload: %w", child.Ref, err)
 		}
 		fields[FieldManagedBy] = resources.BuildChildManagedBy(
 			nil,
@@ -269,10 +268,13 @@ func (p *Planner) planAIGatewaySNIChanges(
 			plan,
 		)
 		plan.Changes[before].Protection = child.Protected()
+		return nil
 	}
 	if gatewayID == "" {
 		for _, child := range desired {
-			create(child)
+			if err := create(child); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -292,7 +294,7 @@ func (p *Planner) planAIGatewaySNIChanges(
 			fetch: func(_ resources.AIGatewaySNIResource, current state.AIGatewaySNI) (*state.AIGatewaySNI, error) {
 				return p.client.GetAIGatewaySNI(ctx, gatewayID, current.ID)
 			},
-			create: create,
+			createWithError: create,
 			diff: func(current state.AIGatewaySNI,
 				child resources.AIGatewaySNIResource) (bool,
 				map[string]any,

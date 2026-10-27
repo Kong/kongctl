@@ -17,6 +17,7 @@ type nameMatchedChildOperations[D, C any] struct {
 	fetch             func(D, C) (*C, error)
 	diff              func(C, D) (bool, map[string]any, map[string]FieldChange, error)
 	create            func(D)
+	createWithError   func(D) error
 	update            func(C, D, map[string]any, map[string]FieldChange)
 	protected         func(C) bool
 	remove            func(C)
@@ -35,6 +36,13 @@ func reconcileNameMatchedChildren[D, C any](
 	ops nameMatchedChildOperations[D, C],
 	plan *Plan,
 ) error {
+	create := func(child D) error {
+		if ops.createWithError != nil {
+			return ops.createWithError(child)
+		}
+		ops.create(child)
+		return nil
+	}
 	return reconcileNameMatchedCollection(p, resourceType, desired, current,
 		nameMatchedCollectionOperations[D, C]{
 			ownership: ops.ownership, ownershipMetadata: ops.ownershipMetadata, desiredOrder: ops.desiredOrder,
@@ -45,8 +53,7 @@ func reconcileNameMatchedChildren[D, C any](
 			},
 			reconcile: func(child D, observed *C) error {
 				if observed == nil {
-					ops.create(child)
-					return nil
+					return create(child)
 				}
 				full, err := ops.fetch(child, *observed)
 				if err != nil {
@@ -59,8 +66,7 @@ func reconcileNameMatchedChildren[D, C any](
 							resourceType,
 						)
 					}
-					ops.create(child)
-					return nil
+					return create(child)
 				}
 				var metadata map[string]string
 				var meta *resources.KongctlMeta
