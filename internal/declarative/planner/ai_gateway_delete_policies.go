@@ -10,6 +10,35 @@ type aiGatewayDeleteResolver struct {
 // Keep adapter dispatch ordered to preserve validation diagnostics. Custom
 // policies also supply creation edges when there are no deletions.
 var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
+	{ResourceTypeAIGatewayDatastore, (*Planner).resolveAIGatewayDatastoreDeletes},
+	{
+		ResourceTypeAIGatewayCertificate,
+		func(p *Planner, ctx context.Context, ns, ref, id string, plan *Plan) error {
+			return p.resolveAIGatewayOutboundTLSDeletes(
+				ctx,
+				ns,
+				ref,
+				id,
+				ResourceTypeAIGatewayCertificate,
+				FieldCertificates,
+				plan,
+			)
+		},
+	},
+	{
+		ResourceTypeAIGatewayCACertificate,
+		func(p *Planner, ctx context.Context, ns, ref, id string, plan *Plan) error {
+			return p.resolveAIGatewayOutboundTLSDeletes(
+				ctx,
+				ns,
+				ref,
+				id,
+				ResourceTypeAIGatewayCACertificate,
+				FieldCACertificates,
+				plan,
+			)
+		},
+	},
 	{ResourceTypeAIGatewayProvider, (*Planner).resolveAIGatewayProviderDeletes},
 	{ResourceTypeAIGatewayPolicy, (*Planner).resolveAIGatewayPolicyDeletes},
 	{ResourceTypeAIGatewayAuthStrategy, (*Planner).resolveAIGatewayAuthStrategyDeletes},

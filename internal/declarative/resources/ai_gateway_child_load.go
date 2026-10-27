@@ -62,6 +62,10 @@ func validateAIGatewayChildren[T any, P aiGatewayChildResource[T]](
 		resourceType := child.GetType()
 		resourceLabel := string(resourceType)
 
+		if err := validateAIGatewayTokenVaultStoreTypes(rs, child); err != nil {
+			return err
+		}
+
 		if err := child.Validate(); err != nil {
 			return fmt.Errorf("invalid %s %q: %w", resourceLabel, child.GetRef(), err)
 		}

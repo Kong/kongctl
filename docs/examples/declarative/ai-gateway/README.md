@@ -63,6 +63,10 @@ access:
   `!file` and a private key loaded at execution time with
   `!secret {source: !file ...}`. Runtime certificates are distinct from data
   plane certificates.
+- [token-vault.yaml](token-vault.yaml) connects an MCP passthrough listener and
+  an OpenAI model provider to a shared Token Vault datastore with AI Gateway
+  runtime 2.3. Each resolves the caller's upstream credential through the named
+  Token Vault provider registration.
 - [federated](federated) shows a multi-folder
   layout where a central team owns an AI Gateway and providers, while a peer
   team owns root-level policies, agents, consumers, consumer groups, models, MCP
@@ -88,3 +92,24 @@ included in this repository.
 
 For pre-GA AI Gateway 2.2 development, see
 [the feature notes and examples](PRE_GA_2_2.md).
+
+Before applying `token-vault.yaml`, set `TOKEN_VAULT_ENCRYPTION_KEY` to the
+encryption key for version `v1` and replace the example MCP URL with your
+upstream server URL. The Token Vault directory `support-credentials` and its
+provider registration `upstream-credentials` must already be provisioned.
+`token_vault.provider` names that registration; this manifest does not create
+it. It is distinct from the OpenAI entry under `model_providers`.
+
+The datastore selects the directory and encryption keys. Each MCP server or
+model provider references that datastore by its API name and selects a
+credential provider registered in that directory. Callers must enroll with
+that provider before their upstream credentials can be resolved. Until
+enrollment completes, the MCP server exposes virtual `authenticate` and
+`check_authentication_status` tools to guide the caller through the flow.
+
+Load this example on its own:
+
+```sh
+kongctl plan --mode apply -f docs/examples/declarative/ai-gateway/token-vault.yaml
+kongctl apply -f docs/examples/declarative/ai-gateway/token-vault.yaml
+```

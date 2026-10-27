@@ -54,6 +54,18 @@ func (t OrganizationTeamResource) MarshalYAML() (any, error) {
 	return t.organizationTeamAlias(), nil
 }
 
+func (t *OrganizationTeamResource) UnmarshalJSON(data []byte) error {
+	var raw organizationTeamAlias
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	t.BaseResource = BaseResource{Ref: raw.Ref, Kongctl: raw.Kongctl}
+	t.CreateTeam = kkComps.CreateTeam{Name: raw.Name, Description: raw.Description, Labels: raw.Labels}
+	t.External = raw.External
+	t.Roles = raw.Roles
+	return nil
+}
+
 type organizationTeamAlias struct {
 	Ref         string                         `json:"ref"                   yaml:"ref"`
 	Kongctl     *KongctlMeta                   `json:"kongctl,omitempty"     yaml:"kongctl,omitempty"`

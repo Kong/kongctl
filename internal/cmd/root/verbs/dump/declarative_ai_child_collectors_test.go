@@ -2,22 +2,98 @@ package dump
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/loader"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
 	declstate "github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 )
+
+func TestAIGatewayTokenVaultMCPDumpReload(t *testing.T) {
+	const datastore = `{"id":"store-id","name":"credential-storage","display_name":"Credentials",
+"type":"token-vault","config":{"directory":"support-credentials","current_version":"v1","keys":[{"version":"v1"}]},
+"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`
+	const mcp = `{"id":"mcp-id","name":"support-mcp","display_name":"Support MCP","type":"passthrough-listener",
+"config":{"url":"https://mcp.example.com/mcp","route":{"paths":["/support-mcp"]}},
+"datastores":[{"name":"credential-storage"}],"token_vault":{"provider":"upstream-credentials",
+"storage":{"directory":"support-credentials","current_version":"v1","keys":[{"version":"v1"}]}},
+"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`
+	httpClient := aiChildDumpHTTPClient(func(req *http.Request) (*http.Response, error) {
+		require.Equal(t, http.MethodGet, req.Method)
+		var body string
+		switch req.URL.Path {
+		case "/v1/ai-gateways/gateway-id/datastores":
+			body = `{"data":[` + datastore + `],"meta":{"page":{"size":100}}}`
+		case "/v1/ai-gateways/gateway-id/datastores/store-id":
+			body = datastore
+		case "/v1/ai-gateways/gateway-id/mcp-servers":
+			body = `{"data":[` + mcp + `],"meta":{"page":{"size":100}}}`
+		default:
+			t.Errorf("unexpected request %s", req.URL.Path)
+			body = `{}`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}},
+			Body: io.NopCloser(strings.NewReader(body)), Request: req,
+		}, nil
+	})
+	sdk := &helpers.KonnectSDK{SDK: kkSDK.New(
+		kkSDK.WithServerURL("https://konnect.test"), kkSDK.WithClient(httpClient),
+	)}
+	client := declstate.NewClient(declstate.ClientConfig{
+		AIGatewayDatastoresAPI: sdk.GetAIGatewayDatastoresAPI(),
+		AIGatewayMCPServersAPI: sdk.GetAIGatewayMCPServersAPI(),
+	})
+	stores, err := buildAIGatewayDatastores(t.Context(), client, "gateway-id", "Support", "support")
+	require.NoError(t, err)
+	require.Len(t, stores, 1)
+	servers, err := buildAIGatewayMCPServers(t.Context(), client, "gateway-id", "Support", "support")
+	require.NoError(t, err)
+	require.Len(t, servers, 1)
+	manifest := declresources.ResourceSet{AIGateways: []declresources.AIGatewayResource{{
+		BaseResource: declresources.BaseResource{Ref: "support"},
+		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{
+			Name: "support", DisplayName: "Support",
+		},
+		Datastores: stores, MCPServers: servers,
+	}}}
+	encoded, err := yaml.Marshal(manifest)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "storage:")
+	filename := filepath.Join(t.TempDir(), "dump.yaml")
+	require.NoError(t, os.WriteFile(filename, encoded, 0o600))
+	reloaded, err := loader.New().LoadFile(filename)
+	require.NoError(t, err)
+	require.Len(t, reloaded.AIGatewayDatastores, 1)
+	require.Len(t, reloaded.AIGatewayMCPServers, 1)
+	payload, err := reloaded.AIGatewayMCPServers[0].MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"provider": "upstream-credentials"}, payload["token_vault"])
+	require.Equal(t, []any{map[string]any{"name": "credential-storage"}}, payload["datastores"])
+	storePayload, err := reloaded.AIGatewayDatastores[0].PayloadMap()
+	require.NoError(t, err)
+	config, err := json.Marshal(storePayload["config"])
+	require.NoError(t, err)
+	require.JSONEq(
+		t,
+		`{"directory":"support-credentials","current_version":"v1","keys":[{"version":"v1"}]}`,
+		string(config),
+	)
+}
 
 func TestAIGatewayChildCollectorCoverage(t *testing.T) {
 	require.NoError(t, validateAIGatewayChildCollectors(aiGatewayChildCollectors))
@@ -166,6 +242,7 @@ func TestPopulateAIGatewayChildrenExportContract(t *testing.T) {
 				AIGatewayMCPServersAPI:            sdk.GetAIGatewayMCPServersAPI(),
 				AIGatewayConfigStoresAPI:          sdk.GetAIGatewayConfigStoresAPI(),
 				AIGatewayVaultsAPI:                sdk.GetAIGatewayVaultsAPI(),
+				AIGatewayDatastoresAPI:            sdk.GetAIGatewayDatastoresAPI(),
 				AIGatewayDataPlaneCertificatesAPI: sdk.GetAIGatewayDataPlaneCertificatesAPI(),
 				AIGatewayCertificatesAPI:          sdk.GetAIGatewayCertificatesAPI(),
 				AIGatewayCACertificatesAPI:        sdk.GetAIGatewayCACertificatesAPI(),
@@ -190,7 +267,7 @@ func TestPopulateAIGatewayChildrenExportContract(t *testing.T) {
 			require.Equal(t, []string{
 				"model-providers", "auth-strategies", "custom-policies", "policies", "agents",
 				"consumers", "consumers/consumer-id/credentials", "consumer-groups", "models", "mcp-servers",
-				"config-stores", "config-stores/store-id/secrets", "vaults", "data-plane-certificates",
+				"config-stores", "config-stores/store-id/secrets", "datastores", "vaults", "data-plane-certificates",
 				"certificates", "ca-certificates", "snis",
 			}, calls, logs.String())
 			gateway := gateways[1]

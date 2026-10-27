@@ -100,7 +100,7 @@ func TestPlanPortalIntegrations_NoChangeWhenStateMatches(t *testing.T) {
 func googleTagManagerIntegration(id string, enabled bool) kkComps.GoogleTagManagerIntegration {
 	return kkComps.GoogleTagManagerIntegration{
 		Enabled: enabled,
-		Type:    kkComps.GoogleTagManagerIntegrationTypeTracking,
+		Type:    kkComps.TypeTracking,
 		ConfigData: kkComps.ConfigData{
 			ID: id,
 		},

@@ -17,6 +17,7 @@ const (
 	ViewParentAIGatewayMCPServer            = "ai-gateway-mcp-server"
 	ViewParentAIGatewayConfigStore          = "ai-gateway-config-store"
 	ViewParentAIGatewayVault                = "ai-gateway-vault"
+	ViewParentAIGatewayDatastore            = "ai-gateway-datastore"
 	ViewParentAIGatewayNode                 = "ai-gateway-node"
 	ViewParentAIGatewayDataPlaneCertificate = "ai-gateway-data-plane-certificate"
 	ViewParentAIGatewayCertificate          = "ai-gateway-certificate"

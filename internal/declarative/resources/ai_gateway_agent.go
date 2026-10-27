@@ -374,6 +374,15 @@ func aiGatewayAgentStringField(value any, key string) string {
 }
 
 func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
+	sdk, err := autoExplainConcreteNode[kkComps.CreateAIGatewayAgentRequest](nil)
+	if err != nil {
+		return nil, err
+	}
+	config, ok := sdk.property(aiGatewayAgentFieldConfig)
+	if !ok {
+		return nil, fmt.Errorf("SDK AI Gateway agent schema has no config field")
+	}
+	setExplainLiteral(config.Node, []string{"url"}, "https://booking-agent.example.com")
 	return explainObject(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
@@ -382,43 +391,7 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("display_name", explainStringNode("Booking Agent"), true, true),
 		explainField(aiGatewayAgentFieldEnabled, explainBoolNode("true"), false, false),
 		explainField("access", aiGatewayAccessExplainNode(true), false, false),
-		explainField(
-			aiGatewayAgentFieldConfig,
-			explainObject(
-				explainField("url", explainStringNode("https://booking-agent.example.com"), true, true),
-				explainField("upstream", aiGatewayUpstreamExplainNode(), false, false),
-				explainField(
-					"route",
-					aiGatewayRouteExplainNode(),
-					false,
-					false,
-				),
-				explainField("proxy", aiGatewayProxyExplainNode(), false, false),
-				explainField(
-					"max_request_body_size",
-					&ExplainNode{Kind: explainKindInteger, Literal: "1048576"},
-					false,
-					false,
-				),
-				explainField(
-					"logging",
-					explainObject(
-						explainField("payloads", explainBoolNode("true"), false, false),
-						explainField("statistics", explainBoolNode("true"), false, false),
-						explainField(
-							"max_payload_size",
-							&ExplainNode{Kind: explainKindInteger, Literal: "524288"},
-							false,
-							false,
-						),
-					),
-					false,
-					false,
-				),
-			),
-			true,
-			true,
-		),
+		explainField(aiGatewayAgentFieldConfig, config.Node, true, true),
 		explainField(
 			aiGatewayAgentFieldPolicies,
 			explainArrayOf(explainStringNode("!ref mask-sensitive-data")),

@@ -38,6 +38,27 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
+	datastores := p.resources.GetAIGatewayDatastoresForGateway(desiredGateway.Ref)
+	if p.shouldPlanChild(
+		plan,
+		resources.ResourceTypeAIGateway,
+		desiredGateway.Ref,
+		resources.ResourceTypeAIGatewayDatastore,
+	) && (len(datastores) > 0 || plan.Metadata.Mode == PlanModeSync) {
+		if err := p.planAIGatewayDatastoreChanges(
+			ctx,
+			namespace,
+			desiredGateway.Ref,
+			desiredGateway.DisplayName,
+			gatewayID,
+			gatewayChangeID,
+			datastores,
+			plan,
+		); err != nil {
+			return err
+		}
+	}
+
 	vaults := p.resources.GetAIGatewayVaultsForGateway(desiredGateway.Ref)
 	if p.shouldPlanChild(
 		plan,
@@ -270,5 +291,7 @@ func (p *Planner) planAIGatewayChildren(
 		}
 	}
 
+	addAIGatewayDatastoreDependencies(plan, namespace, desiredGateway.Ref)
+	addAIGatewayOutboundTLSDependencies(plan, namespace, desiredGateway.Ref)
 	return p.resolveAIGatewayReferenceDeletes(ctx, namespace, desiredGateway.Ref, gatewayID, plan)
 }

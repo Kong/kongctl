@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"time"
 
@@ -138,6 +139,45 @@ func (a AIGatewayMCPServerResource) Validate() error {
 			)
 		}
 	}
+	payload, err := a.PayloadMap()
+	if err != nil {
+		return err
+	}
+	rawStores, hasStores := payload["datastores"]
+	var stores []kkComps.AIGatewayDatastoreRef
+	if hasStores {
+		data, err := json.Marshal(rawStores)
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(data, &stores); err != nil {
+			return err
+		}
+		if stores == nil {
+			stores = []kkComps.AIGatewayDatastoreRef{}
+		}
+	}
+	if err := validateAIGatewayTokenVault(stores, payload["token_vault"] != nil); err != nil {
+		return err
+	}
+	if vault, ok := payload["token_vault"].(map[string]any); ok && vault["provider"] == "" {
+		return fmt.Errorf("token_vault.provider is required")
+	}
+
+	if raw := payload["rate_limiting"]; raw != nil {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		var rate kkComps.AIGatewayMCPServerRateLimiting
+		if err := json.Unmarshal(data, &rate); err != nil {
+			return err
+		}
+		if err := validateAIGatewayMCPRateLimiting(rate); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -194,18 +234,27 @@ func (a *AIGatewayMCPServerResource) TryMatchKonnectResource(konnectResource any
 }
 
 func (a AIGatewayMCPServerResource) Name() string {
-	return aiGatewayMCPServerStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldName)
+	return aiGatewayMCPServerStringField(
+		a.CreateAIGatewayMCPServerRequest,
+		aiGatewayMCPServerFieldName,
+	)
 }
 
 func (a AIGatewayMCPServerResource) DisplayName() string {
-	return aiGatewayMCPServerStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldDisplayName)
+	return aiGatewayMCPServerStringField(
+		a.CreateAIGatewayMCPServerRequest,
+		aiGatewayMCPServerFieldDisplayName,
+	)
 }
 
 func (a AIGatewayMCPServerResource) MCPServerType() string {
 	if a.Type != "" {
 		return string(a.Type)
 	}
-	return aiGatewayMCPServerStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldType)
+	return aiGatewayMCPServerStringField(
+		a.CreateAIGatewayMCPServerRequest,
+		aiGatewayMCPServerFieldType,
+	)
 }
 
 func (a AIGatewayMCPServerResource) CreateRequest() kkComps.CreateAIGatewayMCPServerRequest {
@@ -413,7 +462,9 @@ func AIGatewayMCPServerUpdatedAt(server any) time.Time {
 	return time.Time{}
 }
 
-func AIGatewayMCPServerMutablePayloadMap(server kkComps.AIGatewayMCPServer) (map[string]any, error) {
+func AIGatewayMCPServerMutablePayloadMap(
+	server kkComps.AIGatewayMCPServer,
+) (map[string]any, error) {
 	payload, err := marshalObjectToMap(server, "AI Gateway MCP Server response")
 	if err != nil {
 		return nil, err
@@ -455,6 +506,9 @@ func stripAIGatewayMCPServerServerFields(payload map[string]any) {
 	delete(payload, aiGatewayMCPServerFieldID)
 	delete(payload, SchemaFieldCreatedAt)
 	delete(payload, aiGatewayMCPServerFieldUpdatedAt)
+	if vault, ok := payload["token_vault"].(map[string]any); ok {
+		delete(vault, "storage")
+	}
 }
 
 func aiGatewayMCPServerStringField(value any, key string) string {
@@ -473,7 +527,9 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to build MCP server cache schema: %w", err)
 	}
-	upstreamServerConfig, err := autoExplainConcreteNode[kkComps.AIGatewayMCPServerUpstreamServerServerConfig](nil)
+	upstreamServerConfig, err := autoExplainConcreteNode[kkComps.AIGatewayMCPServerUpstreamServerServerConfig](
+		nil,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build upstream MCP server schema: %w", err)
 	}
@@ -519,7 +575,12 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	listenerFields := slices.Clone(listenerAccessFields)
 	listenerFields = append(
 		listenerFields,
-		explainField("sources", explainArrayOf(explainStringNode("source-server-name")), true, true),
+		explainField(
+			"sources",
+			explainArrayOf(explainStringNode("source-server-name")),
+			true,
+			true,
+		),
 	)
 	upstreamServer := explainObject(append(
 		slices.Clone(commonFields),
@@ -530,7 +591,7 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	explainReplaceField(upstreamConfig, explainField("server", upstreamServerConfig, false, false))
 	explainReplaceField(upstreamServer, explainField("config", upstreamConfig, true, true))
 	upstreamServer.rejectLoadField("access", aiGatewayMCPServerUpstreamServerAccessMessage)
-	return explainUnionNode(
+	custom := explainUnionNode(
 		conversionOnly,
 		explainObject(append(
 			slices.Clone(listenerAccessFields),
@@ -547,7 +608,31 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
 		upstreamServer,
-	), nil
+	)
+	sdk, ok, err := autoExplainSDKUnionNode(
+		reflect.TypeFor[kkComps.CreateAIGatewayMCPServerRequest](),
+		nil,
+		defaultExplainHints(""),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || len(sdk.OneOf) != len(custom.OneOf) {
+		return nil, fmt.Errorf("SDK MCP server variants changed")
+	}
+	for i, branch := range custom.OneOf {
+		for _, name := range []string{SchemaFieldConfig, "datastores", "token_vault", "rate_limiting"} {
+			if field, ok := sdk.OneOf[i].property(name); ok {
+				explainReplaceField(branch, field)
+			}
+		}
+	}
+	for _, branch := range custom.OneOf {
+		configureAIGatewayTokenVaultExplain(branch)
+	}
+	explainRefreshUnionAggregate(custom)
+	return custom, nil
 }
 
 func aiGatewayMCPToolAccessExplainNode() *ExplainNode {
@@ -570,20 +655,45 @@ func aiGatewayMCPConversionToolsExplainField() *ExplainField {
 		explainField("annotations", aiGatewayMCPToolAnnotationsExplainNode(), false, false),
 		explainField("name", explainStringNode("lookup-customer"), true, true),
 		explainField("description", explainStringNode("Look up a customer profile"), true, true),
-		explainField("headers", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField(
+			"headers",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
 		explainField("host", explainStringNode("api.example.com"), false, false),
 		explainField("method", explainStringNode("GET"), true, true),
 		explainField("path", explainStringNode("/customers/{customer_id}"), false, true),
-		explainField("query", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
-		explainField("request_body", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
-		explainField("responses", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField(
+			"query",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
+		explainField(
+			"request_body",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
+		explainField(
+			"responses",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
 		explainField("scheme", explainStringNode("https"), false, false),
 		explainField("parameters", explainArrayOf(explainObject(
 			explainField("name", explainStringNode("customer_id"), true, true),
 			explainField("in", explainStringNode("path"), true, true),
 			explainField("description", explainStringNode("Customer identifier"), false, false),
 			explainField("required", explainBoolNode("true"), false, false),
-			explainField("schema", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+			explainField(
+				"schema",
+				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+				false,
+				false,
+			),
 		)), false, false),
 	)
 	return explainField("tools", explainArrayOf(tool), true, true)
@@ -599,7 +709,12 @@ func aiGatewayMCPPassthroughToolsExplainField() *ExplainField {
 func aiGatewayMCPUpstreamToolsExplainField() *ExplainField {
 	return explainField("tools", explainArrayOf(explainObject(
 		explainField("name", explainStringNode("remote-tool-name"), true, true),
-		explainField("description", explainStringNode("Override the remote tool description"), false, false),
+		explainField(
+			"description",
+			explainStringNode("Override the remote tool description"),
+			false,
+			false,
+		),
 		explainField("annotations", aiGatewayMCPToolAnnotationsExplainNode(), false, false),
 		explainField("access", aiGatewayMCPToolAccessExplainNode(), false, false),
 		explainField("input_schema", &ExplainNode{}, false, false),
@@ -634,7 +749,12 @@ func aiGatewayMCPServerAccessExplainNode() *ExplainNode {
 				false,
 			),
 			explainField("resource", explainStringNode("https://mcp.example.com"), false, false),
-			explainField("scopes_supported", explainArrayOf(explainStringNode("mcp:read")), false, false),
+			explainField(
+				"scopes_supported",
+				explainArrayOf(explainStringNode("mcp:read")),
+				false,
+				false,
+			),
 		), false, false),
 	)
 }
@@ -646,12 +766,27 @@ func aiGatewayMCPServerConfigExplainNode() *ExplainNode {
 			explainField("payloads", explainBoolNode("false"), false, false),
 			explainField("audits", explainBoolNode("false"), false, false),
 		), false, false),
-		explainField("max_request_body_size", &ExplainNode{Kind: explainKindInteger, Literal: "8388608"}, false, false),
-		explainField("server", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, false, false),
+		explainField(
+			"max_request_body_size",
+			&ExplainNode{Kind: explainKindInteger, Literal: "8388608"},
+			false,
+			false,
+		),
+		explainField(
+			"server",
+			&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+			false,
+			false,
+		),
 		explainField("url", explainStringNode("https://support-tools.example.com"), false, true),
 		explainField("upstream", aiGatewayUpstreamExplainNode(), false, false),
 		explainField("proxy", aiGatewayProxyExplainNode(), false, false),
-		explainField("tools_cache_ttl_seconds", &ExplainNode{Kind: explainKindInteger, Literal: "60"}, false, false),
+		explainField(
+			"tools_cache_ttl_seconds",
+			&ExplainNode{Kind: explainKindInteger, Literal: "60"},
+			false,
+			false,
+		),
 	)
 }
 

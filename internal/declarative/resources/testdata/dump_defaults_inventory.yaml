@@ -1,6 +1,10 @@
 sdk_version: v0.73.1
 schema_version: 1
 resources:
+  - resource_type: ai_cost_management_tags
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: ai_gateway
     defaults:
       - path: agents.config.logging.max_payload_size
@@ -47,9 +51,57 @@ resources:
         type: boolean
         value: true
         source: sdk
+      - path: auth_strategies.token_vault.enable_credential_manager
+        type: boolean
+        value: false
+        source: sdk
       - path: consumers.credentials.ttl
         type: integer
         value: 0
+        source: sdk
+      - path: datastores.config.password
+        type: string
+        value: "null"
+        source: sdk
+      - path: datastores.config.port
+        type: integer
+        value: 5432
+        source: sdk
+      - path: datastores.config.ssl
+        type: boolean
+        value: false
+        source: sdk
+      - path: datastores.config.ssl_cert
+        type: string
+        value: "null"
+        source: sdk
+      - path: datastores.config.ssl_cert_key
+        type: string
+        value: "null"
+        source: sdk
+      - path: datastores.config.ssl_required
+        type: boolean
+        value: false
+        source: sdk
+      - path: datastores.config.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: datastores.config.ssl_version
+        type: string
+        value: tlsv1_2
+        source: sdk
+      - path: datastores.config.timeout
+        type: integer
+        value: 5000
+        source: sdk
+      - path: datastores.config.user
+        type: string
+        value: postgres
+        source: sdk
+      - path: datastores.description
+        type: string
+        value: ""
         source: sdk
       - path: deployment_type
         type: string
@@ -188,6 +240,126 @@ resources:
         value: Authorization
         source: sdk
       - path: mcp_servers.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: mcp_servers.token_vault.cache.redis.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: model_providers.token_vault.cache.redis.ssl_verify
         type: boolean
         value: true
         source: sdk
@@ -570,7 +742,11 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_auth_strategy
-    defaults: []
+    defaults:
+      - path: token_vault.enable_credential_manager
+        type: boolean
+        value: false
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_ca_certificate
@@ -615,6 +791,54 @@ resources:
     exclusions: []
   - resource_type: ai_gateway_data_plane_certificate
     defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: ai_gateway_datastore
+    defaults:
+      - path: config.password
+        type: string
+        value: "null"
+        source: sdk
+      - path: config.port
+        type: integer
+        value: 5432
+        source: sdk
+      - path: config.ssl
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.ssl_cert
+        type: string
+        value: "null"
+        source: sdk
+      - path: config.ssl_cert_key
+        type: string
+        value: "null"
+        source: sdk
+      - path: config.ssl_required
+        type: boolean
+        value: false
+        source: sdk
+      - path: config.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
+      - path: config.ssl_version
+        type: string
+        value: tlsv1_2
+        source: sdk
+      - path: config.timeout
+        type: integer
+        value: 5000
+        source: sdk
+      - path: config.user
+        type: string
+        value: postgres
+        source: sdk
+      - path: description
+        type: string
+        value: ""
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_mcp_server
@@ -752,6 +976,66 @@ resources:
         value: Authorization
         source: sdk
       - path: enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: token_vault.cache.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: token_vault.cache.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: token_vault.cache.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: token_vault.cache.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: token_vault.cache.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: token_vault.cache.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: token_vault.cache.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: token_vault.cache.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: token_vault.cache.redis.ssl_verify
         type: boolean
         value: true
         source: sdk
@@ -1006,7 +1290,67 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_model_provider
-    defaults: []
+    defaults:
+      - path: token_vault.cache.redis.cloud_authentication.is_serverless
+        type: boolean
+        value: true
+        source: sdk
+      - path: token_vault.cache.redis.cluster.max_redirections
+        type: integer
+        value: 5
+        source: sdk
+      - path: token_vault.cache.redis.cluster.nodes.ip
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.cluster.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: token_vault.cache.redis.connect_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.connection_is_proxied
+        type: boolean
+        value: false
+        source: sdk
+      - path: token_vault.cache.redis.database
+        type: integer
+        value: 0
+        source: sdk
+      - path: token_vault.cache.redis.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.keepalive.pool_size
+        type: integer
+        value: 256
+        source: sdk
+      - path: token_vault.cache.redis.read_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.send_timeout
+        type: integer
+        value: 2000
+        source: sdk
+      - path: token_vault.cache.redis.sentinel.nodes.host
+        type: string
+        value: 127.0.0.1
+        source: sdk
+      - path: token_vault.cache.redis.sentinel.nodes.port
+        type: integer
+        value: 6379
+        source: sdk
+      - path: token_vault.cache.redis.ssl
+        type: boolean
+        value: true
+        source: sdk
+      - path: token_vault.cache.redis.ssl_verify
+        type: boolean
+        value: true
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: ai_gateway_policy
@@ -1267,6 +1611,38 @@ resources:
         type: string
         value: ""
         source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: virtual_clusters.consume_policies.config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
+        source: sdk
       - path: virtual_clusters.consume_policies.description
         type: string
         value: ""
@@ -1286,6 +1662,38 @@ resources:
       - path: virtual_clusters.produce_policies.condition
         type: string
         value: ""
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: virtual_clusters.produce_policies.config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
         source: sdk
       - path: virtual_clusters.produce_policies.description
         type: string
@@ -1455,6 +1863,38 @@ resources:
         type: string
         value: ""
         source: sdk
+      - path: consume_policies.config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: consume_policies.config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: consume_policies.config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
+        source: sdk
       - path: consume_policies.description
         type: string
         value: ""
@@ -1474,6 +1914,38 @@ resources:
       - path: produce_policies.condition
         type: string
         value: ""
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: produce_policies.config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: produce_policies.config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
         source: sdk
       - path: produce_policies.description
         type: string
@@ -1515,6 +1987,38 @@ resources:
         type: string
         value: ""
         source: sdk
+      - path: config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
+        source: sdk
       - path: description
         type: string
         value: ""
@@ -1530,6 +2034,38 @@ resources:
       - path: condition
         type: string
         value: ""
+        source: sdk
+      - path: config.mask_fields.strategy.domain.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.domain.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.local_part.first
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.mask_fields.strategy.local_part.last
+        type: integer
+        value: 0
+        source: sdk
+      - path: config.on_unknown_field
+        type: string
+        value: fail
+        source: sdk
+      - path: config.schema_source.schema_ref_destination.name
+        type: string
+        value: __value_schema_id
         source: sdk
       - path: description
         type: string
@@ -1554,7 +2090,11 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: organization_team
-    defaults: []
+    defaults:
+      - path: konnect_managed
+        type: boolean
+        value: false
+        source: sdk
     overrides: []
     exclusions: []
   - resource_type: organization_team_role
@@ -1571,6 +2111,34 @@ resources:
     exclusions: []
   - resource_type: portal
     defaults:
+      - path: ai.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.ai_search.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.mcp_server.enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.mcp_server.write_operations_enabled
+        type: boolean
+        value: false
+        source: sdk
+      - path: ai.features.portal_agent.audience
+        type: string
+        value: all
+        source: sdk
+      - path: ai.features.portal_agent.display_name
+        type: string
+        value: AI
+        source: sdk
+      - path: ai.features.portal_agent.enabled
+        type: boolean
+        value: false
+        source: sdk
       - path: auth_settings.oidc_claim_mappings.email
         type: string
         value: email
@@ -1592,6 +2160,10 @@ resources:
         value: false
         source: sdk
       - path: auto_approve_developers
+        type: boolean
+        value: false
+        source: sdk
+      - path: create_default_content
         type: boolean
         value: false
         source: sdk

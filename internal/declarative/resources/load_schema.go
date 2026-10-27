@@ -76,7 +76,7 @@ func replaceLoadSchemaProperty(schema *JSONSchema, name string, replacement *JSO
 	if _, ok := schema.Properties[name]; ok {
 		schema.Properties[name] = replacement
 	}
-	for _, branch := range schema.OneOf {
+	for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
 		replaceLoadSchemaProperty(branch, name, replacement)
 	}
 }
@@ -97,7 +97,11 @@ func renderShapeSchema(node *ExplainNode) *JSONSchema {
 			retainLoadSchemaBranchType(branchSchema, branch)
 			retainLoadSchemaBranchDiscriminators(branchSchema, branch)
 			branchSchema.Required = loadSchemaBranchSelectors(branch, node.OneOf)
-			schema.OneOf = append(schema.OneOf, branchSchema)
+			if node.inclusiveUnion {
+				schema.AnyOf = append(schema.AnyOf, branchSchema)
+			} else {
+				schema.OneOf = append(schema.OneOf, branchSchema)
+			}
 		}
 		return schema
 	}

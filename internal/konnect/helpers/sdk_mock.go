@@ -22,6 +22,8 @@ type MockKonnectSDK struct {
 	AIGatewayMCPServersFactory            func() AIGatewayMCPServersAPI
 	AIGatewayConfigStoresFactory          func() AIGatewayConfigStoresAPI
 	AIGatewayVaultsFactory                func() AIGatewayVaultsAPI
+	AIGatewayDatastoresFactory            func() AIGatewayDatastoresAPI
+	AICostManagementTagsFactory           func() AICostManagementTagsAPI
 	AIGatewayNodesFactory                 func() AIGatewayNodesAPI
 	AIGatewayDataPlaneCertificatesFactory func() AIGatewayDataPlaneCertificatesAPI
 	AIGatewayCertificatesFactory          func() AIGatewayCertificatesAPI
@@ -195,6 +197,13 @@ func (m *MockKonnectSDK) GetAIGatewayConfigStoresAPI() AIGatewayConfigStoresAPI 
 func (m *MockKonnectSDK) GetAIGatewayVaultsAPI() AIGatewayVaultsAPI {
 	if m.AIGatewayVaultsFactory != nil {
 		return m.AIGatewayVaultsFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetAIGatewayDatastoresAPI() AIGatewayDatastoresAPI {
+	if m.AIGatewayDatastoresFactory != nil {
+		return m.AIGatewayDatastoresFactory()
 	}
 	return nil
 }
@@ -647,6 +656,13 @@ func (m *MockKonnectSDKFactory) Build(token string) (SDKAPI, error) {
 func (m *MockKonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI {
 	if m.AIGatewayCustomPoliciesFactory != nil {
 		return m.AIGatewayCustomPoliciesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetAICostManagementTagsAPI() AICostManagementTagsAPI {
+	if m.AICostManagementTagsFactory != nil {
+		return m.AICostManagementTagsFactory()
 	}
 	return nil
 }

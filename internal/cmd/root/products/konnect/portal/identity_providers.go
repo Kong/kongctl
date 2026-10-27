@@ -212,31 +212,31 @@ func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComp
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypeOIDCIdentityProviderConfigOutput:
-		if config.OIDCIdentityProviderConfigOutput == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig:
+		if config.PortalOIDCIdentityProviderConfig == nil {
 			return
 		}
 		fmt.Fprintf(b, "config.type: oidc\n")
-		fmt.Fprintf(b, "config.issuer_url: %s\n", config.OIDCIdentityProviderConfigOutput.IssuerURL)
-		fmt.Fprintf(b, "config.client_id: %s\n", config.OIDCIdentityProviderConfigOutput.ClientID)
-		if len(config.OIDCIdentityProviderConfigOutput.Scopes) > 0 {
-			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.OIDCIdentityProviderConfigOutput.Scopes, ", "))
+		fmt.Fprintf(b, "config.issuer_url: %s\n", config.PortalOIDCIdentityProviderConfig.IssuerURL)
+		fmt.Fprintf(b, "config.client_id: %s\n", config.PortalOIDCIdentityProviderConfig.ClientID)
+		if len(config.PortalOIDCIdentityProviderConfig.Scopes) > 0 {
+			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.PortalOIDCIdentityProviderConfig.Scopes, ", "))
 		}
-		if config.OIDCIdentityProviderConfigOutput.ClaimMappings != nil {
+		if config.PortalOIDCIdentityProviderConfig.ClaimMappings != nil {
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.name: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Name),
+				optionalPtr(config.PortalOIDCIdentityProviderConfig.ClaimMappings.Name),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.email: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Email),
+				optionalPtr(config.PortalOIDCIdentityProviderConfig.ClaimMappings.Email),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.groups: %s\n",
-				optionalPtr(config.OIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
+				optionalPtr(config.PortalOIDCIdentityProviderConfig.ClaimMappings.Groups),
 			)
 		}
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:

@@ -18,6 +18,15 @@ func NormalizeAIGatewayAuthStrategy(provider kkComps.AIGatewayAuthStrategy) (AIG
 		return AIGatewayAuthStrategy{}, err
 	}
 
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return AIGatewayAuthStrategy{}, err
+	}
+	var writable resources.AIGatewayAuthStrategyResource
+	if err := json.Unmarshal(data, &writable); err != nil {
+		return AIGatewayAuthStrategy{}, err
+	}
+
 	labels := stringMapFromRaw(raw["labels"])
 	normalizedLabels := labels
 	if normalizedLabels == nil {
@@ -32,6 +41,8 @@ func NormalizeAIGatewayAuthStrategy(provider kkComps.AIGatewayAuthStrategy) (AIG
 		Labels:           labels,
 		ManagedBy:        stringMapFromRaw(raw["managed_by"]),
 		Config:           mapFromRaw(raw["config"]),
+		Datastores:       writable.Datastores,
+		TokenVault:       writable.TokenVault,
 		CreatedAt:        timeStringFromRaw(raw["created_at"]),
 		UpdatedAt:        timeStringFromRaw(raw["updated_at"]),
 		Raw:              raw,

@@ -30,7 +30,14 @@ func (p *Planner) planAIGatewayPolicyChanges(
 	)
 
 	if gatewayID == "" {
-		p.planAIGatewayPolicyCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		p.planAIGatewayPolicyCreatesForNewGateway(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			gatewayChangeID,
+			desired,
+			plan,
+		)
 		return nil
 	}
 
@@ -61,15 +68,38 @@ func (p *Planner) planAIGatewayPolicyChanges(
 				}
 				return full, nil
 			},
-			diff: shouldUpdateAIGatewayPolicy,
+			diff: func(
+				current state.AIGatewayPolicy,
+				desired resources.AIGatewayPolicyResource,
+			) (bool, map[string]any, map[string]FieldChange, error) {
+				return shouldUpdateAIGatewayPolicy(current, desired, p.resources)
+			},
 			create: func(desired resources.AIGatewayPolicyResource) {
-				p.planAIGatewayPolicyCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
+				p.planAIGatewayPolicyCreate(
+					namespace,
+					gatewayRef,
+					gatewayName,
+					gatewayID,
+					desired,
+					nil,
+					plan,
+				)
 			},
 			update: func(current state.AIGatewayPolicy, desired resources.AIGatewayPolicyResource,
 				fields map[string]any, changed map[string]FieldChange,
 			) {
-				p.planAIGatewayPolicyUpdate(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayPolicyID(current.AIGatewayPolicy), desired, fields, changed, plan)
+				p.planAIGatewayPolicyUpdate(
+					namespace,
+					gatewayRef,
+					gatewayID,
+					resources.AIGatewayPolicyID(
+						current.AIGatewayPolicy,
+					),
+					desired,
+					fields,
+					changed,
+					plan,
+				)
 			},
 			protected: func(current state.AIGatewayPolicy) bool {
 				return labels.IsProtectedResource(current.NormalizedLabels)
@@ -110,7 +140,10 @@ func (p *Planner) planAIGatewayPolicyCreate(
 ) {
 	fields, err := policy.MutablePayloadMap()
 	if err != nil {
-		plan.AddWarning(policy.GetRef(), fmt.Sprintf("failed to build AI Gateway Policy create payload: %s", err))
+		plan.AddWarning(
+			policy.GetRef(),
+			fmt.Sprintf("failed to build AI Gateway Policy create payload: %s", err),
+		)
 		return
 	}
 
@@ -189,6 +222,7 @@ func (p *Planner) planAIGatewayPolicyDelete(
 func shouldUpdateAIGatewayPolicy(
 	current state.AIGatewayPolicy,
 	desired resources.AIGatewayPolicyResource,
+	resourceSets ...*resources.ResourceSet,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	currentPayload, err := resources.AIGatewayPolicyMutablePayloadMap(current.AIGatewayPolicy)
 	if err != nil {
@@ -196,11 +230,28 @@ func shouldUpdateAIGatewayPolicy(
 	}
 	desiredPayload, err := desired.MutablePayloadMap()
 	if err != nil {
-		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Policy %q: %w", desired.Ref, err)
+		return false, nil, nil, fmt.Errorf(
+			"failed to normalize desired AI Gateway Policy %q: %w",
+			desired.Ref,
+			err,
+		)
 	}
 
-	currentCompare, desiredCompare := normalizeAIGatewayPolicyPayloadsForComparison(currentPayload, desiredPayload)
-	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
+	currentCompare, desiredCompare := normalizeAIGatewayPolicyPayloadsForComparison(
+		currentPayload,
+		desiredPayload,
+	)
+	normalizeAIGateway23References(
+		desiredCompare,
+		firstResourceSet(resourceSets),
+		desired.AIGateway,
+	)
+	changedFields := diffAIGatewayPayloads(
+		currentPayload,
+		desiredPayload,
+		currentCompare,
+		desiredCompare,
+	)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil
 	}
@@ -208,7 +259,11 @@ func shouldUpdateAIGatewayPolicy(
 	return true, clonePayloadMap(desiredPayload), changedFields, nil
 }
 
-func aiGatewayPolicyCreateDependencies(plan *Plan, namespace string, gatewayRef string) map[string]string {
+func aiGatewayPolicyCreateDependencies(
+	plan *Plan,
+	namespace string,
+	gatewayRef string,
+) map[string]string {
 	if plan == nil {
 		return nil
 	}

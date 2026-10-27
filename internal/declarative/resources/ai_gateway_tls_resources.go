@@ -64,6 +64,7 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayCACertificateResource { return &gateway.CACertificates },
 			setParent:     func(child *AIGatewayCACertificateResource, ref string) { child.AIGateway = ref },
 		},
+		WithExternalUnsupportedReason("AI Gateway CA certificate lookup requires gateway-scoped name materialization"),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(150, "each resource must declare an ai_gateway parent"),

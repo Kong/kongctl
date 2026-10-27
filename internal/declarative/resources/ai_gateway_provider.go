@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -48,13 +49,15 @@ func init() {
 type AIGatewayProviderResource struct {
 	BaseResource `yaml:",inline" json:",inline"`
 	// Parent AI Gateway reference for root-level model provider declarations.
-	AIGateway   string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name        string            `yaml:"name"                 json:"name"`
-	Type        string            `yaml:"type"                 json:"type"`
-	DisplayName string            `yaml:"display_name"         json:"display_name"`
-	Labels      map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
-	ManagedBy   map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
-	Config      map[string]any    `yaml:"config"               json:"config"`
+	AIGateway   string                            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
+	Name        string                            `yaml:"name"                 json:"name"`
+	Type        string                            `yaml:"type"                 json:"type"`
+	DisplayName string                            `yaml:"display_name"         json:"display_name"`
+	Labels      map[string]string                 `yaml:"labels,omitempty"     json:"labels,omitempty"`
+	ManagedBy   map[string]string                 `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
+	Config      map[string]any                    `yaml:"config"               json:"config"`
+	Datastores  []kkComps.AIGatewayDatastoreRef   `yaml:"datastores,omitempty" json:"datastores,omitempty"`
+	TokenVault  *kkComps.AIGatewayTokenVaultInput `yaml:"token_vault,omitempty" json:"token_vault,omitempty"`
 }
 
 // GetType returns the resource type.
@@ -97,6 +100,12 @@ func (a AIGatewayProviderResource) Validate() error {
 	}
 	if err := validateAIGatewayProviderAuthConfig(a.Config); err != nil {
 		return fmt.Errorf("invalid config for AI Gateway Model Provider %s: %w", a.Ref, err)
+	}
+	if a.TokenVault != nil && a.TokenVault.Provider == "" {
+		return fmt.Errorf("token_vault.provider is required")
+	}
+	if err := validateAIGatewayTokenVault(a.Datastores, a.TokenVault != nil); err != nil {
+		return err
 	}
 	return nil
 }
@@ -182,6 +191,11 @@ func (a AIGatewayProviderResource) PayloadMap() (map[string]any, error) {
 	if a.ManagedBy != nil {
 		payload[aiGatewayProviderFieldManagedBy] = a.ManagedBy
 	}
+	vaultFields, err := AIGatewayTokenVaultFields(a.Datastores, a.TokenVault)
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(payload, vaultFields)
 	return payload, nil
 }
 
@@ -216,15 +230,17 @@ func (a AIGatewayProviderResource) MarshalYAML() (any, error) {
 // UnmarshalJSON rejects kongctl metadata on child provider resources.
 func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Ref         string            `json:"ref"`
-		AIGateway   string            `json:"ai_gateway,omitempty"`
-		Name        string            `json:"name"`
-		Type        string            `json:"type"`
-		DisplayName string            `json:"display_name"`
-		Labels      map[string]string `json:"labels,omitempty"`
-		ManagedBy   map[string]string `json:"managed_by,omitempty"`
-		Config      map[string]any    `json:"config"`
-		Kongctl     any               `json:"kongctl,omitempty"`
+		Ref         string                            `json:"ref"`
+		AIGateway   string                            `json:"ai_gateway,omitempty"`
+		Name        string                            `json:"name"`
+		Type        string                            `json:"type"`
+		DisplayName string                            `json:"display_name"`
+		Labels      map[string]string                 `json:"labels,omitempty"`
+		ManagedBy   map[string]string                 `json:"managed_by,omitempty"`
+		Config      map[string]any                    `json:"config"`
+		Datastores  []kkComps.AIGatewayDatastoreRef   `json:"datastores,omitempty"`
+		TokenVault  *kkComps.AIGatewayTokenVaultInput `json:"token_vault,omitempty"`
+		Kongctl     any                               `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -241,6 +257,8 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 	a.Labels = raw.Labels
 	a.ManagedBy = raw.ManagedBy
 	a.Config = raw.Config
+	a.Datastores = raw.Datastores
+	a.TokenVault = raw.TokenVault
 	return nil
 }
 
@@ -333,6 +351,7 @@ func aiGatewayProviderSDKExplainBranch(
 		explainResourceRefField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 	)
+	configureAIGatewayTokenVaultExplain(branch)
 	explainSetConstStringField(branch, aiGatewayProviderFieldType, providerType)
 	setExplainLiteral(branch, []string{SchemaFieldName}, providerType+"-provider")
 	setExplainLiteral(branch, []string{aiGatewayProviderFieldDisplayName}, "AI Model Provider")

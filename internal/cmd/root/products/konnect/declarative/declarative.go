@@ -2762,6 +2762,8 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		AIGatewayMCPServersAPI:            kkClient.GetAIGatewayMCPServersAPI(),
 		AIGatewayConfigStoresAPI:          kkClient.GetAIGatewayConfigStoresAPI(),
 		AIGatewayVaultsAPI:                kkClient.GetAIGatewayVaultsAPI(),
+		AIGatewayDatastoresAPI:            kkClient.GetAIGatewayDatastoresAPI(),
+		AICostManagementTagsAPI:           kkClient.GetAICostManagementTagsAPI(),
 		AIGatewayDataPlaneCertificatesAPI: kkClient.GetAIGatewayDataPlaneCertificatesAPI(),
 		AIGatewayCertificatesAPI:          kkClient.GetAIGatewayCertificatesAPI(),
 		AIGatewayCACertificatesAPI:        kkClient.GetAIGatewayCACertificatesAPI(),

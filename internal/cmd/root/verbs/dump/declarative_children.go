@@ -219,6 +219,8 @@ func buildAIGatewayProviders(
 			Labels:       provider.Labels,
 			ManagedBy:    provider.ManagedBy,
 			Config:       provider.Config,
+			Datastores:   provider.Datastores,
+			TokenVault:   provider.TokenVault,
 		})
 	}
 
@@ -279,6 +281,8 @@ func buildAIGatewayAuthStrategies(
 			Labels:       provider.Labels,
 			ManagedBy:    provider.ManagedBy,
 			Config:       provider.Config,
+			Datastores:   provider.Datastores,
+			TokenVault:   provider.TokenVault,
 		})
 	}
 
@@ -553,6 +557,39 @@ func buildAIGatewayMCPServers(
 	}
 
 	slices.SortFunc(result, func(a, b declresources.AIGatewayMCPServerResource) int {
+		if a.Name() == b.Name() {
+			return cmp.Compare(a.Ref, b.Ref)
+		}
+		return cmp.Compare(a.Name(), b.Name())
+	})
+
+	return result, nil
+}
+
+func buildAIGatewayDatastores(
+	ctx context.Context,
+	client *declstate.Client,
+	gatewayID string,
+	gatewayName string,
+	gatewayRef string,
+) ([]declresources.AIGatewayDatastoreResource, error) {
+	datastores, err := client.ListAIGatewayDatastores(ctx, gatewayID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]declresources.AIGatewayDatastoreResource, 0, len(datastores))
+	for _, datastore := range datastores {
+		if datastore.KonnectManaged {
+			continue
+		}
+		resource, err := declresources.AIGatewayDatastoreResourceFromResponse(gatewayRef, datastore.AIGatewayDatastore)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map AI Gateway Datastore for gateway %s: %w", gatewayName, err)
+		}
+		result = append(result, resource)
+	}
+
+	slices.SortFunc(result, func(a, b declresources.AIGatewayDatastoreResource) int {
 		if a.Name() == b.Name() {
 			return cmp.Compare(a.Ref, b.Ref)
 		}
@@ -1892,8 +1929,8 @@ func apiImplementationResourceFromState(
 			ID:             impl.Service.ID,
 			ControlPlaneID: impl.Service.ControlPlaneID,
 		}
-		implementation = kkComps.CreateAPIImplementationServiceReference(
-			kkComps.ServiceReference{Service: &service},
+		implementation = kkComps.CreateAPIImplementationServiceReferenceInput(
+			kkComps.ServiceReferenceInput{Service: &service},
 		)
 	case impl.ControlPlane != nil && strings.TrimSpace(impl.ControlPlane.ID) != "":
 		implementation = kkComps.CreateAPIImplementationControlPlaneReference(kkComps.ControlPlaneReference{

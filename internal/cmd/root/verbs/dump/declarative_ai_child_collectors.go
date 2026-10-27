@@ -101,6 +101,15 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 			declresources.ResourceTypeAIGatewayConfigStoreSecret,
 		),
 		childCollection(
+			"failed to load AI Gateway Datastores",
+			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayDatastoreResource, error) {
+				return buildAIGatewayDatastores(ctx, d.client, d.parentID, d.parentName, "")
+			},
+			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayDatastoreResource {
+				return &g.Datastores
+			},
+		),
+		childCollection(
 			"failed to load AI Gateway Vaults",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayVaultResource, error) {
 				return buildAIGatewayVaults(ctx, d.client, d.parentID, d.parentName, "")

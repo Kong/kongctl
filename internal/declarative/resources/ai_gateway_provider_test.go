@@ -156,7 +156,7 @@ func TestAIGatewayProviderExplainNodeCoversSDKProviderUnion(t *testing.T) {
 	}
 
 	expected := []string{
-		"anthropic", "azure", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
+		"anthropic", "azure", "baseten", "bedrock", "cerebras", "cohere", "dashscope", "databricks", "deepseek",
 		"gemini", "huggingface", "kimi", "llama2", "mistral", "ollama", "openai", "sagemaker", "vercel",
 		"typesafe", "vllm", "xai",
 	}

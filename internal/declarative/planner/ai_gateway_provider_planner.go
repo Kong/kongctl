@@ -34,13 +34,24 @@ func (p *Planner) planAIGatewayProviderChanges(
 	)
 
 	if gatewayID == "" {
-		p.planAIGatewayProviderCreatesForNewGateway(namespace, gatewayRef, gatewayName, gatewayChangeID, desired, plan)
+		p.planAIGatewayProviderCreatesForNewGateway(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			gatewayChangeID,
+			desired,
+			plan,
+		)
 		return nil
 	}
 
 	currentProviders, err := p.client.ListAIGatewayProviders(ctx, gatewayID)
 	if err != nil {
-		return fmt.Errorf("failed to list AI Gateway Model Providers for gateway %s: %w", gatewayID, err)
+		return fmt.Errorf(
+			"failed to list AI Gateway Model Providers for gateway %s: %w",
+			gatewayID,
+			err,
+		)
 	}
 
 	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayProvider, desired, currentProviders,
@@ -57,13 +68,30 @@ func (p *Planner) planAIGatewayProviderChanges(
 			) (*state.AIGatewayProvider, error) {
 				full, err := p.client.GetAIGatewayProvider(ctx, gatewayID, current.ID)
 				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway Model Provider %s: %w", current.ID, err)
+					return nil, fmt.Errorf(
+						"failed to get AI Gateway Model Provider %s: %w",
+						current.ID,
+						err,
+					)
 				}
 				return full, nil
 			},
-			diff: shouldUpdateAIGatewayProvider,
+			diff: func(
+				current state.AIGatewayProvider,
+				desired resources.AIGatewayProviderResource,
+			) (bool, map[string]any, map[string]FieldChange, error) {
+				return shouldUpdateAIGatewayProvider(current, desired, p.resources)
+			},
 			create: func(desired resources.AIGatewayProviderResource) {
-				p.planAIGatewayProviderCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
+				p.planAIGatewayProviderCreate(
+					namespace,
+					gatewayRef,
+					gatewayName,
+					gatewayID,
+					desired,
+					nil,
+					plan,
+				)
 			},
 			update: func(
 				current state.AIGatewayProvider,
@@ -78,7 +106,14 @@ func (p *Planner) planAIGatewayProviderChanges(
 				return labels.IsProtectedResource(current.NormalizedLabels)
 			},
 			remove: func(current state.AIGatewayProvider) {
-				p.planAIGatewayProviderDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
+				p.planAIGatewayProviderDelete(
+					namespace,
+					gatewayRef,
+					gatewayID,
+					current.ID,
+					current.Name,
+					plan,
+				)
 			},
 		}, plan)
 }
@@ -97,7 +132,15 @@ func (p *Planner) planAIGatewayProviderCreatesForNewGateway(
 	}
 
 	for _, provider := range providers {
-		p.planAIGatewayProviderCreate(namespace, gatewayRef, gatewayName, "", provider, dependsOn, plan)
+		p.planAIGatewayProviderCreate(
+			namespace,
+			gatewayRef,
+			gatewayName,
+			"",
+			provider,
+			dependsOn,
+			plan,
+		)
 	}
 }
 
@@ -199,6 +242,7 @@ func (p *Planner) planAIGatewayProviderDelete(
 func shouldUpdateAIGatewayProvider(
 	current state.AIGatewayProvider,
 	desired resources.AIGatewayProviderResource,
+	resourceSets ...*resources.ResourceSet,
 ) (bool, map[string]any, map[string]FieldChange, error) {
 	updateFields := make(map[string]any)
 	changedFields := make(map[string]FieldChange)
@@ -212,7 +256,10 @@ func shouldUpdateAIGatewayProvider(
 	}
 
 	if current.DisplayName != desired.DisplayName {
-		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
+		changedFields[FieldDisplayName] = FieldChange{
+			Old: current.DisplayName,
+			New: desired.DisplayName,
+		}
 	}
 
 	if desired.Labels != nil && labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
@@ -227,13 +274,27 @@ func shouldUpdateAIGatewayProvider(
 	}
 
 	if desired.Config != nil && aiGatewayProviderConfigChanged(current.Config, desired.Config) {
-		currentConfig, desiredConfig := normalizeAIGatewayPayloadsForComparison(current.Config, desired.Config)
+		currentConfig, desiredConfig := normalizeAIGatewayPayloadsForComparison(
+			current.Config,
+			desired.Config,
+		)
 		currentConfig = scrubAIGatewayWriteOnlyFields(currentConfig, isAIGatewayProviderSecretField).(map[string]any)
 		desiredConfig = scrubAIGatewayWriteOnlyFields(desiredConfig, isAIGatewayProviderSecretField).(map[string]any)
 		changedFields[FieldConfig] = FieldChange{
 			Old: currentConfig,
 			New: desiredConfig,
 		}
+	}
+
+	desiredPayload, err := desired.PayloadMap()
+	if err != nil {
+		return false, nil, nil, err
+	}
+	if err := addAIGatewayTokenVaultChanges(
+		current.Datastores, current.TokenVault, desiredPayload, changedFields,
+		firstResourceSet(resourceSets), desired.AIGateway,
+	); err != nil {
+		return false, nil, nil, err
 	}
 
 	if len(changedFields) == 0 {
@@ -257,6 +318,12 @@ func extractAIGatewayProviderFields(provider resources.AIGatewayProviderResource
 	if provider.ManagedBy != nil {
 		fields[FieldManagedBy] = provider.ManagedBy
 	}
+	if provider.Datastores != nil {
+		fields[FieldDatastores] = provider.Datastores
+	}
+	if provider.TokenVault != nil {
+		fields[FieldTokenVault] = provider.TokenVault
+	}
 	return fields
 }
 
@@ -265,7 +332,9 @@ func aiGatewayProviderConfigChanged(current, desired map[string]any) bool {
 	return !reflect.DeepEqual(currentComparable, desiredComparable)
 }
 
-func comparableAIGatewayProviderConfigs(current, desired map[string]any) (map[string]any, map[string]any) {
+func comparableAIGatewayProviderConfigs(
+	current, desired map[string]any,
+) (map[string]any, map[string]any) {
 	return comparableAIGatewayWriteOnlyPayloads(
 		current,
 		desired,

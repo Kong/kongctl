@@ -16,6 +16,64 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{resources.ResourceTypeAIGatewayDatastore, "/config/sentinel_password", true, true},
+	{
+		resources.ResourceTypeAIGatewayDatastore,
+		"/config/cloud_authentication/aws_secret_access_key",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayDatastore,
+		"/config/cloud_authentication/gcp_service_account_json",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayDatastore,
+		"/config/cloud_authentication/azure_client_secret",
+		true,
+		true,
+	},
+	{resources.ResourceTypeAIGatewayDatastore, "/config/keys/*/key", true, true},
+	{resources.ResourceTypeAIGatewayDatastore, "/config/password", true, true},
+	{resources.ResourceTypeAIGatewayDatastore, "/config/ssl_cert_key", true, true},
+	{
+		resources.ResourceTypeAIGatewayProvider,
+		"/token_vault/cache/redis/cloud_authentication/secret_access_key",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayProvider,
+		"/token_vault/cache/redis/cloud_authentication/client_secret",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayProvider,
+		"/token_vault/cache/redis/cloud_authentication/service_account_json",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayMCPServer,
+		"/token_vault/cache/redis/cloud_authentication/secret_access_key",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayMCPServer,
+		"/token_vault/cache/redis/cloud_authentication/client_secret",
+		true,
+		true,
+	},
+	{
+		resources.ResourceTypeAIGatewayMCPServer,
+		"/token_vault/cache/redis/cloud_authentication/service_account_json",
+		true,
+		true,
+	},
 	{resources.ResourceTypePortalCustomDomain, "/ssl/custom_private_key", true, true},
 	{resources.ResourceTypeEventGatewayBackendCluster, "/authentication/password", true, true},
 	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/http_proxy_authorization", true, true},
@@ -37,7 +95,12 @@ var capabilities = []Capability{
 	{resources.ResourceTypeAIGatewayVault, "/config/client_secret", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/secret_access_key", true, true},
 	{resources.ResourceTypeAIGatewayVault, "/config/secret_id", true, true},
-	{resources.ResourceTypeEventGatewaySchemaRegistry, "/config/authentication/password", true, true},
+	{
+		resources.ResourceTypeEventGatewaySchemaRegistry,
+		"/config/authentication/password",
+		true,
+		true,
+	},
 	{resources.ResourceTypeAIGatewayConsumerCredential, "/api_key", true, false},
 	{resources.ResourceTypeAIGatewayConfigStoreSecret, "/value", true, true},
 	{resources.ResourceTypeAIGatewayCertificate, "/key", true, true},

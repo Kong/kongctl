@@ -228,6 +228,7 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
 	currentCompare = scrubAIGatewayUpstreamWriteOnlyFields(currentCompare).(map[string]any)
 	desiredCompare = scrubAIGatewayUpstreamWriteOnlyFields(desiredCompare).(map[string]any)
 	updateFields := clonePayloadMap(desiredPayload)
