@@ -72,7 +72,7 @@ func TestFederatedCustomPoliciesScopeAndCollisions(t *testing.T) {
 		require.Empty(t, plan.Changes)
 		empty := customPolicyResourceSet()
 		empty.SyncScope.AddChildNamespace(resources.ResourceTypeAIGatewayCustomPolicy, "shared", "team-a")
-		// Deletion also observes retained foreign models, even if no models are declared.
+		// Scope deletion to team A while retaining foreign and unowned definitions.
 		client = state.NewClient(
 			customPolicyEmptyUsersConfig(api),
 		)

@@ -164,7 +164,7 @@ func (a *AIGatewayCustomPolicyAdapter) GetByID(
 
 // GetByName is not supported without a parent gateway context.
 func (a *AIGatewayCustomPolicyAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
-	return nil, fmt.Errorf("GetByName not supported for AI Gateway Policies")
+	return nil, fmt.Errorf("GetByName not supported for AI Gateway Custom Policies")
 }
 
 // ResourceType returns the resource type.
