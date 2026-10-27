@@ -25,6 +25,7 @@ type NamespaceParticipant struct {
 }
 
 type namespaceRegistration struct {
+	participant func(Resource) NamespaceParticipant
 	kind        ResourceType
 	order       int
 	visit       func(*ResourceSet, func(NamespaceParticipant) error) error
@@ -54,7 +55,8 @@ func WithNamespace[R any](
 			return resourceNamespaceMatches(value.External, *value.Meta, namespace)
 		}
 		ops.namespace = &namespaceRegistration{
-			order: order,
+			participant: func(resource Resource) NamespaceParticipant { return participant(any(resource).(*R)) },
+			order:       order,
 			visit: func(rs *ResourceSet, fn func(NamespaceParticipant) error) error {
 				var err error
 				ops.forEach(rs, func(resource Resource) bool {

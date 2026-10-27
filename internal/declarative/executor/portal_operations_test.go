@@ -408,6 +408,9 @@ func TestExecutor_updateResourcePortal(t *testing.T) {
 			executor := New(client, nil, false)
 
 			// Execute
+			if tt.change.Namespace == "" {
+				tt.change.Namespace = "default"
+			}
 			gotID, err := executor.updateResource(testContextWithLogger(), &tt.change)
 
 			// Verify

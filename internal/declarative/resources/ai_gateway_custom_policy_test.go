@@ -49,6 +49,7 @@ func TestAIGatewayCustomPolicyResponseRoundTrip(t *testing.T) {
 			payload := map[string]any{
 				"id": "custom-id", "name": "plugin", "type": kind, "display_name": "Plugin",
 				"schema":     "return {\n name = 'plugin'\n}",
+				"labels":     map[string]string{"owner": "platform"},
 				"created_at": "2026-01-01T00:00:00Z",
 				"updated_at": "2026-01-01T00:00:00Z",
 			}

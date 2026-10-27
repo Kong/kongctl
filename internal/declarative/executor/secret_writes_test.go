@@ -302,6 +302,7 @@ func TestPayloadValidationAcceptsDCRProviderSecretOnlyUpdate(t *testing.T) {
 		ResourceType: planner.ResourceTypeDCRProvider,
 		ResourceRef:  "http-dcr",
 		Action:       planner.ActionUpdate,
+		Namespace:    "default",
 		Fields: map[string]any{
 			planner.FieldName:                  "http-dcr",
 			planner.FieldDCRProviderUpdateType: "http",

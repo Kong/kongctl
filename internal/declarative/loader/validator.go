@@ -18,6 +18,9 @@ func (l *Loader) validateResourceSet(rs *resources.ResourceSet) error {
 	if err := rs.ValidateRegisteredCollections(); err != nil {
 		return err
 	}
+	if err := rs.ValidateLabels(); err != nil {
+		return err
+	}
 
 	// Validate cross-resource references
 	if err := l.validateCrossReferences(rs); err != nil {

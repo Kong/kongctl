@@ -38,6 +38,7 @@ func TestApplyCommand_BasicWorkflow(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "test-portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]any{
 					"name":        "Test Portal",
 					"description": "Test portal for integration testing",
@@ -199,6 +200,7 @@ func TestApplyCommand_DryRun(t *testing.T) {
 				ResourceType: "portal",
 				ResourceRef:  "test-portal",
 				Action:       planner.ActionCreate,
+				Namespace:    "default",
 				Fields: map[string]any{
 					"name":        "Test Portal",
 					"description": "Test portal for dry-run testing",

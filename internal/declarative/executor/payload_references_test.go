@@ -54,7 +54,7 @@ func TestPayloadBindingsDryRunWithSamePlanCreation(t *testing.T) {
 	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
 	plan.AddChange(planner.PlannedChange{
 		ID: "create-gateway", ResourceType: planner.ResourceTypeAIGateway, ResourceRef: "gateway",
-		Action: planner.ActionCreate,
+		Action: planner.ActionCreate, Namespace: "default",
 		Fields: map[string]any{planner.FieldName: "gateway", planner.FieldDisplayName: "Gateway"},
 	})
 	plan.AddChange(planner.PlannedChange{
@@ -62,11 +62,14 @@ func TestPayloadBindingsDryRunWithSamePlanCreation(t *testing.T) {
 		Action: planner.ActionCreate, DependsOn: []string{"create-gateway"},
 		Fields: map[string]any{
 			planner.FieldConfig: map[string]any{"header": "__REF__:gateway#id"},
+			planner.FieldLabels: map[string]any{"gateway_id": "__REF__:gateway#id"},
 			planner.FieldName:   "policy", planner.FieldType: "http-log", planner.FieldDisplayName: "Policy",
 		},
 		References: map[string]planner.ReferenceInfo{planner.FieldAIGatewayID: {Ref: "gateway"}},
 		PayloadReferences: []planner.PayloadReference{{
 			Path: "/config/header", ResourceType: planner.ResourceTypeAIGateway, Ref: "gateway", Selector: planner.FieldID,
+		}, {
+			Path: "/labels/gateway_id", ResourceType: planner.ResourceTypeAIGateway, Ref: "gateway", Selector: planner.FieldID,
 		}},
 	})
 	plan.SetExecutionOrder([]string{"create-gateway", "create-policy"})
@@ -116,4 +119,44 @@ func TestPayloadGuardRejectsExpressionsWithoutDisclosingValues(t *testing.T) {
 	require.NoError(t, validateResolvedPayload(map[string]any{
 		"literal": "a reference to gateway#id", "env": "__ENV__:deferred", "__REF__:key#id": "ordinary value",
 	}))
+}
+
+func TestPayloadGuardValidatesResolvedLabels(t *testing.T) {
+	for _, value := range []string{"", "has space", "user@example", "-team"} {
+		t.Run(value, func(t *testing.T) {
+			err := validateResolvedPayload(map[string]any{"labels": map[string]string{"owner": value}})
+			require.ErrorContains(t, err, `label "owner"`)
+		})
+	}
+	require.NoError(t, validateResolvedPayload(map[string]any{"labels": map[string]string{"owner": "Team-1"}}))
+	literal := &planner.PlannedChange{
+		LiteralPaths: []string{"/labels/owner"},
+	}
+	err := validateResolvedRequest(withDeferredPayloadPaths(t.Context(), literal),
+		map[string]any{"labels": map[string]string{"owner": "__REF__:ordinary#id"}})
+	require.ErrorContains(t, err, `label "owner"`)
+}
+
+func TestPlanLabelPreflightRevalidatesEnvironment(t *testing.T) {
+	for _, value := range []string{"Team-1", "has space"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("LABEL_OWNER", value)
+			plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+			plan.AddChange(planner.PlannedChange{
+				ID: "create-api", ResourceType: planner.ResourceTypeAPI, ResourceRef: "api",
+				Action: planner.ActionCreate, Namespace: "default",
+				Fields: map[string]any{
+					planner.FieldName:   "api",
+					planner.FieldLabels: map[string]any{"owner": tags.BuildEnvPlaceholder("LABEL_OWNER", "")},
+				},
+			})
+			result := New(nil, nil, true).Execute(t.Context(), plan)
+			if value == "Team-1" {
+				require.Zero(t, result.FailureCount)
+			} else {
+				require.Equal(t, 1, result.FailureCount)
+				require.Contains(t, result.Errors[0].Error, "owner")
+			}
+		})
+	}
 }

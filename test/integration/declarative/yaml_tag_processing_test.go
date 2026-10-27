@@ -52,7 +52,7 @@ yaml_content:
 		config := `
 portals:
   - ref: multi-format-portal
-    name: "Multi-Format Portal"
+    name: !file ./data.json#json_content.title
     # Simple file loading
     description: !file ./data.txt
     
@@ -61,7 +61,6 @@ portals:
     
     # Map format for complex extraction
     labels:
-      json_title: !file ./data.json#json_content.title
       yaml_version: !file
         path: ./data.yaml
         extract: yaml_content.metadata.version
@@ -83,12 +82,11 @@ portals:
 		require.Len(t, resourceSet.Portals, 1)
 
 		portal := resourceSet.Portals[0]
+		assert.Equal(t, "From JSON", portal.Name)
 		require.NotNil(t, portal.Description)
 		assert.Equal(t, "Plain text content from file", *portal.Description)
 		require.NotNil(t, portal.DisplayName)
 		assert.Equal(t, "From YAML", *portal.DisplayName)
-		require.NotNil(t, portal.Labels["json_title"])
-		assert.Equal(t, "From JSON", *portal.Labels["json_title"])
 		require.NotNil(t, portal.Labels["yaml_version"])
 		assert.Equal(t, "1.0", *portal.Labels["yaml_version"])
 		require.NotNil(t, portal.Labels["json_version"])
@@ -135,12 +133,11 @@ environment_config:
 apis:
   - ref: nested-api
     name: !file ./environment.yaml#environment_config.name
-    description: "API with nested file references"
+    description: !file ./environment.yaml#environment_config.enabled_features.auth
     version: !file ./environment.yaml#environment_config.prefix
-    labels:
-      environment: !file ./environment.yaml#environment_config.settings.environment
-      auth_enabled: !file ./environment.yaml#environment_config.enabled_features.auth
-      rate_limit_enabled: !file ./environment.yaml#environment_config.enabled_features.rate_limit
+  - ref: nested-settings-api
+    name: !file ./environment.yaml#environment_config.settings.environment
+    description: !file ./environment.yaml#environment_config.enabled_features.rate_limit
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
@@ -151,17 +148,19 @@ apis:
 
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
-		require.Len(t, resourceSet.APIs, 1)
+		require.Len(t, resourceSet.APIs, 2)
 
 		api := resourceSet.APIs[0]
 		assert.Equal(t, "Production Environment", api.Name)
 		require.NotNil(t, api.Version)
 		// File tags inside loaded files are not processed recursively
 		assert.Equal(t, "./base.yaml#base_settings.api_prefix", *api.Version)
-		// File tags inside loaded files are not processed recursively
-		assert.Equal(t, "./base.yaml#base_settings.environment", api.Labels["environment"])
-		assert.Equal(t, "./base.yaml#base_settings.features.authentication", api.Labels["auth_enabled"])
-		assert.Equal(t, "./base.yaml#base_settings.features.rate_limiting", api.Labels["rate_limit_enabled"])
+		require.NotNil(t, api.Description)
+		assert.Equal(t, "./base.yaml#base_settings.features.authentication", *api.Description)
+		settingsAPI := resourceSet.APIs[1]
+		assert.Equal(t, "./base.yaml#base_settings.environment", settingsAPI.Name)
+		require.NotNil(t, settingsAPI.Description)
+		assert.Equal(t, "./base.yaml#base_settings.features.rate_limiting", *settingsAPI.Description)
 	})
 
 	t.Run("complex data type extraction", func(t *testing.T) {
@@ -232,10 +231,9 @@ configurations:
 apis:
   - ref: complex-api
     name: !file ./complex.yaml#api_specs.users.info.title
-    description: "Complex API extraction test"
+    description: !file ./complex.yaml#api_specs.users.info.contact.email
     version: !file ./complex.yaml#api_specs.users.info.version
     labels:
-      contact_email: !file ./complex.yaml#api_specs.users.info.contact.email
       db_host: !file ./complex.yaml#configurations.database.host
       db_port: !file ./complex.yaml#configurations.database.port
       cache_ttl: !file ./complex.yaml#configurations.cache.redis.ttl
@@ -250,9 +248,9 @@ portals:
   - ref: complex-portal
     name: "Complex Portal"
     description: !file ./complex.yaml#api_specs.users.info.contact.name
+    display_name: !file ./complex.yaml#api_specs.users.info.title
     labels:
       # Extract nested objects (not arrays)
-      api_title: !file ./complex.yaml#api_specs.users.info.title
       api_version: !file ./complex.yaml#api_specs.users.info.version
       # Extract nested objects
       db_ssl: !file ./complex.yaml#configurations.database.ssl
@@ -275,7 +273,8 @@ portals:
 		assert.Equal(t, "Users API", api.Name)
 		require.NotNil(t, api.Version)
 		assert.Equal(t, "1.0.0", *api.Version)
-		assert.Equal(t, "api@company.com", api.Labels["contact_email"])
+		require.NotNil(t, api.Description)
+		assert.Equal(t, "api@company.com", *api.Description)
 		assert.Equal(t, "db.company.com", api.Labels["db_host"])
 		assert.Equal(t, "5432", api.Labels["db_port"])
 		assert.Equal(t, "3600", api.Labels["cache_ttl"])
@@ -288,8 +287,8 @@ portals:
 		portal := resourceSet.Portals[0]
 		require.NotNil(t, portal.Description)
 		assert.Equal(t, "API Team", *portal.Description)
-		require.NotNil(t, portal.Labels["api_title"])
-		assert.Equal(t, "Users API", *portal.Labels["api_title"])
+		require.NotNil(t, portal.DisplayName)
+		assert.Equal(t, "Users API", *portal.DisplayName)
 		require.NotNil(t, portal.Labels["api_version"])
 		assert.Equal(t, "1.0.0", *portal.Labels["api_version"])
 		require.NotNil(t, portal.Labels["db_ssl"])
@@ -357,22 +356,24 @@ portals:
     description: !file ./special.yaml#special_data.description
     display_name: !file ./special.yaml#special_data.long_description
     labels:
-      quoted_content: !file ./special.yaml#special_data.quoted_content
       version: !file ./special.yaml#special_data.version_string
       enabled: "true"  # Can't use boolean file tags as label values
       disabled: "false"  # Can't use boolean file tags as label values
-      dash_key: !file ./special.yaml#special_data.key-with-dashes
-      simple_key: !file ./special.yaml#special_data.key_simple
-      space_key: !file ./special.yaml#special_data.key_with_spaces
-      unicode: !file ./special.yaml#special_data.unicode_text
-      endpoint: !file ./special.yaml#special_data.api_endpoint
-      email: !file ./special.yaml#special_data.email
 
 apis:
   - ref: special-api
     name: "Special API"
     description: !file ./special.yaml#special_data.unicode_text
     version: !file ./special.yaml#special_data.version_string
+  - ref: special-dash-api
+    name: !file ./special.yaml#special_data.key-with-dashes
+    description: !file ./special.yaml#special_data.quoted_content
+  - ref: special-simple-api
+    name: !file ./special.yaml#special_data.key_simple
+    description: !file ./special.yaml#special_data.api_endpoint
+  - ref: special-space-api
+    name: !file ./special.yaml#special_data.key_with_spaces
+    description: !file ./special.yaml#special_data.email
 `
 		configFile := filepath.Join(tempDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configFile, []byte(config), 0o600))
@@ -384,7 +385,7 @@ apis:
 		resourceSet, err := l.LoadFromSources(sources, false)
 		require.NoError(t, err)
 		require.Len(t, resourceSet.Portals, 1)
-		require.Len(t, resourceSet.APIs, 1)
+		require.Len(t, resourceSet.APIs, 4)
 
 		portal := resourceSet.Portals[0]
 		require.NotNil(t, portal.Description)
@@ -392,26 +393,24 @@ apis:
 		assert.Contains(t, *portal.Description, "!@#$%^&*()")
 		require.NotNil(t, portal.DisplayName)
 		assert.Contains(t, *portal.DisplayName, "multiline description")
-		require.NotNil(t, portal.Labels["quoted_content"])
-		assert.Contains(t, *portal.Labels["quoted_content"], `"nested quotes"`)
 		require.NotNil(t, portal.Labels["version"])
 		assert.Equal(t, "1.2.3", *portal.Labels["version"])
 		require.NotNil(t, portal.Labels["enabled"])
 		assert.Equal(t, "true", *portal.Labels["enabled"])
 		require.NotNil(t, portal.Labels["disabled"])
 		assert.Equal(t, "false", *portal.Labels["disabled"])
-		require.NotNil(t, portal.Labels["dash_key"])
-		assert.Equal(t, "dash value", *portal.Labels["dash_key"])
-		require.NotNil(t, portal.Labels["simple_key"])
-		assert.Equal(t, "simple value", *portal.Labels["simple_key"])
-		require.NotNil(t, portal.Labels["space_key"])
-		assert.Equal(t, "space value", *portal.Labels["space_key"])
-		require.NotNil(t, portal.Labels["unicode"])
-		assert.Contains(t, *portal.Labels["unicode"], "世界 🌍 Мир")
-		require.NotNil(t, portal.Labels["endpoint"])
-		assert.Equal(t, "https://api.example.com/v1/users?limit=10&offset=0", *portal.Labels["endpoint"])
-		require.NotNil(t, portal.Labels["email"])
-		assert.Equal(t, "test@example.com", *portal.Labels["email"])
+		dashAPI := resourceSet.APIs[1]
+		assert.Equal(t, "dash value", dashAPI.Name)
+		require.NotNil(t, dashAPI.Description)
+		assert.Contains(t, *dashAPI.Description, `"nested quotes"`)
+		simpleAPI := resourceSet.APIs[2]
+		assert.Equal(t, "simple value", simpleAPI.Name)
+		require.NotNil(t, simpleAPI.Description)
+		assert.Equal(t, "https://api.example.com/v1/users?limit=10&offset=0", *simpleAPI.Description)
+		spaceAPI := resourceSet.APIs[3]
+		assert.Equal(t, "space value", spaceAPI.Name)
+		require.NotNil(t, spaceAPI.Description)
+		assert.Equal(t, "test@example.com", *spaceAPI.Description)
 
 		api := resourceSet.APIs[0]
 		require.NotNil(t, api.Description)
@@ -504,7 +503,7 @@ data_%d:
   id: %d
   name: "Data File %d"
   description: "Content from data file number %d"
-  timestamp: "2024-01-01T%02d:00:00Z"
+  timestamp: "20240101T%02d0000Z"
   metadata:
     index: "%d"
     category: "category_%d"

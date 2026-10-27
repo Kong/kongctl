@@ -68,7 +68,10 @@ func (b *BaseCreateDeleteExecutor[TCreate]) ValidatePayload(
 		if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
 			return err
 		}
-		return validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create)
+		if err := validateMappedPayload(b.ops.ResourceType(), change.Action, change.Fields, create); err != nil {
+			return err
+		}
+		return validateRequestLabels(create, &change)
 	case planner.ActionDelete:
 		return nil
 	case planner.ActionUpdate, planner.ActionExternalTool:
