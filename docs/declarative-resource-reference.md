@@ -492,8 +492,9 @@ AI Gateway Data Plane Certificates use their required `title` field as the
 stable Konnect child name and match only by title within their gateway.
 UUID refs and cached IDs do not override the declared title. A changed title
 declares a different certificate and sync can delete the previous one.
-Child entries inherit management scope from their parent resource and do not
-accept `kongctl` metadata.
+Models, providers, auth strategies, policies, custom policy definitions, and
+agents accept independent `kongctl` namespace/protection metadata stored in
+`managed_by`. Other child entries retain their existing inherited scope.
 
 When upgrading configurations that relied on UUID refs or display-name
 matching, explicitly set each gateway and name-bearing child's `name` to its
@@ -805,7 +806,9 @@ ai_gateway_policies:
 ```
 
 AI Gateway Agents can also be declared as root resources. Include `ai_gateway`
-to point at the parent gateway `ref`.
+to point at the parent gateway `ref`. Both agent types support independent
+namespace/protection and deferred upstream/proxy credentials. See
+[agent ownership and migration](ai-gateway-agent-ownership.md).
 
 ```yaml
 ai_gateway_agents:

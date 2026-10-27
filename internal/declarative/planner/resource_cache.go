@@ -27,6 +27,7 @@ type planningResourceCache struct {
 	aiGatewayProvidersPlanned      map[string]bool
 	aiGatewayAuthStrategiesPlanned map[string]bool
 	aiGatewayPoliciesPlanned       map[string]bool
+	aiGatewayAgentsPlanned         map[string]bool
 	aiGatewayCustomPoliciesPlanned map[string]bool
 	aiGatewayMCPServers            map[string][]state.AIGatewayMCPServer
 
@@ -64,6 +65,7 @@ func newPlanningResourceCache() *planningResourceCache {
 		aiGatewayProvidersPlanned:      make(map[string]bool),
 		aiGatewayAuthStrategiesPlanned: make(map[string]bool),
 		aiGatewayPoliciesPlanned:       make(map[string]bool),
+		aiGatewayAgentsPlanned:         make(map[string]bool),
 		aiGatewayCustomPoliciesPlanned: make(map[string]bool),
 		aiGatewayMCPServers:            make(map[string][]state.AIGatewayMCPServer),
 

@@ -193,9 +193,5 @@ func (c *Client) DeleteAIGatewayAgent(ctx context.Context, gatewayID string, age
 }
 
 func normalizedAIGatewayAgentLabels(agent kkComps.AIGatewayAgent) map[string]string {
-	normalized := agent.Labels
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(agent.ManagedBy)
 }

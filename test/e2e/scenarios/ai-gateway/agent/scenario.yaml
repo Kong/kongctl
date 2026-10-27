@@ -2,6 +2,8 @@ baseInputsPath: testdata
 
 env:
   KONGCTL_LOG_LEVEL: info
+  AGENT_AWS_SECRET_ACCESS_KEY: fake-agent-secret-key
+  AGENT_AWS_SESSION_TOKEN: fake-agent-session-token
 
 vars:
   namespace: "ai-gateway-agent-e2e"

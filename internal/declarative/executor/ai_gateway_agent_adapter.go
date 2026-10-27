@@ -58,6 +58,22 @@ func (a *AIGatewayAgentAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway agent", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	agents, err := a.client.ListAIGatewayAgents(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, agent := range agents {
+		if agent.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway agent", agent.Name)
+		}
+	}
 	return a.client.CreateAIGatewayAgent(ctx, gatewayID, req, namespace)
 }
 
@@ -73,6 +89,40 @@ func (a *AIGatewayAgentAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway agent", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayAgent(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway agent no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayAgentMutablePayloadMap(current.AIGatewayAgent)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayAgentRequest](
+		"AI Gateway agent",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway agent", currentPayload, payload, execCtx)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway agent update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayAgent(ctx, gatewayID, id, req, namespace)
 }
 
@@ -81,6 +131,21 @@ func (a *AIGatewayAgentAdapter) Delete(ctx context.Context, id string, execCtx *
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayAgent(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway agent", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway agent is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayAgent(ctx, gatewayID, id)
 }

@@ -1,0 +1,3 @@
+_defaults:
+  kongctl: {namespace: federated-agents-platform}
+ai_gateways: []
