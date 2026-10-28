@@ -2,6 +2,7 @@ package components
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -42,5 +43,45 @@ func TestPortalTeamRequestsPreserveMembershipManagement(t *testing.T) {
 	}
 	if create.KonnectManaged != nil || update.KonnectManaged != nil {
 		t.Fatal("decoding an omitted field must not introduce membership management")
+	}
+}
+
+// Organization team membership management is present only in the internal SDK.
+func TestOrganizationTeamRequestsPreserveMembershipManagement(t *testing.T) {
+	for name, request := range map[string]any{"create": &CreateTeam{Name: "team"}, "update": &UpdateTeam{}} {
+		t.Run(name, func(t *testing.T) {
+			field := reflect.ValueOf(request).Elem().FieldByName("KonnectManaged")
+			if !field.IsValid() {
+				t.Skip("organization membership management is not exposed in this SDK")
+			}
+			if field.Type() != reflect.TypeFor[*bool]() {
+				t.Fatalf("KonnectManaged type = %v, want *bool", field.Type())
+			}
+			for _, value := range []*bool{nil, new(false), new(true)} {
+				field.Set(reflect.ValueOf(value))
+				encoded, err := json.Marshal(request)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var fields map[string]any
+				if err := json.Unmarshal(encoded, &fields); err != nil {
+					t.Fatal(err)
+				}
+				actual, present := fields["konnect_managed"]
+				if value == nil && present {
+					t.Fatalf("omitted membership management serialized: %s", encoded)
+				}
+				if value != nil && (!present || actual != *value) {
+					t.Fatalf("membership management = %v, want %v: %s", actual, *value, encoded)
+				}
+			}
+			field.SetZero()
+			if err := json.Unmarshal([]byte(`{"name":"team"}`), request); err != nil {
+				t.Fatal(err)
+			}
+			if !field.IsNil() {
+				t.Fatal("decoding an omitted field must not introduce membership management")
+			}
+		})
 	}
 }

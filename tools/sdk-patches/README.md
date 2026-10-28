@@ -15,6 +15,11 @@ Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
 
+The team membership overlay covers portal requests and, when present, internal
+organization-team requests. It preserves omitted `konnect_managed` values
+without exposing internal fields in the public SDK. Explicit `false` and `true`
+remain supported.
+
 ## Prepare and generate a patched SDK
 
 Use a separate, clean SDK checkout based on the release being upgraded. Install
