@@ -135,6 +135,13 @@ func reconcileOwnedNameMatchedCollection[D, C any](
 		}
 		if _, matched := names[name]; matched ||
 			(m[resources.ChildNamespaceKey] != "" && namespaces[m[resources.ChildNamespaceKey]]) {
+			// Prune candidates need the same validation as name matches before
+			// malformed protection can be interpreted as unprotected.
+			if plan.Metadata.Mode == PlanModeSync && !matched {
+				if err := resources.ValidateChildOwnership(kind, m, m[resources.ChildNamespaceKey]); err != nil {
+					return err
+				}
+			}
 			filtered = append(filtered, value)
 		}
 	}

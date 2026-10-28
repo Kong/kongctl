@@ -90,3 +90,52 @@ func TestExternalGatewayDeleteDoesNotEnrollExcludedFamilies(t *testing.T) {
 	require.Empty(t, plan.Changes)
 	require.Len(t, plan.Warnings, 3)
 }
+
+func TestSyncRejectsMalformedOwnershipBeforePruning(t *testing.T) {
+	for _, tc := range testdecl.AIGatewayOwnedChildren(t) {
+		t.Run(tc.Collection, func(t *testing.T) {
+			manifest := map[string]any{
+				"_defaults": map[string]any{"kongctl": map[string]any{"namespace": "team-a"}},
+				"ai_gateways": []any{map[string]any{
+					"ref": "shared", "_external": map[string]any{"id": "gateway-id"}, tc.Collection: []any{},
+				}},
+			}
+			data, err := json.Marshal(manifest)
+			require.NoError(t, err)
+			path := filepath.Join(t.TempDir(), "team.yaml")
+			require.NoError(t, os.WriteFile(path, data, 0o600))
+			rs, err := loader.New().LoadFile(path)
+			require.NoError(t, err)
+			api := &remainingOwnershipTransport{path: tc.Path}
+			for _, namespace := range []string{"team-b", ""} {
+				value := maps.Clone(tc.Body)
+				value[FieldID], value[FieldName], value[FieldDisplayName] = namespace+"-id", namespace+"-child", "Retained"
+				metadata := resources.BuildChildManagedBy(nil, nil, namespace, false, "dev")
+				metadata[resources.ChildProtectedKey] = "TRUE"
+				value[FieldManagedBy] = metadata
+				value["created_at"], value["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
+				api.values = append(api.values, value)
+			}
+			p := NewPlanner(state.NewClient(aigatewayCollectionsConfig(api)), slog.Default())
+			plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+			require.NoError(t, err, "malformed metadata outside this namespace must not expand pruning scope")
+			require.Empty(t, plan.Changes)
+
+			owned := maps.Clone(api.values[0])
+			owned[FieldID], owned[FieldName] = "owned-id", "owned"
+			metadata := resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev")
+			metadata[resources.ChildProtectedKey] = "TRUE"
+			owned[FieldManagedBy] = metadata
+			api.values = append(api.values, owned)
+			plan, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+			require.ErrorContains(t, err, "invalid kongctl-protected metadata")
+			require.Nil(t, plan, "sync must not return an executable plan with a malformed prune candidate")
+
+			metadata[resources.ChildProtectedKey] = "false"
+			plan, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
+			require.NoError(t, err)
+			require.Len(t, plan.Changes, 1)
+			require.Equal(t, "owned-id", plan.Changes[0].ResourceID)
+		})
+	}
+}
