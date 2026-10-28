@@ -84,6 +84,7 @@ external peer file by itself:
 
 ```sh
 kongctl plan \
+  --mode apply \
   -f docs/examples/declarative/ai-gateway/federated/external-peer-team
 kongctl apply \
   -f docs/examples/declarative/ai-gateway/federated/external-peer-team
