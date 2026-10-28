@@ -2,8 +2,8 @@
 
 AI Gateway models have their own kongctl namespace and protection, independently
 of their gateway. This applies to both `type: model` and `type: api` and is the
-default behavior. Other AI Gateway children retain their existing reconciliation
-rules; providers do not gain independent namespace ownership.
+default behavior. See the
+[shared ownership contract](ai-gateway-child-ownership.md) for the other independently owned families and excluded resources.
 
 ## Declaring ownership
 

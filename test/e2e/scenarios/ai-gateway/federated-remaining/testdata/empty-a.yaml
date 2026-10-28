@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: remaining-team-a
+ai_gateways:
+- ref: shared-a
+  _external:
+    selector:
+      matchFields:
+        name: federated-remaining-e2e
+  mcp_servers: []
+  vaults: []
+  consumers: []
+  consumer_groups: []
+  ca_certificates: []
+  snis: []

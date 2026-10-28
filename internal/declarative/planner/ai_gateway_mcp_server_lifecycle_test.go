@@ -34,7 +34,7 @@ func TestMCPServerLifecycleMatchesBeforeDeletionOrdering(t *testing.T) {
 	require.Equal(t, "listener-id", change.ResourceID, "updates must use the listed ID, not the detail ID")
 	require.Equal(t, desired.Ref, change.ResourceRef)
 	require.Equal(t, "Updated", change.Fields[FieldDisplayName])
-	require.Equal(t, "test-namespace", change.Namespace)
+	require.Equal(t, DefaultNamespace, change.Namespace)
 	require.Equal(t, &ParentInfo{Ref: "support-gateway", ID: "gateway-id"}, change.Parent)
 }
 
@@ -69,7 +69,7 @@ func TestMCPServerLifecycleStopsAtProtectedDeletion(t *testing.T) {
 
 func TestMCPServerLifecycleMissingDetailDependencies(t *testing.T) {
 	for _, failRead := range []bool{false, true} {
-		name := "missing detail recreates after source"
+		name := "missing detail stops before pruning"
 		if failRead {
 			name = "failed detail stops before pruning"
 		}
@@ -95,14 +95,8 @@ func TestMCPServerLifecycleMissingDetailDependencies(t *testing.T) {
 				require.ErrorContains(t, err, "detail unavailable")
 				require.Len(t, plan.Changes, 1)
 			} else {
-				require.NoError(t, err)
-				require.Len(t, plan.Changes, 3)
-				require.Equal(t, ActionCreate, plan.Changes[1].Action)
-				require.Equal(t, desired[0].Ref, plan.Changes[1].ResourceRef)
-				require.Empty(t, plan.Changes[1].ResourceID)
-				require.Equal(t, []string{plan.Changes[0].ID}, plan.Changes[1].DependsOn)
-				require.Equal(t, ActionDelete, plan.Changes[2].Action)
-				require.Equal(t, "obsolete-id", plan.Changes[2].ResourceID)
+				require.ErrorContains(t, err, "disappeared during planning")
+				require.Len(t, plan.Changes, 1)
 			}
 			require.Equal(t, ActionCreate, plan.Changes[0].Action)
 			require.Equal(t, desired[1].Ref, plan.Changes[0].ResourceRef)
@@ -208,7 +202,7 @@ func mcpLifecycleObserved(t *testing.T, id, name string, listener, protected boo
 	require.NoError(t, err)
 	var server kkComps.AIGatewayMCPServer
 	require.NoError(t, json.Unmarshal(data, &server))
-	return server
+	return ownedAIGatewayObservation(t, server, "default", protected)
 }
 
 func mcpLifecycleDesired(t *testing.T, observed kkComps.AIGatewayMCPServer) resources.AIGatewayMCPServerResource {

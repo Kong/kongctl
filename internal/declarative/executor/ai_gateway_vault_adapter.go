@@ -3,6 +3,7 @@ package executor
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
@@ -76,6 +77,25 @@ func (a *AIGatewayVaultAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway vault", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	vaults, err := a.client.ListAIGatewayVaults(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, vault := range vaults {
+		if resources.AIGatewayVaultName(vault.AIGatewayVault) == payload[planner.FieldName] {
+			return "", childCreationCollision(
+				"AI Gateway vault",
+				resources.AIGatewayVaultName(vault.AIGatewayVault),
+			)
+		}
+	}
 	return a.client.CreateAIGatewayVault(ctx, gatewayID, req, namespace)
 }
 
@@ -91,6 +111,57 @@ func (a *AIGatewayVaultAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway vault", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayVault(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway vault no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayVaultMutablePayloadMap(current.AIGatewayVault)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayVaultRequest](
+		"AI Gateway vault",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway vault",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	// AppRole PUT resets an omitted secret_id instead of preserving it. GET
+	// redacts that value, so a metadata-only write cannot safely reconstruct it.
+	config, _ := payload[planner.FieldConfig].(map[string]any)
+	if payload[planner.FieldType] == "hcv" && config["auth_method"] == "approle" {
+		secretID, _ := config["secret_id"].(string)
+		secretFile, _ := config["secret_id_file"].(string)
+		if strings.TrimSpace(secretID) == "" && strings.TrimSpace(secretFile) == "" {
+			return "", fmt.Errorf("AI Gateway AppRole vault PUT cannot preserve redacted secret_id; " +
+				"metadata-only updates require backend PATCH support; " +
+				"an unprotected credential update must explicitly select /config/secret_id")
+		}
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway vault update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayVault(ctx, gatewayID, id, req, namespace)
 }
 
@@ -98,6 +169,26 @@ func (a *AIGatewayVaultAdapter) Update(
 func (a *AIGatewayVaultAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
+		return err
+	}
+	current, err := a.client.GetAIGatewayVault(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway vault", resources.AIGatewayVaultManagedBy(current.AIGatewayVault), execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(resources.AIGatewayVaultManagedBy(current.AIGatewayVault)) {
+		return fmt.Errorf("AI Gateway vault is protected and cannot be deleted")
+	}
+	if err := validateCurrentAIGatewayChildDeletion(
+		ctx, a.client, execCtx, gatewayID, id, resources.AIGatewayVaultName(current.AIGatewayVault),
+	); err != nil {
 		return err
 	}
 	return a.client.DeleteAIGatewayVault(ctx, gatewayID, id)

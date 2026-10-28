@@ -2,6 +2,7 @@ package planner
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/tags"
@@ -87,6 +88,18 @@ func (p *Planner) resolveFinalAIGatewayDependencies(ctx context.Context, plan *P
 			}
 			uses := false
 			switch target.ResourceType {
+			case ResourceTypeAIGatewayVault,
+				ResourceTypeAIGatewayCACertificate,
+				ResourceTypeAIGatewaySNI:
+				uses = references(publicChildReferences(target.ResourceType, user.Fields))
+				if target.ResourceType == ResourceTypeAIGatewaySNI {
+					hostname, _ := target.Fields[FieldHostname].(string)
+					uses = uses ||
+						slices.Contains(
+							publicChildReferences(target.ResourceType, user.Fields),
+							hostname,
+						)
+				}
 			case ResourceTypeAIGatewayProvider:
 				uses = user.ResourceType == ResourceTypeAIGatewayModel && references(aiGatewayModelProviderNames(user.Fields))
 			case ResourceTypeAIGatewayPolicy:
@@ -98,6 +111,9 @@ func (p *Planner) resolveFinalAIGatewayDependencies(ctx context.Context, plan *P
 			case ResourceTypeAIGatewayCertificate:
 				value, _ := user.Fields[FieldCertificate].(string)
 				uses = user.ResourceType == ResourceTypeAIGatewaySNI && references([]string{value})
+			case ResourceTypeAIGatewayConsumer:
+				uses = user.ResourceType == ResourceTypeAIGatewayConsumerGroup &&
+					references(stringSliceFromField(user.Fields, FieldConsumers))
 			case ResourceTypeAIGatewayMCPServer:
 				uses = user.ResourceType == ResourceTypeAIGatewayMCPServer && references(aiGatewayMCPServerSources(user.Fields))
 			}

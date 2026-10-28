@@ -165,7 +165,7 @@ func TestAIGatewayConsumerGroupNameIdentity(t *testing.T) {
 				checkRemainingChildPruning(t, plan.Changes[1:], mode, tt.existing)
 				for _, change := range plan.Changes {
 					require.Equal(t, ResourceTypeAIGatewayConsumerGroup, change.ResourceType)
-					require.Equal(t, "test-namespace", change.Namespace)
+					require.Equal(t, DefaultNamespace, change.Namespace)
 					require.Equal(t, &ParentInfo{Ref: "support-gateway", ID: "gateway-id"}, change.Parent)
 				}
 			})
@@ -177,7 +177,16 @@ func TestAIGatewayConsumerCredentialNameIdentity(t *testing.T) {
 	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
 		for _, tt := range remainingChildIdentityCases() {
 			t.Run(string(mode)+"/"+tt.name, func(t *testing.T) {
-				api := &credentialNameIdentityAPI{testAIGatewayConsumerAPI: &testAIGatewayConsumerAPI{}}
+				consumer := ownedAIGatewayObservation(
+					t,
+					testAIGatewayConsumer(nil),
+					"test-namespace",
+					false,
+				)
+				consumer.ID = "consumer-id"
+				api := &credentialNameIdentityAPI{testAIGatewayConsumerAPI: &testAIGatewayConsumerAPI{
+					consumers: []kkComps.AIGatewayConsumer{consumer},
+				}}
 				for _, identity := range []struct{ id, name string }{
 					{childCachedID, "cached-name"}, {childRefID, "ref-name"}, {childNameID, "desired-name"},
 				} {

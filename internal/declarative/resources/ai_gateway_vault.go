@@ -47,6 +47,10 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayVaultResource { return &gateway.Vaults },
 			setParent:     func(child *AIGatewayVaultResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(48, ResourceTypeAIGatewayVault,
+			func(g *AIGatewayResource) *[]AIGatewayVaultResource { return &g.Vaults },
+			func(r *AIGatewayVaultResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewayVaultResource) string { return r.AIGateway }),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
@@ -57,7 +61,7 @@ func init() {
 
 // AIGatewayVaultResource represents a Vault nested under a Konnect AI Gateway.
 type AIGatewayVaultResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `       yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 
@@ -100,8 +104,10 @@ func (a AIGatewayVaultResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Vault ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Vault %s", a.Ref)
+	if err := validateChildDeclarationManagedBy(
+		aiGatewayPolicyStringMapField(a.CreateRequest(), "managed_by"), a.Kongctl,
+	); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway Vault %s", a.Ref)
@@ -236,6 +242,9 @@ func (a AIGatewayVaultResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -248,6 +257,9 @@ func (a AIGatewayVaultResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -261,15 +273,12 @@ func (a *AIGatewayVaultResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -285,7 +294,7 @@ func (a *AIGatewayVaultResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayVaultRequest = req
 	return nil
@@ -423,6 +432,7 @@ func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	}
 	for _, branch := range node.OneOf {
 		branch.addField(explainResourceRefField())
+		branch.addField(explainKongctlField())
 		branch.addField(explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true))
 		setExplainLiteral(branch, []string{"name"}, "support-vault")
 		setExplainLiteral(branch, []string{"config", "project_id"}, "my-project")
@@ -497,4 +507,68 @@ func aiGatewayConfigStoreIDExplainNode() *ExplainNode {
 		AcceptedTags: []string{yamlTagRef},
 	}
 	return node
+}
+
+func (a AIGatewayVaultResource) Protected() bool {
+	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+}
+
+func (a AIGatewayVaultResource) PublicLabels() map[string]string {
+	if a.KonnectConfigStoreVault != nil {
+		return a.KonnectConfigStoreVault.Labels
+	}
+	if a.EnvironmentVariableVault != nil {
+		return a.EnvironmentVariableVault.Labels
+	}
+	if a.AwsSecretsManagerVault != nil {
+		return a.AwsSecretsManagerVault.Labels
+	}
+	if a.GoogleSecretManagerVault != nil {
+		return a.GoogleSecretManagerVault.Labels
+	}
+	if a.AzureKeyVault != nil {
+		return a.AzureKeyVault.Labels
+	}
+	if a.ConjurVault != nil {
+		return a.ConjurVault.Labels
+	}
+	if a.HashiCorpVault != nil {
+		return a.HashiCorpVault.Labels
+	}
+	return nil
+}
+
+func AIGatewayVaultManagedBy(value any) map[string]string {
+	return aiGatewayPolicyStringMapField(value, "managed_by")
+}
+
+func (a *AIGatewayVaultResource) SetChildManagedBy(metadata map[string]string) {
+	if a.KonnectConfigStoreVault != nil {
+		a.KonnectConfigStoreVault.ManagedBy = metadata
+		return
+	}
+	if a.EnvironmentVariableVault != nil {
+		a.EnvironmentVariableVault.ManagedBy = metadata
+		return
+	}
+	if a.AwsSecretsManagerVault != nil {
+		a.AwsSecretsManagerVault.ManagedBy = metadata
+		return
+	}
+	if a.GoogleSecretManagerVault != nil {
+		a.GoogleSecretManagerVault.ManagedBy = metadata
+		return
+	}
+	if a.AzureKeyVault != nil {
+		a.AzureKeyVault.ManagedBy = metadata
+		return
+	}
+	if a.ConjurVault != nil {
+		a.ConjurVault.ManagedBy = metadata
+		return
+	}
+	if a.HashiCorpVault != nil {
+		a.HashiCorpVault.ManagedBy = metadata
+		return
+	}
 }

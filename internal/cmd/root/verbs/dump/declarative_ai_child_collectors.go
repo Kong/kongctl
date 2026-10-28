@@ -58,7 +58,8 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway Consumers",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayConsumerResource, error) {
-				return buildAIGatewayConsumers(ctx, d.client, d.parentID, d.parentName, "", true)
+				return buildAIGatewayConsumers(ctx, d.logger,
+					d.client, d.parentID, d.parentName, "", true)
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayConsumerResource {
 				return &g.Consumers
@@ -68,7 +69,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway Consumer Groups",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayConsumerGroupResource, error) {
-				return buildAIGatewayConsumerGroups(ctx, d.client, d.parentID, d.parentName, "")
+				return buildAIGatewayConsumerGroups(ctx, d.logger, d.client, d.parentID, d.parentName, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayConsumerGroupResource {
 				return &g.ConsumerGroups
@@ -84,7 +85,8 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway MCP Servers",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayMCPServerResource, error) {
-				return buildAIGatewayMCPServers(ctx, d.client, d.parentID, d.parentName, "")
+				return buildAIGatewayMCPServers(ctx, d.logger,
+					d.client, d.parentID, d.parentName, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayMCPServerResource {
 				return &g.MCPServers
@@ -103,7 +105,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway Vaults",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayVaultResource, error) {
-				return buildAIGatewayVaults(ctx, d.client, d.parentID, d.parentName, "")
+				return buildAIGatewayVaults(ctx, d.logger, d.client, d.parentID, d.parentName, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayVaultResource { return &g.Vaults },
 		),
@@ -130,7 +132,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway CA certificates",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayCACertificateResource, error) {
-				return buildAIGatewayCACertificates(ctx, d.client, d.parentID, "")
+				return buildAIGatewayCACertificates(ctx, d.logger, d.client, d.parentID, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayCACertificateResource {
 				return &g.CACertificates
@@ -139,7 +141,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway SNIs",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewaySNIResource, error) {
-				return buildAIGatewaySNIs(ctx, d.client, d.parentID, "")
+				return buildAIGatewaySNIs(ctx, d.logger, d.client, d.parentID, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewaySNIResource { return &g.SNIs },
 		),

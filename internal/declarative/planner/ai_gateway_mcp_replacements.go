@@ -11,15 +11,13 @@ import (
 // Add semantic replacement edges before the resolver serializes gateway siblings.
 // Requiring every matching create also protects ambiguous many-to-many renames.
 func addAIGatewayMCPReplacementDependencies(
-	namespace, gatewayRef, gatewayID string,
+	_ string, gatewayRef, gatewayID string,
 	current []state.AIGatewayMCPServer,
 	plan *Plan,
 ) error {
 	matchesScope := func(change PlannedChange) bool {
 		return change.ResourceType == ResourceTypeAIGatewayMCPServer &&
-			change.Namespace == namespace && change.Parent != nil &&
-			change.Parent.ID == gatewayID &&
-			aiGatewayChildChangeMatchesParent(change, gatewayRef)
+			aiGatewayChangeMatchesGateway(change, gatewayRef, gatewayID)
 	}
 	for i := range plan.Changes {
 		deletion := &plan.Changes[i]

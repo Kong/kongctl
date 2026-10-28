@@ -1,0 +1,72 @@
+_defaults:
+  kongctl:
+    namespace: remaining-team-a
+ai_gateways:
+- ref: shared-a
+  _external:
+    selector:
+      matchFields:
+        name: federated-remaining-e2e
+  mcp_servers:
+  - ref: mcp-a
+    name: mcp-a
+    display_name: MCP a
+    type: conversion-only
+    config:
+      url: https://example.com
+    tools:
+      - name: health
+        description: Health check
+        method: GET
+    managed_by:
+      inventory: retained
+    labels:
+      team: a
+  vaults:
+  - ref: vault-a
+    name: vault-a
+    type: env
+    config:
+      prefix: FED_A_
+    managed_by:
+      inventory: retained
+    labels:
+      team: a
+  consumers:
+  - ref: consumer-a
+    name: consumer-a
+    display_name: Consumer a
+    type: api-key
+    managed_by:
+      inventory: retained
+    labels:
+      team: a
+  consumer_groups:
+  - ref: group-a
+    name: group-a
+    display_name: Group a
+    consumers:
+    - consumer-a
+    - consumer-b
+    managed_by:
+      inventory: retained
+    labels:
+      team: a
+  ca_certificates:
+  - ref: ca-a
+    name: ca-a
+    cert: !file './certs/runtime.pem'
+    managed_by:
+      inventory: retained
+    labels:
+      team: a
+  snis:
+  - ref: sni-a
+    name: sni-a
+    display_name: SNI a
+    hostname: a.federated-remaining.example.test
+    certificate: platform-cert
+    managed_by:
+      inventory: retained
+    labels:
+      team: a

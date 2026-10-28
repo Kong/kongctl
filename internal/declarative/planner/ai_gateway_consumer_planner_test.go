@@ -109,7 +109,10 @@ func TestAIGatewayConsumerPlannerUpdatesExistingConsumer(t *testing.T) {
 func TestAIGatewayConsumerPlannerSyncDeletesScopedConsumers(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
-	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumer)
+	scope.AddChild(
+		resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumer,
+	)
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayConsumer, "support-gateway", "default")
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -359,6 +362,7 @@ func testAIGatewayConsumerCredentialResource(
 
 func testAIGatewayConsumer(policies []string) kkComps.AIGatewayConsumer {
 	return kkComps.AIGatewayConsumer{
+		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
 		ID:          "consumer-id",
 		Name:        "support-user",
 		Type:        kkComps.AIGatewayConsumerTypeAPIKey,

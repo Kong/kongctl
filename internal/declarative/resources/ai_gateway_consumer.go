@@ -48,6 +48,10 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayConsumerResource { return &gateway.Consumers },
 			setParent:     func(child *AIGatewayConsumerResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(49, ResourceTypeAIGatewayConsumer,
+			func(g *AIGatewayResource) *[]AIGatewayConsumerResource { return &g.Consumers },
+			func(r *AIGatewayConsumerResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewayConsumerResource) string { return r.AIGateway }),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithExternalUnsupportedReason("scoped AI Gateway consumer lookup is planned for domain enablement"),
 		WithChildSyncScope(
@@ -59,7 +63,7 @@ func init() {
 
 // AIGatewayConsumerResource represents a Consumer nested under a Konnect AI Gateway.
 type AIGatewayConsumerResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `       yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 
@@ -101,8 +105,10 @@ func (a AIGatewayConsumerResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Consumer ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Consumer %s", a.Ref)
+	if err := validateChildDeclarationManagedBy(
+		aiGatewayPolicyStringMapField(a.CreateRequest(), "managed_by"), a.Kongctl,
+	); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway Consumer %s", a.Ref)
@@ -189,6 +195,9 @@ func (a AIGatewayConsumerResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -204,6 +213,9 @@ func (a AIGatewayConsumerResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -223,13 +235,10 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 		Ref         string                                `json:"ref"`
 		AIGateway   string                                `json:"ai_gateway,omitempty"`
 		Credentials []AIGatewayConsumerCredentialResource `json:"credentials,omitempty"`
-		Kongctl     json.RawMessage                       `json:"kongctl,omitempty"`
+		Kongctl     *KongctlMeta                          `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -246,7 +255,7 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.Credentials = meta.Credentials
 	a.CreateAIGatewayConsumerRequest = req
@@ -353,6 +362,7 @@ func aiGatewayConsumerStringField(value any, key string) string {
 func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("support-user"), true, true),
 		explainField("type", explainStringNode("api-key"), true, true),
@@ -383,4 +393,8 @@ func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 	), nil
+}
+
+func (a AIGatewayConsumerResource) Protected() bool {
+	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
 }

@@ -6,6 +6,7 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
@@ -116,6 +117,22 @@ func (a *AIGatewayCACertificateAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(request)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway CA certificate", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	observed, err := a.client.ListAIGatewayCACertificates(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, item := range observed {
+		if item.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway CA certificate", item.Name)
+		}
+	}
 	return a.client.CreateAIGatewayCACertificate(ctx, gatewayID, request, namespace)
 }
 
@@ -127,12 +144,76 @@ func (a *AIGatewayCACertificateAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(request)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway CA certificate", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayCACertificate(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway CA certificate no longer exists")
+	}
+	currentPayload, err := ownedChildPayload(
+		map[string]any{
+			planner.FieldName:      current.Name,
+			planner.FieldCert:      current.Cert,
+			planner.FieldLabels:    current.Labels,
+			planner.FieldManagedBy: current.ManagedBy,
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayCACertificateRequest](
+		"AI Gateway CA certificate",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway CA certificate",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway CA certificate update", payload, &request); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayCACertificate(ctx, gatewayID, id, request, namespace)
 }
 
 func (a *AIGatewayCACertificateAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := aiGatewayTLSExecutionGatewayID(execCtx)
 	if err != nil {
+		return err
+	}
+	current, err := a.client.GetAIGatewayCACertificate(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway CA certificate", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway CA certificate is protected and cannot be deleted")
+	}
+	if err := validateCurrentAIGatewayChildDeletion(ctx, a.client, execCtx, gatewayID, id, current.Name); err != nil {
 		return err
 	}
 	return a.client.DeleteAIGatewayCACertificate(ctx, gatewayID, id)
@@ -195,6 +276,22 @@ func (a *AIGatewaySNIAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(request)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway SNI", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	observed, err := a.client.ListAIGatewaySNIs(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, item := range observed {
+		if item.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway SNI", item.Name)
+		}
+	}
 	return a.client.CreateAIGatewaySNI(ctx, gatewayID, request, namespace)
 }
 
@@ -206,12 +303,71 @@ func (a *AIGatewaySNIAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(request)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway SNI", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewaySNI(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway SNI no longer exists")
+	}
+	currentPayload, err := ownedChildPayload(
+		map[string]any{
+			planner.FieldName:        current.Name,
+			planner.FieldDisplayName: current.DisplayName,
+			planner.FieldHostname:    current.Hostname,
+			planner.FieldCertificate: current.Certificate,
+			planner.FieldLabels:      current.Labels,
+			planner.FieldManagedBy:   current.ManagedBy,
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewaySNIRequest](
+		"AI Gateway SNI",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway SNI", currentPayload, payload, execCtx)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway SNI update", payload, &request); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewaySNI(ctx, gatewayID, id, request, namespace)
 }
 
 func (a *AIGatewaySNIAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := aiGatewayTLSExecutionGatewayID(execCtx)
 	if err != nil {
+		return err
+	}
+	current, err := a.client.GetAIGatewaySNI(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership("AI Gateway SNI", current.ManagedBy, execCtx.Namespace); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway SNI is protected and cannot be deleted")
+	}
+	if err := validateCurrentAIGatewayChildDeletion(ctx, a.client, execCtx, gatewayID, id, current.Name); err != nil {
 		return err
 	}
 	return a.client.DeleteAIGatewaySNI(ctx, gatewayID, id)

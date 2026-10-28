@@ -90,6 +90,9 @@ func resolveObservedReferenceDeletes(
 			}
 		}
 		for _, user := range users {
+			if user.resourceType == policy.targetType && user.id == deletion.ResourceID {
+				continue
+			}
 			if !policy.observedReferences(*deletion, user.references) {
 				continue
 			}

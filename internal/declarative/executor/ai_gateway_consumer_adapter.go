@@ -58,6 +58,22 @@ func (a *AIGatewayConsumerAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway consumer", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	consumers, err := a.client.ListAIGatewayConsumers(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, consumer := range consumers {
+		if consumer.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway consumer", consumer.Name)
+		}
+	}
 	return a.client.CreateAIGatewayConsumer(ctx, gatewayID, req, namespace)
 }
 
@@ -73,6 +89,45 @@ func (a *AIGatewayConsumerAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway consumer", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayConsumer(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway consumer no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayConsumerMutablePayloadMap(current.AIGatewayConsumer)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayConsumerRequest](
+		"AI Gateway consumer",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway consumer",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway consumer update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayConsumer(ctx, gatewayID, id, req, namespace)
 }
 
@@ -81,6 +136,21 @@ func (a *AIGatewayConsumerAdapter) Delete(ctx context.Context, id string, execCt
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayConsumer(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway consumer", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway consumer is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayConsumer(ctx, gatewayID, id)
 }

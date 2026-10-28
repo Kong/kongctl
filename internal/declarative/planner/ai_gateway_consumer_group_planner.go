@@ -68,6 +68,8 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 
 	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayConsumerGroup, desired, current,
 		nameMatchedChildOperations[resources.AIGatewayConsumerGroupResource, observation]{
+			ownership:         &ownedChildCollectionScope{gatewayRef, gatewayID},
+			ownershipMetadata: func(o observation) (map[string]string, error) { return o.group.ManagedBy, nil },
 			desiredName: func(desired resources.AIGatewayConsumerGroupResource) string {
 				return desired.Name
 			},
@@ -88,6 +90,12 @@ func (p *Planner) planAIGatewayConsumerGroupChanges(
 				}
 				if full == nil {
 					return nil, nil
+				}
+
+				if err := resources.ValidateChildOwnership(
+					"AI Gateway consumer group", full.ManagedBy, resources.GetNamespace(desired.Kongctl),
+				); err != nil {
+					return nil, err
 				}
 
 				observed := &observation{group: *full}
@@ -199,6 +207,7 @@ func (p *Planner) planAIGatewayConsumerGroupCreate(
 		}
 	}
 
+	stampOwnedChildChange(&change, group.Kongctl)
 	plan.AddChange(change)
 }
 
@@ -282,6 +291,10 @@ func (p *Planner) shouldUpdateAIGatewayConsumerGroup(
 	resources.StripAIGatewayConsumerGroupMembershipFields(currentPayload)
 	resources.StripAIGatewayConsumerGroupMembershipFields(desiredPayload)
 
+	if err := prepareOwnedChildDiff(currentPayload, desiredPayload, &desired, desired.Labels); err != nil {
+		return false, nil, nil, err
+	}
+
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	updateFields := clonePayloadMap(desiredPayload)
 	currentCompare, desiredCompare = normalizeAIGatewayPolicyReferencesForComparison(
@@ -323,7 +336,7 @@ func aiGatewayConsumerGroupPolicyCreateDependencies(
 
 func aiGatewayConsumerCreateDependencies(
 	plan *Plan,
-	namespace string,
+	_ string,
 	gatewayRef string,
 ) map[string]string {
 	if plan == nil {
@@ -334,7 +347,6 @@ func aiGatewayConsumerCreateDependencies(
 	for _, change := range plan.Changes {
 		if change.Action != ActionCreate ||
 			change.ResourceType != ResourceTypeAIGatewayConsumer ||
-			change.Namespace != namespace ||
 			!aiGatewayChildChangeMatchesParent(change, gatewayRef) {
 			continue
 		}

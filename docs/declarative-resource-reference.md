@@ -492,8 +492,9 @@ AI Gateway Data Plane Certificates use their required `title` field as the
 stable Konnect child name and match only by title within their gateway.
 UUID refs and cached IDs do not override the declared title. A changed title
 declares a different certificate and sync can delete the previous one.
-Models, providers, auth strategies, policies, custom policy definitions, and
-agents accept independent `kongctl` namespace/protection metadata stored in
+Models, providers, auth strategies, policies, custom policy definitions,
+agents, MCP servers, vaults, consumers, consumer groups, CA certificates, and
+SNIs accept independent `kongctl` namespace/protection metadata stored in
 `managed_by`. Other child entries retain their existing inherited scope.
 
 When upgrading configurations that relied on UUID refs or display-name
@@ -571,6 +572,14 @@ Use `auth_strategies: []`, `policies: []`, `agents: []`,
 `ai_gateway_data_plane_certificates: []`, `ai_gateway_certificates: []`,
 `ai_gateway_ca_certificates: []`, and `ai_gateway_snis: []` are rejected
 because they do not identify a parent resource.
+
+
+For independently owned families, empty nested sync collections remove only
+that source namespace's unprotected owned children. Credentials follow their
+consumer's ownership. Group membership remains a group-owned full set, including
+foreign consumers; omission preserves and `[]` clears membership. Runtime
+certificate federation is deferred pending a metadata-only PATCH API. See
+[remaining child ownership and API limits](ai-gateway-remaining-child-ownership.md).
 
 ```yaml
 ai_gateways:

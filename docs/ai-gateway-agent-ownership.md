@@ -51,7 +51,7 @@ inline credential values are rejected. Public AWS access-key IDs, regions,
 proxy usernames, and proxy endpoints remain ordinary fields. Secret selection
 and rotation are explicit; metadata updates neither resolve nor rewrite an
 unselected credential. Explain/scaffold describe these deferred fields without
-changing MCP's separate secret contract.
+changing credential selection or rotation semantics.
 
 Live validation confirmed POST/GET/LIST/PUT metadata persistence and map
 replacement for both types. Fresh Kong AI Gateway 2.2.0 runtimes, with empty

@@ -193,9 +193,5 @@ func (c *Client) DeleteAIGatewayConsumer(ctx context.Context, gatewayID string, 
 }
 
 func normalizedAIGatewayConsumerLabels(consumer kkComps.AIGatewayConsumer) map[string]string {
-	normalized := consumer.Labels
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(consumer.ManagedBy)
 }
