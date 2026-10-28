@@ -23,6 +23,9 @@ remain supported.
 The internal-only `CreatePortal.create_default_content` field also stays
 omitted when unset. Its tag replacement skips public SDKs where the field is
 absent, but fails on unexpected tags or types when the field is present.
+The same rule preserves omitted internal `spec_format` query parameters on
+API-version create, update, and fetch requests. Explicit JSON/YAML selections
+remain supported.
 
 ## Prepare and generate a patched SDK
 
