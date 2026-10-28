@@ -57,7 +57,9 @@ func (p *Planner) planAIGatewayMCPServerChanges(
 	if err := reconcileNameMatchedChildren(p, ResourceTypeAIGatewayMCPServer,
 		orderAIGatewayMCPServersForPlanning(desired), currentServers,
 		nameMatchedChildOperations[resources.AIGatewayMCPServerResource, state.AIGatewayMCPServer]{
-			desiredName: func(desired resources.AIGatewayMCPServerResource) string { return desired.Name() },
+			ownership:    &ownedChildCollectionScope{gatewayRef, gatewayID},
+			desiredOrder: orderAIGatewayMCPServersForPlanning,
+			desiredName:  func(desired resources.AIGatewayMCPServerResource) string { return desired.Name() },
 			currentName: func(current state.AIGatewayMCPServer) string {
 				return resources.AIGatewayMCPServerName(current.AIGatewayMCPServer)
 			},
@@ -162,6 +164,7 @@ func (p *Planner) planAIGatewayMCPServerCreate(
 		}
 	}
 
+	stampOwnedChildChange(&change, server.Kongctl)
 	plan.AddChange(change)
 }
 
@@ -227,9 +230,13 @@ func (p *Planner) shouldUpdateAIGatewayMCPServer(
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway MCP Server %q: %w", desired.Ref, err)
 	}
 
+	if err := prepareOwnedChildDiff(currentPayload, desiredPayload, &desired, desired.PublicLabels()); err != nil {
+		return false, nil, nil, err
+	}
+
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
-	currentCompare = scrubAIGatewayUpstreamWriteOnlyFields(currentCompare).(map[string]any)
-	desiredCompare = scrubAIGatewayUpstreamWriteOnlyFields(desiredCompare).(map[string]any)
+	currentCompare = scrubAIGatewayMCPWriteOnlyFields(currentCompare)
+	desiredCompare = scrubAIGatewayMCPWriteOnlyFields(desiredCompare)
 	updateFields := clonePayloadMap(desiredPayload)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(currentCompare, desiredCompare)
 	pruneDefaultAIGatewayMCPServerAccessMissingFromPeer(desiredCompare, currentCompare)
@@ -383,4 +390,17 @@ func orderCurrentAIGatewayMCPServersForDeletion(servers []state.AIGatewayMCPServ
 		}
 	}
 	return ordered
+}
+
+func scrubAIGatewayMCPWriteOnlyFields(payload map[string]any) map[string]any {
+	result := scrubAIGatewayAgentWriteOnlyFields(payload)
+	config, _ := result[FieldConfig].(map[string]any)
+	server, _ := config["server"].(map[string]any)
+	if auth, ok := server["tools_list_auth"].(map[string]any); ok {
+		server["tools_list_auth"] = scrubAIGatewayWriteOnlyFields(
+			auth,
+			func(key string) bool { return key == FieldClientSecret },
+		)
+	}
+	return result
 }

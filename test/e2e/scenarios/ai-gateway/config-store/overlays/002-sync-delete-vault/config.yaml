@@ -11,4 +11,5 @@ ai_gateways:
         name: support-store
         display_name: Support-Store-Updated
         secrets: []
+    model_providers: []
     vaults: []

@@ -31,9 +31,10 @@ type Executor struct {
 	payloadContracts  map[string]payloadContract
 	resourceExecutors map[string]resourceExecutor
 	// Track created resources during execution
-	createdResources      map[string]string         // changeID -> resourceID
-	createdResourceFields map[string]map[string]any // changeID -> resolved non-secret fields
-	cacheMu               sync.RWMutex
+	initiallyProtectedConsumers map[string]bool
+	createdResources            map[string]string         // changeID -> resourceID
+	createdResourceFields       map[string]map[string]any // changeID -> resolved non-secret fields
+	cacheMu                     sync.RWMutex
 	// Track resource refs to IDs for reference resolution
 	refToID map[string]map[string]string // resourceType -> ref -> resourceID
 	// Unified state cache
@@ -88,22 +89,23 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 		deckRunner = deck.NewRunner()
 	}
 	e := &Executor{
-		client:                client,
-		reporter:              reporter,
-		dryRun:                dryRun,
-		payloadContracts:      make(map[string]payloadContract),
-		resourceExecutors:     make(map[string]resourceExecutor),
-		createdResources:      make(map[string]string),
-		createdResourceFields: make(map[string]map[string]any),
-		refToID:               make(map[string]map[string]string),
-		stateCache:            state.NewCache(),
-		deckRunner:            deckRunner,
-		konnectToken:          opts.KonnectToken,
-		konnectTokenSource:    opts.KonnectTokenSource,
-		konnectBaseURL:        opts.KonnectBaseURL,
-		executionMode:         opts.Mode,
-		planBaseDir:           strings.TrimSpace(opts.PlanBaseDir),
-		resolvedSecrets:       make(map[string]map[string]string),
+		client:                      client,
+		reporter:                    reporter,
+		dryRun:                      dryRun,
+		payloadContracts:            make(map[string]payloadContract),
+		resourceExecutors:           make(map[string]resourceExecutor),
+		initiallyProtectedConsumers: make(map[string]bool),
+		createdResources:            make(map[string]string),
+		createdResourceFields:       make(map[string]map[string]any),
+		refToID:                     make(map[string]map[string]string),
+		stateCache:                  state.NewCache(),
+		deckRunner:                  deckRunner,
+		konnectToken:                opts.KonnectToken,
+		konnectTokenSource:          opts.KonnectTokenSource,
+		konnectBaseURL:              opts.KonnectBaseURL,
+		executionMode:               opts.Mode,
+		planBaseDir:                 strings.TrimSpace(opts.PlanBaseDir),
+		resolvedSecrets:             make(map[string]map[string]string),
 	}
 
 	e.concurrency = DefaultMaxConcurrency
@@ -180,6 +182,9 @@ func (e *Executor) setRef(resourceType, ref, id string) {
 // Execute runs the plan and returns the execution result
 func (e *Executor) Execute(ctx context.Context, plan *planner.Plan) *ExecutionResult {
 	ctx = withExecutorHTTPLogContext(ctx, e.executionMode)
+	e.mu.Lock()
+	clear(e.initiallyProtectedConsumers)
+	e.mu.Unlock()
 
 	result := &ExecutionResult{
 		DryRun: e.dryRun,
@@ -574,6 +579,10 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		// Track created resources for dependencies
 		if change.Action == planner.ActionCreate && resourceID != "" {
 			e.createdResources[change.ID] = resourceID
+			if change.ResourceType == planner.ResourceTypeAIGatewayConsumer {
+				protected, _ := change.Protection.(bool)
+				e.initiallyProtectedConsumers[resourceID] = protected
+			}
 			e.createdResourceFields[change.ID] = resolvedReferenceChange.Fields
 
 			// Track by resource type and ref so resolve*Ref helpers can find IDs
@@ -1483,6 +1492,29 @@ func (e *Executor) syncAIGatewayConsumerGroupConsumers(
 		return nil
 	}
 
+	group, err := e.client.GetAIGatewayConsumerGroup(ctx, gatewayID, consumerGroupID)
+	if err != nil {
+		return err
+	}
+	if group == nil {
+		return fmt.Errorf("AI Gateway consumer group no longer exists")
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway consumer group", group.ManagedBy, change.Namespace,
+	); err != nil {
+		return err
+	}
+	// Metadata-only protection changes must not issue membership requests.
+	if change.Action != planner.ActionCreate {
+		if _, changed := change.ChangedFields[planner.FieldConsumers]; !changed {
+			return nil
+		}
+	}
+	if resources.IsChildProtected(group.ManagedBy) && change.Action != planner.ActionCreate {
+		return fmt.Errorf(
+			"AI Gateway consumer group is protected; membership writes are not allowed",
+		)
+	}
 	return e.client.UpsertAIGatewayConsumerGroupConsumers(ctx, gatewayID, consumerGroupID, consumers)
 }
 

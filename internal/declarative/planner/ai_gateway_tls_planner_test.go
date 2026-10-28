@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -128,6 +129,43 @@ func TestAIGatewaySNIReferenceUsesCertificateName(t *testing.T) {
 func TestAIGatewaySNIReferenceRejectsCertificateID(t *testing.T) {
 	_, err := normalizeAIGatewaySNICertificateReference("__REF__:runtime-cert#id", nil)
 	require.ErrorContains(t, err, "certificate reference must use #name, got #id")
+}
+
+func TestAIGatewaySNICreateRejectsInvalidCertificateReference(t *testing.T) {
+	for _, existingGateway := range []bool{false, true} {
+		for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+			t.Run(fmt.Sprintf("existing=%t/%s", existingGateway, mode), func(t *testing.T) {
+				rs := federatedResourceSet()
+				if !existingGateway {
+					rs.AIGateways = []resources.AIGatewayResource{{
+						BaseResource: resources.BaseResource{
+							Ref: "shared", Kongctl: &resources.KongctlMeta{Namespace: new(DefaultNamespace)},
+						},
+						CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{Name: "shared", DisplayName: "Shared"},
+					}}
+				}
+				placeholder, err := tags.BuildSecretPlaceholder(envSecretExpression("RUNTIME_PRIVATE_KEY"))
+				require.NoError(t, err)
+				rs.AddSecretSource("cert", "/key", envSecretExpression("RUNTIME_PRIVATE_KEY"), false)
+				rs.AIGatewayCertificates = []resources.AIGatewayCertificateResource{{
+					BaseResource: resources.BaseResource{Ref: "cert"}, AIGateway: "shared", Name: "cert", Cert: "public-cert",
+					Key: placeholder,
+				}}
+				rs.AIGatewaySNIs = []resources.AIGatewaySNIResource{{
+					BaseResource: resources.BaseResource{Ref: "invalid-sni"}, AIGateway: "shared",
+					Name: "invalid-sni", Hostname: "api.example.test", Certificate: tags.RefPlaceholderPrefix + "cert#id",
+				}}
+				rs.SyncScope.AddChild(resources.ResourceTypeAIGateway, "shared", resources.ResourceTypeAIGatewaySNI)
+				cfg := emptyAIGatewayCollectionsConfig()
+				cfg.AIGatewayAPI = &testAIGatewayAPI{}
+				p := NewPlanner(state.NewClient(cfg), slog.Default())
+				plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: mode})
+				require.ErrorContains(t, err, `failed to build AI Gateway SNI "invalid-sni" create payload`)
+				require.ErrorContains(t, err, "certificate reference must use #name, got #id")
+				require.Nil(t, plan, "invalid declarations must not return a usable partial plan")
+			})
+		}
+	}
 }
 
 func TestAIGatewaySNILiteralCertificateNameIsNotTreatedAsResourceRef(t *testing.T) {

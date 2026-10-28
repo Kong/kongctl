@@ -4,7 +4,10 @@ package planner
 // resource's lifecycle, which may also plan nested children. A nil observation
 // means no name match; a non-nil observation is the original listed value.
 type nameMatchedCollectionOperations[D, C any] struct {
-	desiredName func(D) string
+	desiredOrder      func([]D) []D
+	ownership         *ownedChildCollectionScope
+	ownershipMetadata func(C) (map[string]string, error)
+	desiredName       func(D) string
 	// The boolean controls indexing only. Unmatchable observations still take
 	// part in sync pruning, using the returned name.
 	currentName func(C) (string, bool)
@@ -27,6 +30,9 @@ func reconcileNameMatchedCollection[D, C any](
 	ops nameMatchedCollectionOperations[D, C],
 	plan *Plan,
 ) error {
+	if ops.ownership != nil {
+		return reconcileOwnedNameMatchedCollection(p, resourceType, desired, current, ops, plan)
+	}
 	byName := make(map[string]C, len(current))
 	for _, item := range current {
 		if name, matchable := ops.currentName(item); matchable {

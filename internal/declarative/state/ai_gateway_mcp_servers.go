@@ -194,11 +194,7 @@ func (c *Client) DeleteAIGatewayMCPServer(ctx context.Context, gatewayID string,
 }
 
 func normalizedAIGatewayMCPServerLabels(server kkComps.AIGatewayMCPServer) map[string]string {
-	normalized := resources.AIGatewayMCPServerLabels(server)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(resources.AIGatewayMCPServerManagedBy(server))
 }
 
 func aiGatewayMCPServerCreateRequestName(req kkComps.CreateAIGatewayMCPServerRequest) string {

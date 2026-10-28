@@ -176,6 +176,7 @@ func TestAIGatewayConfigStorePlannerTreatsResolvedVaultStoreReferenceAsUnchanged
 		"created_at": "2026-01-01T00:00:00Z",
 		"updated_at": "2026-01-01T00:00:00Z"
 	}`), &currentVault))
+	currentVault = ownedAIGatewayObservation(t, currentVault, DefaultNamespace, false)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},
 		AIGatewayConfigStoresAPI: &testAIGatewayConfigStoreAPI{

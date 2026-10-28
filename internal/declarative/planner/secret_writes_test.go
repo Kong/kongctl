@@ -109,7 +109,68 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 			return aiGatewaySecretResourceSet(&resource)
 		}
 	}
+	mcp := func(kind, config string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			payload := `{"ref":"mcp","ai_gateway":"` + testAIGatewaySecretRef + `","type":"` + kind + `",` +
+				`"name":"mcp","display_name":"MCP","tools":[],"config":` + strings.ReplaceAll(
+				config,
+				"SECRET",
+				placeholder,
+			) + `}`
+			var resource resources.AIGatewayMCPServerResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &resource))
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
 	cases := []testCase{
+		{
+			name:         "MCP AWS key",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/upstream/auth/secret_access_key",
+			selector:     "config.upstream.auth.secret_access_key",
+			resourceSet: mcp(
+				"conversion-only",
+				`{"url":"https://example.test","upstream":{"auth":{"type":"aws","secret_access_key":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP AWS session",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/upstream/auth/session_token",
+			selector:     "config.upstream.auth.session_token",
+			resourceSet: mcp(
+				"conversion-only",
+				`{"url":"https://example.test","upstream":{"auth":{"type":"aws","session_token":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP proxy password",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/proxy/auth/password",
+			selector:     "config.proxy.auth.password",
+			resourceSet: mcp(
+				"passthrough-listener",
+				`{"url":"https://example.test","route":{"paths":["/mcp"]},
+ "proxy":{"auth":{"username":"user","password":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP tools OAuth",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/server/tools_list_auth/client_secret",
+			selector:     "config.server.tools_list_auth.client_secret",
+			resourceSet: mcp(
+				"upstream-server",
+				`{"url":"https://example.test","tools_cache_ttl_seconds":60,
+ "server":{"tools_list_auth":{"type":"credentials","client_id":"client","client_secret":"SECRET",
+ "token_endpoint":"https://example.test/token"}}}`,
+			),
+		},
 		{
 			name:         "agent AWS key",
 			resourceType: resources.ResourceTypeAIGatewayAgent,
@@ -877,6 +938,8 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 	gateway.SetKonnectID("gateway-id")
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 	switch typed := resource.(type) {
+	case *resources.AIGatewayMCPServerResource:
+		rs.AIGatewayMCPServers = []resources.AIGatewayMCPServerResource{*typed}
 	case *resources.AIGatewayAgentResource:
 		rs.AIGatewayAgents = []resources.AIGatewayAgentResource{*typed}
 	case *resources.AIGatewayProviderResource:

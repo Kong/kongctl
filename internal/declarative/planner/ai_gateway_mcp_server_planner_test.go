@@ -200,6 +200,7 @@ func TestAIGatewayMCPServerPlannerSyncDeletesScopedServers(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayMCPServer)
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayMCPServer, "support-gateway", "default")
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -237,6 +238,7 @@ func TestAIGatewayMCPServerPlannerSyncDeletesListenerBeforeSources(t *testing.T)
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayMCPServer)
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayMCPServer, "support-gateway", "default")
 
 	source := testAIGatewayMCPServer(t, "source-id", "support-tools")
 	var listener kkComps.AIGatewayMCPServer
@@ -253,6 +255,8 @@ func TestAIGatewayMCPServerPlannerSyncDeletesListenerBeforeSources(t *testing.T)
 		"created_at": "2026-01-01T00:00:00Z",
 		"updated_at": "2026-01-01T00:00:00Z"
 	}`), &listener))
+
+	listener = ownedAIGatewayObservation(t, listener, DefaultNamespace, false)
 
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
@@ -318,6 +322,7 @@ func TestAIGatewayMCPServerPlannerIgnoresAPIDefaults(t *testing.T) {
 		"updated_at": "2026-01-01T00:00:00Z"
 	}`), &current))
 
+	current = ownedAIGatewayObservation(t, current, "default", false)
 	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayMCPServer(
 		state.AIGatewayMCPServer{AIGatewayMCPServer: current},
 		server,
@@ -361,6 +366,7 @@ func TestAIGatewayMCPServerPlannerIgnoresDefaultAccessWhenServerOmitsIt(t *testi
 		"created_at": "2026-01-01T00:00:00Z",
 		"updated_at": "2026-01-01T00:00:00Z"
 	}`), &current))
+	current = ownedAIGatewayObservation(t, current, "default", false)
 	needsUpdate, fields, changed, err := (&Planner{}).shouldUpdateAIGatewayMCPServer(
 		state.AIGatewayMCPServer{AIGatewayMCPServer: current},
 		server,
@@ -426,6 +432,7 @@ func TestAIGatewayMCPServerPlannerAuthStrategyRefNoopForExistingServer(t *testin
 		"created_at": "2026-01-01T00:00:00Z",
 		"updated_at": "2026-01-01T00:00:00Z"
 	}`), &current))
+	current = ownedAIGatewayObservation(t, current, DefaultNamespace, false)
 	rs := &resources.ResourceSet{
 		AIGatewayAuthStrategies: []resources.AIGatewayAuthStrategyResource{{
 			BaseResource: resources.BaseResource{Ref: "support-key-auth"},
@@ -520,6 +527,7 @@ func testAIGatewayMCPServer(t *testing.T, id string, name string) kkComps.AIGate
 	t.Helper()
 	payload := `{
 		"id": "` + id + `",
+ "managed_by":{"kongctl-namespace":"default","kongctl-protected":"false","tool":"kongctl","version":"dev"},
 		"type": "conversion-only",
 		"name": "` + name + `",
 		"display_name": "` + name + `",
@@ -532,7 +540,7 @@ func testAIGatewayMCPServer(t *testing.T, id string, name string) kkComps.AIGate
 	}`
 	var server kkComps.AIGatewayMCPServer
 	require.NoError(t, json.Unmarshal([]byte(payload), &server))
-	return server
+	return ownedAIGatewayObservation(t, server, "default", false)
 }
 
 type testAIGatewayMCPServerAPI struct {

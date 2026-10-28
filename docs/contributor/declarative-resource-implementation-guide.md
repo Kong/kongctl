@@ -81,7 +81,8 @@ Registering a declaration does not complete those steps automatically.
   them independent `kongctl` configuration.
 
   AI Gateway models, providers, auth strategies, policies, custom policy
-  definitions, and agents are intentional exceptions: `WithNamespace` supplies
+  definitions, agents, MCP servers, vaults, consumers, consumer groups, CA
+  certificates, and SNIs are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
   Model namespace scope is captured per source, separately from gateway scope;
@@ -95,7 +96,8 @@ Registering a declaration does not complete those steps automatically.
 
 ### Independently owned AI Gateway children
 
-Models, providers, auth strategies, policies, custom definitions, and agents
+Models, providers, auth strategies, policies, custom definitions, agents,
+MCP servers, vaults, consumers, consumer groups, CA certificates, and SNIs
 enroll through
 `WithIndependentChildOwnership` alongside `WithNamespace`
 and `WithNestedNamespaceGroups`. This capability supplies source scope capture
@@ -103,6 +105,20 @@ and typed metadata access for auxiliary writes. It also bypasses inherited
 parent protection in planning and execution. Enroll other families only after
 the resource PR verifies their live metadata and credential contracts. Config
 stores and data plane certificates are excluded from ownership federation.
+Runtime certificates remain deferred pending metadata-only PATCH support.
+
+For new enrolled families, `WithAIGatewayOwnedChildNamespace` composes
+namespace,
+nested-source capture, and independent ownership registration. Typed existing
+lifecycle callbacks can opt into the shared owned name-matched collection
+reconciler. It aggregates canonical gateway aliases once, preserves complete
+cached observations, and restricts pruning to captured namespace scopes.
+Keep resource-specific reference extraction, detachment proof, membership,
+credential handling, and immutable identity checks in their adapters. A
+metadata-only update is not proof that a reference was detached. Execution-time
+deletion validation must observe current users after earlier detachments run.
+See [remaining child API limits](../ai-gateway-remaining-child-ownership.md),
+including the AppRole vault PUT restriction.
 
 Use `BuildChildManagedBy`, `ValidateChildManagedBy`, `ValidateChildOwnership`,
 and `NormalizedChildOwnership` in resources. Preserve unrelated entries during

@@ -9,6 +9,7 @@ import (
 
 	kkSDK "github.com/Kong/sdk-konnect-go"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
@@ -17,6 +18,15 @@ import (
 func TestSavedMCPReplacementCreateFailureKeepsOldServer(t *testing.T) {
 	var methods []string
 	httpClient := customPolicyHTTPClient(func(r *http.Request) (*http.Response, error) {
+		if r.Method == http.MethodGet {
+			require.True(t, strings.HasSuffix(r.URL.Path, "/mcp-servers"))
+			return &http.Response{
+				StatusCode: 200,
+				Header:     http.Header{"Content-Type": {"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+				Request:    r,
+			}, nil
+		}
 		methods = append(methods, r.Method)
 		return &http.Response{
 			StatusCode: http.StatusBadRequest,
@@ -29,8 +39,15 @@ func TestSavedMCPReplacementCreateFailureKeepsOldServer(t *testing.T) {
 	plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeSync)
 	plan.AddChange(planner.PlannedChange{
 		ID: "create-new", ResourceType: planner.ResourceTypeAIGatewayMCPServer,
-		ResourceRef: "new", Action: planner.ActionCreate, Parent: &planner.ParentInfo{ID: "gateway-id"},
+		Namespace: "default", ResourceRef: "new", Action: planner.ActionCreate, Parent: &planner.ParentInfo{ID: "gateway-id"},
 		Fields: map[string]any{
+			planner.FieldManagedBy: resources.BuildChildManagedBy(
+				nil,
+				nil,
+				"default",
+				false,
+				"dev",
+			),
 			planner.FieldType: "passthrough-listener", planner.FieldName: "new",
 			planner.FieldDisplayName: "New", planner.FieldConfig: map[string]any{
 				"url": "https://mcp.example.test", planner.FieldRoute: map[string]any{"paths": []any{"/mcp"}},

@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: remaining-team-b
+ai_gateways:
+- ref: shared-b
+  _external:
+    selector:
+      matchFields:
+        name: federated-remaining-e2e
+ai_gateway_consumer_groups:
+- ref: group-b
+  ai_gateway: shared-b
+  name: group-b
+  display_name: Group b
+  consumers: []

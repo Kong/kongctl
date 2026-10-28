@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: remaining-team-b
+ai_gateways:
+- ref: shared-b
+  _external:
+    selector:
+      matchFields:
+        name: federated-remaining-e2e

@@ -353,9 +353,5 @@ func firstNonEmpty(values ...string) string {
 }
 
 func normalizedAIGatewayConsumerGroupLabels(group kkComps.AIGatewayConsumerGroup) map[string]string {
-	normalized := group.Labels
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(group.ManagedBy)
 }

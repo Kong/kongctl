@@ -457,11 +457,11 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 	)
-	explainReplacePath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "secret_access_key"},
+	explainReplaceUnionPath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "secret_access_key"},
 		explainSecretEnvNode("AGENT_AWS_SECRET_ACCESS_KEY"))
-	explainReplacePath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "session_token"},
+	explainReplaceUnionPath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "session_token"},
 		explainSecretEnvNode("AGENT_AWS_SESSION_TOKEN"))
-	explainReplacePath(
+	explainReplaceUnionPath(
 		node,
 		[]string{aiGatewayAgentFieldConfig, "proxy", "auth", "password"},
 		explainSecretEnvNode("AGENT_PROXY_PASSWORD"),

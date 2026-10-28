@@ -10,6 +10,9 @@ type aiGatewayDeleteResolver struct {
 // Keep adapter dispatch ordered to preserve validation diagnostics. Custom
 // policies also supply creation edges when there are no deletions.
 var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
+	{ResourceTypeAIGatewayVault, (*Planner).resolveAIGatewayVaultDeletes},
+	{ResourceTypeAIGatewayCACertificate, (*Planner).resolveAIGatewayCACertificateDeletes},
+	{ResourceTypeAIGatewaySNI, (*Planner).resolveAIGatewaySNIDeletes},
 	{ResourceTypeAIGatewayProvider, (*Planner).resolveAIGatewayProviderDeletes},
 	{ResourceTypeAIGatewayPolicy, (*Planner).resolveAIGatewayPolicyDeletes},
 	{ResourceTypeAIGatewayAuthStrategy, (*Planner).resolveAIGatewayAuthStrategyDeletes},

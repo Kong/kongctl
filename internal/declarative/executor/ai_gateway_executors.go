@@ -29,8 +29,14 @@ func (e *Executor) registerAIGatewayExecutors() {
 	registerChild(crudResourceExecutor(
 		NewBaseExecutor(NewAIGatewayConsumerAdapter(client), client, dryRun),
 	))
+	credentialAdapter := NewAIGatewayConsumerCredentialAdapter(client)
+	credentialAdapter.initiallyProtectedConsumer = func(id string) bool {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		return e.initiallyProtectedConsumers[id]
+	}
 	registerChild(createDeleteResourceExecutor(
-		NewBaseCreateDeleteExecutor(NewAIGatewayConsumerCredentialAdapter(client), dryRun),
+		NewBaseCreateDeleteExecutor(credentialAdapter, dryRun),
 	))
 
 	consumerGroup := crudResourceExecutor(

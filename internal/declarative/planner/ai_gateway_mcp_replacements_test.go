@@ -147,9 +147,10 @@ func TestMCPReplacementScopeAndMultipleCreates(t *testing.T) {
 	}
 	current := []state.AIGatewayMCPServer{{AIGatewayMCPServer: old}}
 	require.NoError(t, addAIGatewayMCPReplacementDependencies("ns", "gateway", "gateway-id", current, plan))
-	require.Equal(t, []string{"same-1", "same-2"}, plan.Changes[0].DependsOn)
+	require.Equal(t, []string{"same-1", "same-2", "other-namespace"}, plan.Changes[0].DependsOn)
 	require.NoError(t, addAIGatewayMCPReplacementDependencies("ns", "gateway", "gateway-id", current, plan))
-	require.Equal(t, []string{"same-1", "same-2"}, plan.Changes[0].DependsOn, "edges must be deduplicated")
+	require.Equal(t, []string{"same-1", "same-2", "other-namespace"}, plan.Changes[0].DependsOn,
+		"edges must be deduplicated")
 	_, err = NewDependencyResolver().ResolveDependenciesWithGroups(plan.Changes)
 	require.NoError(t, err)
 }
