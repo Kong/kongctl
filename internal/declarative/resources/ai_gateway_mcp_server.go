@@ -822,6 +822,8 @@ func aiGatewayMCPACLsExplainNode() *ExplainNode {
 	return explainObject(
 		explainField("allow", explainArrayOf(explainStringNode("consumer-group")), false, false),
 		explainField("deny", explainArrayOf(explainStringNode("consumer-group")), false, false),
+		explainField("allow_when", explainArrayOf(explainStringNode("http.headers.x_end_user_id != null")), false, false),
+		explainField("deny_when", explainArrayOf(explainStringNode("http.headers.x_end_user_id == null")), false, false),
 	)
 }
 

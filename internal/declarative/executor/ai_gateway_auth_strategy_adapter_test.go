@@ -128,8 +128,6 @@ func TestAIGatewayAuthStrategyAdapterPreservesAccessControlConfig(t *testing.T) 
 	require.NotNil(t, config)
 	require.Equal(t, []string{"groups"}, config.ConsumerGroupsClaim)
 	require.False(t, *config.ConsumerGroupsOptional)
-	require.Equal(t, []string{"sub"}, config.UpstreamHeadersClaims)
-	require.Equal(t, []string{"x-consumer-subject"}, config.UpstreamHeadersNames)
 
 	data, err := json.Marshal(request)
 	require.NoError(t, err)

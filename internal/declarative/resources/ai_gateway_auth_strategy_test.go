@@ -22,7 +22,7 @@ func TestAIGatewayAuthStrategyExplainRequiresOpenIDConnectAPIFields(t *testing.T
 	require.True(t, issuer.Required)
 }
 
-func TestAIGatewayAuthStrategyExplainUsesClosedSDKConfigProperties(t *testing.T) {
+func TestAIGatewayAuthStrategyExplainSupportsAdvancedConfigProperties(t *testing.T) {
 	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
@@ -31,7 +31,9 @@ func TestAIGatewayAuthStrategyExplainUsesClosedSDKConfigProperties(t *testing.T)
 			branch := aiGatewayAuthStrategyExplainBranch(t, node, providerType)
 			configField := branch.propIndex["config"]
 			require.NotNil(t, configField)
-			require.Nil(t, configField.Node.Additional)
+			require.NotEmpty(t, configField.Node.Properties)
+			require.NotNil(t, configField.Node.Additional)
+			require.Equal(t, "any", configField.Node.Additional.Kind)
 		})
 	}
 }
