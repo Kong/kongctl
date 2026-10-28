@@ -16,7 +16,6 @@ ai_gateway_policies:
     type: ai-sanitizer
     global: false
     enabled: true
-    managed_by: {inventory: shared}
     config: {anonymize: [email]}
 ```
 

@@ -82,10 +82,9 @@ alone does not imply federation.
 4. Unprotect with a metadata-only operation before payload updates, credential
    rotation, or deletion. Group owners retain control of the complete optional
    membership set, including foreign consumers; omission preserves membership.
-5. Keep the five-entry metadata limit in view. Four entries are generated,
-   leaving one unrelated entry. Omission preserves unrelated keys; renaming a
-   key currently requires API removal of the old key first. See [the staged
-   managed_by migration guide][migration] for later resource enrollment.
+5. Use `labels` for user-defined metadata. `managed_by` is maintained by tools;
+   configure ownership/protection through `kongctl`. See [the staged managed_by
+   migration guide][migration] for later resource enrollment.
 
 ## Deferred operations and API limitations
 

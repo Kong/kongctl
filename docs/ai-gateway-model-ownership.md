@@ -51,10 +51,9 @@ configure namespace and protection through `kongctl`, not raw
 `managed_by` manifest entries. Public labels continue to use their existing
 convention on other resources. Model ownership never uses public labels.
 Unrelated `managed_by` entries survive updates, including entries added after
-planning. Entries explicitly declared by the user are merged into that map.
+planning. Use `labels` for user-defined metadata.
 The complete merged map cannot exceed five entries, including all four
-generated keys. This
-leaves room for one unrelated entry; additional entries fail without data loss.
+generated keys. Additional entries fail without data loss.
 Dump omits tool/version and converts namespace/protection into model-level
 `kongctl` metadata. It retains unrelated entries. Dumping an unowned model does
 not adopt it.

@@ -6,7 +6,6 @@ ai_gateway_model_providers:
     name: provider-b
     display_name: Provider b
     type: openai
-    managed_by: {other-tool: retained}
     labels: {team: b}
     config:
       auth:

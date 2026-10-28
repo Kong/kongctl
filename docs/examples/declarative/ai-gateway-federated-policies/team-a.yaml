@@ -8,6 +8,5 @@ ai_gateway_policies:
     type: ai-sanitizer
     enabled: true
     global: false
-    managed_by: {other-tool: retained}
     labels: {team: a}
     config: {anonymize: [email]}

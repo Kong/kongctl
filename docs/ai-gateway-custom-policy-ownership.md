@@ -22,7 +22,6 @@ ai_gateway_custom_policies:
     display_name: Shared installed definition
     type: installed
     labels: {team: security}
-    managed_by: {inventory: shared}
     schema: |
       return {
         name = "shared-plugin",

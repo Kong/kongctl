@@ -20,8 +20,6 @@ ai_gateway_model_providers:
     name: shared-openai
     display_name: Shared OpenAI
     type: openai
-    managed_by:
-      inventory: shared
     config:
       auth:
         type: basic

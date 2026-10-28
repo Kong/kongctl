@@ -18,7 +18,6 @@ ai_gateway_auth_strategies:
     name: shared-key-auth
     display_name: Shared key authentication
     type: key-auth
-    managed_by: {inventory: shared}
     config:
       key_names: [apikey]
 ```

@@ -42,10 +42,8 @@ only. Participating child dumps omit generated entries and
 translate namespace/protection into `kongctl` metadata. Unprotection may update
 automatic provenance, but still cannot change other metadata or payload fields.
 
-Omitting an unrelated metadata key does not remove it. Renaming the sole free
-key requires explicitly removing the old key through the API first. There is
-currently no declarative key-removal operation; omission preserves metadata
-that may belong to another tool.
+`managed_by` is a tool metadata store. Put user-defined metadata in `labels`
+and configure ownership/protection through `kongctl`.
 
 Dump warns and skips individual children with invalid ownership metadata,
 preserving valid siblings. It does not interpret invalid protection values as

@@ -8,6 +8,5 @@ ai_gateway_policies:
     type: rate-limiting
     enabled: true
     global: true
-    managed_by: {other-tool: retained}
     labels: {team: b}
     config: {minute: 100, policy: local}

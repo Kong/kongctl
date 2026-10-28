@@ -18,8 +18,6 @@ ai_gateways:
       - name: health
         description: Health check
         method: GET
-    managed_by:
-      inventory: retained
     labels:
       team: b
   vaults:
@@ -28,8 +26,6 @@ ai_gateways:
     type: env
     config:
       prefix: FED_B_
-    managed_by:
-      inventory: retained
     labels:
       team: b
   consumers:
@@ -37,8 +33,6 @@ ai_gateways:
     name: consumer-b
     display_name: Consumer b
     type: api-key
-    managed_by:
-      inventory: retained
     labels:
       team: b
   consumer_groups:
@@ -47,16 +41,12 @@ ai_gateways:
     display_name: Group b
     consumers:
     - consumer-a
-    managed_by:
-      inventory: retained
     labels:
       team: b
   ca_certificates:
   - ref: ca-b
     name: ca-b
     cert: !file './certs/runtime-alt.pem'
-    managed_by:
-      inventory: retained
     labels:
       team: b
   snis:
@@ -65,7 +55,5 @@ ai_gateways:
     display_name: SNI b
     hostname: b.federated-remaining.example.test
     certificate: platform-cert
-    managed_by:
-      inventory: retained
     labels:
       team: b
