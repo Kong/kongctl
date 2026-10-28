@@ -145,8 +145,8 @@ steps:
               oneOf[?properties.type.const=='conversion-listener'] | [0].properties.config.properties.logging.properties
             expect:
               fields:
-                audits.type: boolean
-                payloads.type: boolean
+                audits.type: [boolean, "null"]
+                payloads.type: [boolean, "null"]
           - select: >-
               contains(keys(oneOf[?properties.type.const=='conversion-listener'] | [0].properties.config.properties.logging.properties), 'statistics')
             expect:

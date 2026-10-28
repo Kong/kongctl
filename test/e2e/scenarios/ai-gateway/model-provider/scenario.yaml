@@ -59,6 +59,7 @@ steps:
                 "@":
                   - anthropic
                   - azure
+                  - baseten
                   - bedrock
                   - cerebras
                   - cohere

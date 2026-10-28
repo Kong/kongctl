@@ -2090,11 +2090,7 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: organization_team
-    defaults:
-      - path: konnect_managed
-        type: boolean
-        value: false
-        source: sdk
+    defaults: []
     overrides: []
     exclusions: []
   - resource_type: organization_team_role
@@ -2160,10 +2156,6 @@ resources:
         value: false
         source: sdk
       - path: auto_approve_developers
-        type: boolean
-        value: false
-        source: sdk
-      - path: create_default_content
         type: boolean
         value: false
         source: sdk
