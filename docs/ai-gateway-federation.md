@@ -27,8 +27,21 @@ the gateway or another team's children.
 | Data plane certificates | Excluded | [Shared contract][contract] |
 
 This is twelve independently owned child families. Provenance write support
-alone does not imply federation. Runtime certificates retain their existing
-explicit-key update behavior; no private key is automatically resubmitted.
+alone does not imply federation.
+
+> **Runtime certificates remain platform-managed.**
+>
+> Teams can independently manage SNIs referencing a shared runtime certificate
+> by name. They do not need its private key.
+>
+> Keep runtime certificates in the platform's configuration. Omit `certificates`
+> from team manifests—`certificates: []` is not scoped to the team's namespace.
+>
+> Certificate updates require an explicitly supplied private key because the
+> API lacks a credential-preserving metadata update. Certificate-level
+> namespace/protection is unsupported. This does not affect federation for
+> the other supported children. See the
+> [API limitations](#deferred-operations-and-api-limitations).
 
 ## Release notes
 
