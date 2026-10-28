@@ -17,6 +17,12 @@
       "file": "models/components/aigwkeyauthgeneratedconfig.go",
       "before": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitempty\"`",
       "after": "IdentityRealms []IdentityRealms `json:\"identity_realms,omitzero\"`"
+    },
+    {
+      "file": "models/components/createportal.go",
+      "optional_field": "CreateDefaultContent",
+      "before": "CreateDefaultContent *bool `default:\"false\" json:\"create_default_content\"`",
+      "after": "CreateDefaultContent *bool `json:\"create_default_content,omitempty\"`"
     }
   ],
   "tests": {
