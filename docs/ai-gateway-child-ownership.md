@@ -6,7 +6,8 @@ SNIs support independent kongctl namespace ownership. Runtime certificates
 remain deferred pending a credential-preserving metadata PATCH API. Config
 stores, their secrets, and data plane certificates remain excluded.
 
-See [model ownership and migration][models],
+See the [release scope and migration summary](ai-gateway-federation.md),
+[model ownership and migration][models],
 [provider ownership](ai-gateway-provider-ownership.md),
 [auth-strategy ownership](ai-gateway-auth-strategy-ownership.md),
 [policy ownership](ai-gateway-policy-ownership.md),
@@ -126,8 +127,9 @@ limits](ai-gateway-provider-ownership.md). Retaining a redacted GET shape
 alone is insufficient. Auth-strategy OIDC client-secret arrays and proxy
 authorization values were also compared in fresh synchronized runtimes after
 protection and unprotection PUTs; see [auth-strategy evidence and
-limits](ai-gateway-auth-strategy-ownership.md). Other child families still
-need their own evidence.
+limits](ai-gateway-auth-strategy-ownership.md). MCP and vault evidence,
+including the AppRole restriction, is recorded in the
+[remaining-family guide](ai-gateway-remaining-child-ownership.md).
 
 Provider auth parameter values and AWS session tokens now use the same
 reviewed `!secret` declaration machinery as header values. Public parameter
@@ -138,9 +140,11 @@ deferred source and select them explicitly when changing them.
 Provider basic header/parameter arrays, Azure client secrets, AWS secret access
 keys/session tokens, and GCP service-account JSON use distinct write-only
 shapes. Auth-strategy scalar client-secret arrays must be selected as a
-complete group when rotating them. Vault credentials and runtime certificate
-keys still need their resource-specific omission/replacement contracts
-verified before federation. Certificate key writes remain explicit
+complete group when rotating them. Vault credentials retain the verified
+restrictions described in the
+[remaining-family guide](ai-gateway-remaining-child-ownership.md). Runtime
+certificate keys still require a credential-preserving metadata operation
+before federation. Certificate key writes remain explicit
 and required for current certificate updates; this infrastructure does not
 invent a preserve-on-omission contract for them.
 
