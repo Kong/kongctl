@@ -1,10 +1,12 @@
 package state
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"maps"
+	"reflect"
 
 	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -59,6 +61,22 @@ func stampManagedByRequest[T any](ctx context.Context, kind resources.ResourceTy
 	if err := json.Unmarshal(observed["managed_by"], &retained); err != nil || !maps.Equal(metadata, retained) {
 		return fmt.Errorf("SDK request did not preserve managed_by metadata")
 	}
+	decode := func(data []byte) (any, error) {
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.UseNumber()
+		var value any
+		err := decoder.Decode(&value)
+		return value, err
+	}
+	expectedPayload, err := decode(data)
+	if err != nil {
+		return fmt.Errorf("failed to verify original managed_by request")
+	}
+	observedPayload, err := decode(verified)
+	if err != nil || !reflect.DeepEqual(expectedPayload, observedPayload) {
+		return fmt.Errorf("SDK request did not preserve payload while stamping managed_by metadata")
+	}
+
 	*request = updated
 	return nil
 }

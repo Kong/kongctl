@@ -117,7 +117,7 @@ func (p *Planner) planAIGatewayConsumerChanges(
 					return p.planAIGatewayConsumerCredentialChanges(
 						ctx,
 						resources.GetNamespace(desiredConsumer.Kongctl), gatewayRef, gatewayID, desiredConsumer.Ref, desiredConsumer.Name,
-						consumerID, credentials, plan,
+						consumerID, fullConsumer, credentials, plan,
 					)
 				}
 				return nil

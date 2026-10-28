@@ -222,7 +222,7 @@ func validateChildDeclarationManagedBy(metadata map[string]string, meta *Kongctl
 	if err := ValidateChildManagedBy(metadata, true); err != nil {
 		return err
 	}
-	protected := meta != nil && meta.Protected != nil && *meta.Protected
+	protected := meta.IsProtected()
 	return ValidateChildManagedBy(
 		BuildChildManagedBy(nil, metadata, GetNamespace(meta), protected, ""),
 		false,

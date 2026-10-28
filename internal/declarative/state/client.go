@@ -2020,9 +2020,6 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 			return nil, fmt.Errorf("list AI Gateway models for gateway %s: %w", gatewayID, err)
 		}
 		if nextCursor == "" {
-			if next := resp.ListAIGatewayModelsResponse.Meta.Page.Next; next != nil && *next != "" {
-				return nil, fmt.Errorf("list AI Gateway models returned an invalid next-page cursor for gateway %s", gatewayID)
-			}
 			break
 		}
 		pageAfter = &nextCursor

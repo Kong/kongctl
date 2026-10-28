@@ -515,7 +515,7 @@ func agentNamespaceParticipant(r *AIGatewayAgentResource) NamespaceParticipant {
 }
 
 func (a AIGatewayAgentResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func captureAgentNamespaceScopes(rs *ResourceSet, defaultNamespace string) {

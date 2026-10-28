@@ -215,7 +215,7 @@ func buildAIGatewayProviders(
 		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model Provider",
 			provider.ID, provider.Name, provider.ManagedBy)
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		results = append(results, declresources.AIGatewayProviderResource{
@@ -281,7 +281,7 @@ func buildAIGatewayAuthStrategies(
 		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Auth Strategy",
 			provider.ID, provider.Name, provider.ManagedBy)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		results = append(results, declresources.AIGatewayAuthStrategyResource{
 			BaseResource: declresources.BaseResource{Ref: ref, Kongctl: kongctl},
@@ -325,7 +325,7 @@ func buildAIGatewayPolicies(
 		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
 			policy.ID, policy.Name, policy.ManagedBy)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		result = append(result, resource)
 	}
@@ -369,7 +369,7 @@ func buildAIGatewayAgents(
 			agent.ManagedBy,
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		result = append(result, resource)
 	}
@@ -431,7 +431,7 @@ func buildAIGatewayConsumers(
 			consumer.ManagedBy,
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.ManagedBy = metadata
 		resource.Kongctl = owner
@@ -540,7 +540,7 @@ func buildAIGatewayConsumerGroups(
 			group.ManagedBy,
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.ManagedBy = metadata
 		resource.Kongctl = owner
@@ -559,6 +559,7 @@ func buildAIGatewayConsumerGroups(
 
 func buildAIGatewayModels(
 	ctx context.Context,
+	logger *slog.Logger,
 	client *declstate.Client,
 	gatewayID string,
 	gatewayName string,
@@ -570,10 +571,17 @@ func buildAIGatewayModels(
 	}
 	result := make([]declresources.AIGatewayModelResource, 0, len(models))
 	for _, model := range models {
+		_, owner, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model",
+			declresources.AIGatewayModelID(model.AIGatewayModel), declresources.AIGatewayModelName(model.AIGatewayModel),
+			declresources.AIGatewayModelManagedBy(model.AIGatewayModel))
+		if err != nil {
+			continue
+		}
 		resource, err := declresources.AIGatewayModelResourceFromResponse(gatewayRef, model.AIGatewayModel)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway model for gateway %s: %w", gatewayName, err)
 		}
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -613,7 +621,7 @@ func buildAIGatewayMCPServers(
 			declresources.AIGatewayMCPServerManagedBy(server.AIGatewayMCPServer),
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.SetChildManagedBy(metadata)
 		resource.Kongctl = owner
@@ -656,7 +664,7 @@ func buildAIGatewayVaults(
 			declresources.AIGatewayVaultManagedBy(vault.AIGatewayVault),
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.SetChildManagedBy(metadata)
 		resource.Kongctl = owner
@@ -803,7 +811,7 @@ func buildAIGatewayCACertificates(
 			certificate.ManagedBy,
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.ManagedBy = metadata
 		resource.Kongctl = owner
@@ -839,7 +847,7 @@ func buildAIGatewaySNIs(
 			sni.ManagedBy,
 		)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		resource.ManagedBy = metadata
 		resource.Kongctl = owner
@@ -2854,7 +2862,7 @@ func buildAIGatewayCustomPolicies(
 		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
 			declresources.AIGatewayCustomPolicyID(policy.AIGatewayCustomPolicy), resource.Name, resource.ManagedBy)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		result = append(result, resource)
 	}
@@ -2876,6 +2884,7 @@ func buildAIGatewayChildOwnership(logger *slog.Logger, kind, id, name string,
 	var kongctl *declresources.KongctlMeta
 	if namespace := metadata[declresources.ChildNamespaceKey]; namespace != "" {
 		if err := declresources.ValidateChildOwnership(kind, metadata, namespace); err != nil {
+			logWarn(logger, kind+" has invalid ownership metadata; skipping child in dump", id, name, err)
 			return nil, nil, err
 		}
 		kongctl = &declresources.KongctlMeta{

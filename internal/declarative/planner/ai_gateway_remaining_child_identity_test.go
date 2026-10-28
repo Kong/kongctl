@@ -203,7 +203,7 @@ func TestAIGatewayConsumerCredentialNameIdentity(t *testing.T) {
 				p.resources = rs
 				plan := NewPlan(CurrentPlanVersion, "test", mode)
 				require.NoError(t, p.planAIGatewayConsumerCredentialChanges(t.Context(),
-					"test-namespace", "support-gateway", "gateway-id", "support-user", "User", "consumer-id",
+					"test-namespace", "support-gateway", "gateway-id", "support-user", "User", "consumer-id", nil,
 					rs.AIGatewayConsumerCredentials, plan))
 				require.Equal(t, [][2]string{{"gateway-id", "consumer-id"}}, api.lists)
 				offset := 0
@@ -337,4 +337,22 @@ func (a *credentialNameIdentityAPI) ListAiGatewayConsumerCredentials(
 ) (*kkOps.ListAiGatewayConsumerCredentialsResponse, error) {
 	a.lists = append(a.lists, [2]string{req.GatewayID, req.ConsumerID})
 	return a.testAIGatewayConsumerAPI.ListAiGatewayConsumerCredentials(ctx, req, opts...)
+}
+
+func TestCredentialPlanningReusesObservedConsumer(t *testing.T) {
+	consumer := ownedAIGatewayObservation(t, testAIGatewayConsumer(nil), "team-a", false)
+	consumer.ID = "consumer-id"
+	api := &testAIGatewayConsumerAPI{consumers: []kkComps.AIGatewayConsumer{consumer}}
+	client := state.NewClient(state.ClientConfig{AIGatewayConsumersAPI: api})
+	observed, err := client.GetAIGatewayConsumer(t.Context(), "gateway-id", "consumer-id")
+	require.NoError(t, err)
+	require.NotNil(t, observed)
+	p := NewPlanner(client, slog.Default())
+	p.resources = &resources.ResourceSet{}
+	plan := NewPlan(CurrentPlanVersion, "test", PlanModeApply)
+	require.NoError(t, p.planAIGatewayConsumerCredentialChanges(
+		t.Context(), "team-a", "shared", "gateway-id", "consumer", "User", "consumer-id", observed, nil, plan,
+	))
+	require.Equal(t, 1, api.gets)
+	require.Empty(t, plan.Changes)
 }

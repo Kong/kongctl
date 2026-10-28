@@ -39,7 +39,7 @@ func ownedDesiredMetadata[D any](desired *D) (*resources.KongctlMeta, error) {
 }
 
 func childMetaProtected(meta *resources.KongctlMeta) bool {
-	return meta != nil && meta.Protected != nil && *meta.Protected
+	return meta.IsProtected()
 }
 
 // Reuse typed lifecycle callbacks, but reconcile the complete canonical gateway

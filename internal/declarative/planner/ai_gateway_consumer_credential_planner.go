@@ -18,6 +18,7 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 	consumerRef string,
 	consumerName string,
 	consumerID string,
+	owner *state.AIGatewayConsumer,
 	desired []resources.AIGatewayConsumerCredentialResource,
 	plan *Plan,
 ) error {
@@ -30,9 +31,12 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		slog.Int("desired_count", len(desired)),
 	)
 
-	owner, err := p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
-	if err != nil {
-		return err
+	if owner == nil {
+		var err error
+		owner, err = p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
+		if err != nil {
+			return err
+		}
 	}
 	if owner == nil {
 		return fmt.Errorf("AI Gateway consumer disappeared during credential planning")

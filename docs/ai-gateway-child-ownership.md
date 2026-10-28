@@ -41,6 +41,15 @@ only. Participating child dumps omit generated entries and
 translate namespace/protection into `kongctl` metadata. Unprotection may update
 automatic provenance, but still cannot change other metadata or payload fields.
 
+Omitting an unrelated metadata key does not remove it. Renaming the sole free
+key requires explicitly removing the old key through the API first. There is
+currently no declarative key-removal operation; omission preserves metadata
+that may belong to another tool.
+
+Dump warns and skips individual children with invalid ownership metadata,
+preserving valid siblings. It does not interpret invalid protection values as
+unprotected.
+
 An unowned name match requires explicit adoption through the API. A match owned
 by another namespace requires explicit transfer. Defaults and references never
 adopt an observed child. Names are unique per actual gateway and family.
@@ -49,6 +58,13 @@ Apply does not prune. Sync scopes each participating collection by source,
 namespace, and gateway. Omission leaves the collection untouched. An explicitly
 empty collection scopes only that source's namespace. Multiple source files
 and gateway aliases merge their scopes without expanding gateway pruning.
+
+Direct `delete -f` against an external gateway deletes only declared,
+unprotected children owned by the source namespace, across all participating
+families. It does not prune undeclared siblings. Missing declarations are
+ignored; foreign and unowned name matches fail. Excluded child declarations
+are retained with a warning. Deleting a managed gateway itself uses the cascade
+contract below.
 
 Dependency checks use complete gateway observations and the entire final plan.
 A retained foreign or unowned user blocks direct deletion of a referenced

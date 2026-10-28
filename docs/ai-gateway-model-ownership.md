@@ -3,7 +3,8 @@
 AI Gateway models have their own kongctl namespace and protection, independently
 of their gateway. This applies to both `type: model` and `type: api` and is the
 default behavior. See the
-[shared ownership contract](ai-gateway-child-ownership.md) for the other independently owned families and excluded resources.
+[shared ownership contract](ai-gateway-child-ownership.md) for the other
+independently owned families and excluded resources.
 
 ## Declaring ownership
 
@@ -50,8 +51,9 @@ configure namespace and protection through `kongctl`, not raw
 `managed_by` manifest entries. Public labels continue to use their existing
 convention on other resources. Model ownership never uses public labels.
 Unrelated `managed_by` entries survive updates, including entries added after
-planning. Entries explicitly declared by the user are merged into that map. The complete
-merged map cannot exceed five entries, including all four generated keys. This
+planning. Entries explicitly declared by the user are merged into that map.
+The complete merged map cannot exceed five entries, including all four
+generated keys. This
 leaves room for one unrelated entry; additional entries fail without data loss.
 Dump omits tool/version and converts namespace/protection into model-level
 `kongctl` metadata. It retains unrelated entries. Dumping an unowned model does

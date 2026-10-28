@@ -389,6 +389,7 @@ func testAIGatewayConsumerCredential(
 }
 
 type testAIGatewayConsumerAPI struct {
+	gets        int
 	consumers   []kkComps.AIGatewayConsumer
 	credentials []kkComps.AIGatewayConsumerCredential
 }
@@ -420,6 +421,7 @@ func (t *testAIGatewayConsumerAPI) GetAiGatewayConsumer(
 	consumerID string,
 	_ ...kkOps.Option,
 ) (*kkOps.GetAiGatewayConsumerResponse, error) {
+	t.gets++
 	for _, consumer := range t.consumers {
 		if consumer.ID == consumerID || consumer.Name == consumerID {
 			return &kkOps.GetAiGatewayConsumerResponse{AIGatewayConsumer: &consumer}, nil
