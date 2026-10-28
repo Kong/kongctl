@@ -9,7 +9,10 @@ copy to maintain. No patches run during ordinary kongctl builds.
 regression tests. The overlays remove automatic defaults from optional
 request fields. The targeted `identity_realms` replacement changes `omitempty`
 to `omitzero`, preserving explicit empty arrays while still omitting unset
-arrays. It is a generated-code patch, not a Speakeasy OpenAPI extension.
+arrays. It is a generated-code patch, not a Speakeasy OpenAPI extension. Newer SDKs
+use flexible auth configs that preserve these arrays in additional properties;
+the legacy config-file patch is skipped when that file is absent. The wire
+regression tests run against both config shapes.
 
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must

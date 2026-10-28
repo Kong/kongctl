@@ -59,6 +59,8 @@ def post_generate(sdk, manifest):
     replacements = []
     for patch in manifest["post_generation"]:
         path = sdk / patch["file"]
+        if patch.get("optional_file") and not path.exists():
+            continue
         replacements.append((path, replace_tag(path.read_text(), patch)))
     for path, text in replacements:
         path.write_text(text)
