@@ -1,6 +1,6 @@
 _defaults:
   kongctl:
-    namespace: federated-ai-gateway
+    namespace: federated-ai-gateway-external
 
 ai_gateways:
   - ref: external-shared-ai-gateway

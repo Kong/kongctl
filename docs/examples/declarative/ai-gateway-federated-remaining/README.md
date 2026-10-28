@@ -22,8 +22,8 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
 openssl req -x509 -nodes -newkey ec -pkeyopt ec_paramgen_curve:P-256 -days 1 \
   -subj /CN=federated-remaining-alt.example.test \
   -keyout certs/runtime-alt.key -out certs/runtime-alt.pem
-kongctl apply -f platform.yaml --auto-approve
-kongctl apply -f initial-a.yaml --auto-approve
+kongctl sync -f platform.yaml --auto-approve
+kongctl sync -f initial-a.yaml --auto-approve
 kongctl sync -f team-b.yaml --auto-approve
 kongctl sync -f team-a.yaml --auto-approve
 kongctl plan -f team-a.yaml -f team-b.yaml --mode sync
@@ -40,7 +40,7 @@ kongctl plan -f team-b.yaml --mode sync
 
 Only Team A's six children are deleted. The surviving group's declaration
 still requests the deleted consumer, so restore that consumer or remove the
-membership reference before applying Team B again. Omitting a collection
+membership reference before syncing Team B again. Omitting a collection
 instead of explicitly clearing it preserves that collection.
 
 Delete the disposable gateway through its platform owner when finished. The

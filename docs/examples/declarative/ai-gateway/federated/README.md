@@ -27,12 +27,12 @@ ai-gateway/federated/
 
 ## Ownership
 
-Models have independent namespace and protection. The other children in this
-example retain gateway-scoped reconciliation. To independently sync a team's
-models, give its model file a team namespace and reference the shared gateway
-through an external lookup. Existing unowned models need explicit adoption.
-See [model ownership](../../../../ai-gateway-model-ownership.md) for migration
-and removal of a team's last model.
+Supported children have independent namespace and protection. The central and
+peer folders share a namespace; the external peer model uses a separate
+namespace so its sync cannot prune the peer folder's model. Data plane
+certificates remain gateway-scoped and excluded from federation. Existing
+unowned children need explicit adoption. See the
+[support matrix](../../../../ai-gateway-federation.md#support-matrix).
 
 - `central-team/ai-gateway.yaml` defines the shared AI Gateway, a shared
   key-auth strategy, and two nested model providers: OpenAI
@@ -74,23 +74,23 @@ kongctl sees both the central gateway and the peer-owned resources:
 
 ```sh
 kongctl plan -f docs/examples/declarative/ai-gateway/federated --recursive \
-  --mode apply
-kongctl apply -f docs/examples/declarative/ai-gateway/federated --recursive
+  --mode sync
+kongctl sync -f docs/examples/declarative/ai-gateway/federated --recursive
 ```
 
 The external peer file is for a team that does not load the central team's
-gateway declaration. Apply or maintain the central gateway first, then plan the
+gateway declaration. Sync the central gateway first, then plan the
 external peer file by itself:
 
 ```sh
 kongctl plan \
-  --mode apply \
+  --mode sync \
   -f docs/examples/declarative/ai-gateway/federated/external-peer-team
-kongctl apply \
+kongctl sync \
   -f docs/examples/declarative/ai-gateway/federated/external-peer-team
 ```
 
-Set these environment variables before planning or applying:
+Set these environment variables before planning or syncing:
 
 - `OPENAI_AUTH_HEADER`: full OpenAI authorization header value, such as
   `Bearer ...`

@@ -3,7 +3,7 @@
 Use a disposable Konnect organization and configured profile:
 
 ```sh
-kongctl apply -f platform.yaml --auto-approve
+kongctl sync -f platform.yaml --auto-approve
 kongctl sync -f team-a.yaml --auto-approve
 kongctl sync -f team-b.yaml --auto-approve
 kongctl plan -f team-a.yaml -f team-b.yaml --mode sync
