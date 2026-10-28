@@ -71,7 +71,7 @@ func TestAuthStrategyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					fields := map[string]any{
 						planner.FieldName: "shared-auth", planner.FieldType: "key-auth", planner.FieldDisplayName: "Shared auth",
 						planner.FieldConfig:    map[string]any{"key_names": []any{"apikey"}},
-						planner.FieldManagedBy: resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+						planner.FieldManagedBy: resources.BuildChildManagedBy("team-a", false, "dev"),
 					}
 					fields[planner.FieldType] = variant
 					if variant == "openid-connect" {
@@ -95,8 +95,6 @@ func TestAuthStrategyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					maps.Copy(observed, fields)
 					observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 					observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-						nil,
-						map[string]string{"other-tool": "preserved"},
 						owner,
 						protected,
 						"dev",
@@ -118,7 +116,7 @@ func TestAuthStrategyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 						require.Equal(t, 1, api.updates)
 						p, err := ownedChildPayload(api.last)
 						require.NoError(t, err)
-						require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
+						require.NotContains(t, childPayloadManagedBy(p), "other-tool")
 						require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 					} else {
 						require.Error(t, err)

@@ -65,11 +65,16 @@ alone does not imply federation.
 - Unselected write-only object arrays retain public siblings such as header
   names. Secrets are not silently rewritten or embedded in plans/logs. See
   the family guides for credential evidence and its limits.
-- Dump translates child ownership into `kongctl` metadata and preserves
-  unrelated metadata. Malformed ownership records are warned and skipped
-  individually. Sync rejects malformed owned prune candidates during planning.
+- Dump translates child ownership into `kongctl` metadata, omits the entire
+  `managed_by` map, and preserves public labels. Malformed ownership records
+  are warned and skipped individually. Sync rejects malformed owned prune
+  candidates during planning.
 
 ## Migration checklist
+
+Existing manifests containing `managed_by` must remove that field. Kongctl now
+replaces the complete remote tool map rather than preserving outside entries.
+Regenerate saved plans created under the earlier metadata-preservation policy.
 
 1. Inventory existing children and their intended namespace/protection. A
    matching unowned object fails planning; old public labels do not adopt it.
@@ -82,11 +87,17 @@ alone does not imply federation.
 4. Unprotect with a metadata-only operation before payload updates, credential
    rotation, or deletion. Group owners retain control of the complete optional
    membership set, including foreign consumers; omission preserves membership.
-5. Use `labels` for user-defined metadata. `managed_by` is maintained by tools;
-   configure ownership/protection through `kongctl`. See [the staged managed_by
+5. Use `labels` for user-defined metadata. Direct `managed_by` input is
+   rejected; kongctl generates and replaces the complete map. Configure
+   ownership and protection through `kongctl`. See [the staged managed_by
    migration guide][migration] for later resource enrollment.
 
 ## Deferred operations and API limitations
+
+Consumer credential metadata-only drift produces a warning without replacement:
+credentials cannot be updated in place. Runtime certificate metadata updates
+still require an explicitly selected private key. These exceptions do not
+silently rotate credentials to reconcile tool metadata.
 
 Runtime certificate PUT requires the full private key; GET redacts it and
 metadata PATCH returns HTTP 405. Independent ownership remains deferred until

@@ -362,7 +362,7 @@ func testAIGatewayConsumerCredentialResource(
 
 func testAIGatewayConsumer(policies []string) kkComps.AIGatewayConsumer {
 	return kkComps.AIGatewayConsumer{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "consumer-id",
 		Name:        "support-user",
 		Type:        kkComps.AIGatewayConsumerTypeAPIKey,

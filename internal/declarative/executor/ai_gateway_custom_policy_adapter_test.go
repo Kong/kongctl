@@ -32,7 +32,7 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 	require.Equal(t, "custom-policy-gateway", resource.AIGateway)
 	fields, err := resource.MutablePayloadMap()
 	require.NoError(t, err)
-	fields[planner.FieldManagedBy] = resources.BuildChildManagedBy(nil, nil, "default", false, "dev")
+	fields[planner.FieldManagedBy] = resources.BuildChildManagedBy("default", false, "dev")
 	remote := map[string]any{
 		"id":         "custom-id",
 		"created_at": "2026-01-01T00:00:00Z",

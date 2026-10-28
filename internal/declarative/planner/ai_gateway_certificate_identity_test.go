@@ -52,8 +52,6 @@ func certificateIdentityResources(kind, ref, name string) (certificateIdentityRe
 				return kkComps.AIGatewayCACertificate{
 					ID: id, Name: name, Cert: "old-cert",
 					ManagedBy: resources.BuildChildManagedBy(
-						nil,
-						nil,
 						DefaultNamespace,
 						false,
 						"dev",
@@ -67,11 +65,11 @@ func certificateIdentityResources(kind, ref, name string) (certificateIdentityRe
 			}, func(id, name string) any {
 				return kkComps.AIGatewaySNI{
 					ID: id, Name: name, Hostname: "old.example.test", Certificate: "unchanged-cert",
-					ManagedBy: resources.BuildChildManagedBy(nil,
-						nil,
+					ManagedBy: resources.BuildChildManagedBy(
 						DefaultNamespace,
 						false,
-						"dev"),
+						"dev",
+					),
 				}
 			}
 	}

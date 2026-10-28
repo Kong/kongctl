@@ -86,7 +86,7 @@ steps:
                 '[0].name': policy-b
                 '[0].global': true
                 '[0].managed_by."kongctl-namespace"': policy-team-b
-                '[0].managed_by."other-tool"': retained
+                'length([0].managed_by)': 4
   - name: cleanup
     commands:
       - name: remove-gateway

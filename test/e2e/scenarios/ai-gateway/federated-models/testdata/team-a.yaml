@@ -14,5 +14,3 @@ ai_gateway_models:
         provider: shared-openai
         config: {type: openai}
     capabilities: [generate]
-    managed_by:
-      other-tool: retain-me

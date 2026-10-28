@@ -305,7 +305,7 @@ func testAIGatewayConsumerGroupResourceWithConsumers(
 
 func testAIGatewayConsumerGroup(policies []string) kkComps.AIGatewayConsumerGroup {
 	return kkComps.AIGatewayConsumerGroup{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "group-id",
 		Name:        "premium-support-users",
 		DisplayName: "Premium Support Users",

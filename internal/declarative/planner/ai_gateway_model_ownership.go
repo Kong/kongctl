@@ -71,7 +71,7 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 			owned.AIGatewayModelModel = new(*model.AIGatewayModelModel)
 		}
 		owned.SetManagedBy(resources.BuildModelManagedBy(
-			metadata, model.ManagedBy(), namespace, model.Protected(), build.Version(ctx),
+			namespace, model.Protected(), build.Version(ctx),
 		))
 		if err := resources.ValidateChildManagedBy(owned.ManagedBy(), false); err != nil {
 			return err

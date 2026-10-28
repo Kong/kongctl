@@ -46,8 +46,8 @@ func TestOwnedChildPayloadErrorsDoNotExposeCredentials(t *testing.T) {
 }
 
 func TestOwnedChildUnprotectPreservesOmittedLabels(t *testing.T) {
-	currentMetadata := resources.BuildChildManagedBy(nil, nil, "team-a", true, "dev")
-	requestedMetadata := resources.BuildChildManagedBy(currentMetadata, nil, "team-a", false, "dev")
+	currentMetadata := resources.BuildChildManagedBy("team-a", true, "dev")
+	requestedMetadata := resources.BuildChildManagedBy("team-a", false, "dev")
 	current := map[string]any{
 		planner.FieldName: "policy", planner.FieldType: "rate-limiting",
 		planner.FieldGlobal: true, planner.FieldConfig: map[string]any{}, planner.FieldManagedBy: currentMetadata,

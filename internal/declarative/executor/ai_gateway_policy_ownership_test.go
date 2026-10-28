@@ -71,7 +71,7 @@ func TestPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					fields := map[string]any{
 						planner.FieldName: "shared-auth", planner.FieldType: "ai-sanitizer", planner.FieldDisplayName: "Shared auth",
 						planner.FieldConfig:    map[string]any{"anonymize": []any{"email"}},
-						planner.FieldManagedBy: resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+						planner.FieldManagedBy: resources.BuildChildManagedBy("team-a", false, "dev"),
 					}
 					fields[planner.FieldType] = variant
 					if variant == "rate-limiting" {
@@ -92,8 +92,6 @@ func TestPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					maps.Copy(observed, fields)
 					observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 					observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-						nil,
-						map[string]string{"other-tool": "preserved"},
 						owner,
 						protected,
 						"dev",
@@ -115,7 +113,7 @@ func TestPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 						require.Equal(t, 1, api.updates)
 						p, err := ownedChildPayload(api.last)
 						require.NoError(t, err)
-						require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
+						require.NotContains(t, childPayloadManagedBy(p), "other-tool")
 						require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 					} else {
 						require.Error(t, err)
@@ -144,9 +142,9 @@ func TestPolicyMetadataWritesPreserveFreshConfigWithoutAddingItToPlans(t *testin
 			t.Run(map[bool]string{false: "protect", true: "unprotect"}[protected]+"/"+mutation, func(t *testing.T) {
 				const observedValue = "synthetic-observed-value"
 				current := resources.BuildChildManagedBy(
-					nil, map[string]string{"inventory": "preserved"}, "team-a", protected, "dev",
+					"team-a", protected, "dev",
 				)
-				requested := resources.BuildChildManagedBy(current, nil, "team-a", !protected, "dev")
+				requested := resources.BuildChildManagedBy("team-a", !protected, "dev")
 				fields := map[string]any{
 					planner.FieldName: "policy", planner.FieldType: "ai-sanitizer", planner.FieldDisplayName: "Policy",
 					planner.FieldConfig: map[string]any{"anonymize": []any{"email"}}, planner.FieldEnabled: true,
@@ -201,7 +199,7 @@ func TestPolicyMetadataWritesPreserveFreshConfigWithoutAddingItToPlans(t *testin
 func TestPolicyTypeUpdatesRetainBackendBehavior(t *testing.T) {
 	for _, protected := range []bool{false, true} {
 		t.Run(map[bool]string{false: "unprotected", true: "protected"}[protected], func(t *testing.T) {
-			metadata := resources.BuildChildManagedBy(nil, nil, "team-a", protected, "dev")
+			metadata := resources.BuildChildManagedBy("team-a", protected, "dev")
 			api := &policyOwnershipAPI{policy: kkComps.AIGatewayPolicy{
 				ID: "policy-id", Name: "policy", DisplayName: "Policy",
 				Type: "ai-sanitizer", Config: map[string]any{"anonymize": []any{"email"}}, ManagedBy: metadata,

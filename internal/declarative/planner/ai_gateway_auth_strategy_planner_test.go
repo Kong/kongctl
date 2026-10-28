@@ -330,6 +330,7 @@ func TestAIGatewayAuthStrategyPlannerNameIdentity(t *testing.T) {
 				raw := map[string]any{
 					"id": identity.id, "name": identity.name, "type": "key-auth",
 					"managed_by": map[string]string{
+						resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "dev",
 						resources.ChildNamespaceKey: "test-namespace",
 						resources.ChildProtectedKey: "false",
 					},

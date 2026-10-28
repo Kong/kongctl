@@ -40,17 +40,17 @@ func TestAIGatewayConsumerGroupPlannerStopsSyncAtProtectedGroup(t *testing.T) {
 		groups: []kkComps.AIGatewayConsumerGroup{
 			{
 				ID: "before-id", Name: "before",
-				ManagedBy: resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+				ManagedBy: resources.BuildChildManagedBy("default", false, "dev"),
 			},
 			{
 				ID: "protected-id", Name: "protected-group",
-				ManagedBy: resources.BuildChildManagedBy(nil, nil, "default", true, "dev"), Labels: map[string]string{
+				ManagedBy: resources.BuildChildManagedBy("default", true, "dev"), Labels: map[string]string{
 					labels.ProtectedKey: labels.TrueValue,
 				},
 			},
 			{
 				ID: "after-id", Name: "after",
-				ManagedBy: resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+				ManagedBy: resources.BuildChildManagedBy("default", false, "dev"),
 			},
 		},
 	}}

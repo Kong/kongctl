@@ -89,8 +89,6 @@ func (p *Planner) reconcileOwnedAIGatewayProviders(
 			continue
 		}
 		provider.ManagedBy = resources.BuildChildManagedBy(
-			full.ManagedBy,
-			provider.ManagedBy,
 			namespace,
 			provider.Protected(),
 			build.Version(ctx),

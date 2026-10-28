@@ -105,8 +105,6 @@ func (p *Planner) reconcileOwnedAIGatewayAgents(
 			continue
 		}
 		agent.ManagedBy = resources.BuildChildManagedBy(
-			full.ManagedBy,
-			agent.ManagedBy,
 			namespace,
 			agent.Protected(),
 			build.Version(ctx),

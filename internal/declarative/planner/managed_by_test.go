@@ -26,7 +26,7 @@ func TestManagedByProvenanceInPlans(t *testing.T) {
 					Fields: map[string]any{FieldManagedBy: map[string]string{"external": "preserved"}},
 				})
 				require.NoError(t, stampPlanManagedBy(ctx, plan))
-				require.Equal(t, map[string]string{"tool": "kongctl", "version": "1.2.3-preview", "external": "preserved"},
+				require.Equal(t, map[string]string{"tool": "kongctl", "version": "1.2.3-preview"},
 					plan.Changes[0].Fields[FieldManagedBy])
 			}
 		})
@@ -72,7 +72,7 @@ func TestManagedByVersionUpgradeConvergesAndKeepsProtection(t *testing.T) {
 
 func TestGeneratedManagedByDoesNotCreatePayloadDrift(t *testing.T) {
 	current := map[string]any{FieldManagedBy: map[string]string{"tool": "kongctl", "version": "older"}}
-	desired := map[string]any{}
+	desired := map[string]any{FieldManagedBy: map[string]string{"tool": "kongctl", "version": "newer"}}
 	require.Empty(t, diffAIGatewayPayloads(current, desired, current, desired))
 	require.Empty(t, diffAIGatewayTLSPayloads(current, desired))
 	current[FieldManagedBy].(map[string]string)["external"] = "preserve-real-drift"

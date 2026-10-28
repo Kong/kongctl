@@ -16,22 +16,12 @@ const (
 	ChildManagedByLimit = 5
 )
 
-// BuildChildManagedBy preserves metadata belonging to other tools. Validate the
-// resulting map before planning or writing: the limit applies after merging.
-func BuildChildManagedBy(
-	current, desired map[string]string,
-	namespace string,
-	protected bool,
-	version string,
-) map[string]string {
-	metadata := maps.Clone(current)
-	if metadata == nil {
-		metadata = make(map[string]string)
-	}
-	maps.Copy(metadata, desired)
-	metadata[ChildNamespaceKey] = namespace
-	metadata[ChildProtectedKey] = strconv.FormatBool(protected)
-	return ManagedByWithProvenance(metadata, version)
+// BuildChildManagedBy generates the complete map from kongctl ownership settings.
+func BuildChildManagedBy(namespace string, protected bool, version string) map[string]string {
+	return ManagedByWithProvenance(map[string]string{
+		ChildNamespaceKey: namespace,
+		ChildProtectedKey: strconv.FormatBool(protected),
+	}, version)
 }
 
 func ValidateChildManagedBy(metadata map[string]string, raw bool) error {
@@ -137,13 +127,13 @@ func IndependentChildMetadata(resource Resource) (*KongctlMeta, bool) {
 	return accessor(resource), true
 }
 
-// ChildUnprotectionMetadataOnly proves the only metadata mutation is removing
-// protection. Payload preservation and secret writes are adapter-specific checks.
+// ChildUnprotectionMetadataOnly allows only unprotection among lifecycle fields.
+// Canonicalization may discard outside keys; payload and secret checks are separate.
 func ChildUnprotectionMetadataOnly(current, desired map[string]string) bool {
 	if desired[ChildProtectedKey] != "false" {
 		return false
 	}
-	before, after := maps.Clone(current), maps.Clone(desired)
+	before, after := ManagedByWithProvenance(current, ""), ManagedByWithProvenance(desired, "")
 	delete(before, ChildProtectedKey)
 	delete(after, ChildProtectedKey)
 	// Provenance changes automatically with the executing binary; it does not
@@ -224,7 +214,7 @@ func validateChildDeclarationManagedBy(metadata map[string]string, meta *Kongctl
 	}
 	protected := meta.IsProtected()
 	return ValidateChildManagedBy(
-		BuildChildManagedBy(nil, metadata, GetNamespace(meta), protected, ""),
+		BuildChildManagedBy(GetNamespace(meta), protected, ""),
 		false,
 	)
 }

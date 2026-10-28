@@ -107,8 +107,9 @@ func (p *Planner) planAIGatewayModelCreate(
 		return
 	}
 
-	fields[FieldManagedBy] = resources.BuildModelManagedBy(nil, model.ManagedBy(),
-		resources.GetNamespace(model.Kongctl), model.Protected(), build.Version(ctx))
+	fields[FieldManagedBy] = resources.BuildModelManagedBy(
+		resources.GetNamespace(model.Kongctl), model.Protected(), build.Version(ctx),
+	)
 
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayModel, model.Ref),

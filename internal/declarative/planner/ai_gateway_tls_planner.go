@@ -131,8 +131,6 @@ func (p *Planner) planAIGatewayCACertificateChanges(
 		fields := child.PayloadMap()
 		fields[FieldCert] = strings.TrimSpace(child.Cert)
 		fields[FieldManagedBy] = resources.BuildChildManagedBy(
-			nil,
-			child.ManagedBy,
 			resources.GetNamespace(child.Kongctl),
 			child.Protected(),
 			"",
@@ -250,8 +248,6 @@ func (p *Planner) planAIGatewaySNIChanges(
 			return fmt.Errorf("failed to build AI Gateway SNI %q create payload: %w", child.Ref, err)
 		}
 		fields[FieldManagedBy] = resources.BuildChildManagedBy(
-			nil,
-			child.ManagedBy,
 			resources.GetNamespace(child.Kongctl),
 			child.Protected(),
 			"",
@@ -412,6 +408,7 @@ func diffAIGatewayCertificate(
 	desired resources.AIGatewayCertificateResource,
 ) (map[string]any, map[string]FieldChange) {
 	fields := desired.PayloadMap()
+	fields[FieldManagedBy] = resources.ManagedByWithProvenance(nil, "")
 	currentFields := map[string]any{FieldName: current.Name, FieldCert: current.Cert}
 	if current.CertAlt != nil {
 		currentFields[FieldCertAlt] = *current.CertAlt

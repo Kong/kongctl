@@ -909,6 +909,8 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		return nil, err
 	}
 
+	applyManagedByInputPolicy(node, rt)
+
 	rootKey := resourceSetRootKey(reg.typ)
 	aliases := []string{string(rt)}
 	if hyphenAlias := strings.ReplaceAll(string(rt), "_", "-"); hyphenAlias != string(rt) {

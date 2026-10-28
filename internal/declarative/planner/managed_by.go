@@ -54,8 +54,8 @@ func stampPlanManagedBy(ctx context.Context, plan *Plan) error {
 	return nil
 }
 
-// Provenance describes the last write. Changing binaries alone must not cause
-// an update, and generated entries must not look like user metadata removal.
+// Version records the last actual write. Other metadata differences, including
+// foreign keys and missing or incorrect tool values, require reconciliation.
 func managedByValuesEqual(current, desired any) bool {
 	comparableMetadata := func(value any) map[string]any {
 		result := make(map[string]any)
@@ -67,7 +67,6 @@ func managedByValuesEqual(current, desired any) bool {
 		case map[string]any:
 			maps.Copy(result, metadata)
 		}
-		delete(result, resources.ManagedByToolKey)
 		delete(result, resources.ManagedByVersionKey)
 		return result
 	}

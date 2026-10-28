@@ -121,19 +121,15 @@ See [remaining child API limits](../ai-gateway-remaining-child-ownership.md),
 including the AppRole vault PUT restriction.
 
 Use `BuildChildManagedBy`, `ValidateChildManagedBy`, `ValidateChildOwnership`,
-and `NormalizedChildOwnership` in resources. Preserve unrelated entries during
-both planning and execution, and validate the complete merged map against the
-five-entry limit. All AI Gateway writes supporting `managed_by` stamp
-`tool: kongctl`
-and `version` from the executing binary, independently of ownership enrollment.
-Owned children reserve those two entries plus namespace and protection, leaving
-one unrelated entry. Compare provenance as last-writer metadata: a binary
-upgrade
-alone must not schedule writes or modify protected children. Saved-plan and
-secret-only execution must stamp the executing version and recheck capacity.
-Raw reserved keys are invalid; unowned objects require an
-explicit API adoption, and foreign ownership requires an explicit transfer.
-The model helpers remain compatibility wrappers around the shared contract.
+and `NormalizedChildOwnership` in resources. Kongctl generates and replaces
+all `managed_by` values; outside entries are removed and appear in diffs.
+Resource-level input is reserved and rejected by the common schema. All
+supported writes stamp `tool: kongctl` and the executing binary's `version`;
+independently owned children also generate namespace/protection. Only version
+differences are ignored during comparison. Preserve ownership/protection
+checks, public labels, and credentials; never treat normalization as adoption.
+Dumps omit the map and translate lifecycle metadata into `kongctl`.
+Consumer credential metadata-only drift warns without automatic replacement.
 
 Full-PUT mapped provider, auth-strategy, policy, custom-definition, and agent
 adapters share
@@ -186,8 +182,8 @@ Participating executors must re-fetch ownership on the actual create, update,
 delete, and replacement paths. Use the shared payload, collision, protection,
 and protection-only checks in `executor/ai_gateway_child_ownership.go`.
 Parent linkage identifies the collection and grants no mutation authority.
-Validate merged capacity again after re-fetching; saved plans must not discard
-metadata added by another tool after planning. Protection-only unprotection
+Revalidate observed ownership/protection and replace the tool-owned map even
+when outside entries were added after planning. Protection-only unprotection
 requires an unchanged public payload and no secret writes. Secret-only writes
 must use independent child metadata rather than inherit their gateway's.
 

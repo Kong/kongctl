@@ -6,30 +6,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestChildOwnershipMetadataMergeAndCapacity(t *testing.T) {
-	current := map[string]string{ChildNamespaceKey: "team-a", ChildProtectedKey: "false", "other-tool": "keep"}
-	merged := BuildChildManagedBy(current, nil, "team-a", true, "1.2.3")
-	require.NoError(t, ValidateChildManagedBy(merged, false))
-	require.Equal(t, "keep", merged["other-tool"])
-	require.Equal(t, "kongctl", merged[ManagedByToolKey])
-	require.Equal(t, "1.2.3", merged[ManagedByVersionKey])
-	require.Len(t, merged, 5)
-	require.NotContains(t, current, ManagedByVersionKey)
-	require.Equal(t, "false", current[ChildProtectedKey], "merge cannot mutate observations")
-	require.ErrorContains(t,
-		ValidateChildManagedBy(BuildChildManagedBy(merged,
-			map[string]string{"sixth": "overflow"},
-			"team-a",
-			true, "1.2.3"),
-			false),
-		"5-entry")
+func TestChildOwnershipMetadataIsCanonical(t *testing.T) {
+	metadata := BuildChildManagedBy("team-a", true, "1.2.3")
+	require.Equal(t, map[string]string{
+		ChildNamespaceKey: "team-a", ChildProtectedKey: "true",
+		ManagedByToolKey: "kongctl", ManagedByVersionKey: "1.2.3",
+	}, metadata)
+	require.NoError(t, ValidateChildManagedBy(metadata, false))
 	for _, key := range []string{ChildNamespaceKey, ChildProtectedKey, ManagedByToolKey, ManagedByVersionKey} {
 		require.ErrorContains(t, ValidateChildManagedBy(map[string]string{key: "raw"}, true), "reserved")
 	}
-	require.ErrorContains(t, ValidateChildOwnership("child", nil, "team-a"), "explicitly adopt")
-	require.ErrorContains(t, ValidateChildOwnership("child", current, "team-b"), "ownership transfer")
-	require.NoError(t, ValidateChildOwnership("child", current, "team-a"))
-	require.Equal(t, "team-a", NormalizedChildOwnership(current)["KONGCTL-namespace"])
+	require.ErrorContains(t, ValidateChildManagedBy(map[string]string{
+		"a": "1", "b": "2", "c": "3", "d": "4", "e": "5", "f": "6",
+	}, false), "5-entry")
 }
 
 func TestOwnedChildScopeMergeAndCanonicalRebind(t *testing.T) {

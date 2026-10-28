@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"maps"
 	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -128,18 +127,15 @@ func (a *AIGatewayModelAdapter) Update(
 			return "", fmt.Errorf("AI Gateway model is protected; unprotect it in a separate update")
 		}
 	}
-	merged := maps.Clone(metadata)
-	if merged == nil {
-		merged = make(map[string]string)
-	}
-	maps.Copy(merged, modelUpdateMetadata(req))
-	if err := resources.ValidateChildManagedBy(merged, false); err != nil {
-		return "", err
-	}
+	requested := modelUpdateMetadata(req)
+	canonical := resources.BuildModelManagedBy(
+		namespace, resources.IsChildProtected(requested), requested[resources.ManagedByVersionKey],
+	)
+
 	if req.AIGatewayModelAPI != nil {
-		req.AIGatewayModelAPI.ManagedBy = merged
+		req.AIGatewayModelAPI.ManagedBy = canonical
 	} else {
-		req.AIGatewayModelModel.ManagedBy = merged
+		req.AIGatewayModelModel.ManagedBy = canonical
 	}
 	return a.client.UpdateAIGatewayModel(ctx, gatewayID, id, req, namespace)
 }

@@ -28,8 +28,6 @@ func ownedAgent(
 	require.NoError(t, err)
 	payload[FieldID] = name + "-id"
 	payload[FieldManagedBy] = resources.BuildChildManagedBy(
-		nil,
-		map[string]string{"other-tool": "retained"},
 		namespace,
 		false,
 		"dev",

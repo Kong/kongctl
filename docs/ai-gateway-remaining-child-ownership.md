@@ -7,10 +7,10 @@ ownership and public labels do not authorize writes. Existing resources need
 explicit API adoption; references never adopt their targets.
 
 `managed_by` contains four generated entries: `tool: kongctl`, the executing
-binary's `version`, `kongctl-namespace`, and `kongctl-protected`. One unrelated
-entry fits within the five-entry API limit. Writes merge fresh unrelated
-metadata and reject overflow. Omitted labels preserve fresh public labels;
-`labels: {}` clears them. Binary upgrades alone do not schedule writes.
+binary's `version`, `kongctl-namespace`, and `kongctl-protected`. Kongctl
+generates the complete map and replaces outside entries. Direct `managed_by`
+input is rejected. Omitted labels preserve fresh public labels; `labels: {}`
+clears them. Binary upgrades alone do not schedule writes.
 
 Apply never prunes. Sync reconciles only the source/namespace collection scope
 on the canonical gateway, including aliases. An omitted collection preserves
@@ -101,13 +101,13 @@ behavior. Protection changes alone do not issue membership mutations.
 
 ## Runtime TLS boundary
 
-CA certificates and SNIs have independent ownership. An SNI's `certificate`
-is a reference to the runtime certificate name, never an ownership source.
-Retained foreign/unowned SNI references prevent unsafe certificate deletion;
-combined reassignment/deletion orders before certificate removal. Public CA
-and SNI configuration references are observed across namespaces before direct
-deletion. Dumps retain associations and unrelated metadata, translate child
-ownership to `kongctl`, and omit write-only credentials.
+CA certificates and SNIs have independent ownership. An SNI's `certificate` is a
+reference to the runtime certificate name, never an ownership source. Retained
+foreign/unowned SNI references prevent unsafe certificate deletion; combined
+reassignment/deletion orders before certificate removal. Public CA and SNI
+configuration references are observed across namespaces before direct deletion.
+Dumps retain associations and public labels, translate child ownership to
+`kongctl`, and omit write-only credentials.
 
 Runtime certificates remain on their existing lifecycle. Their PUT requires
 the complete private key, GET does not return it, and metadata-only PATCH

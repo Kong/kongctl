@@ -6,19 +6,18 @@ namespace overrides source `_defaults.kongctl`, then the literal `default`.
 Gateway ownership and public labels do not authorize agent mutation.
 
 Agents persist `kongctl-namespace` and `kongctl-protected` in `managed_by`,
-alongside `tool: kongctl` and the executing binary's `version`. Those four
-reserved entries leave one unrelated entry within the API's five-entry limit.
-Writes preserve unrelated metadata and reject overflow. Omitted public labels
-preserve freshly observed labels; an explicit empty map clears them.
-Provenance alone confers no ownership and does not schedule version-only writes.
+alongside `tool: kongctl` and the executing binary's `version`. Kongctl
+generates the complete map and replaces outside entries. Direct `managed_by`
+input is rejected. Omitted public labels preserve fresh labels; an empty map
+clears them. Version-only differences do not schedule writes.
 
 Existing unowned agents require explicit out-of-band API adoption. Review the
 owner, protection, complete public config, credentials, and policy/auth
-attachments first. Update the reserved namespace/protection while retaining
-unrelated metadata and the full public payload. Coordinate ownership transfers
-explicitly. Neither gateway references nor policy/auth references adopt or
-transfer their targets. Names are immutable; type changes remain supported
-when unprotected, as confirmed for both types by the live API.
+attachments first. Update the reserved namespace/protection while retaining the
+full public payload. Coordinate ownership transfers explicitly. Neither gateway
+references nor policy/auth references adopt or transfer their targets. Names are
+immutable; type changes remain supported when unprotected, as confirmed for both
+types by the live API.
 
 Apply never prunes. Sync scopes agents by source, namespace, and canonical
 gateway, including aliases. Omission leaves the collection untouched. An
@@ -70,10 +69,10 @@ This verifies stored credential retention for HTTP, not native HTTP runtime
 usage or authentication against external AWS/proxy services. Disposable
 gateways, containers, and TLS material were removed.
 
-Dumps translate ownership into `kongctl`, preserve public labels and unrelated
-metadata, and omit generated metadata. Protection without ownership warns
+Dumps translate ownership into `kongctl`, preserve public labels, and omit
+the entire `managed_by` map. Protection without ownership warns
 without inferring adoption. Dump/reload converges without credential rotation.
-API checks remain cooperative: they cannot close the non-atomic check/write
-race or turn paginated lists into a snapshot.
+API checks remain cooperative: they cannot close the non-atomic check/write race
+or turn paginated lists into a snapshot.
 
 [example]: examples/declarative/ai-gateway-federated-agents

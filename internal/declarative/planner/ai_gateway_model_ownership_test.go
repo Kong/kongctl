@@ -42,8 +42,9 @@ func observedFederatedModel(t *testing.T, model resources.AIGatewayModelResource
 	t.Helper()
 	payload, err := model.MutablePayloadMap()
 	require.NoError(t, err)
-	payload[FieldManagedBy] = resources.BuildModelManagedBy(map[string]string{"other-tool": "retained"}, nil,
-		resources.GetNamespace(model.Kongctl), model.Protected(), "dev")
+	payload[FieldManagedBy] = resources.BuildModelManagedBy(
+		resources.GetNamespace(model.Kongctl), model.Protected(), "dev",
+	)
 	payload[FieldID] = model.Ref + "-id"
 	payload["created_at"], payload["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
 	data, err := json.Marshal(payload)
@@ -184,7 +185,7 @@ func TestFederatedModelsPreserveMetadataAndRoundTripProtection(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, plan.Changes, 1)
 			metadata := plan.Changes[0].Fields[FieldManagedBy].(map[string]any)
-			require.Equal(t, "retained", metadata["other-tool"])
+			require.NotContains(t, metadata, "other-tool")
 			require.Equal(t, "true", metadata[resources.ModelProtectedKey])
 			api.models[0] = observedFederatedModel(t, model)
 			dumped, err := resources.AIGatewayModelResourceFromResponse("shared", api.models[0])

@@ -91,8 +91,6 @@ func (p *Planner) planAIGatewayAgentCreate(
 	plan *Plan,
 ) {
 	agent.ManagedBy = resources.BuildChildManagedBy(
-		nil,
-		agent.ManagedBy,
 		resources.GetNamespace(agent.Kongctl),
 		agent.Protected(),
 		"",

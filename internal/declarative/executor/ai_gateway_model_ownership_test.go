@@ -81,7 +81,7 @@ func TestSavedModelPlansRevalidateOwnershipBeforeMutation(t *testing.T) {
 	}
 }
 
-func TestModelExecutionPreservesFreshMetadataAndProtection(t *testing.T) {
+func TestModelExecutionReplacesFreshMetadataAndEnforcesProtection(t *testing.T) {
 	for _, variant := range []string{"model", "api"} {
 		t.Run(variant, func(t *testing.T) {
 			model := executorOwnedModel(t, variant)
@@ -101,7 +101,7 @@ func TestModelExecutionPreservesFreshMetadataAndProtection(t *testing.T) {
 			resources.AIGatewayModelManagedBy(api.model)["new-tool"] = "added-after-planning"
 			_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
 			require.NoError(t, err)
-			require.Equal(t, "added-after-planning", modelUpdateMetadata(api.lastUpdate)["new-tool"])
+			require.NotContains(t, modelUpdateMetadata(api.lastUpdate), "new-tool")
 			resources.AIGatewayModelManagedBy(api.model)[resources.ModelProtectedKey] = "true"
 			_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
 			require.ErrorContains(t, err, "protected")
@@ -134,7 +134,7 @@ func TestProtectedModelsOnlyAllowPayloadPreservingUnprotection(t *testing.T) {
 			metadata[resources.ModelProtectedKey] = "true"
 			fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 			require.NoError(t, err)
-			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
+			fields[planner.FieldManagedBy] = resources.BuildModelManagedBy("team-a", false, "dev")
 			change := planner.PlannedChange{
 				Namespace: "team-a", Fields: fields,
 				Parent:     &planner.ParentInfo{ID: "gateway-id"},
@@ -220,7 +220,7 @@ func TestSavedModelUnprotectionRejectsConcurrentProtectionChange(t *testing.T) {
 	metadata[resources.ModelProtectedKey] = "true"
 	fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 	require.NoError(t, err)
-	fields[planner.FieldManagedBy] = resources.BuildModelManagedBy(metadata, nil, "team-a", false, "dev")
+	fields[planner.FieldManagedBy] = resources.BuildModelManagedBy("team-a", false, "dev")
 	change := planner.PlannedChange{
 		Namespace: "team-a",
 		Fields:    fields,
@@ -249,7 +249,7 @@ func TestSavedModelUnprotectionRejectsConcurrentProtectionChange(t *testing.T) {
 	require.Zero(t, api.updates)
 }
 
-func TestModelExecutionRejectsFreshMetadataCapacityOverflow(t *testing.T) {
+func TestModelExecutionReplacesFreshForeignMetadata(t *testing.T) {
 	model := executorOwnedModel(t, "model")
 	fields, err := resources.AIGatewayModelMutablePayloadMap(model)
 	require.NoError(t, err)
@@ -264,6 +264,7 @@ func TestModelExecutionRejectsFreshMetadataCapacityOverflow(t *testing.T) {
 		metadata[key] = "other-tool"
 	}
 	_, err = adapter.Update(t.Context(), "model-id", req, "team-a", execCtx)
-	require.ErrorContains(t, err, "5-entry")
-	require.Zero(t, api.updates)
+	require.NoError(t, err)
+	require.Equal(t, 1, api.updates)
+	require.Len(t, modelUpdateMetadata(api.lastUpdate), 4)
 }

@@ -212,7 +212,7 @@ func buildAIGatewayProviders(
 			ref = provider.Name
 		}
 
-		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model Provider",
+		kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model Provider",
 			provider.ID, provider.Name, provider.ManagedBy)
 		if err != nil {
 			continue
@@ -224,7 +224,7 @@ func buildAIGatewayProviders(
 			Type:         provider.Type,
 			DisplayName:  provider.DisplayName,
 			Labels:       provider.Labels,
-			ManagedBy:    metadata,
+			ManagedBy:    nil,
 			Config:       provider.Config,
 		})
 	}
@@ -278,7 +278,7 @@ func buildAIGatewayAuthStrategies(
 			ref = provider.Name
 		}
 
-		metadata, kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Auth Strategy",
+		kongctl, err := buildAIGatewayChildOwnership(logger, "AI Gateway Auth Strategy",
 			provider.ID, provider.Name, provider.ManagedBy)
 		if err != nil {
 			continue
@@ -289,7 +289,7 @@ func buildAIGatewayAuthStrategies(
 			Type:         provider.Type,
 			DisplayName:  provider.DisplayName,
 			Labels:       provider.Labels,
-			ManagedBy:    metadata,
+			ManagedBy:    nil,
 			Config:       provider.Config,
 		})
 	}
@@ -322,8 +322,9 @@ func buildAIGatewayPolicies(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Policy for gateway %s: %w", gatewayName, err)
 		}
-		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
+		resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
 			policy.ID, policy.Name, policy.ManagedBy)
+		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
@@ -361,13 +362,14 @@ func buildAIGatewayAgents(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Agent for gateway %s: %w", gatewayName, err)
 		}
-		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(
+		resource.Kongctl, err = buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway Agent",
 			agent.ID,
 			agent.Name,
 			agent.ManagedBy,
 		)
+		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
@@ -423,7 +425,7 @@ func buildAIGatewayConsumers(
 				resource.Credentials = credentials
 			}
 		}
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway Consumer",
 			consumer.ID,
@@ -433,7 +435,7 @@ func buildAIGatewayConsumers(
 		if err != nil {
 			continue
 		}
-		resource.ManagedBy = metadata
+		resource.ManagedBy = nil
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -532,7 +534,7 @@ func buildAIGatewayConsumerGroups(
 				resource.Consumers = consumerNames
 			}
 		}
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway ConsumerGroup",
 			group.ID,
@@ -542,7 +544,7 @@ func buildAIGatewayConsumerGroups(
 		if err != nil {
 			continue
 		}
-		resource.ManagedBy = metadata
+		resource.ManagedBy = nil
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -571,7 +573,7 @@ func buildAIGatewayModels(
 	}
 	result := make([]declresources.AIGatewayModelResource, 0, len(models))
 	for _, model := range models {
-		_, owner, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model",
+		owner, err := buildAIGatewayChildOwnership(logger, "AI Gateway Model",
 			declresources.AIGatewayModelID(model.AIGatewayModel), declresources.AIGatewayModelName(model.AIGatewayModel),
 			declresources.AIGatewayModelManagedBy(model.AIGatewayModel))
 		if err != nil {
@@ -613,7 +615,7 @@ func buildAIGatewayMCPServers(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway MCP Server for gateway %s: %w", gatewayName, err)
 		}
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway MCPServer",
 			declresources.AIGatewayMCPServerID(server.AIGatewayMCPServer),
@@ -623,7 +625,7 @@ func buildAIGatewayMCPServers(
 		if err != nil {
 			continue
 		}
-		resource.SetChildManagedBy(metadata)
+		resource.SetChildManagedBy(nil)
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -656,7 +658,7 @@ func buildAIGatewayVaults(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Vault for gateway %s: %w", gatewayName, err)
 		}
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway Vault",
 			declresources.AIGatewayVaultID(vault.AIGatewayVault),
@@ -666,7 +668,7 @@ func buildAIGatewayVaults(
 		if err != nil {
 			continue
 		}
-		resource.SetChildManagedBy(metadata)
+		resource.SetChildManagedBy(nil)
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -803,7 +805,7 @@ func buildAIGatewayCACertificates(
 		resource := declresources.AIGatewayCACertificateResourceFromResponse(
 			gatewayRef, certificate.AIGatewayCACertificate,
 		)
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway CACertificate",
 			certificate.ID,
@@ -813,7 +815,7 @@ func buildAIGatewayCACertificates(
 		if err != nil {
 			continue
 		}
-		resource.ManagedBy = metadata
+		resource.ManagedBy = nil
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -839,7 +841,7 @@ func buildAIGatewaySNIs(
 		if err != nil {
 			return nil, err
 		}
-		metadata, owner, err := buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway SNI",
 			sni.ID,
@@ -849,7 +851,7 @@ func buildAIGatewaySNIs(
 		if err != nil {
 			continue
 		}
-		resource.ManagedBy = metadata
+		resource.ManagedBy = nil
 		resource.Kongctl = owner
 		result = append(result, resource)
 	}
@@ -2859,8 +2861,9 @@ func buildAIGatewayCustomPolicies(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Custom Policy for gateway %s: %w", gatewayName, err)
 		}
-		resource.ManagedBy, resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
+		resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
 			declresources.AIGatewayCustomPolicyID(policy.AIGatewayCustomPolicy), resource.Name, resource.ManagedBy)
+		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
@@ -2879,13 +2882,13 @@ func buildAIGatewayCustomPolicies(
 
 func buildAIGatewayChildOwnership(logger *slog.Logger, kind, id, name string,
 	managedBy map[string]string,
-) (map[string]string, *declresources.KongctlMeta, error) {
+) (*declresources.KongctlMeta, error) {
 	metadata := maps.Clone(managedBy)
 	var kongctl *declresources.KongctlMeta
 	if namespace := metadata[declresources.ChildNamespaceKey]; namespace != "" {
 		if err := declresources.ValidateChildOwnership(kind, metadata, namespace); err != nil {
 			logWarn(logger, kind+" has invalid ownership metadata; skipping child in dump", id, name, err)
-			return nil, nil, err
+			return nil, err
 		}
 		kongctl = &declresources.KongctlMeta{
 			Namespace: new(namespace),
@@ -2895,11 +2898,5 @@ func buildAIGatewayChildOwnership(logger *slog.Logger, kind, id, name string,
 		logWarn(logger, kind+" has protection metadata without an ownership namespace; "+
 			"omitting unowned protection metadata from dump", id, name, nil)
 	}
-	for _, key := range []string{
-		declresources.ChildNamespaceKey, declresources.ChildProtectedKey,
-		declresources.ManagedByToolKey, declresources.ManagedByVersionKey,
-	} {
-		delete(metadata, key)
-	}
-	return metadata, kongctl, nil
+	return kongctl, nil
 }

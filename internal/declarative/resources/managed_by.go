@@ -2,7 +2,6 @@ package resources
 
 import (
 	"fmt"
-	"maps"
 )
 
 const (
@@ -11,11 +10,13 @@ const (
 	ManagedByTool       = "kongctl"
 )
 
-// ManagedByWithProvenance stamps the writer without adopting the resource.
+// ManagedByWithProvenance builds the complete tool-owned map without adopting a resource.
 func ManagedByWithProvenance(metadata map[string]string, version string) map[string]string {
-	result := maps.Clone(metadata)
-	if result == nil {
-		result = make(map[string]string)
+	result := make(map[string]string)
+	for _, key := range []string{ChildNamespaceKey, ChildProtectedKey} {
+		if value, present := metadata[key]; present {
+			result[key] = value
+		}
 	}
 	if version == "" {
 		version = "dev"
@@ -51,12 +52,15 @@ func SupportsManagedBy(kind ResourceType) bool {
 	return registry[kind].managedBy != nil
 }
 
-// PrepareManagedBy preserves unrelated entries and applies the registered API's
-// capacity policy. Unenrolled resource types remain unchanged.
+// PrepareManagedBy replaces the map with the registered resource's generated
+// metadata. Unenrolled resource types remain unchanged.
 func PrepareManagedBy(kind ResourceType, metadata map[string]string, version string) (map[string]string, error) {
 	policy := registry[kind].managedBy
 	if policy == nil {
 		return metadata, nil
+	}
+	if !HasIndependentChildOwnership(kind) {
+		metadata = nil
 	}
 	result := ManagedByWithProvenance(metadata, version)
 	if err := ValidateManagedBy(result, *policy); err != nil {

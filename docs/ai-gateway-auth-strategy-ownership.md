@@ -24,17 +24,16 @@ ai_gateway_auth_strategies:
 
 Ownership uses `managed_by.kongctl-namespace` and
 `managed_by.kongctl-protected`. Writes also stamp `tool: kongctl` and the
-executing binary's `version`. These four reserved entries leave one entry
-for unrelated metadata within the five-entry API limit. Unrelated metadata
-is preserved, including concurrent additions observed immediately before
-PUT. Omitted public labels are preserved from that fresh read; an explicit
-empty label map clears them. Provenance alone does not establish ownership.
+executing binary's `version`. Kongctl generates the complete map and replaces
+outside entries. Direct `managed_by` input is rejected. Omitted public labels
+are preserved from a fresh read; an empty label map clears them. Provenance
+alone does not establish ownership.
 
 For adoption or transfer, review the current owner, protection, dependencies,
 and complete payload. Explicitly update the reserved namespace/protection
-through the API, preserving unrelated metadata and credentials. Defaults
-and references never adopt or transfer a strategy. Verify the credential
-preservation contract before constructing a PUT from redacted GET data.
+through the API, preserving credentials. Defaults and references never adopt or
+transfer a strategy. Verify the credential preservation contract before
+constructing a PUT from redacted GET data.
 
 Apply never prunes. Sync an explicitly empty nested collection to delete the
 last strategy in the source's namespace:
@@ -61,11 +60,11 @@ plans order detachments/deletions before target deletion and creation before
 new attachments across namespaces and aliases. Gateway owners retain cascade
 delete authority with warnings, subject to the gateway's own protection.
 
-Protected strategies require a separate metadata-only unprotection update.
-It cannot also change public configuration, unrelated metadata, or secrets.
-Saved plans, direct adapter calls, replacements, and secret-only writes
-recheck ownership/protection and creation collisions immediately before
-writing. The API still has a non-atomic check/write race.
+Protected strategies require a separate metadata-only unprotection update. It
+cannot also change public configuration, namespace, or secrets. Saved plans,
+direct adapter calls, replacements, and secret-only writes recheck
+ownership/protection and creation collisions immediately before writing. The API
+still has a non-atomic check/write race.
 
 OIDC `client_secret` arrays and `http_proxy_authorization` /
 `https_proxy_authorization` use deferred `!secret` sources. Unselected scalar
@@ -82,10 +81,10 @@ before and after protection and unprotection PUTs. All four synthetic values
 remained identical. This is backend credential-preservation evidence; it does
 not claim a successful OAuth exchange with an identity service.
 
-Dumps translate ownership to `kongctl`, remove generated metadata, and
-preserve public labels and unrelated entries. Protection metadata without an
-ownership namespace produces a warning, without adopting the strategy.
-Write-only credentials are not reconstructed from responses.
+Dumps translate ownership to `kongctl`, remove generated metadata, and preserve
+public labels. Protection metadata without an ownership namespace produces a
+warning, without adopting the strategy. Write-only credentials are not
+reconstructed from responses.
 
 See [the shared contract](ai-gateway-child-ownership.md) and
 [runnable manifests](examples/declarative/ai-gateway-federated-auth-strategies).

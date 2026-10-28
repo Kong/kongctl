@@ -395,20 +395,9 @@ func secretResourceFields(ctx context.Context, resource resources.Resource, acti
 		delete(fields, FieldKey)
 	}
 	if metadata, independent := resources.IndependentChildMetadata(resource); independent {
-		desired, _ := fields[FieldManagedBy].(map[string]any)
-		raw := make(map[string]string)
-		for key, value := range desired {
-			if text, ok := value.(string); ok {
-				raw[key] = text
-			}
-		}
-		// Mutable payload maps may also retain the native map representation.
-		if native, ok := fields[FieldManagedBy].(map[string]string); ok {
-			maps.Copy(raw, native)
-		}
 		protected := metadata != nil && metadata.Protected != nil && *metadata.Protected
 		fields[FieldManagedBy] = resources.BuildChildManagedBy(
-			nil, raw, resources.GetNamespace(metadata), protected, build.Version(ctx),
+			resources.GetNamespace(metadata), protected, build.Version(ctx),
 		)
 	}
 	return fields, nil

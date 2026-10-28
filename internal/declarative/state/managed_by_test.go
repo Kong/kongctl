@@ -348,14 +348,14 @@ func managedByStampCase[T any](kind resources.ResourceType, raw string) func(*te
 	}
 }
 
-func TestManagedByExecutionOverridesSavedVersionAndEnforcesCapacity(t *testing.T) {
+func TestManagedByExecutionOverridesSavedVersionAndForeignMetadata(t *testing.T) {
 	req := kkComps.CreateAIGatewayConsumerRequest{Name: "consumer", ManagedBy: map[string]string{
 		"tool": "old-tool", "version": "old-binary", "other": "preserved",
 	}}
 	ctx := context.WithValue(t.Context(), build.InfoKey, &build.Info{Version: "running-binary"})
 	require.NoError(t, stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req))
 	require.Equal(t,
-		map[string]string{"tool": "kongctl", "version": "running-binary", "other": "preserved"},
+		map[string]string{"tool": "kongctl", "version": "running-binary"},
 		req.ManagedBy)
 	// The second pass must not mutate a map retained by the caller.
 	previous := req.ManagedBy
@@ -366,8 +366,8 @@ func TestManagedByExecutionOverridesSavedVersionAndEnforcesCapacity(t *testing.T
 		resources.ChildNamespaceKey: "team-a", resources.ChildProtectedKey: "false",
 		"other": "keep", "extra": "keep-too",
 	}
-	require.ErrorContains(t, stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req), "5-entry")
-	require.NotContains(t, req.ManagedBy, "tool", "overflow must fail without mutating the request")
+	require.NoError(t, stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req))
+	require.Equal(t, resources.BuildChildManagedBy("team-a", false, "running-binary"), req.ManagedBy)
 }
 
 func TestManagedByRequestRequiresEnrollmentAndSDKSupport(t *testing.T) {

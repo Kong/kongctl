@@ -2,9 +2,11 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -87,6 +89,15 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 			return err
 		}
 		if !needsReplace {
+			if drift, exists := changedFields[FieldManagedBy]; exists {
+				before, _ := json.Marshal(drift.Old)
+				after, _ := json.Marshal(resources.ManagedByWithProvenance(nil, build.Version(ctx)))
+				plan.AddWarning(desiredCredential.Ref, fmt.Sprintf(
+					"AI Gateway consumer credential %q has managed_by drift (%s -> %s); credentials cannot be updated in place; "+
+						"no replacement was planned for metadata alone; explicitly replace the credential if needed",
+					desiredCredential.Name, before, after,
+				))
+			}
 			continue
 		}
 
@@ -297,11 +308,17 @@ func shouldReplaceAIGatewayConsumerCredential(
 		)
 	}
 	delete(desiredPayload, FieldAPIKey)
+	desiredPayload[FieldManagedBy] = resources.ManagedByWithProvenance(nil, "")
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil
+	}
+	if len(changedFields) == 1 {
+		if _, metadataOnly := changedFields[FieldManagedBy]; metadataOnly {
+			return false, changedFields, nil
+		}
 	}
 	return true, changedFields, nil
 }

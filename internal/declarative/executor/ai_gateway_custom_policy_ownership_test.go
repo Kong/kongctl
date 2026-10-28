@@ -71,7 +71,7 @@ func TestCustomPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					fields := map[string]any{
 						planner.FieldName: "shared-custom", planner.FieldType: "installed", planner.FieldDisplayName: "Shared custom",
 						planner.FieldSchema:    "return {}",
-						planner.FieldManagedBy: resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+						planner.FieldManagedBy: resources.BuildChildManagedBy("team-a", false, "dev"),
 					}
 					fields[planner.FieldType] = variant
 					if variant == "streaming" {
@@ -93,8 +93,6 @@ func TestCustomPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					maps.Copy(observed, fields)
 					observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 					observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-						nil,
-						map[string]string{"other-tool": "preserved"},
 						owner,
 						protected,
 						"dev",
@@ -116,7 +114,7 @@ func TestCustomPolicyWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 						require.Equal(t, 1, api.updates)
 						p, err := ownedChildPayload(api.last)
 						require.NoError(t, err)
-						require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
+						require.NotContains(t, childPayloadManagedBy(p), "other-tool")
 						require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 					} else {
 						require.Error(t, err)
@@ -146,7 +144,7 @@ func TestCustomPolicyUnprotectRequiresAnUnchangedDefinition(t *testing.T) {
 				continue
 			}
 			t.Run(variant+"/"+mutation, func(t *testing.T) {
-				metadata := resources.BuildChildManagedBy(nil, map[string]string{"inventory": "retained"}, "team-a", true, "dev")
+				metadata := resources.BuildChildManagedBy("team-a", true, "dev")
 				observed := map[string]any{
 					planner.FieldID: "definition-id", planner.FieldName: "definition", planner.FieldType: variant,
 					planner.FieldDisplayName: "Definition", planner.FieldSchema: "return {}", planner.FieldManagedBy: metadata,
@@ -164,7 +162,7 @@ func TestCustomPolicyUnprotectRequiresAnUnchangedDefinition(t *testing.T) {
 				fields, err := resources.AIGatewayCustomPolicyMutablePayloadMap(api.definition)
 				require.NoError(t, err)
 				delete(fields, planner.FieldLabels)
-				requested := resources.BuildChildManagedBy(metadata, nil, "team-a", false, "dev")
+				requested := resources.BuildChildManagedBy("team-a", false, "dev")
 				fields[planner.FieldManagedBy] = requested
 				change := planner.PlannedChange{
 					Namespace: "team-a", Fields: fields, Parent: &planner.ParentInfo{ID: "gateway-id"},
@@ -206,7 +204,7 @@ func TestCustomPolicyUnprotectRequiresAnUnchangedDefinition(t *testing.T) {
 				}
 				require.NoError(t, mapAIGatewaySDKRequest("custom policy update", payload, &req))
 				_, err = adapter.Update(t.Context(), "definition-id", req, "team-a", ctx)
-				if mutation != "none" {
+				if mutation != "none" && mutation != "metadata" {
 					require.Error(t, err)
 					require.Zero(t, api.updates)
 					return

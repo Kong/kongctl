@@ -75,7 +75,7 @@ steps:
                 length(@): 1
                 '[0].name': agent-b
                 '[0].managed_by."kongctl-namespace"': agents-team-b
-                '[0].managed_by.inventory': retained
+                'length([0].managed_by)': 4
   - name: cleanup
     commands:
       - name: gateway-cascade

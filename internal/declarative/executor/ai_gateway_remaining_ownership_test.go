@@ -74,8 +74,6 @@ func TestRemainingChildSavedWritesRecheckOwnershipProtectionAndCollisions(t *tes
 									"child",
 									"original"
 								observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-									nil,
-									map[string]string{"inventory": "retained"},
 									owner,
 									protected,
 									"old",
@@ -120,7 +118,7 @@ func TestRemainingChildSavedWritesRecheckOwnershipProtectionAndCollisions(t *tes
 													json.NewDecoder(req.Body).Decode(&body),
 												)
 												metadata := body[planner.FieldManagedBy].(map[string]any)
-												require.Equal(t, "retained", metadata["inventory"])
+												require.NotContains(t, metadata, "inventory")
 												require.Equal(t, "kongctl", metadata["tool"])
 											}
 											payload = observed
@@ -167,8 +165,6 @@ func TestRemainingChildSavedWritesRecheckOwnershipProtectionAndCollisions(t *tes
 								fields := maps.Clone(tc.fields)
 								fields[planner.FieldName], fields[planner.FieldDisplayName] = "child", "updated"
 								fields[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-									nil,
-									nil,
 									"team-a",
 									false,
 									"old",

@@ -112,8 +112,9 @@ func (a AIGatewayAgentResource) Validate() error {
 	if err := ValidateChildManagedBy(a.ManagedBy, true); err != nil {
 		return err
 	}
-	if err := ValidateChildManagedBy(BuildChildManagedBy(nil, a.ManagedBy,
-		GetNamespace(a.Kongctl), a.Protected(), ""), false); err != nil {
+	if err := ValidateChildManagedBy(BuildChildManagedBy(
+		GetNamespace(a.Kongctl), a.Protected(), "",
+	), false); err != nil {
 		return err
 	}
 	if a.AIGateway == "" {

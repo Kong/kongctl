@@ -26,7 +26,7 @@ func TestAIGatewayDumpSkipsMalformedOwnershipWithoutLosingSiblings(t *testing.T)
 			for _, name := range []string{"first", "invalid", "last"} {
 				child := maps.Clone(tc.Body)
 				child["id"], child["name"], child["display_name"] = name+"-id", name, name
-				metadata := resources.BuildChildManagedBy(nil, map[string]string{"inventory": "retained"}, "team-a", false, "dev")
+				metadata := resources.BuildChildManagedBy("team-a", false, "dev")
 				if name == "invalid" {
 					metadata[resources.ChildProtectedKey] = "TRUE"
 				}
@@ -84,7 +84,7 @@ func TestAIGatewayDumpSkipsMalformedOwnershipWithoutLosingSiblings(t *testing.T)
 			for _, value := range exported {
 				child := value.(map[string]any)
 				require.NotEqual(t, "invalid", child["name"])
-				require.Equal(t, map[string]any{"inventory": "retained"}, child["managed_by"])
+				require.NotContains(t, child, "managed_by")
 			}
 			require.Contains(t, logs.String(), "invalid ownership metadata; skipping child in dump")
 			require.Contains(t, logs.String(), "resource_id=invalid-id")

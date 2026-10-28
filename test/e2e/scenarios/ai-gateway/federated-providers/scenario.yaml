@@ -47,6 +47,57 @@ steps:
           - select: summary
             expect:
               fields: {total_changes: 0}
+  - name: canonical-tool-metadata
+    commands:
+      - name: reject-managed-by-input
+        run: [plan, -f, '{{ .workdir }}/invalid/forbidden-managed-by.yaml', --mode, sync]
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: 'managed_by is reserved for Kong tools'
+      - name: inject-outside-metadata
+        exec: [python3, '{{ .workdir }}/inject_managed_by_drift.py']
+      - name: metadata-only-diff
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 1, by_action.UPDATE: 1}
+          - select: 'changes[0]'
+            expect:
+              fields:
+                'changed_fields.managed_by.old.outside': remove
+                'length(changed_fields.managed_by.new)': 4
+                'length(keys(changed_fields))': 1
+      - name: metadata-visible-in-diff
+        run: [diff, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        outputFormat: json
+        assertions:
+          - select: 'changes[0]'
+            expect:
+              fields:
+                'changed_fields.managed_by.old.outside': remove
+                'length(changed_fields.managed_by.new)': 4
+                'length(keys(changed_fields))': 1
+      - name: replace-tool-metadata
+        run: [sync, -f, '{{ .workdir }}/team-a.yaml', --auto-approve]
+      - name: canonical-map-observed
+        run: [get, ai-gateway, model-providers, --gateway-name, federated-providers-e2e]
+        assertions:
+          - select: '[?name==`"provider-a"`] | [0]'
+            expect:
+              fields:
+                'length(managed_by)': 4
+                'config.auth.headers[0].name': Authorization
+                'labels.team': a
+      - name: metadata-converged
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
   - name: scoped-removal
     commands:
       - name: omitted-no-op
@@ -87,7 +138,7 @@ steps:
                 length(@): 1
                 '[0].name': provider-b
                 '[0].managed_by."kongctl-namespace"': provider-team-b
-                '[0].managed_by."other-tool"': retained
+                'length([0].managed_by)': 4
   - name: cleanup
     commands:
       - name: remove-gateway

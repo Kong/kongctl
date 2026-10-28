@@ -80,7 +80,7 @@ func (e *executorAIGatewayConsumerGroupsAPI) GetAiGatewayConsumerGroup(
 		AIGatewayConsumerGroup: &kkComps.AIGatewayConsumerGroup{
 			ID:        "group-id",
 			Name:      "support-group",
-			ManagedBy: resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+			ManagedBy: resources.BuildChildManagedBy("default", false, "dev"),
 		},
 	}, nil
 }

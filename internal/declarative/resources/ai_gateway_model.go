@@ -107,10 +107,10 @@ func (a AIGatewayModelResource) Validate() error {
 	if err := ValidateChildManagedBy(a.ManagedBy(), true); err != nil {
 		return fmt.Errorf("AI Gateway model %s: %w", a.Ref, err)
 	}
-	if err := ValidateChildManagedBy(BuildChildManagedBy(nil,
-		a.ManagedBy(),
+	if err := ValidateChildManagedBy(BuildChildManagedBy(
 		GetNamespace(a.Kongctl),
-		a.Protected(), ""),
+		a.Protected(), "",
+	),
 		false); err != nil {
 		return err
 	}
@@ -583,15 +583,7 @@ func AIGatewayModelResourceFromResponse(
 		}
 		kongctl = &KongctlMeta{Namespace: new(namespace), Protected: new(metadata[ModelProtectedKey] == "true")}
 	}
-	if managed, ok := payload["managed_by"].(map[string]any); ok {
-		delete(managed, ModelNamespaceKey)
-		delete(managed, ModelProtectedKey)
-		delete(managed, ManagedByToolKey)
-		delete(managed, ManagedByVersionKey)
-		if len(managed) == 0 {
-			delete(payload, "managed_by")
-		}
-	}
+	delete(payload, "managed_by")
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayModelResource{}, err

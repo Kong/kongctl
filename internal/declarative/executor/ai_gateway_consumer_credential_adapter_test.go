@@ -23,7 +23,7 @@ func TestConsumerCredentialInitialProtectionExceptionDoesNotGrantOtherWrites(t *
 				require.Equal(t, http.MethodGet, req.Method)
 				body, err := json.Marshal(map[string]any{
 					"id": "consumer-id", "name": "consumer", "display_name": "Consumer", "type": "api-key",
-					"managed_by": resources.BuildChildManagedBy(nil, nil, owner, true, "dev"),
+					"managed_by": resources.BuildChildManagedBy(owner, true, "dev"),
 					"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
 				})
 				require.NoError(t, err)

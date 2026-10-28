@@ -6,7 +6,6 @@ ai_gateway_auth_strategies:
     name: auth-b
     display_name: Team B OIDC authentication
     type: openid-connect
-    managed_by: {other-tool: retained}
     config:
       issuer: https://issuer.example.invalid
       cache_tokens_salt: federated-auth-cache-salt-000001

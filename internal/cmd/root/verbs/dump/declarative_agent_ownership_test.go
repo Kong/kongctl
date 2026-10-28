@@ -61,7 +61,7 @@ func TestAgentDumpWarnsAboutProtectionWithoutOwnership(t *testing.T) {
 			agents, err := buildAIGatewayAgents(t.Context(), logger, client, "gateway-id", "Gateway", "")
 			require.NoError(t, err)
 			require.Len(t, agents, 1)
-			require.Equal(t, map[string]string{"other-tool": "retained"}, agents[0].ManagedBy)
+			require.Empty(t, agents[0].ManagedBy)
 			if tc.namespace == "" {
 				// An orphaned protection key must never imply adoption into a default namespace.
 				require.Nil(t, agents[0].Kongctl)

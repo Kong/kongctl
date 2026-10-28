@@ -73,7 +73,7 @@ func TestAgentWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 						fields := map[string]any{
 							planner.FieldName: "shared-auth", planner.FieldType: "a2a", planner.FieldDisplayName: "Shared auth",
 							planner.FieldConfig:    map[string]any{"url": "https://example.com"},
-							planner.FieldManagedBy: resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+							planner.FieldManagedBy: resources.BuildChildManagedBy("team-a", false, "dev"),
 						}
 						fields[planner.FieldType] = variant
 						change := planner.PlannedChange{
@@ -91,8 +91,6 @@ func TestAgentWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 						maps.Copy(observed, fields)
 						observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 						observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-							nil,
-							map[string]string{"other-tool": "preserved"},
 							owner,
 							protected,
 							"dev",
@@ -116,7 +114,7 @@ func TestAgentWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 							require.Equal(t, 1, api.updates)
 							p, err := ownedChildPayload(api.last)
 							require.NoError(t, err)
-							require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
+							require.NotContains(t, childPayloadManagedBy(p), "other-tool")
 							require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 						} else {
 							require.Error(t, err)
@@ -143,7 +141,7 @@ func TestAgentWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 func TestAgentUnprotectionPreservesFreshDefaultsAndRejectsPayloadInjection(t *testing.T) {
 	for _, mutation := range []string{"none", "url", "password", "type", "secret-write"} {
 		t.Run(mutation, func(t *testing.T) {
-			metadata := resources.BuildChildManagedBy(nil, nil, "team-a", true, "dev")
+			metadata := resources.BuildChildManagedBy("team-a", true, "dev")
 			api := &agentOwnershipAPI{
 				agent: kkComps.AIGatewayAgent{
 					ID:          "agent-id",
@@ -163,7 +161,7 @@ func TestAgentUnprotectionPreservesFreshDefaultsAndRejectsPayloadInjection(t *te
 				planner.FieldDisplayName: "Agent",
 				planner.FieldType:        "a2a",
 				planner.FieldConfig:      map[string]any{"url": "https://example.com"},
-				planner.FieldManagedBy:   resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+				planner.FieldManagedBy:   resources.BuildChildManagedBy("team-a", false, "dev"),
 			}
 			change := planner.PlannedChange{
 				Namespace: "team-a",
@@ -207,7 +205,7 @@ func TestAgentSecretOnlyWritesRevalidateOwnershipAndProtection(t *testing.T) {
 	for _, owner := range []string{"team-a", "team-b", ""} {
 		for _, protected := range []bool{false, true} {
 			t.Run(owner+map[bool]string{false: "/writable", true: "/protected"}[protected], func(t *testing.T) {
-				metadata := resources.BuildChildManagedBy(nil, nil, owner, protected, "dev")
+				metadata := resources.BuildChildManagedBy(owner, protected, "dev")
 				api := &agentOwnershipAPI{
 					agent: kkComps.AIGatewayAgent{
 						ID:          "agent-id",
@@ -223,7 +221,7 @@ func TestAgentSecretOnlyWritesRevalidateOwnershipAndProtection(t *testing.T) {
 					planner.FieldDisplayName: "Agent",
 					planner.FieldType:        "a2a",
 					planner.FieldConfig:      map[string]any{"url": "https://example.com"},
-					planner.FieldManagedBy:   resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+					planner.FieldManagedBy:   resources.BuildChildManagedBy("team-a", false, "dev"),
 				}
 				change := planner.PlannedChange{
 					Namespace:    "team-a",

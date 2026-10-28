@@ -22,7 +22,7 @@ func ownedAIGatewayObservation[T any](t *testing.T, value T, namespace string, p
 	require.NoError(t, err)
 	var payload map[string]any
 	require.NoError(t, json.Unmarshal(data, &payload))
-	payload[FieldManagedBy] = resources.BuildChildManagedBy(nil, nil, namespace, protected, "dev")
+	payload[FieldManagedBy] = resources.BuildChildManagedBy(namespace, protected, "dev")
 	data, err = json.Marshal(payload)
 	require.NoError(t, err)
 	var result T

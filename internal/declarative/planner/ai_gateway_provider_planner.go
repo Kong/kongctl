@@ -73,8 +73,9 @@ func (p *Planner) planAIGatewayProviderCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
-	provider.ManagedBy = resources.BuildChildManagedBy(nil, provider.ManagedBy,
-		resources.GetNamespace(provider.Kongctl), provider.Protected(), "")
+	provider.ManagedBy = resources.BuildChildManagedBy(
+		resources.GetNamespace(provider.Kongctl), provider.Protected(), "",
+	)
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayProvider, provider.Ref),
 		ResourceType: ResourceTypeAIGatewayProvider,

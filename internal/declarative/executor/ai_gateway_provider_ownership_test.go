@@ -75,7 +75,7 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 							"headers": []any{map[string]any{"name": "Authorization"}},
 						},
 					},
-					planner.FieldManagedBy: resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev"),
+					planner.FieldManagedBy: resources.BuildChildManagedBy("team-a", false, "dev"),
 				}
 				change := planner.PlannedChange{
 					ResourceType: planner.ResourceTypeAIGatewayProvider,
@@ -92,8 +92,6 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 				maps.Copy(observed, fields)
 				observed[planner.FieldLabels] = map[string]string{"added-after-planning": "retained"}
 				observed[planner.FieldManagedBy] = resources.BuildChildManagedBy(
-					nil,
-					map[string]string{"other-tool": "preserved"},
 					owner,
 					protected,
 					"dev",
@@ -115,7 +113,7 @@ func TestProviderWritesRevalidateSavedOwnershipAndProtection(t *testing.T) {
 					require.Equal(t, 1, api.updates)
 					p, err := ownedChildPayload(api.last)
 					require.NoError(t, err)
-					require.Equal(t, "preserved", childPayloadManagedBy(p)["other-tool"])
+					require.NotContains(t, childPayloadManagedBy(p), "other-tool")
 					require.Equal(t, map[string]any{"added-after-planning": "retained"}, p[planner.FieldLabels])
 				} else {
 					require.Error(t, err)
@@ -149,7 +147,7 @@ func TestProviderUnprotectAllowsOnlyAnUnchangedPublicPayload(t *testing.T) {
 }`), &observed))
 			current, err := state.NormalizeAIGatewayProvider(observed)
 			require.NoError(t, err)
-			metadata := resources.BuildChildManagedBy(current.ManagedBy, nil, "team-a", false, "dev")
+			metadata := resources.BuildChildManagedBy("team-a", false, "dev")
 			fields := map[string]any{
 				planner.FieldName: current.Name, planner.FieldType: current.Type,
 				planner.FieldDisplayName: current.DisplayName, planner.FieldConfig: current.Config,

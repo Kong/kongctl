@@ -6,7 +6,6 @@ ai_gateway_custom_policies:
     name: streaming-b
     display_name: Shared streaming definition
     type: streaming
-    managed_by: {other-tool: retained}
     labels: {team: b}
     schema: |
       return {

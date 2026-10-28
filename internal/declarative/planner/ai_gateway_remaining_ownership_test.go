@@ -269,8 +269,6 @@ func TestRemainingOwnedChildrenAliasesScopesAndCollisions(t *testing.T) {
 				value[FieldName] = item.name
 				value[FieldDisplayName] = item.name
 				value[FieldManagedBy] = resources.BuildChildManagedBy(
-					nil,
-					map[string]string{"inventory": "retained"},
 					item.ns,
 					false,
 					"dev",
@@ -323,8 +321,6 @@ func TestRemainingOwnedChildrenAliasesScopesAndCollisions(t *testing.T) {
 				require.Error(t, err)
 			}
 			api.values[0][FieldManagedBy] = resources.BuildChildManagedBy(
-				nil,
-				nil,
 				"team-a",
 				true,
 				"dev",

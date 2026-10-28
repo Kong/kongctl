@@ -333,6 +333,7 @@ func TestAIGatewayProviderPlannerNameIdentity(t *testing.T) {
 					"id": identity.id, "name": identity.name, "type": "openai",
 					"display_name": "Original child",
 					"managed_by": map[string]string{
+						resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "dev",
 						resources.ChildNamespaceKey: "test-namespace",
 						resources.ChildProtectedKey: "false",
 					},

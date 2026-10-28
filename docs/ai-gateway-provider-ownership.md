@@ -28,24 +28,23 @@ ai_gateway_model_providers:
             value: !secret {source: !env OPENAI_AUTHORIZATION}
 ```
 
-The provider stores ownership/protection in reserved lowercase `managed_by`
-keys `kongctl-namespace` and `kongctl-protected`, alongside `tool: kongctl`
-and the executing binary's `version`. These four entries leave room for one
-unrelated entry within the five-entry API limit. All four keys are reserved
-in manifests. Unrelated metadata is merged again immediately before PUT.
-Public labels remain user data. Omitted labels are preserved from a fresh
-execution-time read, including labels added since planning. An explicit
-empty label map clears public labels.
+The provider stores ownership/protection in reserved lowercase `managed_by` keys
+`kongctl-namespace` and `kongctl-protected`, alongside `tool: kongctl` and the
+executing binary's `version`. Kongctl owns the complete map and replaces outside
+entries. Direct `managed_by` input is rejected; use `labels` for user metadata.
+Metadata-only drift is visible in plans and diffs; version-only differences do
+not schedule writes. Omitted public labels are preserved from a fresh
+execution-time read; an empty label map clears them.
 
-Ownership is cooperative client behavior. To adopt an existing provider,
-review its current owner, dependencies, protection, complete public payload,
-and API-specific credential preservation contract. Through an explicit
-out-of-band API update, set `kongctl-namespace` to the intended namespace
-and `kongctl-protected` to `true` or `false`, preserving unrelated metadata
-and credentials. Defaults and gateway references never perform this step.
-Transfer from another namespace requires the same explicit coordination.
-Do not copy redacted GET data into a PUT without verifying credential
-preservation for that provider/authentication variant.
+Ownership is cooperative client behavior. To adopt an existing provider, review
+its current owner, dependencies, protection, complete public payload, and
+API-specific credential preservation contract. Through an explicit out-of-band
+API update, set `kongctl-namespace` to the intended namespace and
+`kongctl-protected` to `true` or `false`, preserving credentials. Defaults and
+gateway references never perform this step. Transfer from another namespace
+requires the same explicit coordination. Do not copy redacted GET data into a
+PUT without verifying credential preservation for that provider/authentication
+variant.
 
 Apply never prunes. For last-provider deletion, sync an external gateway
 with an explicitly empty collection in the owning source:
@@ -69,12 +68,12 @@ Combined detach/delete plans order those operations across gateway aliases.
 Provider names and types remain immutable; create a differently named
 provider and move users before deleting the old one.
 
-Protected providers must be unprotected in a separate metadata-only update.
-That update cannot change public payload fields, unrelated metadata, or
-secrets. Saved plans and direct adapter calls recheck current ownership,
-protection, name/type, merged capacity, and creation-name collisions.
-The API does not provide an atomic ownership check/write transaction.
-The gateway owner can still cascade-delete the gateway with warnings.
+Protected providers must be unprotected in a separate metadata-only update. That
+update cannot change public payload fields, namespace, or secrets. Saved plans
+and direct adapter calls recheck current ownership, protection, name/type,
+canonical metadata, and creation-name collisions. The API does not provide an
+atomic ownership check/write transaction. The gateway owner can still
+cascade-delete the gateway with warnings.
 
 Header and parameter values, Azure client secrets, AWS secret keys/session
 tokens, and GCP service-account JSON use `!secret` declarations. Parameter
@@ -97,11 +96,10 @@ preservation; they do not claim successful OAuth exchanges with cloud
 identity services using synthetic credentials.
 
 Dumps translate provider ownership to `kongctl` and remove generated
-`managed_by` entries. They retain public labels and unrelated metadata;
-write-only credentials are not reconstructed from API responses. If a
-provider has protection metadata without an ownership namespace, dump warns
-before omitting that ineffective protection key. It does not infer ownership
-or adopt the provider.
+`managed_by` entries. They retain public labels; write-only credentials are not
+reconstructed from API responses. If a provider has protection metadata without
+an ownership namespace, dump warns before omitting that ineffective protection
+key. It does not infer ownership or adopt the provider.
 
 See [the shared ownership contract](ai-gateway-child-ownership.md) and
 [runnable manifests](examples/declarative/ai-gateway-federated-providers).

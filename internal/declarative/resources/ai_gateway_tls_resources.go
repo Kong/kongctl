@@ -378,7 +378,7 @@ func AIGatewayCertificateResourceFromResponse(
 ) AIGatewayCertificateResource {
 	return AIGatewayCertificateResource{
 		BaseResource: BaseResource{Ref: value.Name}, AIGateway: gatewayRef, Name: value.Name,
-		Cert: value.Cert, CertAlt: value.CertAlt, Labels: value.Labels, ManagedBy: value.ManagedBy,
+		Cert: value.Cert, CertAlt: value.CertAlt, Labels: value.Labels, ManagedBy: nil,
 	}
 }
 

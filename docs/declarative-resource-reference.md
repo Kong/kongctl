@@ -604,7 +604,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    auth_strategies:
      - ref: string
@@ -614,7 +613,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    policies:
      - ref: string
@@ -626,7 +624,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    agents:
     - ref: string
@@ -644,7 +641,6 @@ ai_gateways:
       acls: object
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    consumers:
     - ref: string
@@ -656,7 +652,6 @@ ai_gateways:
        - !ref policy-ref
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
       credentials:
        - ref: string
@@ -666,7 +661,6 @@ ai_gateways:
          ttl: integer
          labels: object [string]string
            key: value
-         managed_by: object [string]string
            key: value
    consumer_groups:
     - ref: string
@@ -676,7 +670,6 @@ ai_gateways:
        - !ref policy-ref
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    models:
     - ref: string
@@ -707,7 +700,6 @@ ai_gateways:
         auth_strategies:
          - !ref auth-strategy-ref
         metadata: object
-      managed_by: object
    mcp_servers:
     - ref: string
       type: conversion-only # or conversion-listener, listener,
@@ -727,7 +719,6 @@ ai_gateways:
       labels: object [string]string
         key: value
       acls: object
-      managed_by: object
    vaults:
     - ref: string
       type: env # or konnect, aws, gcp, azure, conjur, hcv
@@ -736,7 +727,6 @@ ai_gateways:
       config: object required
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    data_plane_certificates:
     - ref: string
@@ -763,7 +753,6 @@ ai_gateway_model_providers:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -791,7 +780,6 @@ ai_gateway_auth_strategies:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -810,7 +798,6 @@ ai_gateway_policies:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -840,7 +827,6 @@ ai_gateway_agents:
       - !ref auth-strategy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -859,7 +845,6 @@ ai_gateway_consumers:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -880,7 +865,6 @@ ai_gateway_consumer_credentials:
    ttl: integer
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -897,7 +881,6 @@ ai_gateway_consumer_groups:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -952,7 +935,6 @@ ai_gateway_models:
      acls: object
      auth_strategies:
        - !ref auth-strategy-ref
-   managed_by: object
 ```
 
 AI Gateway MCP Servers can also be declared as root resources. Include
@@ -991,7 +973,6 @@ ai_gateway_mcp_servers:
        authorization_servers: array[string]
        resource: string
        scopes_supported: array[string]
-   managed_by: object
 ```
 
 AI Gateway Config Stores can also be declared as root resources. Include
@@ -1058,7 +1039,6 @@ ai_gateway_vaults:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 

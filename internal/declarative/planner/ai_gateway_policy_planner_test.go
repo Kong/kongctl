@@ -578,7 +578,7 @@ func testAIGatewayPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "policy-id",
 		Name:        "mask-sensitive-data",
 		Type:        "ai-sanitizer",
@@ -593,7 +593,7 @@ func testAIGatewayPromptGuardPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "prompt-guard-policy-id",
 		Name:        "repro-prompt-guard",
 		Type:        "ai-prompt-guard",
@@ -610,7 +610,7 @@ func testAIGatewayHTTPLogPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "http-log-policy-id",
 		Name:        "repro-http-log",
 		Type:        "http-log",
@@ -627,7 +627,7 @@ func testAIGatewayResponseTransformerPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "response-transformer-policy-id",
 		Name:        "poc-response-transformer",
 		Type:        "ai-response-transformer",
@@ -644,7 +644,7 @@ func testAIGatewayRateLimitingAdvancedPolicy() kkComps.AIGatewayPolicy {
 	enabled := true
 	global := false
 	return kkComps.AIGatewayPolicy{
-		ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "cost-budget-policy-id",
 		Name:        "cost-budget",
 		Type:        "ai-rate-limiting-advanced",

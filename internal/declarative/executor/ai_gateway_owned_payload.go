@@ -55,15 +55,10 @@ func prepareOwnedMappedChildUpdate(
 			return nil, fmt.Errorf("%s is protected; unprotect it in a separate update", kind)
 		}
 	}
-	merged := maps.Clone(metadata)
-	if merged == nil {
-		merged = make(map[string]string)
-	}
-	maps.Copy(merged, requested)
-	if err := resources.ValidateChildManagedBy(merged, false); err != nil {
-		return nil, err
-	}
-	desired[planner.FieldManagedBy] = merged
+	desired[planner.FieldManagedBy] = resources.BuildChildManagedBy(
+		execCtx.Namespace, resources.IsChildProtected(requested), requested[resources.ManagedByVersionKey],
+	)
+
 	return desired, nil
 }
 

@@ -6,7 +6,6 @@ ai_gateway_agents:
     name: agent-b
     type: http
     display_name: Team b agent
-    managed_by: {inventory: retained}
     labels: {team: b}
     config:
       url: https://example.com

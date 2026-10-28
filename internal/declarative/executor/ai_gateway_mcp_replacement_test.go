@@ -42,8 +42,6 @@ func TestSavedMCPReplacementCreateFailureKeepsOldServer(t *testing.T) {
 		Namespace: "default", ResourceRef: "new", Action: planner.ActionCreate, Parent: &planner.ParentInfo{ID: "gateway-id"},
 		Fields: map[string]any{
 			planner.FieldManagedBy: resources.BuildChildManagedBy(
-				nil,
-				nil,
 				"default",
 				false,
 				"dev",

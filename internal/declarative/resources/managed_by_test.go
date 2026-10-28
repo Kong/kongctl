@@ -29,7 +29,7 @@ func TestManagedByWriteCapabilityIsIndependentOfLabelOwnership(t *testing.T) {
 	before := labels.BuildCreateLabels(userLabels, "team-a", true)
 	prepared, err := PrepareManagedBy(ResourceTypePortal, metadata, "1.2.3")
 	require.NoError(t, err)
-	require.Equal(t, map[string]string{"external": "keep", "tool": "kongctl", "version": "1.2.3"}, prepared)
+	require.Equal(t, map[string]string{"tool": "kongctl", "version": "1.2.3"}, prepared)
 	require.Equal(t, map[string]string{"external": "keep"}, metadata)
 	require.NotContains(t, prepared, ChildNamespaceKey)
 	require.NotContains(t, prepared, ChildProtectedKey)
@@ -39,7 +39,7 @@ func TestManagedByWriteCapabilityIsIndependentOfLabelOwnership(t *testing.T) {
 	_, err = PrepareManagedBy(ResourceTypePortal, full, "1.2.3")
 	require.NoError(t, err, "the registered API limit is seven, not the AI Gateway limit")
 	_, err = PrepareManagedBy(ResourceTypeAIGatewayProvider, full, "1.2.3")
-	require.ErrorContains(t, err, "5-entry")
+	require.NoError(t, err, "foreign entries are replaced by the canonical map")
 	require.Len(t, full, 5, "capacity errors cannot discard unrelated entries")
 }
 

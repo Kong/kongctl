@@ -25,8 +25,6 @@ func ownedAuthStrategy(
 	require.NoError(t, err)
 	payload[FieldID] = name + "-id"
 	payload[FieldManagedBy] = resources.BuildChildManagedBy(
-		nil,
-		map[string]string{"other-tool": "retained"},
 		namespace,
 		false,
 		"dev",
@@ -91,7 +89,7 @@ func TestFederatedAuthStrategiesScopeAndCollisions(t *testing.T) {
 	}
 }
 
-func TestAuthStrategyProtectionAndMetadataCapacity(t *testing.T) {
+func TestAuthStrategyProtectionAndCanonicalMetadata(t *testing.T) {
 	desired, observed := ownedAuthStrategy(t, "auth-a", "team-a")
 	observed.AIGatewayAuthStrategyKeyAuthResponse.Labels = map[string]string{"public": "retained"}
 	desired.Kongctl.Protected = new(true)
@@ -106,7 +104,7 @@ func TestAuthStrategyProtectionAndMetadataCapacity(t *testing.T) {
 	require.NotContains(t, plan.Changes[0].Fields, FieldLabels, "omitted labels are preserved at execution")
 	metadata := plan.Changes[0].Fields[FieldManagedBy].(map[string]string)
 	require.Equal(t, "true", metadata[resources.ChildProtectedKey])
-	require.Equal(t, "retained", metadata["other-tool"])
+	require.NotContains(t, metadata, "other-tool")
 	config := plan.Changes[0].Fields[FieldConfig].(map[string]any)
 	require.Equal(t, []any{"apikey"}, config["key_names"])
 	desired.ManagedBy = map[string]string{"second-tool": "overflow"}
@@ -114,7 +112,7 @@ func TestAuthStrategyProtectionAndMetadataCapacity(t *testing.T) {
 		client,
 		slog.Default(),
 	).GeneratePlan(t.Context(), authStrategyResourceSet(desired), Options{Mode: PlanModeApply})
-	require.ErrorContains(t, err, "5-entry")
+	require.NoError(t, err)
 }
 
 func TestAuthStrategyAliasesShareOneCompleteReconciliation(t *testing.T) {

@@ -89,8 +89,6 @@ func (p *Planner) reconcileOwnedAIGatewayAuthStrategies(
 			continue
 		}
 		strategy.ManagedBy = resources.BuildChildManagedBy(
-			full.ManagedBy,
-			strategy.ManagedBy,
 			namespace,
 			strategy.Protected(),
 			build.Version(ctx),

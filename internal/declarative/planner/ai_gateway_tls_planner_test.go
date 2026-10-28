@@ -33,9 +33,11 @@ func TestAIGatewayCertificateAlternativeCertificateConverges(t *testing.T) {
 	desired := resources.AIGatewayCertificateResource{
 		BaseResource: resources.BaseResource{Ref: "runtime-cert"},
 		AIGateway:    "gateway", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
+		ManagedBy: resources.ManagedByWithProvenance(nil, "older"),
 	}
 	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
 		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert", CertAlt: &certAlt,
+		ManagedBy: resources.ManagedByWithProvenance(nil, "older"),
 	}}
 
 	_, changed := diffAIGatewayCertificate(current, desired)
@@ -56,13 +58,13 @@ func TestAIGatewayTLSOptionalFieldRemovalPlansUpdate(t *testing.T) {
 	fields, changed := diffAIGatewayCertificate(current, desired)
 	require.NotContains(t, fields, FieldCertAlt)
 	require.NotContains(t, fields, FieldLabels)
-	require.NotContains(t, fields, FieldManagedBy)
+	require.Equal(t, resources.ManagedByWithProvenance(nil, ""), fields[FieldManagedBy])
 	require.Equal(t, FieldChange{Old: certAlt, New: nil}, changed[FieldCertAlt])
 	require.Equal(t, FieldChange{Old: current.Labels, New: nil}, changed[FieldLabels])
-	require.Equal(t, FieldChange{Old: current.ManagedBy, New: nil}, changed[FieldManagedBy])
+	require.Equal(t, FieldChange{Old: current.ManagedBy, New: fields[FieldManagedBy]}, changed[FieldManagedBy])
 }
 
-func TestAIGatewayTLSEmptyMetadataConvergesWithOmittedMetadata(t *testing.T) {
+func TestAIGatewayTLSEmptyMetadataPlansProvenanceWrite(t *testing.T) {
 	current := state.AIGatewayCertificate{AIGatewayCertificate: kkComps.AIGatewayCertificate{
 		ID: "certificate-id", Name: "runtime-cert", Cert: "public-cert",
 		Labels: map[string]string{}, ManagedBy: map[string]string{},
@@ -72,8 +74,9 @@ func TestAIGatewayTLSEmptyMetadataConvergesWithOmittedMetadata(t *testing.T) {
 		AIGateway:    "gateway", Name: "runtime-cert", Cert: "public-cert",
 	}
 
-	_, changed := diffAIGatewayCertificate(current, desired)
-	require.Empty(t, changed)
+	fields, changed := diffAIGatewayCertificate(current, desired)
+	require.Len(t, changed, 1)
+	require.Equal(t, resources.ManagedByWithProvenance(nil, ""), fields[FieldManagedBy])
 }
 
 func TestAIGatewayTLSPlannerCreatesCertificateBeforeSNI(t *testing.T) {

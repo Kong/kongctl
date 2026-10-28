@@ -29,21 +29,29 @@ later non-AI Gateway enrollment. See the
 [incremental migration guide](contributor/managed-by.md) for write-only
 enrollment alongside existing management labels and the later ownership step.
 
-Participating children also persist `kongctl-namespace` and
-`kongctl-protected` in `managed_by`. Their explicit namespace overrides the
-source file default, then the literal `default` namespace. Gateway metadata
-supplies neither ownership
-nor protection. Raw reserved entries are rejected. Other tools' metadata is
-preserved, including entries added after planning. The merged map may contain
-at most five entries, including all four generated entries. Overflow fails
-before a write without discarding metadata. This leaves one unrelated entry
-for independently owned children and three for children carrying provenance
-only. Participating child dumps omit generated entries and
-translate namespace/protection into `kongctl` metadata. Unprotection may update
-automatic provenance, but still cannot change other metadata or payload fields.
+Participating children also persist `kongctl-namespace` and `kongctl-protected`
+in `managed_by`. Their explicit namespace overrides the source file default,
+then the literal `default` namespace. Gateway metadata supplies neither
+ownership nor protection.
 
-`managed_by` is a tool metadata store. Put user-defined metadata in `labels`
-and configure ownership/protection through `kongctl`.
+`managed_by` is reserved for Kong tools and cannot be set in declarative
+configuration. Use `labels` for user metadata and `kongctl` for ownership and
+protection. Kongctl replaces the complete map with its generated keys; existing
+outside entries are removed. Metadata drift appears in plans and diffs even when
+no public payload changes. A version-only difference does not schedule a write;
+required writes record the executing binary's version. Public labels remain
+preserved unless explicitly changed.
+
+Protected children must be unprotected separately before other writes.
+Unprotection may normalize the tool-owned map but cannot change namespace,
+public payload, or secrets. Dumps omit the entire `managed_by` map and express
+child ownership/protection through `kongctl`, so they remain reloadable.
+
+Consumer credentials cannot be updated in place. Metadata-only drift produces a
+warning showing the old and canonical map, without deleting or recreating the
+credential. Replacement remains explicit. Runtime certificate metadata writes
+still require a selected private key; unsafe AppRole writes remain blocked.
+These API limitations also apply to metadata reconciliation.
 
 Dump warns and skips individual children with invalid ownership metadata,
 preserving valid siblings. It does not interpret invalid protection values as

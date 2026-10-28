@@ -67,8 +67,9 @@ func (p *Planner) planAIGatewayPolicyCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
-	policy.ManagedBy = resources.BuildChildManagedBy(nil, policy.ManagedBy,
-		resources.GetNamespace(policy.Kongctl), policy.Protected(), "")
+	policy.ManagedBy = resources.BuildChildManagedBy(
+		resources.GetNamespace(policy.Kongctl), policy.Protected(), "",
+	)
 	fields, err := policy.MutablePayloadMap()
 	if err != nil {
 		plan.AddWarning(policy.GetRef(), fmt.Sprintf("failed to build AI Gateway Policy create payload: %s", err))

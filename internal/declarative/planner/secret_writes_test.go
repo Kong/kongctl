@@ -895,7 +895,7 @@ func TestAIGatewayConsumerCredentialAPIKeyIsExcludedFromComparison(t *testing.T)
 	apiKey := "configured-key"
 	current := state.AIGatewayConsumerCredential{AIGatewayConsumerCredential: kkComps.AIGatewayConsumerCredential{
 		Name: "consumer-key", DisplayName: "Consumer Key", Type: kkComps.AIGatewayConsumerCredentialTypeAPIKey,
-		TTL: &ttl,
+		TTL: &ttl, ManagedBy: resources.ManagedByWithProvenance(nil, "older"),
 	}}
 	desired := resources.AIGatewayConsumerCredentialResource{
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
@@ -993,7 +993,7 @@ func TestSecretWriteContextUsesIndependentChildOwnership(t *testing.T) {
 	metadata := fields[FieldManagedBy].(map[string]string)
 	require.Equal(t, "application-team", metadata[resources.ChildNamespaceKey])
 	require.Equal(t, "false", metadata[resources.ChildProtectedKey])
-	require.Equal(t, "retain", metadata["other-tool"])
+	require.NotContains(t, metadata, "other-tool")
 }
 
 func TestUnselectedNestedArraySecretsPreservePublicObjectsWithoutPlaceholders(t *testing.T) {

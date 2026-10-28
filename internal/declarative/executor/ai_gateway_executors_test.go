@@ -123,8 +123,6 @@ func TestExecutorAIGatewayConsumerGroupDispatch(t *testing.T) {
 				Fields: map[string]any{
 					planner.FieldName: "support-group",
 					planner.FieldManagedBy: resources.BuildChildManagedBy(
-						nil,
-						nil,
 						"default",
 						false,
 						"dev",
@@ -236,7 +234,7 @@ func (a *dispatchAIGatewayConsumerGroupsAPI) GetAiGatewayConsumerGroup(
 		AIGatewayConsumerGroup: &kkComps.AIGatewayConsumerGroup{
 			ID: groupID, Name: "support-group",
 			DisplayName: "Support group",
-			ManagedBy:   resources.BuildChildManagedBy(nil, nil, "default", false, "dev"),
+			ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		},
 	}, nil
 }

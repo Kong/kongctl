@@ -20,21 +20,20 @@ ai_gateway_policies:
 ```
 
 Policies persist `kongctl-namespace` and `kongctl-protected` in `managed_by`,
-alongside `tool: kongctl` and the executing binary's `version`. Those four
-reserved entries leave room for one unrelated entry within the API's
-five-entry limit. Unrelated entries are merged again before PUT. Public labels
-remain data; omitted labels preserve fresh observed values, while an explicit
-empty map clears them during a payload update. Provenance alone never grants
-ownership, and legacy public management labels do not authorize policy writes.
+alongside `tool: kongctl` and the executing binary's `version`. Kongctl
+generates the complete map and replaces outside entries. Direct `managed_by`
+input is rejected. Public labels remain data; omitted labels preserve fresh
+observed values, while an explicit empty map clears them during a payload
+update. Provenance alone never grants ownership, and legacy public management
+labels do not authorize policy writes.
 
-Existing unowned policies require explicit out-of-band API adoption. Review
-the current owner, protection, config, global effect, and attachments first.
-Set the reserved namespace and protection while preserving unrelated metadata
-and the complete policy payload. Transfer from another namespace requires
-explicit coordination. Defaults and references never adopt or transfer.
-Names remain immutable. Policy type/config updates retain existing API
-behavior, subject to protection. For a named replacement, create a new policy
-and move users before deleting the old one.
+Existing unowned policies require explicit out-of-band API adoption. Review the
+current owner, protection, config, global effect, and attachments first. Set the
+reserved namespace and protection while preserving the complete policy payload.
+Transfer from another namespace requires explicit coordination. Defaults and
+references never adopt or transfer. Names remain immutable. Policy type/config
+updates retain existing API behavior, subject to protection. For a named
+replacement, create a new policy and move users before deleting the old one.
 
 Apply never prunes. Sync scopes policies per source, namespace, and canonical
 gateway, including aliases. Omission leaves the collection untouched. To
@@ -87,11 +86,11 @@ external services. Live adoption, stale ownership/protection, public-label
 preservation/clearing, metadata overflow, concurrent name collision, and
 retained unowned-model deletion checks also passed.
 
-Dumps translate policy ownership into `kongctl`, remove generated metadata,
-and preserve unrelated entries and public labels. Orphaned protection warns
-without inferring ownership. Dump/reload converges with the existing config
-representation. API checks are cooperative and cannot close the non-atomic
-check/write race or make paginated lists a snapshot.
+Dumps translate policy ownership into `kongctl`, remove generated metadata, and
+preserve public labels. Orphaned protection warns without inferring ownership.
+Dump/reload converges with the existing config representation. API checks are
+cooperative and cannot close the non-atomic check/write race or make paginated
+lists a snapshot.
 
 Custom policy definitions remain a separate integration under #2487. See the
 [shared contract](ai-gateway-child-ownership.md) and

@@ -25,8 +25,6 @@ func ownedCustomPolicy(
 	require.NoError(t, err)
 	payload[FieldID] = name + "-id"
 	payload[FieldManagedBy] = resources.BuildChildManagedBy(
-		nil,
-		map[string]string{"other-tool": "retained"},
 		namespace,
 		false,
 		"dev",
@@ -97,7 +95,7 @@ func TestFederatedCustomPoliciesScopeAndCollisions(t *testing.T) {
 	}
 }
 
-func TestCustomPolicyProtectionAndMetadataCapacity(t *testing.T) {
+func TestCustomPolicyProtectionAndCanonicalMetadata(t *testing.T) {
 	desired, observed := ownedCustomPolicy(t, "custom-a", "team-a")
 	observed.AIGatewayCustomPolicyInstalled.Labels = map[string]string{"public": "retained"}
 	desired.Kongctl.Protected = new(true)
@@ -112,14 +110,14 @@ func TestCustomPolicyProtectionAndMetadataCapacity(t *testing.T) {
 	require.NotContains(t, plan.Changes[0].Fields, FieldLabels, "omitted labels are preserved at execution")
 	metadata := plan.Changes[0].Fields[FieldManagedBy].(map[string]string)
 	require.Equal(t, "true", metadata[resources.ChildProtectedKey])
-	require.Equal(t, "retained", metadata["other-tool"])
+	require.NotContains(t, metadata, "other-tool")
 	require.Equal(t, desired.Schema, plan.Changes[0].Fields[FieldSchema])
 	desired.ManagedBy = map[string]string{"second-tool": "overflow"}
 	_, err = NewPlanner(
 		client,
 		slog.Default(),
 	).GeneratePlan(t.Context(), customPolicyResourceSet(desired), Options{Mode: PlanModeApply})
-	require.ErrorContains(t, err, "5-entry")
+	require.NoError(t, err)
 }
 
 func TestCustomPolicyAliasesShareOneCompleteReconciliation(t *testing.T) {
@@ -179,7 +177,7 @@ func TestCustomPolicyReplacementOrdersForeignInstancesAcrossAliases(t *testing.T
 				instance.Type = "old-definition"
 				instance.ManagedBy = nil
 				if owner != "" {
-					instance.ManagedBy = resources.BuildChildManagedBy(nil, nil, owner, false, "dev")
+					instance.ManagedBy = resources.BuildChildManagedBy(owner, false, "dev")
 				}
 				client := state.NewClient(state.ClientConfig{AIGatewayPoliciesAPI: &testAIGatewayPolicyAPI{
 					policies: []kkComps.AIGatewayPolicy{instance},

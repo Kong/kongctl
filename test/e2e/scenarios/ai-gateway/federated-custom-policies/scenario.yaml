@@ -85,7 +85,7 @@ steps:
                 length(@): 1
                 '[0].name': streaming-b
                 '[0].managed_by."kongctl-namespace"': custom-team-b
-                '[0].managed_by."other-tool"': retained
+                'length([0].managed_by)': 4
   - name: cleanup
     commands:
       - name: remove-gateway

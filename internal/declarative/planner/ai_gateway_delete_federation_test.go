@@ -46,7 +46,7 @@ func TestDirectDeleteDispatchesEveryEnrolledAIGatewayFamily(t *testing.T) {
 			} {
 				value := maps.Clone(tc.Body)
 				value[FieldID], value[FieldName], value[FieldDisplayName] = item.name+"-id", item.name, "Owned"
-				value[FieldManagedBy] = resources.BuildChildManagedBy(nil, nil, item.ns, false, "dev")
+				value[FieldManagedBy] = resources.BuildChildManagedBy(item.ns, false, "dev")
 				value["created_at"], value["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
 				api.values = append(api.values, value)
 			}
@@ -60,12 +60,12 @@ func TestDirectDeleteDispatchesEveryEnrolledAIGatewayFamily(t *testing.T) {
 			require.Equal(t, "owned-id", change.ResourceID)
 			require.Equal(t, "team-a", change.Namespace)
 			for _, owner := range []string{"team-b", ""} {
-				api.values[0][FieldManagedBy] = resources.BuildChildManagedBy(nil, nil, owner, false, "dev")
+				api.values[0][FieldManagedBy] = resources.BuildChildManagedBy(owner, false, "dev")
 				plan, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeDelete})
 				require.Error(t, err)
 				require.Nil(t, plan)
 			}
-			api.values[0][FieldManagedBy] = resources.BuildChildManagedBy(nil, nil, "team-a", true, "dev")
+			api.values[0][FieldManagedBy] = resources.BuildChildManagedBy("team-a", true, "dev")
 			plan, err = p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeDelete})
 			require.ErrorContains(t, err, "protected")
 			require.Nil(t, plan)
@@ -110,7 +110,7 @@ func TestSyncRejectsMalformedOwnershipBeforePruning(t *testing.T) {
 			for _, namespace := range []string{"team-b", ""} {
 				value := maps.Clone(tc.Body)
 				value[FieldID], value[FieldName], value[FieldDisplayName] = namespace+"-id", namespace+"-child", "Retained"
-				metadata := resources.BuildChildManagedBy(nil, nil, namespace, false, "dev")
+				metadata := resources.BuildChildManagedBy(namespace, false, "dev")
 				metadata[resources.ChildProtectedKey] = "TRUE"
 				value[FieldManagedBy] = metadata
 				value["created_at"], value["updated_at"] = "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"
@@ -123,7 +123,7 @@ func TestSyncRejectsMalformedOwnershipBeforePruning(t *testing.T) {
 
 			owned := maps.Clone(api.values[0])
 			owned[FieldID], owned[FieldName] = "owned-id", "owned"
-			metadata := resources.BuildChildManagedBy(nil, nil, "team-a", false, "dev")
+			metadata := resources.BuildChildManagedBy("team-a", false, "dev")
 			metadata[resources.ChildProtectedKey] = "TRUE"
 			owned[FieldManagedBy] = metadata
 			api.values = append(api.values, owned)

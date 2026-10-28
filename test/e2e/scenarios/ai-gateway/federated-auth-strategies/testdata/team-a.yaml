@@ -6,6 +6,5 @@ ai_gateway_auth_strategies:
     name: auth-a
     display_name: Team A key authentication
     type: key-auth
-    managed_by: {other-tool: retained}
     labels: {team: a}
     config: {key_names: [x-team-a-key]}

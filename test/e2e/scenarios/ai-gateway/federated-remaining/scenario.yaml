@@ -315,7 +315,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
   - name: retained-vaults
     run:
     - get
@@ -329,7 +329,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
   - name: retained-consumers
     run:
     - get
@@ -343,7 +343,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
   - name: retained-consumer-groups
     run:
     - get
@@ -357,7 +357,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
   - name: retained-ca-certificates
     run:
     - get
@@ -371,7 +371,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
   - name: retained-snis
     run:
     - get
@@ -385,7 +385,7 @@ steps:
         fields:
           length(@): 1
           '[0].managed_by."kongctl-namespace"': remaining-team-b
-          '[0].managed_by.inventory': retained
+          'length([0].managed_by)': 4
 - name: cleanup
   commands:
   - name: cascade-platform

@@ -61,7 +61,7 @@ func TestCustomPolicyDumpWarnsAboutProtectionWithoutOwnership(t *testing.T) {
 			policies, err := buildAIGatewayCustomPolicies(t.Context(), logger, client, "gateway-id", "Gateway", "")
 			require.NoError(t, err)
 			require.Len(t, policies, 1)
-			require.Equal(t, map[string]string{"other-tool": "retained"}, policies[0].ManagedBy)
+			require.Empty(t, policies[0].ManagedBy)
 			if tc.namespace == "" {
 				// An orphaned protection key must never imply adoption into a default namespace.
 				require.Nil(t, policies[0].Kongctl)

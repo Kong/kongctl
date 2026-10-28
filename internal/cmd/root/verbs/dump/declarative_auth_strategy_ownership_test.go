@@ -61,7 +61,7 @@ func TestAuthStrategyDumpWarnsAboutProtectionWithoutOwnership(t *testing.T) {
 			strategies, err := buildAIGatewayAuthStrategies(t.Context(), logger, client, "gateway-id", "Gateway")
 			require.NoError(t, err)
 			require.Len(t, strategies, 1)
-			require.Equal(t, map[string]string{"other-tool": "retained"}, strategies[0].ManagedBy)
+			require.Empty(t, strategies[0].ManagedBy)
 			if tc.namespace == "" {
 				// An orphaned protection key must never imply adoption into a default namespace.
 				require.Nil(t, strategies[0].Kongctl)

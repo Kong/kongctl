@@ -28,8 +28,6 @@ func ownedPolicy(
 	require.NoError(t, err)
 	payload[FieldID] = name + "-id"
 	payload[FieldManagedBy] = resources.BuildChildManagedBy(
-		nil,
-		map[string]string{"other-tool": "retained"},
 		namespace,
 		false,
 		"dev",
@@ -95,7 +93,7 @@ func TestFederatedPoliciesScopeAndCollisions(t *testing.T) {
 	}
 }
 
-func TestPolicyProtectionAndMetadataCapacity(t *testing.T) {
+func TestPolicyProtectionAndCanonicalMetadata(t *testing.T) {
 	desired, observed := ownedPolicy(t, "auth-a", "team-a")
 	observed.Labels = map[string]string{"public": "retained"}
 	observed.Config["backend_only_credential"] = "synthetic-observed-credential"
@@ -114,7 +112,7 @@ func TestPolicyProtectionAndMetadataCapacity(t *testing.T) {
 	require.NotContains(t, plan.Changes[0].Fields, FieldLabels, "omitted labels are preserved at execution")
 	metadata := plan.Changes[0].Fields[FieldManagedBy].(map[string]any)
 	require.Equal(t, "true", metadata[resources.ChildProtectedKey])
-	require.Equal(t, "retained", metadata["other-tool"])
+	require.NotContains(t, metadata, "other-tool")
 	config := plan.Changes[0].Fields[FieldConfig].(map[string]any)
 	require.Equal(t, []any{"email"}, config["anonymize"])
 	desired.ManagedBy = map[string]string{"second-tool": "overflow"}
@@ -122,7 +120,7 @@ func TestPolicyProtectionAndMetadataCapacity(t *testing.T) {
 		client,
 		slog.Default(),
 	).GeneratePlan(t.Context(), policyResourceSet(desired), Options{Mode: PlanModeApply})
-	require.ErrorContains(t, err, "5-entry")
+	require.NoError(t, err)
 }
 
 func TestPolicyAliasesShareOneCompleteReconciliation(t *testing.T) {

@@ -93,8 +93,6 @@ func (p *Planner) reconcileOwnedAIGatewayPolicies(
 			continue
 		}
 		policy.ManagedBy = resources.BuildChildManagedBy(
-			full.ManagedBy,
-			policy.ManagedBy,
 			namespace,
 			policy.Protected(),
 			build.Version(ctx),

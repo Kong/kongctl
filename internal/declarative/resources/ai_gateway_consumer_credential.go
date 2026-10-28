@@ -294,6 +294,7 @@ func AIGatewayConsumerCredentialResourceFromResponse(
 	if err != nil {
 		return AIGatewayConsumerCredentialResource{}, err
 	}
+	delete(payload, "managed_by")
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayConsumerCredentialResource{}, err

@@ -228,8 +228,6 @@ func stampOwnedChildChange(change *PlannedChange, meta *resources.KongctlMeta) {
 	}
 	if change.Action == ActionCreate {
 		change.Fields[FieldManagedBy] = resources.BuildChildManagedBy(
-			nil,
-			childManagedByField(change.Fields),
 			change.Namespace,
 			childMetaProtected(meta),
 			"",
@@ -263,17 +261,15 @@ func prepareOwnedChildDiff(
 		return nil
 	}
 	observed := childManagedByField(current)
-	merged := resources.BuildChildManagedBy(
-		observed,
-		childManagedByField(desired),
+	generated := resources.BuildChildManagedBy(
 		resources.GetNamespace(meta),
 		childMetaProtected(meta),
 		observed[resources.ManagedByVersionKey],
 	)
-	if err := resources.ValidateChildManagedBy(merged, false); err != nil {
+	if err := resources.ValidateChildManagedBy(generated, false); err != nil {
 		return err
 	}
-	desired[FieldManagedBy] = merged
+	desired[FieldManagedBy] = generated
 	if labels == nil {
 		desired[FieldLabels] = current[FieldLabels]
 	} else {

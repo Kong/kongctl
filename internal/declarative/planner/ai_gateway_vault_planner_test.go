@@ -69,8 +69,6 @@ func TestAIGatewayVaultPlannerOmittedDefaults(t *testing.T) {
 			current[FieldConfig] = currentConfig
 			current[FieldID] = "vault-id"
 			current[FieldManagedBy] = resources.BuildChildManagedBy(
-				nil,
-				nil,
 				"default",
 				false,
 				"dev",
@@ -260,8 +258,6 @@ func TestAIGatewayVaultPlansPreserveAPIConfigurations(t *testing.T) {
 				current := maps.Clone(vault)
 				current[FieldID] = "vault-id"
 				current[FieldManagedBy] = resources.BuildChildManagedBy(
-					nil,
-					nil,
 					"default",
 					false,
 					"dev",
