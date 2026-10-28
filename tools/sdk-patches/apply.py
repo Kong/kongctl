@@ -45,6 +45,9 @@ def configure_workflow(text, manifest):
 
 def replace_tag(text, patch):
     before, after = patch["before"], patch["after"]
+    optional_field = patch.get("optional_field")
+    if optional_field and not re.search(r"^\s*" + re.escape(optional_field) + r"\s", text, re.M):
+        return text
     if text.count(before) == 1 and after not in text:
         return text.replace(before, after, 1)
     if before not in text and text.count(after) == 1:

@@ -46,20 +46,28 @@ func TestPortalTeamRequestsPreserveMembershipManagement(t *testing.T) {
 	}
 }
 
-// Organization team membership management is present only in the internal SDK.
-func TestOrganizationTeamRequestsPreserveMembershipManagement(t *testing.T) {
-	for name, request := range map[string]any{"create": &CreateTeam{Name: "team"}, "update": &UpdateTeam{}} {
+// These fields are present only in the internal SDK.
+func TestInternalRequestsPreserveOptionalBooleans(t *testing.T) {
+	for name, tc := range map[string]struct {
+		request   any
+		fieldName string
+		jsonName  string
+	}{
+		"team create":   {&CreateTeam{Name: "team"}, "KonnectManaged", "konnect_managed"},
+		"team update":   {&UpdateTeam{}, "KonnectManaged", "konnect_managed"},
+		"portal create": {&CreatePortal{Name: "portal"}, "CreateDefaultContent", "create_default_content"},
+	} {
 		t.Run(name, func(t *testing.T) {
-			field := reflect.ValueOf(request).Elem().FieldByName("KonnectManaged")
+			field := reflect.ValueOf(tc.request).Elem().FieldByName(tc.fieldName)
 			if !field.IsValid() {
-				t.Skip("organization membership management is not exposed in this SDK")
+				t.Skip("field is not exposed in this SDK")
 			}
 			if field.Type() != reflect.TypeFor[*bool]() {
-				t.Fatalf("KonnectManaged type = %v, want *bool", field.Type())
+				t.Fatalf("%s type = %v, want *bool", tc.fieldName, field.Type())
 			}
 			for _, value := range []*bool{nil, new(false), new(true)} {
 				field.Set(reflect.ValueOf(value))
-				encoded, err := json.Marshal(request)
+				encoded, err := json.Marshal(tc.request)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -67,20 +75,20 @@ func TestOrganizationTeamRequestsPreserveMembershipManagement(t *testing.T) {
 				if err := json.Unmarshal(encoded, &fields); err != nil {
 					t.Fatal(err)
 				}
-				actual, present := fields["konnect_managed"]
+				actual, present := fields[tc.jsonName]
 				if value == nil && present {
-					t.Fatalf("omitted membership management serialized: %s", encoded)
+					t.Fatalf("omitted internal field serialized: %s", encoded)
 				}
 				if value != nil && (!present || actual != *value) {
-					t.Fatalf("membership management = %v, want %v: %s", actual, *value, encoded)
+					t.Fatalf("internal field = %v, want %v: %s", actual, *value, encoded)
 				}
 			}
 			field.SetZero()
-			if err := json.Unmarshal([]byte(`{"name":"team"}`), request); err != nil {
+			if err := json.Unmarshal([]byte(`{"name":"team"}`), tc.request); err != nil {
 				t.Fatal(err)
 			}
 			if !field.IsNil() {
-				t.Fatal("decoding an omitted field must not introduce membership management")
+				t.Fatal("decoding an omitted field must not introduce a default")
 			}
 		})
 	}

@@ -20,6 +20,10 @@ organization-team requests. It preserves omitted `konnect_managed` values
 without exposing internal fields in the public SDK. Explicit `false` and `true`
 remain supported.
 
+The internal-only `CreatePortal.create_default_content` field also stays
+omitted when unset. Its tag replacement skips public SDKs where the field is
+absent, but fails on unexpected tags or types when the field is present.
+
 ## Prepare and generate a patched SDK
 
 Use a separate, clean SDK checkout based on the release being upgraded. Install

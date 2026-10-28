@@ -46,6 +46,17 @@ class PatchTests(unittest.TestCase):
         self.assertEqual(patches.replace_tag(patch["before"], patch), patch["after"])
         self.assertEqual(patches.replace_tag(patch["after"], patch), patch["after"])
 
+    def test_optional_internal_field_preserves_absence_but_rejects_drift(self):
+        patch = self.manifest["post_generation"][1]
+        public = 'type CreatePortal struct {\nName string `json:"name"`\n}\n'
+        self.assertEqual(patches.replace_tag(public, patch), public)
+        self.assertEqual(patches.replace_tag(patch["before"], patch), patch["after"])
+        self.assertEqual(patches.replace_tag(patch["after"], patch), patch["after"])
+        with self.assertRaises(ValueError):
+            patches.replace_tag('CreateDefaultContent bool `json:"create_default_content"`', patch)
+        with self.assertRaises(ValueError):
+            patches.replace_tag(patch["before"] * 2, patch)
+
 
 if __name__ == "__main__":
     unittest.main()
