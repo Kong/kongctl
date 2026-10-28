@@ -111,9 +111,9 @@ func (p *Planner) reconcileOwnedAIGatewayModels(
 	if plan.Metadata.Mode != PlanModeSync {
 		return nil
 	}
-	// Directly constructed ResourceSets cannot record source namespace presence.
-	// Only use defaults as a fallback for an explicitly scoped empty collection.
-	if len(namespaces) == 0 && len(desired) == 0 {
+	// Legacy ResourceSets without source scope use defaults. An existing scope
+	// must supply its namespaces explicitly, just like the other child families.
+	if len(namespaces) == 0 && len(desired) == 0 && p.resources.SyncScope == nil {
 		for _, namespace := range p.resources.DefaultNamespaces {
 			namespaces[namespace] = true
 		}

@@ -330,3 +330,51 @@ func TestGatewayAliasesReconcileOneCompleteModelCollection(t *testing.T) {
 	require.ErrorContains(t, err, "duplicate desired AI Gateway model name")
 	require.Nil(t, plan)
 }
+
+func TestModelPruningDefaultsRequireAbsentSourceScope(t *testing.T) {
+	for _, variant := range []string{"model", "api"} {
+		for _, tc := range []struct {
+			name           string
+			scope, capture bool
+			defaults       []string
+			want           string
+		}{
+			{name: "legacy default", want: "default"},
+			{name: "legacy configured default", defaults: []string{"team-a"}, want: "team-a"},
+			{name: "uncaptured scope", scope: true},
+			{name: "uncaptured scope with defaults", scope: true, defaults: []string{"team-a"}},
+			{name: "captured scope", scope: true, capture: true, want: "team-a"},
+		} {
+			t.Run(variant+"/"+tc.name, func(t *testing.T) {
+				rs := &resources.ResourceSet{DefaultNamespaces: tc.defaults}
+				if tc.scope {
+					rs.SyncScope = resources.NewSyncScope()
+				}
+				if tc.capture {
+					rs.SyncScope.AddModelNamespace("shared", "team-a")
+				}
+				p := NewPlanner(state.NewClient(state.ClientConfig{}), slog.Default())
+				p.resources = rs
+				_, namespaces, err := p.modelGatewayDeclarations("shared", "gateway-id")
+				require.NoError(t, err)
+				current := []state.AIGatewayModel{}
+				for _, namespace := range []string{"default", "team-a"} {
+					model := federatedModel(t, namespace, namespace, variant)
+					current = append(current, state.AIGatewayModel{AIGatewayModel: observedFederatedModel(t, model)})
+				}
+				plan := NewPlan(CurrentPlanVersion, "test", PlanModeSync)
+				err = p.reconcileOwnedAIGatewayModels(t.Context(), "shared", "Shared", "gateway-id", nil, nil,
+					nil, current, namespaces, plan)
+				require.NoError(t, err)
+				if tc.want == "" {
+					require.Empty(t, plan.Changes)
+					return
+				}
+				require.Len(t, plan.Changes, 1)
+				require.Equal(t, ActionDelete, plan.Changes[0].Action)
+				require.Equal(t, tc.want, plan.Changes[0].Namespace)
+				require.Equal(t, tc.want+"-id", plan.Changes[0].ResourceID)
+			})
+		}
+	}
+}

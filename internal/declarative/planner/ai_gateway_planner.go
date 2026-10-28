@@ -155,6 +155,10 @@ func (p *Planner) aiGatewayRootSyncInScope(namespace string) bool {
 		return scoped
 	}
 	if len(p.resources.AIGateways) == 0 {
+		// Legacy programmatic scopes with a nil GatewayNamespaces map and no
+		// declarations prune gateways in every namespace. Callers needing namespace
+		// isolation must populate that map; an empty map disables root pruning.
+		// The loader always captures GatewayNamespaces for a scoped gateway root.
 		return true
 	}
 	for _, gateway := range p.resources.AIGateways {

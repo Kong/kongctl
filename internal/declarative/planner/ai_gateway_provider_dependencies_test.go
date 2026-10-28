@@ -95,6 +95,7 @@ func TestAIGatewayProviderModelSyncOrdering(t *testing.T) {
 			scope.AddChildNamespace(resources.ResourceTypeAIGatewayProvider, "support-gateway", "default")
 			if !tt.unscoped {
 				scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayModel)
+				scope.AddModelNamespace("support-gateway", "default")
 			}
 			rs := &resources.ResourceSet{
 				AIGateways: []resources.AIGatewayResource{testAIGatewayResource()}, SyncScope: scope,

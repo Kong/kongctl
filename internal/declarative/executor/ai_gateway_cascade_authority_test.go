@@ -37,7 +37,7 @@ func TestSavedGatewayCascadeEnforcesCurrentOwnerAndGatewayProtection(t *testing.
 	for _, tt := range []struct{ name, owner, protection, want string }{
 		{"owner", "platform", "false", ""},
 		{"ownership changed", "other-team", "false", "only its owner"},
-		{"unowned", "", "false", "only its owner"},
+		{"unowned", "", "false", "unowned; explicitly adopt it into namespace \"platform\" before deleting it"},
 		{"gateway protected", "platform", "true", "protected"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

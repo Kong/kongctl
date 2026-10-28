@@ -135,6 +135,7 @@ func TestAIGatewayModelPlannerSyncDeletesScopedModels(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayModel)
+	scope.AddModelNamespace("support-gateway", "default")
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -219,6 +220,7 @@ func TestAIGatewayModelPlannerSyncDeletesLastModelFromExternalGateway(t *testing
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
 	scope.AddChild(resources.ResourceTypeAIGateway, gateway.Ref, resources.ResourceTypeAIGatewayModel)
+	scope.AddModelNamespace(gateway.Ref, "default")
 
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{gateways: []kkComps.AIGateway{testAIGateway()}},

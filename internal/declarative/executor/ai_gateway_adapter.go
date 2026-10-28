@@ -113,7 +113,12 @@ func (a *AIGatewayAdapter) Delete(ctx context.Context, id string, execCtx *Execu
 		return nil
 	}
 	owner := current.NormalizedLabels[labels.NamespaceKey]
-	if owner == "" || owner != execCtx.Namespace {
+	if owner == "" {
+		return fmt.Errorf(
+			"AI Gateway is unowned; explicitly adopt it into namespace %q before deleting it", execCtx.Namespace,
+		)
+	}
+	if owner != execCtx.Namespace {
 		return fmt.Errorf(
 			"AI Gateway belongs to namespace %q, not %q; only its owner can delete the gateway",
 			owner, execCtx.Namespace,
