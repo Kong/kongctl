@@ -17,6 +17,7 @@ not become `all` in a PATCH request.
 
 Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
+Explicit `false` and `true` remain supported.
 
 ## Prepare and generate a patched SDK
 
