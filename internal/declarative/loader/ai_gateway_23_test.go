@@ -62,7 +62,17 @@ func TestAIGateway23ManifestFields(t *testing.T) {
     name: mcp
     display_name: MCP
     type: passthrough-listener
-    tools: []
+    tools:
+    - name: search
+      access:
+        acls:
+          allow_when: ["http.headers.x_end_user_id != null"]
+    access:
+      acl_attribute_type: consumer
+      acls:
+        allow_when: ["http.headers.x_end_user_id != null"]
+      default_tool_acls:
+        deny_when: ["http.headers.x_end_user_id == null"]
     config:
       url: https://mcp.test
       certificates: [client-cert]
@@ -102,6 +112,16 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 	require.Equal(t, []any{map[string]any{"name": "credential-store"}}, mcp["datastores"])
 	require.Equal(t, "upstream-credentials", mcp["token_vault"].(map[string]any)["provider"])
 	require.NotEmpty(t, mcp["rate_limiting"])
+	access := mcp["access"].(map[string]any)
+	require.Equal(t, []any{"http.headers.x_end_user_id != null"}, access["acls"].(map[string]any)["allow_when"])
+	require.Equal(
+		t,
+		[]any{"http.headers.x_end_user_id == null"},
+		access["default_tool_acls"].(map[string]any)["deny_when"],
+	)
+	tool := mcp["tools"].([]any)[0].(map[string]any)
+	toolAccess := tool["access"].(map[string]any)
+	require.Equal(t, []any{"http.headers.x_end_user_id != null"}, toolAccess["acls"].(map[string]any)["allow_when"])
 }
 
 func TestAIGatewayDatastoreLoadAndDump(t *testing.T) {

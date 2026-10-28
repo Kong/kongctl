@@ -930,6 +930,14 @@ a positive `limit` and a `window_size` of 1, 60, 3600, or 86400 seconds. Limits
 are counted independently on each AI Gateway node. Rate limiting applies to
 listener-style MCP servers, not upstream-only server definitions.
 
+MCP server and tool ACLs also accept `allow_when` and `deny_when` arrays of
+CEL boolean expressions with runtime 2.3. These fields can be used under
+`access.acls`, `access.default_tool_acls`, and tool-level `access.acls`.
+
+Auth strategy configs expose common SDK fields and also preserve additional
+plugin properties. `explain` lists the common fields; use the plugin schema
+for the target runtime when configuring advanced properties.
+
 ### Organization-wide AI cost-tag capture
 
 `ai_cost_management_tags` is a regional organization-wide singleton, separate
