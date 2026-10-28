@@ -39,7 +39,7 @@ func ownedDesiredMetadata[D any](desired *D) (*resources.KongctlMeta, error) {
 }
 
 func childMetaProtected(meta *resources.KongctlMeta) bool {
-	return meta != nil && meta.Protected != nil && *meta.Protected
+	return meta.IsProtected()
 }
 
 // Reuse typed lifecycle callbacks, but reconcile the complete canonical gateway
@@ -135,6 +135,13 @@ func reconcileOwnedNameMatchedCollection[D, C any](
 		}
 		if _, matched := names[name]; matched ||
 			(m[resources.ChildNamespaceKey] != "" && namespaces[m[resources.ChildNamespaceKey]]) {
+			// Prune candidates need the same validation as name matches before
+			// malformed protection can be interpreted as unprotected.
+			if plan.Metadata.Mode == PlanModeSync && !matched {
+				if err := resources.ValidateChildOwnership(kind, m, m[resources.ChildNamespaceKey]); err != nil {
+					return err
+				}
+			}
 			filtered = append(filtered, value)
 		}
 	}

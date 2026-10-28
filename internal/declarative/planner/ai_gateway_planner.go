@@ -89,9 +89,7 @@ func (p *Planner) planAIGatewayChanges(
 	if plan.Metadata.Mode == PlanModeDelete {
 		for _, desiredGateway := range desired {
 			if desiredGateway.IsExternal() {
-				if err := p.planAIGatewayModelChanges(ctx, namespace, desiredGateway.Ref,
-					desiredGateway.Name, desiredGateway.GetKonnectID(), "", nil, nil,
-					p.resources.GetAIGatewayModelsForGateway(desiredGateway.Ref), plan); err != nil {
+				if err := p.planExternalAIGatewayChildren(ctx, plannerCtx, namespace, desiredGateway, plan); err != nil {
 					return err
 				}
 				continue

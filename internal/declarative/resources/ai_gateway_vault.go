@@ -510,7 +510,7 @@ func aiGatewayConfigStoreIDExplainNode() *ExplainNode {
 }
 
 func (a AIGatewayVaultResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func (a AIGatewayVaultResource) PublicLabels() map[string]string {

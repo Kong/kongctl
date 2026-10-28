@@ -396,5 +396,5 @@ func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 }
 
 func (a AIGatewayConsumerResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }

@@ -78,7 +78,7 @@ func buildAIGatewayChildCollectors() []aiGatewayChildCollector {
 		childCollection(
 			"failed to load AI Gateway models",
 			func(ctx context.Context, d *childDumpContext) ([]declresources.AIGatewayModelResource, error) {
-				return buildAIGatewayModels(ctx, d.client, d.parentID, d.parentName, "")
+				return buildAIGatewayModels(ctx, d.logger, d.client, d.parentID, d.parentName, "")
 			},
 			func(g *declresources.AIGatewayResource) *[]declresources.AIGatewayModelResource { return &g.Models },
 		),

@@ -51,7 +51,7 @@ func BuildModelManagedBy(
 }
 
 func (a AIGatewayModelResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func ValidateModelOwnership(metadata map[string]string, namespace string) error {

@@ -429,7 +429,7 @@ func policyNamespaceParticipant(r *AIGatewayPolicyResource) NamespaceParticipant
 }
 
 func (a AIGatewayPolicyResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func capturePolicyNamespaceScopes(rs *ResourceSet, defaultNamespace string) {

@@ -160,6 +160,21 @@ func (p *Planner) shouldPlanChild(
 	parentRef string,
 	rt resources.ResourceType,
 ) bool {
+	if plan != nil && plan.Metadata.Mode == PlanModeDelete && parentType == resources.ResourceTypeAIGateway &&
+		!resources.HasIndependentChildOwnership(rt) {
+		if p.resources != nil {
+			for _, child := range p.resources.AllResourcesByType(rt) {
+				if resource, ok := child.(resources.ResourceWithParent); ok {
+					if parent := resource.GetParentRef(); parent != nil && resources.NormalizeResourceRef(parent.Ref) == parentRef {
+						plan.AddWarning(child.GetRef(), fmt.Sprintf(
+							"direct delete of %s under an external AI Gateway is not supported; resource retained", rt,
+						))
+					}
+				}
+			}
+		}
+		return false
+	}
 	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
 	if planAll {
 		return true

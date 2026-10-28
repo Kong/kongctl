@@ -414,7 +414,7 @@ func providerNamespaceParticipant(r *AIGatewayProviderResource) NamespacePartici
 }
 
 func (a AIGatewayProviderResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func captureProviderNamespaceScopes(rs *ResourceSet, defaultNamespace string) {

@@ -11,6 +11,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type lossyManagedByRequest struct {
+	Mode      string            `json:"mode"`
+	Type      string            `json:"type"`
+	Secret    *string           `json:"secret,omitempty"`
+	Count     int64             `json:"count"`
+	ManagedBy map[string]string `json:"managed_by,omitempty"`
+}
+
+func (r *lossyManagedByRequest) UnmarshalJSON(data []byte) error {
+	type plain lossyManagedByRequest
+	var decoded plain
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*r = lossyManagedByRequest(decoded)
+	switch r.Mode {
+	case "drop-field":
+		r.Secret = nil
+	case "change-variant":
+		r.Type = "other"
+	case "change-integer":
+		r.Count++
+	}
+	return nil
+}
+
+func TestManagedByStampRejectsLossyPayloadRoundTrip(t *testing.T) {
+	for _, mode := range []string{"drop-field", "change-variant", "change-integer"} {
+		t.Run(mode, func(t *testing.T) {
+			request := lossyManagedByRequest{
+				Mode: mode, Type: "original", Secret: new("synthetic-sensitive-value"), Count: 9007199254740992,
+			}
+			before := request
+			err := stampManagedByRequest(t.Context(), resources.ResourceTypeAIGatewayProvider, &request)
+			require.ErrorContains(t, err, "did not preserve payload")
+			require.NotContains(t, err.Error(), *request.Secret)
+			require.Equal(t, before, request, "failed stamping must not mutate the caller's request")
+		})
+	}
+}
+
 func TestManagedByProvenancePreservesSDKPayloads(t *testing.T) {
 	const (
 		modelProvider = `{

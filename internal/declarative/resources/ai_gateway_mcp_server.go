@@ -692,7 +692,7 @@ func aiGatewayMCPACLsExplainNode() *ExplainNode {
 }
 
 func (a AIGatewayMCPServerResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func (a AIGatewayMCPServerResource) PublicLabels() map[string]string {

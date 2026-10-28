@@ -364,7 +364,7 @@ func authStrategyNamespaceParticipant(r *AIGatewayAuthStrategyResource) Namespac
 }
 
 func (a AIGatewayAuthStrategyResource) Protected() bool {
-	return a.Kongctl != nil && a.Kongctl.Protected != nil && *a.Kongctl.Protected
+	return a.Kongctl.IsProtected()
 }
 
 func captureAuthStrategyNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
