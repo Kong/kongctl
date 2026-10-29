@@ -5,13 +5,17 @@ organization for audits and offboarding:
 
 ```sh
 kongctl get org pats
-kongctl get org pats --org-id <organization-id> -o json
+kongctl get org pats -o json
 ```
 
-Without `--org-id`, kongctl resolves the current organization through
-`/v3/organizations/me`. With `--org-id`, kongctl queries that organization
-directly. Access is subject to Konnect authorization; specifying an ID does
-not grant access to another organization.
+kongctl resolves the current organization through `/v3/organizations/me`.
+Authentication must support that route; service-account authentication that
+cannot call `/me` is not supported by this command.
+
+Organization selection is unavailable while the API returns the same token
+inventory for different organization IDs in the request path. For direct
+requests, use `kongctl api` as shown below; the path ID should not be relied on
+to select another organization's inventory.
 
 The command fetches every page. Use `--page-size` to control the number of
 records per request. Text output includes token ID, name, user ID, and state;

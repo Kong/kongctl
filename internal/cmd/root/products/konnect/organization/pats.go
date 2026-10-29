@@ -17,6 +17,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/apiutil"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/util/pagination"
 	"github.com/segmentio/cli"
 	"github.com/spf13/cobra"
 )
@@ -28,10 +29,10 @@ func newGetOrganizationPATsCmd(
 ) *cobra.Command {
 	c := &cobra.Command{
 		Use: "pats", Aliases: []string{"pat"},
-		Short: "List personal access tokens in an organization",
-		Long: "List all personal access tokens in an organization. Requires organization administrator access. " +
-			"Defaults to the organization associated with your authentication token.",
-		Example: "  kongctl get org pats\n  kongctl get org pats --org-id <organization-id> -o json",
+		Short: "List personal access tokens in the current organization",
+		Long: "List all personal access tokens in the current organization. Requires organization administrator " +
+			"access and authentication that supports /v3/organizations/me.",
+		Example: fmt.Sprintf("  kongctl %s org pats\n  kongctl %s org pats -o json", verb, verb),
 		Args:    cobra.NoArgs, PreRunE: parentPreRun,
 		RunE: func(c *cobra.Command, args []string) error {
 			return runGetOrganizationPATs(cmd.BuildHelper(c, args))
@@ -40,18 +41,10 @@ func newGetOrganizationPATsCmd(
 	if addParentFlags != nil {
 		addParentFlags(verb, c)
 	}
-	c.Flags().String("org-id", "", "Organization ID (defaults to the current organization)")
 	return c
 }
 
 func runGetOrganizationPATs(helper cmd.Helper) error {
-	orgID, err := helper.GetCmd().Flags().GetString("org-id")
-	if err != nil {
-		return err
-	}
-	if helper.GetCmd().Flags().Changed("org-id") && strings.TrimSpace(orgID) == "" {
-		return fmt.Errorf("--org-id cannot be empty")
-	}
 	cfg, err := helper.GetConfig()
 	if err != nil {
 		return err
@@ -73,7 +66,7 @@ func runGetOrganizationPATs(helper cmd.Helper) error {
 		pageSize = common.DefaultRequestPageSize
 	}
 	tokens, err := fetchOrganizationPATs(helper.GetContext(), httpclient.NewLoggingHTTPClient(logger),
-		baseURL, tokenSource, strings.TrimSpace(orgID), pageSize)
+		baseURL, tokenSource, pageSize)
 	if err != nil {
 		return cmd.PrepareExecutionError("Failed to list organization personal access tokens", err, helper.GetCmd())
 	}
@@ -105,7 +98,7 @@ func runGetOrganizationPATs(helper cmd.Helper) error {
 
 func fetchOrganizationPATs(
 	ctx context.Context, client apiutil.Doer, baseURL string, tokenSource apiutil.TokenSource,
-	orgID string, pageSize int,
+	pageSize int,
 ) ([]kkComps.PersonalAccessToken, error) {
 	get := func(endpoint string, payload any) error {
 		res, err := apiutil.RequestWithTokenSource(ctx, client, http.MethodGet, baseURL,
@@ -121,26 +114,24 @@ func fetchOrganizationPATs(
 		}
 		return nil
 	}
-	if orgID == "" {
-		var org struct {
-			ID string `json:"id"`
-		}
-		if err := get("/v3/organizations/me", &org); err != nil {
-			return nil, err
-		}
-		orgID = org.ID
-		if orgID == "" {
-			return nil, fmt.Errorf("current organization response has no ID")
-		}
+	var org struct {
+		ID string `json:"id"`
 	}
-	path := "/v3/organizations/" + url.PathEscape(orgID) + "/personal-access-tokens"
+	if err := get("/v3/organizations/me", &org); err != nil {
+		return nil, fmt.Errorf("current organization lookup requires /v3/organizations/me support: %w", err)
+	}
+	if org.ID == "" {
+		return nil, fmt.Errorf("current organization response has no ID")
+	}
+	path := "/v3/organizations/" + url.PathEscape(org.ID) + "/personal-access-tokens"
 	query := url.Values{"page[size]": {strconv.Itoa(pageSize)}}
 	tokens := make([]kkComps.PersonalAccessToken, 0)
-	seen := make(map[string]bool)
+	var cursors pagination.CursorTracker
 	for {
 		var page struct {
 			Data []kkComps.PersonalAccessToken `json:"data"`
 			Meta struct {
+				Next *string `json:"next"`
 				Page struct {
 					Next *string `json:"next"`
 				} `json:"page"`
@@ -150,18 +141,17 @@ func fetchOrganizationPATs(
 			return nil, err
 		}
 		tokens = append(tokens, page.Data...)
-		if page.Meta.Page.Next == nil || *page.Meta.Page.Next == "" {
+		nextLink := page.Meta.Next
+		if nextLink == nil {
+			nextLink = page.Meta.Page.Next
+		}
+		after, err := cursors.Next(nextLink)
+		if err != nil {
+			return nil, fmt.Errorf("PAT pagination: %w", err)
+		}
+		if after == "" {
 			return tokens, nil
 		}
-		next, err := url.Parse(*page.Meta.Page.Next)
-		if err != nil {
-			return nil, fmt.Errorf("invalid PAT pagination link: %w", err)
-		}
-		after := next.Query().Get("page[after]")
-		if after == "" || seen[after] {
-			return nil, fmt.Errorf("invalid or repeated PAT pagination cursor")
-		}
-		seen[after] = true
 		query.Set("page[after]", after)
 	}
 }

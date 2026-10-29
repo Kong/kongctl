@@ -23,7 +23,11 @@ func TestOrganizationPATsOutput(t *testing.T) {
 	for _, format := range []string{"json", "yaml", "text"} {
 		t.Run(format, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, "/v3/organizations/selected-org/personal-access-tokens", r.URL.Path)
+				if r.URL.Path == "/v3/organizations/me" {
+					_, _ = fmt.Fprint(w, `{"id":"current-org","owner_id":"owner-id"}`)
+					return
+				}
+				require.Equal(t, "/v3/organizations/current-org/personal-access-tokens", r.URL.Path)
 				_, _ = fmt.Fprint(w, `{"data":[{"id":"token-id","name":"audit-token","user_id":"owner-id","state":"ACTIVE"}]}`)
 			}))
 			defer server.Close()
@@ -50,7 +54,7 @@ func TestOrganizationPATsOutput(t *testing.T) {
 			ctx = context.WithValue(ctx, iostreams.StreamsKey, streams)
 			ctx = context.WithValue(ctx, log.LoggerKey, slog.New(slog.DiscardHandler))
 			c.SetContext(ctx)
-			c.SetArgs([]string{"--org-id", "selected-org"})
+			c.SetArgs(nil)
 			require.NoError(t, c.Execute())
 			require.Contains(t, out.String(), "audit-token")
 			require.Contains(t, out.String(), "owner-id")
@@ -62,8 +66,8 @@ func TestOrganizationPATsOutput(t *testing.T) {
 }
 
 func TestFetchOrganizationPATs(t *testing.T) {
-	for _, orgID := range []string{"", "other-org"} {
-		t.Run("org="+orgID, func(t *testing.T) {
+	for _, shape := range []string{"flat", "nested", "cursor"} {
+		t.Run(shape, func(t *testing.T) {
 			lookups, pages := 0, 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				require.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
@@ -73,17 +77,13 @@ func TestFetchOrganizationPATs(t *testing.T) {
 					_, _ = fmt.Fprint(w, `{"id":"current-org"}`)
 					return
 				}
-				wantOrg := orgID
-				if wantOrg == "" {
-					wantOrg = "current-org"
-				}
-				require.Equal(t, "/v3/organizations/"+wantOrg+"/personal-access-tokens", r.URL.Path)
+				require.Equal(t, "/v3/organizations/current-org/personal-access-tokens", r.URL.Path)
 				require.Equal(t, "2", r.URL.Query().Get("page[size]"))
 				pages++
 				if pages == 1 {
 					require.Empty(t, r.URL.Query().Get("page[after]"))
 					_, _ = fmt.Fprint(w, `{"data":[{"id":"token-1","name":"first","user_id":"user-1","state":"ACTIVE"}],`+
-						`"meta":{"page":{"next":"/v3/organizations/org/personal-access-tokens?page%5Bafter%5D=cursor"}}}`)
+						paginationMeta(shape))
 				} else {
 					require.Equal(t, "cursor", r.URL.Query().Get("page[after]"))
 					_, _ = fmt.Fprint(w, `{"data":[{"id":"token-2","name":"second","user_id":"user-2","state":"REVOKED"}],`+
@@ -92,46 +92,47 @@ func TestFetchOrganizationPATs(t *testing.T) {
 			}))
 			defer server.Close()
 			tokens, err := fetchOrganizationPATs(t.Context(), server.Client(), server.URL,
-				apiutil.NewStaticTokenSource("test-token"), orgID, 2)
+				apiutil.NewStaticTokenSource("test-token"), 2)
 			require.NoError(t, err)
 			require.Len(t, tokens, 2)
 			require.Equal(t, "token-2", tokens[1].ID)
 			require.Equal(t, 2, pages)
-			if orgID == "" {
-				require.Equal(t, 1, lookups)
-			} else {
-				require.Zero(t, lookups)
-			}
+			require.Equal(t, 1, lookups)
 		})
 	}
 }
 
 func TestFetchOrganizationPATsErrors(t *testing.T) {
 	for _, tc := range []struct {
-		name, body, orgID, want string
-		status                  int
+		name, body, want string
+		lookup           bool
+		status           int
 	}{
-		{name: "forbidden", status: 403, body: `{"message":"Forbidden"}`, orgID: "org", want: "status 403"},
-		{name: "lookup unauthorized", status: 401, body: `{}`, want: "status 401"},
-		{name: "missing org ID", status: 200, body: `{}`, want: "has no ID"},
-		{name: "malformed response", status: 200, body: `invalid`, orgID: "org", want: "decode"},
+		{name: "forbidden", status: 403, body: `{"message":"Forbidden"}`, want: "status 403"},
+		{name: "lookup unauthorized", lookup: true, status: 401, body: `{}`, want: "status 401"},
+		{name: "missing org ID", lookup: true, status: 200, body: `{}`, want: "has no ID"},
+		{name: "malformed response", status: 200, body: `invalid`, want: "decode"},
 		{
-			name: "invalid cursor", status: 200, body: `{"meta":{"page":{"next":"/no-cursor"}}}`,
-			orgID: "org", want: "pagination cursor",
+			name: "invalid cursor", status: 200, body: `{"meta":{"page":{"next":"/no-cursor?size=10"}}}`,
+			want: "pagination",
 		},
 		{
 			name: "repeated cursor", status: 200, body: `{"meta":{"page":{"next":"?page%5Bafter%5D=same"}}}`,
-			orgID: "org", want: "pagination cursor",
+			want: "pagination",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/v3/organizations/me" && !tc.lookup {
+					_, _ = fmt.Fprint(w, `{"id":"current-org"}`)
+					return
+				}
 				w.WriteHeader(tc.status)
 				_, _ = fmt.Fprint(w, tc.body)
 			}))
 			defer server.Close()
 			_, err := fetchOrganizationPATs(t.Context(), server.Client(), server.URL,
-				apiutil.NewStaticTokenSource("test-token"), tc.orgID, 10)
+				apiutil.NewStaticTokenSource("test-token"), 10)
 			require.ErrorContains(t, err, tc.want)
 		})
 	}
@@ -145,7 +146,20 @@ func TestOrganizationPATsCommand(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "pats", pats.Name())
 		require.NotNil(t, pats.RunE)
-		require.NotNil(t, pats.Flags().Lookup("org-id"))
+		require.Nil(t, pats.Flags().Lookup("org-id"))
+		c.SetArgs([]string{"pats", "--org-id", "other-org"})
+		require.ErrorContains(t, c.Execute(), "unknown flag: --org-id")
 		require.Error(t, pats.Args(pats, []string{"unexpected"}))
 	}
+}
+
+func paginationMeta(shape string) string {
+	if shape == "cursor" {
+		return `"meta":{"next":"cursor"}}`
+	}
+	next := `"next":"/v3/organizations/current-org/personal-access-tokens?page%5Bafter%5D=cursor"`
+	if shape == "nested" {
+		return `"meta":{"page":{` + next + `}}}`
+	}
+	return `"meta":{` + next + `}}`
 }
