@@ -159,3 +159,74 @@ portals:
 		}
 	}
 }
+
+func TestPortalParentSelectorRefRejectsMissingTarget(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "repro.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`portals:
+  - ref: repro-portal
+    name: Repro Portal
+portal_pages:
+  - ref: home
+    portal: !ref repro-portl#id
+    slug: /
+    content: Home
+`), 0o600))
+	_, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
+	require.ErrorContains(t, err, "resource not found: repro-portl")
+	require.ErrorContains(t, err, "/portal")
+}
+
+func TestPortalTeamParentSelectorRefDependencies(t *testing.T) {
+	for _, selector := range []string{"portal-team", "!ref portal-team", "!ref portal-team#id", "!ref portal-team#name"} {
+		t.Run(selector, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "repro.yaml")
+			require.NoError(t, os.WriteFile(path, fmt.Appendf(nil, `portals:
+  - ref: repro-portal
+    name: Repro Portal
+portal_teams:
+  - ref: portal-team
+    portal: !ref repro-portal
+    name: Readers
+portal_team_group_mappings:
+  - ref: reader-groups
+    portal: !ref repro-portal
+    team: %s
+    groups: [readers]
+portal_team_roles:
+  - ref: reader-role
+    portal: !ref repro-portal
+    team: %s
+    role_name: API Viewer
+    entity_id: 11111111-1111-1111-1111-111111111111
+    entity_type_name: APIs
+    entity_region: us
+`, selector, selector), 0o600))
+			rs, err := loader.New().LoadFromSources([]loader.Source{{Path: path, Type: loader.SourceTypeFile}}, false)
+			require.NoError(t, err)
+			api := new(MockPortalAPI)
+			api.On("ListPortals", mock.Anything, mock.Anything).Return(&kkOps.ListPortalsResponse{
+				ListPortalsResponse: &kkComps.ListPortalsResponse{}, StatusCode: 200,
+			}, nil)
+			plan, err := NewPlanner(state.NewClient(state.ClientConfig{PortalAPI: api}), slog.Default()).GeneratePlan(
+				t.Context(), rs, Options{Mode: PlanModeApply},
+			)
+			require.NoError(t, err)
+			teamChangeID := ""
+			for _, change := range plan.Changes {
+				if change.ResourceType == ResourceTypePortalTeam {
+					teamChangeID = change.ID
+				}
+			}
+			require.NotEmpty(t, teamChangeID)
+			requirePlanChange(t, plan, ResourceTypePortalTeamGroupMapping, ActionUpdate)
+			requirePlanChange(t, plan, ResourceTypePortalTeamRole, ActionCreate)
+			for _, change := range plan.Changes {
+				if change.ResourceType == ResourceTypePortalTeamGroupMapping || change.ResourceType == ResourceTypePortalTeamRole {
+					require.Equal(t, "portal-team", change.References[FieldTeamID].Ref)
+					require.Equal(t, "Readers", change.References[FieldTeamID].LookupFields[FieldName])
+					require.Contains(t, change.DependsOn, teamChangeID)
+				}
+			}
+		})
+	}
+}

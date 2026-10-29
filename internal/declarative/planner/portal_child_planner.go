@@ -4216,6 +4216,7 @@ func (p *Planner) planPortalTeamGroupMappingsChanges(
 	}
 
 	for _, mapping := range desired {
+		mapping.Team = resources.NormalizeResourceRef(mapping.Team)
 		if plan.HasChange(ResourceTypePortalTeamGroupMapping, mapping.GetRef()) {
 			continue
 		}
@@ -4641,6 +4642,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 	rolesByTeam := make(map[string][]resources.PortalTeamRoleResource)
 	for _, role := range p.desiredPortalTeamRoles {
 		role.Portal = resources.NormalizeResourceRef(role.Portal)
+		role.Team = resources.NormalizeResourceRef(role.Team)
 		if role.Portal == portalRef {
 			rolesByTeam[role.Team] = append(rolesByTeam[role.Team], role)
 		}
