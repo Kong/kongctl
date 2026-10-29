@@ -201,6 +201,7 @@ func (p *portalPlannerImpl) planPortalDeletes(
 			}
 			pages := make([]resources.PortalPageResource, 0)
 			for _, page := range p.planner.desiredPortalPages {
+				page.Portal = resources.NormalizeResourceRef(page.Portal)
 				if page.Portal == desiredPortal.Ref {
 					pages = append(pages, page)
 				}

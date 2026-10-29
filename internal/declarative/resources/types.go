@@ -399,6 +399,7 @@ func (rs *ResourceSet) GetResourceTypeByRef(ref string) (ResourceType, bool) {
 
 // GetPortalByRef returns a portal resource by its ref from any namespace
 func (rs *ResourceSet) GetPortalByRef(ref string) *PortalResource {
+	ref = NormalizeResourceRef(ref)
 	for i := range rs.Portals {
 		if rs.Portals[i].GetRef() == ref {
 			return &rs.Portals[i]
@@ -409,6 +410,7 @@ func (rs *ResourceSet) GetPortalByRef(ref string) *PortalResource {
 
 // GetAPIByRef returns an API resource by its ref from any namespace
 func (rs *ResourceSet) GetAPIByRef(ref string) *APIResource {
+	ref = NormalizeResourceRef(ref)
 	for i := range rs.APIs {
 		if rs.APIs[i].GetRef() == ref {
 			return &rs.APIs[i]
