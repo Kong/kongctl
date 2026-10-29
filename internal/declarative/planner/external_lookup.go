@@ -849,7 +849,8 @@ func visitStringFieldsByPath(resource resources.Resource, path string, visit fun
 		current = current.Elem()
 	}
 
-	//exhaustive:ignore reflect.Kind is validated by the default branch.
+	// reflect.Kind is validated by the default branch.
+	//exhaustive:ignore
 	switch current.Kind() {
 	case reflect.String:
 		return visit(current.String(), func(resolved string) { current.SetString(resolved) })

@@ -174,7 +174,8 @@ func convertToString(val reflect.Value) string {
 		val = val.Elem()
 	}
 
-	//exhaustive:ignore // Remaining kinds use general interface formatting.
+	// Remaining kinds use general interface formatting.
+	//exhaustive:ignore
 	switch val.Kind() {
 	case reflect.Invalid:
 		return "<invalid>"

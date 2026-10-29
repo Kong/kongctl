@@ -60,7 +60,8 @@ func (r *EnvTagResolver) Resolve(node *yaml.Node) (any, error) {
 }
 
 func parseEnvNode(node *yaml.Node) (string, string, error) {
-	//exhaustive:ignore // All non-scalar, non-map nodes share the same error.
+	// All non-scalar, non-map nodes share the same error.
+	//exhaustive:ignore
 	switch node.Kind {
 	case yaml.ScalarNode:
 		varRef, extractPath, hasDelim := strings.Cut(node.Value, "#")

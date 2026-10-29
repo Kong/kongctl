@@ -71,7 +71,8 @@ func emptyAPIAttributes(v any) bool {
 
 	val := reflect.ValueOf(v)
 
-	//exhaustive:ignore // Other reflection kinds are not considered empty.
+	// Other reflection kinds are not considered empty.
+	//exhaustive:ignore
 	switch val.Kind() {
 	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
