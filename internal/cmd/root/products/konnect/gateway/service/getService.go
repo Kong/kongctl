@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -242,7 +243,10 @@ func (c *getServiceCmd) runGet(
 	printer cli.PrintFlusher,
 	outputFormat cmdCommon.OutputFormat,
 ) error {
-	res, err := kkClient.Services.GetService(helper.GetContext(), cpID, id)
+	res, err := kkClient.Services.GetService(helper.GetContext(), operations.GetServiceRequest{
+		ControlPlaneID: cpID,
+		ServiceID:      id,
+	})
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return cmd.PrepareExecutionError("Failed to get Gateway Service", err, helper.GetCmd(), attrs...)

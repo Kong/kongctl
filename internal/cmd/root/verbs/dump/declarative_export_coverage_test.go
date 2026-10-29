@@ -116,7 +116,7 @@ type exportCoverageHTTPClient func(*http.Request) (*http.Response, error)
 func (f exportCoverageHTTPClient) Do(req *http.Request) (*http.Response, error) { return f(req) }
 
 func TestControlPlaneChildExportTraversal(t *testing.T) {
-	const servicesPath = "core-entities/services"
+	const servicesPath = "core-entities/default/services"
 	const certificatesPath = "dp-client-certificates"
 	for _, tt := range []struct {
 		name        string
