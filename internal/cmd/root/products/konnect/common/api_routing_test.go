@@ -1,11 +1,51 @@
 package common
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/kong/kongctl/internal/config"
+	utilviper "github.com/kong/kongctl/internal/util/viper"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
+
+func TestResolveAPIBaseURLWithProfiledConfig(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		fileConfig   string
+		explicitFlag bool
+		want         string
+	}{
+		{name: "default", want: GlobalBaseURL},
+		{name: "explicit flag", explicitFlag: true, want: BaseURLDefault},
+		{
+			name: "explicit file", fileConfig: "default:\n  konnect:\n    base-url: https://eu.api.konghq.com\n",
+			want: "https://eu.api.konghq.com",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mainv := utilviper.NewViper("nonexistent.yaml")
+			if tc.fileConfig != "" {
+				mainv.SetConfigType("yaml")
+				require.NoError(t, mainv.ReadConfig(strings.NewReader(tc.fileConfig)))
+			}
+			cfg := config.BuildProfiledConfig("default", "nonexistent.yaml", mainv)
+			c := &cobra.Command{Use: "api"}
+			c.Flags().String(BaseURLFlagName, "", "")
+			require.NoError(t, cfg.BindFlag(BaseURLConfigPath, c.Flags().Lookup(BaseURLFlagName)))
+			if tc.explicitFlag {
+				require.NoError(t, c.Flags().Set(BaseURLFlagName, BaseURLDefault))
+			}
+			got, err := ResolveAPIBaseURL(c, cfg, "/v3/organizations/org/personal-access-tokens")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+			got, err = ResolveAPIBaseURL(c, cfg, "/v3/organizations/org/personal-access-tokens")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got, "cached base URL must retain routing behavior")
+		})
+	}
+}
 
 func TestResolveAPIBaseURL(t *testing.T) {
 	for _, tc := range []struct {

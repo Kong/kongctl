@@ -22,6 +22,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const maxOrganizationPATPages = 10000
+
 func newGetOrganizationPATsCmd(
 	verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
@@ -61,10 +63,7 @@ func runGetOrganizationPATs(helper cmd.Helper) error {
 	if err != nil {
 		return err
 	}
-	pageSize := cfg.GetInt(common.RequestPageSizeConfigPath)
-	if pageSize <= 0 {
-		pageSize = common.DefaultRequestPageSize
-	}
+	pageSize := int(common.ResolveRequestPageSize(cfg))
 	tokens, err := fetchOrganizationPATs(helper.GetContext(), httpclient.NewLoggingHTTPClient(logger),
 		baseURL, tokenSource, pageSize)
 	if err != nil {
@@ -127,7 +126,7 @@ func fetchOrganizationPATs(
 	query := url.Values{"page[size]": {strconv.Itoa(pageSize)}}
 	tokens := make([]kkComps.PersonalAccessToken, 0)
 	var cursors pagination.CursorTracker
-	for {
+	for range maxOrganizationPATPages {
 		var page struct {
 			Data []kkComps.PersonalAccessToken `json:"data"`
 			Meta struct {
@@ -154,4 +153,6 @@ func fetchOrganizationPATs(
 		}
 		query.Set("page[after]", after)
 	}
+	return nil, fmt.Errorf("PAT pagination exceeded safety limit of %d pages; increase --page-size",
+		maxOrganizationPATPages)
 }

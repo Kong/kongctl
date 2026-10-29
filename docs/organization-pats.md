@@ -18,7 +18,9 @@ requests, use `kongctl api` as shown below; the path ID should not be relied on
 to select another organization's inventory.
 
 The command fetches every page. Use `--page-size` to control the number of
-records per request. Text output includes token ID, name, user ID, and state;
+records per request. A safety limit of 10,000 pages returns an error instead
+of an incomplete inventory; increase `--page-size` to request fewer pages.
+Text output includes token ID, name, user ID, and state;
 JSON and YAML output include the full token metadata, including expiration
 and last-used timestamps. Token secrets are not returned by this API.
 

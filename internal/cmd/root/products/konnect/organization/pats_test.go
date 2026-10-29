@@ -3,9 +3,11 @@ package organization
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	cmdcommon "github.com/kong/kongctl/internal/cmd/common"
@@ -18,6 +20,45 @@ import (
 	configtest "github.com/kong/kongctl/test/config"
 	"github.com/stretchr/testify/require"
 )
+
+type organizationPATDoer func(*http.Request) (*http.Response, error)
+
+func (f organizationPATDoer) Do(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestFetchOrganizationPATsPageLimit(t *testing.T) {
+	const pageLimit = 10000
+	for _, stopAtLimit := range []bool{false, true} {
+		t.Run(fmt.Sprintf("stops=%t", stopAtLimit), func(t *testing.T) {
+			pages := 0
+			client := organizationPATDoer(func(r *http.Request) (*http.Response, error) {
+				body := `{"id":"current-org"}`
+				if r.URL.Path != "/v3/organizations/me" {
+					pages++
+					if pages > pageLimit {
+						return nil, fmt.Errorf("requested page beyond test limit")
+					}
+					body = fmt.Sprintf(`{"data":[],"meta":{"next":"cursor-%d"}}`, pages)
+					if stopAtLimit && pages == pageLimit {
+						body = `{"data":[],"meta":{"next":null}}`
+					}
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+			})
+			tokens, err := fetchOrganizationPATs(t.Context(), client, "https://example.com",
+				apiutil.NewStaticTokenSource("test-token"), 10)
+			if stopAtLimit {
+				require.NoError(t, err)
+				require.Empty(t, tokens)
+			} else {
+				require.ErrorContains(t, err, "pagination exceeded safety limit of 10000 pages")
+				require.Nil(t, tokens, "do not return an incomplete inventory")
+			}
+			require.Equal(t, pageLimit, pages)
+		})
+	}
+}
 
 func TestOrganizationPATsOutput(t *testing.T) {
 	for _, format := range []string{"json", "yaml", "text"} {

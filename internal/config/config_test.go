@@ -1,11 +1,44 @@
 package config
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/kong/kongctl/internal/cmd/common"
 	utilviper "github.com/kong/kongctl/internal/util/viper"
+	"github.com/spf13/pflag"
+	"github.com/stretchr/testify/require"
 )
+
+func TestProfiledConfigInConfigIgnoresOverridesAndBoundFlags(t *testing.T) {
+	const key = "konnect.base-url"
+	for _, fromFile := range []bool{false, true} {
+		t.Run(fmt.Sprint(fromFile), func(t *testing.T) {
+			mainv := utilviper.NewViper("nonexistent.yaml")
+			if fromFile {
+				mainv.SetConfigType("yaml")
+				require.NoError(t, mainv.ReadConfig(strings.NewReader(
+					"default:\n  konnect:\n    base-url: https://eu.api.konghq.com\n",
+				)))
+			}
+			cfg := BuildProfiledConfig("default", "nonexistent.yaml", mainv)
+			require.Equal(t, fromFile, cfg.InConfig(key))
+
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			flags.String("base-url", "https://us.api.konghq.com", "")
+			require.NoError(t, cfg.BindFlag(key, flags.Lookup("base-url")))
+			require.Equal(t, fromFile, cfg.InConfig(key))
+			require.NoError(t, flags.Set("base-url", "https://global.api.konghq.com"))
+			require.Equal(t, "https://global.api.konghq.com", cfg.GetString(key))
+			require.Equal(t, fromFile, cfg.InConfig(key))
+
+			cfg.SetString(key, "https://us.api.konghq.com")
+			require.Equal(t, "https://us.api.konghq.com", cfg.GetString(key))
+			require.Equal(t, fromFile, cfg.InConfig(key))
+		})
+	}
+}
 
 func TestDefaultConfigUsesAutomaticColorTheme(t *testing.T) {
 	cfg := getDefaultConfig("default", "config.yaml")
