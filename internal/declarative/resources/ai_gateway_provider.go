@@ -262,7 +262,7 @@ func (a *AIGatewayProviderResource) UnmarshalJSON(data []byte) error {
 		Config      map[string]any                    `json:"config"`
 		Datastores  []kkComps.AIGatewayDatastoreRef   `json:"datastores,omitempty"`
 		TokenVault  *kkComps.AIGatewayTokenVaultInput `json:"token_vault,omitempty"`
-		Kongctl *KongctlMeta `json:"kongctl,omitempty"`
+		Kongctl     *KongctlMeta                      `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err

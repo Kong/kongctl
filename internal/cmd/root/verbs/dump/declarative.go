@@ -827,7 +827,6 @@ func mapAIGatewayToDeclarativeResource(gateway kkComps.AIGateway) declresources.
 			DeploymentType:     deploymentType,
 			Description:        gateway.Description,
 			ProxyUrls:          gateway.ProxyUrls,
-			ManagedBy:          gateway.ManagedBy,
 		},
 	}
 

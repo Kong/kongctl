@@ -15,7 +15,9 @@ var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
 		if err := p.resolveAIGatewayCACertificateDeletes(ctx, ns, ref, id, plan); err != nil {
 			return err
 		}
-		return p.resolveAIGatewayOutboundTLSDeletes(ctx, ns, ref, id, ResourceTypeAIGatewayCACertificate, FieldCACertificates, plan)
+		return p.resolveAIGatewayOutboundTLSDeletes(
+			ctx, ns, ref, id, ResourceTypeAIGatewayCACertificate, FieldCACertificates, plan,
+		)
 	}},
 	{ResourceTypeAIGatewaySNI, (*Planner).resolveAIGatewaySNIDeletes},
 	{ResourceTypeAIGatewayDatastore, (*Planner).resolveAIGatewayDatastoreDeletes},
@@ -28,7 +30,9 @@ var aiGatewayDeleteResolvers = []aiGatewayDeleteResolver{
 		if err := p.resolveAIGatewayCertificateDeletes(ctx, ns, ref, id, plan); err != nil {
 			return err
 		}
-		return p.resolveAIGatewayOutboundTLSDeletes(ctx, ns, ref, id, ResourceTypeAIGatewayCertificate, FieldCertificates, plan)
+		return p.resolveAIGatewayOutboundTLSDeletes(
+			ctx, ns, ref, id, ResourceTypeAIGatewayCertificate, FieldCertificates, plan,
+		)
 	}},
 }
 

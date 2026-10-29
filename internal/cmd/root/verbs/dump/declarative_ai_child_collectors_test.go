@@ -61,7 +61,7 @@ func TestAIGatewayTokenVaultMCPDumpReload(t *testing.T) {
 	stores, err := buildAIGatewayDatastores(t.Context(), client, "gateway-id", "Support", "support")
 	require.NoError(t, err)
 	require.Len(t, stores, 1)
-	servers, err := buildAIGatewayMCPServers(t.Context(), client, "gateway-id", "Support", "support")
+	servers, err := buildAIGatewayMCPServers(t.Context(), slog.Default(), client, "gateway-id", "Support", "support")
 	require.NoError(t, err)
 	require.Len(t, servers, 1)
 	manifest := declresources.ResourceSet{AIGateways: []declresources.AIGatewayResource{{

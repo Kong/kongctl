@@ -110,7 +110,6 @@ type aiGatewayAlias struct {
 	Description *string                     `json:"description,omitempty" yaml:"description,omitempty"`
 	ProxyURLs   []kkComps.AIGatewayProxyURL `json:"proxy_urls,omitempty"  yaml:"proxy_urls,omitempty"`
 	Labels      map[string]string           `json:"labels,omitempty"      yaml:"labels,omitempty"`
-	ManagedBy   map[string]string           `json:"managed_by,omitempty" yaml:"managed_by,omitempty"`
 
 	DeploymentType *kkComps.CreateAIGatewayRequestDeploymentType `json:"deployment_type,omitempty" yaml:"deployment_type,omitempty"` //nolint:lll
 
@@ -145,7 +144,6 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		Description:           a.Description,
 		ProxyURLs:             a.ProxyUrls,
 		Labels:                a.Labels,
-		ManagedBy:             a.ManagedBy,
 		Providers:             a.Providers,
 		AuthStrategies:        a.AuthStrategies,
 		CustomPolicies:        a.CustomPolicies,
@@ -520,10 +518,6 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("labels", &ExplainNode{
 			Kind:       explainKindObject,
 			Additional: explainStringNode("value"),
-		}, false, false),
-		explainField("managed_by", &ExplainNode{
-			Kind:       explainKindObject,
-			Additional: explainStringNode("kongctl"),
 		}, false, false),
 		explainField(
 			"model_providers",

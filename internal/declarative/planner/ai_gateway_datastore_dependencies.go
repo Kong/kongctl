@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-
-	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func aiGatewayResourceUsesDatastores(kind string) bool {
@@ -25,12 +23,6 @@ func (p *Planner) resolveAIGatewayDatastoreDeletes(
 	namespace, gatewayRef, gatewayID string,
 	plan *Plan,
 ) error {
-	storeNames := map[string]string{}
-	if p.resources != nil {
-		for _, store := range p.resources.GetAIGatewayDatastoresForGateway(gatewayRef) {
-			storeNames[store.Ref] = store.Name()
-		}
-	}
 	references := func(deletion PlannedChange, names []string) bool {
 		name, _ := deletion.Fields[FieldName].(string)
 		return slices.Contains(names, name) || slices.Contains(names, deletion.ResourceID)
@@ -38,13 +30,11 @@ func (p *Planner) resolveAIGatewayDatastoreDeletes(
 	plannedReferences := func(deletion, change PlannedChange) bool {
 		var names []string
 		fields := normalizeAIGatewayJSONMap(change.Fields)
+		normalizeAIGateway23References(fields, p.resources, gatewayRef)
 		stores, _ := fields[FieldDatastores].([]any)
 		for _, value := range stores {
 			store, _ := value.(map[string]any)
 			name, _ := store[FieldName].(string)
-			if ref, _, ok := tags.ParseRefPlaceholder(name); ok && storeNames[ref] != "" {
-				name = storeNames[ref]
-			}
 			names = append(names, name)
 		}
 		return references(deletion, names)
@@ -55,7 +45,7 @@ func (p *Planner) resolveAIGatewayDatastoreDeletes(
 		gatewayRef,
 		plan,
 		observedReferenceDeletePolicy{
-			gatewayID: gatewayID,
+			gatewayID:  gatewayID,
 			targetType: ResourceTypeAIGatewayDatastore, usesTarget: aiGatewayResourceUsesDatastores,
 			observe: func(ctx context.Context) ([]observedReferenceUser, error) {
 				var users []observedReferenceUser

@@ -22,6 +22,11 @@ func normalizeAIGateway23References(
 	if rs == nil {
 		return
 	}
+	gatewayIDs := make(map[string]string)
+	for _, gateway := range rs.AIGateways {
+		gatewayIDs[resources.NormalizeResourceRef(gateway.Ref)] = gateway.GetKonnectID()
+	}
+	gatewayRef = resources.NormalizeResourceRef(gatewayRef)
 	resolve := func(value string) string {
 		ref, _, ok := tags.ParseRefPlaceholder(value)
 		if !ok {
@@ -32,12 +37,12 @@ func normalizeAIGateway23References(
 			return value
 		}
 		child, ok := resource.(resources.ResourceWithParent)
-		if !ok || child.GetParentRef() == nil ||
-			resources.NormalizeResourceRef(
-				child.GetParentRef().Ref,
-			) != resources.NormalizeResourceRef(
-				gatewayRef,
-			) {
+		if !ok || child.GetParentRef() == nil {
+			return value
+		}
+		parentRef := resources.NormalizeResourceRef(child.GetParentRef().Ref)
+		if parentRef != gatewayRef &&
+			(gatewayIDs[parentRef] == "" || gatewayIDs[parentRef] != gatewayIDs[gatewayRef]) {
 			return value
 		}
 		return resource.GetMoniker()

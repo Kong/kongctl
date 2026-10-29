@@ -990,8 +990,9 @@ Auth strategy configs use the SDK-generated plugin schemas, including OIDC
 configuration fields for each authentication strategy.
 
 Policies accept an `expressions` map for runtime 2.3 policy configuration
-expressions. Gateways also accept `managed_by` metadata; unrelated updates
-preserve existing metadata when it is omitted from the manifest.
+expressions. Gateway PUT updates preserve existing server `managed_by`
+metadata. This field is reserved for Kong tools and cannot be declared in
+manifests.
 
 ### Organization-wide AI cost-tag capture
 

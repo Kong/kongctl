@@ -36,8 +36,11 @@ func TestAIGatewayCustomExplainSchemasTrackSDKShapes(t *testing.T) {
 		{
 			name: "gateway",
 			expected: func(t *testing.T, actual *ExplainNode) {
-				assertCustomExplainSupportsSDKShape[kkComps.CreateAIGatewayRequest](t, actual)
-				assertCustomExplainSupportsSDKShape[kkComps.UpdateAIGatewayRequest](t, actual)
+				// managed_by is tool-owned and rejected from declarative input.
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.CreateAIGatewayRequest](t, actual, "managed_by")
+				assertCustomExplainSupportsSDKShapeExcept[kkComps.UpdateAIGatewayRequest](t, actual, "managed_by")
+				_, exposed := actual.property("managed_by")
+				require.False(t, exposed)
 			},
 			actual: func() (*ExplainNode, error) { return aiGatewayExplainNode(ExplainBuildContext{}) },
 		},

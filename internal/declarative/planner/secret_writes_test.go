@@ -1121,8 +1121,6 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 	gateway.SetKonnectID("gateway-id")
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 	switch typed := resource.(type) {
-	case *resources.AIGatewayMCPServerResource:
-		rs.AIGatewayMCPServers = []resources.AIGatewayMCPServerResource{*typed}
 	case *resources.AIGatewayAgentResource:
 		rs.AIGatewayAgents = []resources.AIGatewayAgentResource{*typed}
 	case *resources.AIGatewayProviderResource:

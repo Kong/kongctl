@@ -566,8 +566,8 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 	}
 
 	resource := mapAIGatewayToDeclarativeResource(gateway)
-	if resource.ManagedBy["tool"] != "kongctl" {
-		t.Fatalf("expected managed_by metadata to be preserved, got %v", resource.ManagedBy)
+	if len(resource.ManagedBy) != 0 {
+		t.Fatalf("expected reserved managed_by metadata to be omitted, got %v", resource.ManagedBy)
 	}
 
 	if resource.Ref != gateway.ID {

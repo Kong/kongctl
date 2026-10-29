@@ -14,7 +14,6 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 - ref: gateway
   name: gateway
   display_name: Gateway
-  managed_by: {tool: kongctl}
   policies:
   - ref: policy
     name: policy
@@ -97,7 +96,11 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 	require.NoError(t, err)
 	var gateway map[string]any
 	require.NoError(t, json.Unmarshal(gatewayJSON, &gateway))
-	require.Equal(t, map[string]any{"tool": "kongctl"}, gateway["managed_by"])
+	require.NotContains(t, gateway, "managed_by")
+	invalidManifest := strings.Replace(manifest, "display_name: Gateway\n",
+		"display_name: Gateway\n  managed_by: {tool: kongctl}\n", 1)
+	_, err = New().LoadFile(writeLoaderTestFile(t, invalidManifest))
+	require.ErrorContains(t, err, "managed_by is reserved")
 	policy, err := rs.AIGatewayPolicies[0].MutablePayloadMap()
 	require.NoError(t, err)
 	require.Equal(t, map[string]any{"model": "http.headers.x_model"}, policy["expressions"])

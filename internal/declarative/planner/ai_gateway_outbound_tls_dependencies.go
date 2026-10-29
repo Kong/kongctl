@@ -6,7 +6,6 @@ import (
 	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
-	"github.com/kong/kongctl/internal/declarative/tags"
 )
 
 func aiGatewayUsesOutboundTLS(kind string) bool {
@@ -37,28 +36,14 @@ func (p *Planner) resolveAIGatewayOutboundTLSDeletes(
 	namespace, gatewayRef, gatewayID, kind, field string,
 	plan *Plan,
 ) error {
-	names := map[string]string{}
-	if p.resources != nil {
-		for _, resource := range p.resources.GetAIGatewayCertificatesForGateway(gatewayRef) {
-			names[resource.Ref] = resource.Name
-		}
-		for _, resource := range p.resources.GetAIGatewayCACertificatesForGateway(gatewayRef) {
-			names[resource.Ref] = resource.Name
-		}
-	}
 	references := func(deletion PlannedChange, values []string) bool {
 		name, _ := deletion.Fields[FieldName].(string)
 		return slices.Contains(values, name) || slices.Contains(values, deletion.ResourceID)
 	}
 	configured := func(payload map[string]any) []string {
+		normalizeAIGateway23References(payload, p.resources, gatewayRef)
 		config, _ := payload[FieldConfig].(map[string]any)
-		values := stringSliceFromField(config, field)
-		for i, value := range values {
-			if ref, _, ok := tags.ParseRefPlaceholder(value); ok && names[ref] != "" {
-				values[i] = names[ref]
-			}
-		}
-		return values
+		return stringSliceFromField(config, field)
 	}
 	return resolveObservedReferenceDeletes(
 		ctx,
@@ -66,7 +51,7 @@ func (p *Planner) resolveAIGatewayOutboundTLSDeletes(
 		gatewayRef,
 		plan,
 		observedReferenceDeletePolicy{
-			gatewayID: gatewayID,
+			gatewayID:  gatewayID,
 			targetType: kind, usesTarget: aiGatewayUsesOutboundTLS,
 			observe: func(ctx context.Context) ([]observedReferenceUser, error) {
 				agents, err := p.listAIGatewayAgents(ctx, gatewayID)
