@@ -181,7 +181,8 @@ func (b *dumpSchemaBuilder) build(typ reflect.Type) (*dumpSchema, error) {
 	schema := &dumpSchema{typ: typ, kind: typ.Kind()}
 	b.cache[typ] = schema
 
-	//exhaustive:ignore // Unsupported reflection kinds return an error below.
+	// Unsupported reflection kinds return an error below.
+	//exhaustive:ignore
 	switch typ.Kind() {
 	case reflect.Struct:
 		schema.fields = make(map[string]*dumpField)
@@ -290,7 +291,8 @@ func parseDumpDefault(field reflect.StructField) (*dumpDefault, error) {
 	typ := derefDumpType(field.Type)
 	result := &dumpDefault{kind: typ.Kind(), source: dumpDefaultSourceSDK}
 
-	//exhaustive:ignore // Only scalar SDK defaults are supported.
+	// Only scalar SDK defaults are supported.
+	//exhaustive:ignore
 	switch typ.Kind() {
 	case reflect.String:
 		result.value = raw
@@ -393,7 +395,8 @@ func dumpDefaultFromOverride(typ reflect.Type, value any) (*dumpDefault, error) 
 	}
 	converted := reflect.ValueOf(value).Convert(typ)
 	result := &dumpDefault{kind: typ.Kind(), source: dumpDefaultSourceOverride}
-	//exhaustive:ignore // Only scalar registration overrides are supported.
+	// Only scalar registration overrides are supported.
+	//exhaustive:ignore
 	switch typ.Kind() {
 	case reflect.String:
 		result.value = converted.String()
@@ -452,7 +455,8 @@ func pruneDumpDefaults(node *yaml.Node, schema *dumpSchema, resourceType Resourc
 		path = nil
 	}
 
-	//exhaustive:ignore // Only collection nodes can contain fields to prune.
+	// Only collection nodes can contain fields to prune.
+	//exhaustive:ignore
 	switch node.Kind {
 	case yaml.SequenceNode:
 		for index, child := range node.Content {
@@ -647,7 +651,8 @@ func dumpNodeEqualsDefault(node *yaml.Node, defaultValue *dumpDefault) bool {
 	if node == nil || node.Kind != yaml.ScalarNode || node.Tag == "!!null" {
 		return false
 	}
-	//exhaustive:ignore // Default construction limits this to scalar kinds.
+	// Default construction limits this to scalar kinds.
+	//exhaustive:ignore
 	switch defaultValue.kind {
 	case reflect.String:
 		return node.Tag == "!!str" && node.Value == defaultValue.value.(string)

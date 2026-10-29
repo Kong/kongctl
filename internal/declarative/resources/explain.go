@@ -528,7 +528,8 @@ func resolveOrganizationAssignmentExplainSubject(
 	var assignmentType ResourceType
 	var parentNode *ExplainNode
 	var err error
-	//exhaustive:ignore // Only virtual organization selector parents are supported here.
+	// Only virtual organization selector parents are supported here.
+	//exhaustive:ignore
 	switch parentType {
 	case ResourceTypeOrganizationUser:
 		parentNode, err = organizationUserExplainNode()
@@ -821,7 +822,8 @@ func ExplainResourcePaths() []string {
 }
 
 func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]struct{}) string {
-	//exhaustive:ignore // Only resources with virtual grouping roots need an explicit path.
+	// Only resources with virtual grouping roots need an explicit path.
+	//exhaustive:ignore
 	switch doc.ResourceType {
 	case ResourceTypeOrganizationTeam:
 		return "organization." + SchemaFieldTeams
@@ -2353,7 +2355,8 @@ func nestedRelationsFor(target ResourceType) []ExplainRelation {
 func organizationAssignmentParentRelations(target ResourceType) []ExplainRelation {
 	var parentAlias, fieldName string
 	var parentType ResourceType
-	//exhaustive:ignore // Only assignment resources have virtual organization selector parents.
+	// Only assignment resources have virtual organization selector parents.
+	//exhaustive:ignore
 	switch target {
 	case ResourceTypeOrganizationUserTeamMembership:
 		parentAlias = "organization.users"

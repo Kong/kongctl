@@ -263,14 +263,14 @@ func readTelemetryPreferenceAnswer(
 	reader := bufio.NewReader(in)
 	for attempt := range 2 {
 		lineCh := make(chan string, 1)
-		errCh := make(chan error, 1)
+		readFailed := make(chan struct{}, 1)
 		// A terminal line read cannot be cancelled directly. In the login
 		// prompt we accept this fire-and-forget goroutine so Ctrl-C can abort
 		// immediately; the process exits shortly after this path returns.
 		go func() {
 			line, err := reader.ReadString('\n')
 			if err != nil {
-				errCh <- err
+				readFailed <- struct{}{}
 				return
 			}
 			lineCh <- line
@@ -283,7 +283,8 @@ func readTelemetryPreferenceAnswer(
 		case <-interrupt:
 			fmt.Fprintln(out)
 			return false, false, context.Canceled
-		case <-errCh:
+		// Input errors leave the telemetry preference unset.
+		case <-readFailed:
 			return false, false, nil
 		case line = <-lineCh:
 		}

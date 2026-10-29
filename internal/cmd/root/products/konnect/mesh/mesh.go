@@ -92,7 +92,8 @@ func NewMeshCmd(
 		Long:    meshLong,
 		Example: meshExample,
 	}
-	//exhaustive:ignore // Other verbs use the shared Mesh help above.
+	// Other verbs use the shared Mesh help above.
+	//exhaustive:ignore
 	switch verb {
 	case verbs.Create:
 		baseCmd.Short = "Create Kong Mesh access tokens"

@@ -2372,7 +2372,8 @@ func RenderForFormat(
 		return Render(streams, display, opts...)
 	}
 
-	//exhaustive:ignore // HELM is intentionally not supported here; handled at the call site.
+	// HELM is intentionally not supported here; handled at the call site.
+	//exhaustive:ignore
 	switch outType {
 	case cmdCommon.TEXT:
 		if isEmptyCollection(display) {

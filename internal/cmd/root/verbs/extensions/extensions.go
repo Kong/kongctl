@@ -1068,7 +1068,8 @@ func writeCommandResult(helper cmdpkg.Helper, value any, writeText func() error)
 		}
 		return columns.RenderAutoWidth(helper.GetStreams().Out, headers, rows)
 	}
-	//exhaustive:ignore // HELM is unsupported here and falls through to text output.
+	// HELM is unsupported here and falls through to text output.
+	//exhaustive:ignore
 	switch format {
 	case cmdcommon.JSON:
 		encoder := json.NewEncoder(helper.GetStreams().Out)

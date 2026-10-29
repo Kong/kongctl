@@ -77,7 +77,8 @@ func (o Output) Render(display any, raw ...any) error {
 	}
 	defer printer.Flush()
 
-	//exhaustive:ignore // HELM is unsupported here and falls through to the default error.
+	// HELM is unsupported here and falls through to the default error.
+	//exhaustive:ignore
 	switch outType {
 	case cmdcommon.TEXT:
 		printer.Print(display)
