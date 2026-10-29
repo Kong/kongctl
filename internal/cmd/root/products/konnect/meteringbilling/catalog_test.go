@@ -194,4 +194,19 @@ api_key: do-not-print-this
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "do-not-print-this")
 	require.NotContains(t, out, "do-not-print-this")
+	// The imperative install shortcut remains available independently of declarative apps.
+	_, err = run(verbs.Create, []string{"apps"}, `name: Sandbox with profile
+type: sandbox
+create_billing_profile: true
+`, nil, nil)
+	require.NoError(t, err)
+	_, writes := server.Snapshot(helpers.BillingApp)
+	var installedWithProfile bool
+	for _, write := range writes {
+		if write.Kind == helpers.BillingApp && write.Method == "POST" &&
+			write.Fields["name"] == "Sandbox with profile" {
+			installedWithProfile, _ = write.Fields["create_billing_profile"].(bool)
+		}
+	}
+	require.True(t, installedWithProfile)
 }

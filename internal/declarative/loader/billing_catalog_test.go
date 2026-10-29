@@ -78,10 +78,23 @@ func TestBillingScaffoldsLoad(t *testing.T) {
 			scaffold, err := resources.RenderScaffoldYAML(subject)
 			require.NoError(t, err)
 			require.Contains(t, scaffold, "metering-billing:\n")
+			require.NotContains(t, scaffold, "create_billing_profile")
+			require.NotContains(t, resources.RenderExplainSchema(subject).Properties, "create_billing_profile")
 			path := filepath.Join(t.TempDir(), "scaffold.yaml")
 			require.NoError(t, os.WriteFile(path, []byte(scaffold), 0o600))
 			_, err = New().LoadFile(path)
 			require.NoError(t, err, "%s", scaffold)
+		})
+	}
+}
+
+func TestBillingAppRejectsInstallationShortcut(t *testing.T) {
+	for _, value := range []string{"true", "false"} {
+		t.Run(value, func(t *testing.T) {
+			manifest := "metering-billing:\n  apps:\n    - ref: sandbox\n" +
+				"      name: Sandbox\n      type: sandbox\n      create_billing_profile: " + value + "\n"
+			_, err := New().parseYAML(strings.NewReader(manifest), "test.yaml", ".")
+			require.ErrorContains(t, err, "unknown field 'create_billing_profile'")
 		})
 	}
 }

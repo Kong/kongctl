@@ -25,7 +25,6 @@ metering-billing:
     - ref: shared-sandbox
       name: Example Federated Sandbox
       type: sandbox
-      create_billing_profile: false
   profiles:
     - ref: shared-profile
       name: Example Federated Billing Profile

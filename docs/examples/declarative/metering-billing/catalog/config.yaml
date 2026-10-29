@@ -34,7 +34,6 @@ metering-billing:
     - ref: catalog-sandbox
       name: Example Catalog Sandbox
       type: sandbox
-      create_billing_profile: false
   profiles:
     - ref: catalog-profile
       name: Example Catalog Billing Profile

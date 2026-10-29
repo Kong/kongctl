@@ -44,7 +44,6 @@ metering-billing:
     - ref: sandbox
       name: Sandbox
       type: sandbox
-      create_billing_profile: false
   profiles:
     - ref: profile
       name: Profile
@@ -91,6 +90,7 @@ func TestBillingCatalogDeclarativeLifecycle(t *testing.T) {
 		t.Helper()
 		data, err := json.Marshal(plan)
 		require.NoError(t, err)
+		require.NotContains(t, string(data), "create_billing_profile")
 		var saved planner.Plan
 		require.NoError(t, json.Unmarshal(data, &saved))
 		result := executor.New(client, nil, false).Execute(ctx, &saved)
@@ -360,12 +360,12 @@ func TestBillingCatalogAppVariantsAndSecrets(t *testing.T) {
 				t.Setenv("BILLING_TEST_STRIPE_KEY", "stripe-test-secret-value")
 				manifest = strings.Replace(
 					manifest,
-					"      create_billing_profile: false",
-					"      create_billing_profile: false\n      api_key_env: BILLING_TEST_STRIPE_KEY",
+					"      type: stripe",
+					"      type: stripe\n      api_key_env: BILLING_TEST_STRIPE_KEY",
 					1,
 				)
 			} else {
-				manifest = strings.Replace(manifest, "      create_billing_profile: false", `      create_billing_profile: false
+				manifest = strings.Replace(manifest, "      type: external_invoicing", `      type: external_invoicing
       enable_draft_sync_hook: false
       enable_issuing_sync_hook: true`, 1)
 			}
@@ -378,6 +378,7 @@ func TestBillingCatalogAppVariantsAndSecrets(t *testing.T) {
 			data, err := json.Marshal(plan)
 			require.NoError(t, err)
 			require.NotContains(t, string(data), "stripe-test-secret-value")
+			require.NotContains(t, string(data), "create_billing_profile")
 			var saved planner.Plan
 			require.NoError(t, json.Unmarshal(data, &saved))
 			result := executor.New(client, nil, false).Execute(ctx, &saved)
@@ -385,6 +386,11 @@ func TestBillingCatalogAppVariantsAndSecrets(t *testing.T) {
 			apps, writes := server.Snapshot(helpers.BillingApp)
 			require.Len(t, apps, 1)
 			require.Equal(t, typ, apps[0].String("type"))
+			for _, write := range writes {
+				if write.Kind == helpers.BillingApp && write.Method == "POST" {
+					require.Equal(t, false, write.Fields["create_billing_profile"])
+				}
+			}
 			if typ == "stripe" {
 				var secret any
 				for _, write := range writes {

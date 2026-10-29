@@ -101,6 +101,7 @@ func TestBillingCatalogDumpRoundTrip(t *testing.T) {
 	require.NotContains(t, string(data), `"billing_plans":`)
 	require.NotContains(t, string(data), "api_key")
 	require.NotContains(t, string(data), "masked_api_key")
+	require.NotContains(t, string(data), "create_billing_profile")
 	path := filepath.Join(t.TempDir(), "dump.yaml")
 	require.NoError(t, os.WriteFile(path, data, 0o600))
 	loaded, err := loader.New().LoadFile(path)

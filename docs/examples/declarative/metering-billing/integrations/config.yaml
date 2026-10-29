@@ -7,11 +7,9 @@ metering-billing:
     - ref: example-stripe
       name: Example Stripe Integration
       type: stripe
-      create_billing_profile: false
       api_key_env: KONGCTL_DOCS_STRIPE_API_KEY
     - ref: example-external-invoicing
       name: Example External Invoicing
       type: external_invoicing
-      create_billing_profile: false
       enable_draft_sync_hook: false
       enable_issuing_sync_hook: true

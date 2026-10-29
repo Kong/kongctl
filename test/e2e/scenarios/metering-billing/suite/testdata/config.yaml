@@ -29,7 +29,6 @@ metering-billing:
     - ref: sandbox
       name: Kongctl E2E Suite App
       type: sandbox
-      create_billing_profile: false
   profiles:
     - ref: profile
       name: Kongctl E2E Suite Profile

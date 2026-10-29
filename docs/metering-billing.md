@@ -316,7 +316,6 @@ metering-billing:
     - ref: sandbox
       name: Billing Sandbox
       type: sandbox
-      create_billing_profile: false
   profiles:
     - ref: profile
       name: Billing Profile
@@ -345,8 +344,8 @@ metering-billing:
                 code: {id: service-tax}
 ```
 
-Required API fields must be explicit, including `precision: 0`,
-`app_mappings: []`, `default: false`, and `create_billing_profile: false`.
+Required declarative fields must be explicit, including `precision: 0`,
+`app_mappings: []`, and `default: false`.
 Names and keys are never derived from local refs. Native optional fields,
 including supplier contacts/addresses, workflow collection/invoicing/payment/
 tax settings, rate-card pricing, entitlements, discounts, commitments,
@@ -440,14 +439,16 @@ effective_from: '2027-01-01T00:00:00Z'
 ### Integration apps and profiles
 
 App catalog/install/update/uninstall operations are beta. Sandbox, Stripe,
-and external invoicing variants use their native contracts. Every install
-must explicitly choose `create_billing_profile`. Imperative `true` permits
+and external invoicing variants use their native contracts. Imperative installs
+must explicitly choose `create_billing_profile`; `true` permits
 the API's profile/default side effects. Inspect and explicitly adopt any
 side-effect-created profile before declaring it; name matching never silently
 adopts or duplicates that profile.
 
-Declarative installs require `create_billing_profile: false` and separate
-`profiles` declarations. The install API cannot set labels, so
+Declarative apps do not accept `create_billing_profile`. Declare billing
+profiles separately under `metering-billing.profiles` and reference the apps
+used for tax, invoicing, and payment. kongctl disables automatic profile creation
+internally when installing an app. The install API cannot set labels, so
 kongctl immediately updates installed-app metadata. If that step fails, the
 error reports the installed ULID: adopt that app before retrying. Creation
 rechecks identity to reject stale plans that could install duplicates.

@@ -45,9 +45,6 @@ func collectBillingCatalog[T any](ctx context.Context, d *declarativeDumpContext
 		if kind == r.ResourceTypeBillingPlan {
 			fields["version"] = v["version"]
 		}
-		if kind == r.ResourceTypeBillingApp {
-			fields["create_billing_profile"] = false
-		}
 		data, err := json.Marshal(fields)
 		if err != nil {
 			return nil, err

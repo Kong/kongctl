@@ -47,11 +47,8 @@ func (a *BillingCatalogAdapter) MapCreateFields(
 				return fmt.Errorf("declarative app credentials must use api_key_env; literal credentials are forbidden")
 			}
 		}
-	}
-	if a.kind == helpers.BillingApp && fields[planner.FieldCreateBillingProfile] != false {
-		return fmt.Errorf(
-			"declarative app installs require create_billing_profile: false; declare the profile separately",
-		)
+		// Profiles are declared and reconciled independently of app installation.
+		(*request)[planner.FieldCreateBillingProfile] = false
 	}
 	return helpers.ValidateBillingFields(a.kind, *request, false)
 }

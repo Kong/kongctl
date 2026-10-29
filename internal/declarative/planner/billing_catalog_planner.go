@@ -185,10 +185,15 @@ func (p *billingCatalogPlanner) PlanChanges(ctx context.Context, cfg *Config, pl
 		if err := p.resolveReferences(ctx, fields); err != nil {
 			return fmt.Errorf("%s %q: %w", kind, r.GetRef(), err)
 		}
+		// Normalize against the native install contract without retaining its shortcut in desired state.
+		if kind == helpers.BillingApp {
+			fields[FieldCreateBillingProfile] = false
+		}
 		fields, err = helpers.NormalizeBillingFields(kind, fields, false)
 		if err != nil {
 			return err
 		}
+		delete(fields, FieldCreateBillingProfile)
 		if c != nil {
 			if kind == helpers.BillingPlan && c.String(FieldCurrency) != fields[FieldCurrency] {
 				return fmt.Errorf("plan currency is immutable")
@@ -406,7 +411,6 @@ func billingDiff(
 	}
 	compare := maps.Clone(desired)
 	delete(compare, FieldAPIKeyEnv)
-	delete(compare, FieldCreateBillingProfile)
 	if kind == helpers.BillingApp {
 		if current[FieldDescription] == nil {
 			delete(current, FieldDescription)

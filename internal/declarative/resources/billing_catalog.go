@@ -56,7 +56,7 @@ func validateBillingResource(r BillingResource) error {
 	if kind == helpers.BillingApp && r.BillingID() != "" && fields["type"] == "stripe" && fields["api_key_env"] == nil {
 		fields["api_key_env"] = "OBSERVE_ONLY"
 	}
-	if err := helpers.ValidateBillingFields(kind, fields, false); err != nil {
+	if err := validateBillingDeclarationFields(kind, fields); err != nil {
 		return fmt.Errorf("%s %q: %w", r.GetType(), r.GetRef(), err)
 	}
 	if kind == helpers.BillingCurrency && r.BillingMeta() != nil && r.BillingMeta().Protected != nil {
@@ -68,6 +68,15 @@ func validateBillingResource(r BillingResource) error {
 		)
 	}
 	return nil
+}
+
+// App installation options are API request fields, not declaration state.
+func validateBillingDeclarationFields(kind helpers.BillingKind, fields map[string]any) error {
+	if kind == helpers.BillingApp {
+		fields = maps.Clone(fields)
+		fields["create_billing_profile"] = false
+	}
+	return helpers.ValidateBillingFields(kind, fields, false)
 }
 
 func billingCollectionValidation[R any](rs *ResourceSet) func(*R) error {
@@ -300,7 +309,6 @@ type BillingAppResource struct {
 	Type                  string            `json:"type" yaml:"type"`
 	Description           *string           `json:"description,omitempty" yaml:"description,omitempty"`
 	Labels                map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
-	CreateBillingProfile  *bool             `json:"create_billing_profile" yaml:"create_billing_profile"`
 	APIKeyEnv             string            `json:"api_key_env,omitempty" yaml:"api_key_env,omitempty"`
 	EnableDraftSyncHook   *bool             `json:"enable_draft_sync_hook,omitempty" yaml:"enable_draft_sync_hook,omitempty"`     //nolint:lll // Native API field tags.
 	EnableIssuingSyncHook *bool             `json:"enable_issuing_sync_hook,omitempty" yaml:"enable_issuing_sync_hook,omitempty"` //nolint:lll // Native API field tags.
@@ -311,10 +319,7 @@ func (r BillingAppResource) GetMoniker() string        { return r.Name }
 func (r BillingAppResource) BillingID() string         { return r.ID }
 func (r BillingAppResource) BillingMeta() *KongctlMeta { return r.Kongctl }
 func (r BillingAppResource) BillingFields() (map[string]any, error) {
-	if r.CreateBillingProfile == nil {
-		return nil, fmt.Errorf("create_billing_profile is required")
-	}
-	fields := map[string]any{"name": r.Name, "type": r.Type, "create_billing_profile": *r.CreateBillingProfile}
+	fields := map[string]any{"name": r.Name, "type": r.Type}
 	if r.Description != nil {
 		fields["description"] = *r.Description
 	}
@@ -353,11 +358,6 @@ func (r BillingAppResource) Validate() error {
 		)
 	}
 
-	if r.CreateBillingProfile == nil || *r.CreateBillingProfile {
-		return fmt.Errorf(
-			"declarative billing apps require create_billing_profile: false; declare metering-billing.profiles explicitly",
-		)
-	}
 	return validateBillingResource(&r)
 }
 func (r BillingAppResource) GetLabels() map[string]string   { return r.Labels }
@@ -368,12 +368,11 @@ func init() {
 		func(rs *ResourceSet) *[]BillingAppResource { return &rs.BillingApps },
 		AutoExplain[BillingAppResource](
 			WithExplainAliases("billing_apps"),
-			withBillingRequiredExplain[BillingAppResource]("ref", "name", "type", "create_billing_profile"),
+			withBillingRequiredExplain[BillingAppResource]("ref", "name", "type"),
 			WithExplainFieldHint(
 				"type",
 				ExplainFieldHint{Literal: "sandbox", Enum: []any{"sandbox", "stripe", "external_invoicing"}},
 			),
-			WithExplainFieldHint("create_billing_profile", ExplainFieldHint{Literal: "false"}),
 		),
 		WithNamespace(170, func(r *BillingAppResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "billing_app", SupportsProtected: true, Meta: &r.Kongctl}
@@ -694,7 +693,7 @@ func decodeBillingResource(data []byte, target any, kind helpers.BillingKind) er
 	if kind == helpers.BillingApp && raw["id"] != nil && fields["type"] == "stripe" && fields["api_key_env"] == nil {
 		fields["api_key_env"] = "OBSERVE_ONLY"
 	}
-	if err := helpers.ValidateBillingFields(kind, fields, false); err != nil {
+	if err := validateBillingDeclarationFields(kind, fields); err != nil {
 		return err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))

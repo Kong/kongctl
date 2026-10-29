@@ -64,15 +64,16 @@ kongctl scaffold metering-billing.meters
   `!ref catalog-credits#code`. Currency references resolve to codes, not IDs.
 - A tax code supplies the standard phase's tax configuration.
 - A sandbox app supplies the billing profile's tax, invoicing, and payment
-  integrations. The app explicitly disables implicit profile creation.
+  integrations.
 - A separate non-default profile specifies the supplier and workflow.
 - A plan has a 14-day free trial, followed by a monthly standard phase with
   per-request pricing and a flat platform fee. The metered entitlement uses
   a monthly usage period.
 
-The profile and plan are independent configuration resources. A subscription
-would select them when linking a customer to this configuration; creating that
-subscription is outside this example's scope.
+The profile and plan are independent configuration resources. Customer billing
+settings select a profile, falling back to the organization's default profile.
+A subscription selects the plan for a customer. Creating customers and
+subscriptions is outside this example's scope.
 
 ```sh
 kongctl plan -f catalog/config.yaml --output-file catalog-plan.json
@@ -82,8 +83,8 @@ kongctl plan -f catalog/config.yaml
 kongctl get mb plans kongctl_docs_catalog_plan
 ```
 
-Required values such as `precision`, `app_mappings`, `default`, and
-`create_billing_profile` are explicit, including zero, empty, or false values.
+Required values such as `precision`, `app_mappings`, and `default` are explicit,
+including zero, empty, or false values.
 Decimal amounts are strings. `ref` is a local declaration identifier, while
 `key`, `code`, and remote ULIDs select API resources. Both plain local refs and
 tagged refs appear in this example.
