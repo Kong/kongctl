@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/table"
 	kk "github.com/Kong/sdk-konnect-go" // kk = Kong Konnect
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/output/tableview"
@@ -261,7 +262,10 @@ func (c *getRouteCmd) runGet(
 	printer cli.PrintFlusher,
 	outputFormat cmdCommon.OutputFormat,
 ) error {
-	res, err := kkClient.Routes.GetRoute(helper.GetContext(), cpID, id)
+	res, err := kkClient.Routes.GetRoute(helper.GetContext(), operations.GetRouteRequest{
+		ControlPlaneID: cpID,
+		RouteID:        id,
+	})
 	if err != nil {
 		attrs := cmd.TryConvertErrorToAttrs(err)
 		return cmd.PrepareExecutionError("Failed to get Gateway Route", err, helper.GetCmd(), attrs...)
