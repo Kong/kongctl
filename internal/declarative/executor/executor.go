@@ -386,6 +386,14 @@ func withExecutorChangeHTTPLogContext(ctx context.Context, change *planner.Plann
 	return log.WithHTTPLogContext(ctx, update)
 }
 
+func executionResourceName(change planner.PlannedChange) string {
+	name := common.ExtractResourceName(change.Fields)
+	if name == "" || name == resources.UnknownReferenceID || tags.IsEnvPlaceholder(name) {
+		return change.ResourceRef
+	}
+	return name
+}
+
 // executeChange executes a single change from the plan
 func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, change *planner.PlannedChange,
 	plan *planner.Plan,
@@ -403,11 +411,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		e.reporter.StartChange(*reportChange)
 	}
 
-	resourceName := change.ResourceRef
-	if resolvedName := common.ExtractResourceName(change.Fields); resolvedName != "" &&
-		!tags.IsEnvPlaceholder(resolvedName) {
-		resourceName = resolvedName
-	}
+	resourceName := executionResourceName(*change)
 
 	if err := e.resolveDeferredEnvPlaceholders(change); err != nil {
 		execError := ExecutionError{
@@ -460,9 +464,7 @@ func (e *Executor) executeChange(ctx context.Context, result *ExecutionResult, c
 		return err
 	}
 
-	if resolvedName := common.ExtractResourceName(change.Fields); resolvedName != "" {
-		resourceName = resolvedName
-	}
+	resourceName = executionResourceName(*change)
 
 	// Pre-execution validation (always performed, even in dry-run)
 	if err := e.validateChangePreExecution(ctx, *change); err != nil {

@@ -180,7 +180,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change plan
 	// Create request object
 	var create TCreate
 	if err := b.ops.MapCreateFields(ctx, execCtx, change.Fields, &create); err != nil {
-		resourceName := common.ExtractResourceName(change.Fields)
+		resourceName := executionResourceName(change)
 		return "", common.FormatAPIError(b.ops.ResourceType(), resourceName, "create", err)
 	}
 
@@ -190,7 +190,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Create(ctx context.Context, change plan
 	}
 
 	// Create resource
-	resourceName := common.ExtractResourceName(change.Fields)
+	resourceName := executionResourceName(change)
 	if err := validateResolvedRequest(ctx, &create); err != nil {
 		return "", fmt.Errorf("%s %q: %w", change.ResourceType, change.ResourceRef, err)
 	}

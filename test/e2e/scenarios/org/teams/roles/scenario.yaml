@@ -23,6 +23,10 @@ vars:
   cpRoleTeamRef: cp-role-team
   cpRoleTeamName: Control Plane Role Team
   cpViewerRoleRef: cp-viewer
+  invalidRoleNamespace: org-team-roles-invalid-e2e
+  invalidRoleTeamRef: invalid-role-team
+  invalidRoleTeamName: Invalid Role Team
+  invalidRoleRef: ai-viewers-role
 
 defaults:
   mask:
@@ -805,6 +809,121 @@ steps:
           - source:
               get: "gateway control-planes"
             select: "length([?name=='{{ .vars.cpName }}'])"
+            expect:
+              fields:
+                "@": 0
+
+  - name: 010-invalid-role-diagnostics
+    inputOverlayDirs:
+      - overlays/006-invalid-role
+    commands:
+      - name: 000-plan-invalid-role
+        outputFormat: json
+        run: [plan, -f, "{{ .workdir }}/config.yaml", --mode, apply]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: >-
+              changes[?resource_type=='organization_team_role' &&
+                       resource_ref=='{{ .vars.invalidRoleRef }}'] | [0]
+            expect:
+              fields:
+                fields.role_name: Admin
+                fields.entity_type_name: AI Gateways
+
+      - name: 001-apply-invalid-role-text
+        outputFormat: text
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        expectFailure:
+          exitCode: 1
+          contains: The requested role was not found
+
+      - name: 002-check-text-diagnostics-and-unassigned-role
+        run: [get, org, team, roles, --team-name, "{{ .vars.invalidRoleTeamName }}"]
+        outputFormat: json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                "@": 0
+          # Expected failures skip assertions; inspect that command's capture here.
+          - source:
+              artifact:
+                path: ../001-apply-invalid-role-text/stderr.txt
+                parseAs: text
+            expect:
+              fields:
+                'contains(text, `"organization_team_role ''{{ .vars.invalidRoleRef }}''"`)': true
+                "contains(text, 'organization_team_role {{ .vars.invalidRoleRef }}:')": true
+                "contains(text, 'role_name \"Admin\"')": true
+                "contains(text, 'entity_type_name \"AI Gateways\"')": true
+                "contains(text, 'kongctl api get /v3/roles --base-url https://global.api.konghq.com')": true
+                "contains(text, 'The requested role was not found')": true
+                "contains(text, '[unknown]')": false
+
+      - name: 003-apply-invalid-role-json
+        outputFormat: json
+        run: [apply, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        expectFailure:
+          exitCode: 1
+          contains: execution completed with 1 errors
+
+      - name: 004-check-json-diagnostics-and-unassigned-role
+        run: [get, org, team, roles, --team-name, "{{ .vars.invalidRoleTeamName }}"]
+        outputFormat: json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                "@": 0
+          - source:
+              artifact:
+                path: ../003-apply-invalid-role-json/stdout.txt
+                parseAs: json
+            select: summary
+            expect:
+              fields:
+                applied: 0
+                failed: 1
+                status: error
+          - source:
+              artifact:
+                path: ../003-apply-invalid-role-json/stdout.txt
+                parseAs: json
+            select: execution.errors
+            expect:
+              fields:
+                "length(@)": 1
+                "[0].resource_type": organization_team_role
+                "[0].resource_name": "{{ .vars.invalidRoleRef }}"
+                "[0].resource_ref": "{{ .vars.invalidRoleRef }}"
+                "contains([0].error, 'role_name \"Admin\"')": true
+                "contains([0].error, 'entity_type_name \"AI Gateways\"')": true
+                "contains([0].error, 'kongctl api get /v3/roles --base-url https://global.api.konghq.com')": true
+                "contains([0].error, 'The requested role was not found')": true
+                "contains([0].error, 'instance')": true
+                "contains([0].error, '[unknown]')": false
+
+  - name: 011-invalid-role-cleanup
+    inputOverlayDirs:
+      - overlays/007-invalid-role-cleanup
+    commands:
+      - name: 000-delete-team-left-by-failed-apply
+        outputFormat: json
+        run: [delete, -f, "{{ .workdir }}/config.yaml", --auto-approve]
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+          - source:
+              get: org teams
+            select: "length([?name=='{{ .vars.invalidRoleTeamName }}'])"
             expect:
               fields:
                 "@": 0
