@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: "{{ .vars.invalidRoleNamespace }}"
+
+apis: []
+
+organization:
+  teams:
+    - ref: "{{ .vars.invalidRoleTeamRef }}"
+      name: "{{ .vars.invalidRoleTeamName }}"

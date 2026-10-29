@@ -1,0 +1,18 @@
+_defaults:
+  kongctl:
+    namespace: "{{ .vars.invalidRoleNamespace }}"
+
+apis: []
+
+organization:
+  teams:
+    - ref: "{{ .vars.invalidRoleTeamRef }}"
+      name: "{{ .vars.invalidRoleTeamName }}"
+
+organization_team_roles:
+  - ref: "{{ .vars.invalidRoleRef }}"
+    team: "{{ .vars.invalidRoleTeamRef }}"
+    role_name: Admin
+    entity_id: "*"
+    entity_type_name: AI Gateways
+    entity_region: eu
