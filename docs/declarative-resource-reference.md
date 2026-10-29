@@ -84,6 +84,9 @@ Use YAML tags in field values to load files or reference other resources.
 - `!external`: An exact alias for `!lookup`; both use the same planner-time
   resolver and cache.
 - `!ref` is intended for string fields.
+- For root-level child parent selectors such as `portal` and `api`, see
+  [parent selectors](declarative.md#parent-selectors-and-references).
+  Use plain refs on affected releases as described in the compatibility note.
 - `string (uuid)` and `array[string(uuid)]` annotations in this document
   describe API value types. In declarative config, prefer `!ref` and avoid
   literal UUID values.
@@ -1585,10 +1588,20 @@ portals:
 Portal identity providers and integrations can also be declared as root
 resources.
 
+**Compatibility:** In affected releases, including v1.21.0, use plain parent
+refs such as `portal: docs-portal` for root-level portal children. Children
+using tagged parent selectors such as `portal: !ref docs-portal#id` can be
+silently omitted from plans. Sync can schedule declared live children for
+deletion.
+This also affects root-level API children using `api: !ref ...`.
+Use plain refs or nested children until you use a release containing the
+fix for [issue #2633](https://github.com/Kong/kongctl/issues/2633).
+API relationship fields such as `portal_id` should continue to use `!ref`.
+
 ```yaml
 portal_identity_providers:
  - ref: string
-   portal: string required # prefer: !ref <portal-ref>
+   portal: string required # parent ref; for example, docs-portal
    type: One of (oidc | saml) required
    enabled: boolean
    config: object required
@@ -1605,7 +1618,7 @@ portal_identity_providers:
 
 portal_integrations:
  - ref: string
-   portal: string required # prefer: !ref <portal-ref>
+   portal: string required # parent ref; for example, docs-portal
    google_tag_manager:
      enabled: boolean required
      type: tracking
@@ -1632,7 +1645,7 @@ Portal IP allow lists can also be declared as root resources.
 ```yaml
 portal_ip_allow_lists:
   - ref: string
-    portal: string required # prefer: !ref <portal-ref>
+    portal: string required # parent ref; for example, docs-portal
     allowed_ips: array[string] required # IP addresses or CIDR blocks
 ```
 
@@ -1644,7 +1657,7 @@ Portal audit-log webhooks can also be declared as root resources.
 ```yaml
 portal_audit_log_webhooks:
   - ref: string
-    portal: string required # prefer: !ref <portal-ref>
+    portal: string required # parent ref; for example, docs-portal
     enabled: boolean
     audit_log_destination_id: string (uuid) # prefer: !ref
 ```
