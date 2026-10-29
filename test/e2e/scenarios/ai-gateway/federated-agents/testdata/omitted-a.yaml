@@ -1,0 +1,5 @@
+_defaults:
+  kongctl: {namespace: agents-team-a}
+ai_gateways:
+  - ref: shared
+    _external: {selector: {matchFields: {name: federated-agents-e2e}}}

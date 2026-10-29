@@ -1,0 +1,15 @@
+_defaults:
+  kongctl: {namespace: provider-team-b}
+ai_gateway_model_providers:
+  - ref: provider-b
+    ai_gateway: !lookup {name: federated-providers-e2e}
+    name: provider-b
+    display_name: Provider b
+    type: openai
+    labels: {team: b}
+    config:
+      auth:
+        type: basic
+        headers:
+          - name: Authorization
+            value: !secret {source: !env FEDERATED_PROVIDER_AUTH}

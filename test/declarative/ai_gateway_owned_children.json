@@ -1,0 +1,143 @@
+[
+  {
+    "resource_type": "ai_gateway_model",
+    "collection": "models",
+    "path": "models",
+    "body": {
+      "type": "model",
+      "config": {
+        "route": {},
+        "model": {}
+      },
+      "formats": [
+        {
+          "type": "openai"
+        }
+      ],
+      "targets": [
+        {
+          "name": "gpt",
+          "provider": "provider",
+          "config": {
+            "type": "openai"
+          }
+        }
+      ],
+      "capabilities": [
+        "generate"
+      ]
+    }
+  },
+  {
+    "resource_type": "ai_gateway_model_provider",
+    "collection": "model_providers",
+    "path": "model-providers",
+    "body": {
+      "type": "openai",
+      "config": {
+        "auth": {
+          "type": "basic"
+        }
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_auth_strategy",
+    "collection": "auth_strategies",
+    "path": "auth-strategies",
+    "body": {
+      "type": "key-auth",
+      "config": {
+        "key_names": [
+          "apikey"
+        ]
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_policy",
+    "collection": "policies",
+    "path": "policies",
+    "body": {
+      "type": "http-log",
+      "config": {
+        "http_endpoint": "https://example.test/log"
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_custom_policy",
+    "collection": "custom_policies",
+    "path": "custom-policies",
+    "body": {
+      "type": "streaming",
+      "schema": "return {}",
+      "handler": "return { VERSION = 1 }"
+    }
+  },
+  {
+    "resource_type": "ai_gateway_agent",
+    "collection": "agents",
+    "path": "agents",
+    "body": {
+      "type": "a2a",
+      "config": {
+        "url": "https://example.test"
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_mcp_server",
+    "collection": "mcp_servers",
+    "path": "mcp-servers",
+    "body": {
+      "type": "upstream-server",
+      "config": {
+        "url": "https://example.test",
+        "tools_cache_ttl_seconds": 300
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_vault",
+    "collection": "vaults",
+    "path": "vaults",
+    "body": {
+      "type": "env",
+      "config": {
+        "prefix": "TEST_"
+      }
+    }
+  },
+  {
+    "resource_type": "ai_gateway_consumer",
+    "collection": "consumers",
+    "path": "consumers",
+    "body": {
+      "type": "api-key"
+    }
+  },
+  {
+    "resource_type": "ai_gateway_consumer_group",
+    "collection": "consumer_groups",
+    "path": "consumer-groups",
+    "body": {}
+  },
+  {
+    "resource_type": "ai_gateway_ca_certificate",
+    "collection": "ca_certificates",
+    "path": "ca-certificates",
+    "body": {
+      "cert": "public-certificate"
+    }
+  },
+  {
+    "resource_type": "ai_gateway_sni",
+    "collection": "snis",
+    "path": "snis",
+    "body": {
+      "hostname": "api.example.test",
+      "certificate": "platform-cert"
+    }
+  }
+]

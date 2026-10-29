@@ -12,6 +12,7 @@ type observedReferenceUser struct {
 // Adapters own API identity and proven detachment. Schema relationships alone
 // cannot establish what an omitted field does in an SDK update request.
 type observedReferenceDeletePolicy struct {
+	gatewayID          string
 	targetType         string
 	usesTarget         func(string) bool
 	observe            func(context.Context) ([]observedReferenceUser, error)
@@ -22,7 +23,7 @@ type observedReferenceDeletePolicy struct {
 }
 
 func resolveObservedReferenceDeletes(
-	ctx context.Context, namespace, gatewayRef string, plan *Plan, policy observedReferenceDeletePolicy,
+	ctx context.Context, _ string, gatewayRef string, plan *Plan, policy observedReferenceDeletePolicy,
 ) error {
 	type resourceKey struct{ kind, id string }
 	changes := make(map[resourceKey]*PlannedChange)
@@ -30,7 +31,7 @@ func resolveObservedReferenceDeletes(
 	var plannedUsers []*PlannedChange
 	for i := range plan.Changes {
 		change := &plan.Changes[i]
-		if change.Namespace != namespace || !aiGatewayChildChangeMatchesParent(*change, gatewayRef) {
+		if !aiGatewayChangeMatchesGateway(*change, gatewayRef, policy.gatewayID) {
 			continue
 		}
 		if change.ResourceType == policy.targetType && change.Action == ActionDelete {
@@ -40,7 +41,12 @@ func resolveObservedReferenceDeletes(
 			continue
 		}
 		if change.ResourceID != "" {
-			changes[resourceKey{change.ResourceType, change.ResourceID}] = change
+			key := resourceKey{change.ResourceType, change.ResourceID}
+			// A final deletion wins over intermediate updates, independent of source
+			// order. New replacement creates have their own identity/lifecycle.
+			if previous := changes[key]; previous == nil || previous.Action != ActionDelete {
+				changes[key] = change
+			}
 		}
 		if change.Action == ActionCreate || change.Action == ActionUpdate {
 			plannedUsers = append(plannedUsers, change)
@@ -54,7 +60,27 @@ func resolveObservedReferenceDeletes(
 		return err
 	}
 	for _, deletion := range deletes {
+		replacement := false
+		name, named := deletion.Fields[FieldName].(string)
+		for _, candidate := range plan.Changes {
+			if named && name != "" && candidate.Action == ActionCreate && candidate.ResourceType == deletion.ResourceType &&
+				candidate.Fields[FieldName] == name && aiGatewayChangeMatchesGateway(candidate, gatewayRef, policy.gatewayID) {
+				replacement = true
+			}
+		}
 		for _, change := range plannedUsers {
+			if change.Action == ActionUpdate && change.ResourceID != "" {
+				final := changes[resourceKey{change.ResourceType, change.ResourceID}]
+				if final != nil && final.Action == ActionDelete {
+					final.DependsOn = appendDependsOn(final.DependsOn, change.ID)
+					continue
+				}
+			}
+			// Only a new user can attach after same-name replacement. A retained user
+			// cannot detach from a name by updating it to that identical name.
+			if replacement && change.Action == ActionCreate {
+				continue
+			}
 			if policy.plannedReferences(*deletion, *change) {
 				return policy.conflict(
 					*deletion,
@@ -64,6 +90,9 @@ func resolveObservedReferenceDeletes(
 			}
 		}
 		for _, user := range users {
+			if user.resourceType == policy.targetType && user.id == deletion.ResourceID {
+				continue
+			}
 			if !policy.observedReferences(*deletion, user.references) {
 				continue
 			}

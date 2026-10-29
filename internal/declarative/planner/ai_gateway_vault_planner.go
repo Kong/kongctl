@@ -34,13 +34,14 @@ func (p *Planner) planAIGatewayVaultChanges(
 		return nil
 	}
 
-	currentVaults, err := p.client.ListAIGatewayVaults(ctx, gatewayID)
+	currentVaults, err := p.listAIGatewayVaults(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Vaults for gateway %s: %w", gatewayID, err)
 	}
 
 	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayVault, desired, currentVaults,
 		nameMatchedChildOperations[resources.AIGatewayVaultResource, state.AIGatewayVault]{
+			ownership: &ownedChildCollectionScope{gatewayRef, gatewayID},
 			desiredName: func(desired resources.AIGatewayVaultResource) string {
 				return desired.Name()
 			},
@@ -136,6 +137,7 @@ func (p *Planner) planAIGatewayVaultCreate(
 		}
 	}
 
+	stampOwnedChildChange(&change, vault.Kongctl)
 	plan.AddChange(change)
 }
 
@@ -200,6 +202,10 @@ func shouldUpdateAIGatewayVault(
 	desiredPayload, err := desired.MutablePayloadMap()
 	if err != nil {
 		return false, nil, nil, fmt.Errorf("failed to normalize desired AI Gateway Vault %q: %w", desired.Ref, err)
+	}
+
+	if err := prepareOwnedChildDiff(currentPayload, desiredPayload, &desired, desired.PublicLabels()); err != nil {
+		return false, nil, nil, err
 	}
 
 	currentCompare, desiredCompare := comparableAIGatewayVaultPayloads(currentPayload, desiredPayload)

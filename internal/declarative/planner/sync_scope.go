@@ -2,6 +2,8 @@ package planner
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -17,6 +19,9 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 	childScopes := scope.ChildScopes()
 	rootChildTypes := scope.RootChildCollectionTypes()
 	metadata := &PlanSyncScope{
+		ModelNamespaces:            modelScopeNamespaces(scope),
+		ChildNamespaces:            childScopeNamespaces(scope),
+		GatewayNamespaces:          slices.Sorted(maps.Keys(scope.GatewayNamespaces)),
 		RootResourceTypes:          make([]string, 0, len(rootTypes)),
 		ChildResourceTypes:         make([]PlanSyncChildScope, 0, len(childScopes)),
 		RootChildResourceTypes:     make([]string, 0, len(rootChildTypes)),
@@ -155,6 +160,21 @@ func (p *Planner) shouldPlanChild(
 	parentRef string,
 	rt resources.ResourceType,
 ) bool {
+	if plan != nil && plan.Metadata.Mode == PlanModeDelete && parentType == resources.ResourceTypeAIGateway &&
+		!resources.HasIndependentChildOwnership(rt) {
+		if p.resources != nil {
+			for _, child := range p.resources.AllResourcesByType(rt) {
+				if resource, ok := child.(resources.ResourceWithParent); ok {
+					if parent := resource.GetParentRef(); parent != nil && resources.NormalizeResourceRef(parent.Ref) == parentRef {
+						plan.AddWarning(child.GetRef(), fmt.Sprintf(
+							"direct delete of %s under an external AI Gateway is not supported; resource retained", rt,
+						))
+					}
+				}
+			}
+		}
+		return false
+	}
 	scope, planAll := p.prepareScope(plan != nil && plan.Metadata.Mode == PlanModeSync)
 	if planAll {
 		return true
@@ -186,4 +206,19 @@ func (p *Planner) shouldPlanOrganizationSystemAccounts(plan *Plan) bool {
 		return true
 	}
 	return scope.OrganizationSystemAccountsInScope()
+}
+
+func childScopeNamespaces(scope *resources.SyncScope) map[string]map[string][]string {
+	if scope == nil || len(scope.ChildNamespaces) == 0 {
+		return nil
+	}
+	result := make(map[string]map[string][]string)
+	for kind, parents := range scope.ChildNamespaces {
+		values := make(map[string][]string)
+		for parent, namespaces := range parents {
+			values[parent] = slices.Sorted(maps.Keys(namespaces))
+		}
+		result[string(kind)] = values
+	}
+	return result
 }

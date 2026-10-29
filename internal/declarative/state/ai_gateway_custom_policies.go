@@ -18,6 +18,7 @@ func (c *Client) ListAIGatewayCustomPolicies(ctx context.Context, gatewayID stri
 
 	var allData []kkComps.AIGatewayCustomPolicy
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -33,12 +34,15 @@ func (c *Client) ListAIGatewayCustomPolicies(ctx context.Context, gatewayID stri
 		}
 
 		if resp == nil || resp.ListAIGatewayCustomPoliciesResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayCustomPoliciesResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayCustomPoliciesResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayCustomPoliciesResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -114,6 +118,9 @@ func (c *Client) CreateAIGatewayCustomPolicy(
 	req kkComps.CreateAIGatewayCustomPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCustomPolicy, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCustomPoliciesAPI, "AI Gateway Custom Policies API"); err != nil {
 		return "", err
 	}
@@ -143,6 +150,9 @@ func (c *Client) UpdateAIGatewayCustomPolicy(
 	req kkComps.UpdateAIGatewayCustomPolicyRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayCustomPolicy, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayCustomPoliciesAPI, "AI Gateway Custom Policies API"); err != nil {
 		return "", err
 	}
@@ -182,6 +192,6 @@ func (c *Client) DeleteAIGatewayCustomPolicy(ctx context.Context, gatewayID stri
 	return nil
 }
 
-func normalizedAIGatewayCustomPolicyLabels(_ kkComps.AIGatewayCustomPolicy) map[string]string {
-	return map[string]string{}
+func normalizedAIGatewayCustomPolicyLabels(policy kkComps.AIGatewayCustomPolicy) map[string]string {
+	return resources.NormalizedChildOwnership(resources.AIGatewayCustomPolicyManagedBy(policy))
 }

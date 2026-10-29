@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/common"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
 	"github.com/kong/kongctl/internal/log"
@@ -324,7 +325,8 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 
 	// Verify it's a managed resource (child resources rely on parent linkage instead of labels)
 	isManaged := labels.IsManagedResource(resource.GetNormalizedLabels())
-	if !isManaged && (change.Parent != nil || strings.TrimSpace(change.Namespace) != "") {
+	if !isManaged && !resources.HasIndependentChildOwnership(resources.ResourceType(b.ops.ResourceType())) &&
+		(change.Parent != nil || strings.TrimSpace(change.Namespace) != "") {
 		isManaged = true
 	}
 	if !isManaged {
@@ -354,6 +356,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	ctx context.Context, resourceName string, change planner.PlannedChange,
 ) (ResourceInfo, error) {
+	if resources.HasIndependentChildOwnership(resources.ResourceType(b.ops.ResourceType())) {
+		return b.ops.GetByID(ctx, change.ResourceID, NewExecutionContext(&change))
+	}
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)
 
 	// Strategy 1: Standard name-based lookup

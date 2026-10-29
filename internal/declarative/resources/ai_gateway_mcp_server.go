@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -55,6 +56,11 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayMCPServerResource { return &gateway.MCPServers },
 			setParent:     func(child *AIGatewayMCPServerResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(47, ResourceTypeAIGatewayMCPServer,
+			func(g *AIGatewayResource) *[]AIGatewayMCPServerResource { return &g.MCPServers },
+			func(r *AIGatewayMCPServerResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewayMCPServerResource) string { return r.AIGateway }),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(90, "each MCP Server must declare an ai_gateway parent"),
@@ -64,7 +70,7 @@ func init() {
 
 // AIGatewayMCPServerResource represents an MCP Server nested under a Konnect AI Gateway.
 type AIGatewayMCPServerResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `       yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 
@@ -104,8 +110,10 @@ func (a AIGatewayMCPServerResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway MCP Server ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway MCP Server %s", a.Ref)
+	if err := validateChildDeclarationManagedBy(
+		aiGatewayPolicyStringMapField(a.CreateRequest(), "managed_by"), a.Kongctl,
+	); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway MCP Server %s", a.Ref)
@@ -260,6 +268,9 @@ func (a AIGatewayMCPServerResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -272,6 +283,9 @@ func (a AIGatewayMCPServerResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -285,15 +299,12 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -315,7 +326,7 @@ func (a *AIGatewayMCPServerResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayMCPServerRequest = req
 	return nil
@@ -478,7 +489,7 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 		return nil, fmt.Errorf("failed to build upstream MCP server schema: %w", err)
 	}
 	commonFields := []*ExplainField{
-		explainResourceRefField(),
+		explainResourceRefField(), explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("customer-support-tools"), true, true),
 		explainField("display_name", explainStringNode("Customer Support Tools"), true, true),
@@ -530,7 +541,7 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 	explainReplaceField(upstreamConfig, explainField("server", upstreamServerConfig, false, false))
 	explainReplaceField(upstreamServer, explainField("config", upstreamConfig, true, true))
 	upstreamServer.rejectLoadField("access", aiGatewayMCPServerUpstreamServerAccessMessage)
-	return explainUnionNode(
+	node := explainUnionNode(
 		conversionOnly,
 		explainObject(append(
 			slices.Clone(listenerAccessFields),
@@ -547,7 +558,25 @@ func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) 
 			explainField("type", explainConstStringNode("passthrough-listener"), true, true),
 		)...),
 		upstreamServer,
-	), nil
+	)
+	for _, field := range []string{"secret_access_key", "session_token"} {
+		explainReplaceUnionPath(
+			node,
+			[]string{SchemaFieldConfig, "upstream", "auth", field},
+			explainSecretEnvNode("MCP_"+strings.ToUpper(field)),
+		)
+	}
+	explainReplaceUnionPath(
+		node,
+		[]string{SchemaFieldConfig, "proxy", "auth", "password"},
+		explainSecretEnvNode("MCP_PROXY_PASSWORD"),
+	)
+	explainReplaceUnionPath(
+		node,
+		[]string{SchemaFieldConfig, "server", "tools_list_auth", "client_secret"},
+		explainSecretEnvNode("MCP_TOOLS_CLIENT_SECRET"),
+	)
+	return node, nil
 }
 
 func aiGatewayMCPToolAccessExplainNode() *ExplainNode {
@@ -660,4 +689,54 @@ func aiGatewayMCPACLsExplainNode() *ExplainNode {
 		explainField("allow", explainArrayOf(explainStringNode("consumer-group")), false, false),
 		explainField("deny", explainArrayOf(explainStringNode("consumer-group")), false, false),
 	)
+}
+
+func (a AIGatewayMCPServerResource) Protected() bool {
+	return a.Kongctl.IsProtected()
+}
+
+func (a AIGatewayMCPServerResource) PublicLabels() map[string]string {
+	if a.AIGatewayMCPServerConversionOnly != nil {
+		return a.AIGatewayMCPServerConversionOnly.Labels
+	}
+	if a.AIGatewayMCPServerConversionListener != nil {
+		return a.AIGatewayMCPServerConversionListener.Labels
+	}
+	if a.AIGatewayMCPServerListener != nil {
+		return a.AIGatewayMCPServerListener.Labels
+	}
+	if a.AIGatewayMCPServerPassthroughListener != nil {
+		return a.AIGatewayMCPServerPassthroughListener.Labels
+	}
+	if a.AIGatewayMCPServerUpstreamServer != nil {
+		return a.AIGatewayMCPServerUpstreamServer.Labels
+	}
+	return nil
+}
+
+func AIGatewayMCPServerManagedBy(value any) map[string]string {
+	return aiGatewayPolicyStringMapField(value, "managed_by")
+}
+
+func (a *AIGatewayMCPServerResource) SetChildManagedBy(metadata map[string]string) {
+	if a.AIGatewayMCPServerConversionOnly != nil {
+		a.AIGatewayMCPServerConversionOnly.ManagedBy = metadata
+		return
+	}
+	if a.AIGatewayMCPServerConversionListener != nil {
+		a.AIGatewayMCPServerConversionListener.ManagedBy = metadata
+		return
+	}
+	if a.AIGatewayMCPServerListener != nil {
+		a.AIGatewayMCPServerListener.ManagedBy = metadata
+		return
+	}
+	if a.AIGatewayMCPServerPassthroughListener != nil {
+		a.AIGatewayMCPServerPassthroughListener.ManagedBy = metadata
+		return
+	}
+	if a.AIGatewayMCPServerUpstreamServer != nil {
+		a.AIGatewayMCPServerUpstreamServer.ManagedBy = metadata
+		return
+	}
 }

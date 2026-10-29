@@ -304,14 +304,20 @@ steps:
   - name: 005-sync-delete-secret-and-vault
     inputOverlayDirs: [overlays/002-sync-delete-vault]
     commands:
-      - name: 000-sync
+      - name: 000-retained-provider-prevents-vault-deletion
+        outputFormat: disable
+        run: [plan, -f, "{{ .workdir }}/retained-provider.yaml", --mode, sync]
+        expectFailure:
+          exitCode: 1
+          contains: has redacted credentials that may reference it
+      - name: 001-sync
         outputFormat: json
         run: [sync, -f, "{{ .workdir }}/config.yaml", --auto-approve]
         assertions:
           - select: summary
             expect:
               fields:
-                applied: 2
+                applied: 3
                 failed: 0
 
   - name: 006-sync-delete-store

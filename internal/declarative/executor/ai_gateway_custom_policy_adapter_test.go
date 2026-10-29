@@ -13,6 +13,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/loader"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/require"
@@ -31,6 +32,7 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 	require.Equal(t, "custom-policy-gateway", resource.AIGateway)
 	fields, err := resource.MutablePayloadMap()
 	require.NoError(t, err)
+	fields[planner.FieldManagedBy] = resources.BuildChildManagedBy("default", false, "dev")
 	remote := map[string]any{
 		"id":         "custom-id",
 		"created_at": "2026-01-01T00:00:00Z",
@@ -40,6 +42,7 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 	data, err := json.Marshal(remote)
 	require.NoError(t, err)
 	var calls []string
+	created := false
 	client := customPolicyHTTPClient(func(r *http.Request) (*http.Response, error) {
 		calls = append(calls, r.Method)
 		require.True(t, strings.HasPrefix(r.URL.Path, "/v1/ai-gateways/gateway-id/custom-policies"))
@@ -48,17 +51,24 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			var actual map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&actual))
-			require.Equal(t, fields, actual)
+			expected, err := ownedChildPayload(fields)
+			require.NoError(t, err)
+			require.Equal(t, expected, actual)
 		}
 		if r.Method == http.MethodPost {
 			status = http.StatusCreated
+			created = true
 		}
 		if r.Method == http.MethodDelete {
 			status = http.StatusNoContent
 			body = ""
 		}
 		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/custom-policies") {
-			body = `{"data":[` + body + `],"meta":{"page":{"size":100}}}`
+			if created {
+				body = `{"data":[` + body + `],"meta":{"page":{"size":100}}}`
+			} else {
+				body = `{"data":[],"meta":{"page":{"size":100}}}`
+			}
 		}
 		return &http.Response{
 			StatusCode: status,
@@ -70,7 +80,10 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 	sdk := &helpers.KonnectSDK{SDK: kkSDK.New(kkSDK.WithServerURL("https://example.test"), kkSDK.WithClient(client))}
 	stateClient := state.NewClient(state.ClientConfig{AIGatewayCustomPoliciesAPI: sdk.GetAIGatewayCustomPoliciesAPI()})
 	adapter := NewAIGatewayCustomPolicyAdapter(stateClient)
-	execCtx := &ExecutionContext{PlannedChange: &planner.PlannedChange{Parent: &planner.ParentInfo{ID: "gateway-id"}}}
+	execCtx := NewExecutionContext(&planner.PlannedChange{
+		Namespace: "default", Fields: fields,
+		Parent: &planner.ParentInfo{ID: "gateway-id"},
+	})
 	var create kkComps.CreateAIGatewayCustomPolicyRequest
 	require.NoError(t, adapter.MapCreateFields(t.Context(), execCtx, fields, &create))
 	id, err := adapter.Create(t.Context(), create, "default", execCtx)
@@ -92,7 +105,7 @@ func TestAIGatewayCustomPolicyLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, id, updated)
 	require.NoError(t, adapter.Delete(t.Context(), id, execCtx))
-	require.Equal(t, []string{"POST", "GET", "GET", "PUT", "DELETE"}, calls)
+	require.Equal(t, []string{"GET", "POST", "GET", "GET", "GET", "PUT", "GET", "DELETE"}, calls)
 	_, err = adapter.Create(t.Context(), create, "default", nil)
 	require.ErrorContains(t, err, "execution context required")
 }

@@ -89,6 +89,9 @@ func (p *Planner) planAIGatewayChanges(
 	if plan.Metadata.Mode == PlanModeDelete {
 		for _, desiredGateway := range desired {
 			if desiredGateway.IsExternal() {
+				if err := p.planExternalAIGatewayChildren(ctx, plannerCtx, namespace, desiredGateway, plan); err != nil {
+					return err
+				}
 				continue
 			}
 			reconciler.deleteDesired(desiredGateway.Name, findManagedRoot(currentByName, desiredGateway.Name))
@@ -131,7 +134,7 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 
-	if plan.Metadata.Mode == PlanModeSync {
+	if plan.Metadata.Mode == PlanModeSync && p.aiGatewayRootSyncInScope(namespace) {
 		for _, current := range currentGateways {
 			if matchedCurrent[aiGatewayIdentity(current)] {
 				continue
@@ -141,6 +144,29 @@ func (p *Planner) planAIGatewayChanges(
 		}
 	}
 	return reconciler.errors.Error()
+}
+
+func (p *Planner) aiGatewayRootSyncInScope(namespace string) bool {
+	if p.resources.SyncScope == nil || !p.resources.SyncScope.RootInScope(resources.ResourceTypeAIGateway) {
+		return false
+	}
+	if p.resources.SyncScope.GatewayNamespaces != nil {
+		_, scoped := p.resources.SyncScope.GatewayNamespaces[namespace]
+		return scoped
+	}
+	if len(p.resources.AIGateways) == 0 {
+		// Legacy programmatic scopes with a nil GatewayNamespaces map and no
+		// declarations prune gateways in every namespace. Callers needing namespace
+		// isolation must populate that map; an empty map disables root pruning.
+		// The loader always captures GatewayNamespaces for a scoped gateway root.
+		return true
+	}
+	for _, gateway := range p.resources.AIGateways {
+		if !gateway.IsExternal() && resources.GetNamespace(gateway.Kongctl) == namespace {
+			return true
+		}
+	}
+	return false
 }
 
 func (p *Planner) planExternalAIGatewayChildren(

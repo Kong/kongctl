@@ -1995,6 +1995,7 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 	var allData []kkComps.AIGatewayModel
 	var pageAfter *string
 	pageSize := int64(100)
+	var cursors pagination.CursorTracker
 
 	for {
 		req := kkOps.ListAiGatewayModelsRequest{
@@ -2009,12 +2010,15 @@ func (c *Client) ListAIGatewayModels(ctx context.Context, gatewayID string) ([]A
 		}
 
 		if resp == nil || resp.ListAIGatewayModelsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway models returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayModelsResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayModelsResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayModelsResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway models for gateway %s: %w", gatewayID, err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -2086,6 +2090,9 @@ func (c *Client) CreateAIGatewayModel(
 	req kkComps.CreateAIGatewayModelRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayModel, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
 		return "", err
 	}
@@ -2115,6 +2122,9 @@ func (c *Client) UpdateAIGatewayModel(
 	req kkComps.UpdateAIGatewayModelRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayModel, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayModelAPI, "AI Gateway model API"); err != nil {
 		return "", err
 	}
@@ -2155,11 +2165,7 @@ func (c *Client) DeleteAIGatewayModel(ctx context.Context, gatewayID string, mod
 }
 
 func normalizedAIGatewayModelLabels(model kkComps.AIGatewayModel) map[string]string {
-	normalized := resources.AIGatewayModelLabels(model)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedModelOwnership(model)
 }
 
 func aiGatewayModelCreateRequestName(req kkComps.CreateAIGatewayModelRequest) string {

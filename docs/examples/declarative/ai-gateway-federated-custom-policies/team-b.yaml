@@ -1,0 +1,20 @@
+_defaults:
+  kongctl: {namespace: custom-team-b}
+ai_gateway_custom_policies:
+  - ref: streaming-b
+    ai_gateway: !lookup {name: federated-custom-policies-e2e}
+    name: streaming-b
+    display_name: Shared streaming definition
+    type: streaming
+    labels: {team: b}
+    schema: |
+      return {
+        name = "streaming-b",
+        fields = { { config = { type = "record", fields = {} } } },
+      }
+    handler: |
+      local plugin = { PRIORITY = 1000, VERSION = "0.1.0" }
+      function plugin:access(config)
+        kong.service.request.set_header("X-Federated-Custom-Policy", "retained")
+      end
+      return plugin

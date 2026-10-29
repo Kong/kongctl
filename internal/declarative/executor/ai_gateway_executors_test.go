@@ -78,46 +78,55 @@ func TestExecutorAIGatewayConsumerGroupDispatch(t *testing.T) {
 	}{
 		{
 			name: "create", action: planner.ActionCreate,
-			wantCalls: []string{"create", "list consumers", "add consumer"},
+			wantCalls: []string{"list groups", "create", "get", "list consumers", "add consumer"},
 		},
 		{
 			name: "update", action: planner.ActionUpdate,
-			wantCalls: []string{"get", "update", "list consumers", "add consumer"},
+			wantCalls: []string{"get", "get", "update", "get", "list consumers", "add consumer"},
 		},
 		{
 			name: "delete without membership synchronization", action: planner.ActionDelete,
-			wantCalls: []string{"get", "delete"},
+			wantCalls: []string{"get", "get", "delete"},
 		},
 		{name: "create preparation failure", action: planner.ActionCreate, unresolvedGateway: true},
 		{name: "update preparation failure", action: planner.ActionUpdate, unresolvedGateway: true},
 		{name: "delete preparation failure", action: planner.ActionDelete, unresolvedGateway: true},
 		{
 			name: "create failure", action: planner.ActionCreate, failAt: "create",
-			wantCalls: []string{"create"},
+			wantCalls: []string{"list groups", "create"},
 		},
 		{
 			name: "update failure", action: planner.ActionUpdate, failAt: "update",
-			wantCalls: []string{"get", "update"},
+			wantCalls: []string{"get", "get", "update"},
 		},
 		{
 			name: "delete failure", action: planner.ActionDelete, failAt: "delete",
-			wantCalls: []string{"get", "delete"},
+			wantCalls: []string{"get", "get", "delete"},
 		},
 		{
 			name: "create membership failure", action: planner.ActionCreate, failAt: "add consumer",
-			wantCalls: []string{"create", "list consumers", "add consumer"},
+			wantCalls: []string{"list groups", "create", "get", "list consumers", "add consumer"},
 		},
 		{
 			name: "update membership failure", action: planner.ActionUpdate, failAt: "add consumer",
-			wantCalls: []string{"get", "update", "list consumers", "add consumer"},
+			wantCalls: []string{"get", "get", "update", "get", "list consumers", "add consumer"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			change := &planner.PlannedChange{
 				ResourceType: planner.ResourceTypeAIGatewayConsumerGroup,
-				ResourceRef:  "group-ref",
-				Action:       tc.action,
+				ResourceRef:  "group-ref", Namespace: "default",
+				ChangedFields: map[string]planner.FieldChange{
+					planner.FieldConsumers: {New: []string{"support-agent"}},
+				},
+				Action: tc.action,
 				Fields: map[string]any{
+					planner.FieldName: "support-group",
+					planner.FieldManagedBy: resources.BuildChildManagedBy(
+						"default",
+						false,
+						"dev",
+					),
 					planner.FieldDisplayName: "Support group",
 					planner.FieldConsumers:   []string{"support-agent"},
 				},
@@ -186,7 +195,7 @@ func (a *dispatchAIGatewayConsumerGroupsAPI) record(operation, gatewayID, groupI
 	assert.Equal(a.t, "gateway-id", a.change.References[planner.FieldAIGatewayID].ID,
 		"gateway reference must be resolved before %s", operation)
 	assert.Equal(a.t, "gateway-id", gatewayID)
-	if operation != "create" {
+	if operation != "create" && operation != "list groups" {
 		assert.Equal(a.t, "group-id", groupID)
 	}
 	if a.failAt == operation {
@@ -222,7 +231,11 @@ func (a *dispatchAIGatewayConsumerGroupsAPI) GetAiGatewayConsumerGroup(
 		return nil, err
 	}
 	return &kkOps.GetAiGatewayConsumerGroupResponse{
-		AIGatewayConsumerGroup: &kkComps.AIGatewayConsumerGroup{ID: groupID, Name: "support-group"},
+		AIGatewayConsumerGroup: &kkComps.AIGatewayConsumerGroup{
+			ID: groupID, Name: "support-group",
+			DisplayName: "Support group",
+			ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
+		},
 	}, nil
 }
 
@@ -278,4 +291,19 @@ func (a *dispatchAIGatewayConsumerGroupsAPI) AddAiGatewayConsumerToConsumerGroup
 		return nil, err
 	}
 	return &kkOps.AddAiGatewayConsumerToConsumerGroupResponse{}, nil
+}
+
+func (a *dispatchAIGatewayConsumerGroupsAPI) ListAiGatewayConsumerGroups(
+	_ context.Context,
+	req kkOps.ListAiGatewayConsumerGroupsRequest,
+	_ ...kkOps.Option,
+) (*kkOps.ListAiGatewayConsumerGroupsResponse, error) {
+	if err := a.record("list groups", req.GatewayID, ""); err != nil {
+		return nil, err
+	}
+	return &kkOps.ListAiGatewayConsumerGroupsResponse{
+		ListAIGatewayConsumerGroupsResponse: &kkComps.ListAIGatewayConsumerGroupsResponse{
+			Data: []kkComps.AIGatewayConsumerGroup{},
+		},
+	}, nil
 }

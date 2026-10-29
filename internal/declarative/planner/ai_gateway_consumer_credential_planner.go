@@ -2,9 +2,11 @@ package planner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
+	"github.com/kong/kongctl/internal/build"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -18,6 +20,7 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 	consumerRef string,
 	consumerName string,
 	consumerID string,
+	owner *state.AIGatewayConsumer,
 	desired []resources.AIGatewayConsumerCredentialResource,
 	plan *Plan,
 ) error {
@@ -29,6 +32,21 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 		slog.String("consumer_id", consumerID),
 		slog.Int("desired_count", len(desired)),
 	)
+
+	if owner == nil {
+		var err error
+		owner, err = p.client.GetAIGatewayConsumer(ctx, gatewayID, consumerID)
+		if err != nil {
+			return err
+		}
+	}
+	if owner == nil {
+		return fmt.Errorf("AI Gateway consumer disappeared during credential planning")
+	}
+	if err := resources.ValidateChildOwnership("AI Gateway consumer", owner.ManagedBy, namespace); err != nil {
+		return err
+	}
+	initialChanges := len(plan.Changes)
 
 	currentCredentials, err := p.client.ListAIGatewayConsumerCredentials(ctx, gatewayID, consumerID)
 	if err != nil {
@@ -71,6 +89,15 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 			return err
 		}
 		if !needsReplace {
+			if drift, exists := changedFields[FieldManagedBy]; exists {
+				before, _ := json.Marshal(drift.Old)
+				after, _ := json.Marshal(resources.ManagedByWithProvenance(nil, build.Version(ctx)))
+				plan.AddWarning(desiredCredential.Ref, fmt.Sprintf(
+					"AI Gateway consumer credential %q has managed_by drift (%s -> %s); credentials cannot be updated in place; "+
+						"no replacement was planned for metadata alone; explicitly replace the credential if needed",
+					desiredCredential.Name, before, after,
+				))
+			}
 			continue
 		}
 
@@ -132,6 +159,10 @@ func (p *Planner) planAIGatewayConsumerCredentialChanges(
 				plan,
 			)
 		}
+	}
+
+	if len(plan.Changes) > initialChanges && resources.IsChildProtected(owner.ManagedBy) {
+		return fmt.Errorf("AI Gateway consumer is protected; credential writes are not allowed")
 	}
 
 	return nil
@@ -277,11 +308,17 @@ func shouldReplaceAIGatewayConsumerCredential(
 		)
 	}
 	delete(desiredPayload, FieldAPIKey)
+	desiredPayload[FieldManagedBy] = resources.ManagedByWithProvenance(nil, "")
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil
+	}
+	if len(changedFields) == 1 {
+		if _, metadataOnly := changedFields[FieldManagedBy]; metadataOnly {
+			return false, changedFields, nil
+		}
 	}
 	return true, changedFields, nil
 }

@@ -69,7 +69,14 @@ func TestAIGatewayConsumerGroupPlannerUpdatesExistingGroup(t *testing.T) {
 func TestAIGatewayConsumerGroupPlannerSyncDeletesScopedGroups(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
-	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumerGroup)
+	scope.AddChild(
+		resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumerGroup,
+	)
+	scope.AddChildNamespace(
+		resources.ResourceTypeAIGatewayConsumerGroup,
+		"support-gateway",
+		"default",
+	)
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -298,6 +305,7 @@ func testAIGatewayConsumerGroupResourceWithConsumers(
 
 func testAIGatewayConsumerGroup(policies []string) kkComps.AIGatewayConsumerGroup {
 	return kkComps.AIGatewayConsumerGroup{
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "group-id",
 		Name:        "premium-support-users",
 		DisplayName: "Premium Support Users",

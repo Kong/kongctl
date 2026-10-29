@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -50,7 +49,7 @@ func (a *AIGatewayConsumerGroupAdapter) MapUpdateFields(
 	return mapAIGatewaySDKRequest("AI Gateway Consumer Group update", fields, update)
 }
 
-// Create creates an AI Gateway Consumer Group.
+// Create creates an AI Gateway ConsumerGroup.
 func (a *AIGatewayConsumerGroupAdapter) Create(
 	ctx context.Context,
 	req kkComps.CreateAIGatewayConsumerGroupRequest,
@@ -61,10 +60,26 @@ func (a *AIGatewayConsumerGroupAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway consumer group", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	consumerGroups, err := a.client.ListAIGatewayConsumerGroups(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, consumerGroup := range consumerGroups {
+		if consumerGroup.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway consumer group", consumerGroup.Name)
+		}
+	}
 	return a.client.CreateAIGatewayConsumerGroup(ctx, gatewayID, req, namespace)
 }
 
-// Update updates an AI Gateway Consumer Group.
+// Update updates an AI Gateway ConsumerGroup.
 func (a *AIGatewayConsumerGroupAdapter) Update(
 	ctx context.Context,
 	id string,
@@ -76,17 +91,72 @@ func (a *AIGatewayConsumerGroupAdapter) Update(
 	if err != nil {
 		return "", err
 	}
-	if isEmptyAIGatewayConsumerGroupUpdateRequest(req) {
-		return id, nil
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway consumer group", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayConsumerGroup(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway consumer group no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayConsumerGroupMutablePayloadMap(
+		current.AIGatewayConsumerGroup,
+	)
+	if err != nil {
+		return "", err
+	}
+	currentPayload = cloneFieldsWithoutAIGatewayConsumerGroupMembership(currentPayload)
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayConsumerGroupRequest](
+		"AI Gateway consumer group",
+		currentPayload,
+		payload,
+		execCtx,
+		planner.FieldConsumers,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway consumer group",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway consumer group update", payload, &req); err != nil {
+		return "", err
 	}
 	return a.client.UpdateAIGatewayConsumerGroup(ctx, gatewayID, id, req, namespace)
 }
 
-// Delete deletes an AI Gateway Consumer Group.
+// Delete deletes an AI Gateway ConsumerGroup.
 func (a *AIGatewayConsumerGroupAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayConsumerGroup(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway consumer group", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(current.ManagedBy) {
+		return fmt.Errorf("AI Gateway consumer group is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayConsumerGroup(ctx, gatewayID, id)
 }
@@ -140,18 +210,6 @@ func cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields map[string]any) m
 		clone[key] = value
 	}
 	return clone
-}
-
-func isEmptyAIGatewayConsumerGroupUpdateRequest(req kkComps.UpdateAIGatewayConsumerGroupRequest) bool {
-	data, err := json.Marshal(req)
-	if err != nil {
-		return false
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return false
-	}
-	return len(payload) == 0
 }
 
 func (a *AIGatewayConsumerGroupAdapter) getAIGatewayIDFromExecutionContext(

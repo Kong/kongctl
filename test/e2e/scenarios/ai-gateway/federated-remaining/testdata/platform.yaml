@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: remaining-platform
+ai_gateways:
+- ref: platform
+  name: federated-remaining-e2e
+  display_name: Federated remaining children E2E
+  min_runtime_version: '2.2'
+  runtime_auto_upgrade: false
+  certificates:
+  - ref: platform-cert
+    name: platform-cert
+    cert: !file './certs/runtime.pem'
+    key: !secret
+      source: !file './certs/runtime.key'

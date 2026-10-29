@@ -35,7 +35,7 @@ func (c *Client) ListAIGatewayConsumerGroups(ctx context.Context, gatewayID stri
 		}
 
 		if resp == nil || resp.ListAIGatewayConsumerGroupsResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumerGroupsResponse.Data...)
@@ -119,6 +119,9 @@ func (c *Client) CreateAIGatewayConsumerGroup(
 	req kkComps.CreateAIGatewayConsumerGroupRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumerGroup, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayConsumerGroupsAPI, "AI Gateway Consumer Groups API"); err != nil {
 		return "", err
 	}
@@ -148,6 +151,9 @@ func (c *Client) UpdateAIGatewayConsumerGroup(
 	req kkComps.UpdateAIGatewayConsumerGroupRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumerGroup, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayConsumerGroupsAPI, "AI Gateway Consumer Groups API"); err != nil {
 		return "", err
 	}
@@ -214,7 +220,7 @@ func (c *Client) ListAIGatewayConsumersInConsumerGroup(
 			return nil, WrapAPIError(err, "list AI Gateway Consumers in Consumer Group", nil)
 		}
 		if resp == nil || resp.ListAIGatewayConsumersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)
@@ -347,9 +353,5 @@ func firstNonEmpty(values ...string) string {
 }
 
 func normalizedAIGatewayConsumerGroupLabels(group kkComps.AIGatewayConsumerGroup) map[string]string {
-	normalized := group.Labels
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(group.ManagedBy)
 }

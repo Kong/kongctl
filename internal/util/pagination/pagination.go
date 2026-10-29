@@ -16,6 +16,9 @@ type CursorTracker struct {
 func (t *CursorTracker) Next(next *string) (string, error) {
 	cursor := ExtractPageAfterCursor(next)
 	if cursor == "" {
+		if next != nil && *next != "" {
+			return "", errors.New("pagination returned an invalid next-page cursor")
+		}
 		return "", nil
 	}
 	if _, exists := t.seen[cursor]; exists {

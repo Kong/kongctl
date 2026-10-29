@@ -61,7 +61,7 @@ func (a *AIGatewayMCPServerAdapter) MapUpdateFields(
 	return nil
 }
 
-// Create creates an AI Gateway MCP Server.
+// Create creates an AI Gateway MCPServer.
 func (a *AIGatewayMCPServerAdapter) Create(
 	ctx context.Context,
 	req kkComps.CreateAIGatewayMCPServerRequest,
@@ -72,10 +72,31 @@ func (a *AIGatewayMCPServerAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway MCP server", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	mcpServers, err := a.client.ListAIGatewayMCPServers(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, mcpServer := range mcpServers {
+		if resources.AIGatewayMCPServerName(
+			mcpServer.AIGatewayMCPServer,
+		) == payload[planner.FieldName] {
+			return "", childCreationCollision(
+				"AI Gateway MCP server",
+				resources.AIGatewayMCPServerName(mcpServer.AIGatewayMCPServer),
+			)
+		}
+	}
 	return a.client.CreateAIGatewayMCPServer(ctx, gatewayID, req, namespace)
 }
 
-// Update updates an AI Gateway MCP Server.
+// Update updates an AI Gateway MCPServer.
 func (a *AIGatewayMCPServerAdapter) Update(
 	ctx context.Context,
 	id string,
@@ -87,13 +108,74 @@ func (a *AIGatewayMCPServerAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway MCP server", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayMCPServer(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway MCP server no longer exists")
+	}
+	currentPayload, err := resources.AIGatewayMCPServerMutablePayloadMap(current.AIGatewayMCPServer)
+	if err != nil {
+		return "", err
+	}
+	payload, err = preserveOwnedMappedChildMetadataUpdate[kkComps.UpdateAIGatewayMCPServerRequest](
+		"AI Gateway MCP server",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	payload, err = prepareOwnedMappedChildUpdate(
+		"AI Gateway MCP server",
+		currentPayload,
+		payload,
+		execCtx,
+	)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway MCP server update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayMCPServer(ctx, gatewayID, id, req, namespace)
 }
 
-// Delete deletes an AI Gateway MCP Server.
+// Delete deletes an AI Gateway MCPServer.
 func (a *AIGatewayMCPServerAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
+		return err
+	}
+	current, err := a.client.GetAIGatewayMCPServer(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway MCP server", resources.AIGatewayMCPServerManagedBy(current.AIGatewayMCPServer), execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if resources.IsChildProtected(
+		resources.AIGatewayMCPServerManagedBy(current.AIGatewayMCPServer),
+	) {
+		return fmt.Errorf("AI Gateway MCP server is protected and cannot be deleted")
+	}
+	if err := validateCurrentAIGatewayChildDeletion(
+		ctx, a.client, execCtx, gatewayID, id, resources.AIGatewayMCPServerName(current.AIGatewayMCPServer),
+	); err != nil {
 		return err
 	}
 	return a.client.DeleteAIGatewayMCPServer(ctx, gatewayID, id)

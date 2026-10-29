@@ -27,7 +27,8 @@ the feature, commands, and options.
 ## File-level defaults (`_defaults`)
 
 Use `_defaults.kongctl` to apply default `namespace` and `protected` metadata
-to parent resources in this file. Resource-level `kongctl` values override
+to namespace-bearing resources, including AI Gateway models, in this file.
+Resource-level `kongctl` values override
 these defaults.
 
 ```yaml
@@ -491,8 +492,10 @@ AI Gateway Data Plane Certificates use their required `title` field as the
 stable Konnect child name and match only by title within their gateway.
 UUID refs and cached IDs do not override the declared title. A changed title
 declares a different certificate and sync can delete the previous one.
-Child entries inherit management scope from their parent resource and do not
-accept `kongctl` metadata.
+Models, providers, auth strategies, policies, custom policy definitions,
+agents, MCP servers, vaults, consumers, consumer groups, CA certificates, and
+SNIs accept independent `kongctl` namespace/protection metadata stored in
+`managed_by`. Other child entries retain their existing inherited scope.
 
 When upgrading configurations that relied on UUID refs or display-name
 matching, explicitly set each gateway and name-bearing child's `name` to its
@@ -570,6 +573,14 @@ Use `auth_strategies: []`, `policies: []`, `agents: []`,
 `ai_gateway_ca_certificates: []`, and `ai_gateway_snis: []` are rejected
 because they do not identify a parent resource.
 
+
+For independently owned families, empty nested sync collections remove only
+that source namespace's unprotected owned children. Credentials follow their
+consumer's ownership. Group membership remains a group-owned full set, including
+foreign consumers; omission preserves and `[]` clears membership. Runtime
+certificate federation is deferred pending a metadata-only PATCH API. See
+[remaining child ownership and API limits](ai-gateway-remaining-child-ownership.md).
+
 ```yaml
 ai_gateways:
  - ref: string
@@ -593,7 +604,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    auth_strategies:
      - ref: string
@@ -603,7 +613,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    policies:
      - ref: string
@@ -615,7 +624,6 @@ ai_gateways:
        config: object required
        labels: object [string]string
          key: value
-       managed_by: object [string]string
          key: value
    agents:
     - ref: string
@@ -633,7 +641,6 @@ ai_gateways:
       acls: object
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    consumers:
     - ref: string
@@ -645,7 +652,6 @@ ai_gateways:
        - !ref policy-ref
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
       credentials:
        - ref: string
@@ -655,7 +661,6 @@ ai_gateways:
          ttl: integer
          labels: object [string]string
            key: value
-         managed_by: object [string]string
            key: value
    consumer_groups:
     - ref: string
@@ -665,7 +670,6 @@ ai_gateways:
        - !ref policy-ref
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    models:
     - ref: string
@@ -696,7 +700,6 @@ ai_gateways:
         auth_strategies:
          - !ref auth-strategy-ref
         metadata: object
-      managed_by: object
    mcp_servers:
     - ref: string
       type: conversion-only # or conversion-listener, listener,
@@ -716,7 +719,6 @@ ai_gateways:
       labels: object [string]string
         key: value
       acls: object
-      managed_by: object
    vaults:
     - ref: string
       type: env # or konnect, aws, gcp, azure, conjur, hcv
@@ -725,7 +727,6 @@ ai_gateways:
       config: object required
       labels: object [string]string
         key: value
-      managed_by: object [string]string
         key: value
    data_plane_certificates:
     - ref: string
@@ -752,7 +753,6 @@ ai_gateway_model_providers:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -780,7 +780,6 @@ ai_gateway_auth_strategies:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -799,12 +798,13 @@ ai_gateway_policies:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
 AI Gateway Agents can also be declared as root resources. Include `ai_gateway`
-to point at the parent gateway `ref`.
+to point at the parent gateway `ref`. Both agent types support independent
+namespace/protection and deferred upstream/proxy credentials. See
+[agent ownership and migration](ai-gateway-agent-ownership.md).
 
 ```yaml
 ai_gateway_agents:
@@ -827,7 +827,6 @@ ai_gateway_agents:
       - !ref auth-strategy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -846,7 +845,6 @@ ai_gateway_consumers:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -867,7 +865,6 @@ ai_gateway_consumer_credentials:
    ttl: integer
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
@@ -884,16 +881,25 @@ ai_gateway_consumer_groups:
     - !ref policy-ref
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 
 AI Gateway Models can also be declared as root resources. Include
 `ai_gateway` to point at the parent gateway `ref`.
 
+Models have independent namespace and protection through `kongctl`, including
+when nested. File defaults apply to models; gateway metadata does not. Ownership
+is persisted in reserved lowercase `managed_by` keys. Existing unowned models
+require explicit adoption before updates or deletion. See
+[AI Gateway model ownership](ai-gateway-model-ownership.md) for sync scope,
+migration, and metadata preservation.
+
 ```yaml
 ai_gateway_models:
  - ref: string
+   kongctl:
+     namespace: team-a
+     protected: false
    ai_gateway: string required # AI Gateway ref
    type: model # or api
    name: string required
@@ -929,7 +935,6 @@ ai_gateway_models:
      acls: object
      auth_strategies:
        - !ref auth-strategy-ref
-   managed_by: object
 ```
 
 AI Gateway MCP Servers can also be declared as root resources. Include
@@ -968,7 +973,6 @@ ai_gateway_mcp_servers:
        authorization_servers: array[string]
        resource: string
        scopes_supported: array[string]
-   managed_by: object
 ```
 
 AI Gateway Config Stores can also be declared as root resources. Include
@@ -1035,7 +1039,6 @@ ai_gateway_vaults:
    config: object required
    labels: object [string]string
      key: value
-   managed_by: object [string]string
      key: value
 ```
 

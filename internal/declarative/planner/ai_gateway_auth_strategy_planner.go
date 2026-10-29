@@ -45,49 +45,14 @@ func (p *Planner) planAIGatewayAuthStrategyChanges(
 		return nil
 	}
 
-	currentProviders, err := p.client.ListAIGatewayAuthStrategies(ctx, gatewayID)
+	currentProviders, err := p.listAIGatewayAuthStrategies(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Auth Strategies for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayAuthStrategy, desired, currentProviders,
-		nameMatchedChildOperations[resources.AIGatewayAuthStrategyResource, state.AIGatewayAuthStrategy]{
-			desiredName: func(desired resources.AIGatewayAuthStrategyResource) string {
-				return desired.Name
-			},
-			currentName: func(current state.AIGatewayAuthStrategy) string {
-				return current.Name
-			},
-			fetch: func(
-				_ resources.AIGatewayAuthStrategyResource,
-				current state.AIGatewayAuthStrategy,
-			) (*state.AIGatewayAuthStrategy, error) {
-				full, err := p.client.GetAIGatewayAuthStrategy(ctx, gatewayID, current.ID)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway Auth Strategy %s: %w", current.ID, err)
-				}
-				return full, nil
-			},
-			diff: shouldUpdateAIGatewayAuthStrategy,
-			create: func(desired resources.AIGatewayAuthStrategyResource) {
-				p.planAIGatewayAuthStrategyCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
-			},
-			update: func(
-				current state.AIGatewayAuthStrategy,
-				desired resources.AIGatewayAuthStrategyResource,
-				fields map[string]any,
-				changed map[string]FieldChange,
-			) {
-				p.planAIGatewayAuthStrategyUpdate(namespace, gatewayRef, gatewayID,
-					current.ID, desired, fields, changed, plan)
-			},
-			protected: func(current state.AIGatewayAuthStrategy) bool {
-				return labels.IsProtectedResource(current.NormalizedLabels)
-			},
-			remove: func(current state.AIGatewayAuthStrategy) {
-				p.planAIGatewayAuthStrategyDelete(namespace, gatewayRef, gatewayID, current.ID, current.Name, plan)
-			},
-		}, plan)
+	return p.reconcileOwnedAIGatewayAuthStrategies(
+		ctx, gatewayRef, gatewayName, gatewayID, desired, currentProviders, plan,
+	)
 }
 
 func (p *Planner) planAIGatewayAuthStrategyCreatesForNewGateway(
@@ -109,7 +74,7 @@ func (p *Planner) planAIGatewayAuthStrategyCreatesForNewGateway(
 }
 
 func (p *Planner) planAIGatewayAuthStrategyCreate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
@@ -117,13 +82,17 @@ func (p *Planner) planAIGatewayAuthStrategyCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
+	provider.ManagedBy = resources.BuildChildManagedBy(
+		resources.GetNamespace(provider.Kongctl), provider.Protected(), "",
+	)
 	change := PlannedChange{
 		ID:           p.nextChangeID(ActionCreate, ResourceTypeAIGatewayAuthStrategy, provider.Ref),
 		ResourceType: ResourceTypeAIGatewayAuthStrategy,
 		ResourceRef:  provider.Ref,
 		Action:       ActionCreate,
 		Fields:       extractAIGatewayAuthStrategyFields(provider),
-		Namespace:    namespace,
+		Namespace:    resources.GetNamespace(provider.Kongctl),
+		Protection:   provider.Protected(),
 		DependsOn:    dependsOn,
 	}
 
@@ -147,7 +116,7 @@ func (p *Planner) planAIGatewayAuthStrategyCreate(
 }
 
 func (p *Planner) planAIGatewayAuthStrategyUpdate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	gatewayID string,
 	providerID string,
@@ -168,7 +137,7 @@ func (p *Planner) planAIGatewayAuthStrategyUpdate(
 		Action:        ActionUpdate,
 		Fields:        updateFields,
 		ChangedFields: changedFields,
-		Namespace:     namespace,
+		Namespace:     resources.GetNamespace(provider.Kongctl),
 		Parent: &ParentInfo{
 			Ref: gatewayRef,
 			ID:  gatewayID,
@@ -222,14 +191,14 @@ func shouldUpdateAIGatewayAuthStrategy(
 		changedFields[FieldDisplayName] = FieldChange{Old: current.DisplayName, New: desired.DisplayName}
 	}
 
-	if desired.Labels != nil && labels.CompareUserLabels(current.NormalizedLabels, desired.Labels) {
+	if desired.Labels != nil && labels.CompareUserLabels(current.Labels, desired.Labels) {
 		changedFields[FieldLabels] = FieldChange{
-			Old: labels.GetUserLabels(current.NormalizedLabels),
+			Old: labels.GetUserLabels(current.Labels),
 			New: labels.GetUserLabels(desired.Labels),
 		}
 	}
 
-	if desired.ManagedBy != nil && !reflect.DeepEqual(current.ManagedBy, desired.ManagedBy) {
+	if desired.ManagedBy != nil && !managedByValuesEqual(current.ManagedBy, desired.ManagedBy) {
 		changedFields[FieldManagedBy] = FieldChange{Old: current.ManagedBy, New: desired.ManagedBy}
 	}
 
@@ -345,7 +314,7 @@ func mergeAIGatewayAuthStrategyConfigValues(current, desired map[string]any) {
 
 func isAIGatewayAuthStrategySecretField(key string) bool {
 	switch strings.ToLower(key) {
-	case FieldClientSecret:
+	case FieldClientSecret, "http_proxy_authorization", "https_proxy_authorization":
 		return true
 	default:
 		return false

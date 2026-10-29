@@ -9,7 +9,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -330,11 +329,16 @@ func TestAIGatewayAuthStrategyPlannerNameIdentity(t *testing.T) {
 			} {
 				raw := map[string]any{
 					"id": identity.id, "name": identity.name, "type": "key-auth",
+					"managed_by": map[string]string{
+						resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "dev",
+						resources.ChildNamespaceKey: "test-namespace",
+						resources.ChildProtectedKey: "false",
+					},
 					"display_name": "Original child", "config": map[string]any{},
 					"created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
 				}
 				if tt.protected && identity.id == cachedID {
-					raw["labels"] = map[string]string{labels.ProtectedKey: labels.TrueValue}
+					raw["managed_by"].(map[string]string)[resources.ChildProtectedKey] = "true"
 				}
 				data, err := json.Marshal(raw)
 				require.NoError(t, err)
@@ -343,8 +347,11 @@ func TestAIGatewayAuthStrategyPlannerNameIdentity(t *testing.T) {
 				api.children = append(api.children, child)
 			}
 			desired := resources.AIGatewayAuthStrategyResource{
-				BaseResource: resources.BaseResource{Ref: tt.ref},
-				Name:         tt.desiredName, Type: "key-auth", DisplayName: "Updated child",
+				BaseResource: resources.BaseResource{
+					Ref:     tt.ref,
+					Kongctl: &resources.KongctlMeta{Namespace: new("test-namespace")},
+				},
+				Name: tt.desiredName, Type: "key-auth", DisplayName: "Updated child",
 			}
 			if tt.unchanged {
 				desired.DisplayName = "Original child"
@@ -364,6 +371,11 @@ func TestAIGatewayAuthStrategyPlannerNameIdentity(t *testing.T) {
 				require.Equal(t, [][2]string{{"gateway-id", nameID}}, api.reads)
 			} else {
 				require.Empty(t, api.reads)
+			}
+			if tt.missingDetail {
+				require.ErrorContains(t, err, "disappeared during planning")
+				require.Empty(t, plan.Changes)
+				return
 			}
 			if tt.readError {
 				require.ErrorContains(t, err, "failed to get AI Gateway Auth Strategy "+nameID)
@@ -452,4 +464,16 @@ func (a *nameIdentityAuthStrategyAPI) GetAiGatewayAuthStrategy(
 		}
 	}
 	return &kkOps.GetAiGatewayAuthStrategyResponse{}, nil
+}
+
+func TestAuthStrategyProxyCredentialsDoNotForceConfigUpdates(t *testing.T) {
+	for _, field := range []string{"http_proxy_authorization", "https_proxy_authorization"} {
+		current := map[string]any{"issuer": "https://issuer.example.test", "cache_tokens_salt": "public-cache-salt"}
+		desired := map[string]any{
+			"issuer":            "https://issuer.example.test",
+			"cache_tokens_salt": "public-cache-salt",
+			field:               "unselected-credential",
+		}
+		require.False(t, aiGatewayAuthStrategyConfigChanged(current, desired))
+	}
 }

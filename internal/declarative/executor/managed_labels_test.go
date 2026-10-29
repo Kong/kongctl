@@ -176,7 +176,8 @@ func assertAllProtectableResourcesCovered(t *testing.T, covered map[resources.Re
 
 	protectable := make(map[resources.ResourceType]bool)
 	err := resourceSet.ForEachNamespaceParticipant(func(participant resources.NamespaceParticipant) error {
-		if participant.SupportsProtected {
+		// Independently owned children use managed_by instead of the generic public-label adapter.
+		if participant.SupportsProtected && !resources.HasIndependentChildOwnership(participant.Type) {
 			protectable[participant.Type] = true
 		}
 		return nil

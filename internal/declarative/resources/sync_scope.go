@@ -9,6 +9,12 @@ import (
 // declarative input. Sync planning uses this to distinguish omitted collections
 // from collections intentionally set to zero desired resources.
 type SyncScope struct {
+	// ChildNamespaces records independently owned collection scope per family and parent.
+	ChildNamespaces map[ResourceType]map[string]map[string]struct{}
+	// ModelNamespaces separates model ownership from gateway collection scope.
+	ModelNamespaces map[string]map[string]struct{}
+	// GatewayNamespaces excludes namespaces introduced only by independent models.
+	GatewayNamespaces                map[string]struct{}
 	RootResourceTypes                map[ResourceType]struct{}
 	ChildResourceTypes               map[ResourceType]map[string]map[ResourceType]struct{}
 	RootChildResourceTypes           map[ResourceType]struct{}
@@ -125,6 +131,18 @@ func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef st
 	if s == nil || oldRef == "" || newRef == "" || oldRef == newRef {
 		return
 	}
+	if parentType == ResourceTypeAIGateway {
+		for kind, parents := range s.ChildNamespaces {
+			for namespace := range parents[oldRef] {
+				s.AddChildNamespace(kind, newRef, namespace)
+			}
+			delete(parents, oldRef)
+		}
+		for namespace := range s.ModelNamespaces[oldRef] {
+			s.AddModelNamespace(newRef, namespace)
+		}
+		delete(s.ModelNamespaces, oldRef)
+	}
 	byParentRef := s.ChildResourceTypes[parentType]
 	if byParentRef == nil {
 		return
@@ -196,7 +214,7 @@ func (s *SyncScope) HasAny() bool {
 	if s == nil {
 		return false
 	}
-	return len(s.RootResourceTypes) > 0 ||
+	return len(s.ChildNamespaces) > 0 || len(s.RootResourceTypes) > 0 ||
 		len(s.ChildResourceTypes) > 0 ||
 		len(s.RootChildResourceTypes) > 0 ||
 		s.OrganizationUsersScoped ||
@@ -256,6 +274,26 @@ func (s *SyncScope) Merge(other *SyncScope) {
 	if s == nil || other == nil {
 		return
 	}
+	if other.GatewayNamespaces != nil {
+		if s.GatewayNamespaces == nil {
+			s.GatewayNamespaces = make(map[string]struct{})
+		}
+		for namespace := range other.GatewayNamespaces {
+			s.GatewayNamespaces[namespace] = struct{}{}
+		}
+	}
+	for kind, parents := range other.ChildNamespaces {
+		for parent, namespaces := range parents {
+			for namespace := range namespaces {
+				s.AddChildNamespace(kind, parent, namespace)
+			}
+		}
+	}
+	for parent, namespaces := range other.ModelNamespaces {
+		for namespace := range namespaces {
+			s.AddModelNamespace(parent, namespace)
+		}
+	}
 	for _, rt := range other.RootTypes() {
 		s.AddRoot(rt)
 	}
@@ -271,4 +309,75 @@ func (s *SyncScope) Merge(other *SyncScope) {
 	if other.OrganizationSystemAccountsScoped {
 		s.MarkOrganizationSystemAccountsScoped()
 	}
+}
+
+func (s *SyncScope) AddModelNamespace(parentRef, namespace string) {
+	if s == nil {
+		return
+	}
+	s.AddChildNamespace(ResourceTypeAIGatewayModel, parentRef, namespace)
+	parentRef = NormalizeResourceRef(parentRef)
+	if s.ModelNamespaces == nil {
+		s.ModelNamespaces = make(map[string]map[string]struct{})
+	}
+	if s.ModelNamespaces[parentRef] == nil {
+		s.ModelNamespaces[parentRef] = make(map[string]struct{})
+	}
+	s.ModelNamespaces[parentRef][namespace] = struct{}{}
+}
+
+// CaptureAIGatewayNamespaceScopes runs per source after defaults, before extraction.
+// Empty nested collections use that source's namespace, never their gateway's.
+func (rs *ResourceSet) CaptureAIGatewayNamespaceScopes(defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	if scope.RootInScope(ResourceTypeAIGateway) {
+		scope.GatewayNamespaces = make(map[string]struct{})
+		if len(rs.AIGateways) == 0 {
+			scope.GatewayNamespaces[defaultNamespace] = struct{}{}
+		}
+		for _, gateway := range rs.AIGateways {
+			if !gateway.IsExternal() {
+				scope.GatewayNamespaces[GetNamespace(gateway.Kongctl)] = struct{}{}
+			}
+		}
+	}
+	for _, ops := range registry {
+		if ops.captureOwnedChildScope != nil {
+			ops.captureOwnedChildScope(rs, defaultNamespace)
+		}
+	}
+}
+
+// AddChildNamespace is called per source, after defaults and before extraction.
+// Empty collections contribute the source default; omitted collections do not.
+// This never changes root gateway scope.
+func (s *SyncScope) AddChildNamespace(kind ResourceType, parentRef, namespace string) {
+	if s == nil {
+		return
+	}
+	parentRef = NormalizeResourceRef(parentRef)
+	if s.ChildNamespaces == nil {
+		s.ChildNamespaces = make(map[ResourceType]map[string]map[string]struct{})
+	}
+	if s.ChildNamespaces[kind] == nil {
+		s.ChildNamespaces[kind] = make(map[string]map[string]struct{})
+	}
+	if s.ChildNamespaces[kind][parentRef] == nil {
+		s.ChildNamespaces[kind][parentRef] = make(map[string]struct{})
+	}
+	s.ChildNamespaces[kind][parentRef][namespace] = struct{}{}
+}
+
+func (s *SyncScope) OwnedChildNamespaces(kind ResourceType, parentRef string) map[string]struct{} {
+	if s == nil {
+		return nil
+	}
+	if values := s.ChildNamespaces[kind][parentRef]; values != nil {
+		return values
+	}
+	// Compatibility for callers constructing model scopes directly.
+	if kind == ResourceTypeAIGatewayModel {
+		return s.ModelNamespaces[parentRef]
+	}
+	return nil
 }

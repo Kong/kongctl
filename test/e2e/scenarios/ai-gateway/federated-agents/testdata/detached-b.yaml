@@ -1,0 +1,12 @@
+_defaults:
+  kongctl: {namespace: agents-team-b}
+ai_gateway_agents:
+  - ref: agent-b
+    ai_gateway: !lookup {name: federated-agents-e2e}
+    name: agent-b
+    type: http
+    display_name: Team b agent
+    labels: {team: b}
+    config:
+      url: https://example.com
+      route: {paths: [/agent-b]}

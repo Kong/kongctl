@@ -1,0 +1,20 @@
+_defaults:
+  kongctl: {namespace: federated-agents-platform}
+ai_gateways:
+  - ref: shared
+    name: federated-agents-e2e
+    display_name: Federated agents E2E
+    min_runtime_version: '2.2'
+    runtime_auto_upgrade: false
+    auth_strategies:
+      - ref: shared-auth
+        name: shared-auth
+        display_name: Shared key auth
+        type: key-auth
+        config: {key_names: [apikey]}
+    policies:
+      - ref: shared-policy
+        name: shared-policy
+        display_name: Shared HTTP logger
+        type: http-log
+        config: {http_endpoint: "https://example.com/log"}

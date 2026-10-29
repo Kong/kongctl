@@ -39,6 +39,17 @@ func init() {
 			setParent:     func(child *AIGatewayAuthStrategyResource, ref string) { child.AIGateway = ref },
 		},
 		WithExternalUnsupportedReason("scoped AI Gateway auth strategy lookup is planned for domain enablement"),
+		WithNamespace(43, authStrategyNamespaceParticipant),
+		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]AIGatewayAuthStrategyResource {
+			var groups [][]AIGatewayAuthStrategyResource
+			for i := range rs.AIGateways {
+				groups = append(groups, rs.AIGateways[i].AuthStrategies)
+			}
+			return groups
+		}, authStrategyNamespaceParticipant),
+		WithIndependentChildOwnership(captureAuthStrategyNamespaceScopes,
+			func(r *AIGatewayAuthStrategyResource) *KongctlMeta { return r.Kongctl }),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(20, "each Auth Strategy must declare an ai_gateway parent"),
@@ -82,8 +93,13 @@ func (a AIGatewayAuthStrategyResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Auth Strategy ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Auth Strategy %s", a.Ref)
+	if err := ValidateChildManagedBy(a.ManagedBy, true); err != nil {
+		return err
+	}
+	if err := ValidateChildManagedBy(BuildChildManagedBy(
+		GetNamespace(a.Kongctl), a.Protected(), "",
+	), false); err != nil {
+		return err
 	}
 	if a.Name == "" {
 		return fmt.Errorf("name is required for AI Gateway Auth Strategy %s", a.Ref)
@@ -179,6 +195,9 @@ func (a AIGatewayAuthStrategyResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload["kongctl"] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -191,13 +210,16 @@ func (a AIGatewayAuthStrategyResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload["kongctl"] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
 	return payload, nil
 }
 
-// UnmarshalJSON rejects kongctl metadata on child provider resources.
+// UnmarshalJSON decodes the declaration separately from its SDK payload.
 func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		Ref         string            `json:"ref"`
@@ -208,16 +230,13 @@ func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 		Labels      map[string]string `json:"labels,omitempty"`
 		ManagedBy   map[string]string `json:"managed_by,omitempty"`
 		Config      map[string]any    `json:"config"`
-		Kongctl     any               `json:"kongctl,omitempty"`
+		Kongctl     *KongctlMeta      `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	if raw.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
-	}
 
-	a.BaseResource = BaseResource{Ref: raw.Ref}
+	a.BaseResource = BaseResource{Ref: raw.Ref, Kongctl: raw.Kongctl}
 	a.AIGateway = raw.AIGateway
 	a.Name = raw.Name
 	a.Type = raw.Type
@@ -263,6 +282,10 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 		[]string{aiGatewayAuthStrategyFieldConfig, "client_secret"},
 		explainArrayOf(explainSecretEnvNode("OIDC_CLIENT_SECRET")),
 	)
+	explainReplacePath(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "http_proxy_authorization"},
+		explainSecretEnvNode("OIDC_HTTP_PROXY_AUTHORIZATION"))
+	explainReplacePath(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "https_proxy_authorization"},
+		explainSecretEnvNode("OIDC_HTTPS_PROXY_AUTHORIZATION"))
 	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "consumer_claims"}, "sub")
 	setExplainLiteral(
 		openIDConnect,
@@ -295,6 +318,7 @@ func aiGatewayAuthStrategySDKExplainBranch(
 	branch = explainWithCommonFields(
 		branch,
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 	)
 	explainSetConstStringField(branch, aiGatewayAuthStrategyFieldType, providerType)
@@ -331,4 +355,30 @@ func aiGatewayAuthStrategyInlineExplainNode() *ExplainNode {
 		)
 	}
 	return node
+}
+
+func authStrategyNamespaceParticipant(r *AIGatewayAuthStrategyResource) NamespaceParticipant {
+	return NamespaceParticipant{
+		Ref: r.Ref, Label: string(ResourceTypeAIGatewayAuthStrategy),
+		SupportsProtected: true, Meta: &r.Kongctl,
+	}
+}
+
+func (a AIGatewayAuthStrategyResource) Protected() bool {
+	return a.Kongctl.IsProtected()
+}
+
+func captureAuthStrategyNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	for _, gateway := range rs.AIGateways {
+		var namespaces []string
+		for _, provider := range gateway.AuthStrategies {
+			namespaces = append(namespaces, GetNamespace(provider.Kongctl))
+		}
+		CaptureOwnedChildCollection(scope, ResourceTypeAIGatewayAuthStrategy, gateway.Ref, defaultNamespace,
+			scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, ResourceTypeAIGatewayAuthStrategy), namespaces)
+	}
+	for _, provider := range rs.AIGatewayAuthStrategies {
+		scope.AddChildNamespace(ResourceTypeAIGatewayAuthStrategy, provider.AIGateway, GetNamespace(provider.Kongctl))
+	}
 }

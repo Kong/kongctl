@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -58,6 +60,22 @@ func (a *AIGatewayProviderAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway provider", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	providers, err := a.client.ListAIGatewayProviders(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, provider := range providers {
+		if provider.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway provider", provider.Name)
+		}
+	}
 	return a.client.CreateAIGatewayProvider(ctx, gatewayID, req, namespace)
 }
 
@@ -72,6 +90,30 @@ func (a *AIGatewayProviderAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway provider", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayProvider(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway provider no longer exists")
+	}
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway provider", map[string]any{
+		planner.FieldName: current.Name, planner.FieldType: current.Type, planner.FieldDisplayName: current.DisplayName,
+		planner.FieldConfig: current.Config, planner.FieldLabels: current.Labels, planner.FieldManagedBy: current.ManagedBy,
+	}, payload, execCtx, planner.FieldType)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway provider update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayProvider(ctx, gatewayID, id, req, namespace)
 }
 
@@ -79,6 +121,19 @@ func (a *AIGatewayProviderAdapter) Delete(ctx context.Context, id string, execCt
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayProvider(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership("AI Gateway provider", current.ManagedBy, execCtx.Namespace); err != nil {
+		return err
+	}
+	if current.ManagedBy[resources.ChildProtectedKey] == "true" {
+		return fmt.Errorf("AI Gateway provider is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayProvider(ctx, gatewayID, id)
 }
@@ -119,13 +174,16 @@ func (a *AIGatewayProviderAdapter) SupportsUpdate() bool {
 	return true
 }
 
-func (a *AIGatewayProviderAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
+func (a *AIGatewayProviderAdapter) getAIGatewayIDFromExecutionContext(
+	execCtx *ExecutionContext,
+) (string, error) {
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context required")
 	}
 
 	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
+	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok &&
+		!unresolvedReferenceID(gatewayRef.ID) {
 		return gatewayRef.ID, nil
 	}
 	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {

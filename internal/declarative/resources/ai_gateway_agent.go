@@ -49,6 +49,17 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayAgentResource { return &gateway.Agents },
 			setParent:     func(child *AIGatewayAgentResource, ref string) { child.AIGateway = ref },
 		},
+		WithNamespace(46, agentNamespaceParticipant),
+		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]AIGatewayAgentResource {
+			var groups [][]AIGatewayAgentResource
+			for i := range rs.AIGateways {
+				groups = append(groups, rs.AIGateways[i].Agents)
+			}
+			return groups
+		}, agentNamespaceParticipant),
+		WithIndependentChildOwnership(captureAgentNamespaceScopes,
+			func(r *AIGatewayAgentResource) *KongctlMeta { return r.Kongctl }),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(40, "each Agent must declare an ai_gateway parent"),
@@ -58,7 +69,7 @@ func init() {
 
 // AIGatewayAgentResource represents an Agent nested under a Konnect AI Gateway.
 type AIGatewayAgentResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `       yaml:",inline"              json:",inline"`
 	// Parent AI Gateway reference for root-level declarations.
 	AIGateway string `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
 
@@ -98,8 +109,13 @@ func (a AIGatewayAgentResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway Agent ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway Agent %s", a.Ref)
+	if err := ValidateChildManagedBy(a.ManagedBy, true); err != nil {
+		return err
+	}
+	if err := ValidateChildManagedBy(BuildChildManagedBy(
+		GetNamespace(a.Kongctl), a.Protected(), "",
+	), false); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway Agent %s", a.Ref)
@@ -192,6 +208,9 @@ func (a AIGatewayAgentResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -204,6 +223,9 @@ func (a AIGatewayAgentResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -217,15 +239,12 @@ func (a *AIGatewayAgentResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -241,7 +260,7 @@ func (a *AIGatewayAgentResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayAgentRequest = req
 	return nil
@@ -374,8 +393,9 @@ func aiGatewayAgentStringField(value any, key string) string {
 }
 
 func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
-	return explainObject(
+	node := explainObject(
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("booking-agent"), true, true),
 		explainField("type", explainStringNode("a2a"), true, true),
@@ -437,7 +457,17 @@ func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			false,
 		),
-	), nil
+	)
+	explainReplaceUnionPath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "secret_access_key"},
+		explainSecretEnvNode("AGENT_AWS_SECRET_ACCESS_KEY"))
+	explainReplaceUnionPath(node, []string{aiGatewayAgentFieldConfig, "upstream", "auth", "session_token"},
+		explainSecretEnvNode("AGENT_AWS_SESSION_TOKEN"))
+	explainReplaceUnionPath(
+		node,
+		[]string{aiGatewayAgentFieldConfig, "proxy", "auth", "password"},
+		explainSecretEnvNode("AGENT_PROXY_PASSWORD"),
+	)
+	return node, nil
 }
 
 func aiGatewayUpstreamExplainNode() *ExplainNode {
@@ -476,4 +506,30 @@ func aiGatewayProxyExplainNode() *ExplainNode {
 		), false, false),
 		explainField("no_proxy", explainStringNode("localhost,127.0.0.1"), false, false),
 	)
+}
+
+func agentNamespaceParticipant(r *AIGatewayAgentResource) NamespaceParticipant {
+	return NamespaceParticipant{
+		Ref: r.Ref, Label: string(ResourceTypeAIGatewayAgent),
+		SupportsProtected: true, Meta: &r.Kongctl,
+	}
+}
+
+func (a AIGatewayAgentResource) Protected() bool {
+	return a.Kongctl.IsProtected()
+}
+
+func captureAgentNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	for _, gateway := range rs.AIGateways {
+		var namespaces []string
+		for _, agent := range gateway.Agents {
+			namespaces = append(namespaces, GetNamespace(agent.Kongctl))
+		}
+		CaptureOwnedChildCollection(scope, ResourceTypeAIGatewayAgent, gateway.Ref, defaultNamespace,
+			scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, ResourceTypeAIGatewayAgent), namespaces)
+	}
+	for _, agent := range rs.AIGatewayAgents {
+		scope.AddChildNamespace(ResourceTypeAIGatewayAgent, agent.AIGateway, GetNamespace(agent.Kongctl))
+	}
 }

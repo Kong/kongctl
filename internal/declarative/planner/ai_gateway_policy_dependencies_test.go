@@ -62,8 +62,8 @@ func TestAIGatewayPolicyDeleteOrdering(t *testing.T) {
 				otherGateway: true, wantError: "still references it",
 			},
 			{
-				name: "other namespace delete cannot detach", action: ActionDelete,
-				otherNS: true, wantError: "still references it",
+				name: "other namespace delete detaches", action: ActionDelete,
+				otherNS: true,
 			},
 		} {
 			t.Run(kind+"/"+tt.name, func(t *testing.T) {
@@ -136,6 +136,7 @@ func TestAIGatewayPolicyDeleteInspectsOutOfScopeResources(t *testing.T) {
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
 			scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayPolicy)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayPolicy, "support-gateway", "default")
 			rs := &resources.ResourceSet{
 				AIGateways: []resources.AIGatewayResource{testAIGatewayResource()}, SyncScope: scope,
 			}

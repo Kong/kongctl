@@ -1,0 +1,12 @@
+_defaults:
+  kongctl: {namespace: policy-team-a}
+ai_gateway_policies:
+  - ref: policy-a
+    ai_gateway: !lookup {name: federated-policies-e2e}
+    name: policy-a
+    display_name: Shared sanitizer
+    type: ai-sanitizer
+    enabled: true
+    global: false
+    labels: {team: a}
+    config: {anonymize: [email]}

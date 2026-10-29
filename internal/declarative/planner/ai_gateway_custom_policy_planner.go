@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
@@ -40,52 +39,12 @@ func (p *Planner) planAIGatewayCustomPolicyChanges(
 		return nil
 	}
 
-	currentPolicies, err := p.client.ListAIGatewayCustomPolicies(ctx, gatewayID)
+	currentPolicies, err := p.listAIGatewayCustomPolicies(ctx, gatewayID)
 	if err != nil {
 		return fmt.Errorf("failed to list AI Gateway Custom Policies for gateway %s: %w", gatewayID, err)
 	}
 
-	return reconcileNameMatchedChildren(p, ResourceTypeAIGatewayCustomPolicy, desired, currentPolicies,
-		nameMatchedChildOperations[resources.AIGatewayCustomPolicyResource, state.AIGatewayCustomPolicy]{
-			desiredName: func(desired resources.AIGatewayCustomPolicyResource) string {
-				return desired.Name
-			},
-			currentName: func(current state.AIGatewayCustomPolicy) string {
-				return resources.AIGatewayCustomPolicyName(current.AIGatewayCustomPolicy)
-			},
-			fetch: func(
-				desired resources.AIGatewayCustomPolicyResource,
-				current state.AIGatewayCustomPolicy,
-			) (*state.AIGatewayCustomPolicy, error) {
-				id := resources.AIGatewayCustomPolicyID(current.AIGatewayCustomPolicy)
-				if policy := p.resources.GetAIGatewayCustomPolicyByRef(desired.Ref); policy != nil {
-					policy.SetKonnectID(id)
-				}
-				full, err := p.client.GetAIGatewayCustomPolicy(ctx, gatewayID, id)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get AI Gateway Custom Policy %s: %w", id, err)
-				}
-				return full, nil
-			},
-			diff: shouldUpdateAIGatewayCustomPolicy,
-			create: func(desired resources.AIGatewayCustomPolicyResource) {
-				p.planAIGatewayCustomPolicyCreate(namespace, gatewayRef, gatewayName, gatewayID, desired, nil, plan)
-			},
-			update: func(current state.AIGatewayCustomPolicy, desired resources.AIGatewayCustomPolicyResource,
-				fields map[string]any, changed map[string]FieldChange,
-			) {
-				p.planAIGatewayCustomPolicyUpdate(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayCustomPolicyID(current.AIGatewayCustomPolicy), desired, fields, changed, plan)
-			},
-			protected: func(current state.AIGatewayCustomPolicy) bool {
-				return labels.IsProtectedResource(current.NormalizedLabels)
-			},
-			remove: func(current state.AIGatewayCustomPolicy) {
-				p.planAIGatewayCustomPolicyDelete(namespace, gatewayRef, gatewayID,
-					resources.AIGatewayCustomPolicyID(current.AIGatewayCustomPolicy),
-					resources.AIGatewayCustomPolicyName(current.AIGatewayCustomPolicy), plan)
-			},
-		}, plan)
+	return p.reconcileOwnedAIGatewayCustomPolicies(ctx, gatewayRef, gatewayName, gatewayID, desired, currentPolicies, plan)
 }
 
 func (p *Planner) planAIGatewayCustomPolicyCreatesForNewGateway(
@@ -106,7 +65,7 @@ func (p *Planner) planAIGatewayCustomPolicyCreatesForNewGateway(
 }
 
 func (p *Planner) planAIGatewayCustomPolicyCreate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	_ string,
 	gatewayID string,
@@ -114,6 +73,9 @@ func (p *Planner) planAIGatewayCustomPolicyCreate(
 	dependsOn []string,
 	plan *Plan,
 ) {
+	policy.ManagedBy = resources.BuildChildManagedBy(
+		resources.GetNamespace(policy.Kongctl), policy.Protected(), "",
+	)
 	fields, err := policy.MutablePayloadMap()
 	if err != nil {
 		plan.AddWarning(
@@ -129,8 +91,9 @@ func (p *Planner) planAIGatewayCustomPolicyCreate(
 		ResourceRef:  policy.Ref,
 		Action:       ActionCreate,
 		Fields:       fields,
-		Namespace:    namespace,
+		Namespace:    resources.GetNamespace(policy.Kongctl),
 		DependsOn:    dependsOn,
+		Protection:   policy.Protected(),
 	}
 	if gatewayID != "" {
 		change.Parent = &ParentInfo{Ref: gatewayRef, ID: gatewayID}
@@ -149,7 +112,7 @@ func (p *Planner) planAIGatewayCustomPolicyCreate(
 }
 
 func (p *Planner) planAIGatewayCustomPolicyUpdate(
-	namespace string,
+	_ string,
 	gatewayRef string,
 	gatewayID string,
 	policyID string,
@@ -166,7 +129,7 @@ func (p *Planner) planAIGatewayCustomPolicyUpdate(
 		Action:        ActionUpdate,
 		Fields:        updateFields,
 		ChangedFields: changedFields,
-		Namespace:     namespace,
+		Namespace:     resources.GetNamespace(policy.Kongctl),
 		Parent:        &ParentInfo{Ref: gatewayRef, ID: gatewayID},
 	}
 	plan.AddChange(change)
@@ -212,7 +175,16 @@ func shouldUpdateAIGatewayCustomPolicy(
 		)
 	}
 
-	currentCompare, desiredCompare := currentPayload, desiredPayload
+	if currentPayload[FieldType] != desired.Type {
+		return false, nil, nil, fmt.Errorf("AI Gateway custom policy type is immutable")
+	}
+	if desired.Labels == nil {
+		desiredPayload[FieldLabels] = currentPayload[FieldLabels]
+	}
+	if desired.ManagedBy == nil {
+		desiredPayload[FieldManagedBy] = currentPayload[FieldManagedBy]
+	}
+	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
 	changedFields := diffAIGatewayPayloads(currentPayload, desiredPayload, currentCompare, desiredCompare)
 	if len(changedFields) == 0 {
 		return false, nil, nil, nil

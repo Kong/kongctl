@@ -47,6 +47,17 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayPolicyResource { return &gateway.Policies },
 			setParent:     func(child *AIGatewayPolicyResource, ref string) { child.AIGateway = ref },
 		},
+		WithNamespace(42, policyNamespaceParticipant),
+		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]AIGatewayPolicyResource {
+			var groups [][]AIGatewayPolicyResource
+			for i := range rs.AIGateways {
+				groups = append(groups, rs.AIGateways[i].Policies)
+			}
+			return groups
+		}, policyNamespaceParticipant),
+		WithIndependentChildOwnership(capturePolicyNamespaceScopes,
+			func(r *AIGatewayPolicyResource) *KongctlMeta { return r.Kongctl }),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(30, "each policy must declare an ai_gateway parent"),
@@ -96,8 +107,13 @@ func (a AIGatewayPolicyResource) Validate() error {
 	if err := ValidateRef(a.Ref); err != nil {
 		return fmt.Errorf("invalid AI Gateway policy ref: %w", err)
 	}
-	if a.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on AI Gateway policy %s", a.Ref)
+	if err := ValidateChildManagedBy(a.ManagedBy, true); err != nil {
+		return err
+	}
+	if err := ValidateChildManagedBy(BuildChildManagedBy(
+		GetNamespace(a.Kongctl), a.Protected(), "",
+	), false); err != nil {
+		return err
 	}
 	if a.AIGateway == "" {
 		return fmt.Errorf("ai_gateway is required for AI Gateway policy %s", a.Ref)
@@ -189,6 +205,9 @@ func (a AIGatewayPolicyResource) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -201,6 +220,9 @@ func (a AIGatewayPolicyResource) MarshalYAML() (any, error) {
 		return nil, err
 	}
 	payload[SchemaFieldRef] = a.Ref
+	if a.Kongctl != nil {
+		payload[SchemaFieldKongctl] = a.Kongctl
+	}
 	if a.AIGateway != "" {
 		payload[SchemaFieldAIGateway] = a.AIGateway
 	}
@@ -214,15 +236,12 @@ func (a *AIGatewayPolicyResource) UnmarshalJSON(data []byte) error {
 	}
 
 	var meta struct {
-		Ref       string          `json:"ref"`
-		AIGateway string          `json:"ai_gateway,omitempty"`
-		Kongctl   json.RawMessage `json:"kongctl,omitempty"`
+		Ref       string       `json:"ref"`
+		AIGateway string       `json:"ai_gateway,omitempty"`
+		Kongctl   *KongctlMeta `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &meta); err != nil {
 		return err
-	}
-	if len(meta.Kongctl) > 0 && string(meta.Kongctl) != jsonNullLiteral {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	delete(raw, SchemaFieldRef)
@@ -238,7 +257,7 @@ func (a *AIGatewayPolicyResource) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	a.BaseResource = BaseResource{Ref: meta.Ref}
+	a.BaseResource = BaseResource{Ref: meta.Ref, Kongctl: meta.Kongctl}
 	a.AIGateway = meta.AIGateway
 	a.CreateAIGatewayPolicyRequest = req
 	return nil
@@ -285,11 +304,15 @@ func AIGatewayPolicyGlobal(policy any) *bool {
 }
 
 func AIGatewayPolicyLabels(policy any) map[string]string {
+	return aiGatewayPolicyStringMapField(policy, aiGatewayPolicyFieldLabels)
+}
+
+func aiGatewayPolicyStringMapField(policy any, field string) map[string]string {
 	payload, err := marshalObjectToMap(policy, "AI Gateway policy")
 	if err != nil {
 		return nil
 	}
-	raw, ok := payload[aiGatewayPolicyFieldLabels].(map[string]any)
+	raw, ok := payload[field].(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -372,6 +395,7 @@ func aiGatewayPolicyStringField(value any, key string) string {
 func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
 		explainResourceRefField(),
+		explainKongctlField(),
 		explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField("name", explainStringNode("mask-sensitive-data"), true, true),
 		explainField("type", explainStringNode("ai-sanitizer"), true, true),
@@ -396,4 +420,30 @@ func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 	), nil
+}
+
+func policyNamespaceParticipant(r *AIGatewayPolicyResource) NamespaceParticipant {
+	return NamespaceParticipant{
+		Ref: r.Ref, Label: string(ResourceTypeAIGatewayPolicy),
+		SupportsProtected: true, Meta: &r.Kongctl,
+	}
+}
+
+func (a AIGatewayPolicyResource) Protected() bool {
+	return a.Kongctl.IsProtected()
+}
+
+func capturePolicyNamespaceScopes(rs *ResourceSet, defaultNamespace string) {
+	scope := rs.EnsureSyncScope()
+	for _, gateway := range rs.AIGateways {
+		var namespaces []string
+		for _, policy := range gateway.Policies {
+			namespaces = append(namespaces, GetNamespace(policy.Kongctl))
+		}
+		CaptureOwnedChildCollection(scope, ResourceTypeAIGatewayPolicy, gateway.Ref, defaultNamespace,
+			scope.ChildInScope(ResourceTypeAIGateway, gateway.Ref, ResourceTypeAIGatewayPolicy), namespaces)
+	}
+	for _, policy := range rs.AIGatewayPolicies {
+		scope.AddChildNamespace(ResourceTypeAIGatewayPolicy, policy.AIGateway, GetNamespace(policy.Kongctl))
+	}
 }

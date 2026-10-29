@@ -3,6 +3,7 @@ package planner
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -100,7 +101,106 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 		}
 	}
 
+	agent := func(config string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			resource := testAIGatewayAgentResourceWithConfig(t, strings.ReplaceAll(config, "SECRET", placeholder))
+			resource.AIGateway = testAIGatewaySecretRef
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
+	mcp := func(kind, config string) func(*testing.T, string) *resources.ResourceSet {
+		return func(t *testing.T, placeholder string) *resources.ResourceSet {
+			payload := `{"ref":"mcp","ai_gateway":"` + testAIGatewaySecretRef + `","type":"` + kind + `",` +
+				`"name":"mcp","display_name":"MCP","tools":[],"config":` + strings.ReplaceAll(
+				config,
+				"SECRET",
+				placeholder,
+			) + `}`
+			var resource resources.AIGatewayMCPServerResource
+			require.NoError(t, json.Unmarshal([]byte(payload), &resource))
+			resource.SetKonnectID("remote-id")
+			return aiGatewaySecretResourceSet(&resource)
+		}
+	}
 	cases := []testCase{
+		{
+			name:         "MCP AWS key",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/upstream/auth/secret_access_key",
+			selector:     "config.upstream.auth.secret_access_key",
+			resourceSet: mcp(
+				"conversion-only",
+				`{"url":"https://example.test","upstream":{"auth":{"type":"aws","secret_access_key":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP AWS session",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/upstream/auth/session_token",
+			selector:     "config.upstream.auth.session_token",
+			resourceSet: mcp(
+				"conversion-only",
+				`{"url":"https://example.test","upstream":{"auth":{"type":"aws","session_token":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP proxy password",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/proxy/auth/password",
+			selector:     "config.proxy.auth.password",
+			resourceSet: mcp(
+				"passthrough-listener",
+				`{"url":"https://example.test","route":{"paths":["/mcp"]},
+ "proxy":{"auth":{"username":"user","password":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "MCP tools OAuth",
+			resourceType: resources.ResourceTypeAIGatewayMCPServer,
+			resourceRef:  "mcp",
+			field:        "/config/server/tools_list_auth/client_secret",
+			selector:     "config.server.tools_list_auth.client_secret",
+			resourceSet: mcp(
+				"upstream-server",
+				`{"url":"https://example.test","tools_cache_ttl_seconds":60,
+ "server":{"tools_list_auth":{"type":"credentials","client_id":"client","client_secret":"SECRET",
+ "token_endpoint":"https://example.test/token"}}}`,
+			),
+		},
+		{
+			name:         "agent AWS key",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/upstream/auth/secret_access_key",
+			selector:     "config.upstream.auth.secret_access_key",
+			resourceSet: agent(
+				`{"url":"https://example.com","upstream":{"auth":{"type":"aws","secret_access_key":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "agent AWS session",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/upstream/auth/session_token",
+			selector:     "config.upstream.auth.session_token",
+			resourceSet: agent(
+				`{"url":"https://example.com","upstream":{"auth":{"type":"aws","session_token":"SECRET"}}}`,
+			),
+		},
+		{
+			name:         "agent proxy password",
+			resourceType: resources.ResourceTypeAIGatewayAgent,
+			resourceRef:  "booking-agent",
+			field:        "/config/proxy/auth/password",
+			selector:     "config.proxy.auth.password",
+			resourceSet: agent(
+				`{"url":"https://example.com","proxy":{"auth":{"username":"user","password":"SECRET"}}}`,
+			),
+		},
 		{
 			name: "https proxy authorization", resourceType: resources.ResourceTypeAIGatewayAuthStrategy,
 			resourceRef: "auth-strategy", field: "/config/https_proxy_authorization",
@@ -124,6 +224,31 @@ func TestAIGatewayWriteOnlyFieldsPlanSecretOnlyUpdates(t *testing.T) {
 				return map[string]any{"auth": map[string]any{
 					"type": "basic", "headers": []any{map[string]any{"name": "Authorization", "value": secret}},
 				}}
+			}),
+		},
+		{
+			name: "provider parameter value", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/params/0/value", selector: "config.auth.params[].value",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{
+					"type": "basic", "params": []any{map[string]any{"name": "api-key", "location": "query", "value": secret}},
+				}}
+			}),
+		},
+		{
+			name: "provider AWS session", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/session_token", selector: "config.auth.session_token",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{"auth": map[string]any{"type": "aws", "session_token": secret}}
+			}),
+		},
+		{
+			name: "provider nested AWS session", resourceType: resources.ResourceTypeAIGatewayProvider,
+			resourceRef: "provider", field: "/config/auth/aws/session_token", selector: "config.auth.aws.session_token",
+			resourceSet: provider(func(secret string) map[string]any {
+				return map[string]any{
+					"auth": map[string]any{"type": "sagemaker", "aws": map[string]any{"session_token": secret}},
+				}
 			}),
 		},
 		{
@@ -432,7 +557,7 @@ func TestSecretResourceFieldsUsesMutablePayloadContract(t *testing.T) {
 		Config:       map[string]any{"auth": map[string]any{"header": "placeholder"}},
 	}
 
-	fields, err := secretResourceFields(&provider, ActionCreate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionCreate)
 	require.NoError(t, err)
 	assert.Equal(t, "provider", fields[FieldName])
 	assert.Contains(t, fields, FieldConfig)
@@ -484,7 +609,7 @@ func TestSecretResourceFieldsUsesPortalIdentityProviderUpdateContract(t *testing
 		Portal:                 "portal",
 	}
 
-	fields, err := secretResourceFields(&provider, ActionUpdate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionUpdate)
 	require.NoError(t, err)
 	assert.NotContains(t, fields, FieldType)
 	assert.NotContains(t, fields, resources.SchemaFieldPortal)
@@ -499,7 +624,7 @@ func TestSecretResourceFieldsUsesDCRProviderUpdateContract(t *testing.T) {
 		DCRConfig:    map[string]any{"dcr_base_url": "https://dcr.example.test"},
 	}
 
-	fields, err := secretResourceFields(&provider, ActionUpdate)
+	fields, err := secretResourceFields(t.Context(), &provider, ActionUpdate)
 	require.NoError(t, err)
 	assert.Equal(t, "http", fields[FieldDCRProviderUpdateType])
 	assert.NotContains(t, fields, FieldDCRProviderProviderType)
@@ -770,7 +895,7 @@ func TestAIGatewayConsumerCredentialAPIKeyIsExcludedFromComparison(t *testing.T)
 	apiKey := "configured-key"
 	current := state.AIGatewayConsumerCredential{AIGatewayConsumerCredential: kkComps.AIGatewayConsumerCredential{
 		Name: "consumer-key", DisplayName: "Consumer Key", Type: kkComps.AIGatewayConsumerCredentialTypeAPIKey,
-		TTL: &ttl,
+		TTL: &ttl, ManagedBy: resources.ManagedByWithProvenance(nil, "older"),
 	}}
 	desired := resources.AIGatewayConsumerCredentialResource{
 		BaseResource: resources.BaseResource{Ref: "consumer-key"},
@@ -813,6 +938,10 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 	gateway.SetKonnectID("gateway-id")
 	rs := &resources.ResourceSet{AIGateways: []resources.AIGatewayResource{gateway}}
 	switch typed := resource.(type) {
+	case *resources.AIGatewayMCPServerResource:
+		rs.AIGatewayMCPServers = []resources.AIGatewayMCPServerResource{*typed}
+	case *resources.AIGatewayAgentResource:
+		rs.AIGatewayAgents = []resources.AIGatewayAgentResource{*typed}
 	case *resources.AIGatewayProviderResource:
 		rs.AIGatewayProviders = []resources.AIGatewayProviderResource{*typed}
 	case *resources.AIGatewayAuthStrategyResource:
@@ -825,4 +954,67 @@ func aiGatewaySecretResourceSet(resource resources.Resource) *resources.Resource
 		rs.AIGatewayCertificates = []resources.AIGatewayCertificateResource{*typed}
 	}
 	return rs
+}
+
+func TestUnselectedObjectArraySecretsPreservePublicSiblings(t *testing.T) {
+	for _, family := range []string{
+		ResourceTypeAIGatewayProvider,
+		ResourceTypeAIGatewayAuthStrategy,
+		ResourceTypeAIGatewayPolicy,
+	} {
+		t.Run(family, func(t *testing.T) {
+			headers := []any{
+				map[string]any{"name": "Authorization", "value": "__SECRET__:never-written", "location": "header"},
+			}
+			change := PlannedChange{
+				ResourceType: family,
+				Fields:       map[string]any{"config": map[string]any{"auth": map[string]any{"headers": headers}}},
+			}
+			require.NoError(t,
+				prepareDeclaredSecretPaths(&change,
+					map[string]resources.SecretSourceDeclaration{"/config/auth/headers/0/value": {}},
+					nil))
+			require.Equal(t, "Authorization", headers[0].(map[string]any)["name"])
+			require.NotContains(t, headers[0], "value")
+			data, err := json.Marshal(change)
+			require.NoError(t, err)
+			require.NotContains(t, string(data), "__SECRET__")
+		})
+	}
+}
+
+func TestSecretWriteContextUsesIndependentChildOwnership(t *testing.T) {
+	model := testAIGatewayModelResource(t)
+	model.Kongctl = &resources.KongctlMeta{Namespace: new("application-team")}
+	model.SetManagedBy(map[string]string{"other-tool": "retain"})
+	require.Equal(t, "application-team", secretResourceNamespace(nil, &model))
+	fields, err := secretResourceFields(t.Context(), &model, ActionUpdate)
+	require.NoError(t, err)
+	metadata := fields[FieldManagedBy].(map[string]string)
+	require.Equal(t, "application-team", metadata[resources.ChildNamespaceKey])
+	require.Equal(t, "false", metadata[resources.ChildProtectedKey])
+	require.NotContains(t, metadata, "other-tool")
+}
+
+func TestUnselectedNestedArraySecretsPreservePublicObjectsWithoutPlaceholders(t *testing.T) {
+	entries := make([]any, 4)
+	declarations := make(map[string]resources.SecretSourceDeclaration)
+	for i := range len(entries) {
+		keys := make([]any, 12)
+		for j := range len(keys) {
+			keys[j] = "__SECRET__:never-written"
+			declarations[fmt.Sprintf("/config/credentials/%d/keys/%d", i, j)] = resources.SecretSourceDeclaration{}
+		}
+		entries[i] = map[string]any{"name": fmt.Sprintf("public-%d", i), "keys": keys}
+	}
+	config := map[string]any{"issuer": "https://issuer.example.test", "credentials": entries}
+	change := PlannedChange{Fields: map[string]any{FieldConfig: config}}
+	require.NoError(t, prepareDeclaredSecretPaths(&change, declarations, nil))
+	for i, entry := range entries {
+		require.Equal(t, fmt.Sprintf("public-%d", i), entry.(map[string]any)["name"])
+		require.NotContains(t, entry, "keys")
+	}
+	data, err := json.Marshal(change)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "__SECRET__")
 }

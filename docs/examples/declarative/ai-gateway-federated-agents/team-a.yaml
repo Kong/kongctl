@@ -1,0 +1,14 @@
+_defaults:
+  kongctl: {namespace: agents-team-a}
+ai_gateway_agents:
+  - ref: agent-a
+    ai_gateway: !lookup {name: federated-agents-e2e}
+    name: agent-a
+    type: a2a
+    display_name: Team a agent
+    labels: {team: a}
+    config:
+      url: https://example.com
+      route: {paths: [/agent-a]}
+    access: {auth_strategies: [shared-auth]}
+    policies: [shared-policy]

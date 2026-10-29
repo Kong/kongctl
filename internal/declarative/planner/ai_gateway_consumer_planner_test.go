@@ -109,7 +109,10 @@ func TestAIGatewayConsumerPlannerUpdatesExistingConsumer(t *testing.T) {
 func TestAIGatewayConsumerPlannerSyncDeletesScopedConsumers(t *testing.T) {
 	scope := resources.NewSyncScope()
 	scope.AddRoot(resources.ResourceTypeAIGateway)
-	scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumer)
+	scope.AddChild(
+		resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayConsumer,
+	)
+	scope.AddChildNamespace(resources.ResourceTypeAIGatewayConsumer, "support-gateway", "default")
 	client := state.NewClient(state.ClientConfig{
 		AIGatewayAPI: &testAIGatewayAPI{
 			gateways: []kkComps.AIGateway{testAIGateway()},
@@ -359,6 +362,7 @@ func testAIGatewayConsumerCredentialResource(
 
 func testAIGatewayConsumer(policies []string) kkComps.AIGatewayConsumer {
 	return kkComps.AIGatewayConsumer{
+		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		ID:          "consumer-id",
 		Name:        "support-user",
 		Type:        kkComps.AIGatewayConsumerTypeAPIKey,
@@ -385,6 +389,7 @@ func testAIGatewayConsumerCredential(
 }
 
 type testAIGatewayConsumerAPI struct {
+	gets        int
 	consumers   []kkComps.AIGatewayConsumer
 	credentials []kkComps.AIGatewayConsumerCredential
 }
@@ -416,6 +421,7 @@ func (t *testAIGatewayConsumerAPI) GetAiGatewayConsumer(
 	consumerID string,
 	_ ...kkOps.Option,
 ) (*kkOps.GetAiGatewayConsumerResponse, error) {
+	t.gets++
 	for _, consumer := range t.consumers {
 		if consumer.ID == consumerID || consumer.Name == consumerID {
 			return &kkOps.GetAiGatewayConsumerResponse{AIGatewayConsumer: &consumer}, nil

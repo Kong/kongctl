@@ -7,6 +7,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/declarative/planner"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,6 +28,10 @@ func TestExecutorSyncAIGatewayConsumerGroupConsumersUsesResolvedGatewayReference
 	})
 	exec := New(client, nil, false)
 	change := &planner.PlannedChange{
+		Namespace:     "default",
+		Action:        planner.ActionUpdate,
+		ChangedFields: map[string]planner.FieldChange{planner.FieldConsumers: {New: []string{"support-agent"}}},
+
 		Fields: map[string]any{
 			planner.FieldConsumers: []string{"support-agent"},
 		},
@@ -71,7 +76,13 @@ func (e *executorAIGatewayConsumerGroupsAPI) GetAiGatewayConsumerGroup(
 	...kkOps.Option,
 ) (*kkOps.GetAiGatewayConsumerGroupResponse, error) {
 	e.t.Helper()
-	return &kkOps.GetAiGatewayConsumerGroupResponse{}, nil
+	return &kkOps.GetAiGatewayConsumerGroupResponse{
+		AIGatewayConsumerGroup: &kkComps.AIGatewayConsumerGroup{
+			ID:        "group-id",
+			Name:      "support-group",
+			ManagedBy: resources.BuildChildManagedBy("default", false, "dev"),
+		},
+	}, nil
 }
 
 func (e *executorAIGatewayConsumerGroupsAPI) UpdateAiGatewayConsumerGroup(

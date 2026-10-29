@@ -19,6 +19,7 @@ func (c *Client) ListAIGatewayMCPServers(ctx context.Context, gatewayID string) 
 
 	var allData []kkComps.AIGatewayMCPServer
 	var pageAfter *string
+	var cursors pagination.CursorTracker
 	pageSize := int64(100)
 
 	for {
@@ -34,12 +35,15 @@ func (c *Client) ListAIGatewayMCPServers(ctx context.Context, gatewayID string) 
 		}
 
 		if resp == nil || resp.ListAIGatewayMCPServersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayMCPServersResponse.Data...)
 
-		nextCursor := pagination.ExtractPageAfterCursor(resp.ListAIGatewayMCPServersResponse.Meta.Page.Next)
+		nextCursor, err := cursors.Next(resp.ListAIGatewayMCPServersResponse.Meta.Page.Next)
+		if err != nil {
+			return nil, fmt.Errorf("list AI Gateway children: %w", err)
+		}
 		if nextCursor == "" {
 			break
 		}
@@ -115,6 +119,9 @@ func (c *Client) CreateAIGatewayMCPServer(
 	req kkComps.CreateAIGatewayMCPServerRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayMCPServer, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayMCPServersAPI, "AI Gateway MCP Servers API"); err != nil {
 		return "", err
 	}
@@ -144,6 +151,9 @@ func (c *Client) UpdateAIGatewayMCPServer(
 	req kkComps.UpdateAIGatewayMCPServerRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayMCPServer, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayMCPServersAPI, "AI Gateway MCP Servers API"); err != nil {
 		return "", err
 	}
@@ -184,11 +194,7 @@ func (c *Client) DeleteAIGatewayMCPServer(ctx context.Context, gatewayID string,
 }
 
 func normalizedAIGatewayMCPServerLabels(server kkComps.AIGatewayMCPServer) map[string]string {
-	normalized := resources.AIGatewayMCPServerLabels(server)
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(resources.AIGatewayMCPServerManagedBy(server))
 }
 
 func aiGatewayMCPServerCreateRequestName(req kkComps.CreateAIGatewayMCPServerRequest) string {

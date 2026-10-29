@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -58,6 +60,22 @@ func (a *AIGatewayAuthStrategyAdapter) Create(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway auth strategy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	providers, err := a.client.ListAIGatewayAuthStrategies(ctx, gatewayID)
+	if err != nil {
+		return "", err
+	}
+	for _, provider := range providers {
+		if provider.Name == payload[planner.FieldName] {
+			return "", childCreationCollision("AI Gateway auth strategy", provider.Name)
+		}
+	}
 	return a.client.CreateAIGatewayAuthStrategy(ctx, gatewayID, req, namespace)
 }
 
@@ -72,6 +90,30 @@ func (a *AIGatewayAuthStrategyAdapter) Update(
 	if err != nil {
 		return "", err
 	}
+	payload, err := ownedChildPayload(req)
+	if err != nil {
+		return "", err
+	}
+	if err := validateChildWriteContext("AI Gateway auth strategy", execCtx, payload, namespace); err != nil {
+		return "", err
+	}
+	current, err := a.client.GetAIGatewayAuthStrategy(ctx, gatewayID, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("AI Gateway auth strategy no longer exists")
+	}
+	payload, err = prepareOwnedMappedChildUpdate("AI Gateway auth strategy", map[string]any{
+		planner.FieldName: current.Name, planner.FieldType: current.Type, planner.FieldDisplayName: current.DisplayName,
+		planner.FieldConfig: current.Config, planner.FieldLabels: current.Labels, planner.FieldManagedBy: current.ManagedBy,
+	}, payload, execCtx, planner.FieldType)
+	if err != nil {
+		return "", err
+	}
+	if err := mapAIGatewaySDKRequest("AI Gateway auth strategy update", payload, &req); err != nil {
+		return "", err
+	}
 	return a.client.UpdateAIGatewayAuthStrategy(ctx, gatewayID, id, req, namespace)
 }
 
@@ -79,6 +121,21 @@ func (a *AIGatewayAuthStrategyAdapter) Delete(ctx context.Context, id string, ex
 	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
 	if err != nil {
 		return err
+	}
+	current, err := a.client.GetAIGatewayAuthStrategy(ctx, gatewayID, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return nil
+	}
+	if err := resources.ValidateChildOwnership(
+		"AI Gateway auth strategy", current.ManagedBy, execCtx.Namespace,
+	); err != nil {
+		return err
+	}
+	if current.ManagedBy[resources.ChildProtectedKey] == "true" {
+		return fmt.Errorf("AI Gateway auth strategy is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayAuthStrategy(ctx, gatewayID, id)
 }
@@ -127,7 +184,8 @@ func (a *AIGatewayAuthStrategyAdapter) getAIGatewayIDFromExecutionContext(
 	}
 
 	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
+	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok &&
+		!unresolvedReferenceID(gatewayRef.ID) {
 		return gatewayRef.ID, nil
 	}
 	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {

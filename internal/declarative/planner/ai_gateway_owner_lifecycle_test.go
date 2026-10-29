@@ -15,7 +15,7 @@ import (
 
 func TestConsumerOwnerLifecycleMissingDetail(t *testing.T) {
 	for _, failRead := range []bool{false, true} {
-		name := "recreate with dependent credential"
+		name := "missing detail fails closed"
 		if failRead {
 			name = "read failure stops before pruning"
 		}
@@ -51,17 +51,8 @@ func TestConsumerOwnerLifecycleMissingDetail(t *testing.T) {
 				require.Empty(t, plan.Changes)
 				return
 			}
-			require.NoError(t, err)
-			require.Len(t, plan.Changes, 3)
-			require.Equal(t, ResourceTypeAIGatewayConsumer, plan.Changes[0].ResourceType)
-			require.Equal(t, ActionCreate, plan.Changes[0].Action)
-			credential := plan.Changes[1]
-			require.Equal(t, ResourceTypeAIGatewayConsumerCredential, credential.ResourceType)
-			require.Equal(t, ActionCreate, credential.Action)
-			require.Equal(t, []string{plan.Changes[0].ID}, credential.DependsOn)
-			require.Empty(t, credential.Parent.ID, "a recreated consumer must not reuse its stale listed ID")
-			require.Equal(t, ActionDelete, plan.Changes[2].Action)
-			require.Equal(t, "obsolete-id", plan.Changes[2].ResourceID)
+			require.ErrorContains(t, err, "disappeared during planning")
+			require.Empty(t, plan.Changes)
 		})
 	}
 }

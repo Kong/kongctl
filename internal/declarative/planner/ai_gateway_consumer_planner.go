@@ -54,12 +54,15 @@ func (p *Planner) planAIGatewayConsumerChanges(
 			aiGatewayConsumerPolicyCreateDependencies(consumer, policyCreateDepsByRefOrName), plan,
 		)
 		p.planAIGatewayConsumerCredentialCreatesForNewConsumer(
-			namespace, gatewayRef, gatewayID, consumer.Ref, consumer.Name, consumerCreateID,
+			resources.GetNamespace(
+				consumer.Kongctl,
+			), gatewayRef, gatewayID, consumer.Ref, consumer.Name, consumerCreateID,
 			p.resources.GetAIGatewayConsumerCredentialsForConsumer(consumer.Ref), plan,
 		)
 	}
 	return reconcileNameMatchedCollection(p, ResourceTypeAIGatewayConsumer, desired, currentConsumers,
 		nameMatchedCollectionOperations[resources.AIGatewayConsumerResource, state.AIGatewayConsumer]{
+			ownership:   &ownedChildCollectionScope{gatewayRef, gatewayID},
 			desiredName: func(consumer resources.AIGatewayConsumerResource) string { return consumer.Name },
 			currentName: func(consumer state.AIGatewayConsumer) (string, bool) {
 				name := resources.AIGatewayConsumerName(consumer.AIGatewayConsumer)
@@ -79,8 +82,14 @@ func (p *Planner) planAIGatewayConsumerChanges(
 					return fmt.Errorf("failed to get AI Gateway Consumer %s: %w", consumerID, err)
 				}
 				if fullConsumer == nil {
-					create(desiredConsumer)
-					return nil
+					return fmt.Errorf(
+						"AI Gateway consumer disappeared during planning; retry planning",
+					)
+				}
+				if err := resources.ValidateChildOwnership(
+					"AI Gateway consumer", fullConsumer.ManagedBy, resources.GetNamespace(desiredConsumer.Kongctl),
+				); err != nil {
+					return err
 				}
 				needsUpdate, updateFields, changedFields, err := p.shouldUpdateAIGatewayConsumer(
 					*fullConsumer,
@@ -90,6 +99,11 @@ func (p *Planner) planAIGatewayConsumerChanges(
 					return err
 				}
 				if needsUpdate {
+					if err := validateOwnedChildReconciliation(
+						"AI Gateway consumer", *fullConsumer, desiredConsumer, updateFields, changedFields,
+					); err != nil {
+						return err
+					}
 					p.planAIGatewayConsumerUpdate(
 						namespace, gatewayRef, gatewayID, consumerID, desiredConsumer, updateFields, changedFields,
 						aiGatewayConsumerPolicyCreateDependencies(desiredConsumer, policyCreateDepsByRefOrName), plan,
@@ -101,8 +115,9 @@ func (p *Planner) planAIGatewayConsumerChanges(
 					resources.ResourceTypeAIGatewayConsumerCredential,
 				) && (len(credentials) > 0 || plan.Metadata.Mode == PlanModeSync) {
 					return p.planAIGatewayConsumerCredentialChanges(
-						ctx, namespace, gatewayRef, gatewayID, desiredConsumer.Ref, desiredConsumer.Name,
-						consumerID, credentials, plan,
+						ctx,
+						resources.GetNamespace(desiredConsumer.Kongctl), gatewayRef, gatewayID, desiredConsumer.Ref, desiredConsumer.Name,
+						consumerID, fullConsumer, credentials, plan,
 					)
 				}
 				return nil
@@ -195,6 +210,7 @@ func (p *Planner) planAIGatewayConsumerCreate(
 		}
 	}
 
+	stampOwnedChildChange(&change, consumer.Kongctl)
 	plan.AddChange(change)
 	return change.ID
 }
@@ -263,6 +279,10 @@ func (p *Planner) shouldUpdateAIGatewayConsumer(
 			desired.Ref,
 			err,
 		)
+	}
+
+	if err := prepareOwnedChildDiff(currentPayload, desiredPayload, &desired, desired.Labels); err != nil {
+		return false, nil, nil, err
 	}
 
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)

@@ -34,7 +34,7 @@ func (c *Client) ListAIGatewayConsumers(ctx context.Context, gatewayID string) (
 		}
 
 		if resp == nil || resp.ListAIGatewayConsumersResponse == nil {
-			break
+			return nil, fmt.Errorf("list AI Gateway children returned no collection for gateway %s", gatewayID)
 		}
 
 		allData = append(allData, resp.ListAIGatewayConsumersResponse.Data...)
@@ -118,6 +118,9 @@ func (c *Client) CreateAIGatewayConsumer(
 	req kkComps.CreateAIGatewayConsumerRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayConsumersAPI, "AI Gateway Consumers API"); err != nil {
 		return "", err
 	}
@@ -147,6 +150,9 @@ func (c *Client) UpdateAIGatewayConsumer(
 	req kkComps.UpdateAIGatewayConsumerRequest,
 	namespace string,
 ) (string, error) {
+	if err := stampManagedByRequest(ctx, resources.ResourceTypeAIGatewayConsumer, &req); err != nil {
+		return "", err
+	}
 	if err := ValidateAPIClient(c.aiGatewayConsumersAPI, "AI Gateway Consumers API"); err != nil {
 		return "", err
 	}
@@ -187,9 +193,5 @@ func (c *Client) DeleteAIGatewayConsumer(ctx context.Context, gatewayID string, 
 }
 
 func normalizedAIGatewayConsumerLabels(consumer kkComps.AIGatewayConsumer) map[string]string {
-	normalized := consumer.Labels
-	if normalized == nil {
-		normalized = make(map[string]string)
-	}
-	return normalized
+	return resources.NormalizedChildOwnership(consumer.ManagedBy)
 }

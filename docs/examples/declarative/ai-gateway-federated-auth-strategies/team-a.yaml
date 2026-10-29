@@ -1,0 +1,10 @@
+_defaults:
+  kongctl: {namespace: auth-team-a}
+ai_gateway_auth_strategies:
+  - ref: auth-a
+    ai_gateway: !lookup {name: federated-auth-strategies-e2e}
+    name: auth-a
+    display_name: Team A key authentication
+    type: key-auth
+    labels: {team: a}
+    config: {key_names: [x-team-a-key]}

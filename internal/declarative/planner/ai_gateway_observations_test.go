@@ -36,6 +36,7 @@ func TestAIGatewayPolicyObservationsSharedAndReset(t *testing.T) {
 			scope := resources.NewSyncScope()
 			scope.AddRoot(resources.ResourceTypeAIGateway)
 			scope.AddChild(resources.ResourceTypeAIGateway, "support-gateway", resources.ResourceTypeAIGatewayPolicy)
+			scope.AddChildNamespace(resources.ResourceTypeAIGatewayPolicy, "support-gateway", "default")
 			kinds := []resources.ResourceType{
 				resources.ResourceTypeAIGatewayAgent, resources.ResourceTypeAIGatewayConsumer,
 				resources.ResourceTypeAIGatewayConsumerGroup, resources.ResourceTypeAIGatewayModel,
@@ -127,4 +128,27 @@ func (a *policyObservationAPI) ListAiGatewayMcpServers(
 ) (*kkOps.ListAiGatewayMcpServersResponse, error) {
 	a.calls[ResourceTypeAIGatewayMCPServer]++
 	return a.testAIGatewayMCPServerAPI.ListAiGatewayMcpServers(ctx, req, opts...)
+}
+
+func TestGatewayObservationCacheNeverCachesFailedPartialCollections(t *testing.T) {
+	cache := make(map[string][]string)
+	calls := 0
+	fetch := func(context.Context, string) ([]string, error) {
+		calls++
+		if calls == 1 {
+			return []string{"partial"}, errors.New("second page failed")
+		}
+		return []string{"team-a", "team-b", "unowned"}, nil
+	}
+	values, err := listCachedAIGatewayChildren(t.Context(), "canonical-id", cache, fetch)
+	require.Error(t, err)
+	require.Nil(t, values)
+	require.Empty(t, cache)
+	values, err = listCachedAIGatewayChildren(t.Context(), "canonical-id", cache, fetch)
+	require.NoError(t, err)
+	require.Len(t, values, 3)
+	again, err := listCachedAIGatewayChildren(t.Context(), "canonical-id", cache, fetch)
+	require.NoError(t, err)
+	require.Equal(t, values, again)
+	require.Equal(t, 2, calls)
 }

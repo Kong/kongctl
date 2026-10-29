@@ -1,0 +1,18 @@
+_defaults:
+  kongctl: {namespace: auth-team-b}
+ai_gateway_auth_strategies:
+  - ref: auth-b
+    ai_gateway: !lookup {name: federated-auth-strategies-e2e}
+    name: auth-b
+    display_name: Team B OIDC authentication
+    type: openid-connect
+    config:
+      issuer: https://issuer.example.invalid
+      cache_tokens_salt: federated-auth-cache-salt-000001
+      auth_methods: [bearer]
+      client_id: [first-client, second-client]
+      client_secret:
+        - !secret {source: !env FEDERATED_OIDC_FIRST_SECRET}
+        - !secret {source: !env FEDERATED_OIDC_SECOND_SECRET}
+      http_proxy_authorization: !secret {source: !env FEDERATED_OIDC_HTTP_PROXY_AUTH}
+      https_proxy_authorization: !secret {source: !env FEDERATED_OIDC_HTTPS_PROXY_AUTH}

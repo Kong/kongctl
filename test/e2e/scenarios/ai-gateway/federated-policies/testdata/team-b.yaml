@@ -1,0 +1,12 @@
+_defaults:
+  kongctl: {namespace: policy-team-b}
+ai_gateway_policies:
+  - ref: policy-b
+    ai_gateway: !lookup {name: federated-policies-e2e}
+    name: policy-b
+    display_name: Global limit
+    type: rate-limiting
+    enabled: true
+    global: true
+    labels: {team: b}
+    config: {minute: 100, policy: local}

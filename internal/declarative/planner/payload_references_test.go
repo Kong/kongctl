@@ -100,7 +100,8 @@ func TestPayloadReferencesToUnchangedTargets(t *testing.T) {
 			}
 			var remoteProvider kkComps.AIGatewayModelProvider
 			require.NoError(t, json.Unmarshal([]byte(`{
-  "id":"provider-id", "name":"support-openai", "display_name":"OpenAI", "type":"openai",
+  "managed_by":{"tool":"kongctl","version":"dev","kongctl-namespace":"default","kongctl-protected":"false"},
+"id":"provider-id", "name":"support-openai", "display_name":"OpenAI", "type":"openai",
   "config":{"auth":{"type":"basic"}}, "created_at":"2026-01-01T00:00:00Z", "updated_at":"2026-01-01T00:00:00Z"
 }`), &remoteProvider))
 			model := testAIGatewayModelResource(t)
@@ -109,6 +110,10 @@ func TestPayloadReferencesToUnchangedTargets(t *testing.T) {
 			var modelPayload map[string]any
 			require.NoError(t, json.Unmarshal(modelData, &modelPayload))
 			modelPayload[FieldID] = "model-id"
+			modelPayload[FieldManagedBy] = map[string]string{
+				resources.ModelNamespaceKey: "default", resources.ModelProtectedKey: "false",
+				resources.ManagedByToolKey: "kongctl", resources.ManagedByVersionKey: "dev",
+			}
 			modelPayload["created_at"] = "2026-01-01T00:00:00Z"
 			modelPayload["updated_at"] = "2026-01-01T00:00:00Z"
 			modelData, err = json.Marshal(modelPayload)

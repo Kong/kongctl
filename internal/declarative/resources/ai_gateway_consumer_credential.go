@@ -52,6 +52,7 @@ func init() {
 			setParent: func(child *AIGatewayConsumerCredentialResource, ref string) { child.AIGatewayConsumer = ref },
 			validate:  validateAIGatewayConsumerCredentials,
 		},
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGatewayConsumer,
 			WithEmptyRootCollectionError(70, "each Credential must declare an ai_gateway_consumer parent"),
@@ -293,6 +294,7 @@ func AIGatewayConsumerCredentialResourceFromResponse(
 	if err != nil {
 		return AIGatewayConsumerCredentialResource{}, err
 	}
+	delete(payload, "managed_by")
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return AIGatewayConsumerCredentialResource{}, err

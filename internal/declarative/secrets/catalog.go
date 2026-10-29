@@ -16,6 +16,23 @@ type Capability struct {
 }
 
 var capabilities = []Capability{
+	{
+		resources.ResourceTypeAIGatewayMCPServer,
+		"/config/upstream/auth/secret_access_key",
+		true,
+		true,
+	},
+	{resources.ResourceTypeAIGatewayMCPServer, "/config/upstream/auth/session_token", true, true},
+	{resources.ResourceTypeAIGatewayMCPServer, "/config/proxy/auth/password", true, true},
+	{
+		resources.ResourceTypeAIGatewayMCPServer,
+		"/config/server/tools_list_auth/client_secret",
+		true,
+		true,
+	},
+	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/secret_access_key", true, true},
+	{resources.ResourceTypeAIGatewayAgent, "/config/upstream/auth/session_token", true, true},
+	{resources.ResourceTypeAIGatewayAgent, "/config/proxy/auth/password", true, true},
 	{resources.ResourceTypePortalCustomDomain, "/ssl/custom_private_key", true, true},
 	{resources.ResourceTypeEventGatewayBackendCluster, "/authentication/password", true, true},
 	{resources.ResourceTypeAIGatewayAuthStrategy, "/config/http_proxy_authorization", true, true},
@@ -25,6 +42,9 @@ var capabilities = []Capability{
 	{resources.ResourceTypeDCRProvider, "/dcr_config/dcr_token", true, true},
 	{resources.ResourceTypeDCRProvider, "/dcr_config/api_key", true, true},
 	{resources.ResourceTypeAIGatewayProvider, "/config/auth/headers/*/value", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/params/*/value", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/session_token", true, true},
+	{resources.ResourceTypeAIGatewayProvider, "/config/auth/aws/session_token", true, true},
 	{resources.ResourceTypeAIGatewayProvider, "/config/auth/client_secret", true, true},
 	{resources.ResourceTypeAIGatewayProvider, "/config/auth/secret_access_key", true, true},
 	{resources.ResourceTypeAIGatewayProvider, "/config/auth/aws/secret_access_key", true, true},

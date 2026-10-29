@@ -42,6 +42,7 @@ func init() {
 			setParent:     func(child *AIGatewayCertificateResource, ref string) { child.AIGateway = ref },
 		},
 		WithExternalUnsupportedReason("AI Gateway certificate lookup requires gateway-scoped name materialization"),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(140, "each resource must declare an ai_gateway parent"),
@@ -64,6 +65,14 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewayCACertificateResource { return &gateway.CACertificates },
 			setParent:     func(child *AIGatewayCACertificateResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(
+			52,
+			ResourceTypeAIGatewayCACertificate,
+			func(g *AIGatewayResource) *[]AIGatewayCACertificateResource { return &g.CACertificates },
+			func(r *AIGatewayCACertificateResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewayCACertificateResource) string { return r.AIGateway },
+		),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(150, "each resource must declare an ai_gateway parent"),
@@ -93,6 +102,11 @@ func init() {
 			nested:        func(gateway *AIGatewayResource) *[]AIGatewaySNIResource { return &gateway.SNIs },
 			setParent:     func(child *AIGatewaySNIResource, ref string) { child.AIGateway = ref },
 		},
+		WithAIGatewayOwnedChildNamespace(53, ResourceTypeAIGatewaySNI,
+			func(g *AIGatewayResource) *[]AIGatewaySNIResource { return &g.SNIs },
+			func(r *AIGatewaySNIResource) *BaseResource { return &r.BaseResource },
+			func(r *AIGatewaySNIResource) string { return r.AIGateway }),
+		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
 			WithEmptyRootCollectionError(160, "each resource must declare an ai_gateway parent"),
@@ -101,14 +115,14 @@ func init() {
 }
 
 type AIGatewayCertificateResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `                  yaml:",inline"              json:",inline"`
 	AIGateway    string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name         string            `yaml:"name" json:"name"`
-	Cert         string            `yaml:"cert" json:"cert"`
-	Key          string            `yaml:"key,omitempty" json:"key,omitempty"`
-	CertAlt      *string           `yaml:"cert_alt,omitempty" json:"cert_alt,omitempty"`
-	KeyAlt       *string           `yaml:"key_alt,omitempty" json:"key_alt,omitempty"`
-	Labels       map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Name         string            `yaml:"name"                 json:"name"`
+	Cert         string            `yaml:"cert"                 json:"cert"`
+	Key          string            `yaml:"key,omitempty"        json:"key,omitempty"`
+	CertAlt      *string           `yaml:"cert_alt,omitempty"   json:"cert_alt,omitempty"`
+	KeyAlt       *string           `yaml:"key_alt,omitempty"    json:"key_alt,omitempty"`
+	Labels       map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 	ManagedBy    map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
 }
 
@@ -164,11 +178,11 @@ func (a AIGatewayCertificateResource) MutablePayloadMap() (map[string]any, error
 }
 
 type AIGatewayCACertificateResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `                  yaml:",inline"              json:",inline"`
 	AIGateway    string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name         string            `yaml:"name" json:"name"`
-	Cert         string            `yaml:"cert" json:"cert"`
-	Labels       map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Name         string            `yaml:"name"                 json:"name"`
+	Cert         string            `yaml:"cert"                 json:"cert"`
+	Labels       map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 	ManagedBy    map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
 }
 
@@ -195,13 +209,13 @@ func (a AIGatewayCACertificateResource) GetReferenceFieldMappings() map[string]s
 }
 
 func (a AIGatewayCACertificateResource) Validate() error {
-	if err := validateAIGatewayTLSChild(a.BaseResource, a.AIGateway, a.Name, "CA certificate"); err != nil {
+	if err := validateAIGatewayTLSChild(BaseResource{Ref: a.Ref}, a.AIGateway, a.Name, "CA certificate"); err != nil {
 		return err
 	}
 	if a.Cert == "" {
 		return fmt.Errorf("cert is required for AI Gateway CA certificate %s", a.Ref)
 	}
-	return nil
+	return validateChildDeclarationManagedBy(a.ManagedBy, a.Kongctl)
 }
 func (a *AIGatewayCACertificateResource) SetDefaults()                   {}
 func (a AIGatewayCACertificateResource) GetKonnectMonikerFilter() string { return "" }
@@ -219,13 +233,13 @@ func (a AIGatewayCACertificateResource) PayloadMap() map[string]any {
 }
 
 type AIGatewaySNIResource struct {
-	BaseResource `yaml:",inline" json:",inline"`
+	BaseResource `                  yaml:",inline"              json:",inline"`
 	AIGateway    string            `yaml:"ai_gateway,omitempty" json:"ai_gateway,omitempty"`
-	Name         string            `yaml:"name" json:"name"`
-	DisplayName  string            `yaml:"display_name" json:"display_name"`
-	Hostname     string            `yaml:"hostname" json:"hostname"`
-	Certificate  string            `yaml:"certificate" json:"certificate"`
-	Labels       map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Name         string            `yaml:"name"                 json:"name"`
+	DisplayName  string            `yaml:"display_name"         json:"display_name"`
+	Hostname     string            `yaml:"hostname"             json:"hostname"`
+	Certificate  string            `yaml:"certificate"          json:"certificate"`
+	Labels       map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 	ManagedBy    map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
 }
 
@@ -261,7 +275,7 @@ func (a AIGatewaySNIResource) GetReferenceFieldMappings() map[string]string {
 }
 
 func (a AIGatewaySNIResource) Validate() error {
-	if err := validateAIGatewayTLSChild(a.BaseResource, a.AIGateway, a.Name, "SNI"); err != nil {
+	if err := validateAIGatewayTLSChild(BaseResource{Ref: a.Ref}, a.AIGateway, a.Name, "SNI"); err != nil {
 		return err
 	}
 	if len(a.Name) > 256 {
@@ -279,7 +293,7 @@ func (a AIGatewaySNIResource) Validate() error {
 	if a.Certificate == "" {
 		return fmt.Errorf("certificate is required for AI Gateway SNI %s", a.Ref)
 	}
-	return nil
+	return validateChildDeclarationManagedBy(a.ManagedBy, a.Kongctl)
 }
 func (a *AIGatewaySNIResource) SetDefaults()                   {}
 func (a AIGatewaySNIResource) GetKonnectMonikerFilter() string { return "" }
@@ -364,7 +378,7 @@ func AIGatewayCertificateResourceFromResponse(
 ) AIGatewayCertificateResource {
 	return AIGatewayCertificateResource{
 		BaseResource: BaseResource{Ref: value.Name}, AIGateway: gatewayRef, Name: value.Name,
-		Cert: value.Cert, CertAlt: value.CertAlt, Labels: value.Labels, ManagedBy: value.ManagedBy,
+		Cert: value.Cert, CertAlt: value.CertAlt, Labels: value.Labels, ManagedBy: nil,
 	}
 }
 
@@ -407,7 +421,8 @@ func aiGatewayCACertificateExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 	cert := explainStringNode("!file ./certs/root-ca.pem")
 	cert.PreferredTag = "!file"
 	return explainObject(
-		explainResourceRefField(), explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
+		explainResourceRefField(),
+		explainKongctlField(), explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField(SchemaFieldName, explainStringNode("root-ca"), true, true),
 		explainField(SchemaFieldCert, cert, true, true), explainAIGatewayTLSLabels(), explainAIGatewayTLSManagedBy(),
 	), nil
@@ -415,7 +430,8 @@ func aiGatewayCACertificateExplainNode(_ ExplainBuildContext) (*ExplainNode, err
 
 func aiGatewaySNIExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 	return explainObject(
-		explainResourceRefField(), explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
+		explainResourceRefField(),
+		explainKongctlField(), explainRefField(SchemaFieldAIGateway, ResourceTypeAIGateway, true),
 		explainField(SchemaFieldName, explainStringNode("api-sni"), true, true),
 		explainField(SchemaFieldDisplayName, explainStringNode("API SNI"), true, true),
 		explainField("hostname", explainStringNode("*.example.test"), true, true),
@@ -432,4 +448,12 @@ func explainAIGatewayTLSLabels() *ExplainField {
 func explainAIGatewayTLSManagedBy() *ExplainField {
 	node := &ExplainNode{Kind: explainKindObject, Additional: explainStringNode("kongctl")}
 	return explainField("managed_by", node, false, false)
+}
+
+func (a AIGatewayCACertificateResource) Protected() bool {
+	return a.Kongctl.IsProtected()
+}
+
+func (a AIGatewaySNIResource) Protected() bool {
+	return a.Kongctl.IsProtected()
 }

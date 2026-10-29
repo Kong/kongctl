@@ -1,0 +1,14 @@
+_defaults:
+  kongctl: {namespace: custom-team-a}
+ai_gateway_custom_policies:
+  - ref: installed-a
+    ai_gateway: !lookup {name: federated-custom-policies-e2e}
+    name: installed-a
+    display_name: Shared installed definition
+    type: installed
+    labels: {team: a}
+    schema: |
+      return {
+        name = "installed-a",
+        fields = { { config = { type = "record", fields = {} } } },
+      }

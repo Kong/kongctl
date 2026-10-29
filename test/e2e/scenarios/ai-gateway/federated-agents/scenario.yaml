@@ -1,0 +1,82 @@
+baseInputsPath: testdata
+defaults:
+  retry: {attempts: 1}
+steps:
+  - name: create-platform-and-independent-agents
+    commands:
+      - name: platform
+        run: [apply, -f, '{{ .workdir }}/platform.yaml', --auto-approve]
+      - name: team-a
+        run: [sync, -f, '{{ .workdir }}/team-a.yaml', --auto-approve]
+      - name: team-b
+        run: [sync, -f, '{{ .workdir }}/team-b.yaml', --auto-approve]
+      - name: both-retained
+        run: [get, ai-gateway, agents, --gateway-name, federated-agents-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 2
+                sort([].name): [agent-a, agent-b]
+                sort([].type): [a2a, http]
+                sort([].managed_by.tool): [kongctl, kongctl]
+                sort([].managed_by."kongctl-namespace"): [agents-team-a, agents-team-b]
+  - name: converge-and-round-trip
+    commands:
+      - name: converge
+        run: [plan, -f, '{{ .workdir }}/team-a.yaml', -f, '{{ .workdir }}/team-b.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: dump
+        run: [dump, declarative, --resources=ai-gateway, --include-child-resources, --filter-name=federated-agents-e2e, --output-file, '{{ .workdir }}/dumped.yaml']
+        outputFormat: disable
+      - name: reload
+        run: [plan, -f, '{{ .workdir }}/dumped.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+  - name: scope-and-final-dependencies
+    commands:
+      - name: omitted-leaves-agents
+        run: [plan, -f, '{{ .workdir }}/omitted-a.yaml', --mode, sync]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: apply-does-not-prune
+        run: [plan, -f, '{{ .workdir }}/empty-a.yaml', --mode, apply]
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: retained-foreign-agents-block-dependency-deletion
+        run: [plan, -f, '{{ .workdir }}/empty-platform.yaml', --mode, sync]
+        outputFormat: disable
+        expectFailure:
+          exitCode: 1
+          contains: still references it
+      - name: detach-before-dependency-delete-across-teams-and-aliases
+        run: [sync, -f, '{{ .workdir }}/empty-platform.yaml', -f, '{{ .workdir }}/detached-a.yaml', -f, '{{ .workdir }}/detached-b.yaml', --auto-approve]
+      - name: remove-only-team-a
+        run: [sync, -f, '{{ .workdir }}/empty-a.yaml', --auto-approve]
+      - name: team-b-retained
+        run: [get, ai-gateway, agents, --gateway-name, federated-agents-e2e]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].name': agent-b
+                '[0].managed_by."kongctl-namespace"': agents-team-b
+                'length([0].managed_by)': 4
+  - name: cleanup
+    commands:
+      - name: gateway-cascade
+        run: [sync, -f, '{{ .workdir }}/cleanup.yaml', --auto-approve]
