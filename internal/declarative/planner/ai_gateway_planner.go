@@ -225,6 +225,10 @@ func (p *Planner) shouldUpdateAIGateway(
 		updates[FieldProxyURLs] = desired.ProxyUrls
 		changedFields[FieldProxyURLs] = FieldChange{Old: current.ProxyUrls, New: desired.ProxyUrls}
 	}
+	if desired.ManagedBy != nil && !maps.Equal(current.ManagedBy, desired.ManagedBy) {
+		updates[FieldManagedBy] = desired.ManagedBy
+		changedFields[FieldManagedBy] = FieldChange{Old: current.ManagedBy, New: desired.ManagedBy}
+	}
 
 	if desired.Labels != nil && labels.CompareUserLabels(current.NormalizedLabels, desired.GetLabels()) {
 		updates[FieldLabels] = desired.GetLabels()
@@ -295,6 +299,9 @@ func (p *Planner) planAIGatewayUpdate(
 	}
 	if current.ProxyUrls != nil {
 		fields[FieldProxyURLs] = current.ProxyUrls
+	}
+	if current.ManagedBy != nil {
+		fields[FieldManagedBy] = current.ManagedBy
 	}
 	if current.MinRuntimeVersion != nil {
 		fields[FieldMinRuntimeVersion] = *current.MinRuntimeVersion
@@ -398,6 +405,9 @@ func extractAIGatewayFields(resource resources.AIGatewayResource) map[string]any
 	}
 	if resource.Labels != nil {
 		fields[FieldLabels] = resource.GetLabels()
+	}
+	if resource.ManagedBy != nil {
+		fields[FieldManagedBy] = resource.ManagedBy
 	}
 	return fields
 }

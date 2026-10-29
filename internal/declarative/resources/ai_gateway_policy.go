@@ -403,6 +403,10 @@ func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainField("enabled", explainBoolNode("true"), false, true),
 		explainField("global", explainBoolNode("false"), false, true),
 		explainField("condition", explainStringNode("http.path == '/v1/chat/completions'"), false, false),
+		explainField("expressions", &ExplainNode{
+			Kind:       explainKindObject,
+			Additional: &ExplainNode{},
+		}, false, false),
 		explainField("config", &ExplainNode{
 			Kind:       explainKindObject,
 			Additional: &ExplainNode{},

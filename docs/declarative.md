@@ -985,9 +985,13 @@ MCP server and tool ACLs also accept `allow_when` and `deny_when` arrays of
 CEL boolean expressions with runtime 2.3. These fields can be used under
 `access.acls`, `access.default_tool_acls`, and tool-level `access.acls`.
 
-Auth strategy configs expose common SDK fields and also preserve additional
-plugin properties. `explain` lists the common fields; use the plugin schema
-for the target runtime when configuring advanced properties.
+Auth strategy configs use the SDK-generated plugin schemas, including OIDC
+`credential_claims` and upstream header mappings. `explain` lists the supported
+configuration fields for each authentication strategy.
+
+Policies accept an `expressions` map for runtime 2.3 policy configuration
+expressions. Gateways also accept `managed_by` metadata; unrelated updates
+preserve existing metadata when it is omitted from the manifest.
 
 ### Organization-wide AI cost-tag capture
 

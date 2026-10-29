@@ -14,6 +14,14 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 - ref: gateway
   name: gateway
   display_name: Gateway
+  managed_by: {tool: kongctl}
+  policies:
+  - ref: policy
+    name: policy
+    display_name: Policy
+    type: ai-proxy
+    config: {}
+    expressions: {model: "http.headers.x_model"}
   model_providers:
   - ref: baseten
     name: baseten
@@ -85,6 +93,14 @@ func TestAIGateway23ManifestFields(t *testing.T) {
 `
 	rs, err := New().LoadFile(writeLoaderTestFile(t, manifest))
 	require.NoError(t, err)
+	gatewayJSON, err := json.Marshal(rs.AIGateways[0])
+	require.NoError(t, err)
+	var gateway map[string]any
+	require.NoError(t, json.Unmarshal(gatewayJSON, &gateway))
+	require.Equal(t, map[string]any{"tool": "kongctl"}, gateway["managed_by"])
+	policy, err := rs.AIGatewayPolicies[0].MutablePayloadMap()
+	require.NoError(t, err)
+	require.Equal(t, map[string]any{"model": "http.headers.x_model"}, policy["expressions"])
 	provider, err := rs.AIGatewayProviders[0].MutablePayloadMap()
 	require.NoError(t, err)
 	require.Equal(t, "baseten", provider["type"])
