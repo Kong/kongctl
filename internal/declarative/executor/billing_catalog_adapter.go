@@ -64,13 +64,13 @@ func (a *BillingCatalogAdapter) MapUpdateFields(
 	delete(*request, planner.FieldCurrentLabels)
 	if a.kind == helpers.BillingApp {
 		if _, ok := fields[planner.FieldAPIKeyEnv]; ok {
-			return fmt.Errorf("rotate app credentials explicitly using update mb apps")
+			return fmt.Errorf("rotate app credentials through the Konnect API")
 		}
 	}
 	if a.kind == helpers.BillingApp {
 		for _, key := range []string{"api_key", "secret_api_key"} {
 			if _, ok := fields[key]; ok {
-				return fmt.Errorf("rotate app credentials explicitly using update mb apps")
+				return fmt.Errorf("rotate app credentials through the Konnect API")
 			}
 		}
 	}

@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	c "github.com/Kong/sdk-konnect-go/models/components"
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	adoptcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
@@ -33,7 +32,7 @@ func addCatalogCommands(family *cobra.Command, verb verbs.VerbValue, configure f
 		{helpers.BillingPlan, "plans", "plan"},
 	} {
 		if entry.kind == helpers.BillingCurrency &&
-			(verb == verbs.Update || verb == verbs.Delete || verb == verbs.Adopt) {
+			(verb == verbs.Delete || verb == verbs.Adopt) {
 			continue
 		}
 		leaf := &cobra.Command{
@@ -45,15 +44,10 @@ func addCatalogCommands(family *cobra.Command, verb verbs.VerbValue, configure f
 		// Billing command/action subset.
 		//exhaustive:ignore
 		switch verb {
-		case verbs.Create:
-			leaf.Args = cobra.NoArgs
 		case verbs.Get, verbs.List:
 			leaf.Args = cobra.MaximumNArgs(1)
 		default:
 			leaf.Args = cobra.ExactArgs(1)
-		}
-		if verb == verbs.Create || verb == verbs.Update {
-			leaf.Flags().String("file", "", "JSON or YAML API request file")
 		}
 		if verb == verbs.Adopt {
 			leaf.Flags().String("namespace", "", "Namespace to adopt into (required)")
@@ -73,12 +67,6 @@ func addCatalogCommands(family *cobra.Command, verb verbs.VerbValue, configure f
 		}
 		kind := entry.kind
 		leaf.RunE = func(cmd *cobra.Command, args []string) error { return runCatalog(cmd, args, verb, kind, "") }
-		if kind == helpers.BillingPlan && verb == verbs.Update {
-			for _, action := range []string{"publish", "archive"} {
-				leaf.Flags().Bool(action, false, "Explicitly "+action+" this plan version (requires ULID; no --file)")
-			}
-			leaf.MarkFlagsMutuallyExclusive("publish", "archive", "file")
-		}
 		if kind == helpers.BillingApp && (verb == verbs.Get || verb == verbs.List) {
 			catalog := &cobra.Command{
 				Use:   "catalog [type]",
@@ -92,22 +80,19 @@ func addCatalogCommands(family *cobra.Command, verb verbs.VerbValue, configure f
 				return err
 			}
 		}
-		if kind == helpers.BillingCurrency && (verb == verbs.Get || verb == verbs.List || verb == verbs.Create) {
+		if kind == helpers.BillingCurrency && (verb == verbs.Get || verb == verbs.List) {
 			costs := &cobra.Command{
 				Use:   "cost-bases <custom-currency-ULID>",
-				Short: "Inspect or explicitly schedule custom currency cost bases",
+				Short: "Inspect custom currency cost bases",
 				Args:  cobra.ExactArgs(1),
 			}
 			configure(costs)
-			if verb == verbs.Create {
-				costs.Flags().String("file", "", "Cost basis request file (required)")
-			}
 			costs.RunE = func(cmd *cobra.Command, args []string) error { return runCatalog(cmd, args, verb, kind, "cost-bases") }
 			leaf.AddCommand(costs)
 		}
 		if kind == helpers.BillingCurrency ||
 			(kind == helpers.BillingApp &&
-				(verb == verbs.Create || verb == verbs.Update || verb == verbs.Delete || verb == verbs.Adopt)) {
+				(verb == verbs.Delete || verb == verbs.Adopt)) {
 			if err := maturity.AnnotateCommand(leaf, maturity.Metadata{Level: maturity.LevelBeta}); err != nil {
 				return err
 			}
@@ -216,16 +201,7 @@ func runCatalog(
 		if !helpers.IsMeterULID(args[0]) {
 			return fmt.Errorf("cost bases require a custom currency ULID")
 		}
-		if verb == verbs.Create {
-			type request c.CreateCostBasisRequest
-			var req request
-			if err := readRequest(cmd, &req); err != nil {
-				return err
-			}
-			result, err = api.CreateCostBasis(cmd.Context(), args[0], c.CreateCostBasisRequest(req))
-		} else {
-			result, err = api.CostBases(cmd.Context(), args[0], size)
-		}
+		result, err = api.CostBases(cmd.Context(), args[0], size)
 	case verb == verbs.Get || verb == verbs.List:
 		if len(args) == 0 {
 			options := helpers.BillingListOptions{}
@@ -240,18 +216,6 @@ func runCatalog(
 		} else {
 			result, err = ResolveBilling(cmd.Context(), api, kind, args[0], size)
 		}
-	case verb == verbs.Create:
-		fields, readErr := readCatalogRequest(cmd, kind)
-		if readErr != nil {
-			return readErr
-		}
-		if err := validateImperativeMeterLabels(helpers.BillingObject(fields).Labels()); err != nil {
-			return err
-		}
-		if err := helpers.ValidateBillingFields(kind, fields, false); err != nil {
-			return err
-		}
-		result, err = api.Create(cmd.Context(), kind, fields)
 	default:
 		// Mutations use ULIDs for non-unique names and versioned plans.
 		if !helpers.IsMeterULID(args[0]) &&
@@ -285,49 +249,6 @@ func runCatalog(
 			}
 			err = api.Delete(cmd.Context(), kind, current.ID())
 			result = map[string]string{"id": current.ID(), "status": "deleted"}
-		case verbs.Update:
-			action := ""
-			for _, name := range []string{"publish", "archive"} {
-				if flag := cmd.Flags().Lookup(name); flag != nil && flag.Value.String() == "true" {
-					action = name
-				}
-			}
-			if action != "" {
-				result, err = api.PlanAction(cmd.Context(), current.ID(), action)
-				break
-			}
-			if kind == helpers.BillingPlan && current.String("status") != "draft" {
-				return fmt.Errorf("plan is not a draft; explicitly create a new draft version using create mb plans")
-			}
-			fields, readErr := readCatalogRequest(cmd, kind)
-			if readErr != nil {
-				return readErr
-			}
-			if err := validateImperativeMeterLabels(helpers.BillingObject(fields).Labels()); err != nil {
-				return err
-			}
-			if kind == helpers.BillingApp && fields["type"] != current["type"] {
-				return fmt.Errorf("app type is immutable")
-			}
-			if kind == helpers.BillingTaxCode {
-				if key, ok := fields["key"]; ok {
-					if key != current["key"] {
-						return fmt.Errorf("tax code key is immutable")
-					}
-					delete(fields, "key")
-				}
-			}
-			owned := helpers.BillingObject(fields).Labels()
-			for key, value := range current.Labels() {
-				if labels.IsKongctlLabel(key) {
-					owned[key] = value
-				}
-			}
-			fields["labels"] = owned
-			if err := helpers.ValidateBillingFields(kind, fields, true); err != nil {
-				return err
-			}
-			result, err = api.Update(cmd.Context(), kind, current.ID(), fields)
 		case verbs.Adopt:
 			flags, readErr := adoptcommon.ReadAdoptFlags(cmd)
 			if readErr != nil {
@@ -379,15 +300,4 @@ func runCatalog(
 	printer.Print(result)
 	printer.Flush()
 	return nil
-}
-
-func readCatalogRequest(cmd *cobra.Command, kind helpers.BillingKind) (map[string]any, error) {
-	var fields map[string]any
-	if err := readRequest(cmd, &fields); err != nil {
-		if kind == helpers.BillingApp {
-			return nil, fmt.Errorf("cannot read billing app request; check --file and its JSON/YAML syntax")
-		}
-		return nil, err
-	}
-	return fields, nil
 }

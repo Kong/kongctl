@@ -58,7 +58,7 @@ func TestFeatureCommandsAndOutput(t *testing.T) {
 			require.Contains(t, output.String(), "usage")
 		})
 	}
-	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Create, verbs.Update, verbs.Delete, verbs.Adopt} {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Delete, verbs.Adopt} {
 		family := newTestCommand(t, verb)
 		require.NotNil(t, family)
 		require.Contains(t, family.Aliases, "mb")
@@ -68,8 +68,8 @@ func TestFeatureCommandsAndOutput(t *testing.T) {
 	}
 }
 
-func TestFeatureRequestsAndCostQuery(t *testing.T) {
-	server := fixture.NewFeatureServer(t)
+func TestFeatureCostQueryAdoptionAndDeletion(t *testing.T) {
+	server := fixture.NewFeatureServer(t, kkComps.Feature{ID: fixture.FeatureID, Name: "Usage", Key: "usage"})
 	cfg := config.BuildProfiledConfig("default", "", viper.New())
 	cfg.Set(cmdcommon.OutputConfigPath, "json")
 	ctx := context.WithValue(t.Context(), config.ConfigKey, cfg)
@@ -85,32 +85,13 @@ func TestFeatureRequestsAndCostQuery(t *testing.T) {
 		helpers.SDKAPIFactory(func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) { return server.SDK, nil }),
 	)
 	path := filepath.Join(t.TempDir(), "request.yaml")
-	run := func(verb verbs.VerbValue, request string, args ...string) error {
+	run := func(verb verbs.VerbValue, args ...string) error {
 		leaf, _, err := newTestCommand(t, verb).Find([]string{"features"})
 		require.NoError(t, err)
 		leaf.SetContext(ctx)
-		if request != "" {
-			require.NoError(t, os.WriteFile(path, []byte(request), 0o600))
-			require.NoError(t, leaf.Flags().Set("file", path))
-		}
 		return leaf.RunE(leaf, args)
 	}
-	require.ErrorContains(t, run(verbs.Create, "key: usage"), "name is required")
-	require.ErrorContains(
-		t,
-		run(verbs.Create, "name: Usage\nkey: usage\nunit_cost: {type: manual, amount: '1', typo: true}"),
-		"unknown field",
-	)
-	require.NoError(t, run(verbs.Create, "name: Usage\nkey: usage\nunit_cost: {type: manual, amount: '0.1'}"))
-	require.ErrorContains(t, run(verbs.Update, "name: Changed", "usage"), "only unit_cost")
-	require.NoError(t, run(verbs.Update, "{}", "usage"))
-	values, _ := server.Snapshot()
-	require.NotNil(t, values[0].UnitCost)
-	require.NoError(t, run(verbs.Update, "unit_cost: null", "usage"))
-	values, writes := server.Snapshot()
-	require.Nil(t, values[0].UnitCost)
-	require.Contains(t, writes[len(writes)-1], "unit_cost")
-	require.ErrorContains(t, run(verbs.Adopt, "", "usage"), "adoption is unsupported")
+	require.ErrorContains(t, run(verbs.Adopt, "usage"), "adoption is unsupported")
 	query, _, err := newTestCommand(t, verbs.Get).Find([]string{"features", "cost-query"})
 	require.NoError(t, err)
 	resolved, err := maturity.ResolveCommand(query)
@@ -121,17 +102,17 @@ func TestFeatureRequestsAndCostQuery(t *testing.T) {
 	require.NoError(t, query.Flags().Set("file", path))
 	require.NoError(t, query.RunE(query, []string{"usage"}))
 	server.Fail(403)
-	require.ErrorContains(t, run(verbs.Get, "", "usage"), "list features")
+	require.ErrorContains(t, run(verbs.Get, "usage"), "list features")
 	server.Fail(0)
 	server.SetLabels(fixture.FeatureID, map[string]string{labels.ProtectedKey: "true"})
-	require.ErrorContains(t, run(verbs.Delete, "", "usage"), "protected")
+	require.ErrorContains(t, run(verbs.Delete, "usage"), "protected")
 	server.SetLabels(fixture.FeatureID, nil)
 	leaf, _, err := newTestCommand(t, verbs.Delete).Find([]string{"features"})
 	require.NoError(t, err)
 	leaf.SetContext(ctx)
 	cmdpkg.SetDeleteAutoApprove(leaf, true)
 	require.NoError(t, leaf.RunE(leaf, []string{"usage"}))
-	values, _ = server.Snapshot()
+	values, _ := server.Snapshot()
 	require.Empty(t, values)
 }
 

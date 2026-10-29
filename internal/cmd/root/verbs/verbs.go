@@ -21,7 +21,6 @@ const (
 	Inspect   = VerbValue("inspect")
 	Create    = VerbValue("create")
 	Dump      = VerbValue("dump")
-	Update    = VerbValue("update")
 	Delete    = VerbValue("delete")
 	Help      = VerbValue("help")
 	List      = VerbValue("list")

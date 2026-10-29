@@ -24,13 +24,8 @@ func newFeaturesCommand(verb verbs.VerbValue, configure func(*cobra.Command)) (*
 	switch verb {
 	case verbs.Get, verbs.List:
 		leaf.Args = cobra.MaximumNArgs(1)
-	case verbs.Create:
-		leaf.Args = cobra.NoArgs
 	default:
 		leaf.Args = cobra.ExactArgs(1)
-	}
-	if verb == verbs.Create || verb == verbs.Update {
-		leaf.Flags().String("file", "", "JSON or YAML API request file (required)")
 	}
 	if verb == verbs.Delete {
 		leaf.Flags().Bool("auto-approve", false, "Skip deletion confirmation")
@@ -80,30 +75,7 @@ func runFeatures(c *cobra.Command, args []string, verb verbs.VerbValue, query bo
 		pageSize = common.DefaultRequestPageSize
 	}
 	var result any
-	if verb == verbs.Create {
-		var req helpers.FeatureCreateRequest
-		if err := readRequest(c, &req); err != nil {
-			return err
-		}
-		create, err := req.SDKRequest()
-		if err != nil {
-			return err
-		}
-		if err := validateImperativeMeterLabels(create.Labels); err != nil {
-			return err
-		}
-		if err := helpers.ValidateFeatureCreate(create); err != nil {
-			return err
-		}
-		resp, err := api.CreateFeature(c.Context(), create)
-		if err != nil {
-			return fmt.Errorf("create feature: %w", err)
-		}
-		if resp == nil || resp.Feature == nil {
-			return fmt.Errorf("create feature response missing data")
-		}
-		result = resp.Feature
-	} else if (verb == verbs.Get || verb == verbs.List) && len(args) == 0 {
+	if (verb == verbs.Get || verb == verbs.List) && len(args) == 0 {
 		values, err := helpers.ListAllFeatures(c.Context(), api, pageSize)
 		if err != nil {
 			return err
@@ -129,25 +101,6 @@ func runFeatures(c *cobra.Command, args []string, verb verbs.VerbValue, query bo
 				return fmt.Errorf("query feature response missing data")
 			}
 			result = resp.FeatureCostQueryResult
-		case verb == verbs.Update:
-			if labels.IsProtectedResource(feature.Labels) {
-				return fmt.Errorf("feature %q is protected", feature.Key)
-			}
-			var req helpers.FeatureUpdateRequest
-			if err := readRequest(c, &req); err != nil {
-				return err
-			}
-			if err := req.Validate(); err != nil {
-				return err
-			}
-			resp, err := api.UpdateFeature(c.Context(), feature.ID, req)
-			if err != nil {
-				return fmt.Errorf("update feature: %w", err)
-			}
-			if resp == nil || resp.Feature == nil {
-				return fmt.Errorf("update feature response missing data")
-			}
-			result = resp.Feature
 		case verb == verbs.Adopt:
 			return fmt.Errorf("feature adoption is unsupported: PATCH accepts only unit_cost and cannot " +
 				"update ownership labels; create a feature with a new key")

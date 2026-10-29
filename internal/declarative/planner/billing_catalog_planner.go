@@ -148,7 +148,7 @@ func (p *billingCatalogPlanner) PlanChanges(ctx context.Context, cfg *Config, pl
 				plan.AddWarning(
 					"",
 					fmt.Sprintf(
-						"billing app %q: api_key_env is install-only; rotate credentials explicitly with update mb apps",
+						"billing app %q: api_key_env is install-only; rotate credentials through the Konnect API",
 						r.GetRef(),
 					),
 				)

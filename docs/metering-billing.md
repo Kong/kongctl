@@ -1,52 +1,37 @@
 # Metering & Billing
 
 The initial Metering & Billing suite manages meters, features, plans, tax
-codes, currencies, integration apps, and billing profiles. Commands are
-scoped under `metering-billing` (alias `mb`), with Konnect implied:
+codes, currencies, integration apps, and billing profiles. Use declarative
+`plan`, `apply`, `sync`, and `delete -f` to manage their configuration.
+Inspection commands are scoped under `metering-billing` (alias `mb`), with
+Konnect implied:
 
 ```sh
 kongctl get metering-billing meters --page-size 100 -o json
 kongctl get konnect metering-billing meter request_count -o yaml
-kongctl create metering-billing meter --file create-meter.yaml
-kongctl update metering-billing meter request_count --file update-meter.yaml
 kongctl get metering-billing meters query request_count --file query.yaml
-kongctl delete metering-billing meter request_count --auto-approve
+kongctl delete -f meters.yaml --auto-approve
 ```
 
 Identifiers are the unique API `key` or an uppercase ULID. Keys contain 1–64
-lowercase alphanumeric characters separated by single underscores. Display names and
-local declarative references are not API identifiers. Lists retrieve every
+lowercase alphanumeric characters separated by single underscores. Display
+names and local declarative references are not API identifiers. Lists retrieve every
 API page. All commands support text, JSON, and YAML output. Query results are
 operational output and never enter declarative desired state.
 
-Request files accept JSON or YAML and contain API fields only. Create requires
-`name`, `key`, `aggregation`, and `event_type`:
-
-```yaml
-name: Request Count
-key: request_count
-aggregation: count
-event_type: request
-dimensions:
-  region: $.region
-```
+Meter declarations require `ref`, `name`, `key`, `aggregation`, and
+`event_type`. See the grouped manifest below. Create and update the remote
+resources with `kongctl apply -f meters.yaml`.
 
 For aggregations other than count, supply `value_property` where required by
 your event data, for example `$.tokens`. Aggregations are `sum`, `count`,
 `unique_count`, `avg`, `min`, `max`, and `latest`. Optional `events_from` is an
 RFC3339 timestamp; omission includes historical events.
 
-Update files accept only `name`, `description`, `labels`, and `dimensions`:
-
-```yaml
-name: Requests
-dimensions: {}
-```
-
+Declarative updates support `name`, `description`, `labels`, and `dimensions`.
 Explicit `{}` clears dimensions or user labels; omission leaves them
-unmanaged. Imperative updates preserve existing `KONGCTL-*` management labels
-and reject protected meters. Remove protection through declarative management
-before performing imperative updates or deletion.
+unmanaged. Management labels are preserved. Remove protection in a separate
+apply before changing public fields or deleting a protected meter.
 
 Queries accept the API's meter query fields, for example:
 
@@ -66,7 +51,7 @@ and federated ownership are in the
 All seven collections live under the `metering-billing:` grouping, alongside
 `organization:` and `analytics:`. Its children are `meters`, `features`,
 `tax_codes`, `currencies`, `apps`, `profiles`, and `plans`. Flat root collections
-are not accepted. The grouping does not change ownership or dependency order.
+are not accepted. The grouping preserves ownership and dependency order.
 
 ```yaml
 _defaults:
@@ -158,21 +143,18 @@ overrides are outside this feature's scope.
 ```sh
 kongctl get metering-billing features --page-size 100 -o json
 kongctl get konnect mb feature requests -o yaml
-kongctl create mb feature --file create-feature.yaml
-kongctl update mb feature requests --file feature-cost.yaml
 kongctl get mb features cost-query requests --file query.yaml
-kongctl delete mb feature requests --auto-approve
+kongctl delete -f features.yaml --auto-approve
 kongctl explain metering-billing.features
 kongctl scaffold metering-billing.features
 kongctl dump declarative --resources metering-billing.features
 ```
 
-Imperative identifiers are API keys or uppercase ULIDs, with the same
-pagination and output conventions as meters. Create files require `name` and
-`key`. They may contain `description`, user `labels`, `meter`, and `unit_cost`.
-For imperative creation, `meter.id` must be a remote meter ULID. Omit `meter`
-to create a static feature. Cost queries are beta, imperative operations and
-use the meter query request shape described above.
+Inspection identifiers are API keys or uppercase ULIDs, with the same
+pagination and output conventions as meters. Features require `ref`, `name`,
+and `key`, with optional `description`, user `labels`, `meter`, and `unit_cost`.
+Omit `meter` to declare a static feature. Cost queries are beta read operations
+and use the meter query request shape described above.
 
 Declarative creation supports both remote ULIDs and local meter references:
 
@@ -256,11 +238,11 @@ fixture. Live coverage is in
 
 ## Product catalog and billing configuration
 
-The remaining resources share the `mb` namespace. Request files use native
-API JSON field names and accept JSON or YAML. Lists follow every API page;
+The remaining resources share the `mb` command namespace. Declarative
+configuration uses the grouped collections below. Lists follow every API page;
 `--page-size` controls each request, not the total number of results.
 
-| Child of `metering-billing` | Command | Lifecycle |
+| Child of `metering-billing` | Get/list noun | Declarative lifecycle |
 | --- | --- | --- |
 | `tax_codes` | `tax-codes` | Create, PUT, delete |
 | `currencies` | `currencies` | Create and observe |
@@ -269,7 +251,7 @@ API JSON field names and accept JSON or YAML. Lists follow every API page;
 | `plans` | `plans` | Draft CRUD; observe published versions |
 
 Reads accept unambiguous names for profiles/apps, currency codes, tax keys,
-and `key@version` for plans. Profile, app, and plan mutations require ULIDs.
+and `key@version` for plans.
 Display names are not assumed unique. Specify `id` before renaming an app or
 profile, and whenever name or plan-version matching would be ambiguous.
 Explicit missing IDs fail; they never create a replacement. A plan ID must
@@ -280,15 +262,7 @@ kongctl get mb tax-codes --include-deleted -o json
 kongctl get mb currencies --type custom --expand-cost-basis -o yaml
 kongctl get mb apps catalog
 kongctl get mb apps catalog stripe
-kongctl create mb tax-code --file tax-code.yaml
-kongctl create mb currency --file currency.yaml
-kongctl create mb app --file app.yaml
-kongctl create mb profile --file profile.yaml
-kongctl create mb plan --file plan.yaml
 kongctl get mb plans starter@1
-kongctl update mb plan PLAN_ULID --file draft-update.yaml
-kongctl update mb plan PLAN_ULID --publish
-kongctl update mb plan PLAN_ULID --archive
 ```
 
 The following manifest connects the catalog resources. Add meters/features
@@ -390,8 +364,8 @@ run before target deletion. Fresh reads recheck references, ownership,
 protection, default-profile status, and draft status before execution.
 
 Tax-code keys are immutable. List normally excludes deleted tax codes;
-`--include-deleted` supports inspection. Declarative matching also observes deleted tax codes and rejects reuse of
-their keys. A missing explicit ID or an API Gone response fails rather than
+`--include-deleted` supports inspection. Declarative matching also observes
+deleted tax codes and rejects reuse of their keys. A missing explicit ID or an API Gone response fails rather than
 implicitly recreating/adopting it. Provider values
 in `app_mappings` are provider tax codes, not installed app ULIDs.
 
@@ -403,15 +377,11 @@ unambiguous existing version. Ambiguity requires an explicit selector.
 Repeated apply never creates another version or publishes/archives a plan.
 Unchanged published/archived versions can be observed; changed public fields
 or protection require an explicit draft. Key, currency, and billing cadence
-are immutable. Publication/archive are explicit `update mb plans` flags;
-they cannot be combined with a request file. The pinned API assigns effective
-times through these actions; effective dates are response data rather than
-declarative inputs. No subscription migration is performed.
-
-To create another draft version, deliberately use `create mb plans` with the
-API request for the same key, then pin the returned ID/version in your
-manifest. Update files use `UpsertPlanRequest`: name and phases are required;
-key, currency, and billing cadence belong only in create files.
+are immutable. Publishing, archiving, and creating another version of an
+existing plan must be performed through Konnect or its API; kongctl does not
+expose create/update commands for those actions. Pin the returned ID/version
+when declaring another existing version. Effective dates are response data
+rather than declarative inputs. No subscription migration is performed.
 
 ### Currencies and cost bases
 
@@ -422,33 +392,26 @@ unsupported-update error. Built-in fiat currencies are read-only and cannot
 be declared as custom currencies. Omission stops observation; it never
 schedules deletion.
 
-Cost bases are beta, scheduled imperative operations. They are not mutable
-exchange-rate desired state and are never replayed by apply:
+Inspect active and scheduled cost bases with:
 
 ```sh
 kongctl get mb currencies cost-bases CUSTOM_CURRENCY_ULID
-kongctl create mb currencies cost-bases CUSTOM_CURRENCY_ULID --file basis.yaml
 ```
 
-```yaml
-fiat_code: USD
-rate: '0.01'
-effective_from: '2027-01-01T00:00:00Z'
-```
+Schedule cost bases through the Konnect API. They are not mutable
+exchange-rate desired state and are never replayed by apply.
 
 ### Integration apps and profiles
 
 App catalog/install/update/uninstall operations are beta. Sandbox, Stripe,
-and external invoicing variants use their native contracts. Imperative installs
-must explicitly choose `create_billing_profile`; `true` permits
-the API's profile/default side effects. Inspect and explicitly adopt any
-side-effect-created profile before declaring it; name matching never silently
-adopts or duplicates that profile.
+and external invoicing variants use their native contracts. Inspect the app
+catalog with `kongctl get mb apps catalog`; install and configure apps through
+declarative manifests.
 
 Declarative apps do not accept `create_billing_profile`. Declare billing
 profiles separately under `metering-billing.profiles` and reference the apps
-used for tax, invoicing, and payment. kongctl disables automatic profile creation
-internally when installing an app. The install API cannot set labels, so
+used for tax, invoicing, and payment. kongctl disables automatic profile
+creation internally when installing an app. The install API cannot set labels, so
 kongctl immediately updates installed-app metadata. If that step fails, the
 error reports the installed ULID: adopt that app before retrying. Creation
 rechecks identity to reject stale plans that could install duplicates.
@@ -460,10 +423,9 @@ For declarative Stripe installs, use `api_key_env: STRIPE_API_KEY`. Only the
 environment variable's name enters plans; its value is read at execution.
 Literal API keys are rejected by the declarative schema. Dumps contain no
 credentials. Existing explicitly identified Stripe apps do not need a key to
-observe or update public metadata. Credential rotation is imperative:
-`update mb apps APP_ULID --file stripe-update.yaml` accepts native
-`secret_api_key`; omission preserves the current credential. SDK union
-validation and app API failures never echo the credential-bearing request.
+observe or update public metadata. Rotate credentials through Konnect or its
+API; declarative apply preserves the current credential. SDK union validation
+and app API failures never echo the credential-bearing request.
 Do not use a redacted/masked response value as an update credential.
 
 Profile app associations are immutable. Create another profile to change

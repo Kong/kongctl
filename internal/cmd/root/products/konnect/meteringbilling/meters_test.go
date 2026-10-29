@@ -55,7 +55,7 @@ func TestMeterCommandsAndOutput(t *testing.T) {
 			require.Contains(t, output.String(), "usage")
 		})
 	}
-	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Create, verbs.Update, verbs.Delete, verbs.Adopt} {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Delete, verbs.Adopt} {
 		family := newTestCommand(t, verb)
 		require.NotNil(t, family)
 		require.Contains(t, family.Aliases, "mb")
@@ -65,8 +65,8 @@ func TestMeterCommandsAndOutput(t *testing.T) {
 	}
 }
 
-func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
-	server := fixture.NewMeterServer(t)
+func TestMeterQueryAdoptionAndDeletion(t *testing.T) {
+	server := fixture.NewMeterServer(t, kkComps.Meter{ID: fixture.MeterID, Name: "Usage", Key: "usage"})
 	cfg := config.BuildProfiledConfig("default", "", viper.New())
 	cfg.Set(cmdcommon.OutputConfigPath, "json")
 	ctx := context.WithValue(t.Context(), config.ConfigKey, cfg)
@@ -82,20 +82,13 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 		helpers.SDKAPIFactory(func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) { return server.SDK, nil }),
 	)
 	path := filepath.Join(t.TempDir(), "request.yaml")
-	run := func(verb verbs.VerbValue, request string, args []string) error {
+	run := func(verb verbs.VerbValue, args []string) error {
 		family := newTestCommand(t, verb)
 		leaf, _, err := family.Find([]string{"meters"})
 		require.NoError(t, err)
 		leaf.SetContext(ctx)
-		if request != "" {
-			require.NoError(t, os.WriteFile(path, []byte(request), 0o600))
-			require.NoError(t, leaf.Flags().Set("file", path))
-		}
 		return leaf.RunE(leaf, args)
 	}
-	require.NoError(t, run(verbs.Create, "name: Usage\nkey: usage\naggregation: count\nevent_type: request\n", nil))
-	require.ErrorContains(t, run(verbs.Update, "aggregation: sum\n", []string{"usage"}), "unknown field")
-	require.NoError(t, run(verbs.Update, "name: Renamed\ndimensions: {}\n", []string{"usage"}))
 	{
 		family := newTestCommand(t, verbs.Get)
 		query, _, err := family.Find([]string{"meters", "query"})
@@ -113,7 +106,7 @@ func TestMeterImperativeMutationAndStrictRequests(t *testing.T) {
 	require.NoError(t, leaf.RunE(leaf, []string{"usage"}))
 	require.ErrorContains(t, leaf.RunE(leaf, []string{"usage"}), "already belongs")
 	server.SetLabels(fixture.MeterID, map[string]string{labels.NamespaceKey: "billing", labels.ProtectedKey: "true"})
-	require.ErrorContains(t, run(verbs.Delete, "", []string{"usage"}), "protected")
+	require.ErrorContains(t, run(verbs.Delete, []string{"usage"}), "protected")
 	server.SetLabels(fixture.MeterID, map[string]string{labels.NamespaceKey: "billing"})
 	family = newTestCommand(t, verbs.Delete)
 	leaf, _, err = family.Find([]string{"meter"})

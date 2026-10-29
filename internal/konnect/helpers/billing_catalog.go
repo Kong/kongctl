@@ -61,10 +61,8 @@ type BillingCatalogAPI interface {
 	Create(context.Context, BillingKind, map[string]any) (BillingObject, error)
 	Update(context.Context, BillingKind, string, map[string]any) (BillingObject, error)
 	Delete(context.Context, BillingKind, string) error
-	PlanAction(context.Context, string, string) (BillingObject, error)
 	Catalog(context.Context, string, int64) (any, error)
 	CostBases(context.Context, string, int64) (any, error)
-	CreateCostBasis(context.Context, string, c.CreateCostBasisRequest) (any, error)
 }
 
 type billingCatalogSDK struct{ sdk *kkSDK.SDK }
@@ -635,34 +633,6 @@ func (a *billingCatalogSDK) Delete(ctx context.Context, kind BillingKind, id str
 	}
 }
 
-func (a *billingCatalogSDK) PlanAction(ctx context.Context, id, action string) (BillingObject, error) {
-	if !IsMeterULID(id) {
-		return nil, fmt.Errorf("plan id must be an uppercase ULID")
-	}
-	switch action {
-	case "publish":
-		resp, err := a.sdk.OpenMeterProductCatalog.PublishPlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if resp == nil || resp.BillingPlan == nil {
-			return nil, fmt.Errorf("publish response missing data")
-		}
-		return billingObject(resp.BillingPlan)
-	case "archive":
-		resp, err := a.sdk.OpenMeterProductCatalog.ArchivePlan(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		if resp == nil || resp.BillingPlan == nil {
-			return nil, fmt.Errorf("archive response missing data")
-		}
-		return billingObject(resp.BillingPlan)
-	default:
-		return nil, fmt.Errorf("unsupported plan action %q", action)
-	}
-}
-
 func (a *billingCatalogSDK) Catalog(ctx context.Context, kind string, size int64) (any, error) {
 	if kind != "" {
 		resp, err := a.sdk.OpenMeterApps.GetAppCatalogItem(ctx, c.BillingAppType(kind))
@@ -716,20 +686,6 @@ func (a *billingCatalogSDK) CostBases(ctx context.Context, id string, size int64
 		}
 	}
 	return nil, fmt.Errorf("cost basis pagination exceeded safety limit")
-}
-
-func (a *billingCatalogSDK) CreateCostBasis(ctx context.Context, id string, req c.CreateCostBasisRequest) (any, error) {
-	if strings.TrimSpace(req.FiatCode) == "" || strings.TrimSpace(req.Rate) == "" {
-		return nil, fmt.Errorf("fiat_code and rate are required")
-	}
-	resp, err := a.sdk.OpenMeterCurrencies.CreateCostBasis(ctx, id, req)
-	if err != nil {
-		return nil, err
-	}
-	if resp == nil || resp.BillingCostBasis == nil {
-		return nil, fmt.Errorf("cost basis response missing data")
-	}
-	return resp.BillingCostBasis, nil
 }
 
 // ValidateBillingFields validates presence separately from SDK zero values.

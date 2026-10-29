@@ -19,10 +19,12 @@ import (
 	"github.com/kong/kongctl/internal/cmd/common"
 	konnectcommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	configpkg "github.com/kong/kongctl/internal/config"
+	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/iostreams"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/log"
 	"github.com/kong/kongctl/internal/profile"
+	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/mattn/go-runewidth"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -341,6 +343,64 @@ func TestDeleteHelpUsesDeclarativeExamples(t *testing.T) {
 	}
 	if strings.Contains(examples, "kongctl delete -f ./configs/ --recursive") {
 		t.Fatalf("expected delete examples not to contain stale recursive example\nexamples:\n%s", examples)
+	}
+}
+
+func TestMeteringBillingCreateUpdateCommandsUnavailable(t *testing.T) {
+	for _, verb := range []string{"create", "update"} {
+		for _, product := range []string{"", "konnect "} {
+			for _, family := range []string{"mb", "metering-billing"} {
+				path := verb + " " + product + family + " apps"
+				t.Run(path, func(t *testing.T) {
+					result := executeRootForTest(t, strings.Fields(path)...)
+					if result.exitCode == 0 {
+						t.Fatalf("removed command succeeded: %s", path)
+					}
+					if !strings.Contains(result.stderr, "unknown command") {
+						t.Fatalf("expected unknown command for %s, got %s", path, result.stderr)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestMeteringBillingDeclarativeDeleteFromFile(t *testing.T) {
+	server := fixture.NewBillingCatalogServer(t)
+	_, err := server.SDK.GetBillingCatalogAPI().Create(t.Context(), helpers.BillingTaxCode, map[string]any{
+		"name": "Example Tax", "key": "example-tax", "app_mappings": []any{},
+		"labels": map[string]string{labels.NamespaceKey: "mb-delete-example"},
+	})
+	requireNoError(t, err)
+	installRootTokenSDK(t, server.SDK)
+	path := filepath.Join(t.TempDir(), "tax-code.yaml")
+	requireNoError(t, os.WriteFile(path, []byte(`_defaults:
+  kongctl:
+    namespace: mb-delete-example
+metering-billing:
+  tax_codes:
+    - ref: example-tax
+      name: Example Tax
+      key: example-tax
+      app_mappings: []
+`), 0o600))
+	result := executeRootForTest(
+		t,
+		"delete",
+		"-f",
+		path,
+		"--auto-approve",
+		"--output",
+		"json",
+		"--pat",
+		"fixture-token",
+	)
+	if result.exitCode != 0 {
+		t.Fatalf("declarative delete failed: %s\n%s", result.stdout, result.stderr)
+	}
+	remaining, _ := server.Snapshot(helpers.BillingTaxCode)
+	if len(remaining) != 0 {
+		t.Fatalf("declarative delete left %d tax codes", len(remaining))
 	}
 }
 

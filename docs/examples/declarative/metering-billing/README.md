@@ -90,11 +90,8 @@ Decimal amounts are strings. `ref` is a local declaration identifier, while
 tagged refs appear in this example.
 
 The plan remains a draft. Applying it never publishes it or creates another
-version. To publish deliberately, inspect the plan and use its returned ULID:
-
-```sh
-kongctl update mb plans PLAN_ULID --publish
-```
+version. Publish or archive plans through Konnect or its API; kongctl does not
+provide imperative create/update commands for Metering & Billing resources.
 
 Published versions cannot be edited as drafts or deleted by cleanup. Leave the
 example unpublished to exercise the draft cleanup below. Profile app
@@ -118,8 +115,8 @@ kongctl apply --plan integrations-plan.json
 ```
 
 The external invoicing app explicitly disables draft hooks and enables issuing
-hooks. Both hook flags must be specified for managed metadata updates. Provider
-credential rotation remains an imperative operation; see the
+hooks. Both hook flags must be specified for managed metadata updates. For
+provider credential rotation through Konnect or its API, see the
 [integration lifecycle][integrations].
 The sandbox catalog walkthrough needs no Stripe credential.
 
@@ -159,8 +156,16 @@ kongctl dump declarative \
   --filter-name='Example*' --output-file usage-dump.yaml
 ```
 
-Preview cleanup in sync mode, then sync the empty collections. Each cleanup
-file targets only its walkthrough's namespace and listed collections:
+Delete the resources explicitly declared in the usage manifest with:
+
+```sh
+kongctl plan --mode delete -f usage/config.yaml
+kongctl delete -f usage/config.yaml --auto-approve
+```
+
+Alternatively, preview cleanup in sync mode, then sync the empty collections.
+Each cleanup file targets only its walkthrough's namespace and listed
+collections:
 
 ```sh
 kongctl plan --mode sync -f usage/cleanup.yaml
@@ -184,6 +189,6 @@ Custom currencies have no delete API. `KONGCTL_DOCS_CREDITS` and
 `KONGCTL_FED_CREDITS` remain after cleanup. Rerunning the examples
 observes them without claiming ownership. Published or archived plans are also
 retained by sync. Cost-basis scheduling, plan publication, and provider secret
-rotation are explicit operations rather than replayable desired state.
+rotation are performed outside kongctl rather than replayed as desired state.
 
 [integrations]: ../../../metering-billing.md#integration-apps-and-profiles

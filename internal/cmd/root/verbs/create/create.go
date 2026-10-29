@@ -9,7 +9,6 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/token"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
@@ -110,12 +109,6 @@ Setting this value overrides tokens obtained from the login command.
 		return nil, err
 	}
 	cmd.AddCommand(meshCmd)
-
-	family, err := meteringbilling.NewCommand(Verb)
-	if err != nil {
-		return nil, err
-	}
-	cmd.AddCommand(family)
 
 	patCmd, err := token.NewPATCmd(Verb, nil, nil)
 	if err != nil {

@@ -348,8 +348,8 @@ The initial suite also supports `features`, `tax_codes`, `currencies`,
 [Metering & Billing](metering-billing.md) for native field shapes, identity,
 typed references, credentials, ownership, and lifecycle limits. In particular,
 currencies are create/observe-only, profiles have immutable app associations,
-and plan publication/archive require explicit commands. Use `kongctl explain`
-with each root name for complete schemas.
+and plan publication/archive are performed through Konnect or its API. Use
+`kongctl explain` with each grouped path for complete schemas.
 
 ## Dashboards
 

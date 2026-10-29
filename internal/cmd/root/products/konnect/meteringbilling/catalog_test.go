@@ -3,10 +3,9 @@ package meteringbilling
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"testing"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
@@ -20,6 +19,7 @@ import (
 	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 )
 
 func TestBillingCatalogCommands(t *testing.T) {
@@ -40,11 +40,9 @@ func TestBillingCatalogCommands(t *testing.T) {
 		helpers.SDKAPIFactoryKey,
 		helpers.SDKAPIFactory(func(config.Hook, *slog.Logger) (helpers.SDKAPI, error) { return server.SDK, nil }),
 	)
-	path := filepath.Join(t.TempDir(), "request.yaml")
 	run := func(
 		verb verbs.VerbValue,
 		command []string,
-		request string,
 		args []string,
 		flags map[string]string,
 	) (string, error) {
@@ -55,10 +53,6 @@ func TestBillingCatalogCommands(t *testing.T) {
 		require.Empty(t, remaining)
 		leaf.SetContext(ctx)
 		output.Reset()
-		if request != "" {
-			require.NoError(t, os.WriteFile(path, []byte(request), 0o600))
-			require.NoError(t, leaf.Flags().Set("file", path))
-		}
 		for key, value := range flags {
 			require.NoError(t, leaf.Flags().Set(key, value))
 		}
@@ -95,118 +89,67 @@ billing_cadence: P1M
 phases: [{name: Phase, key: phase, rate_cards: []}]
 `},
 	} {
-		out, err := run(verbs.Create, []string{entry.selector}, entry.request, nil, nil)
+		data, err := yaml.YAMLToJSONStrict([]byte(entry.request))
 		require.NoError(t, err)
-		require.Contains(t, out, "id")
+		var fields map[string]any
+		require.NoError(t, json.Unmarshal(data, &fields))
+		created, err := server.SDK.GetBillingCatalogAPI().Create(t.Context(), entry.kind, fields)
+		require.NoError(t, err)
 		for _, format := range []string{"json", "yaml", "text"} {
 			cfg.Set(cmdcommon.OutputConfigPath, format)
-			_, err = run(verbs.Get, []string{entry.selector}, "", nil, nil)
+			out, err := run(verbs.Get, []string{entry.selector}, nil, nil)
 			require.NoError(t, err)
-			_, err = run(verbs.List, []string{entry.selector}, "", nil, nil)
+			require.Contains(t, out, created.ID())
+			_, err = run(verbs.List, []string{entry.selector}, nil, nil)
 			require.NoError(t, err)
 		}
 		cfg.Set(cmdcommon.OutputConfigPath, "json")
 	}
 	apps, _ := server.Snapshot(helpers.BillingApp)
 	appID := apps[0].ID()
-	_, err := run(
-		verbs.Create,
-		[]string{"profiles"},
-		`name: Profile
-supplier: {name: Supplier}
-workflow: {}
-apps:
-  tax: {id: `+appID+`}
-  payment: {id: `+appID+`}
-  invoicing: {id: `+appID+`}
-default: false
-`,
-		nil,
-		nil,
-	)
+	_, err := server.SDK.GetBillingCatalogAPI().Create(t.Context(), helpers.BillingProfile, map[string]any{
+		"name": "Profile", "supplier": map[string]any{"name": "Supplier"}, "workflow": map[string]any{},
+		"apps": map[string]any{
+			"tax": map[string]any{"id": appID}, "payment": map[string]any{"id": appID},
+			"invoicing": map[string]any{"id": appID},
+		}, "default": false,
+	})
 	require.NoError(t, err)
 	profiles, _ := server.Snapshot(helpers.BillingProfile)
 	profileID := profiles[0].ID()
-	_, err = run(verbs.Get, []string{"apps", "catalog"}, "", nil, nil)
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		_, err = run(verb, []string{"profiles"}, nil, nil)
+		require.NoError(t, err)
+	}
+	_, err = run(verbs.Get, []string{"profiles"}, []string{profileID}, nil)
 	require.NoError(t, err)
-	_, err = run(verbs.Get, []string{"apps", "catalog"}, "", []string{"sandbox"}, nil)
+	_, err = run(verbs.Get, []string{"apps", "catalog"}, nil, nil)
 	require.NoError(t, err)
-	_, err = run(verbs.Get, []string{"plans"}, "", []string{"plan@1"}, nil)
+	_, err = run(verbs.Get, []string{"apps", "catalog"}, []string{"sandbox"}, nil)
 	require.NoError(t, err)
-	_, err = run(verbs.Update, []string{"apps"}, `name: Renamed
-type: sandbox
-`, []string{appID}, nil)
+	_, err = run(verbs.Get, []string{"plans"}, []string{"plan@1"}, nil)
 	require.NoError(t, err)
-	_, err = run(verbs.Adopt, []string{"apps"}, "", []string{appID}, map[string]string{"namespace": "billing"})
+	_, err = run(verbs.Adopt, []string{"apps"}, []string{appID}, map[string]string{"namespace": "billing"})
 	require.NoError(t, err)
-	_, err = run(verbs.Delete, []string{"apps"}, "", []string{appID}, nil)
+	_, err = run(verbs.Delete, []string{"apps"}, []string{appID}, nil)
 	require.ErrorContains(t, err, "still references")
-	_, err = run(verbs.Delete, []string{"profiles"}, "", []string{profileID}, nil)
+	_, err = run(verbs.Delete, []string{"profiles"}, []string{profileID}, nil)
 	require.NoError(t, err)
-	_, err = run(verbs.Delete, []string{"apps"}, "", []string{appID}, nil)
+	_, err = run(verbs.Delete, []string{"apps"}, []string{appID}, nil)
 	require.NoError(t, err)
 	taxes, _ := server.Snapshot(helpers.BillingTaxCode)
 	_, err = run(
 		verbs.Adopt,
 		[]string{"tax-codes"},
-		"",
 		[]string{taxes[0].ID()},
 		map[string]string{"namespace": "billing"},
 	)
 	require.NoError(t, err)
-	_, err = run(verbs.Update, []string{"tax-codes"}, `name: Updated
-app_mappings: []
-`, []string{taxes[0].ID()}, nil)
-	require.NoError(t, err)
 	currency, _ := server.Snapshot(helpers.BillingCurrency)
-	_, err = run(verbs.Get, []string{"currencies", "cost-bases"}, "", []string{currency[0].ID()}, nil)
-	require.NoError(t, err)
-	_, err = run(
-		verbs.Create,
-		[]string{"currencies", "cost-bases"},
-		`fiat_code: USD
-rate: '0.1'
-effective_from: '2027-01-01T00:00:00Z'
-`,
-		[]string{currency[0].ID()},
-		nil,
-	)
+	_, err = run(verbs.Get, []string{"currencies", "cost-bases"}, []string{currency[0].ID()}, nil)
 	require.NoError(t, err)
 	plans, _ := server.Snapshot(helpers.BillingPlan)
-	_, err = run(verbs.Update, []string{"plans"}, "", []string{plans[0].ID()}, map[string]string{"publish": "true"})
-	require.NoError(t, err)
-	_, err = run(verbs.Delete, []string{"plans"}, "", []string{plans[0].ID()}, nil)
+	server.Mutate(helpers.BillingPlan, plans[0].ID(), func(v helpers.BillingObject) { v["status"] = "active" })
+	_, err = run(verbs.Delete, []string{"plans"}, []string{plans[0].ID()}, nil)
 	require.ErrorContains(t, err, "draft")
-	_, err = run(verbs.Update, []string{"plans"}, "", []string{plans[0].ID()}, map[string]string{"archive": "true"})
-	require.NoError(t, err)
-	// Generated SDK union errors must never echo a credential-bearing file.
-	out, err := run(
-		verbs.Create,
-		[]string{"apps"},
-		`name: Invalid
-type: not-an-app
-create_billing_profile: false
-api_key: do-not-print-this
-`,
-		nil,
-		nil,
-	)
-	require.Error(t, err)
-	require.NotContains(t, err.Error(), "do-not-print-this")
-	require.NotContains(t, out, "do-not-print-this")
-	// The imperative install shortcut remains available independently of declarative apps.
-	_, err = run(verbs.Create, []string{"apps"}, `name: Sandbox with profile
-type: sandbox
-create_billing_profile: true
-`, nil, nil)
-	require.NoError(t, err)
-	_, writes := server.Snapshot(helpers.BillingApp)
-	var installedWithProfile bool
-	for _, write := range writes {
-		if write.Kind == helpers.BillingApp && write.Method == "POST" &&
-			write.Fields["name"] == "Sandbox with profile" {
-			installedWithProfile, _ = write.Fields["create_billing_profile"].(bool)
-		}
-	}
-	require.True(t, installedWithProfile)
 }

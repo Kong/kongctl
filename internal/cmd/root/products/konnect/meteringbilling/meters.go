@@ -37,9 +37,7 @@ func NewCommand(verb verbs.VerbValue) (*cobra.Command, error) {
 	switch verb {
 	case verbs.Get, verbs.List:
 		leaf.Args = cobra.MaximumNArgs(1)
-	case verbs.Create:
-		leaf.Args = cobra.NoArgs
-	case verbs.Update, verbs.Delete, verbs.Adopt:
+	case verbs.Delete, verbs.Adopt:
 		leaf.Args = cobra.ExactArgs(1)
 	default:
 		return nil, nil
@@ -98,9 +96,6 @@ func NewCommand(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 	}
 	configure(leaf)
-	if verb == verbs.Create || verb == verbs.Update {
-		leaf.Flags().String("file", "", "JSON or YAML API request file (required)")
-	}
 	if verb == verbs.Adopt {
 		leaf.Flags().String("namespace", "", "Namespace to adopt into (required)")
 		leaf.Flags().Bool("overwrite-namespace", false, "Move an already managed meter to this namespace")
@@ -180,28 +175,7 @@ func runMeters(c *cobra.Command, args []string, verb verbs.VerbValue, query bool
 		pageSize = common.DefaultRequestPageSize
 	}
 	var result any
-	if verb == verbs.Create {
-		type request kkComps.CreateMeterRequest
-		var req request
-		if err := readRequest(c, &req); err != nil {
-			return err
-		}
-		create := kkComps.CreateMeterRequest(req)
-		if err := validateImperativeMeterLabels(create.Labels); err != nil {
-			return err
-		}
-		if err := helpers.ValidateMeterCreate(create); err != nil {
-			return err
-		}
-		resp, err := api.CreateMeter(c.Context(), create)
-		if err != nil {
-			return fmt.Errorf("create meter: %w", err)
-		}
-		if resp == nil || resp.Meter == nil {
-			return fmt.Errorf("create meter response missing data")
-		}
-		result = resp.Meter
-	} else if (verb == verbs.Get || verb == verbs.List) && len(args) == 0 {
+	if (verb == verbs.Get || verb == verbs.List) && len(args) == 0 {
 		values, err := helpers.ListAllMeters(c.Context(), api, pageSize)
 		if err != nil {
 			return err
@@ -227,35 +201,6 @@ func runMeters(c *cobra.Command, args []string, verb verbs.VerbValue, query bool
 				return fmt.Errorf("query meter response missing data")
 			}
 			result = resp.MeterQueryResult
-		case verb == verbs.Update:
-			if labels.IsProtectedResource(meter.Labels) {
-				return fmt.Errorf("meter %q is protected", meter.Key)
-			}
-			var req kkComps.UpdateMeterRequest
-			if err := readRequest(c, &req); err != nil {
-				return err
-			}
-			if err := validateImperativeMeterLabels(req.Labels); err != nil {
-				return err
-			}
-			if req.Labels != nil {
-				for key, value := range meter.Labels {
-					if labels.IsKongctlLabel(key) {
-						req.Labels[key] = value
-					}
-				}
-			}
-			if err := helpers.ValidateMeterUpdate(req); err != nil {
-				return err
-			}
-			resp, err := api.UpdateMeter(c.Context(), meter.ID, req)
-			if err != nil {
-				return fmt.Errorf("update meter: %w", err)
-			}
-			if resp == nil || resp.Meter == nil {
-				return fmt.Errorf("update meter response missing data")
-			}
-			result = resp.Meter
 		case verb == verbs.Adopt:
 			flags, err := adoptcommon.ReadAdoptFlags(c)
 			if err != nil {
@@ -307,17 +252,5 @@ func runMeters(c *cobra.Command, args []string, verb verbs.VerbValue, query bool
 	}
 	printer.Print(result)
 	printer.Flush()
-	return nil
-}
-
-func validateImperativeMeterLabels(values map[string]string) error {
-	for key := range values {
-		if labels.IsKongctlLabel(key) {
-			return fmt.Errorf(
-				"management label %q cannot be supplied in an imperative request; use adopt or declarative kongctl metadata",
-				key,
-			)
-		}
-	}
 	return nil
 }

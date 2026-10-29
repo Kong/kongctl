@@ -181,7 +181,7 @@ func TestBillingCatalogDeclarativeLifecycle(t *testing.T) {
 	)
 	write(updated)
 	plans, _ := server.Snapshot(helpers.BillingPlan)
-	_, err = server.SDK.GetBillingCatalogAPI().PlanAction(ctx, plans[0].ID(), "publish")
+	_, err = server.SDK.SDK.OpenMeterProductCatalog.PublishPlan(ctx, plans[0].ID())
 	require.NoError(t, err)
 	repeat, err = plan(planner.PlanModeApply)
 	require.NoError(t, err)
