@@ -40,7 +40,11 @@ func testFeatureDeclarativeLifecycle(t *testing.T, meterReference, meterNamespac
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ctx := context.WithValue(t.Context(), log.LoggerKey, logger)
 	client := state.NewClient(
-		state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI()},
+		state.ClientConfig{
+			FeaturesAPI:       server.SDK.GetFeaturesAPI(),
+			BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+			MetersAPI:         meters.SDK.GetMetersAPI(),
+		},
 	)
 	p := planner.NewPlanner(client, logger)
 	path := filepath.Join(t.TempDir(), "features.yaml")

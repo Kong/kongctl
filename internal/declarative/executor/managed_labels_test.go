@@ -108,6 +108,21 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 		)
 	})
 
+	for _, kind := range []helpers.BillingKind{
+		helpers.BillingTaxCode,
+		helpers.BillingApp,
+		helpers.BillingProfile,
+		helpers.BillingPlan,
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			covered[resources.BillingResourceType(kind)] = true
+			verifyStringManagedLabels(
+				t,
+				&BillingCatalogAdapter{kind: kind},
+				func(update *map[string]any) map[string]string { return helpers.BillingObject(*update).Labels() },
+			)
+		})
+	}
 	assertAllProtectableResourcesCovered(t, covered)
 }
 

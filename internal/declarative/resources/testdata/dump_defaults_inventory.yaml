@@ -1141,6 +1141,66 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: billing_app
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: billing_plan
+    defaults:
+      - path: phases.rate_cards.entitlement.is_soft_limit
+        type: boolean
+        value: false
+        source: sdk
+      - path: phases.rate_cards.payment_term
+        type: string
+        value: in_arrears
+        source: sdk
+      - path: phases.rate_cards.unit_config.precision
+        type: integer
+        value: 0
+        source: sdk
+      - path: phases.rate_cards.unit_config.rounding
+        type: string
+        value: none
+        source: sdk
+    overrides: []
+    exclusions: []
+  - resource_type: billing_profile
+    defaults:
+      - path: workflow.collection.interval
+        type: string
+        value: PT1H
+        source: sdk
+      - path: workflow.invoicing.auto_advance
+        type: boolean
+        value: true
+        source: sdk
+      - path: workflow.invoicing.draft_period
+        type: string
+        value: P0D
+        source: sdk
+      - path: workflow.invoicing.progressive_billing
+        type: boolean
+        value: true
+        source: sdk
+      - path: workflow.invoicing.subscription_end_proration_mode
+        type: string
+        value: bill_actual_period
+        source: sdk
+      - path: workflow.payment.due_after
+        type: string
+        value: P30D
+        source: sdk
+      - path: workflow.tax.enabled
+        type: boolean
+        value: true
+        source: sdk
+      - path: workflow.tax.enforced
+        type: boolean
+        value: false
+        source: sdk
+    overrides: []
+    exclusions: []
   - resource_type: catalog_service
     defaults: []
     overrides: []
@@ -1150,6 +1210,10 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: control_plane_data_plane_certificate
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: currency
     defaults: []
     overrides: []
     exclusions: []
@@ -1986,6 +2050,10 @@ resources:
     overrides: []
     exclusions: []
   - resource_type: portal_team_role
+    defaults: []
+    overrides: []
+    exclusions: []
+  - resource_type: tax_code
     defaults: []
     overrides: []
     exclusions: []

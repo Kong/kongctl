@@ -43,6 +43,7 @@ type SDKAPI interface {
 	GetDashboardsAPI() DashboardsAPI
 	GetMetersAPI() MetersAPI
 	GetFeaturesAPI() FeaturesAPI
+	GetBillingCatalogAPI() BillingCatalogAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI

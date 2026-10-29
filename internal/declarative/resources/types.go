@@ -38,6 +38,11 @@ const (
 	ResourceTypeDashboard                               ResourceType = "dashboard"
 	ResourceTypeMeter                                   ResourceType = "meter"
 	ResourceTypeFeature                                 ResourceType = "feature"
+	ResourceTypeTaxCode                                 ResourceType = "tax_code"
+	ResourceTypeCurrency                                ResourceType = "currency"
+	ResourceTypeBillingApp                              ResourceType = "billing_app"
+	ResourceTypeBillingProfile                          ResourceType = "billing_profile"
+	ResourceTypeBillingPlan                             ResourceType = "billing_plan"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
@@ -218,8 +223,13 @@ type ResourceSet struct {
 	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"                      json:"event_gateway_static_keys,omitempty"`                      //nolint:lll
 	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"                json:"event_gateway_tls_trust_bundles,omitempty"`                //nolint:lll
 
-	Meters   []MeterResource   `yaml:"meters,omitempty" json:"meters,omitempty"`
-	Features []FeatureResource `yaml:"features,omitempty" json:"features,omitempty"`
+	Meters          []MeterResource          `yaml:"meters,omitempty" json:"meters,omitempty"`
+	Features        []FeatureResource        `yaml:"features,omitempty" json:"features,omitempty"`
+	TaxCodes        []TaxCodeResource        `yaml:"tax_codes,omitempty" json:"tax_codes,omitempty"`
+	Currencies      []CurrencyResource       `yaml:"currencies,omitempty" json:"currencies,omitempty"`
+	BillingApps     []BillingAppResource     `yaml:"billing_apps,omitempty" json:"billing_apps,omitempty"`
+	BillingProfiles []BillingProfileResource `yaml:"billing_profiles,omitempty" json:"billing_profiles,omitempty"`
+	BillingPlans    []BillingPlanResource    `yaml:"billing_plans,omitempty" json:"billing_plans,omitempty"`
 
 	// Dashboards is populated internally from Analytics.Dashboards during loading.
 	// It is not exposed in YAML/JSON to enforce the analytics grouping format.

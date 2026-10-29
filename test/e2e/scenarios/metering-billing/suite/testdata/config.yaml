@@ -1,0 +1,56 @@
+_defaults:
+  kongctl:
+    namespace: mb-suite-e2e
+meters:
+  - ref: usage
+    name: Kongctl E2E Suite Usage
+    key: kongctl_e2e_suite_usage
+    aggregation: count
+    event_type: kongctl_e2e_suite_request
+features:
+  - ref: requests
+    name: Kongctl E2E Suite Feature
+    key: kongctl_e2e_suite_feature
+    meter: {id: usage}
+currencies:
+  - ref: credits
+    name: Kongctl E2E Credits
+    code: KONGCTL_E2E_CREDITS
+    precision: 0
+    decimal_mark: '.'
+    thousand_separator: ','
+tax_codes:
+  - ref: tax
+    name: Kongctl E2E Suite Tax
+    key: kongctl_e2e_suite_tax
+    app_mappings: []
+billing_apps:
+  - ref: sandbox
+    name: Kongctl E2E Suite App
+    type: sandbox
+    create_billing_profile: false
+billing_profiles:
+  - ref: profile
+    name: Kongctl E2E Suite Profile
+    supplier: {name: Supplier}
+    workflow: {}
+    apps:
+      tax: {id: sandbox}
+      invoicing: {id: sandbox}
+      payment: {id: sandbox}
+    default: false
+billing_plans:
+  - ref: plan
+    name: Kongctl E2E Suite Plan
+    key: kongctl_e2e_suite_plan
+    currency: credits
+    billing_cadence: P1M
+    phases:
+      - name: Standard
+        key: standard
+        rate_cards:
+          - name: Service
+            key: service
+            feature: {id: requests}
+            price: {type: unit, amount: '0.1'}
+            tax_config: {code: {id: tax}}

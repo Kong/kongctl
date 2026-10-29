@@ -54,6 +54,7 @@ type ClientConfig struct {
 	DashboardsAPI                     helpers.DashboardsAPI
 	MetersAPI                         helpers.MetersAPI
 	FeaturesAPI                       helpers.FeaturesAPI
+	BillingCatalogAPI                 helpers.BillingCatalogAPI
 
 	// Portal child resource APIs
 	PortalPageAPI             helpers.PortalPageAPI
@@ -134,6 +135,7 @@ type Client struct {
 	dashboardsAPI                     helpers.DashboardsAPI
 	metersAPI                         helpers.MetersAPI
 	featuresAPI                       helpers.FeaturesAPI
+	billingCatalogAPI                 helpers.BillingCatalogAPI
 
 	// Portal child resource APIs
 	portalPageAPI             helpers.PortalPageAPI
@@ -215,6 +217,7 @@ func NewClient(config ClientConfig) *Client {
 		dashboardsAPI:                     config.DashboardsAPI,
 		metersAPI:                         config.MetersAPI,
 		featuresAPI:                       config.FeaturesAPI,
+		billingCatalogAPI:                 config.BillingCatalogAPI,
 
 		// Portal child resource APIs
 		portalPageAPI:             config.PortalPageAPI,

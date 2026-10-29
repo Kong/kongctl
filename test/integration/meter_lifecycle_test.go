@@ -26,8 +26,10 @@ func TestMeterDeclarativeLifecycle(t *testing.T) {
 	ctx := context.WithValue(t.Context(), log.LoggerKey, logger)
 	client := state.NewClient(
 		state.ClientConfig{
-			MetersAPI:   server.SDK.GetMetersAPI(),
-			FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+			MetersAPI: server.SDK.GetMetersAPI(),
+			FeaturesAPI: fixture.NewFeatureServer(
+				t,
+			).SDK.GetFeaturesAPI(), BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
 		},
 	)
 	p := planner.NewPlanner(client, logger)

@@ -8,6 +8,8 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/labels"
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/maturity"
 	"github.com/segmentio/cli"
@@ -17,7 +19,8 @@ import (
 func newFeaturesCommand(verb verbs.VerbValue, configure func(*cobra.Command)) (*cobra.Command, error) {
 	leaf := &cobra.Command{Use: "features [key|ULID]", Aliases: []string{"feature"}, Short: "Manage billing features"}
 	configure(leaf)
-	//exhaustive:ignore // Scoped imperative verbs only.
+	// Scoped imperative verbs only.
+	//exhaustive:ignore
 	switch verb {
 	case verbs.Get, verbs.List:
 		leaf.Args = cobra.MaximumNArgs(1)
@@ -153,6 +156,10 @@ func runFeatures(c *cobra.Command, args []string, verb verbs.VerbValue, query bo
 				return fmt.Errorf("feature %q is protected", feature.Key)
 			}
 			if err := cmdpkg.ConfirmDelete(helper, fmt.Sprintf("feature %q", feature.Key)); err != nil {
+				return err
+			}
+			client := state.NewClient(state.ClientConfig{BillingCatalogAPI: sdk.GetBillingCatalogAPI()})
+			if err := client.ValidateBillingDeletion(c.Context(), resources.ResourceTypeFeature, feature.ID); err != nil {
 				return err
 			}
 			if _, err := api.DeleteFeature(c.Context(), feature.ID); err != nil {

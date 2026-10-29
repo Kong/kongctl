@@ -56,9 +56,9 @@ func (m *MeterServer) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(m.FailureStatus)
 		send(
 			map[string]any{
-				"status": m.FailureStatus,
-				"title":  "meter fixture failure",
-				"detail": "meter fixture failure",
+				fixtureStatusField: m.FailureStatus,
+				"title":            "meter fixture failure",
+				"detail":           "meter fixture failure",
 			},
 		)
 		return
@@ -112,7 +112,7 @@ func (m *MeterServer) serve(w http.ResponseWriter, r *http.Request) {
 	index := slices.IndexFunc(m.Meters, func(v kkComps.Meter) bool { return v.ID == id })
 	if index < 0 {
 		w.WriteHeader(http.StatusNotFound)
-		send(map[string]any{"status": 404, "title": "not found"})
+		send(map[string]any{fixtureStatusField: 404, "title": "not found"})
 		return
 	}
 	switch r.Method {

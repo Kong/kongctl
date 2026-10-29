@@ -32,7 +32,8 @@ func NewCommand(verb verbs.VerbValue) (*cobra.Command, error) {
 		Short:   "Manage Konnect Metering & Billing resources",
 	}
 	leaf := &cobra.Command{Use: "meters [key|ULID]", Aliases: []string{"meter"}, Short: "Manage usage meters"}
-	//exhaustive:ignore // Only M&B imperative verbs add commands.
+	// Only M&B imperative verbs add commands.
+	//exhaustive:ignore
 	switch verb {
 	case verbs.Get, verbs.List:
 		leaf.Args = cobra.MaximumNArgs(1)
@@ -125,6 +126,9 @@ func NewCommand(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, err
 	}
 	family.AddCommand(features)
+	if err := addCatalogCommands(family, verb, configure); err != nil {
+		return nil, err
+	}
 	return family, nil
 }
 

@@ -30,6 +30,7 @@ type MockKonnectSDK struct {
 	CatalogServicesFactory                func() CatalogServicesAPI
 	DashboardsFactory                     func() DashboardsAPI
 	FeaturesFactory                       func() FeaturesAPI
+	BillingCatalogFactory                 func() BillingCatalogAPI
 	MetersFactory                         func() MetersAPI
 	APIDocumentFactory                    func() APIDocumentAPI
 	APIVersionFactory                     func() APIVersionAPI

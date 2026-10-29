@@ -36,6 +36,60 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		rootCollector(
+			"tax_codes",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.TaxCodeResource, error) {
+				return collectBillingCatalog[declresources.TaxCodeResource](ctx, d, declresources.ResourceTypeTaxCode)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.TaxCodeResource { return &rs.TaxCodes },
+			nil,
+		),
+		rootCollector(
+			"currencies",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.CurrencyResource, error) {
+				return collectBillingCatalog[declresources.CurrencyResource](ctx, d, declresources.ResourceTypeCurrency)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.CurrencyResource { return &rs.Currencies },
+			nil,
+		),
+		rootCollector(
+			"billing_apps",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingAppResource, error) {
+				return collectBillingCatalog[declresources.BillingAppResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingApp,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingAppResource { return &rs.BillingApps },
+			nil,
+		),
+		rootCollector(
+			"billing_profiles",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingProfileResource, error) {
+				return collectBillingCatalog[declresources.BillingProfileResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingProfile,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingProfileResource {
+				return &rs.BillingProfiles
+			},
+			nil,
+		),
+		rootCollector(
+			"billing_plans",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingPlanResource, error) {
+				return collectBillingCatalog[declresources.BillingPlanResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingPlan,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingPlanResource { return &rs.BillingPlans },
+			nil,
+		),
+		rootCollector(
 			"meters",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.MeterResource, error) {
 				return collectDeclarativeMeters(ctx, d.sdk.GetMetersAPI(), d.pageSize, d.filter)

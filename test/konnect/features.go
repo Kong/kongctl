@@ -56,11 +56,15 @@ func (m *FeatureServer) serve(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(m.FailureStatus)
 		send(
 			map[string]any{
-				"status": m.FailureStatus,
-				"title":  "feature fixture failure",
-				"detail": "feature fixture failure",
+				fixtureStatusField: m.FailureStatus,
+				"title":            "feature fixture failure",
+				"detail":           "feature fixture failure",
 			},
 		)
+		return
+	}
+	if r.Method == http.MethodGet && r.URL.Path == "/v3/openmeter/plans" {
+		send(map[string]any{"data": []any{}, "meta": map[string]any{"page": map[string]any{"total": 0}}})
 		return
 	}
 	path := strings.TrimPrefix(r.URL.Path, "/v3/openmeter/features")
@@ -112,7 +116,7 @@ func (m *FeatureServer) serve(w http.ResponseWriter, r *http.Request) {
 	index := slices.IndexFunc(m.Features, func(v kkComps.Feature) bool { return v.ID == id })
 	if index < 0 {
 		w.WriteHeader(http.StatusNotFound)
-		send(map[string]any{"status": 404, "title": "not found"})
+		send(map[string]any{fixtureStatusField: 404, "title": "not found"})
 		return
 	}
 	switch r.Method {

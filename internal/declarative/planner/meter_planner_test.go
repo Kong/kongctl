@@ -106,8 +106,10 @@ func TestMeterPlanningIdentityOwnershipAndProtection(t *testing.T) {
 			server := fixture.NewMeterServer(t, c)
 			client := state.NewClient(
 				state.ClientConfig{
-					MetersAPI:   server.SDK.GetMetersAPI(),
-					FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+					MetersAPI: server.SDK.GetMetersAPI(),
+					FeaturesAPI: fixture.NewFeatureServer(
+						t,
+					).SDK.GetFeaturesAPI(), BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
 				},
 			)
 			p := NewPlanner(client, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -147,8 +149,10 @@ func TestMeterSyncOnlyPrunesOwnedScope(t *testing.T) {
 	p := NewPlanner(
 		state.NewClient(
 			state.ClientConfig{
-				MetersAPI:   server.SDK.GetMetersAPI(),
-				FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+				MetersAPI: server.SDK.GetMetersAPI(),
+				FeaturesAPI: fixture.NewFeatureServer(
+					t,
+				).SDK.GetFeaturesAPI(), BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
 			},
 		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -169,8 +173,10 @@ func TestMeterPlannerPropagatesAPIReadErrors(t *testing.T) {
 	p := NewPlanner(
 		state.NewClient(
 			state.ClientConfig{
-				MetersAPI:   server.SDK.GetMetersAPI(),
-				FeaturesAPI: fixture.NewFeatureServer(t).SDK.GetFeaturesAPI(),
+				MetersAPI: server.SDK.GetMetersAPI(),
+				FeaturesAPI: fixture.NewFeatureServer(
+					t,
+				).SDK.GetFeaturesAPI(), BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
 			},
 		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),

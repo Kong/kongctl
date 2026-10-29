@@ -25,6 +25,31 @@ func (p *Planner) rootPlanners() []rootPlanner {
 		{resourceType: resources.ResourceTypeMeter, displayName: "meter", planner: NewMeterPlanner(base)},
 		{resourceType: resources.ResourceTypeFeature, displayName: "feature", planner: NewFeaturePlanner(base)},
 		{
+			resourceType: resources.ResourceTypeTaxCode,
+			displayName:  "TaxCode",
+			planner:      &billingCatalogPlanner{base, resources.ResourceTypeTaxCode},
+		},
+		{
+			resourceType: resources.ResourceTypeCurrency,
+			displayName:  "Currency",
+			planner:      &billingCatalogPlanner{base, resources.ResourceTypeCurrency},
+		},
+		{
+			resourceType: resources.ResourceTypeBillingApp,
+			displayName:  "BillingApp",
+			planner:      &billingCatalogPlanner{base, resources.ResourceTypeBillingApp},
+		},
+		{
+			resourceType: resources.ResourceTypeBillingProfile,
+			displayName:  "BillingProfile",
+			planner:      &billingCatalogPlanner{base, resources.ResourceTypeBillingProfile},
+		},
+		{
+			resourceType: resources.ResourceTypeBillingPlan,
+			displayName:  "BillingPlan",
+			planner:      &billingCatalogPlanner{base, resources.ResourceTypeBillingPlan},
+		},
+		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
 			planner:      NewDCRProviderPlanner(base),

@@ -230,6 +230,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			DashboardsAPI:                       sdk.GetDashboardsAPI(),
 			MetersAPI:                           sdk.GetMetersAPI(),
 			FeaturesAPI:                         sdk.GetFeaturesAPI(),
+			BillingCatalogAPI:                   sdk.GetBillingCatalogAPI(),
 			PortalPageAPI:                       sdk.GetPortalPageAPI(),
 			PortalAuthSettingsAPI:               sdk.GetPortalAuthSettingsAPI(),
 			PortalIPAllowListAPI:                sdk.GetPortalIPAllowListAPI(),

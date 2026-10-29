@@ -340,6 +340,16 @@ and `kongctl`. See [meter commands and lifecycle](metering-billing.md) for
 identity, adoption, immutable-field policy, namespace ownership, and examples.
 Use `kongctl explain meters` for the generated schema.
 
+## Metering & Billing catalog
+
+The initial suite also supports root `features`, `tax_codes`, `currencies`,
+`billing_apps`, `billing_profiles`, and `billing_plans` collections. See
+[Metering & Billing](metering-billing.md) for native field shapes, identity,
+typed references, credentials, ownership, and lifecycle limits. In particular,
+currencies are create/observe-only, profiles have immutable app associations,
+and plan publication/archive require explicit commands. Use `kongctl explain`
+with each root name for complete schemas.
+
 ## Dashboards
 
 [Custom Dashboards](https://developer.konghq.com/custom-dashboards/)

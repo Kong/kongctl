@@ -6,11 +6,15 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 type planningResourceCache struct {
+	billingCatalog                 map[resources.ResourceType][]helpers.BillingObject
 	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
 	aiGatewayCACertificates        map[string][]state.AIGatewayCACertificate
@@ -52,6 +56,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		billingCatalog:                 make(map[resources.ResourceType][]helpers.BillingObject),
 		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),
 		aiGatewayCACertificates:        make(map[string][]state.AIGatewayCACertificate),

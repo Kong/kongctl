@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
@@ -85,6 +86,9 @@ func (c *Client) UpdateFeature(
 }
 
 func (c *Client) DeleteFeature(ctx context.Context, id string) error {
+	if err := c.ValidateBillingDeletion(ctx, resources.ResourceTypeFeature, id); err != nil {
+		return err
+	}
 	if c.featuresAPI == nil {
 		return fmt.Errorf("features API not configured")
 	}

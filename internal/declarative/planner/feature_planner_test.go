@@ -50,7 +50,12 @@ func TestFeatureSyncOnlyPrunesOwnedScope(t *testing.T) {
 	rs := &resources.ResourceSet{DefaultNamespace: "billing", SyncScope: resources.NewSyncScope()}
 	rs.SyncScope.AddRoot(resources.ResourceTypeFeature)
 	p := NewPlanner(
-		state.NewClient(state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI()}),
+		state.NewClient(
+			state.ClientConfig{
+				FeaturesAPI:       server.SDK.GetFeaturesAPI(),
+				BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+			},
+		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	plan, err := p.GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
@@ -67,7 +72,12 @@ func TestFeaturePlannerPropagatesAPIReadErrors(t *testing.T) {
 	server := fixture.NewFeatureServer(t)
 	server.Fail(403)
 	p := NewPlanner(
-		state.NewClient(state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI()}),
+		state.NewClient(
+			state.ClientConfig{
+				FeaturesAPI:       server.SDK.GetFeaturesAPI(),
+				BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+			},
+		),
 		slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	_, err := p.GeneratePlan(
@@ -130,7 +140,12 @@ func TestFeaturePlanningUnsupportedChangesAndOwnership(t *testing.T) {
 			test.change(&d, &c)
 			server := fixture.NewFeatureServer(t, c)
 			p := NewPlanner(
-				state.NewClient(state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI()}),
+				state.NewClient(
+					state.ClientConfig{
+						FeaturesAPI:       server.SDK.GetFeaturesAPI(),
+						BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+					},
+				),
 				slog.New(slog.NewTextHandler(io.Discard, nil)),
 			)
 			plan, err := p.GeneratePlan(
@@ -159,11 +174,18 @@ func TestMeterDeletionRespectsObservedFeatureReferences(t *testing.T) {
 				meters := fixture.NewMeterServer(t, observedMeter())
 				p := NewPlanner(
 					state.NewClient(
-						state.ClientConfig{FeaturesAPI: server.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI()},
+						state.ClientConfig{
+							FeaturesAPI:       server.SDK.GetFeaturesAPI(),
+							BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+							MetersAPI:         meters.SDK.GetMetersAPI(),
+						},
 					),
 					slog.New(slog.NewTextHandler(io.Discard, nil)),
 				)
-				rs := &resources.ResourceSet{DefaultNamespaces: []string{"billing"}, SyncScope: resources.NewSyncScope()}
+				rs := &resources.ResourceSet{
+					DefaultNamespaces: []string{"billing"},
+					SyncScope:         resources.NewSyncScope(),
+				}
 				if featureNamespace != "billing" {
 					rs.DefaultNamespaces = append(rs.DefaultNamespaces, featureNamespace)
 				}
@@ -208,7 +230,9 @@ func TestFeatureDeleteDoesNotResolveMissingMeter(t *testing.T) {
 			features := fixture.NewFeatureServer(t, current)
 			meters := fixture.NewMeterServer(t)
 			p := NewPlanner(state.NewClient(state.ClientConfig{
-				FeaturesAPI: features.SDK.GetFeaturesAPI(), MetersAPI: meters.SDK.GetMetersAPI(),
+				FeaturesAPI:       features.SDK.GetFeaturesAPI(),
+				BillingCatalogAPI: fixture.NewBillingCatalogServer(t).SDK.GetBillingCatalogAPI(),
+				MetersAPI:         meters.SDK.GetMetersAPI(),
 			}), slog.New(slog.NewTextHandler(io.Discard, nil)))
 			plan, err := p.GeneratePlan(t.Context(), &resources.ResourceSet{
 				Features: []resources.FeatureResource{desired}, Meters: []resources.MeterResource{meter},
