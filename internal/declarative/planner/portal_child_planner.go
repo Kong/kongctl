@@ -4216,6 +4216,7 @@ func (p *Planner) planPortalTeamGroupMappingsChanges(
 	}
 
 	for _, mapping := range desired {
+		mapping.Team = resources.NormalizeResourceRef(mapping.Team)
 		if plan.HasChange(ResourceTypePortalTeamGroupMapping, mapping.GetRef()) {
 			continue
 		}
@@ -4265,7 +4266,7 @@ func (p *Planner) resolvePortalTeamForMapping(
 	existingTeamsByName map[string]state.PortalTeam,
 ) (string, string) {
 	for _, team := range p.desiredPortalTeams {
-		if team.Portal == portalRef && team.Ref == mapping.Team {
+		if resources.NormalizeResourceRef(team.Portal) == portalRef && team.Ref == mapping.Team {
 			if existing, ok := existingTeamsByName[team.Name]; ok {
 				return existing.ID, team.Name
 			}
@@ -4386,7 +4387,8 @@ func (p *Planner) addPortalTeamGroupMappingIDPWarning(
 	plan *Plan,
 ) {
 	for _, provider := range p.desiredPortalIdentityProviders {
-		if provider.Portal != portalRef || provider.Enabled == nil || !*provider.Enabled || provider.Type == nil {
+		if resources.NormalizeResourceRef(provider.Portal) != portalRef ||
+			provider.Enabled == nil || !*provider.Enabled || provider.Type == nil {
 			continue
 		}
 		if *provider.Type == kkComps.IdentityProviderTypeOidc || *provider.Type == kkComps.IdentityProviderTypeSaml {
@@ -4639,6 +4641,8 @@ func (p *Planner) planPortalTeamRolesChanges(
 
 	rolesByTeam := make(map[string][]resources.PortalTeamRoleResource)
 	for _, role := range p.desiredPortalTeamRoles {
+		role.Portal = resources.NormalizeResourceRef(role.Portal)
+		role.Team = resources.NormalizeResourceRef(role.Team)
 		if role.Portal == portalRef {
 			rolesByTeam[role.Team] = append(rolesByTeam[role.Team], role)
 		}
@@ -4651,6 +4655,7 @@ func (p *Planner) planPortalTeamRolesChanges(
 	teamByRef := make(map[string]*resources.PortalTeamResource)
 	for i := range p.desiredPortalTeams {
 		team := p.desiredPortalTeams[i]
+		team.Portal = resources.NormalizeResourceRef(team.Portal)
 		if team.Portal == portalRef {
 			teamByRef[team.Ref] = &team
 		}

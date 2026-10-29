@@ -45,6 +45,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Note: Pages have already been extracted to root level by loader
 	// We need to find pages that belong to this portal
 	for _, page := range planner.desiredPortalPages {
+		page.Portal = resources.NormalizeResourceRef(page.Portal)
 		if page.Portal == desired.Ref {
 			pages = append(pages, page)
 		}
@@ -62,6 +63,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Note: Snippets have already been extracted to root level by loader
 	// We need to find snippets that belong to this portal
 	for _, snippet := range planner.desiredPortalSnippets {
+		snippet.Portal = resources.NormalizeResourceRef(snippet.Portal)
 		if snippet.Portal == desired.Ref {
 			snippets = append(snippets, snippet)
 		}
@@ -77,6 +79,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan IP allow list (singleton)
 	allowLists := make([]resources.PortalIPAllowListResource, 0)
 	for _, allowList := range planner.desiredPortalIPAllowLists {
+		allowList.Portal = resources.NormalizeResourceRef(allowList.Portal)
 		if allowList.Portal == desired.Ref {
 			allowLists = append(allowLists, allowList)
 		}
@@ -92,6 +95,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan integrations (singleton)
 	integrations := make([]resources.PortalIntegrationResource, 0)
 	for _, integration := range planner.desiredPortalIntegrations {
+		integration.Portal = resources.NormalizeResourceRef(integration.Portal)
 		if integration.Portal == desired.Ref {
 			integrations = append(integrations, integration)
 		}
@@ -107,6 +111,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan identity providers
 	identityProviders := make([]resources.PortalIdentityProviderResource, 0)
 	for _, provider := range planner.desiredPortalIdentityProviders {
+		provider.Portal = resources.NormalizeResourceRef(provider.Portal)
 		if provider.Portal == desired.Ref {
 			identityProviders = append(identityProviders, provider)
 		}
@@ -127,6 +132,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
 	authSettings := make([]resources.PortalAuthSettingsResource, 0)
 	for _, auth := range planner.desiredPortalAuthSettings {
+		auth.Portal = resources.NormalizeResourceRef(auth.Portal)
 		if auth.Portal == desired.Ref {
 			authSettings = append(authSettings, auth)
 		}
@@ -142,6 +148,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan email config (singleton resource)
 	emailConfigs := make([]resources.PortalEmailConfigResource, 0)
 	for _, cfg := range planner.desiredPortalEmailConfigs {
+		cfg.Portal = resources.NormalizeResourceRef(cfg.Portal)
 		if cfg.Portal == desired.Ref {
 			emailConfigs = append(emailConfigs, cfg)
 		}
@@ -157,6 +164,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan audit-log webhook (singleton resource)
 	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
 	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
+		webhook.Portal = resources.NormalizeResourceRef(webhook.Portal)
 		if webhook.Portal == desired.Ref {
 			auditLogWebhooks = append(auditLogWebhooks, webhook)
 		}
@@ -172,6 +180,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan email templates (set applies create/update only in apply mode)
 	templates := make([]resources.PortalEmailTemplateResource, 0)
 	for _, tpl := range planner.desiredPortalEmailTemplates {
+		tpl.Portal = resources.NormalizeResourceRef(tpl.Portal)
 		if tpl.Portal == desired.Ref {
 			templates = append(templates, tpl)
 		}
@@ -187,6 +196,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan customization (singleton resource)
 	customizations := make([]resources.PortalCustomizationResource, 0)
 	for _, customization := range planner.desiredPortalCustomizations {
+		customization.Portal = resources.NormalizeResourceRef(customization.Portal)
 		if customization.Portal == desired.Ref {
 			customizations = append(customizations, customization)
 		}
@@ -202,6 +212,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan teams
 	teams := make([]resources.PortalTeamResource, 0)
 	for _, team := range planner.desiredPortalTeams {
+		team.Portal = resources.NormalizeResourceRef(team.Portal)
 		if team.Portal == desired.Ref {
 			teams = append(teams, team)
 		}
@@ -216,6 +227,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 
 	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
 	for _, mapping := range planner.desiredPortalTeamGroupMappings {
+		mapping.Portal = resources.NormalizeResourceRef(mapping.Portal)
 		if mapping.Portal == desired.Ref {
 			mappings = append(mappings, mapping)
 		}
@@ -230,6 +242,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 
 	hasTeamRoles := false
 	for _, role := range planner.desiredPortalTeamRoles {
+		role.Portal = resources.NormalizeResourceRef(role.Portal)
 		if role.Portal == desired.Ref {
 			hasTeamRoles = true
 			break
@@ -246,6 +259,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan custom domain (singleton resource)
 	domains := make([]resources.PortalCustomDomainResource, 0)
 	for _, domain := range planner.desiredPortalCustomDomains {
+		domain.Portal = resources.NormalizeResourceRef(domain.Portal)
 		if domain.Portal == desired.Ref {
 			domains = append(domains, domain)
 		}
@@ -266,6 +280,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan asset logo (singleton resource)
 	logos := make([]resources.PortalAssetLogoResource, 0)
 	for _, logo := range planner.desiredPortalAssetLogos {
+		logo.Portal = resources.NormalizeResourceRef(logo.Portal)
 		if logo.Portal == desired.Ref {
 			logos = append(logos, logo)
 		}
@@ -281,6 +296,7 @@ func (p *portalPlannerImpl) planPortalChildren(
 	// Plan asset favicon (singleton resource)
 	favicons := make([]resources.PortalAssetFaviconResource, 0)
 	for _, favicon := range planner.desiredPortalAssetFavicons {
+		favicon.Portal = resources.NormalizeResourceRef(favicon.Portal)
 		if favicon.Portal == desired.Ref {
 			favicons = append(favicons, favicon)
 		}

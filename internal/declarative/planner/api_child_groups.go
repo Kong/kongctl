@@ -1,5 +1,7 @@
 package planner
 
+import "github.com/kong/kongctl/internal/declarative/resources"
+
 // apiChildGroupActions retains typed collection preparation and builders in
 // the caller. A parent CREATE may be followed by existing-parent reconciliation.
 type apiChildGroupActions struct {
@@ -7,7 +9,7 @@ type apiChildGroupActions struct {
 	reconcile func(namespace, apiID string) error
 }
 
-// planExtractedAPIChildren groups by the literal parent reference, preserving
+// planExtractedAPIChildren groups by the normalized parent reference, preserving
 // input order within groups and unspecified map traversal order between them.
 // Prepare runs before scanning the plan, including document lookup construction.
 func planExtractedAPIChildren[D any](
@@ -19,7 +21,7 @@ func planExtractedAPIChildren[D any](
 ) error {
 	byAPI := make(map[string][]D)
 	for _, child := range desired {
-		ref := parentRef(child)
+		ref := resources.NormalizeResourceRef(parentRef(child))
 		byAPI[ref] = append(byAPI[ref], child)
 	}
 	for apiRef, children := range byAPI {

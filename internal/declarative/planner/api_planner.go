@@ -602,6 +602,7 @@ func apiChildParentMatches(api resources.APIResource, parent string) bool {
 }
 
 func apiChildParentValueMatches(apiRef, apiID, parent string) bool {
+	parent = resources.NormalizeResourceRef(parent)
 	return parent == apiRef || (apiID != "" && parent == apiID)
 }
 
