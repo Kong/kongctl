@@ -5270,12 +5270,24 @@ func (c *Client) AssignOrganizationTeamRole(
 
 	resp, err := c.organizationTeamRolesAPI.TeamsAssignRole(ctx, teamID, &req)
 	if err != nil {
-		return "", WrapAPIError(err, "assign organization team role", &ErrorWrapperOptions{
+		wrapped := WrapAPIError(err, "assign organization team role", &ErrorWrapperOptions{
 			ResourceType: string(resources.ResourceTypeOrganizationTeamRole),
 			ResourceName: getRoleName(req.RoleName),
 			Namespace:    namespace,
 			UseEnhanced:  true,
 		})
+		entityType := ""
+		if req.EntityTypeName != nil {
+			entityType = string(*req.EntityTypeName)
+		}
+		wrapped = fmt.Errorf("role_name %q for entity_type_name %q: %w", getRoleName(req.RoleName), entityType, wrapped)
+		var notFound *kkErrors.NotFoundError
+		var sdkErr *kkErrors.SDKError
+		if errors.As(err, &notFound) || (errors.As(err, &sdkErr) && sdkErr.StatusCode == http.StatusNotFound) {
+			wrapped = fmt.Errorf("%w. Verify the exact role_name and entity_type_name in the Konnect role catalog: "+
+				"kongctl api get /v3/roles --base-url https://global.api.konghq.com", wrapped)
+		}
+		return "", wrapped
 	}
 
 	if resp == nil || resp.AssignedRole == nil || resp.AssignedRole.ID == nil {

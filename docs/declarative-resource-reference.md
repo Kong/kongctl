@@ -1422,6 +1422,18 @@ organization_team_roles:
     entity_region: One of (us | eu | au | me | in | sg | *)
 ```
 
+Use the exact catalog role name for the entity type. For example,
+`entity_type_name: AI Gateways` uses `role_name: AI Gateways Admin` or
+`role_name: AI Gateways Viewer`, rather than `Admin` or `Viewer`. Inspect the
+available roles with:
+
+```sh
+kongctl api get /v3/roles --base-url https://global.api.konghq.com
+```
+
+Role names are checked by Konnect during execution. A failed apply can leave
+successfully created resources, such as the team, in place.
+
 ## Portals
 
 [API Specification](https://developer.konghq.com/api/konnect/portal-management/v3/#/operations/create-portal)
