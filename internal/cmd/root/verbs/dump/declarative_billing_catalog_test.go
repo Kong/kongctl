@@ -88,24 +88,17 @@ func TestBillingCatalogDumpRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	d := &declarativeDumpContext{sdk: server.SDK, pageSize: 1}
 	var rs r.ResourceSet
-	rs.TaxCodes, err = collectBillingCatalog[r.TaxCodeResource](t.Context(), d, r.ResourceTypeTaxCode)
-	require.NoError(t, err)
-	rs.Currencies, err = collectBillingCatalog[r.CurrencyResource](t.Context(), d, r.ResourceTypeCurrency)
-	require.NoError(t, err)
-	rs.BillingApps, err = collectBillingCatalog[r.BillingAppResource](t.Context(), d, r.ResourceTypeBillingApp)
-	require.NoError(t, err)
-	rs.BillingProfiles, err = collectBillingCatalog[r.BillingProfileResource](
-		t.Context(),
-		d,
-		r.ResourceTypeBillingProfile,
-	)
-	require.NoError(t, err)
-	rs.BillingPlans, err = collectBillingCatalog[r.BillingPlanResource](t.Context(), d, r.ResourceTypeBillingPlan)
-	require.NoError(t, err)
-	require.Equal(t, app.ID(), rs.BillingApps[0].ID)
-	require.Equal(t, tax.ID(), rs.TaxCodes[0].ID)
+	for _, collection := range []string{"tax_codes", "currencies", "apps", "profiles", "plans"} {
+		collector, ok := declarativeCollectors[r.SchemaFieldMeteringBilling+"."+collection]
+		require.True(t, ok)
+		require.NoError(t, collector.collect(t.Context(), d, &rs))
+	}
+	require.Equal(t, app.ID(), rs.MeteringBilling.BillingApps[0].ID)
+	require.Equal(t, tax.ID(), rs.MeteringBilling.TaxCodes[0].ID)
 	data, err := json.Marshal(rs)
 	require.NoError(t, err)
+	require.Contains(t, string(data), `"metering-billing":`)
+	require.NotContains(t, string(data), `"billing_plans":`)
 	require.NotContains(t, string(data), "api_key")
 	require.NotContains(t, string(data), "masked_api_key")
 	path := filepath.Join(t.TempDir(), "dump.yaml")

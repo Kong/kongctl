@@ -333,17 +333,18 @@ catalog_services:
 
 ## Metering & Billing meters
 
-Root `meters` declarations manage usage aggregation. Required fields are
+`metering-billing.meters` declarations manage usage aggregation. Required
+fields are
 `ref`, `name`, `key`, `aggregation`, and `event_type`; optional fields are
 `id`, `description`, `labels`, `dimensions`, `value_property`, `events_from`,
 and `kongctl`. See [meter commands and lifecycle](metering-billing.md) for
 identity, adoption, immutable-field policy, namespace ownership, and examples.
-Use `kongctl explain meters` for the generated schema.
+Use `kongctl explain metering-billing.meters` for the generated schema.
 
 ## Metering & Billing catalog
 
-The initial suite also supports root `features`, `tax_codes`, `currencies`,
-`billing_apps`, `billing_profiles`, and `billing_plans` collections. See
+The initial suite also supports `features`, `tax_codes`, `currencies`,
+`apps`, `profiles`, and `plans` collections under `metering-billing:`. See
 [Metering & Billing](metering-billing.md) for native field shapes, identity,
 typed references, credentials, ownership, and lifecycle limits. In particular,
 currencies are create/observe-only, profiles have immutable app associations,

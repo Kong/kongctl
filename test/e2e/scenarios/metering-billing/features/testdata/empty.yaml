@@ -1,5 +1,6 @@
 _defaults:
   kongctl:
     namespace: mb-feature-e2e
-features: []
-meters: []
+metering-billing:
+  features: []
+  meters: []

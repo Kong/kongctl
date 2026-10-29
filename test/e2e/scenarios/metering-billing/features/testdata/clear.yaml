@@ -1,21 +1,22 @@
 _defaults:
   kongctl:
     namespace: mb-feature-e2e
-meters:
-  - ref: feature-meter
-    name: E2E Feature Meter
-    key: kongctl_e2e_feature_meter
-    aggregation: count
-    event_type: kongctl.e2e.feature
-    dimensions:
-      region: $.region
-features:
-  - ref: local-feature
-    name: E2E Feature
-    key: kongctl_e2e_feature
-    meter:
-      id: feature-meter
-      filters:
-        region:
-          eq: us
-    unit_cost: null
+metering-billing:
+  meters:
+    - ref: feature-meter
+      name: E2E Feature Meter
+      key: kongctl_e2e_feature_meter
+      aggregation: count
+      event_type: kongctl.e2e.feature
+      dimensions:
+        region: $.region
+  features:
+    - ref: local-feature
+      name: E2E Feature
+      key: kongctl_e2e_feature
+      meter:
+        id: feature-meter
+        filters:
+          region:
+            eq: us
+      unit_cost: null

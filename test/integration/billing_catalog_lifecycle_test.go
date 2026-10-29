@@ -27,47 +27,48 @@ import (
 const billingCatalogManifest = `_defaults:
   kongctl:
     namespace: billing
-currencies:
-  - ref: credits
-    name: Credits
-    code: CREDITS
-    precision: 0
-    decimal_mark: '.'
-    thousand_separator: ','
-tax_codes:
-  - ref: tax
-    name: Service tax
-    key: service-tax
-    app_mappings: []
-billing_apps:
-  - ref: sandbox
-    name: Sandbox
-    type: sandbox
-    create_billing_profile: false
-billing_profiles:
-  - ref: profile
-    name: Profile
-    supplier: {name: Supplier}
-    workflow: {}
-    apps:
-      tax: {id: sandbox}
-      invoicing: {id: sandbox}
-      payment: {id: sandbox}
-    default: false
-billing_plans:
-  - ref: plan
-    name: Starter
-    key: starter
-    currency: credits
-    billing_cadence: P1M
-    phases:
-      - name: Standard
-        key: standard
-        rate_cards:
-          - name: Service
-            key: service
-            price: {type: flat, amount: '10'}
-            tax_config: {code: {id: tax}}
+metering-billing:
+  currencies:
+    - ref: credits
+      name: Credits
+      code: CREDITS
+      precision: 0
+      decimal_mark: '.'
+      thousand_separator: ','
+  tax_codes:
+    - ref: tax
+      name: Service tax
+      key: service-tax
+      app_mappings: []
+  apps:
+    - ref: sandbox
+      name: Sandbox
+      type: sandbox
+      create_billing_profile: false
+  profiles:
+    - ref: profile
+      name: Profile
+      supplier: {name: Supplier}
+      workflow: {}
+      apps:
+        tax: {id: sandbox}
+        invoicing: {id: sandbox}
+        payment: {id: sandbox}
+      default: false
+  plans:
+    - ref: plan
+      name: Starter
+      key: starter
+      currency: credits
+      billing_cadence: P1M
+      phases:
+        - name: Standard
+          key: standard
+          rate_cards:
+            - name: Service
+              key: service
+              price: {type: flat, amount: '10'}
+              tax_config: {code: {id: tax}}
 `
 
 func TestBillingCatalogDeclarativeLifecycle(t *testing.T) {
@@ -150,8 +151,8 @@ func TestBillingCatalogDeclarativeLifecycle(t *testing.T) {
 	updated = strings.ReplaceAll(updated, "name: Profile", "name: Updated profile")
 	updated = strings.ReplaceAll(updated, "name: Sandbox", "name: Updated sandbox")
 	// Names are not unique identities: pin ULIDs before renaming profiles/apps.
-	updated = strings.Replace(updated, "  - ref: profile", "  - ref: profile\n    id: "+profiles[0].ID(), 1)
-	updated = strings.Replace(updated, "  - ref: sandbox", "  - ref: sandbox\n    id: "+apps[0].ID(), 1)
+	updated = strings.Replace(updated, "    - ref: profile", "    - ref: profile\n      id: "+profiles[0].ID(), 1)
+	updated = strings.Replace(updated, "    - ref: sandbox", "    - ref: sandbox\n      id: "+apps[0].ID(), 1)
 	write(updated)
 	update, err := plan(planner.PlanModeApply)
 	require.NoError(t, err)
@@ -242,11 +243,12 @@ func TestBillingCatalogDeleteAndUnprotect(t *testing.T) {
 	empty := `_defaults:
   kongctl:
     namespace: billing
-tax_codes: []
-currencies: []
-billing_apps: []
-billing_profiles: []
-billing_plans: []
+metering-billing:
+  tax_codes: []
+  currencies: []
+  apps: []
+  profiles: []
+  plans: []
 `
 	require.NoError(t, os.WriteFile(path, []byte(empty), 0o600))
 	scope, err := loader.New().LoadFile(path)
@@ -299,21 +301,21 @@ func TestBillingCatalogFeatureReferencesAcrossNamespaces(t *testing.T) {
 			p := planner.NewPlanner(client, logger)
 			manifest := strings.Replace(
 				billingCatalogManifest,
-				"billing_plans:\n  - ref: plan",
-				"billing_plans:\n  - ref: plan\n    kongctl: {namespace: a-plan}",
+				"  plans:\n    - ref: plan",
+				"  plans:\n    - ref: plan\n      kongctl: {namespace: a-plan}",
 				1,
 			)
 			manifest = strings.Replace(
 				manifest,
 				"price: {type: flat, amount: '10'}",
-				"feature: {id: "+reference+"}\n            price: {type: unit, amount: '0.1'}",
+				"feature: {id: "+reference+"}\n              price: {type: unit, amount: '0.1'}",
 				1,
 			)
-			manifest += `features:
-  - ref: usage-feature
-    name: Usage
-    key: usage
-    kongctl: {namespace: z-feature}
+			manifest += `  features:
+    - ref: usage-feature
+      name: Usage
+      key: usage
+      kongctl: {namespace: z-feature}
 `
 			path := filepath.Join(t.TempDir(), "catalog.yaml")
 			require.NoError(t, os.WriteFile(path, []byte(manifest), 0o600))
@@ -358,14 +360,14 @@ func TestBillingCatalogAppVariantsAndSecrets(t *testing.T) {
 				t.Setenv("BILLING_TEST_STRIPE_KEY", "stripe-test-secret-value")
 				manifest = strings.Replace(
 					manifest,
-					"    create_billing_profile: false",
-					"    create_billing_profile: false\n    api_key_env: BILLING_TEST_STRIPE_KEY",
+					"      create_billing_profile: false",
+					"      create_billing_profile: false\n      api_key_env: BILLING_TEST_STRIPE_KEY",
 					1,
 				)
 			} else {
-				manifest = strings.Replace(manifest, "    create_billing_profile: false", `    create_billing_profile: false
-    enable_draft_sync_hook: false
-    enable_issuing_sync_hook: true`, 1)
+				manifest = strings.Replace(manifest, "      create_billing_profile: false", `      create_billing_profile: false
+      enable_draft_sync_hook: false
+      enable_issuing_sync_hook: true`, 1)
 			}
 			path := filepath.Join(t.TempDir(), "catalog.yaml")
 			require.NoError(t, os.WriteFile(path, []byte(manifest), 0o600))

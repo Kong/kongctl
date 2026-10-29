@@ -53,25 +53,26 @@ func testFeatureDeclarativeLifecycle(t *testing.T, meterReference, meterNamespac
 		require.NoError(t, os.WriteFile(path, []byte(`_defaults:
   kongctl:
     namespace: billing
-meters:
-  - ref: local-usage
-    kongctl:
-      namespace: `+meterNamespace+`
-    name: Usage
-    key: usage
-    aggregation: count
-    event_type: request
-features:
-  - ref: local-feature
-    kongctl:
-      namespace: `+featureNamespace+`
-    name: Requests
-    key: requests
-    meter:
-      id: `+meterReference+`
-      filters:
-        region:
-          eq: us
+metering-billing:
+  meters:
+    - ref: local-usage
+      kongctl:
+        namespace: `+meterNamespace+`
+      name: Usage
+      key: usage
+      aggregation: count
+      event_type: request
+  features:
+    - ref: local-feature
+      kongctl:
+        namespace: `+featureNamespace+`
+      name: Requests
+      key: requests
+      meter:
+        id: `+meterReference+`
+        filters:
+          region:
+            eq: us
 `+cost), 0o600))
 	}
 	plan := func(mode planner.PlanMode) *planner.Plan {
@@ -92,7 +93,7 @@ features:
 		result := executor.New(client, nil, false).Execute(ctx, &saved)
 		require.Zero(t, result.FailureCount, "%+v", result.Errors)
 	}
-	write("    unit_cost: {type: manual, amount: '0.02'}\n")
+	write("      unit_cost: {type: manual, amount: '0.02'}\n")
 	first := plan(planner.PlanModeApply)
 	require.Len(t, first.Changes, 2)
 	featureIndex := slices.IndexFunc(first.Changes, func(change planner.PlannedChange) bool {
@@ -110,7 +111,7 @@ features:
 	require.Empty(t, plan(planner.PlanModeApply).Changes)
 	write("")
 	require.Empty(t, plan(planner.PlanModeApply).Changes, "omission leaves cost unchanged")
-	write("    unit_cost: null\n")
+	write("      unit_cost: null\n")
 	clearCost := plan(planner.PlanModeApply)
 	require.Len(t, clearCost.Changes, 1)
 	require.Contains(t, clearCost.Changes[0].Fields, planner.FieldUnitCost)
@@ -120,7 +121,7 @@ features:
 	require.Contains(t, writes[1], "unit_cost")
 	require.Nil(t, writes[1]["unit_cost"])
 	require.Empty(t, plan(planner.PlanModeApply).Changes)
-	write("    unit_cost: {type: llm, provider: openai, model: model, token_type: input}\n")
+	write("      unit_cost: {type: llm, provider: openai, model: model, token_type: input}\n")
 	update := plan(planner.PlanModeApply)
 	server.SetLabels(fixture.FeatureID, map[string]string{labels.NamespaceKey: "another"})
 	result := executor.New(client, nil, false).Execute(ctx, update)

@@ -32,6 +32,11 @@ func init() {
 		),
 		WithNamespace(140, func(r *FeatureResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "feature", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []FeatureResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.Features
 		}),
 		WithRootSyncScope(),
 		withCollectionValidation(200, featureCollectionValidation),

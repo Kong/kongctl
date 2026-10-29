@@ -5,7 +5,7 @@ steps:
     skipInputs: true
     commands:
       - name: scaffold
-        run: [scaffold, meters]
+        run: [scaffold, metering-billing.meters]
         outputFormat: disable
         parseAs: raw
         assertions:
@@ -15,7 +15,7 @@ steps:
                 "contains(stdout, 'aggregation: count')": true
                 "contains(stdout, 'event_type: request')": true
       - name: explain
-        run: [explain, meters.event_type]
+        run: [explain, metering-billing.meters.event_type]
         outputFormat: text
         parseAs: raw
         assertions:

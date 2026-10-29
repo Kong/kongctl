@@ -31,10 +31,10 @@ steps:
                 key: kongctl_e2e_request_count
                 labels."KONGCTL-namespace": mb-meter-e2e
       - name: dump
-        run: [dump, --resources, meters, --filter-name, E2E Request Count]
+        run: [dump, --resources, metering-billing.meters, --filter-name, E2E Request Count]
         outputFormat: yaml
         assertions:
-          - select: 'meters[0]'
+          - select: '"metering-billing".meters[0]'
             expect:
               fields: {key: kongctl_e2e_request_count, event_type: kongctl.e2e.request}
       - name: cleanup

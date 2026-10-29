@@ -52,11 +52,11 @@ steps:
             expect:
               fields: {unit_cost: null}
       - name: dump
-        run: [dump, declarative, --resources, features, --filter-name, E2E Feature]
+        run: [dump, declarative, --resources, metering-billing.features, --filter-name, E2E Feature]
         outputFormat: none
         parseAs: yaml
         assertions:
-          - select: 'features[0]'
+          - select: '"metering-billing".features[0]'
             expect:
               fields: {key: kongctl_e2e_feature}
       - name: cleanup

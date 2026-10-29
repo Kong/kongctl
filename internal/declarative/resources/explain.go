@@ -329,6 +329,31 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		return resolveAnalyticsExplainSubject(path, segments)
 	}
 
+	if strings.TrimSpace(segments[0]) == SchemaFieldMeteringBilling {
+		if len(segments) < 2 {
+			return nil, fmt.Errorf("unsupported resource path %q", path)
+		}
+		for _, kind := range RegisteredTypes() {
+			declaration := resourceSetDeclarationPath(registry[kind].explain.typ)
+			if len(declaration) == 2 && declaration[0] == SchemaFieldMeteringBilling &&
+				declaration[1] == strings.TrimSpace(segments[1]) {
+				doc, ok := explainDocByType(kind)
+				if !ok {
+					continue
+				}
+				subject, err := ResolveExplainSubject(
+					strings.Join(append([]string{doc.CanonicalAlias}, segments[2:]...), "."),
+				)
+				if err != nil {
+					return nil, err
+				}
+				subject.DisplayPath = path
+				return subject, nil
+			}
+		}
+		return nil, fmt.Errorf("unsupported resource path %q", path)
+	}
+
 	doc, ok := explainDocByAlias(strings.TrimSpace(segments[0]))
 	if !ok {
 		return nil, fmt.Errorf("unsupported resource path %q", path)
@@ -353,6 +378,10 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Step: ExplainScaffoldStep{Name: doc.RootKey, Array: true},
 			Node: doc.Schema.clone(),
 		}}
+	}
+
+	if err := applyMeteringBillingScaffold(subject); err != nil {
+		return nil, err
 	}
 
 	if len(segments) == 1 {
@@ -761,6 +790,24 @@ func applyOrganizationTeamScaffold(subject *ExplainSubject) error {
 	return nil
 }
 
+// Grouped declarations share the resource schema and field traversal with aliases.
+func applyMeteringBillingScaffold(subject *ExplainSubject) error {
+	path := resourceSetDeclarationPath(registry[subject.Doc.ResourceType].explain.typ)
+	if len(path) != 2 || path[0] != SchemaFieldMeteringBilling {
+		return nil
+	}
+	node, err := autoExplainNode(reflect.TypeFor[MeteringBillingResource](), nil, defaultExplainHints(""), nil)
+	if err != nil {
+		return err
+	}
+	subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: path[0]}, {Name: path[1], Array: true}}
+	subject.ScaffoldTrail = []ExplainScaffoldNode{
+		{Step: subject.ScaffoldSteps[0], Node: node},
+		{Step: subject.ScaffoldSteps[1], Node: subject.Doc.Schema.clone()},
+	}
+	return nil
+}
+
 func applyAnalyticsDashboardScaffold(subject *ExplainSubject) error {
 	analyticsNode, err := analyticsExplainNode()
 	if err != nil {
@@ -822,6 +869,10 @@ func ExplainResourcePaths() []string {
 }
 
 func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]struct{}) string {
+	if path := resourceSetDeclarationPath(registry[doc.ResourceType].explain.typ); len(path) == 2 &&
+		path[0] == SchemaFieldMeteringBilling {
+		return strings.Join(path, ".")
+	}
 	// Only resources with virtual grouping roots need an explicit path.
 	//exhaustive:ignore
 	switch doc.ResourceType {

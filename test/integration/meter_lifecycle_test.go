@@ -39,15 +39,16 @@ func TestMeterDeclarativeLifecycle(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(`_defaults:
   kongctl:
     namespace: billing
-meters:
-  - ref: local-usage
-    name: `+name+`
-    key: usage
-    aggregation: sum
-    event_type: request
-    value_property: $.tokens
-    events_from: '2026-01-01T00:00:00Z'
-    dimensions: `+dimensions+`
+metering-billing:
+  meters:
+    - ref: local-usage
+      name: `+name+`
+      key: usage
+      aggregation: sum
+      event_type: request
+      value_property: $.tokens
+      events_from: '2026-01-01T00:00:00Z'
+      dimensions: `+dimensions+`
 `), 0o600))
 	}
 	plan := func() *planner.Plan {

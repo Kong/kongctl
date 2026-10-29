@@ -197,6 +197,11 @@ func init() {
 		),
 		WithNamespace(150, func(r *TaxCodeResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "tax_code", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []TaxCodeResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.TaxCodes
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason(
@@ -272,6 +277,11 @@ func init() {
 		),
 		WithNamespace(160, func(r *CurrencyResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "currency", SupportsProtected: false, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []CurrencyResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.Currencies
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason(
@@ -282,7 +292,7 @@ func init() {
 	)
 }
 
-// BillingAppResource models billing_apps without introducing implicit API defaults.
+// BillingAppResource models metering-billing.apps without introducing implicit API defaults.
 type BillingAppResource struct {
 	BaseResource
 	ID                    string            `json:"id,omitempty" yaml:"id,omitempty"`
@@ -345,7 +355,7 @@ func (r BillingAppResource) Validate() error {
 
 	if r.CreateBillingProfile == nil || *r.CreateBillingProfile {
 		return fmt.Errorf(
-			"declarative billing apps require create_billing_profile: false; declare billing_profiles explicitly",
+			"declarative billing apps require create_billing_profile: false; declare metering-billing.profiles explicitly",
 		)
 	}
 	return validateBillingResource(&r)
@@ -367,6 +377,11 @@ func init() {
 		),
 		WithNamespace(170, func(r *BillingAppResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "billing_app", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []BillingAppResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.BillingApps
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason(
@@ -380,7 +395,7 @@ func init() {
 	)
 }
 
-// BillingProfileResource models billing_profiles without introducing implicit API defaults.
+// BillingProfileResource models metering-billing.profiles without introducing implicit API defaults.
 type BillingProfileResource struct {
 	BaseResource
 	ID          string                                 `json:"id,omitempty" yaml:"id,omitempty"`
@@ -456,6 +471,11 @@ func init() {
 		),
 		WithNamespace(180, func(r *BillingProfileResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "billing_profile", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []BillingProfileResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.BillingProfiles
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason(
@@ -465,7 +485,7 @@ func init() {
 	)
 }
 
-// BillingPlanResource models billing_plans without introducing implicit API defaults.
+// BillingPlanResource models metering-billing.plans without introducing implicit API defaults.
 type BillingPlanResource struct {
 	BaseResource
 	ID               string                             `json:"id,omitempty" yaml:"id,omitempty"`
@@ -552,6 +572,11 @@ func init() {
 		),
 		WithNamespace(190, func(r *BillingPlanResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "billing_plan", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []BillingPlanResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.BillingPlans
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason(

@@ -42,6 +42,11 @@ func init() {
 		),
 		WithNamespace(130, func(r *MeterResource) NamespaceParticipant {
 			return NamespaceParticipant{Ref: r.Ref, Label: "meter", SupportsProtected: true, Meta: &r.Kongctl}
+		}, func(rs *ResourceSet) []MeterResource {
+			if rs.MeteringBilling == nil {
+				return nil
+			}
+			return rs.MeteringBilling.Meters
 		}),
 		WithRootSyncScope(),
 		WithExternalUnsupportedReason("meter lookups use explicit remote ULIDs; "+

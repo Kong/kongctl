@@ -40,13 +40,13 @@ steps:
           - dump
           - declarative
           - --resources
-          - meters,features,tax_codes,currencies,billing_apps
+          - metering-billing.meters,metering-billing.features,metering-billing.tax_codes,metering-billing.currencies,metering-billing.apps
           - --filter-name
           - Kongctl E2E Suite*
         outputFormat: none
         parseAs: yaml
         assertions:
-          - select: 'features[0]'
+          - select: '"metering-billing".features[0]'
             expect:
               fields: {key: kongctl_e2e_suite_feature}
       - name: cleanup-suite

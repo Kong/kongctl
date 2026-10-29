@@ -59,28 +59,34 @@ group_by_dimensions:
 
 ## Declarative lifecycle
 
+All seven collections live under the `metering-billing:` grouping, alongside
+`organization:` and `analytics:`. Its children are `meters`, `features`,
+`tax_codes`, `currencies`, `apps`, `profiles`, and `plans`. Flat root collections
+are not accepted. The grouping does not change ownership or dependency order.
+
 ```yaml
 _defaults:
   kongctl:
     namespace: billing
-meters:
-  - ref: local-request-meter
-    name: Request Count
-    key: request_count
-    aggregation: count
-    event_type: request
-    dimensions:
-      region: $.region
-    kongctl:
-      protected: true
+metering-billing:
+  meters:
+    - ref: local-request-meter
+      name: Request Count
+      key: request_count
+      aggregation: count
+      event_type: request
+      dimensions:
+        region: $.region
+      kongctl:
+        protected: true
 ```
 
 ```sh
-kongctl explain meters
-kongctl scaffold meters
+kongctl explain metering-billing.meters
+kongctl scaffold metering-billing.meters
 kongctl plan -f meters.yaml
 kongctl apply -f meters.yaml --auto-approve
-kongctl dump declarative --resources meters
+kongctl dump declarative --resources metering-billing.meters
 ```
 
 `ref` identifies the declaration and can be referenced by other declarative
@@ -152,9 +158,9 @@ kongctl create mb feature --file create-feature.yaml
 kongctl update mb feature requests --file feature-cost.yaml
 kongctl get mb features cost-query requests --file query.yaml
 kongctl delete mb feature requests --auto-approve
-kongctl explain features
-kongctl scaffold features
-kongctl dump declarative --resources features
+kongctl explain metering-billing.features
+kongctl scaffold metering-billing.features
+kongctl dump declarative --resources metering-billing.features
 ```
 
 Imperative identifiers are API keys or uppercase ULIDs, with the same
@@ -170,26 +176,27 @@ Declarative creation supports both remote ULIDs and local meter references:
 _defaults:
   kongctl:
     namespace: billing
-meters:
-  - ref: local-requests
-    name: Request Count
-    key: request_count
-    aggregation: count
-    event_type: request
-    dimensions:
-      region: $.region
-features:
-  - ref: request-feature
-    name: Requests
-    key: requests
-    meter:
-      id: local-requests
-      filters:
-        region:
-          eq: us
-    unit_cost:
-      type: manual
-      amount: '0.001'
+metering-billing:
+  meters:
+    - ref: local-requests
+      name: Request Count
+      key: request_count
+      aggregation: count
+      event_type: request
+      dimensions:
+        region: $.region
+  features:
+    - ref: request-feature
+      name: Requests
+      key: requests
+      meter:
+        id: local-requests
+        filters:
+          region:
+            eq: us
+      unit_cost:
+        type: manual
+        amount: '0.001'
 ```
 
 `meter.id: !ref local-requests#id` is also supported. Newly created meters
@@ -249,13 +256,13 @@ The remaining resources share the `mb` namespace. Request files use native
 API JSON field names and accept JSON or YAML. Lists follow every API page;
 `--page-size` controls each request, not the total number of results.
 
-| Declarative root | Command | Lifecycle |
+| Child of `metering-billing` | Command | Lifecycle |
 | --- | --- | --- |
 | `tax_codes` | `tax-codes` | Create, PUT, delete |
 | `currencies` | `currencies` | Create and observe |
-| `billing_apps` | `apps` | Install, update, uninstall |
-| `billing_profiles` | `profiles` | Create, PUT, delete |
-| `billing_plans` | `plans` | Draft CRUD; observe published versions |
+| `apps` | `apps` | Install, update, uninstall |
+| `profiles` | `profiles` | Create, PUT, delete |
+| `plans` | `plans` | Draft CRUD; observe published versions |
 
 Reads accept unambiguous names for profiles/apps, currency codes, tax keys,
 and `key@version` for plans. Profile, app, and plan mutations require ULIDs.
@@ -288,49 +295,50 @@ from the earlier examples to attach usage to rate cards through
 _defaults:
   kongctl:
     namespace: billing
-currencies:
-  - ref: credits
-    name: Credits
-    code: CREDITS
-    precision: 0
-    decimal_mark: '.'
-    thousand_separator: ','
-tax_codes:
-  - ref: service-tax
-    name: Service Tax
-    key: service_tax
-    app_mappings: []
-billing_apps:
-  - ref: sandbox
-    name: Billing Sandbox
-    type: sandbox
-    create_billing_profile: false
-billing_profiles:
-  - ref: profile
-    name: Billing Profile
-    supplier:
-      name: Example Supplier
-    workflow: {}
-    apps:
-      tax: {id: sandbox}
-      invoicing: {id: sandbox}
-      payment: {id: sandbox}
-    default: false
-billing_plans:
-  - ref: starter
-    name: Starter
-    key: starter
-    currency: credits
-    billing_cadence: P1M
-    phases:
-      - name: Standard
-        key: standard
-        rate_cards:
-          - name: Service
-            key: service
-            price: {type: flat, amount: '10'}
-            tax_config:
-              code: {id: service-tax}
+metering-billing:
+  currencies:
+    - ref: credits
+      name: Credits
+      code: CREDITS
+      precision: 0
+      decimal_mark: '.'
+      thousand_separator: ','
+  tax_codes:
+    - ref: service-tax
+      name: Service Tax
+      key: service_tax
+      app_mappings: []
+  apps:
+    - ref: sandbox
+      name: Billing Sandbox
+      type: sandbox
+      create_billing_profile: false
+  profiles:
+    - ref: profile
+      name: Billing Profile
+      supplier:
+        name: Example Supplier
+      workflow: {}
+      apps:
+        tax: {id: sandbox}
+        invoicing: {id: sandbox}
+        payment: {id: sandbox}
+      default: false
+  plans:
+    - ref: starter
+      name: Starter
+      key: starter
+      currency: credits
+      billing_cadence: P1M
+      phases:
+        - name: Standard
+          key: standard
+          rate_cards:
+            - name: Service
+              key: service
+              price: {type: flat, amount: '10'}
+              tax_config:
+                code: {id: service-tax}
 ```
 
 Required API fields must be explicit, including `precision: 0`,
@@ -339,7 +347,8 @@ Names and keys are never derived from local refs. Native optional fields,
 including supplier contacts/addresses, workflow collection/invoicing/payment/
 tax settings, rate-card pricing, entitlements, discounts, commitments,
 settlement mode, and provider tax mappings, retain their API shapes. Use
-`kongctl explain billing_plans` and the other root names for complete schemas.
+`kongctl explain metering-billing.plans` and the other grouped paths for
+complete schemas.
 Pricing supports free, flat, unit, graduated, and volume variants.
 
 Plan rate-card feature IDs, tax-code IDs, and profile app IDs accept local
@@ -434,7 +443,7 @@ side-effect-created profile before declaring it; name matching never silently
 adopts or duplicates that profile.
 
 Declarative installs require `create_billing_profile: false` and separate
-`billing_profiles` declarations. The install API cannot set labels, so
+`profiles` declarations. The install API cannot set labels, so
 kongctl immediately updates installed-app metadata. If that step fails, the
 error reports the installed ULID: adopt that app before retrying. Creation
 rechecks identity to reject stale plans that could install duplicates.
