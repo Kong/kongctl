@@ -508,34 +508,32 @@ func (p *billingCatalogPlanner) resolveReferences(ctx context.Context, fields ma
 			continue
 		}
 		id := ""
-		if id == "" {
-			if feature, ok := target.(*resources.FeatureResource); ok {
-				values, err := p.planner.listFeatures(ctx)
-				if err != nil {
-					return err
+		if feature, ok := target.(*resources.FeatureResource); ok {
+			values, err := p.planner.listFeatures(ctx)
+			if err != nil {
+				return err
+			}
+			for _, v := range values {
+				if (feature.ID != "" && feature.ID == v.ID) || (feature.ID == "" && feature.Key == v.Key) {
+					id = v.ID
+					break
 				}
-				for _, v := range values {
-					if (feature.ID != "" && feature.ID == v.ID) || (feature.ID == "" && feature.Key == v.Key) {
-						id = v.ID
-						break
-					}
-				}
-			} else if b, ok := target.(resources.BillingResource); ok {
-				values, err := p.planner.listBilling(ctx, kind)
-				if err != nil {
-					return err
-				}
-				f, err := b.BillingFields()
-				if err != nil {
-					return err
-				}
-				c, err := matchBilling(resources.BillingKindForResourceType(kind), b, f, values)
-				if err != nil {
-					return err
-				}
-				if c != nil {
-					id = c.ID()
-				}
+			}
+		} else if b, ok := target.(resources.BillingResource); ok {
+			values, err := p.planner.listBilling(ctx, kind)
+			if err != nil {
+				return err
+			}
+			f, err := b.BillingFields()
+			if err != nil {
+				return err
+			}
+			c, err := matchBilling(resources.BillingKindForResourceType(kind), b, f, values)
+			if err != nil {
+				return err
+			}
+			if c != nil {
+				id = c.ID()
 			}
 		}
 		if id != "" {
