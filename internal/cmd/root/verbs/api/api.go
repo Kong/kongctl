@@ -248,7 +248,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return err
 	}
 
-	baseURL, err := konnectcommon.ResolveBaseURL(cfg)
+	baseURL, err := konnectcommon.ResolveAPIBaseURL(helper.GetCmd(), cfg, endpoint)
 	if err != nil {
 		return cmd.PrepareExecutionError("failed to resolve Konnect base URL", err, helper.GetCmd())
 	}
