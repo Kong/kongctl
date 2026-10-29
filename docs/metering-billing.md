@@ -59,6 +59,10 @@ group_by_dimensions:
 
 ## Declarative lifecycle
 
+Runnable examples for usage, the connected catalog, provider integrations,
+and federated ownership are in the
+[declarative examples](examples/declarative/metering-billing/README.md).
+
 All seven collections live under the `metering-billing:` grouping, alongside
 `organization:` and `analytics:`. Its children are `meters`, `features`,
 `tax_codes`, `currencies`, `apps`, `profiles`, and `plans`. Flat root collections

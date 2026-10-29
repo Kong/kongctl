@@ -1,0 +1,42 @@
+_defaults:
+  kongctl:
+    namespace: mb-platform-example
+
+metering-billing:
+  meters:
+    - ref: shared-request-meter
+      name: Example Federated Requests
+      key: kongctl_docs_federated_requests
+      aggregation: count
+      event_type: catalog_request
+  currencies:
+    - ref: shared-credits
+      name: Example Federated Credits
+      code: KONGCTL_FED_CREDITS
+      precision: 2
+      decimal_mark: '.'
+      thousand_separator: ','
+  tax_codes:
+    - ref: shared-service-tax
+      name: Example Federated Service Tax
+      key: kongctl_docs_federated_service_tax
+      app_mappings: []
+  apps:
+    - ref: shared-sandbox
+      name: Example Federated Sandbox
+      type: sandbox
+      create_billing_profile: false
+  profiles:
+    - ref: shared-profile
+      name: Example Federated Billing Profile
+      supplier:
+        name: Example Supplier
+      workflow: {}
+      apps:
+        tax:
+          id: !ref shared-sandbox#id
+        invoicing:
+          id: !ref shared-sandbox#id
+        payment:
+          id: !ref shared-sandbox#id
+      default: false

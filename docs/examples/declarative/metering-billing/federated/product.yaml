@@ -1,0 +1,58 @@
+_defaults:
+  kongctl:
+    namespace: mb-product-example
+
+metering-billing:
+  features:
+    - ref: product-request-feature
+      name: Example Federated Billable Requests
+      key: kongctl_docs_federated_billable_requests
+      meter:
+        id: shared-request-meter
+      unit_cost:
+        type: manual
+        amount: '0.001'
+  plans:
+    - ref: product-plan
+      name: Example Federated Usage Plan
+      key: kongctl_docs_federated_plan
+      currency: !ref shared-credits#code
+      billing_cadence: P1M
+      phases:
+        - name: Trial
+          key: trial
+          duration: P14D
+          rate_cards:
+            - name: Trial Requests
+              key: requests
+              feature:
+                id: !ref product-request-feature#id
+              price:
+                type: free
+              entitlement:
+                type: metered
+                usage_period: P1M
+        - name: Standard
+          key: standard
+          rate_cards:
+            - name: Billable Requests
+              key: requests
+              feature:
+                id: !ref product-request-feature#id
+              price:
+                type: unit
+                amount: '0.01'
+              entitlement:
+                type: metered
+                usage_period: P1M
+              tax_config:
+                code:
+                  id: !ref shared-service-tax#id
+            - name: Platform Fee
+              key: platform_fee
+              price:
+                type: flat
+                amount: '10'
+              tax_config:
+                code:
+                  id: !ref shared-service-tax#id

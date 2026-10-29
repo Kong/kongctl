@@ -1,0 +1,28 @@
+_defaults:
+  kongctl:
+    namespace: mb-usage-example
+
+metering-billing:
+  meters:
+    - ref: request-meter
+      name: Example Request Count
+      key: kongctl_docs_request_count
+      aggregation: count
+      event_type: api_request
+      dimensions:
+        region: $.region
+  features:
+    - ref: request-feature
+      name: Example Billable Requests
+      key: kongctl_docs_billable_requests
+      meter:
+        id: !ref request-meter#id
+        filters:
+          region:
+            eq: us
+      unit_cost:
+        type: manual
+        amount: '0.001'
+    - ref: support-feature
+      name: Example Priority Support
+      key: kongctl_docs_priority_support

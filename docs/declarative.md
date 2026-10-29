@@ -2092,7 +2092,13 @@ Guide](troubleshooting.md).
 
 ## Examples
 
-Browse the [examples directory](examples/declarative/)
+Browse the [examples directory](examples/declarative/).
+
+The [Metering & Billing examples][metering-billing-examples] cover usage, a
+connected seven-resource catalog, provider integrations, and federated
+ownership with separate cleanup manifests.
+
+[metering-billing-examples]: examples/declarative/metering-billing/README.md
 
 ## Related Documentation
 

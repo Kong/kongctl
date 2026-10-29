@@ -1,0 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: mb-usage-example
+
+metering-billing:
+  features: []
+  meters: []

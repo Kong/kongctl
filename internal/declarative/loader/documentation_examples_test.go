@@ -5,10 +5,119 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestLoaderLoadsMeteringBillingDocumentationExamples(t *testing.T) {
+	baseDir := filepath.Join("..", "..", "..", "docs", "examples", "declarative", "metering-billing")
+	for _, test := range []struct {
+		name       string
+		files      []string
+		counts     map[resources.ResourceType]int
+		namespaces []string
+	}{
+		{
+			name: "usage", files: []string{"usage/config.yaml"},
+			counts: map[resources.ResourceType]int{
+				resources.ResourceTypeMeter: 1, resources.ResourceTypeFeature: 2,
+			},
+			namespaces: []string{"mb-usage-example"},
+		},
+		{
+			name: "catalog", files: []string{"catalog/config.yaml"},
+			counts: map[resources.ResourceType]int{
+				resources.ResourceTypeMeter: 1, resources.ResourceTypeFeature: 1,
+				resources.ResourceTypeCurrency: 1, resources.ResourceTypeTaxCode: 1,
+				resources.ResourceTypeBillingApp: 1, resources.ResourceTypeBillingProfile: 1,
+				resources.ResourceTypeBillingPlan: 1,
+			},
+			namespaces: []string{"mb-catalog-example"},
+		},
+		{
+			name: "integrations", files: []string{"integrations/config.yaml"},
+			counts:     map[resources.ResourceType]int{resources.ResourceTypeBillingApp: 2},
+			namespaces: []string{"mb-integrations-example"},
+		},
+		{
+			name: "federated", files: []string{"federated/platform.yaml", "federated/product.yaml"},
+			counts: map[resources.ResourceType]int{
+				resources.ResourceTypeMeter: 1, resources.ResourceTypeFeature: 1,
+				resources.ResourceTypeCurrency: 1, resources.ResourceTypeTaxCode: 1,
+				resources.ResourceTypeBillingApp: 1, resources.ResourceTypeBillingProfile: 1,
+				resources.ResourceTypeBillingPlan: 1,
+			},
+			namespaces: []string{"mb-platform-example", "mb-product-example"},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var sources []Source
+			for _, file := range test.files {
+				sources = append(sources, Source{Path: filepath.Join(baseDir, file), Type: SourceTypeFile})
+			}
+			rs, err := New().LoadFromSources(sources, false)
+			require.NoError(t, err)
+			total := 0
+			for kind, count := range test.counts {
+				assert.Len(t, rs.AllResourcesByType(kind), count)
+				total += count
+			}
+			assert.Equal(t, total, rs.ResourceCount())
+			assert.ElementsMatch(t, test.namespaces, rs.NamespaceValues())
+		})
+	}
+}
+
+func TestLoaderLoadsMeteringBillingDocumentationCleanup(t *testing.T) {
+	baseDir := filepath.Join("..", "..", "..", "docs", "examples", "declarative", "metering-billing")
+	for _, test := range []struct {
+		file      string
+		namespace string
+		kinds     []resources.ResourceType
+	}{
+		{
+			"usage/cleanup.yaml", "mb-usage-example",
+			[]resources.ResourceType{resources.ResourceTypeMeter, resources.ResourceTypeFeature},
+		},
+		{
+			"catalog/cleanup.yaml", "mb-catalog-example",
+			[]resources.ResourceType{
+				resources.ResourceTypeMeter, resources.ResourceTypeFeature, resources.ResourceTypeTaxCode,
+				resources.ResourceTypeBillingApp, resources.ResourceTypeBillingProfile, resources.ResourceTypeBillingPlan,
+			},
+		},
+		{
+			"integrations/cleanup.yaml", "mb-integrations-example",
+			[]resources.ResourceType{resources.ResourceTypeBillingApp},
+		},
+		{
+			"federated/product-cleanup.yaml", "mb-product-example",
+			[]resources.ResourceType{resources.ResourceTypeFeature, resources.ResourceTypeBillingPlan},
+		},
+		{
+			"federated/platform-cleanup.yaml", "mb-platform-example",
+			[]resources.ResourceType{
+				resources.ResourceTypeMeter, resources.ResourceTypeTaxCode,
+				resources.ResourceTypeBillingApp, resources.ResourceTypeBillingProfile,
+			},
+		},
+	} {
+		t.Run(test.file, func(t *testing.T) {
+			rs, err := New().LoadFile(filepath.Join(baseDir, test.file))
+			require.NoError(t, err)
+			assert.Zero(t, rs.ResourceCount())
+			assert.Equal(t, test.namespace, rs.DefaultNamespace)
+			require.NotNil(t, rs.SyncScope)
+			expected := make(map[resources.ResourceType]struct{})
+			for _, kind := range test.kinds {
+				expected[kind] = struct{}{}
+			}
+			assert.Equal(t, expected, rs.SyncScope.RootResourceTypes)
+		})
+	}
+}
 
 func TestLoaderLoadsSecretsDocumentationExample(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "docs", "examples", "declarative", "secrets", "config.yaml")
