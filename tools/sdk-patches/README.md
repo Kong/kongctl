@@ -15,6 +15,9 @@ Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
 
+Portal and organization team patches preserve omitted membership management.
+A PATCH changing a team's name must not reset `konnect_managed` to `false`.
+
 ## Prepare and generate a patched SDK
 
 Use a separate, clean SDK checkout based on the release being upgraded. Install
