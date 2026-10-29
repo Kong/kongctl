@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: mb-catalog-example
+
+metering-billing:
+  plans: []
+  profiles: []
+  apps: []
+  tax_codes: []
+  features: []
+  meters: []

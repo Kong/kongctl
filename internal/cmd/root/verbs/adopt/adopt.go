@@ -7,6 +7,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -57,6 +58,12 @@ func NewAdoptCmd() (*cobra.Command, error) {
 			return bindKonnectFlags(c, args)
 		},
 	}
+
+	family, err := meteringbilling.NewCommand(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(family)
 
 	// Add Konnect-specific flags as persistent flags so they appear in help
 	cmd.PersistentFlags().String(common.BaseURLFlagName, "",

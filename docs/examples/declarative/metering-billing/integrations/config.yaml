@@ -1,0 +1,15 @@
+_defaults:
+  kongctl:
+    namespace: mb-integrations-example
+
+metering-billing:
+  apps:
+    - ref: example-stripe
+      name: Example Stripe Integration
+      type: stripe
+      api_key_env: KONGCTL_DOCS_STRIPE_API_KEY
+    - ref: example-external-invoicing
+      name: Example External Invoicing
+      type: external_invoicing
+      enable_draft_sync_hook: false
+      enable_issuing_sync_hook: true

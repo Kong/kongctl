@@ -1,0 +1,6 @@
+_defaults:
+  kongctl:
+    namespace: mb-integrations-example
+
+metering-billing:
+  apps: []

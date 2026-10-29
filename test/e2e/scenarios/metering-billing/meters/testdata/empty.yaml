@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: mb-meter-e2e
+metering-billing:
+  meters: []

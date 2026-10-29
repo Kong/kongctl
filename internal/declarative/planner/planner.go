@@ -268,6 +268,19 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		p.changeCount = namespacePlanner.changeCount
 	}
 
+	if err := p.resolveBillingDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolveMeterFeatureDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := bindBillingReferences(basePlan, rs); err != nil {
+		return nil, err
+	}
+	if err := bindFeatureMeterReferences(basePlan); err != nil {
+		return nil, err
+	}
+
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
 
 	// Child matching discovers identities during resource planning. If these
@@ -362,7 +375,10 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 		var paths []string
 		for _, change := range basePlan.Changes {
 			for _, binding := range change.PayloadReferences {
-				paths = append(paths, fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path))
+				paths = append(
+					paths,
+					fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path),
+				)
 			}
 		}
 		if len(paths) > 0 {

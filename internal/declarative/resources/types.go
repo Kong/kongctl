@@ -36,6 +36,13 @@ const (
 	ResourceTypeAIGatewayCACertificate                  ResourceType = "ai_gateway_ca_certificate"
 	ResourceTypeAIGatewaySNI                            ResourceType = "ai_gateway_sni"
 	ResourceTypeDashboard                               ResourceType = "dashboard"
+	ResourceTypeMeter                                   ResourceType = "meter"
+	ResourceTypeFeature                                 ResourceType = "feature"
+	ResourceTypeTaxCode                                 ResourceType = "tax_code"
+	ResourceTypeCurrency                                ResourceType = "currency"
+	ResourceTypeBillingApp                              ResourceType = "billing_app"
+	ResourceTypeBillingProfile                          ResourceType = "billing_profile"
+	ResourceTypeBillingPlan                             ResourceType = "billing_plan"
 	ResourceTypeAPIVersion                              ResourceType = "api_version"
 	ResourceTypeAPIPublication                          ResourceType = "api_publication"
 	ResourceTypeAPIImplementation                       ResourceType = "api_implementation"
@@ -196,7 +203,9 @@ type ResourceSet struct {
 	EventGatewayVirtualClusters []EventGatewayVirtualClusterResource `yaml:"event_gateway_virtual_clusters,omitempty"                 json:"event_gateway_virtual_clusters,omitempty"` //nolint:lll
 	// Organization grouping - contains nested resources like teams
 	Organization *OrganizationResource `yaml:"organization,omitempty"                                   json:"organization,omitempty"` //nolint:lll
-	// Analytics grouping - contains nested resources like dashboards
+	// MeteringBilling groups billing declarations before loader extraction.
+	MeteringBilling *MeteringBillingResource `yaml:"metering-billing,omitempty" json:"metering-billing,omitempty"`
+	// Analytics groups custom dashboards.
 	Analytics *AnalyticsResource `yaml:"analytics,omitempty" json:"analytics,omitempty"`
 	// Teams is populated internally from OrganizationTeams during loading
 	// It is not exposed in YAML/JSON to enforce the organization grouping format
@@ -215,6 +224,16 @@ type ResourceSet struct {
 	EventGatewaySchemaRegistries             []EventGatewaySchemaRegistryResource              `yaml:"event_gateway_schema_registries,omitempty"                json:"event_gateway_schema_registries,omitempty"`                //nolint:lll
 	EventGatewayStaticKeys                   []EventGatewayStaticKeyResource                   `yaml:"event_gateway_static_keys,omitempty"                      json:"event_gateway_static_keys,omitempty"`                      //nolint:lll
 	EventGatewayTLSTrustBundles              []EventGatewayTLSTrustBundleResource              `yaml:"event_gateway_tls_trust_bundles,omitempty"                json:"event_gateway_tls_trust_bundles,omitempty"`                //nolint:lll
+
+	// Metering & Billing collections are flattened internally after loading.
+	Meters          []MeterResource          `yaml:"-" json:"-"`
+	Features        []FeatureResource        `yaml:"-" json:"-"`
+	TaxCodes        []TaxCodeResource        `yaml:"-" json:"-"`
+	Currencies      []CurrencyResource       `yaml:"-" json:"-"`
+	BillingApps     []BillingAppResource     `yaml:"-" json:"-"`
+	BillingProfiles []BillingProfileResource `yaml:"-" json:"-"`
+	BillingPlans    []BillingPlanResource    `yaml:"-" json:"-"`
+
 	// Dashboards is populated internally from Analytics.Dashboards during loading.
 	// It is not exposed in YAML/JSON to enforce the analytics grouping format.
 	Dashboards []DashboardResource `yaml:"-"                                                        json:"-"`

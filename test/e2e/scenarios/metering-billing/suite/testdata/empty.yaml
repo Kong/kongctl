@@ -1,0 +1,11 @@
+_defaults:
+  kongctl:
+    namespace: mb-suite-e2e
+metering-billing:
+  meters: []
+  features: []
+  tax_codes: []
+  currencies: []
+  apps: []
+  profiles: []
+  plans: []

@@ -8,6 +8,23 @@ import (
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	FieldDeletedAt            = "deleted_at"
+	FieldProtected            = "protected"
+	FieldUnitCost             = "unit_cost"
+	FieldMeter                = "meter"
+	FieldCurrency             = "currency"
+	FieldPhases               = "phases"
+	FieldApps                 = "apps"
+	FieldDefault              = "default"
+	FieldAppType              = "type"
+	FieldAPIKeyEnv            = "api_key_env" // #nosec G101 -- API field identifier, not a credential.
+	FieldCreateBillingProfile = "create_billing_profile"
+	FieldBillingCadence       = "billing_cadence"
+	FieldCode                 = "code"
+	FieldAppMappings          = "app_mappings"
+
+	FieldFilters = "filters"
+
 	// FieldID contains a resource ID
 	FieldID = "id"
 
@@ -76,6 +93,11 @@ const (
 	FieldSpec           = "spec"
 	FieldSlug           = fieldcontracts.FieldSlug
 	FieldKey            = "key"
+	FieldAggregation    = "aggregation"
+	FieldEventType      = "event_type"
+	FieldEventsFrom     = "events_from"
+	FieldValueProperty  = "value_property"
+	FieldDimensions     = "dimensions"
 	FieldValue          = "value"
 	FieldAPIKey         = "api_key"
 	FieldClientID       = "client_id"
@@ -261,6 +283,13 @@ const (
 	ResourceTypeAIGatewayCACertificate           = string(resources.ResourceTypeAIGatewayCACertificate)
 	ResourceTypeAIGatewaySNI                     = string(resources.ResourceTypeAIGatewaySNI)
 	ResourceTypeDashboard                        = string(resources.ResourceTypeDashboard)
+	ResourceTypeMeter                            = string(resources.ResourceTypeMeter)
+	ResourceTypeFeature                          = string(resources.ResourceTypeFeature)
+	ResourceTypeTaxCode                          = string(resources.ResourceTypeTaxCode)
+	ResourceTypeCurrency                         = string(resources.ResourceTypeCurrency)
+	ResourceTypeBillingApp                       = string(resources.ResourceTypeBillingApp)
+	ResourceTypeBillingProfile                   = string(resources.ResourceTypeBillingProfile)
+	ResourceTypeBillingPlan                      = string(resources.ResourceTypeBillingPlan)
 	ResourceTypeAPIVersion                       = string(resources.ResourceTypeAPIVersion)
 	ResourceTypeAPIPublication                   = string(resources.ResourceTypeAPIPublication)
 	ResourceTypeAPIImplementation                = string(resources.ResourceTypeAPIImplementation)

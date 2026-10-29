@@ -13,6 +13,15 @@ import (
 // IsRelationshipPath identifies declared relationships, whose established
 // parent/ref/name semantics are handled separately from arbitrary values.
 func IsRelationshipPath(resource Resource, path string) bool {
+	// Billing owns concrete references inside native arrays of rate cards.
+	if billing, ok := resource.(BillingResource); ok {
+		if fields, err := billing.BillingFields(); err == nil {
+			if _, found := BillingReferenceTargets(resource.GetType(), fields)[path]; found {
+				return true
+			}
+		}
+	}
+
 	// AI Gateway name-based associations predate relationship descriptors.
 	//exhaustive:ignore
 	switch resource.GetType() {

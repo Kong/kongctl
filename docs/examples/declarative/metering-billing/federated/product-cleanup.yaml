@@ -1,0 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: mb-product-example
+
+metering-billing:
+  features: []
+  plans: []

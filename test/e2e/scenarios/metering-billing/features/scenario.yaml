@@ -1,0 +1,68 @@
+test:
+  enabledByEnvVar: KONGCTL_E2E_METERING_BILLING
+baseInputsPath: testdata
+steps:
+  - name: 001-lifecycle
+    commands:
+      - name: cleanup-previous-run
+        run: [sync, -f, '{{ .workdir }}/empty.yaml', --auto-approve]
+        outputFormat: json
+      - name: create
+        run: [apply, -f, '{{ .workdir }}/config.yaml', --auto-approve]
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0, status: success}
+      - name: repeat-plan
+        run: [plan, -f, '{{ .workdir }}/config.yaml']
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: get-by-key
+        run: [get, metering-billing, feature, kongctl_e2e_feature]
+        outputFormat: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                key: kongctl_e2e_feature
+                labels."KONGCTL-namespace": mb-feature-e2e
+      - name: clear-cost
+        run: [apply, -f, '{{ .workdir }}/clear.yaml', --auto-approve]
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0, status: success}
+      - name: repeat-clear-plan
+        run: [plan, -f, '{{ .workdir }}/clear.yaml']
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: cleared-cost
+        run: [get, metering-billing, feature, kongctl_e2e_feature]
+        outputFormat: json
+        assertions:
+          - select: '@'
+            expect:
+              fields: {unit_cost: null}
+      - name: dump
+        run: [dump, declarative, --resources, metering-billing.features, --filter-name, E2E Feature]
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: '"metering-billing".features[0]'
+            expect:
+              fields: {key: kongctl_e2e_feature}
+      - name: cleanup
+        run: [sync, -f, '{{ .workdir }}/empty.yaml', --auto-approve]
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0, status: success}

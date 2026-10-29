@@ -1,0 +1,9 @@
+_defaults:
+  kongctl:
+    namespace: mb-platform-example
+
+metering-billing:
+  meters: []
+  tax_codes: []
+  apps: []
+  profiles: []

@@ -682,6 +682,24 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	// Extract Metering & Billing collections after namespace defaults are applied.
+	if rs.MeteringBilling != nil {
+		rs.Meters = append(rs.Meters, rs.MeteringBilling.Meters...)
+		rs.MeteringBilling.Meters = nil
+		rs.Features = append(rs.Features, rs.MeteringBilling.Features...)
+		rs.MeteringBilling.Features = nil
+		rs.TaxCodes = append(rs.TaxCodes, rs.MeteringBilling.TaxCodes...)
+		rs.MeteringBilling.TaxCodes = nil
+		rs.Currencies = append(rs.Currencies, rs.MeteringBilling.Currencies...)
+		rs.MeteringBilling.Currencies = nil
+		rs.BillingApps = append(rs.BillingApps, rs.MeteringBilling.BillingApps...)
+		rs.MeteringBilling.BillingApps = nil
+		rs.BillingProfiles = append(rs.BillingProfiles, rs.MeteringBilling.BillingProfiles...)
+		rs.MeteringBilling.BillingProfiles = nil
+		rs.BillingPlans = append(rs.BillingPlans, rs.MeteringBilling.BillingPlans...)
+		rs.MeteringBilling.BillingPlans = nil
+	}
+
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)

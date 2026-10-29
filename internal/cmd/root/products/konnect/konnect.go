@@ -21,6 +21,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/meteringbilling"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/portal"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/regions"
@@ -277,6 +278,14 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		}
 		addFlags(verb, cmd)
 		return cmd, nil
+	}
+
+	family, err := meteringbilling.NewCommand(verb)
+	if err != nil {
+		return nil, err
+	}
+	if family != nil {
+		cmd.AddCommand(family)
 	}
 
 	// Handle Login verb

@@ -41,6 +41,9 @@ type SDKAPI interface {
 	GetAIGatewaySNIsAPI() AIGatewaySNIsAPI
 	GetCatalogServicesAPI() CatalogServicesAPI
 	GetDashboardsAPI() DashboardsAPI
+	GetMetersAPI() MetersAPI
+	GetFeaturesAPI() FeaturesAPI
+	GetBillingCatalogAPI() BillingCatalogAPI
 	GetAPIDocumentAPI() APIDocumentAPI
 	GetAPIVersionAPI() APIVersionAPI
 	GetAPIPublicationAPI() APIPublicationAPI
@@ -757,4 +760,27 @@ func (k *KonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI 
 	}
 
 	return &AIGatewayCustomPoliciesAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetMetersAPI() MetersAPI {
+	if k.SDK == nil {
+		return nil
+	}
+	return &MetersAPIImpl{
+		MetersAPI:   k.SDK.Meters,
+		BaseURL:     k.BaseURL,
+		Token:       k.Token,
+		TokenSource: k.TokenSource,
+		HTTPClient:  k.HTTPClient,
+	}
+}
+
+func (k *KonnectSDK) GetFeaturesAPI() FeaturesAPI {
+	if k.SDK == nil {
+		return nil
+	}
+	return &FeaturesAPIImpl{
+		OpenMeterFeaturesSDK: k.SDK.OpenMeterFeatures, BaseURL: k.BaseURL,
+		Token: k.Token, TokenSource: k.TokenSource, HTTPClient: k.HTTPClient,
+	}
 }

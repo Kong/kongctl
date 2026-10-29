@@ -29,6 +29,9 @@ type MockKonnectSDK struct {
 	AIGatewaySNIsFactory                  func() AIGatewaySNIsAPI
 	CatalogServicesFactory                func() CatalogServicesAPI
 	DashboardsFactory                     func() DashboardsAPI
+	FeaturesFactory                       func() FeaturesAPI
+	BillingCatalogFactory                 func() BillingCatalogAPI
+	MetersFactory                         func() MetersAPI
 	APIDocumentFactory                    func() APIDocumentAPI
 	APIVersionFactory                     func() APIVersionAPI
 	APIPublicationFactory                 func() APIPublicationAPI
@@ -647,6 +650,20 @@ func (m *MockKonnectSDKFactory) Build(token string) (SDKAPI, error) {
 func (m *MockKonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI {
 	if m.AIGatewayCustomPoliciesFactory != nil {
 		return m.AIGatewayCustomPoliciesFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetMetersAPI() MetersAPI {
+	if m.MetersFactory != nil {
+		return m.MetersFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetFeaturesAPI() FeaturesAPI {
+	if m.FeaturesFactory != nil {
+		return m.FeaturesFactory()
 	}
 	return nil
 }

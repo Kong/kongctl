@@ -50,6 +50,21 @@ func autoExplainSDKUnionNode(
 
 func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
 	typ = derefExplainType(typ)
+	// The M&B SDK models constant discriminators as enum types rather than
+	// const tags. Retain their native JSON discriminators in load/explain schemas.
+	billingDiscriminators := map[reflect.Type]string{
+		reflect.TypeFor[kkComps.BillingPriceFree]():                  "free",
+		reflect.TypeFor[kkComps.BillingPriceFlat]():                  "flat",
+		reflect.TypeFor[kkComps.BillingPriceUnit]():                  "unit",
+		reflect.TypeFor[kkComps.BillingPriceGraduated]():             "graduated",
+		reflect.TypeFor[kkComps.BillingPriceVolume]():                "volume",
+		reflect.TypeFor[kkComps.BillingRateCardMeteredEntitlement](): "metered",
+		reflect.TypeFor[kkComps.BillingRateCardStaticEntitlement]():  "static",
+		reflect.TypeFor[kkComps.BillingRateCardBooleanEntitlement](): "boolean",
+	}
+	if value, ok := billingDiscriminators[typ]; ok {
+		return "type", value, true
+	}
 	if typ.Kind() != reflect.Struct {
 		return "", "", false
 	}

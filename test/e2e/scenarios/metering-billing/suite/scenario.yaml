@@ -1,0 +1,58 @@
+test:
+  enabledByEnvVar: KONGCTL_E2E_METERING_BILLING
+baseInputsPath: testdata
+steps:
+  - name: 001-connected-suite
+    commands:
+      - name: cleanup-previous-run
+        run: [sync, -f, '{{ .workdir }}/empty.yaml', --auto-approve]
+        outputFormat: json
+      - name: create-suite
+        run: [apply, -f, '{{ .workdir }}/config.yaml', --auto-approve]
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0, status: success}
+      - name: repeat-plan
+        run: [plan, -f, '{{ .workdir }}/config.yaml']
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields: {total_changes: 0}
+      - name: inspect-currency
+        run: [get, mb, currency, KONGCTL_E2E_CREDITS]
+        outputFormat: json
+        assertions:
+          - select: '@'
+            expect:
+              fields: {type: custom, code: KONGCTL_E2E_CREDITS}
+      - name: inspect-plan
+        run: [get, mb, plan, kongctl_e2e_suite_plan]
+        outputFormat: json
+        assertions:
+          - select: '@'
+            expect:
+              fields: {key: kongctl_e2e_suite_plan, status: draft}
+      - name: dump-suite
+        run:
+          - dump
+          - declarative
+          - --resources
+          - metering-billing.meters,metering-billing.features,metering-billing.tax_codes,metering-billing.currencies,metering-billing.apps
+          - --filter-name
+          - Kongctl E2E Suite*
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: '"metering-billing".features[0]'
+            expect:
+              fields: {key: kongctl_e2e_suite_feature}
+      - name: cleanup-suite
+        run: [sync, -f, '{{ .workdir }}/empty.yaml', --auto-approve]
+        outputFormat: json
+        assertions:
+          - select: summary
+            expect:
+              fields: {failed: 0, status: success}

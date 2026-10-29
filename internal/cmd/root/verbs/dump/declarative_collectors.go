@@ -36,6 +36,108 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".tax_codes",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.TaxCodeResource, error) {
+				return collectBillingCatalog[declresources.TaxCodeResource](ctx, d, declresources.ResourceTypeTaxCode)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.TaxCodeResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.TaxCodes
+			},
+			nil,
+		),
+		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".currencies",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.CurrencyResource, error) {
+				return collectBillingCatalog[declresources.CurrencyResource](ctx, d, declresources.ResourceTypeCurrency)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.CurrencyResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.Currencies
+			},
+			nil,
+		),
+		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".apps",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingAppResource, error) {
+				return collectBillingCatalog[declresources.BillingAppResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingApp,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingAppResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.BillingApps
+			},
+			nil,
+		),
+		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".profiles",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingProfileResource, error) {
+				return collectBillingCatalog[declresources.BillingProfileResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingProfile,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingProfileResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.BillingProfiles
+			},
+			nil,
+		),
+		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".plans",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.BillingPlanResource, error) {
+				return collectBillingCatalog[declresources.BillingPlanResource](
+					ctx,
+					d,
+					declresources.ResourceTypeBillingPlan,
+				)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.BillingPlanResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.BillingPlans
+			},
+			nil,
+		),
+		rootCollector(
+			declresources.SchemaFieldMeteringBilling+".meters",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.MeterResource, error) {
+				return collectDeclarativeMeters(ctx, d.sdk.GetMetersAPI(), d.pageSize, d.filter)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.MeterResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.Meters
+			},
+			nil,
+		), rootCollector(
+			declresources.SchemaFieldMeteringBilling+".features",
+			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.FeatureResource, error) {
+				return collectDeclarativeFeatures(ctx, d.sdk.GetFeaturesAPI(), d.pageSize, d.filter)
+			},
+			func(rs *declresources.ResourceSet) *[]declresources.FeatureResource {
+				if rs.MeteringBilling == nil {
+					rs.MeteringBilling = &declresources.MeteringBillingResource{}
+				}
+				return &rs.MeteringBilling.Features
+			},
+			nil,
+		),
+		rootCollector(
 			"portals",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.PortalResource, error) {
 				return collectDeclarativePortals(ctx, d.sdk.GetPortalAPI(), d.pageSize, d.filter)

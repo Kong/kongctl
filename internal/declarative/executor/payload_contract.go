@@ -54,6 +54,7 @@ type payloadContractKey struct {
 // outside the same JSON path in the SDK request. Entries are action-specific so
 // adding a planner field still requires an explicit decision about its execution.
 var translatedPayloadFields = map[payloadContractKey][]string{
+	{planner.ResourceTypeMeter, planner.ActionUpdate}:                  {planner.FieldCurrentLabels},
 	{planner.ResourceTypeAPI, planner.ActionUpdate}:                    {planner.FieldCurrentLabels},
 	{planner.ResourceTypeAIGateway, planner.ActionUpdate}:              {planner.FieldCurrentLabels},
 	{planner.ResourceTypeAIGatewayConsumerGroup, planner.ActionCreate}: {planner.FieldConsumers},

@@ -1,0 +1,94 @@
+_defaults:
+  kongctl:
+    namespace: mb-catalog-example
+
+metering-billing:
+  meters:
+    - ref: catalog-request-meter
+      name: Example Catalog Requests
+      key: kongctl_docs_catalog_requests
+      aggregation: count
+      event_type: catalog_request
+  features:
+    - ref: catalog-request-feature
+      name: Example Catalog Billable Requests
+      key: kongctl_docs_catalog_billable_requests
+      meter:
+        id: catalog-request-meter
+      unit_cost:
+        type: manual
+        amount: '0.001'
+  currencies:
+    - ref: catalog-credits
+      name: Example Catalog Credits
+      code: KONGCTL_DOCS_CREDITS
+      precision: 2
+      decimal_mark: '.'
+      thousand_separator: ','
+  tax_codes:
+    - ref: catalog-service-tax
+      name: Example Catalog Service Tax
+      key: kongctl_docs_catalog_service_tax
+      app_mappings: []
+  apps:
+    - ref: catalog-sandbox
+      name: Example Catalog Sandbox
+      type: sandbox
+  profiles:
+    - ref: catalog-profile
+      name: Example Catalog Billing Profile
+      supplier:
+        name: Example Supplier
+      workflow: {}
+      apps:
+        tax:
+          id: !ref catalog-sandbox#id
+        invoicing:
+          id: !ref catalog-sandbox#id
+        payment:
+          id: !ref catalog-sandbox#id
+      default: false
+  plans:
+    - ref: catalog-plan
+      name: Example Catalog Usage Plan
+      key: kongctl_docs_catalog_plan
+      currency: !ref catalog-credits#code
+      billing_cadence: P1M
+      phases:
+        - name: Trial
+          key: trial
+          duration: P14D
+          rate_cards:
+            - name: Trial Requests
+              key: requests
+              feature:
+                id: !ref catalog-request-feature#id
+              price:
+                type: free
+              entitlement:
+                type: metered
+                usage_period: P1M
+        - name: Standard
+          key: standard
+          rate_cards:
+            - name: Billable Requests
+              key: requests
+              feature:
+                id: !ref catalog-request-feature#id
+              price:
+                type: unit
+                amount: '0.01'
+              entitlement:
+                type: metered
+                usage_period: P1M
+              tax_config:
+                code:
+                  id: !ref catalog-service-tax#id
+            - name: Platform Fee
+              key: platform_fee
+              price:
+                type: flat
+                amount: '10'
+              tax_config:
+                code:
+                  id: !ref catalog-service-tax#id

@@ -6,11 +6,15 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/konnect/helpers"
+
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 type planningResourceCache struct {
+	billingCatalog                 map[resources.ResourceType][]helpers.BillingObject
 	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
 	aiGatewayCACertificates        map[string][]state.AIGatewayCACertificate
@@ -41,6 +45,8 @@ type planningResourceCache struct {
 	managedCatalogServices           observationCache[state.CatalogService]
 	managedAIGateways                observationCache[state.AIGateway]
 	managedDashboards                observationCache[state.Dashboard]
+	allMeters                        observationCache[state.Meter]
+	allFeatures                      observationCache[state.Feature]
 	managedOrganizationTeams         observationCache[state.OrganizationTeam]
 
 	portalTeamsByPortalID             map[string][]state.PortalTeam
@@ -50,6 +56,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		billingCatalog:                 make(map[resources.ResourceType][]helpers.BillingObject),
 		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),
 		aiGatewayCACertificates:        make(map[string][]state.AIGatewayCACertificate),
@@ -80,6 +87,8 @@ func newPlanningResourceCache() *planningResourceCache {
 		managedCatalogServices:            newObservationCache[state.CatalogService](),
 		managedAIGateways:                 newObservationCache[state.AIGateway](),
 		managedDashboards:                 newObservationCache[state.Dashboard](),
+		allMeters:                         newObservationCache[state.Meter](),
+		allFeatures:                       newObservationCache[state.Feature](),
 		managedOrganizationTeams:          newObservationCache[state.OrganizationTeam](),
 		portalTeamsByPortalID:             make(map[string][]state.PortalTeam),
 		portalIdentityProvidersByPortalID: make(map[string][]state.PortalIdentityProvider),
@@ -308,4 +317,32 @@ func namespaceCacheKey(normalizedNamespaces []string) string {
 		return ""
 	}
 	return strings.Join(normalizedNamespaces, ",")
+}
+
+func (p *Planner) listMeters(ctx context.Context) ([]state.Meter, error) {
+	var cache *observationCache[state.Meter]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.allMeters
+	}
+	return cache.list(
+		ctx,
+		[]string{"*"},
+		false,
+		func(ctx context.Context, _ []string) ([]state.Meter, error) { return p.client.ListMeters(ctx) },
+		func(m state.Meter) string { return m.Labels[labels.NamespaceKey] },
+	)
+}
+
+func (p *Planner) listFeatures(ctx context.Context) ([]state.Feature, error) {
+	var cache *observationCache[state.Feature]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.allFeatures
+	}
+	return cache.list(
+		ctx,
+		[]string{"*"},
+		false,
+		func(ctx context.Context, _ []string) ([]state.Feature, error) { return p.client.ListFeatures(ctx) },
+		func(m state.Feature) string { return m.Labels[labels.NamespaceKey] },
+	)
 }

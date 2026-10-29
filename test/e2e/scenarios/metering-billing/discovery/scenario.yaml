@@ -1,0 +1,24 @@
+test:
+  requiresPAT: false
+steps:
+  - name: discovery
+    skipInputs: true
+    commands:
+      - name: scaffold
+        run: [scaffold, metering-billing.meters]
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'meters:')": true
+                "contains(stdout, 'aggregation: count')": true
+                "contains(stdout, 'event_type: request')": true
+      - name: explain
+        run: [explain, metering-billing.meters.event_type]
+        outputFormat: text
+        parseAs: raw
+        assertions:
+          - expect:
+              fields:
+                "contains(stdout, 'OPTIONAL: false')": true

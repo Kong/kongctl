@@ -8,6 +8,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,6 +41,14 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 			func(update *kkComps.UpdateAIGatewayRequest) map[string]string {
 				return update.Labels
 			})
+	})
+	t.Run("meter", func(t *testing.T) {
+		covered[resources.ResourceTypeMeter] = true
+		verifyStringManagedLabels(
+			t,
+			NewMeterAdapter(nil),
+			func(update *kkComps.UpdateMeterRequest) map[string]string { return update.Labels },
+		)
 	})
 	t.Run("dashboard", func(t *testing.T) {
 		covered[resources.ResourceTypeDashboard] = true
@@ -78,11 +87,42 @@ func TestProtectableAdaptersMapProtectionOnlyLabelUpdates(t *testing.T) {
 	})
 	t.Run("organization_team", func(t *testing.T) {
 		covered[resources.ResourceTypeOrganizationTeam] = true
-		verifyPointerManagedLabels(t, NewOrganizationTeamAdapter(nil), func(update *kkComps.UpdateTeam) map[string]*string {
-			return update.Labels
-		})
+		verifyPointerManagedLabels(
+			t,
+			NewOrganizationTeamAdapter(nil),
+			func(update *kkComps.UpdateTeam) map[string]*string {
+				return update.Labels
+			},
+		)
 	})
 
+	t.Run("feature rejects protection changes", func(t *testing.T) {
+		covered[resources.ResourceTypeFeature] = true
+		adapter := NewFeatureAdapter(nil)
+		var request helpers.FeatureUpdateRequest
+		change := planner.PlannedChange{Protection: planner.ProtectionChange{Old: true, New: false}}
+		require.ErrorContains(
+			t,
+			adapter.MapUpdateFields(t.Context(), NewExecutionContext(&change), map[string]any{}, &request, nil),
+			"protection cannot change",
+		)
+	})
+
+	for _, kind := range []helpers.BillingKind{
+		helpers.BillingTaxCode,
+		helpers.BillingApp,
+		helpers.BillingProfile,
+		helpers.BillingPlan,
+	} {
+		t.Run(string(kind), func(t *testing.T) {
+			covered[resources.BillingResourceType(kind)] = true
+			verifyStringManagedLabels(
+				t,
+				&BillingCatalogAdapter{kind: kind},
+				func(update *map[string]any) map[string]string { return helpers.BillingObject(*update).Labels() },
+			)
+		})
+	}
 	assertAllProtectableResourcesCovered(t, covered)
 }
 
