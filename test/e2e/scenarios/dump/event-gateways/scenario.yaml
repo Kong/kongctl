@@ -81,6 +81,7 @@ steps:
                 backend_clusters[0].name: dump-backend-cluster
                 length(virtual_clusters): 1
                 virtual_clusters[0].name: dump-virtual-cluster
+                virtual_clusters[0].destination.name: dump-backend-cluster
                 length(virtual_clusters[0].cluster_policies): 1
                 virtual_clusters[0].cluster_policies[0].type: acls
                 virtual_clusters[0].cluster_policies[0].config.rules[0].action: deny
@@ -89,7 +90,7 @@ steps:
                 length(virtual_clusters[0].consume_policies): 1
                 virtual_clusters[0].consume_policies[0].type: modify_headers
                 length(listeners): 1
-                listeners[0].ports[0]: 9092
+                listeners[0].ports[0]: '9092'
                 length(listeners[0].policies): 1
                 listeners[0].policies[0].config.sni_suffix: .example.com
                 length(schema_registries): 1
@@ -153,6 +154,7 @@ steps:
                 backend_clusters[0].name: dump-backend-cluster
                 length(virtual_clusters): 1
                 virtual_clusters[0].name: dump-virtual-cluster
+                virtual_clusters[0].destination.name: dump-backend-cluster
                 length(virtual_clusters[0].cluster_policies): 1
                 virtual_clusters[0].cluster_policies[0].type: acls
                 virtual_clusters[0].cluster_policies[0].config.rules[0].action: deny
@@ -161,7 +163,7 @@ steps:
                 length(virtual_clusters[0].consume_policies): 1
                 virtual_clusters[0].consume_policies[0].type: modify_headers
                 length(listeners): 1
-                listeners[0].ports[0]: 9092
+                listeners[0].ports[0]: '9092'
                 length(listeners[0].policies): 1
                 listeners[0].policies[0].config.sni_suffix: .example.com
                 length(schema_registries): 1
@@ -170,7 +172,38 @@ steps:
                 contains(tls_trust_bundles[0].config.trusted_ca, '-----BEGIN CERTIFICATE-----'): true
                 length(data_plane_certificates): 1
                 contains(data_plane_certificates[0].certificate, '-----BEGIN CERTIFICATE-----'): true
-      - name: plan-round-trip
+      - name: get-recreated-backend
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - egw-dump-test
+          - -o
+          - json
+        recordVar:
+          name: recreatedBackendID
+          responsePath: "[?name=='dump-backend-cluster'] | [0].id"
+        assertions:
+          - select: "length([?name=='dump-backend-cluster'])"
+            expect:
+              fields:
+                '@': 1
+      - name: verify-recreated-destination
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - egw-dump-test
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='dump-virtual-cluster'] | [0].destination.id"
+            expect:
+              fields:
+                '@': '{{ .vars.recreatedBackendID }}'
+      - name: plan-round-trip-after-recreate
         run:
           - plan
           - -f
