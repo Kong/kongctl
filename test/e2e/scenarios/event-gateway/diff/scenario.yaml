@@ -69,12 +69,12 @@ steps:
           - select: "plan.summary"
             expect:
               fields:
-                total_changes: 12
-                by_action.CREATE: 12
+                total_changes: 15
+                by_action.CREATE: 15
           - select: "summary"
             expect:
               fields:
-                applied: 12
+                applied: 15
                 failed: 0
           - select: >-
               plan.changes[?resource_type=='event_gateway' &&
@@ -189,8 +189,8 @@ steps:
           - select: "summary"
             expect:
               fields:
-                total_changes: 11
-                by_action.UPDATE: 8
+                total_changes: 13
+                by_action.UPDATE: 10
                 by_action.CREATE: 2
                 by_action.DELETE: 1
           - expect:
@@ -277,6 +277,23 @@ steps:
                 action: UPDATE
                 "not_null(changed_fields.description.new, fields.description)": "{{ .vars.dataplaneCertUpdatedDesc }}"
 
+          - select: changes[?resource_ref=='diff-request-rules'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                changed_fields.config.old.requests[0].rules[0].rule: context.produce.acks == -1
+                changed_fields.config.new.requests[0].rules[0].rule: context.produce.acks != 0
+                changed_fields.enabled.new: false
+          - select: changes[?resource_ref=='diff-mask'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                changed_fields.config.old.mask_fields[0].strategy.type: replace
+                changed_fields.config.new.mask_fields[0].strategy.type: keep_chars
+                changed_fields.config.new.mask_fields[0].strategy.last: 4
+                changed_fields.parent_policy_id: null
+                changed_fields.enabled.new: false
+
       # Verify Konnect state was NOT modified (diff is read-only)
       - name: 001-verify-state-unchanged
         run:
@@ -314,12 +331,23 @@ steps:
           - "{{ .vars.vcName }}"
           - -o
           - json
+        recordVar:
+          name: diffSchemaID
+          responsePath: "[?name=='diff-schema'] | [0].id"
         assertions:
           - select: "[?name=='diff-produce-policy'] | [0]"
             expect:
               fields:
                 enabled: true
                 "config.actions[0].value": "initial"
+          - select: '[?name==''diff-mask''] | [0]'
+            expect:
+              fields:
+                enabled: true
+                type: mask_fields
+                config.mask_fields[0].strategy.type: replace
+                config.mask_fields[0].strategy.phrase: '[REDACTED]'
+                parent_policy_id: '{{ .vars.diffSchemaID }}'
       - name: 004-verify-cluster-policy-unchanged
         run:
           - get
@@ -336,13 +364,20 @@ steps:
           - select: "length(@)"
             expect:
               fields:
-                "@": 1
-          - select: "[0]"
+                "@": 2
+          - select: "[?name=='{{ .vars.clusterPolicyName }}'] | [0]"
             expect:
               fields:
                 name: "{{ .vars.clusterPolicyName }}"
                 enabled: true
                 "config.rules[0].action": deny
+
+          - select: '[?name==''diff-request-rules''] | [0]'
+            expect:
+              fields:
+                enabled: true
+                type: request_rule_validator
+                config.requests[0].rules[0].rule: context.produce.acks == -1
 
       - name: 005-verify-consume-policy-unchanged
         run:

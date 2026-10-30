@@ -40,6 +40,25 @@ event_gateways:
                 - op: set
                   key: x-diff-test
                   value: initial
+          - ref: diff-schema
+            name: diff-schema
+            type: schema_validation
+            config:
+              type: json
+              validate_value: true
+              failure_mode: reject
+          - ref: diff-mask
+            name: diff-mask
+            type: mask_fields
+            enabled: true
+            parent_policy_id: !ref 'diff-schema#id'
+            config:
+              failure_mode: reject
+              mask_fields:
+                - paths: record.value.content["customer.ssn"]
+                  strategy:
+                    type: replace
+                    phrase: '[REDACTED]'
         cluster_policies:
           - ref: diff-cluster-policy
             name: diff-cluster-policy
@@ -53,6 +72,17 @@ event_gateways:
                   resource_names:
                     - match: "*"
                   resource_type: "transactional_id"
+          - ref: diff-request-rules
+            name: diff-request-rules
+            type: request_rule_validator
+            enabled: true
+            config:
+              requests:
+                - type: produce
+                  rules:
+                    - action: reject
+                      description: Require producer acknowledgements
+                      rule: context.produce.acks == -1
         consume_policies:
           - ref: diff-consume-policy
             name: diff-consume-policy
