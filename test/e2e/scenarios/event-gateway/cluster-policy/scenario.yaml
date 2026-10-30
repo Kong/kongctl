@@ -230,11 +230,11 @@ steps:
                   rules:
                     - action: "allow"
                       operations:
-                      - name: "describe_configs"
+                        - name: "describe_configs"
                       resource_names:
-                      - match: "*updated"
+                        - match: "*updated"
                       resource_type: "transactional_id"
-                
+
   - name: 003-idempotency-check
     inputOverlayDirs:
       - overlays/001-update-fields
@@ -440,3 +440,376 @@ steps:
             expect:
               fields:
                 "@": 0
+
+  - name: 007-request-rules-create
+    inputOverlayDirs:
+      - overlays/007-request-rules-create
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='request-rules'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        replanOnRetry:
+          - '{{ .workdir }}/config.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: request-rules
+                type: request_rule_validator
+                description: Validate produce requests
+                enabled: true
+                labels:
+                  env: test
+                length(config.requests): 1
+                config.requests[0].type: produce
+                config.requests[0].rules[0].action: reject
+                config.requests[0].rules[0].rule: context.produce.acks == -1
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 008-request-rules-update
+    inputOverlayDirs:
+      - overlays/008-request-rules-update
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: changes[?resource_ref=='request-rules'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+      - name: apply
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        replanOnRetry:
+          - '{{ .workdir }}/config.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: request-rules
+                type: request_rule_validator
+                description: Validate produce requests updated
+                enabled: false
+                labels:
+                  env: staging
+                length(config.requests): 1
+                config.requests[0].type: produce
+                config.requests[0].rules[0].action: reject
+                config.requests[0].rules[0].rule: context.produce.acks != 0
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 009-request-rules-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[?resource_ref=='request-rules'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 010-request-rules-root-create
+    inputOverlayDirs:
+      - overlays/010-request-rules-root-create
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='request-rules'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        replanOnRetry:
+          - '{{ .workdir }}/config.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: request-rules
+                type: request_rule_validator
+                description: Validate produce requests
+                enabled: true
+                labels:
+                  env: test
+                length(config.requests): 1
+                config.requests[0].type: produce
+                config.requests[0].rules[0].action: reject
+                config.requests[0].rules[0].rule: context.produce.acks == -1
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 011-request-rules-root-delete
+    inputOverlayDirs:
+      - overlays/004-sync-delete-root-level-declaration
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[?resource_ref=='request-rules'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - cluster-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0

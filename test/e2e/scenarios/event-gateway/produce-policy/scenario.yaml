@@ -1032,7 +1032,330 @@ steps:
                 name: "{{ .vars.svPolicyName }}"
                 type: schema_validation
 
-  - name: 013-schema-validation-sync-delete
+  - name: 013-mask_fields-create
+    inputOverlayDirs:
+      - overlays/010-mask_fields
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='mask_fields-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        replanOnRetry:
+          - '{{ .workdir }}/config.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 2
+          - select: '[?name==''mask_fields-policy''] | [0]'
+            expect:
+              fields:
+                config.failure_mode: reject
+                parent_policy_id: '{{ .vars.schemaValidationPolicyID }}'
+                type: mask_fields
+                enabled: true
+                length(config.mask_fields): 1
+                config.mask_fields[0].paths: record.value.content["customer.ssn"]
+                config.mask_fields[0].strategy.type: replace
+                config.mask_fields[0].strategy.phrase: '[REDACTED]'
+        recordVar:
+          name: schemaValidationPolicyID
+          responsePath: '[?type==''schema_validation''] | [0].id'
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 014-mask_fields-delete
+    inputOverlayDirs:
+      - overlays/006-update-schema-validation
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[?resource_ref=='mask_fields-policy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: '{{ .vars.svPolicyName }}'
+                type: schema_validation
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 015-transcode-create
+    inputOverlayDirs:
+      - overlays/011-transcode
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='transcode-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        replanOnRetry:
+          - '{{ .workdir }}/config.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                status: success
+      - name: get-transcode-schema-registry
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - -o
+          - json
+        recordVar:
+          name: transcodeRegistryID
+          responsePath: "[?name=='{{ .vars.schemaRegistryName }}'] | [0].id"
+        assertions:
+          - select: "length([?name=='{{ .vars.schemaRegistryName }}'])"
+            expect:
+              fields:
+                '@': 1
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 2
+          - select: '[?name==''transcode-policy''] | [0]'
+            expect:
+              fields:
+                config.failure_mode: reject
+                parent_policy_id: '{{ .vars.schemaValidationPolicyID }}'
+                type: transcode
+                enabled: true
+                config.output_format: avro
+                config.schema_source.type: reference
+                config.schema_source.schema_registry.id: '{{ .vars.transcodeRegistryID }}'
+                config.schema_source.subject: '''orders-value'''
+                config.schema_source.version: '''latest'''
+        recordVar:
+          name: schemaValidationPolicyID
+          responsePath: '[?type==''schema_validation''] | [0].id'
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 016-transcode-delete
+    inputOverlayDirs:
+      - overlays/006-update-schema-validation
+    commands:
+      - name: plan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[?resource_ref=='transcode-policy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+                status: success
+      - name: verify
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: '{{ .vars.svPolicyName }}'
+                type: schema_validation
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+
+  - name: 017-schema-validation-sync-delete
     inputOverlayDirs:
       - overlays/007-sync-delete-schema-validation
     commands:
