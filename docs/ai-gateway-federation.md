@@ -1,4 +1,4 @@
-# AI Gateway federation: release scope and migration
+# AI Gateway federation: release scope and ownership setup
 
 Teams can manage children of a shared AI Gateway from separate declarative
 sources and kongctl namespaces. Each participating child owns its namespace
@@ -70,27 +70,53 @@ alone does not imply federation.
   are warned and skipped individually. Sync rejects malformed owned prune
   candidates during planning.
 
-## Migration checklist
+## Creating new children
 
-Existing manifests containing `managed_by` must remove that field. Kongctl now
-replaces the complete remote tool map rather than preserving outside entries.
-Regenerate saved plans created under the earlier metadata-preservation policy.
+Independent child ownership is a new feature. Configure the intended namespace
+and protection through `kongctl` metadata or file defaults. Kongctl generates
+the remote ownership metadata when it creates a participating child; no
+separate adoption step is needed for a new child.
+
+## Ownership setup for existing resources
+
+Use these steps to establish ownership for children created through older
+kongctl versions, the Konnect UI, or the API. Each child must belong to the
+intended namespace before kongctl can manage it under the new ownership model.
 
 1. Inventory existing children and their intended namespace/protection. A
-   matching unowned object fails planning; old public labels do not adopt it.
-2. Explicitly adopt or transfer each existing child through the API, using
-   the family guide. References and source defaults never grant authority.
-   Do not apply a generated dump as an implicit adoption operation.
+   matching unowned object fails planning; public labels do not establish
+   child ownership.
+2. Explicitly adopt an unowned child through the API, using the family guide.
+   Transfer is needed only when changing an existing namespace assignment;
+   a child already owned by the intended namespace needs neither operation.
+   Review dependencies and credential-preservation limits before writing.
+   References and source defaults never grant authority. Do not apply a
+   generated dump as an implicit adoption operation.
 3. Set each source's `_defaults.kongctl.namespace` or explicit child metadata.
-   Review the plan, especially empty collection scope and name collisions.
-   Names remain gateway-wide identities within each family.
+   After adoption or transfer, generate a new plan so it reflects the current
+   remote ownership. Review empty collection scope and name collisions.
+   Names remain gateway-wide identities within each family. Every existing
+   child declared in one load must have matching ownership before that load
+   can reconcile successfully.
 4. Unprotect with a metadata-only operation before payload updates, credential
    rotation, or deletion. Group owners retain control of the complete optional
    membership set, including foreign consumers; omission preserves membership.
 5. Use `labels` for user-defined metadata. Direct `managed_by` input is
    rejected; kongctl generates and replaces the complete map. Configure
-   ownership and protection through `kongctl`. See [the staged managed_by
-   migration guide][migration] for later resource enrollment.
+   ownership and protection through `kongctl`. See the [contributor guide for
+   staged resource enrollment][enrollment] for other resource types.
+
+## Reserved metadata input validation
+
+`managed_by` is reserved for Kong tools. A validation bug previously allowed
+this field in declarative input; configurations relying on that invalid input
+now fail validation. Remove direct `managed_by` fields and use `labels` for
+user metadata or `kongctl` for supported ownership and protection settings.
+Regenerate any saved plans generated from those invalid manifests. This
+correction is separate from setting up ownership for existing resources.
+
+Kongctl generates and replaces the complete remote `managed_by` map rather
+than preserving outside entries. Do not use it to store user metadata.
 
 ## Deferred operations and API limitations
 
@@ -130,4 +156,4 @@ See the linked family guides for the exact evidence.
 [custom]: ai-gateway-custom-policy-ownership.md
 [agents]: ai-gateway-agent-ownership.md
 [remaining]: ai-gateway-remaining-child-ownership.md
-[migration]: contributor/managed-by.md
+[enrollment]: contributor/managed-by.md
