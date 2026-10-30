@@ -52,7 +52,7 @@ func (i PortalIntegrationResource) Validate() error {
 
 	if i.GoogleTagManager != nil {
 		if i.GoogleTagManager.Type != "" &&
-			i.GoogleTagManager.Type != kkComps.TypeTracking {
+			i.GoogleTagManager.Type != kkComps.GoogleTagManagerIntegrationTypeTracking {
 			return fmt.Errorf("google_tag_manager type must be 'tracking'")
 		}
 		if i.GoogleTagManager.ConfigData.ID == "" {
@@ -81,7 +81,7 @@ func (i PortalIntegrationResource) Validate() error {
 
 func (i *PortalIntegrationResource) SetDefaults() {
 	if i.GoogleTagManager != nil && i.GoogleTagManager.Type == "" {
-		i.GoogleTagManager.Type = kkComps.TypeTracking
+		i.GoogleTagManager.Type = kkComps.GoogleTagManagerIntegrationTypeTracking
 	}
 	if i.GoogleAnalytics4 != nil && i.GoogleAnalytics4.Type == "" {
 		i.GoogleAnalytics4.Type = kkComps.GoogleAnalytics4IntegrationTypeAnalytics

@@ -626,7 +626,7 @@ func adjustControlPlaneAPIImplementationDeleteDependencies(changes []PlannedChan
 	for i := range rs.APIImplementations {
 		implementation := &rs.APIImplementations[i]
 		var controlPlaneID string
-		if service := implementation.ServiceReferenceInput.GetService(); service != nil {
+		if service := implementation.ServiceReference.GetService(); service != nil {
 			controlPlaneID = service.ControlPlaneID
 		}
 		if controlPlane := implementation.ControlPlaneReference.GetControlPlane(); controlPlane != nil {
@@ -1927,7 +1927,7 @@ func (p *Planner) resolveAPIImplementationReferences(rs *resources.ResourceSet) 
 			controlPlane.ID = resolved
 			continue
 		}
-		service := impl.ServiceReferenceInput.GetService()
+		service := impl.ServiceReference.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference before normalization",
@@ -1946,7 +1946,7 @@ func (p *Planner) resolveAPIImplementationReferences(rs *resources.ResourceSet) 
 		if err := p.normalizeAPIImplementationService(impl, serviceByRef, controlPlaneByRef); err != nil {
 			return err
 		}
-		service = impl.ServiceReferenceInput.GetService()
+		service = impl.ServiceReference.GetService()
 		if service == nil {
 			p.logger.Debug(
 				"API implementation missing service reference after normalization",
@@ -2003,7 +2003,7 @@ func (p *Planner) normalizeAPIImplementationService(
 	serviceByRef map[string]*resources.GatewayServiceResource,
 	controlPlaneByRef map[string]*resources.ControlPlaneResource,
 ) error {
-	if impl.ServiceReferenceInput == nil {
+	if impl.ServiceReference == nil {
 		p.logger.Debug(
 			"API implementation has nil service reference; skipping normalization",
 			slog.String("api_implementation_ref", impl.GetRef()),
@@ -2012,7 +2012,7 @@ func (p *Planner) normalizeAPIImplementationService(
 		return nil
 	}
 
-	service := impl.ServiceReferenceInput.GetService()
+	service := impl.ServiceReference.GetService()
 	if service == nil {
 		p.logger.Debug(
 			"API implementation has nil service; skipping normalization",

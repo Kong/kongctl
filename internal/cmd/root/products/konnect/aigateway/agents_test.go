@@ -14,7 +14,7 @@ func TestAIGatewayAgentDetailViewIncludesAuthStrategies(t *testing.T) {
 		ID:          "agent-id",
 		Name:        "booking-agent",
 		DisplayName: "Booking Agent",
-		Type:        kkComps.AIGatewayAgentTypeA2a,
+		Type:        kkComps.TypeA2a,
 		Access: &kkComps.AIGatewayAgentAccess{
 			AuthStrategies: []string{"support-key-auth"},
 		},

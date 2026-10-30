@@ -727,10 +727,10 @@ func setStringFieldByPath(resource resources.Resource, path, value string) error
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
 		switch path {
 		case "service.id", "service.control_plane_id":
-			if implementation.ServiceReferenceInput == nil {
+			if implementation.ServiceReference == nil {
 				return fmt.Errorf("service is not configured")
 			}
-			service := implementation.ServiceReferenceInput.GetService()
+			service := implementation.ServiceReference.GetService()
 			if service == nil {
 				return fmt.Errorf("service is not configured")
 			}
@@ -791,10 +791,10 @@ func stringFieldByPath(resource resources.Resource, path string) (string, error)
 	if implementation, ok := resource.(*resources.APIImplementationResource); ok {
 		switch path {
 		case "service.id", "service.control_plane_id":
-			if implementation.ServiceReferenceInput == nil || implementation.ServiceReferenceInput.GetService() == nil {
+			if implementation.ServiceReference == nil || implementation.ServiceReference.GetService() == nil {
 				return "", nil
 			}
-			service := implementation.ServiceReferenceInput.GetService()
+			service := implementation.ServiceReference.GetService()
 			if path == "service.id" {
 				return service.ID, nil
 			}

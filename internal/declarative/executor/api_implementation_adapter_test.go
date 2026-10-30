@@ -22,7 +22,7 @@ func TestAPIImplementationAdapterMapCreateFields(t *testing.T) {
 			fields: map[string]any{planner.FieldService: map[string]any{
 				planner.FieldID: "service-id", planner.FieldControlPlaneID: "control-plane-id",
 			}},
-			wantType: kkComps.APIImplementationTypeServiceReferenceInput,
+			wantType: kkComps.APIImplementationTypeServiceReference,
 		},
 		{
 			name: "control plane",

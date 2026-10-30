@@ -20,7 +20,7 @@ func ownedAgent(
 		BaseResource: resources.BaseResource{Ref: name, Kongctl: &resources.KongctlMeta{Namespace: new(namespace)}},
 		AIGateway:    "shared", CreateAIGatewayAgentRequest: kkComps.CreateAIGatewayAgentRequest{
 			Name: name, DisplayName: name, Type: "a2a", Enabled: new(true),
-			Config: kkComps.CreateAIGatewayAgentRequestConfig{URL: "https://example.com"},
+			Config: kkComps.Config{URL: "https://example.com"},
 		},
 	}
 

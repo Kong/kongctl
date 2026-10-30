@@ -42,7 +42,7 @@ func (a *APIVersionAPIImpl) CreateAPIVersion(ctx context.Context, apiID string, 
 	}
 	return a.SDK.APIVersion.CreateAPIVersion(
 		ctx,
-		kkOps.CreateAPIVersionRequest{APIID: apiID, CreateAPIVersionRequest: request},
+		apiID, request,
 		opts...,
 	)
 }
@@ -103,7 +103,7 @@ func (a *APIVersionAPIImpl) FetchAPIVersion(ctx context.Context, apiID string, v
 	}
 	return a.SDK.APIVersion.FetchAPIVersion(
 		ctx,
-		kkOps.FetchAPIVersionRequest{APIID: apiID, VersionID: versionID},
+		apiID, versionID,
 		opts...,
 	)
 }

@@ -52,12 +52,7 @@ func TestRoleAssignmentLifecycleAdapters(t *testing.T) {
 					}[kind]
 					require.EqualError(t, err, fmt.Sprintf("duplicate %s %q for %s %q",
 						prefix, scenario.duplicate+"|*|APIs|us", owner, "owner"))
-					require.Len(
-						t,
-						plan.Changes,
-						1,
-						"retain earlier creates; stop before later creates and pruning",
-					)
+					require.Len(t, plan.Changes, 1, "retain earlier creates; stop before later creates and pruning")
 				} else {
 					require.NoError(t, err)
 					count := 2
@@ -78,11 +73,7 @@ func TestRoleAssignmentLifecycleAdapters(t *testing.T) {
 				for _, change := range plan.Changes {
 					require.Equal(t, string(kind), change.ResourceType)
 				}
-				require.Empty(
-					t,
-					p.matchedIdentities,
-					"set reconciliation must not bind payload identities",
-				)
+				require.Empty(t, p.matchedIdentities, "set reconciliation must not bind payload identities")
 			})
 		}
 	}
@@ -118,9 +109,7 @@ func roleAssignmentLifecycleFixture(
 				_ ...kkOps.Option,
 			) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
 				require.Equal(t, "owner-id", id)
-				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
-					AssignedRoleCollection: observed,
-				}, nil
+				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{AssignedRoleCollection: observed}, nil
 			},
 		},
 		PortalTeamRolesAPI: &stubExternalPortalTeamRolesAPI{
@@ -130,8 +119,7 @@ func roleAssignmentLifecycleFixture(
 				for _, role := range observed.Data {
 					roles = append(roles, kkComps.PortalAssignedRoleResponse{
 						ID: *role.ID, RoleName: *role.RoleName, EntityID: *role.EntityID,
-						EntityTypeName: *role.EntityTypeName,
-						EntityRegion:   kkComps.PortalAssignedRoleResponseEntityRegion(*role.EntityRegion),
+						EntityTypeName: *role.EntityTypeName, EntityRegion: kkComps.EntityRegion(*role.EntityRegion),
 					})
 				}
 				return roles
@@ -169,13 +157,11 @@ func roleAssignmentLifecycleFixture(
 					EntityID: "*", EntityTypeName: "APIs", EntityRegion: "US",
 				})
 		case resources.ResourceTypeOrganizationSystemAccountRole:
-			p.resources.OrganizationSystemAccountRoles = append(
-				p.resources.OrganizationSystemAccountRoles,
+			p.resources.OrganizationSystemAccountRoles = append(p.resources.OrganizationSystemAccountRoles,
 				resources.OrganizationSystemAccountRoleResource{
 					Ref: ref, SystemAccount: "owner", RoleName: name,
 					EntityID: "*", EntityTypeName: "APIs", EntityRegion: "US",
-				},
-			)
+				})
 		case resources.ResourceTypeOrganizationTeamRole:
 			p.resources.OrganizationTeamRoles = append(p.resources.OrganizationTeamRoles,
 				resources.OrganizationTeamRoleResource{
@@ -200,22 +186,10 @@ func roleAssignmentLifecycleFixture(
 		case resources.ResourceTypeOrganizationSystemAccountRole:
 			return org.planOrganizationSystemAccountRoleChanges(t.Context(), "default", plan)
 		case resources.ResourceTypeOrganizationTeamRole:
-			return org.planOrganizationTeamRoleChanges(
-				t.Context(),
-				"default",
-				p.resources.OrganizationTeams,
-				map[string]state.OrganizationTeam{},
-				plan,
-			)
+			return org.planOrganizationTeamRoleChanges(t.Context(), "default", p.resources.OrganizationTeams,
+				map[string]state.OrganizationTeam{}, plan)
 		case resources.ResourceTypePortalTeamRole:
-			return p.planPortalTeamRolesChanges(
-				t.Context(),
-				"default",
-				"portal-id",
-				"portal",
-				"Portal",
-				plan,
-			)
+			return p.planPortalTeamRolesChanges(t.Context(), "default", "portal-id", "portal", "Portal", plan)
 		default:
 			return fmt.Errorf("unsupported role assignment fixture %s", kind)
 		}

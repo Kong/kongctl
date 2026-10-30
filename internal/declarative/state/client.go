@@ -287,7 +287,7 @@ type GatewayService struct {
 	ID             string
 	Name           string
 	ControlPlaneID string
-	Service        kkComps.ServiceOutput
+	Service        kkComps.Service
 }
 
 // CatalogService represents a catalog service for internal use.
@@ -2524,7 +2524,7 @@ func (c *Client) UpdateAPIVersion(
 		APIVersionRequest: version,
 	}
 	if allowOperationRemoval {
-		req.Force = kkOps.QueryParamForceTrue.ToPointer()
+		req.Force = kkOps.UpdateAPIVersionQueryParamForceTrue.ToPointer()
 	}
 
 	resp, err := c.apiVersionAPI.UpdateAPIVersion(ctx, req)
@@ -4110,18 +4110,12 @@ func normalizePortalIdentityProviderConfig(
 	}
 
 	switch config.Type {
-	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig:
-		if config.PortalOIDCIdentityProviderConfig == nil {
+	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
+		if config.PortalOIDCIdentityProviderConfigOutput == nil {
 			return nil
 		}
-		oidc := config.PortalOIDCIdentityProviderConfig
 		converted := kkComps.CreateIdentityProviderConfigOIDCIdentityProviderConfigOutput(
-			kkComps.OIDCIdentityProviderConfigOutput{
-				IssuerURL:     oidc.IssuerURL,
-				ClientID:      oidc.ClientID,
-				Scopes:        oidc.Scopes,
-				ClaimMappings: oidc.ClaimMappings,
-			},
+			kkComps.OIDCIdentityProviderConfigOutput(*config.PortalOIDCIdentityProviderConfigOutput),
 		)
 		return &converted
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:

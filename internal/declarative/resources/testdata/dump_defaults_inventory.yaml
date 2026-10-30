@@ -1,4 +1,4 @@
-sdk_version: v0.77.0
+sdk_version: v0.79.0
 schema_version: 1
 resources:
   - resource_type: ai_cost_management_tags
@@ -2107,34 +2107,6 @@ resources:
     exclusions: []
   - resource_type: portal
     defaults:
-      - path: ai.enabled
-        type: boolean
-        value: false
-        source: sdk
-      - path: ai.features.ai_search.enabled
-        type: boolean
-        value: false
-        source: sdk
-      - path: ai.features.mcp_server.enabled
-        type: boolean
-        value: false
-        source: sdk
-      - path: ai.features.mcp_server.write_operations_enabled
-        type: boolean
-        value: false
-        source: sdk
-      - path: ai.features.portal_agent.audience
-        type: string
-        value: all
-        source: sdk
-      - path: ai.features.portal_agent.display_name
-        type: string
-        value: AI
-        source: sdk
-      - path: ai.features.portal_agent.enabled
-        type: boolean
-        value: false
-        source: sdk
       - path: auth_settings.oidc_claim_mappings.email
         type: string
         value: email

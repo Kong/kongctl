@@ -42,7 +42,7 @@ func TestParseEndpoint_Empty(t *testing.T) {
 
 func TestRenderHelmValues(t *testing.T) {
 	cp := &kkComps.ControlPlane{
-		Config: kkComps.Config{
+		Config: kkComps.ControlPlaneConfig{
 			ControlPlaneEndpoint: "https://f47a4e996f.us.cp.konghq.com",
 			TelemetryEndpoint:    "https://f47a4e996f.us.tp.konghq.com",
 		},
@@ -67,7 +67,7 @@ func TestRenderHelmValues(t *testing.T) {
 
 func TestRenderHelmValues_TelemetryWithExplicitPort(t *testing.T) {
 	cp := &kkComps.ControlPlane{
-		Config: kkComps.Config{
+		Config: kkComps.ControlPlaneConfig{
 			ControlPlaneEndpoint: "https://example.us.cp.konghq.com",
 			TelemetryEndpoint:    "https://example.us.tp.konghq.com:8443",
 		},
@@ -86,7 +86,7 @@ func TestRenderHelmValues_TelemetryWithExplicitPort(t *testing.T) {
 
 func TestRenderHelmValues_IPv6Telemetry(t *testing.T) {
 	cp := &kkComps.ControlPlane{
-		Config: kkComps.Config{
+		Config: kkComps.ControlPlaneConfig{
 			ControlPlaneEndpoint: "https://[2001:db8::1]",
 			TelemetryEndpoint:    "https://[2001:db8::2]",
 		},

@@ -181,7 +181,7 @@ func TestAgentUnprotectionPreservesFreshDefaultsAndRejectsPayloadInjection(t *te
 				req.Config.URL = "https://changed.example.com"
 			case "password":
 				req.Config.Proxy = &kkComps.AIGatewayProxyConfig{
-					Auth: &kkComps.Auth{Username: new("user"), Password: new("synthetic-injected")},
+					Auth: &kkComps.AIGatewayProxyConfigAuth{Username: new("user"), Password: new("synthetic-injected")},
 				}
 			case "type":
 				req.Type = "http"
@@ -234,7 +234,7 @@ func TestAgentSecretOnlyWritesRevalidateOwnershipAndProtection(t *testing.T) {
 				var req kkComps.UpdateAIGatewayAgentRequest
 				require.NoError(t, adapter.MapUpdateFields(t.Context(), ctx, fields, &req, nil))
 				req.Config.Proxy = &kkComps.AIGatewayProxyConfig{
-					Auth: &kkComps.Auth{Username: new("user"), Password: new("synthetic-rotation")},
+					Auth: &kkComps.AIGatewayProxyConfigAuth{Username: new("user"), Password: new("synthetic-rotation")},
 				}
 				_, err := adapter.Update(t.Context(), "agent-id", req, "team-a", ctx)
 				if owner != "team-a" || protected {

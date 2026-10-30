@@ -518,8 +518,8 @@ func TestBuildPortalIdentityProviders_MapsOIDCAndSAMLChildren(t *testing.T) {
 						Type:    &oidcType,
 						Enabled: &oidcEnabled,
 						Config: &kkComps.PortalIdentityProviderConfig{
-							Type: kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfig,
-							PortalOIDCIdentityProviderConfig: &kkComps.PortalOIDCIdentityProviderConfig{
+							Type: kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput,
+							PortalOIDCIdentityProviderConfigOutput: &kkComps.PortalOIDCIdentityProviderConfigOutput{
 								IssuerURL: "https://issuer.example.test",
 								ClientID:  "client-id",
 								Scopes:    []string{"openid", "email"},
@@ -790,7 +790,7 @@ func TestCollectOrganizationSystemAccountsFromTeamMemberships(t *testing.T) {
 				*kkOps.GetSystemAccountsAccountIDAssignedRolesQueryParamFilter,
 				...kkOps.Option,
 			) (*kkOps.GetSystemAccountsAccountIDAssignedRolesResponse, error) {
-				region := kkComps.EntityRegion(entityRegion)
+				region := kkComps.AssignedRoleEntityRegion(entityRegion)
 				return &kkOps.GetSystemAccountsAccountIDAssignedRolesResponse{
 					AssignedRoleCollection: &kkComps.AssignedRoleCollection{
 						Meta: &kkComps.PaginatedMeta{Page: kkComps.PageMeta{Total: 1}},

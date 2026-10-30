@@ -17,8 +17,8 @@ func TestCrossReferenceValidationDiagnosticOrder(t *testing.T) {
 		return resources.APIImplementationResource{
 			Ref: ref,
 			APIImplementation: kkComps.APIImplementation{
-				Type: kkComps.APIImplementationTypeServiceReferenceInput,
-				ServiceReferenceInput: &kkComps.ServiceReferenceInput{
+				Type: kkComps.APIImplementationTypeServiceReference,
+				ServiceReference: &kkComps.ServiceReference{
 					Service: &kkComps.APIImplementationService{ControlPlaneID: "11111111-1111-4111-8111-111111111111"},
 				},
 			},

@@ -403,7 +403,7 @@ func testAIGatewayAgent(policies []string) kkComps.AIGatewayAgent {
 		ID:          "agent-id",
 		ManagedBy:   resources.BuildChildManagedBy("default", false, "dev"),
 		Name:        "booking-agent",
-		Type:        kkComps.AIGatewayAgentTypeA2a,
+		Type:        kkComps.TypeA2a,
 		DisplayName: "Booking Agent",
 		Enabled:     &enabled,
 		Config: kkComps.AIGatewayAgentConfig{

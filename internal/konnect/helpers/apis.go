@@ -101,7 +101,7 @@ func (a *APIAPIImpl) UpdateAPI(ctx context.Context, apiID string, request kkComp
 		UpdateAPIRequest: request,
 	}
 	if force {
-		req.Force = kkOps.ForceTrue.ToPointer()
+		req.Force = kkOps.QueryParamForceTrue.ToPointer()
 	}
 	return a.SDK.API.UpdateAPI(ctx, req, opts...)
 }
@@ -121,7 +121,7 @@ func (a *APIAPIImpl) CreateAPIVersion(ctx context.Context, apiID string, request
 ) (*kkOps.CreateAPIVersionResponse, error) {
 	return a.SDK.APIVersion.CreateAPIVersion(
 		ctx,
-		kkOps.CreateAPIVersionRequest{APIID: apiID, CreateAPIVersionRequest: request},
+		apiID, request,
 		opts...,
 	)
 }
