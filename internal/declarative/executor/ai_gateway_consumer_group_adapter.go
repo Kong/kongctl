@@ -215,15 +215,7 @@ func cloneFieldsWithoutAIGatewayConsumerGroupMembership(fields map[string]any) m
 func (a *AIGatewayConsumerGroupAdapter) getAIGatewayIDFromExecutionContext(
 	execCtx *ExecutionContext,
 ) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	if gatewayID := aiGatewayIDFromChange(execCtx.PlannedChange); gatewayID != "" {
-		return gatewayID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Consumer Group operations")
+	return aiGatewayIDFromExecutionContext(execCtx, "Consumer Group", true)
 }
 
 type aiGatewayConsumerGroupResourceInfo struct {

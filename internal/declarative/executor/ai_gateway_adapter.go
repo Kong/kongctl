@@ -193,13 +193,22 @@ func aiGatewayIDFromExecutionContext(execCtx *ExecutionContext, resource string,
 	if execCtx == nil || execCtx.PlannedChange == nil {
 		return "", fmt.Errorf("execution context required")
 	}
-	change := execCtx.PlannedChange
+	if id := aiGatewayIDFromChange(execCtx.PlannedChange, useParent); id != "" {
+		return id, nil
+	}
+	return "", fmt.Errorf("AI Gateway ID required for %s operations", resource)
+}
+
+func aiGatewayIDFromChange(change *planner.PlannedChange, useParent bool) string {
+	if change == nil {
+		return ""
+	}
 	if ref, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(ref.ID) {
-		return ref.ID, nil
+		return ref.ID
 	}
 	// Consumer credentials have a consumer parent rather than a gateway parent.
 	if useParent && change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
+		return change.Parent.ID
 	}
-	return "", fmt.Errorf("AI Gateway ID required for %s operations", resource)
+	return ""
 }
