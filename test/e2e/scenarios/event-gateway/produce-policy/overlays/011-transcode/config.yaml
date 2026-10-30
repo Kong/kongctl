@@ -57,12 +57,18 @@ event_gateways:
               schema_source:
                 type: reference
                 schema_registry:
-                  id: !ref 'schema-registry-for-produce-policy#id'
+                  id: !ref 'transcode-avro-registry#id'
                 subject: '''orders-value'''
                 version: '''latest'''
                 schema_ref_destination:
                   type: confluent_format
     schema_registries:
+      - ref: transcode-avro-registry
+        name: transcode-avro-registry
+        type: confluent
+        config:
+          schema_type: avro
+          endpoint: https://schema-registry.example.com
       - ref: schema-registry-for-produce-policy
         name: schema-registry-for-produce-policy-name
         description: Schema Registry for Produce Policy Test

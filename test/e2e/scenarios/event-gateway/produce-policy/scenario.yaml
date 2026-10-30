@@ -1201,8 +1201,13 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.CREATE: 1
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='transcode-avro-registry'] | [0]
+            expect:
+              fields:
+                action: CREATE
+                fields.config.schema_type: avro
           - select: changes[?resource_ref=='transcode-policy'] | [0]
             expect:
               fields:
@@ -1232,12 +1237,21 @@ steps:
           - json
         recordVar:
           name: transcodeRegistryID
-          responsePath: "[?name=='{{ .vars.schemaRegistryName }}'] | [0].id"
+          responsePath: "[?name=='transcode-avro-registry'] | [0].id"
         assertions:
-          - select: "length([?name=='{{ .vars.schemaRegistryName }}'])"
+          - select: "length([?name=='transcode-avro-registry'])"
             expect:
               fields:
                 '@': 1
+          - select: "[?name=='transcode-avro-registry'] | [0]"
+            expect:
+              fields:
+                type: confluent
+                config.schema_type: avro
+          - select: "[?name=='{{ .vars.schemaRegistryName }}'] | [0]"
+            expect:
+              fields:
+                config.schema_type: json
       - name: verify
         run:
           - get
@@ -1303,9 +1317,13 @@ steps:
           - select: summary
             expect:
               fields:
-                total_changes: 1
-                by_action.DELETE: 1
+                total_changes: 2
+                by_action.DELETE: 2
           - select: changes[?resource_ref=='transcode-policy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+          - select: changes[?resource_type=='event_gateway_schema_registry' && resource_ref=='transcode-avro-registry'] | [0]
             expect:
               fields:
                 action: DELETE
@@ -1319,7 +1337,7 @@ steps:
           - select: summary
             expect:
               fields:
-                applied: 1
+                applied: 2
                 failed: 0
                 status: success
       - name: verify
@@ -1344,6 +1362,25 @@ steps:
               fields:
                 name: '{{ .vars.svPolicyName }}'
                 type: schema_validation
+      - name: verify-json-registry-preserved
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: '{{ .vars.schemaRegistryName }}'
+                config.schema_type: json
       - name: idempotency
         run:
           - plan
