@@ -1,7 +1,8 @@
 # Tests for dump declarative --resources=control_planes with and without
 # --include-child-resources.  Verifies that gateway services are absent in
 # the dump output when child resources are not requested and populated when
-# they are.  Also exercises the round-trip idempotency and --filter-name flag.
+# they are, alongside pinned data plane certificates. Also exercises the
+# round-trip idempotency and --filter-name flag.
 
 baseInputsPath: ./testdata
 
@@ -38,6 +39,13 @@ steps:
             expect:
               fields:
                 resource_ref: e2e-dump-cp
+          - name: data-plane-certificate-created
+            select: >-
+              plan.changes[?resource_type=='control_plane_data_plane_certificate' &&
+                            action=='CREATE'] | [0]
+            expect:
+              fields:
+                resource_ref: e2e-dump-data-plane-cert
 
   # ── dump without --include-child-resources ────────────────────
   - name: 002-dump-no-children
@@ -61,6 +69,7 @@ steps:
             expect:
               fields:
                 gateway_services: null
+                data_plane_certificates: null
 
   # ── dump with --include-child-resources + round-trip idempotency ──
   - name: 003-dump-with-children-and-round-trip
@@ -87,6 +96,13 @@ steps:
             expect:
               fields:
                 "length(@)": 1
+          - name: data-plane-certificate-populated
+            select: "control_planes[?name=='e2e-dump-cp'] | [0].data_plane_certificates"
+            expect:
+              fields:
+                "length(@)": 1
+                "contains([0].cert, '-----BEGIN CERTIFICATE-----')": true
+                "contains([0].cert, '-----END CERTIFICATE-----')": true
 
       - name: 001-round-trip-plan
         outputFormat: disable
