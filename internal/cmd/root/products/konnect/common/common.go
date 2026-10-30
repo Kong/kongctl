@@ -309,15 +309,12 @@ func ResolveBaseURL(cfg config.Hook) (string, error) {
 	}
 
 	region := strings.TrimSpace(cfg.GetString(RegionConfigPath))
-	var resolved string
-	if region != "" {
-		r, err := BuildBaseURLFromRegion(region)
-		if err != nil {
-			return "", err
-		}
-		resolved = r
-	} else {
-		resolved = BaseURLDefault
+	if region == "" {
+		region = "us"
+	}
+	resolved, err := BuildBaseURLFromRegionForEnvironment(region, cfg.GetString(EnvironmentConfigPath))
+	if err != nil {
+		return "", err
 	}
 
 	cfg.SetString(BaseURLConfigPath, resolved)

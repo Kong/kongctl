@@ -19,6 +19,15 @@ func NormalizeAIGatewayProvider(provider kkComps.AIGatewayModelProvider) (AIGate
 		return AIGatewayProvider{}, err
 	}
 
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return AIGatewayProvider{}, err
+	}
+	var writable resources.AIGatewayProviderResource
+	if err := json.Unmarshal(data, &writable); err != nil {
+		return AIGatewayProvider{}, err
+	}
+
 	labels := stringMapFromRaw(raw["labels"])
 	normalizedLabels := resources.NormalizedChildOwnership(stringMapFromRaw(raw["managed_by"]))
 
@@ -30,6 +39,8 @@ func NormalizeAIGatewayProvider(provider kkComps.AIGatewayModelProvider) (AIGate
 		Labels:           labels,
 		ManagedBy:        stringMapFromRaw(raw["managed_by"]),
 		Config:           mapFromRaw(raw["config"]),
+		Datastores:       writable.Datastores,
+		TokenVault:       writable.TokenVault,
 		CreatedAt:        timeStringFromRaw(raw["created_at"]),
 		UpdatedAt:        timeStringFromRaw(raw["updated_at"]),
 		Raw:              raw,

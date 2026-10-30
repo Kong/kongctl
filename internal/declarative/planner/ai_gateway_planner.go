@@ -296,6 +296,9 @@ func (p *Planner) planAIGatewayUpdate(
 	if current.ProxyUrls != nil {
 		fields[FieldProxyURLs] = current.ProxyUrls
 	}
+	if current.ManagedBy != nil {
+		fields[FieldManagedBy] = current.ManagedBy
+	}
 	if current.MinRuntimeVersion != nil {
 		fields[FieldMinRuntimeVersion] = *current.MinRuntimeVersion
 	}

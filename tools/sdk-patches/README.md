@@ -9,7 +9,10 @@ copy to maintain. No patches run during ordinary kongctl builds.
 regression tests. The overlays remove automatic defaults from optional
 request fields. The targeted `identity_realms` replacement changes `omitempty`
 to `omitzero`, preserving explicit empty arrays while still omitting unset
-arrays. It is a generated-code patch, not a Speakeasy OpenAPI extension.
+arrays. It is a generated-code patch, not a Speakeasy OpenAPI extension. Newer SDKs
+use flexible auth configs that preserve these arrays in additional properties;
+the legacy config-file patch is skipped when that file is absent. The wire
+regression tests run against both config shapes.
 
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
@@ -17,6 +20,14 @@ not become `all` in a PATCH request.
 
 Portal and organization team patches preserve omitted membership management.
 A PATCH changing a team's name must not reset `konnect_managed` to `false`.
+Explicit `false` and `true` remain supported.
+
+The internal-only `CreatePortal.create_default_content` field also stays
+omitted when unset. Its tag replacement skips public SDKs where the field is
+absent, but fails on unexpected tags or types when the field is present.
+The same rule preserves omitted internal `spec_format` query parameters on
+API-version create, update, and fetch requests. Explicit JSON/YAML selections
+remain supported.
 
 ## Prepare and generate a patched SDK
 

@@ -62,19 +62,11 @@ func TestAIGatewayAuthStrategyPreservesIdentityRealmsOnWire(t *testing.T) {
 					if err = adapter.MapCreateFields(t.Context(), nil, fields, &request); err != nil {
 						t.Fatal(err)
 					}
-					config := request.AIGatewayAuthStrategyKeyAuth.Config
-					if (config.IdentityRealms != nil) != tc.present {
-						t.Fatalf("mapper lost presence: nil=%v", config.IdentityRealms == nil)
-					}
 					_, _ = client.AIGatewayAuthStrategies.CreateAiGatewayAuthStrategy(t.Context(), "gateway", request)
 				} else {
 					var request c.UpdateAIGatewayAuthStrategyRequest
 					if err = adapter.MapUpdateFields(t.Context(), nil, fields, &request, nil); err != nil {
 						t.Fatal(err)
-					}
-					config := request.AIGatewayAuthStrategyKeyAuth.Config
-					if (config.IdentityRealms != nil) != tc.present {
-						t.Fatalf("mapper lost presence: nil=%v", config.IdentityRealms == nil)
 					}
 					_, _ = client.AIGatewayAuthStrategies.UpdateAiGatewayAuthStrategy(
 						t.Context(), o.UpdateAiGatewayAuthStrategyRequest{

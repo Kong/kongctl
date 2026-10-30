@@ -206,6 +206,11 @@ func aiGatewayAuthStrategyPayloadFromFields(fields map[string]any) (map[string]a
 	if managedBy, ok := fields[planner.FieldManagedBy]; ok {
 		payload[planner.FieldManagedBy] = managedBy
 	}
+	for _, field := range []string{planner.FieldDatastores, planner.FieldTokenVault} {
+		if value, ok := fields[field]; ok {
+			payload[field] = value
+		}
+	}
 	return payload, nil
 }
 

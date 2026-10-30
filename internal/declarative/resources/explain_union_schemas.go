@@ -45,7 +45,12 @@ func autoExplainSDKUnionNode(
 	if len(branches) == 0 {
 		return nil, false, nil
 	}
-	return explainUnionNode(branches...), true, nil
+	node := explainUnionNode(branches...)
+	// Route matchers are anyOf. SDK unions of string alternatives also overlap
+	// once reflected into a shape schema (for example an enum or vault reference).
+	node.inclusiveUnion = typ == reflect.TypeFor[kkComps.AIGatewayMCPServerRouteWithMatcher]() ||
+		(node.Kind == explainKindString && explainOneOfBranchesShareKind(branches))
+	return node, true, nil
 }
 
 func explainConstDiscriminator(typ reflect.Type) (string, string, bool) {
@@ -172,6 +177,7 @@ func explainRefreshUnionAggregate(node *ExplainNode) {
 	branches := node.OneOf
 	refreshed := explainAggregateUnionNode(branches...)
 	refreshed.OneOf = branches
+	refreshed.inclusiveUnion = node.inclusiveUnion
 	*node = *refreshed
 }
 

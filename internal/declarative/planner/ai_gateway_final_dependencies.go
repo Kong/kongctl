@@ -46,6 +46,8 @@ func (p *Planner) resolveFinalAIGatewayDependencies(ctx context.Context, plan *P
 			continue
 		}
 		seen[key] = true
+		addAIGatewayDatastoreDependencies(plan, ref, id)
+		addAIGatewayOutboundTLSDependencies(plan, ref, id)
 		if err := p.resolveAIGatewayReferenceDeletes(ctx, "", ref, id, plan); err != nil {
 			return err
 		}

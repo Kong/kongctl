@@ -50,6 +50,7 @@ func NewAIGatewayCmd(
 		root.AddCommand(newGetAIGatewayMCPServersCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayConfigStoresCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayVaultsCmd(verb, addParentFlags, parentPreRun))
+		root.AddCommand(newGetAIGatewayDatastoresCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayNodesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayDataPlaneCertificatesCmd(verb, addParentFlags, parentPreRun))
 		root.AddCommand(newGetAIGatewayCertificatesCmd(verb, addParentFlags, parentPreRun))

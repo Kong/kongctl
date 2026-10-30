@@ -920,6 +920,108 @@ Use `certificates: []`, `ca_certificates: []`, or `snis: []` under a gateway to
 sync-delete that collection. Dumps omit private keys and can be planned again
 without reporting drift solely because those keys are unavailable.
 
+## AI Gateway 2.3 configuration
+
+Use a gateway running AI Gateway 2.3 for Token Vault, MCP method/tool rate
+limits, Baseten targets, Bedrock Mantle endpoints, and the new outbound TLS
+configuration on agents and MCP servers. A spec or SDK snapshot alone does
+not enable these features on an older backend or data plane.
+
+Datastores support nested `ai_gateways[].datastores` and root-level
+`ai_gateway_datastores` declarations with an `ai_gateway` parent. Supported
+types are `redis-ce`, `redis-ee`, `vectordb`, and `token-vault`. Each datastore
+requires explicit `name`, `display_name`, `type`, and `config` fields.
+
+```yaml
+ai_gateways:
+  - ref: support
+    name: support
+    display_name: Support
+    min_runtime_version: "2.3"
+    datastores:
+      - ref: credential-store
+        name: credential-store
+        display_name: Credential storage
+        type: token-vault
+        config:
+          directory: support-credentials
+          current_version: v1
+          keys:
+            - version: v1
+              key: !secret {source: !env TOKEN_VAULT_ENCRYPTION_KEY}
+```
+
+Providers and MCP servers using `token_vault` require exactly one datastore
+reference, such as `datastores: [{name: !ref credential-store#name}]`, to a
+`token-vault` datastore under the same gateway. Auth strategies require it
+when `token_vault.enable_credential_manager` is true. Configure the upstream
+credential provider using `token_vault.provider` on providers and MCP servers.
+The API's resolved `token_vault.storage` is read-only and is not exported as
+writable configuration.
+
+See the [Token Vault example](examples/declarative/ai-gateway/token-vault.yaml)
+for a complete MCP passthrough listener and model provider sharing a datastore.
+The named Token Vault directory and provider registration must already exist;
+these declarations configure their use, rather than create the registration.
+See the [example prerequisites](examples/declarative/ai-gateway/README.md)
+for enrollment and encryption-key setup.
+
+Encryption keys and datastore credentials use deferred `!secret` sources.
+Existing write-only values require `--write-secret` or `--write-secrets` for
+an intentional rewrite. Keep previous key versions while rotating keys so
+existing credentials remain decryptable. Dump preserves key version metadata;
+it cannot recover encryption key material. Konnect-managed datastores are
+excluded from dump and sync pruning. Datastore deletion checks usage and
+requires dependent resources to detach or be deleted first.
+
+Agent and MCP `config.certificates` and `config.ca_certificates` contain
+certificate names. Use `!ref my-cert#name` for declarations in the same gateway.
+MCP `rate_limiting.limits` entries target exactly one `method` or `tool`, with
+a positive `limit` and a `window_size` of 1, 60, 3600, or 86400 seconds. Limits
+are counted independently on each AI Gateway node. Rate limiting applies to
+listener-style MCP servers, not upstream-only server definitions.
+
+MCP server and tool ACLs also accept `allow_when` and `deny_when` arrays of
+CEL boolean expressions with runtime 2.3. These fields can be used under
+`access.acls`, `access.default_tool_acls`, and tool-level `access.acls`.
+
+Auth strategy configs use the SDK-generated plugin schemas, including OIDC
+`credential_claims` and upstream header mappings. `explain` lists the supported
+configuration fields for each authentication strategy.
+
+Policies accept an `expressions` map for runtime 2.3 policy configuration
+expressions. Gateway PUT updates preserve existing server `managed_by`
+metadata. This field is reserved for Kong tools and cannot be declared in
+manifests.
+
+### Organization-wide AI cost-tag capture
+
+`ai_cost_management_tags` is a regional organization-wide singleton, separate
+from gateway children. Declare at most one entry across the loaded manifest:
+
+```yaml
+ai_cost_management_tags:
+  - ref: cost-capture
+    headers:
+      - name: my-tenant-id
+        tag_key: tenant
+    prefixes:
+      - name: my-co
+```
+
+Both arrays are required. Apply and sync replace this configuration through
+PUT. Omission, including an empty root collection, leaves capture untouched.
+Explicit `headers: []` and `prefixes: []` reset custom capture; the API still
+captures its built-in `ai-cost-` headers. Delete mode is unsupported. Configure
+capture in the intended Konnect region using the usual region/base URL flags.
+The API rejects credential header names and prefixes.
+
+Use `kongctl get ai-cost-management tag-capture` to inspect it,
+`kongctl apply -f cost-capture.yaml` to manage the declarative configuration,
+or
+`kongctl dump declarative --resources ai_cost_management_tags` to export it.
+Use `kongctl get ai-gateway datastores --gateway-name support` to list stores.
+
 ## Configuration Templates
 
 Use a top-level `_templates` configuration block to define named, reusable

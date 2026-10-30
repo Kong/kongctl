@@ -21,6 +21,7 @@ func TestAIGatewayChildLoadRegistrations(t *testing.T) {
 		ResourceTypeAIGatewayConfigStore,
 		ResourceTypeAIGatewayConfigStoreSecret,
 		ResourceTypeAIGatewayVault,
+		ResourceTypeAIGatewayDatastore,
 		ResourceTypeAIGatewayDataPlaneCertificate,
 		ResourceTypeAIGatewayCertificate,
 		ResourceTypeAIGatewayCACertificate,

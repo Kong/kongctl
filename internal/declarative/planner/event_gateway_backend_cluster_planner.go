@@ -590,7 +590,7 @@ func backendClusterAuthenticationFields(auth components.BackendClusterAuthentica
 		}
 	case components.BackendClusterAuthenticationSchemeTypeSaslAwsIam:
 		if auth.BackendClusterAuthenticationSaslAwsIam != nil {
-			fields["sasl_aws_iam"] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
+			fields[FieldSASLAWSIAM] = auth.BackendClusterAuthenticationSaslAwsIam.SaslAwsIam
 		}
 	}
 	return fields

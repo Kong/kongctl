@@ -199,6 +199,7 @@ func (p *Planner) shouldUpdateAIGatewayAgent(
 		desiredPayload[FieldLabels] = desired.Labels
 	}
 	currentCompare, desiredCompare := normalizeAIGatewayPayloadsForComparison(currentPayload, desiredPayload)
+	normalizeAIGateway23References(desiredCompare, p.resources, desired.AIGateway)
 	currentCompare = scrubAIGatewayAgentWriteOnlyFields(currentCompare)
 	desiredCompare = scrubAIGatewayAgentWriteOnlyFields(desiredCompare)
 	updateFields := clonePayloadMap(desiredPayload)

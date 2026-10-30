@@ -72,6 +72,7 @@ func init() {
 			func(r *AIGatewayCACertificateResource) *BaseResource { return &r.BaseResource },
 			func(r *AIGatewayCACertificateResource) string { return r.AIGateway },
 		),
+		WithExternalUnsupportedReason("AI Gateway CA certificate lookup requires gateway-scoped name materialization"),
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,

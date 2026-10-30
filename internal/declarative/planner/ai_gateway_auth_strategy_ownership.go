@@ -96,7 +96,7 @@ func (p *Planner) reconcileOwnedAIGatewayAuthStrategies(
 		if err := resources.ValidateChildManagedBy(strategy.ManagedBy, false); err != nil {
 			return err
 		}
-		update, fields, changed, err := shouldUpdateAIGatewayAuthStrategy(*full, strategy)
+		update, fields, changed, err := shouldUpdateAIGatewayAuthStrategy(*full, strategy, p.resources)
 		if err != nil {
 			return err
 		}

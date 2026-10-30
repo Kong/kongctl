@@ -22,16 +22,22 @@ func TestAIGatewayAuthStrategyExplainRequiresOpenIDConnectAPIFields(t *testing.T
 	require.True(t, issuer.Required)
 }
 
-func TestAIGatewayAuthStrategyExplainUsesClosedSDKConfigProperties(t *testing.T) {
+func TestAIGatewayAuthStrategyExplainIncludesGeneratedConfigProperties(t *testing.T) {
 	node, err := aiGatewayAuthStrategyExplainNode(ExplainBuildContext{})
 	require.NoError(t, err)
 
-	for _, providerType := range []string{"key-auth", "openid-connect"} {
+	for providerType, fields := range map[string][]string{
+		"key-auth":       {"identity_realms", "principals"},
+		"openid-connect": {"credential_claims", "upstream_headers_claims", "upstream_headers_names", "principals"},
+	} {
 		t.Run(providerType, func(t *testing.T) {
 			branch := aiGatewayAuthStrategyExplainBranch(t, node, providerType)
 			configField := branch.propIndex["config"]
 			require.NotNil(t, configField)
-			require.Nil(t, configField.Node.Additional)
+			require.NotEmpty(t, configField.Node.Properties)
+			for _, field := range fields {
+				require.Contains(t, configField.Node.propIndex, field)
+			}
 		})
 	}
 }

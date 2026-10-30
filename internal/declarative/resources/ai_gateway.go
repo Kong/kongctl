@@ -78,6 +78,7 @@ type AIGatewayResource struct {
 	MCPServers            []AIGatewayMCPServerResource            `yaml:"mcp_servers,omitempty" json:"mcp_servers,omitempty"`     //nolint:lll
 	ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty" json:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty" json:"vaults,omitempty"`
+	Datastores            []AIGatewayDatastoreResource            `yaml:"datastores,omitempty" json:"datastores,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty" json:"data_plane_certificates,omitempty"` //nolint:lll
 	Certificates          []AIGatewayCertificateResource          `yaml:"certificates,omitempty" json:"certificates,omitempty"`                       //nolint:lll
 	CACertificates        []AIGatewayCACertificateResource        `yaml:"ca_certificates,omitempty" json:"ca_certificates,omitempty"`                 //nolint:lll
@@ -123,6 +124,7 @@ type aiGatewayAlias struct {
 	MCPServers            []AIGatewayMCPServerResource            `json:"mcp_servers,omitempty" yaml:"mcp_servers,omitempty"`     //nolint:lll
 	ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty" yaml:"config_stores,omitempty"` //nolint:lll
 	Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"      yaml:"vaults,omitempty"`
+	Datastores            []AIGatewayDatastoreResource            `json:"datastores,omitempty" yaml:"datastores,omitempty"`
 	DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty" yaml:"data_plane_certificates,omitempty"` //nolint:lll
 	Certificates          []AIGatewayCertificateResource          `json:"certificates,omitempty" yaml:"certificates,omitempty"`                       //nolint:lll
 	CACertificates        []AIGatewayCACertificateResource        `json:"ca_certificates,omitempty" yaml:"ca_certificates,omitempty"`                 //nolint:lll
@@ -153,6 +155,7 @@ func (a AIGatewayResource) aiGatewayAlias() aiGatewayAlias {
 		MCPServers:            a.MCPServers,
 		ConfigStores:          a.ConfigStores,
 		Vaults:                a.Vaults,
+		Datastores:            a.Datastores,
 		DataPlaneCertificates: a.DataPlaneCertificates,
 		Certificates:          a.Certificates,
 		CACertificates:        a.CACertificates,
@@ -203,6 +206,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 		MCPServers            []AIGatewayMCPServerResource            `yaml:"mcp_servers,omitempty"`
 		ConfigStores          []AIGatewayConfigStoreResource          `yaml:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `yaml:"vaults,omitempty"`
+		Datastores            []AIGatewayDatastoreResource            `yaml:"datastores,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `yaml:"data_plane_certificates,omitempty"`
 		Certificates          []AIGatewayCertificateResource          `yaml:"certificates,omitempty"`
 		CACertificates        []AIGatewayCACertificateResource        `yaml:"ca_certificates,omitempty"`
@@ -229,6 +233,7 @@ func (a *AIGatewayResource) UnmarshalYAML(unmarshal func(any) error) error {
 	a.MCPServers = raw.MCPServers
 	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
+	a.Datastores = raw.Datastores
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
 	a.Certificates = raw.Certificates
 	a.CACertificates = raw.CACertificates
@@ -276,6 +281,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 		MCPServers            []AIGatewayMCPServerResource            `json:"mcp_servers,omitempty"`
 		ConfigStores          []AIGatewayConfigStoreResource          `json:"config_stores,omitempty"`
 		Vaults                []AIGatewayVaultResource                `json:"vaults,omitempty"`
+		Datastores            []AIGatewayDatastoreResource            `json:"datastores,omitempty"`
 		DataPlaneCertificates []AIGatewayDataPlaneCertificateResource `json:"data_plane_certificates,omitempty"`
 		Certificates          []AIGatewayCertificateResource          `json:"certificates,omitempty"`
 		CACertificates        []AIGatewayCACertificateResource        `json:"ca_certificates,omitempty"`
@@ -302,6 +308,7 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	a.MCPServers = raw.MCPServers
 	a.ConfigStores = raw.ConfigStores
 	a.Vaults = raw.Vaults
+	a.Datastores = raw.Datastores
 	a.DataPlaneCertificates = raw.DataPlaneCertificates
 	a.Certificates = raw.Certificates
 	a.CACertificates = raw.CACertificates
@@ -310,7 +317,9 @@ func (a *AIGatewayResource) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.CreateAIGatewayRequest, error) {
+func aiGatewayRequestFromDeclarativeFields(
+	fields map[string]any,
+) (kkComps.CreateAIGatewayRequest, error) {
 	payload := maps.Clone(fields)
 	for _, field := range []string{
 		SchemaFieldRef,
@@ -337,11 +346,17 @@ func aiGatewayRequestFromDeclarativeFields(fields map[string]any) (kkComps.Creat
 
 	data, err := json.Marshal(payload)
 	if err != nil {
-		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf("failed to encode AI Gateway request fields: %w", err)
+		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf(
+			"failed to encode AI Gateway request fields: %w",
+			err,
+		)
 	}
 	var request kkComps.CreateAIGatewayRequest
 	if err := json.Unmarshal(data, &request); err != nil {
-		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf("failed to decode AI Gateway request fields: %w", err)
+		return kkComps.CreateAIGatewayRequest{}, fmt.Errorf(
+			"failed to decode AI Gateway request fields: %w",
+			err,
+		)
 	}
 	if _, present := fields["runtime_auto_upgrade"]; !present {
 		request.RuntimeAutoUpgrade = nil
@@ -434,6 +449,9 @@ func (a *AIGatewayResource) SetDefaults() {
 	for i := range a.Vaults {
 		a.Vaults[i].SetDefaults()
 	}
+	for i := range a.Datastores {
+		a.Datastores[i].SetDefaults()
+	}
 	for i := range a.DataPlaneCertificates {
 		a.DataPlaneCertificates[i].SetDefaults()
 	}
@@ -478,20 +496,35 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 		explainExternalField(),
 		explainField("name", explainStringNode("my-ai-gateway"), true, true),
 		explainField("display_name", explainStringNode("My AI Gateway"), true, true),
-		explainField("description", &ExplainNode{Kind: explainKindString, Nullable: true}, false, false),
+		explainField(
+			"description",
+			&ExplainNode{Kind: explainKindString, Nullable: true},
+			false,
+			false,
+		),
 		explainField("deployment_type", explainStringNode("hybrid"), false, false),
 		explainField("min_runtime_version", explainStringNode("2.1"), false, false),
 		explainField("runtime_auto_upgrade", explainBoolNode("true"), false, false),
 		explainField("proxy_urls", explainArrayOf(explainObject(
 			explainField("host", explainStringNode("proxy.example.com"), true, true),
-			explainField("port", &ExplainNode{Kind: explainKindInteger, Literal: "443"}, true, true),
+			explainField(
+				"port",
+				&ExplainNode{Kind: explainKindInteger, Literal: "443"},
+				true,
+				true,
+			),
 			explainField("protocol", explainStringNode("https"), true, true),
 		)), false, false),
 		explainField("labels", &ExplainNode{
 			Kind:       explainKindObject,
 			Additional: explainStringNode("value"),
 		}, false, false),
-		explainField("model_providers", explainArrayOf(inlineExplainNode(aiGatewayProviderExplainNode)), false, false),
+		explainField(
+			"model_providers",
+			explainArrayOf(inlineExplainNode(aiGatewayProviderExplainNode)),
+			false,
+			false,
+		),
 		explainField(
 			SchemaFieldAuthStrategies,
 			explainArrayOf(aiGatewayAuthStrategyInlineExplainNode()),
@@ -504,9 +537,24 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 			false,
 		),
-		explainField("policies", explainArrayOf(inlineExplainNode(aiGatewayPolicyExplainNode)), false, false),
-		explainField("agents", explainArrayOf(inlineExplainNode(aiGatewayAgentExplainNode)), false, false),
-		explainField("consumers", explainArrayOf(inlineExplainNode(aiGatewayConsumerExplainNode)), false, false),
+		explainField(
+			"policies",
+			explainArrayOf(inlineExplainNode(aiGatewayPolicyExplainNode)),
+			false,
+			false,
+		),
+		explainField(
+			"agents",
+			explainArrayOf(inlineExplainNode(aiGatewayAgentExplainNode)),
+			false,
+			false,
+		),
+		explainField(
+			"consumers",
+			explainArrayOf(inlineExplainNode(aiGatewayConsumerExplainNode)),
+			false,
+			false,
+		),
 		explainField(
 			"consumer_groups",
 			explainArrayOf(inlineExplainNode(aiGatewayConsumerGroupExplainNode)),
@@ -514,17 +562,48 @@ func aiGatewayExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {
 			false,
 		),
 		explainField("models", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
-		explainField("mcp_servers", explainArrayOf(inlineExplainNode(aiGatewayMCPServerExplainNode)), false, false),
-		explainField("config_stores", explainArrayOf(inlineExplainNode(aiGatewayConfigStoreExplainNode)), false, false),
-		explainField("vaults", explainArrayOf(inlineExplainNode(aiGatewayVaultExplainNode)), false, false),
+		explainField(
+			"mcp_servers",
+			explainArrayOf(inlineExplainNode(aiGatewayMCPServerExplainNode)),
+			false,
+			false,
+		),
+		explainField(
+			"config_stores",
+			explainArrayOf(inlineExplainNode(aiGatewayConfigStoreExplainNode)),
+			false,
+			false,
+		),
+		explainField(
+			"vaults",
+			explainArrayOf(inlineExplainNode(aiGatewayVaultExplainNode)),
+			false,
+			false,
+		),
+		explainField(
+			"datastores",
+			explainArrayOf(inlineExplainNode(aiGatewayDatastoreExplainNode)),
+			false,
+			false,
+		),
 		explainField(
 			"data_plane_certificates",
 			explainArrayOf(inlineExplainNode(aiGatewayDataPlaneCertificateExplainNode)),
 			false,
 			false,
 		),
-		explainField("certificates", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
-		explainField("ca_certificates", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
+		explainField(
+			"certificates",
+			explainArrayOf(&ExplainNode{Kind: explainKindObject}),
+			false,
+			false,
+		),
+		explainField(
+			"ca_certificates",
+			explainArrayOf(&ExplainNode{Kind: explainKindObject}),
+			false,
+			false,
+		),
 		explainField("snis", explainArrayOf(&ExplainNode{Kind: explainKindObject}), false, false),
 	), nil
 }

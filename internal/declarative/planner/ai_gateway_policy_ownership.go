@@ -100,7 +100,7 @@ func (p *Planner) reconcileOwnedAIGatewayPolicies(
 		if err := resources.ValidateChildManagedBy(policy.ManagedBy, false); err != nil {
 			return err
 		}
-		update, fields, changed, err := shouldUpdateAIGatewayPolicy(*full, policy)
+		update, fields, changed, err := shouldUpdateAIGatewayPolicy(*full, policy, p.resources)
 		if err != nil {
 			return err
 		}

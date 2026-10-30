@@ -554,6 +554,7 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 		DisplayName: "AI Gateway",
 		Name:        "sdk-name",
 		Description: &description,
+		ManagedBy:   map[string]string{"tool": "kongctl"},
 		ProxyUrls: []kkComps.AIGatewayProxyURL{
 			{Host: "proxy.example.com", Port: 443, Protocol: "https"},
 		},
@@ -565,6 +566,9 @@ func TestMapAIGatewayToDeclarativeResource(t *testing.T) {
 	}
 
 	resource := mapAIGatewayToDeclarativeResource(gateway)
+	if len(resource.ManagedBy) != 0 {
+		t.Fatalf("expected reserved managed_by metadata to be omitted, got %v", resource.ManagedBy)
+	}
 
 	if resource.Ref != gateway.ID {
 		t.Fatalf("expected ref %q, got %q", gateway.ID, resource.Ref)

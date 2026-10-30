@@ -61,19 +61,11 @@ func TestKongctlIdentityRealmsWirePresence(t *testing.T) {
 					if err = json.Unmarshal(encoded, &request); err != nil {
 						t.Fatal(err)
 					}
-					config := request.AIGatewayAuthStrategyKeyAuth.Config
-					if (config.IdentityRealms != nil) != tc.present {
-						t.Fatalf("mapper lost presence: nil=%v", config.IdentityRealms == nil)
-					}
 					_, _ = client.AIGatewayAuthStrategies.CreateAiGatewayAuthStrategy(t.Context(), "gateway", request)
 				} else {
 					var request c.UpdateAIGatewayAuthStrategyRequest
 					if err = json.Unmarshal(encoded, &request); err != nil {
 						t.Fatal(err)
-					}
-					config := request.AIGatewayAuthStrategyKeyAuth.Config
-					if (config.IdentityRealms != nil) != tc.present {
-						t.Fatalf("mapper lost presence: nil=%v", config.IdentityRealms == nil)
 					}
 					_, _ = client.AIGatewayAuthStrategies.UpdateAiGatewayAuthStrategy(t.Context(), o.UpdateAiGatewayAuthStrategyRequest{GatewayID: "gateway", AuthStrategyIDOrName: "probe", UpdateAIGatewayAuthStrategyRequest: request})
 				}

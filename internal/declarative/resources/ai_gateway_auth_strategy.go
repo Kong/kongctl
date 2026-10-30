@@ -3,6 +3,7 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -29,7 +30,14 @@ func init() {
 				"ai-gateway-auth-strategies",
 				"aigw-auth-strategy",
 			),
-			WithExplainRecommendedFields("ref", SchemaFieldAIGateway, "name", "type", "display_name", "config"),
+			WithExplainRecommendedFields(
+				"ref",
+				SchemaFieldAIGateway,
+				"name",
+				"type",
+				"display_name",
+				"config",
+			),
 			WithExplainSchemaBuilder(aiGatewayAuthStrategyExplainNode),
 		),
 		aiGatewayChildLoad[AIGatewayAuthStrategyResource]{
@@ -52,7 +60,10 @@ func init() {
 		WithManagedBy(ManagedByPolicy{MaxEntries: 5}),
 		WithChildSyncScope(
 			ResourceTypeAIGateway,
-			WithEmptyRootCollectionError(20, "each Auth Strategy must declare an ai_gateway parent"),
+			WithEmptyRootCollectionError(
+				20,
+				"each Auth Strategy must declare an ai_gateway parent",
+			),
 		),
 	)
 }
@@ -68,6 +79,10 @@ type AIGatewayAuthStrategyResource struct {
 	Labels      map[string]string `yaml:"labels,omitempty"     json:"labels,omitempty"`
 	ManagedBy   map[string]string `yaml:"managed_by,omitempty" json:"managed_by,omitempty"`
 	Config      map[string]any    `yaml:"config"               json:"config"`
+
+	Datastores []kkComps.AIGatewayDatastoreRef `yaml:"datastores,omitempty" json:"datastores,omitempty"`
+
+	TokenVault *kkComps.AIGatewayTokenVaultCredentialManagerInput `yaml:"token_vault,omitempty" json:"token_vault,omitempty"` //nolint:lll
 }
 
 // GetType returns the resource type.
@@ -115,7 +130,10 @@ func (a AIGatewayAuthStrategyResource) Validate() error {
 	}
 	if a.Type == aiGatewayAuthStrategyTypeOpenIDConnect {
 		if issuer, ok := a.Config["issuer"].(string); !ok || strings.TrimSpace(issuer) == "" {
-			return fmt.Errorf("config.issuer is required for OpenID Connect AI Gateway Auth Strategy %s", a.Ref)
+			return fmt.Errorf(
+				"config.issuer is required for OpenID Connect AI Gateway Auth Strategy %s",
+				a.Ref,
+			)
 		}
 		if salt, ok := a.Config["cache_tokens_salt"].(string); !ok || strings.TrimSpace(salt) == "" {
 			return fmt.Errorf(
@@ -123,6 +141,11 @@ func (a AIGatewayAuthStrategyResource) Validate() error {
 				a.Ref,
 			)
 		}
+	}
+	managerEnabled := a.TokenVault != nil && a.TokenVault.EnableCredentialManager != nil &&
+		*a.TokenVault.EnableCredentialManager
+	if err := validateAIGatewayTokenVault(a.Datastores, managerEnabled); err != nil {
+		return err
 	}
 	return nil
 }
@@ -182,6 +205,11 @@ func (a AIGatewayAuthStrategyResource) PayloadMap() (map[string]any, error) {
 	if a.ManagedBy != nil {
 		payload[aiGatewayAuthStrategyFieldManagedBy] = a.ManagedBy
 	}
+	vaultFields, err := AIGatewayTokenVaultFields(a.Datastores, a.TokenVault)
+	if err != nil {
+		return nil, err
+	}
+	maps.Copy(payload, vaultFields)
 	return payload, nil
 }
 
@@ -222,15 +250,17 @@ func (a AIGatewayAuthStrategyResource) MarshalYAML() (any, error) {
 // UnmarshalJSON decodes the declaration separately from its SDK payload.
 func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	var raw struct {
-		Ref         string            `json:"ref"`
-		AIGateway   string            `json:"ai_gateway,omitempty"`
-		Name        string            `json:"name"`
-		Type        string            `json:"type"`
-		DisplayName string            `json:"display_name"`
-		Labels      map[string]string `json:"labels,omitempty"`
-		ManagedBy   map[string]string `json:"managed_by,omitempty"`
-		Config      map[string]any    `json:"config"`
-		Kongctl     *KongctlMeta      `json:"kongctl,omitempty"`
+		Ref         string                                             `json:"ref"`
+		AIGateway   string                                             `json:"ai_gateway,omitempty"`
+		Name        string                                             `json:"name"`
+		Type        string                                             `json:"type"`
+		DisplayName string                                             `json:"display_name"`
+		Labels      map[string]string                                  `json:"labels,omitempty"`
+		ManagedBy   map[string]string                                  `json:"managed_by,omitempty"`
+		Config      map[string]any                                     `json:"config"`
+		Datastores  []kkComps.AIGatewayDatastoreRef                    `json:"datastores,omitempty"`
+		TokenVault  *kkComps.AIGatewayTokenVaultCredentialManagerInput `json:"token_vault,omitempty"`
+		Kongctl     *KongctlMeta                                       `json:"kongctl,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -244,6 +274,8 @@ func (a *AIGatewayAuthStrategyResource) UnmarshalJSON(data []byte) error {
 	a.Labels = raw.Labels
 	a.ManagedBy = raw.ManagedBy
 	a.Config = raw.Config
+	a.Datastores = raw.Datastores
+	a.TokenVault = raw.TokenVault
 	return nil
 }
 
@@ -258,7 +290,9 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 		"support-key-auth",
 		"Support Key Auth",
 	)
-	openIDConnectSDK, err := autoExplainConcreteNode[kkComps.AIGatewayAuthStrategyOpenIDConnect](nil)
+	openIDConnectSDK, err := autoExplainConcreteNode[kkComps.AIGatewayAuthStrategyOpenIDConnect](
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -270,13 +304,21 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	)
 
 	setExplainLiteral(keyAuth, []string{aiGatewayAuthStrategyFieldConfig, "key_names"}, "apikey")
-	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "auth_methods"}, "bearer")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayAuthStrategyFieldConfig, "auth_methods"},
+		"bearer",
+	)
 	setExplainLiteral(
 		openIDConnect,
 		[]string{aiGatewayAuthStrategyFieldConfig, "cache_tokens_salt"},
 		"support-cache-salt",
 	)
-	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "client_id"}, "support-client")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayAuthStrategyFieldConfig, "client_id"},
+		"support-client",
+	)
 	explainReplacePath(
 		openIDConnect,
 		[]string{aiGatewayAuthStrategyFieldConfig, "client_secret"},
@@ -299,7 +341,11 @@ func aiGatewayAuthStrategyExplainNode(_ ExplainBuildContext) (*ExplainNode, erro
 	)
 	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "scopes"}, "openid")
 
-	setExplainLiteral(openIDConnect, []string{aiGatewayAuthStrategyFieldConfig, "upstream_headers_claims"}, "sub")
+	setExplainLiteral(
+		openIDConnect,
+		[]string{aiGatewayAuthStrategyFieldConfig, "upstream_headers_claims"},
+		"sub",
+	)
 	setExplainLiteral(
 		openIDConnect,
 		[]string{aiGatewayAuthStrategyFieldConfig, "upstream_headers_names"},
@@ -351,7 +397,12 @@ func aiGatewayAuthStrategyInlineExplainNode() *ExplainNode {
 			explainField("name", explainStringNode("support-key-auth"), true, true),
 			explainField("type", explainStringNode("key-auth"), true, true),
 			explainField("display_name", explainStringNode("Support Key Auth"), true, true),
-			explainField("config", &ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}}, true, true),
+			explainField(
+				"config",
+				&ExplainNode{Kind: explainKindObject, Additional: &ExplainNode{}},
+				true,
+				true,
+			),
 		)
 	}
 	return node

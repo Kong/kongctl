@@ -90,9 +90,32 @@ func TestBuildBaseURLFromRegion(t *testing.T) {
 }
 
 func TestResolveBaseURL(t *testing.T) {
+	for _, region := range []string{"", "us", "eu", "global"} {
+		t.Run("tech environment region="+region, func(t *testing.T) {
+			cfg, store := newTestConfig(map[string]string{
+				BaseURLConfigPath:     "",
+				EnvironmentConfigPath: EnvironmentTech,
+				RegionConfigPath:      region,
+			})
+			wantRegion := region
+			if wantRegion == "" {
+				wantRegion = "us"
+			}
+			resolved, err := ResolveBaseURL(cfg)
+			require.NoError(t, err)
+			require.Equal(t, "https://"+wantRegion+".api.konghq.tech", resolved)
+			require.Equal(t, resolved, store[BaseURLConfigPath])
+		})
+	}
+	t.Run("invalid environment returns error", func(t *testing.T) {
+		cfg, _ := newTestConfig(map[string]string{EnvironmentConfigPath: "invalid"})
+		_, err := ResolveBaseURL(cfg)
+		require.ErrorContains(t, err, "unsupported konnect environment")
+	})
 	t.Run("explicit base url wins", func(t *testing.T) {
 		cfg, store := newTestConfig(map[string]string{
-			BaseURLConfigPath: "https://custom.example.com",
+			BaseURLConfigPath:     "https://custom.example.com",
+			EnvironmentConfigPath: EnvironmentTech,
 		})
 		url, err := ResolveBaseURL(cfg)
 		require.NoError(t, err)

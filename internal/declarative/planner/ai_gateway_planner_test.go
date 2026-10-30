@@ -76,6 +76,23 @@ func TestAIGatewayPlannerRuntimeSettings(t *testing.T) {
 		"an unrelated update must not apply the SDK's runtime auto-upgrade default")
 }
 
+func TestAIGatewayPlannerPreservesManagedByOnPUT(t *testing.T) {
+	current := state.AIGateway{AIGateway: kkComps.AIGateway{
+		Name: "gateway", DisplayName: "Gateway", ManagedBy: map[string]string{"tool": "existing"},
+	}}
+	desired := resources.AIGatewayResource{
+		BaseResource:           resources.BaseResource{Ref: "gateway"},
+		CreateAIGatewayRequest: kkComps.CreateAIGatewayRequest{Name: "gateway", DisplayName: "Gateway"},
+	}
+	p := &Planner{}
+	changed, _, _ := p.shouldUpdateAIGateway(current, desired)
+	require.False(t, changed)
+	plan := &Plan{}
+	p.planAIGatewayUpdate(current, desired, map[string]any{FieldDisplayName: "Renamed"}, nil, plan)
+	require.Equal(t, current.ManagedBy, plan.Changes[0].Fields[FieldManagedBy],
+		"PUT must preserve omitted management metadata during unrelated updates")
+}
+
 func TestAIGatewayRuntimeChangeOrdering(t *testing.T) {
 	for _, downgrade := range []bool{false, true} {
 		t.Run(map[bool]string{false: "upgrade", true: "downgrade"}[downgrade], func(t *testing.T) {

@@ -1,6 +1,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import tempfile
 import unittest
 
 
@@ -45,6 +46,34 @@ class PatchTests(unittest.TestCase):
             patches.replace_tag(patch["before"] * 2, patch)
         self.assertEqual(patches.replace_tag(patch["before"], patch), patch["after"])
         self.assertEqual(patches.replace_tag(patch["after"], patch), patch["after"])
+
+    def test_optional_internal_field_preserves_absence_but_rejects_drift(self):
+        patch = self.manifest["post_generation"][1]
+        public = 'type CreatePortal struct {\nName string `json:"name"`\n}\n'
+        self.assertEqual(patches.replace_tag(public, patch), public)
+        self.assertEqual(patches.replace_tag(patch["before"], patch), patch["after"])
+        self.assertEqual(patches.replace_tag(patch["after"], patch), patch["after"])
+        with self.assertRaises(ValueError):
+            patches.replace_tag('CreateDefaultContent bool `json:"create_default_content"`', patch)
+        with self.assertRaises(ValueError):
+            patches.replace_tag(patch["before"] * 2, patch)
+
+    def test_legacy_config_file_is_optional_but_present_files_are_checked(self):
+        patch = self.manifest["post_generation"][0]
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            patches.post_generate(sdk, {"post_generation": [patch]})
+            required = dict(patch, optional_file=False)
+            with self.assertRaises(FileNotFoundError):
+                patches.post_generate(sdk, {"post_generation": [required]})
+            target = sdk / patch["file"]
+            target.parent.mkdir(parents=True)
+            target.write_text("changed schema")
+            with self.assertRaises(ValueError):
+                patches.post_generate(sdk, {"post_generation": [patch]})
+            target.write_text(patch["before"])
+            patches.post_generate(sdk, {"post_generation": [patch]})
+            self.assertEqual(target.read_text(), patch["after"])
 
 
 if __name__ == "__main__":

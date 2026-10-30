@@ -45,6 +45,9 @@ def configure_workflow(text, manifest):
 
 def replace_tag(text, patch):
     before, after = patch["before"], patch["after"]
+    optional_field = patch.get("optional_field")
+    if optional_field and not re.search(r"^\s*" + re.escape(optional_field) + r"\s", text, re.M):
+        return text
     if text.count(before) == 1 and after not in text:
         return text.replace(before, after, 1)
     if before not in text and text.count(after) == 1:
@@ -56,6 +59,8 @@ def post_generate(sdk, manifest):
     replacements = []
     for patch in manifest["post_generation"]:
         path = sdk / patch["file"]
+        if patch.get("optional_file") and not path.exists():
+            continue
         replacements.append((path, replace_tag(path.read_text(), patch)))
     for path, text in replacements:
         path.write_text(text)

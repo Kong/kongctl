@@ -813,6 +813,34 @@ func (p *Planner) resolveSecretResourceID(
 				return candidate.ID, nil
 			}
 		}
+	case *resources.AIGatewayMCPServerResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("AI Gateway MCP Server has no resolved gateway")
+		}
+		current, err := p.client.ListAIGatewayMCPServers(ctx, parent.ID)
+		if err != nil {
+			return "", err
+		}
+		for _, candidate := range current {
+			if resources.AIGatewayMCPServerName(candidate.AIGatewayMCPServer) == typed.Name() {
+				return resources.AIGatewayMCPServerID(candidate.AIGatewayMCPServer), nil
+			}
+		}
+	case *resources.AIGatewayDatastoreResource:
+		parent := secretResourceParent(rs, resource)
+		if parent == nil || parent.ID == "" {
+			return "", fmt.Errorf("AI Gateway datastore %q has no resolved gateway", typed.Ref)
+		}
+		current, err := p.client.ListAIGatewayDatastores(ctx, parent.ID)
+		if err != nil {
+			return "", err
+		}
+		for _, candidate := range current {
+			if resources.AIGatewayDatastoreName(candidate.AIGatewayDatastore) == typed.Name() {
+				return resources.AIGatewayDatastoreID(candidate.AIGatewayDatastore), nil
+			}
+		}
 	case *resources.AIGatewayVaultResource:
 		parent := secretResourceParent(rs, resource)
 		if parent == nil || parent.ID == "" {

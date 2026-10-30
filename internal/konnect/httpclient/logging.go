@@ -78,6 +78,11 @@ var sensitiveExactFieldKeys = map[string]struct{}{
 	"cookie":                    {},
 	"credential":                {},
 	"private_key":               {},
+	"ssl_cert_key":              {},
+	"sentinel_password":         {},
+	"aws_secret_access_key":     {},
+	"gcp_service_account_json":  {},
+	"azure_client_secret":       {},
 	"passphrase":                {},
 	"client_secret":             {},
 	"service_account_json":      {},
@@ -557,7 +562,7 @@ func redactBody(body []byte, contentType string) string {
 func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) string {
 	var exactKeys map[string]struct{}
 	route := routeFromURL(parsedURL)
-	if len(body) > 0 && isMeshCredentialRoute(route) {
+	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route)) {
 		return redactedValue
 	}
 	if isConfigStoreSecretRoute(route) {
@@ -610,6 +615,13 @@ func redactBodyWithExactKeys(body []byte, contentType string, exactKeys map[stri
 func isConfigStoreSecretRoute(route string) bool {
 	return strings.Contains(route, "/config-stores/") &&
 		(strings.HasSuffix(route, "/secrets") || strings.Contains(route, "/secrets/"))
+}
+
+// Datastore configs can contain encryption keys and credentials. Redact the
+// whole body, including malformed JSON and text error responses.
+func isAIGatewayDatastoreRoute(route string) bool {
+	return strings.Contains(route, "/ai-gateways/") &&
+		(strings.HasSuffix(route, "/datastores") || strings.Contains(route, "/datastores/"))
 }
 
 func isAIGatewayCertificateRoute(route string) bool {

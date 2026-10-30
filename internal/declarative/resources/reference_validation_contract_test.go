@@ -24,6 +24,7 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeAPIDocument, ""},
 		{ResourceTypePortalIPAllowList, ""},
 		{ResourceTypePortalAuditLogWebhook, ""},
+		{ResourceTypeAIGatewayDatastore, ""},
 	}, got)
 
 	// These mapping implementations were not enrolled in the loader's reference

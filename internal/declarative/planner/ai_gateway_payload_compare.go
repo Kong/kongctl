@@ -157,7 +157,7 @@ func scrubAIGatewayUpstreamWriteOnlyFields(value any) any {
 
 func isAIGatewayUpstreamWriteOnlyField(key string) bool {
 	switch strings.ToLower(key) {
-	case "secret_access_key", "session_token":
+	case "secret_access_key", "session_token", "client_secret", "service_account_json":
 		return true
 	default:
 		return false

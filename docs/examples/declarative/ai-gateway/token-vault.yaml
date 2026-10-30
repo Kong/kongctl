@@ -1,0 +1,45 @@
+ai_gateways:
+  - ref: support
+    name: support
+    display_name: Support
+    min_runtime_version: "2.3"
+
+    datastores:
+      - ref: credential-store
+        name: credential-storage
+        display_name: Credential storage
+        type: token-vault
+        config:
+          directory: support-credentials
+          current_version: v1
+          keys:
+            - version: v1
+              key: !secret {source: !env TOKEN_VAULT_ENCRYPTION_KEY}
+
+    mcp_servers:
+      - ref: support-mcp
+        name: support-mcp
+        display_name: Support MCP
+        type: passthrough-listener
+        config:
+          url: https://mcp.example.com/mcp
+          route:
+            paths: [/support-mcp]
+        datastores:
+          - name: !ref credential-store#name
+        token_vault:
+          provider: upstream-credentials
+
+    model_providers:
+      - ref: openai
+        name: openai
+        display_name: OpenAI
+        type: openai
+        config:
+          auth:
+            type: basic
+            headers: []
+        datastores:
+          - name: !ref credential-store#name
+        token_vault:
+          provider: upstream-credentials
