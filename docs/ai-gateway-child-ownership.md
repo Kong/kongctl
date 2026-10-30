@@ -6,8 +6,8 @@ SNIs support independent kongctl namespace ownership. Runtime certificates
 remain deferred pending a credential-preserving metadata PATCH API. Config
 stores, their secrets, and data plane certificates remain excluded.
 
-See the [release scope and migration summary](ai-gateway-federation.md),
-[model ownership and migration][models],
+See the [release scope and ownership setup guide](ai-gateway-federation.md),
+[model ownership and setup][models],
 [provider ownership](ai-gateway-provider-ownership.md),
 [auth-strategy ownership](ai-gateway-auth-strategy-ownership.md),
 [policy ownership](ai-gateway-policy-ownership.md),
@@ -57,9 +57,13 @@ Dump warns and skips individual children with invalid ownership metadata,
 preserving valid siblings. It does not interpret invalid protection values as
 unprotected.
 
-An unowned name match requires explicit adoption through the API. A match owned
-by another namespace requires explicit transfer. Defaults and references never
-adopt an observed child. Names are unique per actual gateway and family.
+New children receive generated ownership metadata when kongctl creates them.
+An existing unowned name match requires explicit adoption through the API. A
+match owned by another namespace requires explicit transfer; a child already
+owned by the intended namespace needs neither operation. Defaults and
+references never adopt an observed child. Names are unique per actual gateway
+and family. See [ownership setup for existing resources][existing] for the
+setup checklist.
 
 Apply does not prune. Sync scopes each participating collection by source,
 namespace, and gateway. Omission leaves the collection untouched. An explicitly
@@ -170,3 +174,4 @@ follow-ups. Gateway cascade warnings describe planning-time observations;
 concurrent changes can alter the descendants before the delete request.
 
 [models]: ai-gateway-model-ownership.md
+[existing]: ai-gateway-federation.md#ownership-setup-for-existing-resources

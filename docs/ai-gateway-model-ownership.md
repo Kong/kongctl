@@ -96,13 +96,20 @@ unowned children. Descendant protection produces persisted cascade warnings;
 the gateway's own protection still blocks deletion. See
 [shared ownership infrastructure](ai-gateway-child-ownership.md).
 
-## Migrating and adopting existing models
+## Ownership setup for existing models
+
+New models receive ownership metadata when kongctl creates them. Adoption is
+needed only for existing unowned models, including models created through
+older kongctl versions, the Konnect UI, or the API. A model already owned by
+the intended namespace needs no adoption or transfer.
 
 Models without `managed_by.kongctl-namespace` are unowned, even if their gateway
 is kongctl-managed or belongs to `default`. A file namespace default expresses
-desired ownership; it does not adopt remote models. Old gateway-wide model
-reconciliation is no longer used. Regenerate existing model plans after
-upgrading; execution rechecks ownership and rejects unowned or foreign models.
+desired ownership; it does not adopt remote models. Previously generated
+gateway-wide plans do not establish child ownership. After adopting a model or
+transferring its ownership, generate a new plan that reflects the current
+remote owner; execution rechecks ownership and rejects unowned or foreign
+models.
 
 Adoption is an explicit API update performed by the resource owner. Inspect the
 model and coordinate with anyone already managing it before assigning a
@@ -127,9 +134,9 @@ curl --fail-with-body --request PUT \
 Use the organization's regional API URL and choose protection deliberately.
 Kongctl owns and replaces the complete `managed_by` map. Verify adoption with
 GET and list, omit `managed_by` from manifests, and replan with the matching
-model namespace. Teams can migrate independently, but every existing model
-declared in one load must have matching ownership before that load can reconcile
-successfully.
+model namespace. Teams can establish ownership independently, but every
+existing model declared in one load must have matching ownership before that
+load can reconcile successfully.
 
 Changing a manifest namespace does not transfer ownership. Transfer requires
 coordinating both owners, stopping their reconciliation pipelines, explicitly
