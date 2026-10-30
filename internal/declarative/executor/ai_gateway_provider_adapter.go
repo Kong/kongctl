@@ -56,7 +56,7 @@ func (a *AIGatewayProviderAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Model Provider", true)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +86,7 @@ func (a *AIGatewayProviderAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Model Provider", true)
 	if err != nil {
 		return "", err
 	}
@@ -118,7 +118,7 @@ func (a *AIGatewayProviderAdapter) Update(
 }
 
 func (a *AIGatewayProviderAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Model Provider", true)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (a *AIGatewayProviderAdapter) Delete(ctx context.Context, id string, execCt
 	if err := resources.ValidateChildOwnership("AI Gateway provider", current.ManagedBy, execCtx.Namespace); err != nil {
 		return err
 	}
-	if current.ManagedBy[resources.ChildProtectedKey] == "true" {
+	if resources.IsChildProtected(current.ManagedBy) {
 		return fmt.Errorf("AI Gateway provider is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayProvider(ctx, gatewayID, id)
@@ -147,7 +147,7 @@ func (a *AIGatewayProviderAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Model Provider", true)
 	if err != nil {
 		return nil, err
 	}
@@ -172,24 +172,6 @@ func (a *AIGatewayProviderAdapter) RequiredFields() []string {
 
 func (a *AIGatewayProviderAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayProviderAdapter) getAIGatewayIDFromExecutionContext(
-	execCtx *ExecutionContext,
-) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok &&
-		!unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Model Provider operations")
 }
 
 func aiGatewayProviderPayloadFromFields(fields map[string]any) (map[string]any, error) {

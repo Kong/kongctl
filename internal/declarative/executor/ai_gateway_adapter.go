@@ -188,3 +188,18 @@ func (a *aiGatewayResourceInfo) GetLabels() map[string]string {
 func (a *aiGatewayResourceInfo) GetNormalizedLabels() map[string]string {
 	return a.gateway.NormalizedLabels
 }
+
+func aiGatewayIDFromExecutionContext(execCtx *ExecutionContext, resource string, useParent bool) (string, error) {
+	if execCtx == nil || execCtx.PlannedChange == nil {
+		return "", fmt.Errorf("execution context required")
+	}
+	change := execCtx.PlannedChange
+	if ref, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(ref.ID) {
+		return ref.ID, nil
+	}
+	// Consumer credentials have a consumer parent rather than a gateway parent.
+	if useParent && change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
+		return change.Parent.ID, nil
+	}
+	return "", fmt.Errorf("AI Gateway ID required for %s operations", resource)
+}

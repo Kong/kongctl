@@ -380,8 +380,7 @@ func run(helper cmd.Helper, method string, allowBody bool) error {
 		return cmd.PrepareExecutionError(summary, respErr, helper.GetCmd(), attrs...)
 	}
 
-	var bodyToRender []byte
-	bodyToRender = result.Body
+	bodyToRender := result.Body
 
 	if jqoutput.HasFilter(jqSettings) {
 		if jqSettings.RawOutput {
@@ -547,10 +546,7 @@ func shouldUseJQColor(mode cmdcommon.ColorMode, out io.Writer) bool {
 	case cmdcommon.ColorModeNever:
 		return false
 	case cmdcommon.ColorModeAuto:
-		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
-			return false
-		}
-		return isJQTerminal(out)
+		fallthrough
 	default:
 		if _, disabled := os.LookupEnv("NO_COLOR"); disabled {
 			return false

@@ -54,7 +54,7 @@ func (a *AIGatewayPolicyAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +85,7 @@ func (a *AIGatewayPolicyAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return "", err
 	}
@@ -123,7 +123,7 @@ func (a *AIGatewayPolicyAdapter) Update(
 
 // Delete deletes an AI Gateway Policy.
 func (a *AIGatewayPolicyAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (a *AIGatewayPolicyAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return nil, err
 	}
@@ -183,22 +183,6 @@ func (a *AIGatewayPolicyAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayPolicyAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayPolicyAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Policy operations")
 }
 
 type aiGatewayPolicyResourceInfo struct {

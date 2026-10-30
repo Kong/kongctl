@@ -166,7 +166,7 @@ func (a AIGatewayConsumerCredentialResource) MutablePayloadMap() (map[string]any
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerCredentialServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -232,15 +232,15 @@ func (a *AIGatewayConsumerCredentialResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayConsumerCredentialID(credential any) string {
-	return aiGatewayConsumerCredentialStringField(credential, aiGatewayConsumerCredentialFieldID)
+	return aiGatewayStringField(credential, aiGatewayConsumerCredentialFieldID)
 }
 
 func AIGatewayConsumerCredentialName(credential any) string {
-	return aiGatewayConsumerCredentialStringField(credential, aiGatewayConsumerCredentialFieldName)
+	return aiGatewayStringField(credential, aiGatewayConsumerCredentialFieldName)
 }
 
 func AIGatewayConsumerCredentialDisplayName(credential any) string {
-	return aiGatewayConsumerCredentialStringField(credential, aiGatewayConsumerCredentialFieldDisplayName)
+	return aiGatewayStringField(credential, aiGatewayConsumerCredentialFieldDisplayName)
 }
 
 func AIGatewayConsumerCredentialLabels(credential any) map[string]string {
@@ -281,7 +281,7 @@ func AIGatewayConsumerCredentialMutablePayloadMap(
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerCredentialServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	stripAIGatewayConsumerCredentialWriteOnlyFields(payload)
 	return payload, nil
 }
@@ -315,25 +315,8 @@ func AIGatewayConsumerCredentialResourceFromResponse(
 	}, nil
 }
 
-func stripAIGatewayConsumerCredentialServerFields(payload map[string]any) {
-	delete(payload, aiGatewayConsumerCredentialFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayConsumerCredentialFieldUpdatedAt)
-}
-
 func stripAIGatewayConsumerCredentialWriteOnlyFields(payload map[string]any) {
 	delete(payload, aiGatewayConsumerCredentialFieldAPIKey)
-}
-
-func aiGatewayConsumerCredentialStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway Consumer Credential")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayConsumerCredentialExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

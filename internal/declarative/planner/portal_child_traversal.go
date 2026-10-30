@@ -41,15 +41,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan pages - pass empty array if no pages defined
-	pages := make([]resources.PortalPageResource, 0)
-	// Note: Pages have already been extracted to root level by loader
-	// We need to find pages that belong to this portal
-	for _, page := range planner.desiredPortalPages {
-		page.Portal = resources.NormalizeResourceRef(page.Portal)
-		if page.Portal == desired.Ref {
-			pages = append(pages, page)
-		}
-	}
+	pages := portalChildrenForRef(planner.desiredPortalPages, desired.Ref,
+		func(item *resources.PortalPageResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalPage, len(pages) > 0) {
 		if err := handleChildError(planner.planPortalPagesChanges(
 			ctx, parentNamespace, portalID, desired.Ref, pages, plan,
@@ -59,15 +52,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan snippets - pass empty array if no snippets defined
-	snippets := make([]resources.PortalSnippetResource, 0)
-	// Note: Snippets have already been extracted to root level by loader
-	// We need to find snippets that belong to this portal
-	for _, snippet := range planner.desiredPortalSnippets {
-		snippet.Portal = resources.NormalizeResourceRef(snippet.Portal)
-		if snippet.Portal == desired.Ref {
-			snippets = append(snippets, snippet)
-		}
-	}
+	snippets := portalChildrenForRef(planner.desiredPortalSnippets, desired.Ref,
+		func(item *resources.PortalSnippetResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalSnippet, len(snippets) > 0) {
 		if err := handleChildError(planner.planPortalSnippetsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, snippets, plan,
@@ -77,13 +63,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan IP allow list (singleton)
-	allowLists := make([]resources.PortalIPAllowListResource, 0)
-	for _, allowList := range planner.desiredPortalIPAllowLists {
-		allowList.Portal = resources.NormalizeResourceRef(allowList.Portal)
-		if allowList.Portal == desired.Ref {
-			allowLists = append(allowLists, allowList)
-		}
-	}
+	allowLists := portalChildrenForRef(planner.desiredPortalIPAllowLists, desired.Ref,
+		func(item *resources.PortalIPAllowListResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalIPAllowList, len(allowLists) > 0) {
 		if err := handleChildError(planner.planPortalIPAllowListsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, allowLists, plan,
@@ -93,13 +74,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan integrations (singleton)
-	integrations := make([]resources.PortalIntegrationResource, 0)
-	for _, integration := range planner.desiredPortalIntegrations {
-		integration.Portal = resources.NormalizeResourceRef(integration.Portal)
-		if integration.Portal == desired.Ref {
-			integrations = append(integrations, integration)
-		}
-	}
+	integrations := portalChildrenForRef(planner.desiredPortalIntegrations, desired.Ref,
+		func(item *resources.PortalIntegrationResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalIntegration, len(integrations) > 0) {
 		if err := handleChildError(planner.planPortalIntegrationsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, integrations, plan,
@@ -109,13 +85,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan identity providers
-	identityProviders := make([]resources.PortalIdentityProviderResource, 0)
-	for _, provider := range planner.desiredPortalIdentityProviders {
-		provider.Portal = resources.NormalizeResourceRef(provider.Portal)
-		if provider.Portal == desired.Ref {
-			identityProviders = append(identityProviders, provider)
-		}
-	}
+	identityProviders := portalChildrenForRef(planner.desiredPortalIdentityProviders, desired.Ref,
+		func(item *resources.PortalIdentityProviderResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalIdentityProvider, len(identityProviders) > 0) {
 		if err := handleChildError(planner.planPortalIdentityProvidersChanges(
 			ctx,
@@ -130,13 +101,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan auth settings after identity providers so idp_mapping_enabled can depend on provider enablement.
-	authSettings := make([]resources.PortalAuthSettingsResource, 0)
-	for _, auth := range planner.desiredPortalAuthSettings {
-		auth.Portal = resources.NormalizeResourceRef(auth.Portal)
-		if auth.Portal == desired.Ref {
-			authSettings = append(authSettings, auth)
-		}
-	}
+	authSettings := portalChildrenForRef(planner.desiredPortalAuthSettings, desired.Ref,
+		func(item *resources.PortalAuthSettingsResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalAuthSettings, len(authSettings) > 0) {
 		if err := handleChildError(planner.planPortalAuthSettingsChanges(
 			ctx, plannerCtx, parentNamespace, authSettings, plan,
@@ -146,13 +112,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan email config (singleton resource)
-	emailConfigs := make([]resources.PortalEmailConfigResource, 0)
-	for _, cfg := range planner.desiredPortalEmailConfigs {
-		cfg.Portal = resources.NormalizeResourceRef(cfg.Portal)
-		if cfg.Portal == desired.Ref {
-			emailConfigs = append(emailConfigs, cfg)
-		}
-	}
+	emailConfigs := portalChildrenForRef(planner.desiredPortalEmailConfigs, desired.Ref,
+		func(item *resources.PortalEmailConfigResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalEmailConfig, len(emailConfigs) > 0) {
 		if err := handleChildError(planner.planPortalEmailConfigsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, emailConfigs, plan,
@@ -162,13 +123,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan audit-log webhook (singleton resource)
-	auditLogWebhooks := make([]resources.PortalAuditLogWebhookResource, 0)
-	for _, webhook := range planner.desiredPortalAuditLogWebhooks {
-		webhook.Portal = resources.NormalizeResourceRef(webhook.Portal)
-		if webhook.Portal == desired.Ref {
-			auditLogWebhooks = append(auditLogWebhooks, webhook)
-		}
-	}
+	auditLogWebhooks := portalChildrenForRef(planner.desiredPortalAuditLogWebhooks, desired.Ref,
+		func(item *resources.PortalAuditLogWebhookResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalAuditLogWebhook, len(auditLogWebhooks) > 0) {
 		if err := handleChildError(planner.planPortalAuditLogWebhooksChanges(
 			ctx, parentNamespace, portalID, desired.Ref, auditLogWebhooks, plan,
@@ -178,13 +134,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan email templates (set applies create/update only in apply mode)
-	templates := make([]resources.PortalEmailTemplateResource, 0)
-	for _, tpl := range planner.desiredPortalEmailTemplates {
-		tpl.Portal = resources.NormalizeResourceRef(tpl.Portal)
-		if tpl.Portal == desired.Ref {
-			templates = append(templates, tpl)
-		}
-	}
+	templates := portalChildrenForRef(planner.desiredPortalEmailTemplates, desired.Ref,
+		func(item *resources.PortalEmailTemplateResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalEmailTemplate, len(templates) > 0) {
 		if err := handleChildError(planner.planPortalEmailTemplatesChanges(
 			ctx, parentNamespace, portalID, desired.Ref, desired.Name, templates, plan,
@@ -194,13 +145,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan customization (singleton resource)
-	customizations := make([]resources.PortalCustomizationResource, 0)
-	for _, customization := range planner.desiredPortalCustomizations {
-		customization.Portal = resources.NormalizeResourceRef(customization.Portal)
-		if customization.Portal == desired.Ref {
-			customizations = append(customizations, customization)
-		}
-	}
+	customizations := portalChildrenForRef(planner.desiredPortalCustomizations, desired.Ref,
+		func(item *resources.PortalCustomizationResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalCustomization, len(customizations) > 0) {
 		if err := handleChildError(planner.planPortalCustomizationsChanges(
 			ctx, plannerCtx, parentNamespace, customizations, plan,
@@ -210,13 +156,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan teams
-	teams := make([]resources.PortalTeamResource, 0)
-	for _, team := range planner.desiredPortalTeams {
-		team.Portal = resources.NormalizeResourceRef(team.Portal)
-		if team.Portal == desired.Ref {
-			teams = append(teams, team)
-		}
-	}
+	teams := portalChildrenForRef(planner.desiredPortalTeams, desired.Ref,
+		func(item *resources.PortalTeamResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalTeam, len(teams) > 0) {
 		if err := handleChildError(planner.planPortalTeamsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, teams, plan,
@@ -225,13 +166,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 		}
 	}
 
-	mappings := make([]resources.PortalTeamGroupMappingResource, 0)
-	for _, mapping := range planner.desiredPortalTeamGroupMappings {
-		mapping.Portal = resources.NormalizeResourceRef(mapping.Portal)
-		if mapping.Portal == desired.Ref {
-			mappings = append(mappings, mapping)
-		}
-	}
+	mappings := portalChildrenForRef(planner.desiredPortalTeamGroupMappings, desired.Ref,
+		func(item *resources.PortalTeamGroupMappingResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalTeamGroupMapping, len(mappings) > 0) {
 		if err := handleChildError(planner.planPortalTeamGroupMappingsChanges(
 			ctx, parentNamespace, portalID, desired.Ref, mappings, plan,
@@ -257,13 +193,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan custom domain (singleton resource)
-	domains := make([]resources.PortalCustomDomainResource, 0)
-	for _, domain := range planner.desiredPortalCustomDomains {
-		domain.Portal = resources.NormalizeResourceRef(domain.Portal)
-		if domain.Portal == desired.Ref {
-			domains = append(domains, domain)
-		}
-	}
+	domains := portalChildrenForRef(planner.desiredPortalCustomDomains, desired.Ref,
+		func(item *resources.PortalCustomDomainResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalCustomDomain, len(domains) > 0) {
 		if err := handleChildError(planner.planPortalCustomDomainsChanges(
 			ctx,
@@ -278,13 +209,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan asset logo (singleton resource)
-	logos := make([]resources.PortalAssetLogoResource, 0)
-	for _, logo := range planner.desiredPortalAssetLogos {
-		logo.Portal = resources.NormalizeResourceRef(logo.Portal)
-		if logo.Portal == desired.Ref {
-			logos = append(logos, logo)
-		}
-	}
+	logos := portalChildrenForRef(planner.desiredPortalAssetLogos, desired.Ref,
+		func(item *resources.PortalAssetLogoResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalAssetLogo, len(logos) > 0) {
 		if err := handleChildError(planner.planPortalAssetLogosChanges(
 			ctx, plannerCtx, parentNamespace, logos, plan,
@@ -294,13 +220,8 @@ func (p *portalPlannerImpl) planPortalChildren(
 	}
 
 	// Plan asset favicon (singleton resource)
-	favicons := make([]resources.PortalAssetFaviconResource, 0)
-	for _, favicon := range planner.desiredPortalAssetFavicons {
-		favicon.Portal = resources.NormalizeResourceRef(favicon.Portal)
-		if favicon.Portal == desired.Ref {
-			favicons = append(favicons, favicon)
-		}
-	}
+	favicons := portalChildrenForRef(planner.desiredPortalAssetFavicons, desired.Ref,
+		func(item *resources.PortalAssetFaviconResource) *string { return &item.Portal })
 	if childInScope(resources.ResourceTypePortalAssetFavicon, len(favicons) > 0) {
 		if err := handleChildError(planner.planPortalAssetFaviconsChanges(
 			ctx, plannerCtx, parentNamespace, favicons, plan,
@@ -394,4 +315,16 @@ func (p *portalPlannerImpl) shouldPlanPortalChild(
 		return hasDesired
 	}
 	return p.planner.shouldPlanChild(plan, resources.ResourceTypePortal, desired.Ref, rt)
+}
+
+func portalChildrenForRef[T any](items []T, portalRef string, parentRef func(*T) *string) []T {
+	children := make([]T, 0)
+	for _, item := range items {
+		parent := parentRef(&item)
+		*parent = resources.NormalizeResourceRef(*parent)
+		if *parent == portalRef {
+			children = append(children, item)
+		}
+	}
+	return children
 }

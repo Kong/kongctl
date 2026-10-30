@@ -147,11 +147,11 @@ func (a AIGatewayCustomPolicyResource) MutablePayloadMap() (map[string]any, erro
 }
 
 func AIGatewayCustomPolicyID(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldID)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldID)
 }
 
 func AIGatewayCustomPolicyName(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldName)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldName)
 }
 
 func AIGatewayCustomPolicyMutablePayloadMap(policy kkComps.AIGatewayCustomPolicy) (map[string]any, error) {
@@ -159,7 +159,7 @@ func AIGatewayCustomPolicyMutablePayloadMap(policy kkComps.AIGatewayCustomPolicy
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayModelServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 

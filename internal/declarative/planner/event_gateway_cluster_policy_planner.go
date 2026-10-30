@@ -410,18 +410,19 @@ func (p *Planner) shouldUpdateClusterPolicy(
 ) (bool, map[string]any, map[string]FieldChange) {
 	var needsUpdate bool
 	changes := make(map[string]FieldChange)
+	desiredFields := p.clusterPolicyToFields(desired)
 
 	currentCondition := ""
 	if current.Condition != nil {
 		currentCondition = *current.Condition
 	}
-	desiredCondition, _ := p.clusterPolicyToFields(desired)[FieldCondition].(string)
+	desiredCondition, _ := desiredFields[FieldCondition].(string)
 	if currentCondition != desiredCondition {
 		needsUpdate = true
 		changes[FieldCondition] = FieldChange{Old: currentCondition, New: desiredCondition}
 	}
 
-	desiredType, _ := p.clusterPolicyToFields(desired)[FieldType].(string)
+	desiredType, _ := desiredFields[FieldType].(string)
 	if current.Type != desiredType {
 		needsUpdate = true
 		changes[FieldType] = FieldChange{Old: current.Type, New: desiredType}
@@ -500,7 +501,7 @@ func (p *Planner) shouldUpdateClusterPolicy(
 	// If there are changes, build full update fields
 	var updateFields map[string]any
 	if needsUpdate {
-		updateFields = p.clusterPolicyToFields(desired)
+		updateFields = desiredFields
 		// Include current labels for removal logic
 		updateFields[FieldCurrentLabels] = current.NormalizedLabels
 	}
