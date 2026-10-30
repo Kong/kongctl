@@ -289,6 +289,7 @@ func newGetOrganizationCmd(verb verbs.VerbValue,
 	if addParentFlags != nil {
 		addParentFlags(verb, cmd.Command)
 	}
+	cmd.AddCommand(newGetOrganizationPATsCmd(verb, addParentFlags, parentPreRun))
 
 	systemAccountCmd, err := systemaccount.NewSystemAccountCmd(verb, addParentFlags, parentPreRun)
 	if err == nil && systemAccountCmd != nil {

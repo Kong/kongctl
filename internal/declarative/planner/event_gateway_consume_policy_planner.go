@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"reflect"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
@@ -131,7 +130,7 @@ func (p *Planner) planConsumePolicyChangesForExistingVirtualCluster(
 
 				needsUpdate, updateFields, changedFields := p.shouldUpdateConsumePolicy(current, desiredPolicy)
 				if needsUpdate {
-					if consumePolicyRequiresRecreate(changedFields) {
+					if eventGatewayPolicyRequiresRecreate(changedFields) {
 						p.logger.Debug(
 							"Planning consume policy DELETE+CREATE due to immutable field change",
 							"policy_name", policyName,
@@ -272,16 +271,6 @@ func (p *Planner) prepareConsumePolicyParentRefs(
 	return prepared, nil
 }
 
-func consumePolicyRequiresRecreate(changedFields map[string]FieldChange) bool {
-	if _, typeChanged := changedFields[FieldType]; typeChanged {
-		return true
-	}
-	if _, parentPolicyChanged := changedFields[FieldParentPolicyID]; parentPolicyChanged {
-		return true
-	}
-	return false
-}
-
 // planConsumePolicyCreate plans a CREATE change for a consume policy.
 func (p *Planner) planConsumePolicyCreate(
 	namespace string,
@@ -326,7 +315,7 @@ func (p *Planner) planConsumePolicyCreate(
 			},
 		},
 	}
-	p.addConsumePolicyParentPolicyReference(&change)
+	p.addEventGatewayParentPolicyReference(&change, ResourceTypeEventGatewayConsumePolicy)
 
 	p.logger.Debug(
 		"Enqueuing consume policy CREATE",
@@ -379,7 +368,7 @@ func (p *Planner) planConsumePolicyUpdate(
 			},
 		},
 	}
-	p.addConsumePolicyParentPolicyReference(&change)
+	p.addEventGatewayParentPolicyReference(&change, ResourceTypeEventGatewayConsumePolicy)
 
 	p.logger.Debug(
 		"Enqueuing consume policy UPDATE",
@@ -388,35 +377,6 @@ func (p *Planner) planConsumePolicyUpdate(
 		"policy_id", policyID,
 	)
 	plan.AddChange(change)
-}
-
-func (p *Planner) addConsumePolicyParentPolicyReference(change *PlannedChange) {
-	if change == nil || change.Fields == nil {
-		return
-	}
-
-	parentPolicyID, ok := change.Fields[FieldParentPolicyID].(string)
-	if !ok || !tags.IsRefPlaceholder(parentPolicyID) {
-		return
-	}
-
-	refInfo := ReferenceInfo{
-		Ref: parentPolicyID,
-		ID:  resources.UnknownReferenceID,
-	}
-	targetRef := referenceTargetRef(parentPolicyID)
-	if p.resolver != nil {
-		if resource, exists := p.resolver.getResourceByTypeAndRef(ResourceTypeEventGatewayConsumePolicy, targetRef); exists {
-			if moniker := resource.GetMoniker(); moniker != "" {
-				refInfo.LookupFields = map[string]string{FieldName: moniker}
-			}
-		}
-	}
-
-	if change.References == nil {
-		change.References = make(map[string]ReferenceInfo)
-	}
-	change.References[FieldParentPolicyID] = refInfo
 }
 
 // planConsumePolicyDelete plans a DELETE change for a consume policy.
@@ -484,84 +444,28 @@ func (p *Planner) consumePolicyToFields(policy resources.EventGatewayConsumePoli
 func (p *Planner) extractConsumePolicyLabels(
 	policy resources.EventGatewayConsumePolicyResource,
 ) map[string]string {
-	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for _, field := range v.Fields() {
-		if field.Kind() != reflect.Pointer || field.IsNil() {
-			continue
-		}
-		labelsField := field.Elem().FieldByName("Labels")
-		if labelsField.IsValid() && !labelsField.IsNil() {
-			if labels, ok := labelsField.Interface().(map[string]string); ok {
-				return labels
-			}
-		}
-	}
-	return nil
+	return extractEventGatewayPolicyLabels(policy.EventGatewayConsumePolicyCreate)
 }
 
 // extractConsumePolicyDescription extracts description from whichever union variant is set.
 func (p *Planner) extractConsumePolicyDescription(
 	policy resources.EventGatewayConsumePolicyResource,
 ) string {
-	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for _, field := range v.Fields() {
-		if field.Kind() != reflect.Pointer || field.IsNil() {
-			continue
-		}
-		descField := field.Elem().FieldByName("Description")
-		if descField.IsValid() && descField.Kind() == reflect.Pointer && !descField.IsNil() {
-			return descField.Elem().String()
-		}
-	}
-	return ""
+	return extractEventGatewayPolicyDescription(policy.EventGatewayConsumePolicyCreate)
 }
 
 // extractConsumePolicyEnabled extracts the enabled flag from whichever union variant is set.
 func (p *Planner) extractConsumePolicyEnabled(
 	policy resources.EventGatewayConsumePolicyResource,
 ) bool {
-	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for _, field := range v.Fields() {
-		if field.Kind() != reflect.Pointer || field.IsNil() {
-			continue
-		}
-		enabledField := field.Elem().FieldByName("Enabled")
-		if enabledField.IsValid() && enabledField.Kind() == reflect.Pointer && !enabledField.IsNil() {
-			return enabledField.Elem().Bool()
-		}
-	}
-	return true // default is enabled
+	return extractEventGatewayPolicyEnabled(policy.EventGatewayConsumePolicyCreate)
 }
 
 // extractConsumePolicyConfig extracts config from whichever union variant is set.
 func (p *Planner) extractConsumePolicyConfig(
 	policy resources.EventGatewayConsumePolicyResource,
 ) map[string]any {
-	v := reflect.ValueOf(policy.EventGatewayConsumePolicyCreate)
-	for _, field := range v.Fields() {
-		if field.Kind() != reflect.Pointer || field.IsNil() {
-			continue
-		}
-		configField := field.Elem().FieldByName("Config")
-		if !configField.IsValid() {
-			continue
-		}
-
-		data, err := json.Marshal(configField.Interface())
-		if err != nil {
-			continue
-		}
-
-		var config map[string]any
-		if err := json.Unmarshal(data, &config); err != nil {
-			continue
-		}
-
-		if len(config) > 0 {
-			return config
-		}
-	}
-	return nil
+	return extractEventGatewayPolicyConfig(policy.EventGatewayConsumePolicyCreate)
 }
 
 func consumePolicyType(policy resources.EventGatewayConsumePolicyResource) string {

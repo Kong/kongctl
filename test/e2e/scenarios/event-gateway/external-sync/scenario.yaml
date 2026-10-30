@@ -1285,3 +1285,333 @@ steps:
                   Jeo7mJ0RN29/eYI7ob59j8IIkTVSd8lJEpLoakPV4uyZPNgDx14MUB1Bz7qGU7gj
                   oxQ=
                   -----END CERTIFICATE-----
+
+  - name: 027-v13-produce
+    inputOverlayDirs:
+      - overlays/027-v13-produce
+    commands:
+      - name: sync
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: plan.changes[?resource_type=='event_gateway' || resource_type=='event_gateway_virtual_cluster']
+            expect:
+              fields:
+                length(@): 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                applied: 2
+      - name: verify-produce
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 3
+          - select: '[?name==''external-mask_fields''] | [0]'
+            expect:
+              fields:
+                type: mask_fields
+                parent_policy_id: '{{ .vars.externalProduceSchemaID }}'
+                enabled: true
+                config.mask_fields[0].strategy.type: replace
+                config.mask_fields[0].strategy.phrase: '[REDACTED]'
+        recordVar:
+          name: externalProduceSchemaID
+          responsePath: '[?name==''external-produce-schema''] | [0].id'
+      - name: idempotency
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+  - name: 028-v13-consume
+    inputOverlayDirs:
+      - overlays/028-v13-consume
+    commands:
+      - name: sync
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: plan.changes[?resource_type=='event_gateway' || resource_type=='event_gateway_virtual_cluster']
+            expect:
+              fields:
+                length(@): 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                applied: 2
+      - name: verify-consume
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 3
+          - select: '[?name==''external-transcode''] | [0]'
+            expect:
+              fields:
+                type: transcode
+                parent_policy_id: '{{ .vars.externalConsumeSchemaID }}'
+                enabled: true
+                config.output_format: json
+        recordVar:
+          name: externalConsumeSchemaID
+          responsePath: '[?name==''external-consume-schema''] | [0].id'
+      - name: idempotency
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+  - name: 029-v13-update
+    inputOverlayDirs:
+      - overlays/029-v13-update
+    commands:
+      - name: sync-update
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.UPDATE: 2
+          - select: summary
+            expect:
+              fields:
+                failed: 0
+                applied: 2
+      - name: verify-updated-mask
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: '[?name==''external-mask_fields''] | [0]'
+            expect:
+              fields:
+                config.mask_fields[0].strategy.phrase: '[MASKED]'
+                parent_policy_id: '{{ .vars.externalProduceSchemaID }}'
+      - name: verify-updated-transcode
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: '[?name==''external-transcode''] | [0]'
+            expect:
+              fields:
+                enabled: false
+                parent_policy_id: '{{ .vars.externalConsumeSchemaID }}'
+      - name: idempotency
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 030-v13-collection-omission
+    commands:
+      - name: sync-omitted-collections
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: verify-updated-mask
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: '[?name==''external-mask_fields''] | [0]'
+            expect:
+              fields:
+                config.mask_fields[0].strategy.phrase: '[MASKED]'
+                parent_policy_id: '{{ .vars.externalProduceSchemaID }}'
+      - name: verify-updated-transcode
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: '[?name==''external-transcode''] | [0]'
+            expect:
+              fields:
+                enabled: false
+                parent_policy_id: '{{ .vars.externalConsumeSchemaID }}'
+  - name: 031-v13-prune
+    inputOverlayDirs:
+      - overlays/031-v13-prune
+    commands:
+      - name: sync-prune
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/external-event-gateway.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 4
+                by_action.DELETE: 4
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: verify-pruned-produce
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - produce-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: external-sync-produce-policy
+                type: modify_headers
+      - name: verify-pruned-consume
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egw_name }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtual_cluster_name }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: external-sync-consume-policy
+                type: modify_headers
+      - name: verify-external-gateway
+        run:
+          - get
+          - event-gateways
+          - '{{ .vars.egw_id }}'
+          - -o
+          - json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                name: '{{ .vars.egw_name }}'

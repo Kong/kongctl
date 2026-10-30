@@ -185,7 +185,7 @@ func (a AIGatewayConsumerResource) MutablePayloadMap() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -263,15 +263,15 @@ func (a *AIGatewayConsumerResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayConsumerID(consumer any) string {
-	return aiGatewayConsumerStringField(consumer, aiGatewayConsumerFieldID)
+	return aiGatewayStringField(consumer, aiGatewayConsumerFieldID)
 }
 
 func AIGatewayConsumerName(consumer any) string {
-	return aiGatewayConsumerStringField(consumer, aiGatewayConsumerFieldName)
+	return aiGatewayStringField(consumer, aiGatewayConsumerFieldName)
 }
 
 func AIGatewayConsumerDisplayName(consumer any) string {
-	return aiGatewayConsumerStringField(consumer, aiGatewayConsumerFieldDisplayName)
+	return aiGatewayStringField(consumer, aiGatewayConsumerFieldDisplayName)
 }
 
 func AIGatewayConsumerLabels(consumer any) map[string]string {
@@ -310,7 +310,7 @@ func AIGatewayConsumerMutablePayloadMap(consumer kkComps.AIGatewayConsumer) (map
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -340,23 +340,6 @@ func AIGatewayConsumerResourceFromResponse(
 		AIGateway:                      gatewayRef,
 		CreateAIGatewayConsumerRequest: req,
 	}, nil
-}
-
-func stripAIGatewayConsumerServerFields(payload map[string]any) {
-	delete(payload, aiGatewayConsumerFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayConsumerFieldUpdatedAt)
-}
-
-func aiGatewayConsumerStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway Consumer")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayConsumerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

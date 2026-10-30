@@ -246,7 +246,7 @@ func (a AIGatewayModelResource) MutablePayloadMap() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayModelServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
@@ -570,7 +570,7 @@ func AIGatewayModelMutablePayloadMap(model kkComps.AIGatewayModel) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayModelServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
@@ -622,12 +622,6 @@ func marshalObjectToMap(value any, label string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to unmarshal %s: %w", label, err)
 	}
 	return result, nil
-}
-
-func stripAIGatewayModelServerFields(payload map[string]any) {
-	delete(payload, SchemaFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, SchemaFieldUpdatedAt)
 }
 
 func aiGatewayModelExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

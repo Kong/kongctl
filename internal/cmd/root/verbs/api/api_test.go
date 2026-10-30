@@ -96,6 +96,42 @@ func newMockAPIConfig() *configtest.MockConfigHook {
 	}
 }
 
+func TestRunRoutesOrganizationPATsGlobally(t *testing.T) {
+	original := requestFn
+	t.Cleanup(func() { requestFn = original })
+	requestFn = func(_ context.Context, _ apiutil.Doer, method, baseURL, endpoint, token string,
+		_ map[string]string, _ io.Reader,
+	) (*apiutil.Result, error) {
+		require.Equal(t, http.MethodGet, method)
+		require.Equal(t, konnectcommon.GlobalBaseURL, baseURL)
+		require.Equal(t, "/v3/organizations/org-id/personal-access-tokens", endpoint)
+		require.Equal(t, "test-token", token)
+		return &apiutil.Result{StatusCode: http.StatusOK, Body: []byte(`{"data":[]}`)}, nil
+	}
+	cfg := newMockAPIConfig()
+	getString := cfg.GetStringMock
+	cfg.GetStringMock = func(key string) string {
+		if key == konnectcommon.BaseURLConfigPath {
+			return konnectcommon.BaseURLDefault
+		}
+		return getString(key)
+	}
+	c := &cobra.Command{Use: "api"}
+	addFlags(c)
+	streams, _, out, _ := iostreams.NewTestIOStreams()
+	helper := &cmdtest.MockHelper{
+		GetCmdMock:          func() *cobra.Command { return c },
+		GetArgsMock:         func() []string { return []string{"/v3/organizations/org-id/personal-access-tokens"} },
+		GetStreamsMock:      func() *iostreams.IOStreams { return streams },
+		GetConfigMock:       func() (configpkg.Hook, error) { return cfg, nil },
+		GetOutputFormatMock: func() (cmdcommon.OutputFormat, error) { return cmdcommon.JSON, nil },
+		GetLoggerMock:       func() (*slog.Logger, error) { return slog.New(slog.DiscardHandler), nil },
+		GetContextMock:      t.Context,
+	}
+	require.NoError(t, run(helper, http.MethodGet, false))
+	require.JSONEq(t, `{"data":[]}`, out.String())
+}
+
 func TestParseAssignmentsTyped(t *testing.T) {
 	payload, err := parseAssignments([]string{"count:=2", "enabled:=true", "meta:={\"name\":\"test\"}"})
 	require.NoError(t, err)

@@ -179,14 +179,14 @@ func (a *AIGatewayVaultResource) TryMatchKonnectResource(konnectResource any) bo
 }
 
 func (a AIGatewayVaultResource) Name() string {
-	return aiGatewayVaultStringField(a.CreateAIGatewayVaultRequest, aiGatewayVaultFieldName)
+	return aiGatewayStringField(a.CreateAIGatewayVaultRequest, aiGatewayVaultFieldName)
 }
 
 func (a AIGatewayVaultResource) VaultType() string {
 	if a.Type != "" {
 		return string(a.Type)
 	}
-	return aiGatewayVaultStringField(a.CreateAIGatewayVaultRequest, aiGatewayVaultFieldType)
+	return aiGatewayStringField(a.CreateAIGatewayVaultRequest, aiGatewayVaultFieldType)
 }
 
 func (a AIGatewayVaultResource) CreateRequest() kkComps.CreateAIGatewayVaultRequest {
@@ -222,7 +222,7 @@ func (a AIGatewayVaultResource) MutablePayloadMap() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayVaultServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -301,19 +301,19 @@ func (a *AIGatewayVaultResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayVaultID(vault any) string {
-	return aiGatewayVaultStringField(vault, aiGatewayVaultFieldID)
+	return aiGatewayStringField(vault, aiGatewayVaultFieldID)
 }
 
 func AIGatewayVaultName(vault any) string {
-	return aiGatewayVaultStringField(vault, aiGatewayVaultFieldName)
+	return aiGatewayStringField(vault, aiGatewayVaultFieldName)
 }
 
 func AIGatewayVaultType(vault any) string {
-	return aiGatewayVaultStringField(vault, aiGatewayVaultFieldType)
+	return aiGatewayStringField(vault, aiGatewayVaultFieldType)
 }
 
 func AIGatewayVaultDescription(vault any) string {
-	return aiGatewayVaultStringField(vault, aiGatewayVaultFieldDescription)
+	return aiGatewayStringField(vault, aiGatewayVaultFieldDescription)
 }
 
 func AIGatewayVaultLabels(vault any) map[string]string {
@@ -352,7 +352,7 @@ func AIGatewayVaultMutablePayloadMap(vault kkComps.AIGatewayVault) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayVaultServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -382,23 +382,6 @@ func AIGatewayVaultResourceFromResponse(
 		AIGateway:                   gatewayRef,
 		CreateAIGatewayVaultRequest: req,
 	}, nil
-}
-
-func stripAIGatewayVaultServerFields(payload map[string]any) {
-	delete(payload, aiGatewayVaultFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayVaultFieldUpdatedAt)
-}
-
-func aiGatewayVaultStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway Vault")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayVaultExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

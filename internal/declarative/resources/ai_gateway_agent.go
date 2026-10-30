@@ -197,7 +197,7 @@ func (a AIGatewayAgentResource) MutablePayloadMap() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayAgentServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
@@ -267,19 +267,19 @@ func (a *AIGatewayAgentResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayAgentID(agent any) string {
-	return aiGatewayAgentStringField(agent, aiGatewayAgentFieldID)
+	return aiGatewayStringField(agent, aiGatewayAgentFieldID)
 }
 
 func AIGatewayAgentName(agent any) string {
-	return aiGatewayAgentStringField(agent, aiGatewayAgentFieldName)
+	return aiGatewayStringField(agent, aiGatewayAgentFieldName)
 }
 
 func AIGatewayAgentDisplayName(agent any) string {
-	return aiGatewayAgentStringField(agent, aiGatewayAgentFieldDisplayName)
+	return aiGatewayStringField(agent, aiGatewayAgentFieldDisplayName)
 }
 
 func AIGatewayAgentType(agent any) string {
-	return aiGatewayAgentStringField(agent, aiGatewayAgentFieldType)
+	return aiGatewayStringField(agent, aiGatewayAgentFieldType)
 }
 
 func AIGatewayAgentEnabled(agent any) *bool {
@@ -332,7 +332,7 @@ func AIGatewayAgentMutablePayloadMap(agent kkComps.AIGatewayAgent) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayAgentServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	normalizeAIGatewayAuthStrategyAccess(payload)
 	return payload, nil
 }
@@ -365,12 +365,6 @@ func AIGatewayAgentResourceFromResponse(
 	}, nil
 }
 
-func stripAIGatewayAgentServerFields(payload map[string]any) {
-	delete(payload, aiGatewayAgentFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayAgentFieldUpdatedAt)
-}
-
 func normalizeAIGatewayAuthStrategyAccess(payload map[string]any) {
 	access, ok := payload[SchemaFieldAccess].(map[string]any)
 	if !ok {
@@ -379,17 +373,6 @@ func normalizeAIGatewayAuthStrategyAccess(payload map[string]any) {
 	if _, ok := access[SchemaFieldAuthStrategies]; ok {
 		delete(access, SchemaFieldIdentityProviders)
 	}
-}
-
-func aiGatewayAgentStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway Agent")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayAgentExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

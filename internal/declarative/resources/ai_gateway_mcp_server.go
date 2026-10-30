@@ -242,27 +242,18 @@ func (a *AIGatewayMCPServerResource) TryMatchKonnectResource(konnectResource any
 }
 
 func (a AIGatewayMCPServerResource) Name() string {
-	return aiGatewayMCPServerStringField(
-		a.CreateAIGatewayMCPServerRequest,
-		aiGatewayMCPServerFieldName,
-	)
+	return aiGatewayStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldName)
 }
 
 func (a AIGatewayMCPServerResource) DisplayName() string {
-	return aiGatewayMCPServerStringField(
-		a.CreateAIGatewayMCPServerRequest,
-		aiGatewayMCPServerFieldDisplayName,
-	)
+	return aiGatewayStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldDisplayName)
 }
 
 func (a AIGatewayMCPServerResource) MCPServerType() string {
 	if a.Type != "" {
 		return string(a.Type)
 	}
-	return aiGatewayMCPServerStringField(
-		a.CreateAIGatewayMCPServerRequest,
-		aiGatewayMCPServerFieldType,
-	)
+	return aiGatewayStringField(a.CreateAIGatewayMCPServerRequest, aiGatewayMCPServerFieldType)
 }
 
 func (a AIGatewayMCPServerResource) CreateRequest() kkComps.CreateAIGatewayMCPServerRequest {
@@ -415,19 +406,19 @@ func rejectUnsupportedAIGatewayMCPServerAccess(raw map[string]json.RawMessage) e
 }
 
 func AIGatewayMCPServerID(server any) string {
-	return aiGatewayMCPServerStringField(server, aiGatewayMCPServerFieldID)
+	return aiGatewayStringField(server, aiGatewayMCPServerFieldID)
 }
 
 func AIGatewayMCPServerName(server any) string {
-	return aiGatewayMCPServerStringField(server, aiGatewayMCPServerFieldName)
+	return aiGatewayStringField(server, aiGatewayMCPServerFieldName)
 }
 
 func AIGatewayMCPServerDisplayName(server any) string {
-	return aiGatewayMCPServerStringField(server, aiGatewayMCPServerFieldDisplayName)
+	return aiGatewayStringField(server, aiGatewayMCPServerFieldDisplayName)
 }
 
 func AIGatewayMCPServerType(server any) string {
-	return aiGatewayMCPServerStringField(server, aiGatewayMCPServerFieldType)
+	return aiGatewayStringField(server, aiGatewayMCPServerFieldType)
 }
 
 func AIGatewayMCPServerEnabled(server any) *bool {
@@ -514,23 +505,10 @@ func AIGatewayMCPServerResourceFromResponse(
 }
 
 func stripAIGatewayMCPServerServerFields(payload map[string]any) {
-	delete(payload, aiGatewayMCPServerFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayMCPServerFieldUpdatedAt)
+	stripAIGatewayServerFields(payload)
 	if vault, ok := payload["token_vault"].(map[string]any); ok {
 		delete(vault, "storage")
 	}
-}
-
-func aiGatewayMCPServerStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway MCP Server")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayMCPServerExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

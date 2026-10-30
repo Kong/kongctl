@@ -51,7 +51,7 @@ func (a *AIGatewayCustomPolicyAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return "", err
 	}
@@ -83,7 +83,7 @@ func (a *AIGatewayCustomPolicyAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +119,7 @@ func (a *AIGatewayCustomPolicyAdapter) Update(
 
 // Delete deletes an AI Gateway Custom Policy.
 func (a *AIGatewayCustomPolicyAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func (a *AIGatewayCustomPolicyAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Policy", true)
 	if err != nil {
 		return nil, err
 	}
@@ -180,22 +180,6 @@ func (a *AIGatewayCustomPolicyAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayCustomPolicyAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayCustomPolicyAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Policy operations")
 }
 
 type aiGatewayCustomPolicyResourceInfo struct {

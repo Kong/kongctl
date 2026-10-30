@@ -48,13 +48,10 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 
 	// Bootstrap servers (required)
 	if servers, ok := fields[planner.FieldBootstrapServers].([]any); ok {
-		create.BootstrapServers = make([]string, len(servers))
-		for i, srv := range servers {
-			if srvStr, ok := srv.(string); ok {
-				create.BootstrapServers[i] = srvStr
-			} else {
-				return fmt.Errorf("bootstrap_servers must be a list of strings")
-			}
+		var err error
+		create.BootstrapServers, err = backendClusterBootstrapServers(servers)
+		if err != nil {
+			return err
 		}
 	} else if servers, ok := fields[planner.FieldBootstrapServers].([]string); ok {
 		create.BootstrapServers = servers
@@ -67,29 +64,12 @@ func (a *EventGatewayBackendClusterAdapter) MapCreateFields(
 		if tlsSdkType, ok := tls.(kkComps.BackendClusterTLS); ok {
 			create.TLS = tlsSdkType
 		} else if tlsMap, ok := tls.(map[string]any); ok {
-			var backendTLS kkComps.BackendClusterTLS
-			if enabled, ok := tlsMap[planner.FieldEnabled].(bool); ok {
-				backendTLS.Enabled = enabled
-			} else {
+			if _, ok := tlsMap[planner.FieldEnabled].(bool); !ok {
 				return fmt.Errorf("tls.enabled is required and must be a boolean")
 			}
-			if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
-				backendTLS.InsecureSkipVerify = &insecure
-			}
-
-			if caCert, ok := tlsMap["ca_bundle"].(string); ok {
-				backendTLS.CaBundle = &caCert
-			}
-
-			if versions, ok := tlsMap["tls_versions"].([]any); ok {
-				backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
-				for i, v := range versions {
-					if vStr, ok := v.(string); ok {
-						backendTLS.TLSVersions[i] = kkComps.TLSVersions(vStr)
-					} else {
-						return fmt.Errorf("tls_versions must be a list of strings")
-					}
-				}
+			backendTLS, err := backendClusterTLSFromMap(tlsMap)
+			if err != nil {
+				return err
 			}
 
 			create.TLS = backendTLS
@@ -159,13 +139,10 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 
 	// Handle bootstrap_servers as []interface{} or []string
 	if servers, ok := fields[planner.FieldBootstrapServers].([]any); ok {
-		update.BootstrapServers = make([]string, len(servers))
-		for i, srv := range servers {
-			if srvStr, ok := srv.(string); ok {
-				update.BootstrapServers[i] = srvStr
-			} else {
-				return fmt.Errorf("bootstrap_servers must be a list of strings")
-			}
+		var err error
+		update.BootstrapServers, err = backendClusterBootstrapServers(servers)
+		if err != nil {
+			return err
 		}
 	} else if servers, ok := fields[planner.FieldBootstrapServers].([]string); ok {
 		update.BootstrapServers = servers
@@ -175,26 +152,11 @@ func (a *EventGatewayBackendClusterAdapter) MapUpdateFields(
 	if tls, ok := fields[planner.FieldTLS].(kkComps.BackendClusterTLS); ok {
 		update.TLS = tls
 	} else if tlsMap, ok := fields[planner.FieldTLS].(map[string]any); ok {
-		var backendTLS kkComps.BackendClusterTLS
-		if enabled, ok := tlsMap[planner.FieldEnabled].(bool); ok {
-			backendTLS.Enabled = enabled
+		backendTLS, err := backendClusterTLSFromMap(tlsMap)
+		if err != nil {
+			return err
 		}
-		if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
-			backendTLS.InsecureSkipVerify = &insecure
-		}
-		if caCert, ok := tlsMap["ca_bundle"].(string); ok {
-			backendTLS.CaBundle = &caCert
-		}
-		if versions, ok := tlsMap["tls_versions"].([]any); ok {
-			backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
-			for i, v := range versions {
-				if vStr, ok := v.(string); ok {
-					backendTLS.TLSVersions[i] = kkComps.TLSVersions(vStr)
-				} else {
-					return fmt.Errorf("tls_versions must be a list of strings")
-				}
-			}
-		}
+
 		update.TLS = backendTLS
 	}
 
@@ -514,4 +476,43 @@ func (e *EventGatewayBackendClusterResourceInfo) GetLabels() map[string]string {
 
 func (e *EventGatewayBackendClusterResourceInfo) GetNormalizedLabels() map[string]string {
 	return e.backendCluster.NormalizedLabels
+}
+
+func backendClusterBootstrapServers(servers []any) ([]string, error) {
+	values := make([]string, len(servers))
+	for i, server := range servers {
+		value, ok := server.(string)
+		if !ok {
+			return values, fmt.Errorf("bootstrap_servers must be a list of strings")
+		}
+		values[i] = value
+	}
+	return values, nil
+}
+
+func backendClusterTLSFromMap(tlsMap map[string]any) (kkComps.BackendClusterTLS, error) {
+	var backendTLS kkComps.BackendClusterTLS
+	if enabled, ok := tlsMap[planner.FieldEnabled].(bool); ok {
+		backendTLS.Enabled = enabled
+	}
+	if insecure, ok := tlsMap["insecure_skip_verify"].(bool); ok {
+		backendTLS.InsecureSkipVerify = &insecure
+	}
+
+	if caCert, ok := tlsMap["ca_bundle"].(string); ok {
+		backendTLS.CaBundle = &caCert
+	}
+
+	if versions, ok := tlsMap["tls_versions"].([]any); ok {
+		backendTLS.TLSVersions = make([]kkComps.TLSVersions, len(versions))
+		for i, v := range versions {
+			if vStr, ok := v.(string); ok {
+				backendTLS.TLSVersions[i] = kkComps.TLSVersions(vStr)
+			} else {
+				return backendTLS, fmt.Errorf("tls_versions must be a list of strings")
+			}
+		}
+	}
+
+	return backendTLS, nil
 }

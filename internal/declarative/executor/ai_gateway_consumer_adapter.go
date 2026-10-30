@@ -54,7 +54,7 @@ func (a *AIGatewayConsumerAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer", true)
 	if err != nil {
 		return "", err
 	}
@@ -85,7 +85,7 @@ func (a *AIGatewayConsumerAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer", true)
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +133,7 @@ func (a *AIGatewayConsumerAdapter) Update(
 
 // Delete deletes an AI Gateway Consumer.
 func (a *AIGatewayConsumerAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer", true)
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (a *AIGatewayConsumerAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer", true)
 	if err != nil {
 		return nil, err
 	}
@@ -193,24 +193,6 @@ func (a *AIGatewayConsumerAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayConsumerAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayConsumerAdapter) getAIGatewayIDFromExecutionContext(
-	execCtx *ExecutionContext,
-) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Consumer operations")
 }
 
 type aiGatewayConsumerResourceInfo struct {
