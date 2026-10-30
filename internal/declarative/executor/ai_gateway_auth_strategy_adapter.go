@@ -56,7 +56,7 @@ func (a *AIGatewayAuthStrategyAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Auth Strategy", true)
 	if err != nil {
 		return "", err
 	}
@@ -86,7 +86,7 @@ func (a *AIGatewayAuthStrategyAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Auth Strategy", true)
 	if err != nil {
 		return "", err
 	}
@@ -118,7 +118,7 @@ func (a *AIGatewayAuthStrategyAdapter) Update(
 }
 
 func (a *AIGatewayAuthStrategyAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Auth Strategy", true)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (a *AIGatewayAuthStrategyAdapter) Delete(ctx context.Context, id string, ex
 	); err != nil {
 		return err
 	}
-	if current.ManagedBy[resources.ChildProtectedKey] == "true" {
+	if resources.IsChildProtected(current.ManagedBy) {
 		return fmt.Errorf("AI Gateway auth strategy is protected and cannot be deleted")
 	}
 	return a.client.DeleteAIGatewayAuthStrategy(ctx, gatewayID, id)
@@ -149,7 +149,7 @@ func (a *AIGatewayAuthStrategyAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "AI Gateway Auth Strategy", true)
 	if err != nil {
 		return nil, err
 	}
@@ -174,24 +174,6 @@ func (a *AIGatewayAuthStrategyAdapter) RequiredFields() []string {
 
 func (a *AIGatewayAuthStrategyAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayAuthStrategyAdapter) getAIGatewayIDFromExecutionContext(
-	execCtx *ExecutionContext,
-) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok &&
-		!unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-	return "", fmt.Errorf("AI Gateway ID required for AI Gateway Auth Strategy operations")
 }
 
 func aiGatewayAuthStrategyPayloadFromFields(fields map[string]any) (map[string]any, error) {

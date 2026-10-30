@@ -3,7 +3,6 @@ package resources
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -125,32 +124,7 @@ func (e EventGatewayConsumePolicyResource) GetKonnectMonikerFilter() string {
 }
 
 func (e *EventGatewayConsumePolicyResource) TryMatchKonnectResource(konnectResource any) bool {
-	v := reflect.ValueOf(konnectResource)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return false
-	}
-
-	nameField := v.FieldByName("Name")
-	idField := v.FieldByName("ID")
-
-	if nameField.IsValid() && idField.IsValid() {
-		var konnectName string
-		if nameField.Kind() == reflect.Pointer && !nameField.IsNil() {
-			konnectName = nameField.Elem().String()
-		} else if nameField.Kind() == reflect.String {
-			konnectName = nameField.String()
-		}
-
-		if idField.Kind() == reflect.String && konnectName != "" && konnectName == e.GetMoniker() {
-			e.konnectID = idField.String()
-			return true
-		}
-	}
-
-	return false
+	return matchEventGatewayPolicy(&e.konnectID, e.GetMoniker(), konnectResource)
 }
 
 // REQUIRED: Implement ResourceWithParent
@@ -164,27 +138,7 @@ func (e EventGatewayConsumePolicyResource) GetParentRef() *ResourceRef {
 // MarshalJSON ensures consume policy metadata (ref, virtual_cluster, event_gateway)
 // are included in the serialized output.
 func (e EventGatewayConsumePolicyResource) MarshalJSON() ([]byte, error) {
-	// Marshal the embedded union type first to get the policy body
-	policyBytes, err := json.Marshal(e.EventGatewayConsumePolicyCreate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal consume policy: %w", err)
-	}
-
-	// Unmarshal into a generic map so we can add metadata fields
-	var result map[string]any
-	if err := json.Unmarshal(policyBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal consume policy body: %w", err)
-	}
-
-	result["ref"] = e.Ref
-	if e.VirtualCluster != "" {
-		result["virtual_cluster"] = e.VirtualCluster
-	}
-	if e.EventGateway != "" {
-		result[SchemaFieldEventGateway] = e.EventGateway
-	}
-
-	return json.Marshal(result)
+	return marshalEventGatewayPolicy(e.EventGatewayConsumePolicyCreate, "consume", e.Ref, e.VirtualCluster, e.EventGateway)
 }
 
 // UnmarshalJSON handles the union type correctly.
@@ -198,20 +152,9 @@ func (e EventGatewayConsumePolicyResource) MarshalJSON() ([]byte, error) {
 //   - "transcode" → EventGatewayParsedRecordTranscodeConsumePolicyCreate
 //   - "mask_fields" → EventGatewayParsedRecordMaskFieldsConsumePolicyCreate
 func (e *EventGatewayConsumePolicyResource) UnmarshalJSON(data []byte) error {
-	// Extract our metadata fields
-	var meta struct {
-		Ref            string `json:"ref"`
-		VirtualCluster string `json:"virtual_cluster,omitempty"`
-		EventGateway   string `json:"event_gateway,omitempty"`
-		Kongctl        any    `json:"kongctl,omitempty"`
-	}
-
-	if err := json.Unmarshal(data, &meta); err != nil {
+	meta, err := unmarshalEventGatewayPolicyMetadata(data)
+	if err != nil {
 		return err
-	}
-
-	if meta.Kongctl != nil {
-		return fmt.Errorf("kongctl metadata not supported on child resources")
 	}
 
 	e.Ref = meta.Ref

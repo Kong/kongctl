@@ -322,12 +322,13 @@ func buildAIGatewayPolicies(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Policy for gateway %s: %w", gatewayName, err)
 		}
-		resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
+		owner, err := buildAIGatewayChildOwnership(logger, "AI Gateway Policy",
 			policy.ID, policy.Name, policy.ManagedBy)
-		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
+		resource.ManagedBy = nil
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -362,17 +363,18 @@ func buildAIGatewayAgents(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Agent for gateway %s: %w", gatewayName, err)
 		}
-		resource.Kongctl, err = buildAIGatewayChildOwnership(
+		owner, err := buildAIGatewayChildOwnership(
 			logger,
 			"AI Gateway Agent",
 			agent.ID,
 			agent.Name,
 			agent.ManagedBy,
 		)
-		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
+		resource.ManagedBy = nil
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 
@@ -2861,12 +2863,13 @@ func buildAIGatewayCustomPolicies(
 		if err != nil {
 			return nil, fmt.Errorf("failed to map AI Gateway Custom Policy for gateway %s: %w", gatewayName, err)
 		}
-		resource.Kongctl, err = buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
+		owner, err := buildAIGatewayChildOwnership(logger, "AI Gateway Custom Policy",
 			declresources.AIGatewayCustomPolicyID(policy.AIGatewayCustomPolicy), resource.Name, resource.ManagedBy)
-		resource.ManagedBy = nil
 		if err != nil {
 			continue
 		}
+		resource.ManagedBy = nil
+		resource.Kongctl = owner
 		result = append(result, resource)
 	}
 

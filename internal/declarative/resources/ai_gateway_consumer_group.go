@@ -186,7 +186,7 @@ func (a AIGatewayConsumerGroupResource) MutablePayloadMap() (map[string]any, err
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerGroupServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -266,15 +266,15 @@ func (a *AIGatewayConsumerGroupResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayConsumerGroupID(group any) string {
-	return aiGatewayConsumerGroupStringField(group, aiGatewayConsumerGroupFieldID)
+	return aiGatewayStringField(group, aiGatewayConsumerGroupFieldID)
 }
 
 func AIGatewayConsumerGroupName(group any) string {
-	return aiGatewayConsumerGroupStringField(group, aiGatewayConsumerGroupFieldName)
+	return aiGatewayStringField(group, aiGatewayConsumerGroupFieldName)
 }
 
 func AIGatewayConsumerGroupDisplayName(group any) string {
-	return aiGatewayConsumerGroupStringField(group, aiGatewayConsumerGroupFieldDisplayName)
+	return aiGatewayStringField(group, aiGatewayConsumerGroupFieldDisplayName)
 }
 
 func AIGatewayConsumerGroupLabels(group any) map[string]string {
@@ -348,7 +348,7 @@ func AIGatewayConsumerGroupMutablePayloadMap(group kkComps.AIGatewayConsumerGrou
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayConsumerGroupServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -380,25 +380,8 @@ func AIGatewayConsumerGroupResourceFromResponse(
 	}, nil
 }
 
-func stripAIGatewayConsumerGroupServerFields(payload map[string]any) {
-	delete(payload, aiGatewayConsumerGroupFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayConsumerGroupFieldUpdatedAt)
-}
-
 func StripAIGatewayConsumerGroupMembershipFields(payload map[string]any) {
 	delete(payload, aiGatewayConsumerGroupFieldConsumers)
-}
-
-func aiGatewayConsumerGroupStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway Consumer Group")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayConsumerGroupExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

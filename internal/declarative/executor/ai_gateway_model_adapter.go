@@ -61,7 +61,7 @@ func (a *AIGatewayModelAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "model", true)
 	if err != nil {
 		return "", err
 	}
@@ -97,7 +97,7 @@ func (a *AIGatewayModelAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "model", true)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +122,7 @@ func (a *AIGatewayModelAdapter) Update(
 		return "", err
 	}
 	if metadata[resources.ModelProtectedKey] == "true" {
-		if !modelUnprotectOnly(execCtx.PlannedChange, metadata, modelUpdateMetadata(req)) ||
+		if !childUnprotectOnly(execCtx.PlannedChange, metadata, modelUpdateMetadata(req)) ||
 			!modelUnprotectPayloadUnchanged(current.AIGatewayModel, req) {
 			return "", fmt.Errorf("AI Gateway model is protected; unprotect it in a separate update")
 		}
@@ -159,7 +159,7 @@ func modelUnprotectPayloadUnchanged(current kkComps.AIGatewayModel, req kkComps.
 
 // Delete deletes an AI Gateway model.
 func (a *AIGatewayModelAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "model", true)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (a *AIGatewayModelAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "model", true)
 	if err != nil {
 		return nil, err
 	}
@@ -231,10 +231,6 @@ func validateModelPayloadOwnership(metadata map[string]string, execCtx *Executio
 	return validateChildPayloadOwnership("AI Gateway model", metadata, execCtx.Namespace)
 }
 
-func modelUnprotectOnly(change *planner.PlannedChange, current, desired map[string]string) bool {
-	return childUnprotectOnly(change, current, desired)
-}
-
 // GetByName is not supported without a parent gateway context.
 func (a *AIGatewayModelAdapter) GetByName(_ context.Context, _ string) (ResourceInfo, error) {
 	return nil, fmt.Errorf("GetByName not supported for AI Gateway models")
@@ -253,22 +249,6 @@ func (a *AIGatewayModelAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayModelAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayModelAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for model operations")
 }
 
 type aiGatewayModelResourceInfo struct {

@@ -213,46 +213,48 @@ func appendPortalIdentityProviderConfigDetail(b *strings.Builder, config *kkComp
 
 	switch config.Type {
 	case kkComps.PortalIdentityProviderConfigTypePortalOIDCIdentityProviderConfigOutput:
-		if config.PortalOIDCIdentityProviderConfigOutput == nil {
+		oidc := config.PortalOIDCIdentityProviderConfigOutput
+		if oidc == nil {
 			return
 		}
 		fmt.Fprintf(b, "config.type: oidc\n")
-		fmt.Fprintf(b, "config.issuer_url: %s\n", config.PortalOIDCIdentityProviderConfigOutput.IssuerURL)
-		fmt.Fprintf(b, "config.client_id: %s\n", config.PortalOIDCIdentityProviderConfigOutput.ClientID)
-		if len(config.PortalOIDCIdentityProviderConfigOutput.Scopes) > 0 {
-			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(config.PortalOIDCIdentityProviderConfigOutput.Scopes, ", "))
+		fmt.Fprintf(b, "config.issuer_url: %s\n", oidc.IssuerURL)
+		fmt.Fprintf(b, "config.client_id: %s\n", oidc.ClientID)
+		if len(oidc.Scopes) > 0 {
+			fmt.Fprintf(b, "config.scopes: %s\n", strings.Join(oidc.Scopes, ", "))
 		}
-		if config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings != nil {
+		if oidc.ClaimMappings != nil {
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.name: %s\n",
-				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Name),
+				optionalPtr(oidc.ClaimMappings.Name),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.email: %s\n",
-				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Email),
+				optionalPtr(oidc.ClaimMappings.Email),
 			)
 			fmt.Fprintf(
 				b,
 				"config.claim_mappings.groups: %s\n",
-				optionalPtr(config.PortalOIDCIdentityProviderConfigOutput.ClaimMappings.Groups),
+				optionalPtr(oidc.ClaimMappings.Groups),
 			)
 		}
 	case kkComps.PortalIdentityProviderConfigTypePortalSAMLIdentityProviderConfig:
-		if config.PortalSAMLIdentityProviderConfig == nil {
+		saml := config.PortalSAMLIdentityProviderConfig
+		if saml == nil {
 			return
 		}
 		fmt.Fprintf(b, "config.type: saml\n")
 		fmt.Fprintf(
 			b,
 			"config.idp_metadata_url: %s\n",
-			optionalPtr(config.PortalSAMLIdentityProviderConfig.IdpMetadataURL),
+			optionalPtr(saml.IdpMetadataURL),
 		)
 		fmt.Fprintf(
 			b,
 			"config.idp_metadata_xml: %s\n",
-			optionalPtr(config.PortalSAMLIdentityProviderConfig.IdpMetadataXML),
+			optionalPtr(saml.IdpMetadataXML),
 		)
 	}
 }

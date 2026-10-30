@@ -195,7 +195,7 @@ func (a AIGatewayPolicyResource) MutablePayloadMap() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayPolicyServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -264,19 +264,19 @@ func (a *AIGatewayPolicyResource) UnmarshalJSON(data []byte) error {
 }
 
 func AIGatewayPolicyID(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldID)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldID)
 }
 
 func AIGatewayPolicyName(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldName)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldName)
 }
 
 func AIGatewayPolicyDisplayName(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldDisplayName)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldDisplayName)
 }
 
 func AIGatewayPolicyType(policy any) string {
-	return aiGatewayPolicyStringField(policy, aiGatewayPolicyFieldType)
+	return aiGatewayStringField(policy, aiGatewayPolicyFieldType)
 }
 
 func AIGatewayPolicyEnabled(policy any) *bool {
@@ -343,7 +343,7 @@ func AIGatewayPolicyMutablePayloadMap(policy kkComps.AIGatewayPolicy) (map[strin
 	if err != nil {
 		return nil, err
 	}
-	stripAIGatewayPolicyServerFields(payload)
+	stripAIGatewayServerFields(payload)
 	return payload, nil
 }
 
@@ -373,23 +373,6 @@ func AIGatewayPolicyResourceFromResponse(
 		AIGateway:                    gatewayRef,
 		CreateAIGatewayPolicyRequest: req,
 	}, nil
-}
-
-func stripAIGatewayPolicyServerFields(payload map[string]any) {
-	delete(payload, aiGatewayPolicyFieldID)
-	delete(payload, SchemaFieldCreatedAt)
-	delete(payload, aiGatewayPolicyFieldUpdatedAt)
-}
-
-func aiGatewayPolicyStringField(value any, key string) string {
-	payload, err := marshalObjectToMap(value, "AI Gateway policy")
-	if err != nil {
-		return ""
-	}
-	if field, ok := payload[key].(string); ok {
-		return field
-	}
-	return ""
 }
 
 func aiGatewayPolicyExplainNode(_ ExplainBuildContext) (*ExplainNode, error) {

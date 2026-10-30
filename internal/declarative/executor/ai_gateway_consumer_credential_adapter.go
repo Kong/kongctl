@@ -44,7 +44,7 @@ func (a *AIGatewayConsumerCredentialAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer Credential", false)
 	if err != nil {
 		return "", err
 	}
@@ -69,7 +69,7 @@ func (a *AIGatewayConsumerCredentialAdapter) Create(
 
 // Delete deletes an AI Gateway Consumer Credential.
 func (a *AIGatewayConsumerCredentialAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Consumer Credential", false)
 	if err != nil {
 		return err
 	}
@@ -96,21 +96,6 @@ func (a *AIGatewayConsumerCredentialAdapter) ResourceType() string {
 // RequiredFields returns required fields for create.
 func (a *AIGatewayConsumerCredentialAdapter) RequiredFields() []string {
 	return []string{planner.FieldName, planner.FieldDisplayName, planner.FieldType}
-}
-
-func (a *AIGatewayConsumerCredentialAdapter) getAIGatewayIDFromExecutionContext(
-	execCtx *ExecutionContext,
-) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Consumer Credential operations")
 }
 
 func (a *AIGatewayConsumerCredentialAdapter) getAIGatewayConsumerIDFromExecutionContext(

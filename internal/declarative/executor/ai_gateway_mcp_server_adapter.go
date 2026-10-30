@@ -68,7 +68,7 @@ func (a *AIGatewayMCPServerAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "MCP Server", true)
 	if err != nil {
 		return "", err
 	}
@@ -104,7 +104,7 @@ func (a *AIGatewayMCPServerAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "MCP Server", true)
 	if err != nil {
 		return "", err
 	}
@@ -152,7 +152,7 @@ func (a *AIGatewayMCPServerAdapter) Update(
 
 // Delete deletes an AI Gateway MCPServer.
 func (a *AIGatewayMCPServerAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "MCP Server", true)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func (a *AIGatewayMCPServerAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "MCP Server", true)
 	if err != nil {
 		return nil, err
 	}
@@ -219,22 +219,6 @@ func (a *AIGatewayMCPServerAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayMCPServerAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayMCPServerAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for MCP Server operations")
 }
 
 type aiGatewayMCPServerResourceInfo struct {

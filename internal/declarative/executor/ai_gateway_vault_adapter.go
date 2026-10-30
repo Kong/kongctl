@@ -73,7 +73,7 @@ func (a *AIGatewayVaultAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Vault", true)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +107,7 @@ func (a *AIGatewayVaultAdapter) Update(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Vault", true)
 	if err != nil {
 		return "", err
 	}
@@ -167,7 +167,7 @@ func (a *AIGatewayVaultAdapter) Update(
 
 // Delete deletes an AI Gateway Vault.
 func (a *AIGatewayVaultAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Vault", true)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (a *AIGatewayVaultAdapter) GetByID(
 	id string,
 	execCtx *ExecutionContext,
 ) (ResourceInfo, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "Vault", true)
 	if err != nil {
 		return nil, err
 	}
@@ -232,22 +232,6 @@ func (a *AIGatewayVaultAdapter) RequiredFields() []string {
 // SupportsUpdate indicates update support.
 func (a *AIGatewayVaultAdapter) SupportsUpdate() bool {
 	return true
-}
-
-func (a *AIGatewayVaultAdapter) getAIGatewayIDFromExecutionContext(execCtx *ExecutionContext) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for Vault operations")
 }
 
 type aiGatewayVaultResourceInfo struct {

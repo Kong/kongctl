@@ -50,7 +50,7 @@ func (a *AIGatewayDataPlaneCertificateAdapter) Create(
 	namespace string,
 	execCtx *ExecutionContext,
 ) (string, error) {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "data plane certificate", true)
 	if err != nil {
 		return "", err
 	}
@@ -59,7 +59,7 @@ func (a *AIGatewayDataPlaneCertificateAdapter) Create(
 
 // Delete deletes an AI Gateway data plane certificate.
 func (a *AIGatewayDataPlaneCertificateAdapter) Delete(ctx context.Context, id string, execCtx *ExecutionContext) error {
-	gatewayID, err := a.getAIGatewayIDFromExecutionContext(execCtx)
+	gatewayID, err := aiGatewayIDFromExecutionContext(execCtx, "data plane certificate", true)
 	if err != nil {
 		return err
 	}
@@ -79,22 +79,4 @@ func (a *AIGatewayDataPlaneCertificateAdapter) ResourceType() string {
 // RequiredFields returns required fields for create.
 func (a *AIGatewayDataPlaneCertificateAdapter) RequiredFields() []string {
 	return []string{planner.FieldCert, planner.FieldTitle}
-}
-
-func (a *AIGatewayDataPlaneCertificateAdapter) getAIGatewayIDFromExecutionContext(
-	execCtx *ExecutionContext,
-) (string, error) {
-	if execCtx == nil || execCtx.PlannedChange == nil {
-		return "", fmt.Errorf("execution context required")
-	}
-
-	change := *execCtx.PlannedChange
-	if gatewayRef, ok := change.References[planner.FieldAIGatewayID]; ok && !unresolvedReferenceID(gatewayRef.ID) {
-		return gatewayRef.ID, nil
-	}
-	if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
-		return change.Parent.ID, nil
-	}
-
-	return "", fmt.Errorf("AI Gateway ID required for data plane certificate operations")
 }
