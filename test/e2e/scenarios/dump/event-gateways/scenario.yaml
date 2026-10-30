@@ -1,0 +1,222 @@
+---
+baseInputsPath: testdata
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+steps:
+  - name: 000-reset-org
+    skipInputs: true
+    commands:
+      - resetOrg: true
+  - name: 001-bootstrap
+    commands:
+      - name: sync
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 11
+                by_action.CREATE: 11
+          - select: summary
+            expect:
+              fields:
+                applied: 11
+                failed: 0
+                status: success
+  - name: 002-dump-without-children
+    skipInputs: true
+    commands:
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - --resources=event_gateways
+          - --filter-name=egw-dump-test
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: event_gateways[0]
+            expect:
+              fields:
+                name: egw-dump-test
+                backend_clusters: null
+                virtual_clusters: null
+                listeners: null
+                schema_registries: null
+                tls_trust_bundles: null
+                data_plane_certificates: null
+                static_keys: null
+  - name: 003-round-trip
+    skipInputs: true
+    commands:
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - --resources=event_gateways
+          - --filter-name=egw-dump-test
+          - --include-child-resources
+          - --default-namespace=dump-event-gateways-e2e
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: event_gateways
+            expect:
+              fields:
+                length(@): 1
+          - select: event_gateways[0]
+            expect:
+              fields:
+                name: egw-dump-test
+                length(backend_clusters): 1
+                backend_clusters[0].name: dump-backend-cluster
+                length(virtual_clusters): 1
+                virtual_clusters[0].name: dump-virtual-cluster
+                virtual_clusters[0].destination.name: dump-backend-cluster
+                length(virtual_clusters[0].cluster_policies): 1
+                virtual_clusters[0].cluster_policies[0].type: acls
+                virtual_clusters[0].cluster_policies[0].config.rules[0].action: deny
+                length(virtual_clusters[0].produce_policies): 1
+                virtual_clusters[0].produce_policies[0].config.actions[0].value: initial
+                length(virtual_clusters[0].consume_policies): 1
+                virtual_clusters[0].consume_policies[0].type: modify_headers
+                length(listeners): 1
+                listeners[0].ports[0]: '9092'
+                length(listeners[0].policies): 1
+                listeners[0].policies[0].config.sni_suffix: .example.com
+                length(schema_registries): 1
+                schema_registries[0].config.schema_type: json
+                length(tls_trust_bundles): 1
+                contains(tls_trust_bundles[0].config.trusted_ca, '-----BEGIN CERTIFICATE-----'): true
+                length(data_plane_certificates): 1
+                contains(data_plane_certificates[0].certificate, '-----BEGIN CERTIFICATE-----'): true
+      - name: plan-round-trip
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: reset-before-recreate
+        resetOrg: true
+      - name: recreate-from-dump
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --auto-approve
+        assertions:
+          - select: plan.summary
+            expect:
+              fields:
+                total_changes: 11
+                by_action.CREATE: 11
+          - select: summary
+            expect:
+              fields:
+                applied: 11
+                failed: 0
+                status: success
+      - name: verify-recreated-tree
+        run:
+          - dump
+          - declarative
+          - --resources=event_gateways
+          - --filter-name=egw-dump-test
+          - --include-child-resources
+        outputFormat: none
+        parseAs: yaml
+        assertions:
+          - select: event_gateways
+            expect:
+              fields:
+                length(@): 1
+          - select: event_gateways[0]
+            expect:
+              fields:
+                name: egw-dump-test
+                length(backend_clusters): 1
+                backend_clusters[0].name: dump-backend-cluster
+                length(virtual_clusters): 1
+                virtual_clusters[0].name: dump-virtual-cluster
+                virtual_clusters[0].destination.name: dump-backend-cluster
+                length(virtual_clusters[0].cluster_policies): 1
+                virtual_clusters[0].cluster_policies[0].type: acls
+                virtual_clusters[0].cluster_policies[0].config.rules[0].action: deny
+                length(virtual_clusters[0].produce_policies): 1
+                virtual_clusters[0].produce_policies[0].config.actions[0].value: initial
+                length(virtual_clusters[0].consume_policies): 1
+                virtual_clusters[0].consume_policies[0].type: modify_headers
+                length(listeners): 1
+                listeners[0].ports[0]: '9092'
+                length(listeners[0].policies): 1
+                listeners[0].policies[0].config.sni_suffix: .example.com
+                length(schema_registries): 1
+                schema_registries[0].config.schema_type: json
+                length(tls_trust_bundles): 1
+                contains(tls_trust_bundles[0].config.trusted_ca, '-----BEGIN CERTIFICATE-----'): true
+                length(data_plane_certificates): 1
+                contains(data_plane_certificates[0].certificate, '-----BEGIN CERTIFICATE-----'): true
+      - name: get-recreated-backend
+        run:
+          - get
+          - event-gateway
+          - backend-clusters
+          - --gateway-name
+          - egw-dump-test
+          - -o
+          - json
+        recordVar:
+          name: recreatedBackendID
+          responsePath: "[?name=='dump-backend-cluster'] | [0].id"
+        assertions:
+          - select: "length([?name=='dump-backend-cluster'])"
+            expect:
+              fields:
+                '@': 1
+      - name: verify-recreated-destination
+        run:
+          - get
+          - event-gateway
+          - virtual-clusters
+          - --gateway-name
+          - egw-dump-test
+          - -o
+          - json
+        assertions:
+          - select: "[?name=='dump-virtual-cluster'] | [0].destination.id"
+            expect:
+              fields:
+                '@': '{{ .vars.recreatedBackendID }}'
+      - name: plan-round-trip-after-recreate
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 004-cleanup
+    skipInputs: true
+    commands:
+      - resetOrg: true

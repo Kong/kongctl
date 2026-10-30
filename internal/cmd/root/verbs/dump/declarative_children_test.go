@@ -235,12 +235,43 @@ func TestBuildEventGatewayVirtualClustersPreservesTopicAliases(t *testing.T) {
 	resources, err := buildEventGatewayVirtualClusters(context.Background(), nil, client, "gateway-id", "gateway")
 	require.NoError(t, err)
 	require.Len(t, resources, 1)
+	require.NotNil(t, resources[0].Destination.BackendClusterReferenceByName)
+	require.Equal(t, "backend-cluster", resources[0].Destination.BackendClusterReferenceByName.Name)
+	require.Nil(t, resources[0].Destination.BackendClusterReferenceByID)
 	require.Equal(t, []kkComps.VirtualClusterTopicAlias{{
 		Alias:     "public-orders",
 		Topic:     "tenant-a.orders",
 		Condition: &condition,
 		Conflict:  &conflict,
 	}}, resources[0].TopicAliases)
+}
+
+func TestConvertBackendClusterDestination(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		destination kkComps.BackendClusterReference
+		want        kkComps.BackendClusterReferenceModify
+	}{
+		{
+			name:        "prefer name over ID for recreation",
+			destination: kkComps.BackendClusterReference{ID: "old-backend-id", Name: "backend"},
+			want: kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByName(
+				kkComps.BackendClusterReferenceByName{Name: "backend"},
+			),
+		},
+		{
+			name:        "retain ID when name is unavailable",
+			destination: kkComps.BackendClusterReference{ID: "backend-id"},
+			want: kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByID(
+				kkComps.BackendClusterReferenceByID{ID: "backend-id"},
+			),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, convertBackendClusterDestination(tc.destination))
+		})
+	}
 }
 
 func TestResolveAPIPublicationRef(t *testing.T) {

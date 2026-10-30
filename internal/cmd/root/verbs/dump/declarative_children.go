@@ -2790,13 +2790,13 @@ func convertVirtualClusterAuthentication(
 }
 
 func convertBackendClusterDestination(dest kkComps.BackendClusterReference) kkComps.BackendClusterReferenceModify {
-	if strings.TrimSpace(dest.ID) != "" {
-		return kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByID(
-			kkComps.BackendClusterReferenceByID{ID: dest.ID},
+	if strings.TrimSpace(dest.Name) != "" {
+		return kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByName(
+			kkComps.BackendClusterReferenceByName{Name: dest.Name},
 		)
 	}
-	return kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByName(
-		kkComps.BackendClusterReferenceByName{Name: dest.Name},
+	return kkComps.CreateBackendClusterReferenceModifyBackendClusterReferenceByID(
+		kkComps.BackendClusterReferenceByID{ID: dest.ID},
 	)
 }
 
