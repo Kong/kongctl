@@ -221,6 +221,8 @@ test("release build, signing, and publication have separate credential scopes", 
   assert.deepEqual([...build.matchAll(/secrets\.([A-Z_]+)/g)].map(match => match[1]),
     ["GH_TOKEN_PRIVATE_READ"]);
   assert.match(build, /args: build --clean/);
+  assert.match(build, /KONGCTL_SKIP_NOTARIZATION: "true"/);
+  assert.match(sign, /KONGCTL_SKIP_NOTARIZATION: "false"/);
   assert.doesNotMatch(sign, /GH_TOKEN_PRIVATE_READ|secrets.GITHUB_TOKEN|actions\/setup-go|docker\/login-action/);
   assert.match(sign, /args: release --clean --skip=before,publish,docker /);
   assert.match(sign, /PATH=\$GITHUB_WORKSPACE\/scripts\/release-tools:\$PATH/);

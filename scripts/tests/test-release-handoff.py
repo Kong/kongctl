@@ -97,6 +97,26 @@ class HandoffTests(unittest.TestCase):
         self.run_command("git", "update-ref", "-d", "refs/remotes/origin/main")
         self.assertNotEqual(self.handoff("verify", check=False).returncode, 0)
 
+    def test_unsigned_build_skips_notarization_but_signing_requires_credentials(self):
+        self.env = {key: value for key, value in self.env.items()
+                    if not key.startswith("APPLE_") and key != "KONGCTL_SKIP_NOTARIZATION"}
+        self.env["PATH"] = f"{self.root / 'scripts/release-tools'}:{self.env['PATH']}"
+        self.env["RELEASE_INPUT"] = str(self.input)
+        for skip in (None, "true", "false"):
+            with self.subTest(skip=skip):
+                if skip is not None:
+                    self.env["KONGCTL_SKIP_NOTARIZATION"] = skip
+                command = ("build", "--skip=before,validate") if skip == "true" else (
+                    "release", "--skip=before,publish,docker,validate")
+                result = self.run_command("goreleaser", command[0], "--clean", command[1], check=False)
+                output = result.stdout + result.stderr
+                if skip == "true":
+                    self.assertEqual(result.returncode, 0, output)
+                    self.assertTrue((self.root / "dist/kongctl_darwin_arm64_v8.0/kongctl").is_file())
+                else:
+                    self.assertNotEqual(result.returncode, 0, output)
+                    self.assertIn('map has no entry for key "APPLE_SIGNING_CERTIFICATE_P12_BASE64"', output)
+
     def test_real_goreleaser_packages_without_go(self):
         # A compiler, generator, or dependency invocation fails this dry run.
         sentinel = self.root / "deny-go"

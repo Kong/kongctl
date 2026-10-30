@@ -453,6 +453,7 @@ jobs:
           args: build --clean --timeout=60m
         env:
           CGO_ENABLED: "0"
+          KONGCTL_SKIP_NOTARIZATION: "true"
       - name: Stage unsigned binaries
         if: env.RELEASE_BUILD_MODE == 'full'
         run: |
@@ -569,6 +570,7 @@ jobs:
           version: v2.13.3
           args: release --clean --skip=before,publish,docker --parallelism=1 --timeout=80m
         env:
+          KONGCTL_SKIP_NOTARIZATION: "false"
           RELEASE_INPUT: ${{ github.workspace }}/handoff
           APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
           APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}

@@ -25,7 +25,8 @@ builds:
       - arm64
 notarize:
   macos:
-    - enabled: 'true'
+    # Only the credential-free build stage opts out; signing is required by default.
+    - enabled: '{{ ne (index .Env "KONGCTL_SKIP_NOTARIZATION") "true" }}'
       ids: [kongctl]
       sign:
         certificate: '{{ .Env.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}'
