@@ -1264,9 +1264,12 @@ steps:
                 enabled: true
                 config.output_format: avro
                 config.schema_source.type: reference
-                config.schema_source.schema_registry.id: '{{ .vars.transcodeRegistryID }}'
                 config.schema_source.subject: '''orders-value'''
                 config.schema_source.version: '''latest'''
+          - select: "[?name=='transcode-policy'] | [0].config.schema_source.schema_registry.id"
+            expect:
+              fields:
+                '@': '{{ .vars.transcodeRegistryID }}'
         recordVar:
           name: schemaValidationPolicyID
           responsePath: '[?type==''schema_validation''] | [0].id'
