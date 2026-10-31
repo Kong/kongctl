@@ -84,6 +84,38 @@ real overview endpoints and policy matching with no connected dataplanes;
 per-port policy and proxy-admin inspection still require a running zone and
 dataplane. These scenarios have no simulated API or replay cassette.
 
+### Cleanup for scenario resources
+
+Scenarios that create directories or Gateway control planes can reserve unique
+names and register cleanup before their first command:
+
+```yaml
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_IDENTITY_DIRECTORY_NAME
+    - resource: control_plane
+      nameVar: gateway_name
+      nameEnv: KONGCTL_E2E_IDENTITY_GATEWAY_NAME
+```
+
+The harness assigns each generated name to the scenario variable and environment
+variable. Do not predefine `nameVar` in `vars`. Manifests use
+`name: !env KONGCTL_E2E_IDENTITY_DIRECTORY_NAME`; commands and assertions use
+`{{ .vars.directory_name }}`. Cleanup runs in declaration order on success,
+failure, or an early stop. Put directories before their control planes.
+
+Cleanup matches only the generated name, rejects ambiguous/incomplete reads,
+and never requests forced directory deletion. It can remove this run's
+protected or not-yet-adopted fixtures through the raw API. Normal
+end-of-scenario
+deletion assertions remain useful; teardown tolerates already-absent resources.
+Principal fixtures must carry the label `e2e-fixture` equal to their directory
+UUID. Cleanup removes those principals before the directory and refuses cleanup
+when an unmarked principal is present.
+This is opt-in and does not change shared organization reset or replay routing.
+
 ### Environment Variables
 
 Core harness settings:

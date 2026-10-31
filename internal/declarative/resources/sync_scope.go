@@ -131,17 +131,23 @@ func (s *SyncScope) RebindChildParent(parentType ResourceType, oldRef, newRef st
 	if s == nil || oldRef == "" || newRef == "" || oldRef == newRef {
 		return
 	}
-	if parentType == ResourceTypeAIGateway {
+	if parentType == ResourceTypeAIGateway || parentType == ResourceTypeIdentityDirectory {
 		for kind, parents := range s.ChildNamespaces {
+			policy := registry[kind].syncScope
+			if policy == nil || policy.parentType != parentType {
+				continue
+			}
 			for namespace := range parents[oldRef] {
 				s.AddChildNamespace(kind, newRef, namespace)
 			}
 			delete(parents, oldRef)
 		}
-		for namespace := range s.ModelNamespaces[oldRef] {
-			s.AddModelNamespace(newRef, namespace)
+		if parentType == ResourceTypeAIGateway {
+			for namespace := range s.ModelNamespaces[oldRef] {
+				s.AddModelNamespace(newRef, namespace)
+			}
+			delete(s.ModelNamespaces, oldRef)
 		}
-		delete(s.ModelNamespaces, oldRef)
 	}
 	byParentRef := s.ChildResourceTypes[parentType]
 	if byParentRef == nil {

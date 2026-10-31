@@ -357,12 +357,16 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	applyAPIOperationRemovalAuthorization(basePlan.Changes, rs)
 	adjustAPIVersionTransitionDependencies(basePlan.Changes)
 
+	adjustIdentityDirectoryDeleteDependencies(basePlan.Changes)
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		var paths []string
 		for _, change := range basePlan.Changes {
 			for _, binding := range change.PayloadReferences {
-				paths = append(paths, fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path))
+				paths = append(
+					paths,
+					fmt.Sprintf("%s %q field %s", change.ResourceType, change.ResourceRef, binding.Path),
+				)
 			}
 		}
 		if len(paths) > 0 {
@@ -2611,6 +2615,15 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		return nil
 	})
 
+	// Explicit empty principal collections still select their independent namespace
+	// when the source contains only an external directory.
+	if rs.SyncScope != nil {
+		for _, scoped := range rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipal] {
+			for namespace := range scoped {
+				namespaceSet[namespace] = true
+			}
+		}
+	}
 	// Convert set to sorted slice for consistent ordering
 	namespaces := make([]string, 0, len(namespaceSet))
 	for ns := range namespaceSet {

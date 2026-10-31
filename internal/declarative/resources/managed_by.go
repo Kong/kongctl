@@ -8,6 +8,7 @@ const (
 	ManagedByToolKey    = "tool"
 	ManagedByVersionKey = "version"
 	ManagedByTool       = "kongctl"
+	ManagedByRefKey     = "kongctl-ref"
 )
 
 // ManagedByWithProvenance builds the complete tool-owned map without adopting a resource.
@@ -30,6 +31,8 @@ func ManagedByWithProvenance(metadata map[string]string, version string) map[str
 // Writing tool/version is independent of namespace and ownership capabilities.
 type ManagedByPolicy struct {
 	MaxEntries int
+	// PersistsRef reserves a fifth key for resources without a unique public moniker.
+	PersistsRef bool
 	// OwnsLifecycle uses managed_by for namespace/protection on a managed root.
 	OwnsLifecycle bool
 }
@@ -42,7 +45,12 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 			return fmt.Errorf("managed_by entry limit must accommodate tool and version")
 		}
 		if policy.OwnsLifecycle && (ops.namespace == nil || policy.MaxEntries < 4) {
-			return fmt.Errorf("managed_by lifecycle ownership requires namespace participation and capacity for four keys")
+			return fmt.Errorf(
+				"managed_by lifecycle ownership requires namespace participation and capacity for four keys",
+			)
+		}
+		if policy.PersistsRef && (policy.MaxEntries < 5 || ops.namespace == nil) {
+			return fmt.Errorf("persisted ref requires namespace participation and capacity for five keys")
 		}
 		if ops.managedBy != nil {
 			return fmt.Errorf("managed_by capability already registered")
@@ -68,6 +76,13 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 		metadata = nil
 	}
 	result := ManagedByWithProvenance(metadata, version)
+	if policy.PersistsRef {
+		ref := metadata[ManagedByRefKey]
+		if err := ValidateRef(ref); err != nil {
+			return nil, fmt.Errorf("invalid persisted managed_by ref: %w", err)
+		}
+		result[ManagedByRefKey] = ref
+	}
 	if err := ValidateManagedBy(result, *policy); err != nil {
 		return nil, err
 	}
@@ -88,7 +103,9 @@ func ValidateManagedBy(metadata map[string]string, policy ManagedByPolicy) error
 	}
 	for key := range metadata {
 		if len(key) < 1 || len(key) > 63 || !isMetadataAlphanumeric(key[0]) {
-			return fmt.Errorf("invalid managed_by key: keys must be 1–63 characters and start with an alphanumeric character")
+			return fmt.Errorf(
+				"invalid managed_by key: keys must be 1–63 characters and start with an alphanumeric character",
+			)
 		}
 	}
 	return nil

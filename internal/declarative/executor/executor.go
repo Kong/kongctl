@@ -121,6 +121,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.registerAuthStrategyExecutor()
 	e.registerDCRProviderExecutor()
 	e.registerIdentityDirectoryExecutor()
+	e.registerIdentityPrincipalExecutor()
 	e.registerCatalogServiceExecutor()
 	e.registerAIGatewayExecutors()
 	e.registerAICostManagementTagsExecutor()

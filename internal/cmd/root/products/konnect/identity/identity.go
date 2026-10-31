@@ -43,7 +43,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		if err != nil {
 			return nil, err
 		}
-		group.AddCommand(child)
+		principal, err := adopt.NewIdentityPrincipalCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(child, principal)
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {
@@ -114,5 +118,6 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return nil
 	}
 	group.AddCommand(child)
+	group.AddCommand(newPrincipalCommand(verb, addParentFlags, parentPreRun))
 	return group, nil
 }

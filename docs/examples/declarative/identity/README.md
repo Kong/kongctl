@@ -1,7 +1,14 @@
-# Kong Identity directories
+# Kong Identity directories and principals
 
 These examples require the Kong Identity SDK preview used by this branch and
 access to the regional directory administration API.
+
+`tutorial.yaml` creates a directory plus user and agent principals in the
+`ki-tutorial` namespace. It requires a free directory quota slot; run it
+separately from the other examples. Plan and apply it, inspect the principals,
+then repeat the plan to verify no changes. Edit a principal's display name or
+metadata and apply again. `delete -f tutorial.yaml` removes the principals
+before their directory. For an existing directory, use `principals.yaml`.
 
 Most users can reference an existing directory, commonly named `default`.
 Start with `external-default.yaml`: it resolves the directory by its exact
@@ -17,11 +24,59 @@ true` for organizations with a one-directory quota.
 ```sh
 kongctl get identity directories
 kongctl get identity directory default -o json
+kongctl get identity principals --directory-name default -o json
+kongctl get identity principal <principal-id> --directory-name default -o json
 kongctl plan -f external-default.yaml
 kongctl plan -f directories.yaml --mode apply > plan.json
 kongctl apply --plan plan.json --auto-approve
 kongctl dump declarative --resources identity.directories
 ```
+
+Principal inspection requires an explicit directory name or ID. Principal
+display names are not unique, so individual reads require the principal UUID.
+JSON/YAML omit `active` when the API does not return it; text shows unknown.
+`principals.yaml` declares user, agent, and unclassified principals under an
+existing directory. A managed directory may also contain principals. Each
+principal has independent namespace and protection settings; ownership of the
+directory does not authorize changes to its principals.
+
+Principal matching uses the directory ID plus `kongctl-namespace` and
+`kongctl-ref` in `managed_by`. The other generated entries are `tool`,
+`version`, and `kongctl-protected`. Display names can repeat. Keep refs stable:
+renaming a ref creates a different principal and can remove the old one during
+sync. Do not supply `managed_by` yourself.
+
+Updates use a fresh GET plus PUT and preserve omitted public fields. Explicit
+empty `description`, `labels: {}`, or `metadata: {}` clears those values.
+`type` is currently create-only: omission preserves the existing type, while
+requesting another type or resetting a classified principal to null fails.
+`active` configuration is deferred and is never inferred as false. Track
+removal of these temporary limits in the
+[compatibility tracker](../../../contributor/kong-identity-compatibility.md).
+
+To adopt an existing principal, select its UUID and persist the desired ref:
+
+```sh
+kongctl adopt identity principal <principal-id> --directory-name default \
+  --ref jane-doe --namespace identity-team
+kongctl plan -f principals.yaml --mode apply
+kongctl dump declarative --resources identity.directories \
+  --include-child-resources
+```
+
+Adoption preserves public fields and protection. A conflicting ref in the same
+directory and namespace is rejected. As with directories, taking over existing
+ownership requires `--overwrite-namespace`.
+
+Principal sync is scoped to explicitly declared collections and independent
+namespaces. Omitting `principals` retains existing principals; `principals: []`
+under a directory prunes only owned principals in the source default namespace.
+Foreign namespaces and unowned principals remain untouched. An empty grouped
+`identity.principals: []` cannot identify a parent and is rejected for sync.
+Dump includes principals with `--include-child-resources`, preserves owned refs
+and namespace/protection, and omits active. Dumps of unowned principals require
+explicit adoption before management. Filter to one directory if multiple
+remote resources use the same ref.
 
 To manage an existing directory, explicitly adopt it into your namespace
 before applying a managed declaration with the same name:
@@ -82,5 +137,5 @@ Omitting the collection leaves directories alone during sync. External,
 foreign-namespace, and unowned directories are not pruned. `delete -f` can
 delete explicitly declared managed directories. KongCTL never requests
 forced cascading deletion; the API must permit deletion without losing
-descendant resources. Principals, credentials, groups, Token Vault children,
-and other directory children are outside this first implementation.
+descendant resources. Credentials, groups, Token Vault children, and other
+directory children remain separate follow-up work.

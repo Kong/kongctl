@@ -20,14 +20,22 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
-	MeshControlPlanes   []string `yaml:"meshControlPlanes"`
-	Enabled             *bool    `yaml:"enabled"`
-	EnabledByEnvVar     string   `yaml:"enabledByEnvVar"`
-	RequiredEnvVars     []string `yaml:"requiredEnvVars"`
-	RequiresPAT         *bool    `yaml:"requiresPAT"`
-	AssignedEnvironment string   `yaml:"assignedEnvironment"`
-	Maturity            string   `yaml:"maturity"`
-	Info                string   `yaml:"info"`
+	CleanupResources    []CleanupResource `yaml:"cleanupResources"`
+	MeshControlPlanes   []string          `yaml:"meshControlPlanes"`
+	Enabled             *bool             `yaml:"enabled"`
+	EnabledByEnvVar     string            `yaml:"enabledByEnvVar"`
+	RequiredEnvVars     []string          `yaml:"requiredEnvVars"`
+	RequiresPAT         *bool             `yaml:"requiresPAT"`
+	AssignedEnvironment string            `yaml:"assignedEnvironment"`
+	Maturity            string            `yaml:"maturity"`
+	Info                string            `yaml:"info"`
+}
+
+// CleanupResource reserves a generated resource name for this scenario run.
+type CleanupResource struct {
+	Resource string `yaml:"resource"`
+	NameVar  string `yaml:"nameVar"`
+	NameEnv  string `yaml:"nameEnv"`
 }
 
 type Retry struct {

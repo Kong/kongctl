@@ -322,7 +322,40 @@ require a separate unprotect operation. Deletion never requests a cascade.
 See the [directory examples](examples/declarative/identity/README.md) for
 configuration, adoption, quota constraints, and sync behavior. Auth-server
 administration and runtime authentication/lookup are separate API surfaces;
-this implementation covers directory configuration only.
+this implementation covers directory configuration and principals.
+
+## Kong Identity principals
+
+Declare principals under `identity.directories[].principals`, or in
+`identity.principals` with a `directory` selector referencing a declared
+managed or external directory. Each principal requires `ref`. Optional fields
+are `display_name`, `description`, `type`, `metadata`, `labels`, and `kongctl`.
+
+Identity is directory + namespace + ref, persisted in five generated
+`managed_by` entries. Display names need not be unique. Each principal has
+independent ownership and protection. Complete list scans match identities
+locally and reject duplicate tuples; saved writes repeat those checks.
+
+`type` accepts `user`, `agent`, or null on creation. Until API question Q9 is
+resolved, existing classifications cannot change: omission preserves the
+current type, and explicit changes, including a reset to null, fail.
+`active` configuration is deferred under Q10. Inspection preserves missing
+state and dump never invents false. Updates and adoption use fresh GET + PUT
+and preserve omitted public fields. Empty metadata/labels maps and an empty
+description clear those values.
+
+Metadata supports strings, booleans, integers, string arrays, and integer
+arrays. Sync only prunes principal namespaces explicitly captured under the
+selected directories. Omitted collections retain principals. An explicitly
+empty nested collection prunes only owned, unprotected principals in the
+source default namespace. Unowned and foreign principals remain untouched.
+
+Adoption requires the principal UUID, directory name or UUID, namespace, and
+`--ref`. Dump exports principals with directory child resources and preserves
+owned refs. See [Identity examples](examples/declarative/identity/README.md)
+and the [temporary compatibility tracker][identity-compatibility].
+
+[identity-compatibility]: contributor/kong-identity-compatibility.md
 
 ## DCR Providers
 

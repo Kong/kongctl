@@ -206,6 +206,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
 			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
+			IdentityPrincipalsAPI:               sdk.GetIdentityPrincipalsAPI(),
 			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
@@ -272,7 +273,12 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	}
 
 	if stateClient == nil && slices.Contains(opts.resources, resourceIdentityDirectories) {
-		stateClient = declstate.NewClient(declstate.ClientConfig{IdentityDirectoriesAPI: sdk.GetIdentityDirectoriesAPI()})
+		stateClient = declstate.NewClient(
+			declstate.ClientConfig{
+				IdentityDirectoriesAPI: sdk.GetIdentityDirectoriesAPI(),
+				IdentityPrincipalsAPI:  sdk.GetIdentityPrincipalsAPI(),
+			},
+		)
 	}
 
 	writer, cleanup, err := getDumpWriter(helper, opts.outputFile)

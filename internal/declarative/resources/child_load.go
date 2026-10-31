@@ -102,7 +102,11 @@ func (load childLoad[R, P]) registration(
 	}
 	if load.validate != nil {
 		registration.validate = func(rs *ResourceSet) error {
-			return load.validate(rs, *storage(rs))
+			values := storage(rs)
+			if values == nil {
+				return load.validate(rs, nil)
+			}
+			return load.validate(rs, *values)
 		}
 	}
 	return registration

@@ -26,6 +26,7 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypePortalAuditLogWebhook, ""},
 		{ResourceTypeAIGatewayDatastore, ""},
 		{ResourceTypeIdentityDirectory, ""},
+		{ResourceTypeIdentityPrincipal, ""},
 	}, got)
 
 	// These mapping implementations were not enrolled in the loader's reference
@@ -107,7 +108,9 @@ func TestReferenceValidationRegistrationGuards(t *testing.T) {
 		},
 		{
 			"nil accessor", ResourceTypeAPIPublication,
-			[]ResourceRegistrationOption{withNestedReferenceValidation[APIResource, APIPublicationResource](10, 10, nil)},
+			[]ResourceRegistrationOption{
+				withNestedReferenceValidation[APIResource, APIPublicationResource](10, 10, nil),
+			},
 			"nested reference validation requires positive phase/order and matching typed accessor",
 		},
 		{

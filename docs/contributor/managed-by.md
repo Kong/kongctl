@@ -129,4 +129,14 @@ protection inheritance. Directory adapters check `tool: kongctl` and their
 own namespace/protection after a fresh GET before writes. Matching uses the
 API's unique name, and unowned directories require explicit adoption.
 
+Kong Identity principals enroll independent child ownership under directories,
+with `ManagedByPolicy{MaxEntries: 5, PersistsRef: true}`. Their fifth generated
+key, `kongctl-ref`, is required because display names are not unique. The
+shared stamper retains this key only for explicitly enrolled policies; it does
+not add it to AI Gateway children or directories. Principal adapters recheck
+the directory/namespace/ref tuple, complete-list duplicates, and protection
+before mutations. Full PUT uses a fresh read to preserve omitted public fields.
+See the [Identity compatibility tracker](kong-identity-compatibility.md) for
+Q9–Q11 restrictions and the criteria for removing them.
+
 [migration]: https://github.com/Kong/kongctl/issues/2521

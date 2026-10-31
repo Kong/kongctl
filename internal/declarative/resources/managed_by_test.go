@@ -65,3 +65,18 @@ func TestManagedByDirectoryRootOwnsLifecycleWithoutChildScope(t *testing.T) {
 	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true})(&ops),
 		"namespace participation")
 }
+
+func TestManagedByPersistsRefOnlyForEnrolledPrincipal(t *testing.T) {
+	metadata := BuildPrincipalManagedBy("identity-team", "alice", true, "old")
+	prepared, err := PrepareManagedBy(ResourceTypeIdentityPrincipal, metadata, "current")
+	require.NoError(t, err)
+	require.Equal(t, BuildPrincipalManagedBy("identity-team", "alice", true, "current"), prepared)
+	for _, kind := range []ResourceType{ResourceTypeIdentityDirectory, ResourceTypeAIGatewayProvider} {
+		prepared, err := PrepareManagedBy(kind, metadata, "current")
+		require.NoError(t, err)
+		require.NotContains(t, prepared, ManagedByRefKey)
+	}
+	delete(metadata, ManagedByRefKey)
+	_, err = PrepareManagedBy(ResourceTypeIdentityPrincipal, metadata, "current")
+	require.ErrorContains(t, err, "persisted")
+}

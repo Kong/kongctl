@@ -948,6 +948,110 @@ tests, E2E inventory/replay-allocation checks, and the live directory scenario.
 The final live run artifacts are in
 `directory-e2e/20261030-213415/` under the cache directory above.
 
+## 16. Failure cleanup and principal inspection follow-up
+
+Directory E2E fixtures now use generated unique names and register teardown
+before scenario commands run. Teardown executes after success, failure, and
+early stops, independently of the canceled test context. It removes only the
+named fixtures and principal children explicitly marked with the directory
+UUID; an unmarked principal stops cleanup before deletion. Directory deletion
+never requests a forced cascade. Existing shared reset and enabled replay
+scenarios/recordings remain unchanged.
+
+Live validation covered the normal lifecycle and early stops after resource
+creation, protection, unmanaged creation, and principal creation. A real failed
+dump round trip also exercised successful teardown. That failure exposed a
+long-name bug: dump used the directory name as a local ref, which exceeds the
+63-character ref limit for valid long API names. Dump now uses the directory
+UUID, consistent with other resource exports, with round-trip regression
+coverage.
+
+Principal get/list commands now support explicit directory name/ID selection
+and principal UUID lookup. Duplicate display names are not treated as unique
+identifiers. A normalized read model preserves the presence of `active`; a
+missing response field remains omitted in JSON/YAML and unknown in text.
+Tests cover pagination, malformed/incomplete reads, both directory selectors,
+user/agent/unclassified principals, typed metadata, and duplicate display names.
+
+Direct HTTP probes retained the five-entry ownership map on create/PUT,
+including `kongctl-ref`. They also reproduced API/spec mismatches for type
+updates, missing active state, and PATCH ownership updates. The engineering
+question log records exact observations and request examples in Q9–Q11.
+The tested deployment supports initial type classification and ownership PUT;
+these results do not establish support for type changes or active-state writes.
+
+The approved principal declarative lifecycle is implemented in section 17.
+Principal-identity commands remain separate follow-up work.
+
+Validation passed: modernization, formatting, CGO-disabled build, standard lint
+with zero issues, race-enabled unit tests, integration tests, the complete E2E
+harness suite with race detection, replay/allocation inventory checks, the full
+live scenario, and stopped-run teardown checks. An additional E2E-tag lint run
+reported existing findings in the unchanged merge/loader/runner code; none were
+reported in the new cleanup helper. Logs remain under
+`/home/rspurgeon/.cache/kong-identity-public-sdk/`.
+
+
+## 17. Principal declarative lifecycle
+
+Implemented on `ki-triage`; #1415 remains In Progress until merge.
+Principals support nested declarations under managed/external directories and
+grouped declarations with an explicit directory selector. Their independent
+ownership identity is directory ID + namespace + ref. KongCTL stores the ref
+as the fifth generated `managed_by` entry, `kongctl-ref`; public display names
+may repeat. All matching scans every page and rejects duplicate tuples. Saved
+updates/deletes repeat complete duplicate and fresh ownership checks.
+
+Implemented behavior includes plan/apply/sync/delete, saved plans, adoption,
+dump with directory children, explain/scaffold, and get/list. PUT hydrates
+omitted fields from a fresh response before overlaying saved changes. Metadata
+and labels can be cleared explicitly; integer metadata retains its precision.
+Protection requires a separate unprotect operation. Adoption requires a UUID,
+explicit directory, namespace, and ref, and rejects an existing conflicting
+tuple.
+
+An explicit empty nested principal collection selects its source namespace
+for pruning. Omission selects no pruning. External-only directory declarations
+never authorize directory pruning. Directory ownership grants no principal
+mutation authority. Unowned and foreign-namespace principals are retained.
+Creation/deletion dependencies include parent changes across namespaces.
+
+Temporary compatibility restrictions are intentionally tracked in
+`docs/contributor/kong-identity-compatibility.md`, separately from API-only
+engineering questions in `docs/kong-identity-api-questions.md`:
+
+- Q9: type is create-only; explicit changes and classified-to-null fail.
+  Omitting type preserves existing classification.
+- Q10: active configuration is rejected, absent responses remain unknown,
+  and PUT/dump never synthesize false.
+- Q11: management metadata changes, protection, and adoption use fresh GET
+  plus PUT until PATCH semantics are verified.
+
+The tracker records removal criteria and the production/test locations to
+revisit when the team answers. These are temporary deployment compatibility
+choices, not claims that the API will permanently require them.
+
+`docs/examples/declarative/identity/principals.yaml` groups user, agent, and
+unclassified examples under an existing directory. The live directory scenario
+also covers principal creation, no-op planning, field/metadata updates,
+omission, type/null/active rejection, dump/reload, protection, adoption,
+explicit deletion, and scoped sync. The expanded live run and a deliberate
+stop after protecting a principal both passed. Teardown removed the generated directory and its marked principals;
+a fresh directory list was empty.
+
+Artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `principal-decl-live-final/20261030-231029`
+- `principal-decl-stopped-protected/20261030-231233`
+
+Modernization, formatting, CGO-disabled build, lint with zero issues,
+race-enabled unit tests, integration tests, harness race tests, and
+replay/allocation inventory checks pass. Logs use the `principal-decl-` prefix.
+The execution regression covers integer metadata through saved-plan cloning
+and environment resolution as well as SDK mapping. Enabled replay scenarios
+and recordings remain unchanged. #1415 remains In Progress until merge;
+implementation is on the working branch and no PR has been opened.
+
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 
 [issue-1132]: https://github.com/Kong/kongctl/issues/1132

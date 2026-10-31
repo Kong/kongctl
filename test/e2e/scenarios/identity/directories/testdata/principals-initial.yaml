@@ -1,0 +1,32 @@
+_defaults:
+  kongctl: {namespace: identity-principal-e2e}
+identity:
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: !env KONGCTL_E2E_IDENTITY_DIRECTORY_NAME
+      principals:
+        - ref: human
+          display_name: Shared declarative display name
+          description: Initial principal
+          type: user
+          metadata:
+            department: engineering
+            attempts: 3
+            trusted: false
+            roles: [reader, writer]
+            numbers: [1, 2]
+          labels:
+            e2e-fixture: !env KONGCTL_E2E_IDENTITY_DIRECTORY_ID
+            owner: identity
+        - ref: agent
+          display_name: Shared declarative display name
+          type: agent
+          labels:
+            e2e-fixture: !env KONGCTL_E2E_IDENTITY_DIRECTORY_ID
+        - ref: unclassified
+          type: null
+          labels:
+            e2e-fixture: !env KONGCTL_E2E_IDENTITY_DIRECTORY_ID

@@ -19,6 +19,7 @@ const (
 // allowing for easier testing and mocking
 type SDKAPI interface {
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
+	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
@@ -111,6 +112,13 @@ func (k *KonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
 		return nil
 	}
 	return k.SDK.KongIdentityDirectories
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalsAPI() IdentityPrincipalsAPI {
+	if k.SDK == nil || k.SDK.KongPrincipal == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipal
 }
 
 // Returns the real implementation of the GetControlPlaneAPI

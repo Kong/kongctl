@@ -49,6 +49,26 @@ returned success while leaving a requested version change unchanged.
 - Reassess whether PATCH simplifies the implementation once verified. Working
   PUT support remains valid even if switching is unnecessary.
 
+## Current implementation and regression coverage
+
+The principal resource validates deferred `active` input in
+`internal/declarative/resources/identity_principal.go`. Type changes are
+rejected in `planner/identity_principal_planner.go` and rechecked against a
+fresh observation in `executor/identity_principal_adapter.go`. These guards
+reference Q9/Q10 explicitly.
+
+`helpers.IdentityPrincipalReplacement` builds PUT requests without `active`.
+The principal executor hydrates omitted fields from a fresh detail response,
+then overlays only saved plan fields. Adoption uses the same replacement
+builder. Reads preserve response presence independently of SDK defaults.
+
+Coverage lives in the principal loader, planner, executor, adoption, and read
+helper tests. `test/e2e/scenarios/identity/directories` exercises the live
+principal lifecycle, including user/agent/null creation, repeated no-op plans,
+PUT updates, omitted fields, metadata clearing, dump/reload, adoption,
+protection, deletion, and scoped sync. Q9/Q10 rejection assertions should be
+replaced with supported behavior when those restrictions are removed.
+
 ## Recording resolution
 
 For each resolved question, record the team answer, date, environment/API

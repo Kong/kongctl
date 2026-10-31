@@ -118,7 +118,7 @@ func IsManagedResourceProtected(
 			}
 			return r.NormalizedLabels, err
 		})
-	case resources.ResourceTypeAPIVersion,
+	case resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
 		resources.ResourceTypeAPIDocument,

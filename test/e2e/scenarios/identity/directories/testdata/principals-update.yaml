@@ -1,0 +1,16 @@
+_defaults:
+  kongctl: {namespace: identity-principal-e2e}
+identity:
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: !env KONGCTL_E2E_IDENTITY_DIRECTORY_NAME
+      principals:
+        - ref: human
+          display_name: Updated display name
+          description: ""
+          metadata: {}
+          labels:
+            e2e-fixture: !env KONGCTL_E2E_IDENTITY_DIRECTORY_ID

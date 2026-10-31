@@ -2097,6 +2097,10 @@ resources:
         source: sdk
     overrides: []
     exclusions: []
+  - resource_type: identity_principal
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []

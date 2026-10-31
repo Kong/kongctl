@@ -249,6 +249,7 @@ const (
 const (
 	ResourceTypePortal                           = string(resources.ResourceTypePortal)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
+	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)

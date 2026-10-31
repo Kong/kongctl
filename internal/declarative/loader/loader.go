@@ -682,6 +682,11 @@ func (l *Loader) applyDefaults(rs *resources.ResourceSet) {
 
 // extractNestedResources extracts nested child resources to root level with parent references
 func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
+	if rs.Identity != nil {
+		for i := range rs.Identity.Directories {
+			rs.ExtractRegisteredChildren(&rs.Identity.Directories[i])
+		}
+	}
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {
 		rs.Dashboards = append(rs.Dashboards, rs.Analytics.Dashboards...)

@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: identity-team
+
+identity:
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: people
+      principals:
+        - ref: jane-doe
+          display_name: Jane Doe
+          description: Example human principal
+          type: user
+          metadata:
+            department: engineering
+            trusted: false
+            attempts: 3
+            roles: [reader, writer]
+            levels: [1, 2]
+          labels:
+            team: identity
+          kongctl:
+            protected: true
+        - ref: support-agent
+          display_name: Support agent
+          description: Example deployed AI agent
+          type: agent
+        - ref: unclassified
+          display_name: Unclassified principal
+          type: null

@@ -7,4 +7,4 @@ identity:
       _external:
         selector:
           matchFields:
-            name: "e2e-identity-directory"
+            name: !env KONGCTL_E2E_IDENTITY_DIRECTORY_NAME

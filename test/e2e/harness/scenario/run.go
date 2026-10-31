@@ -74,6 +74,9 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) (runErr error) {
 	if s.Vars == nil {
 		s.Vars = map[string]any{}
 	}
+	if err := registerResourceCleanup(t, cli, s.Test.CleanupResources, s.Vars); err != nil {
+		return fmt.Errorf("register scenario resource cleanup: %w", err)
+	}
 	if err := provisionMeshControlPlanes(t, cli, s.Test.MeshControlPlanes, s.Vars); err != nil {
 		return fmt.Errorf("provision Mesh control planes: %w", err)
 	}
@@ -200,7 +203,8 @@ func executeScenario(
 			diagnostics.begin(stepName, cmdName)
 			isLastCmdInStep := j == len(st.Commands)-1
 			envOverrides := renderEnvScope(mergeEnvScopes(st.Env, cmd.Env), tmplCtx)
-			if len(cmd.ReplanOnRetry) > 0 && (cmd.ResetOrg || len(cmd.Exec) > 0 || cmd.Create != nil || cmd.Delete != nil) {
+			if len(cmd.ReplanOnRetry) > 0 &&
+				(cmd.ResetOrg || len(cmd.Exec) > 0 || cmd.Create != nil || cmd.Delete != nil) {
 				return fmt.Errorf("command %s: replanOnRetry requires a run command using apply --plan", cmdName)
 			}
 			// Handle resetOrg synthetic command
