@@ -189,6 +189,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeAIGatewayCACertificate,
 		resources.ResourceTypeAIGatewaySNI,
 		resources.ResourceTypeIdentityAuthServerScope,
+		resources.ResourceTypeIdentityAuthServerClient,
 		resources.ResourceTypeIdentityAuthServerClaim:
 		return false, nil
 	}

@@ -1,0 +1,33 @@
+_defaults:
+  kongctl:
+    namespace: identity-client-example
+
+identity:
+  auth_servers:
+    - ref: client-issuer
+      name: kongctl-example-client-issuer
+      audience: https://api.example.com
+      scopes:
+        - ref: client-read-data
+          name: read:data
+          description: Read application data
+          enabled: true
+          default: true
+          include_in_metadata: true
+      clients:
+        - ref: background-worker
+          name: example-background-worker
+          grant_types: [client_credentials]
+          response_types: []
+          redirect_uris: []
+          login_uri: https://app.example.com/login
+          access_token_duration: 600
+          id_token_duration: 900
+          allow_all_scopes: false
+          allow_scopes: [!ref client-read-data#id]
+          token_endpoint_auth_method: client_secret_basic
+          labels:
+            team: identity
+          kongctl:
+            namespace: identity-client-example
+            protected: false

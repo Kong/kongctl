@@ -112,3 +112,28 @@ func TestScopeSyncRequiresExplicitCollectionAndRejectsRetainedReferences(t *test
 	_, err = planAuthChildren(t, authChildParent+"      scopes: []\n", roots, children, PlanModeSync)
 	require.ErrorContains(t, err, "protected")
 }
+
+func TestClientMetadataUpdateDoesNotAuthorizeScopeDeletion(t *testing.T) {
+	root := fixture.AuthServer("issuer", "auth-team", false)
+	method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_basic")
+	roots := &fixture.AuthServerAPI{Servers: []kkComps.AuthServer{root}}
+	children := &fixture.AuthServerChildrenAPI{
+		Scopes: map[string][]kkComps.AuthServerScope{root.ID: {{ID: "scope-id", Name: "read:data"}}},
+		Clients: map[string][]kkComps.AuthServerClient{root.ID: {{
+			ID: "opaque-client", Name: "worker",
+			GrantTypes:    []kkComps.AuthServerGrantType{kkComps.AuthServerGrantTypeClientCredentials},
+			ResponseTypes: []kkComps.ResponseType{}, AllowScopes: []string{"scope-id"}, TokenEndpointAuthMethod: &method,
+			Labels: map[string]string{"KONGCTL-namespace": "auth-team", "team": "old"},
+		}}},
+	}
+	input := authChildParent + `      scopes: []
+      clients:
+        - ref: worker
+          name: worker
+          grant_types: [client_credentials]
+          response_types: []
+          labels: {team: new}
+`
+	_, err := planAuthChildren(t, input, roots, children, PlanModeSync)
+	require.ErrorContains(t, err, "still referenced by client")
+}

@@ -16,9 +16,11 @@ Scopes and claims now have declarative lifecycle support as managed-server
 children, plus get/list, examples and live E2E coverage. Their issues #1402 and
 #1403 remain In Progress until merge. OAuth client and secret metadata get/list
 are implemented. Explicit secret creation/capture, enable/disable and deletion
-now have live rotation coverage. Client declarative writes and initial client
-creation capture remain separate work. Sections 19–22 record contracts and
-questions. #1401 and #1404 remain In Progress.
+now have live rotation coverage. Client declarative lifecycle, adoption and
+initial-secret capture pass live verification, including runtime credential
+continuity. Sections 19–23
+record contracts, verification and questions. #1401 and #1404 remain In
+Progress.
 
 The public preview SDK is now pinned to `221af2edb788`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
@@ -153,7 +155,8 @@ For example, a service can have one principal containing policy metadata,
 an identity linking it to an OAuth client, and an API-key credential for a
 different authentication path.
 
-Source: [principal concepts][principal-docs] and [directory specification][directory-spec].
+Source: [principal concepts][principal-docs] and [directory
+specification][directory-spec].
 
 ### Authorization server, client, scope, claim, and secret
 
@@ -205,7 +208,8 @@ Trusted IdPs and vault providers serve different purposes: one establishes
 trust in identity assertions; the other configures the upstream credential
 source.
 
-Source: [platform-api PR #3877][platform-pr] and [directory specification][directory-spec].
+Source: [platform-api PR #3877][platform-pr] and [directory
+specification][directory-spec].
 
 ## 4. Current KongCTL and SDK status
 
@@ -255,7 +259,8 @@ old report suggests. Their PATCH schema still lacks `managed_by`, so
 adoption and ownership updates need deliberate handling through supported
 replacement semantics.
 
-Sources: [directory schemas][directory-spec] and [common metadata schemas][metadata-spec].
+Sources: [directory schemas][directory-spec] and [common metadata
+schemas][metadata-spec].
 
 ### Reusing the AI Gateway ownership work
 
@@ -422,7 +427,8 @@ Connected Apps. These extend beyond the original five tracked resource
 families. JWK and auth-server trusted-IdP routes remain gated in the local
 source and should not silently expand the initial deliverable.
 
-Sources: [PR scope and exclusions][platform-pr] and [auth-server source][auth-spec].
+Sources: [PR scope and exclusions][platform-pr] and [auth-server
+source][auth-spec].
 
 ## 8. Recommendation for PR #1433
 
@@ -1429,3 +1435,63 @@ and cassettes are unchanged. No implementation PR or SDK release was created.
 [timeline-portal-content]: https://github.com/Kong/platform-api/commit/0556e7410419870fb9a2f87fc8c81e0bfae498e7
 [timeline-portal-theme]: https://github.com/Kong/platform-api/commit/810709c402f65e403a9d1e593c5feeffcf4a672e
 [timeline-environment-original]: https://github.com/Kong/platform-api/commit/332d90437a4d08ece256c0b895c5f7ab36805657
+
+## 23. Declarative OAuth clients and initial credentials
+
+Issue #1401 now implements nested `identity.auth_servers[].clients` and grouped
+`identity.clients`, including independent namespace/protection labels, exact
+unique-name matching, parent isolation, typed same-plan scope references and
+all public client fields. Required API name/grant/response fields stay explicit.
+Clients can belong to an external server and a different namespace from their
+parent. Their namespace does not broaden auth-server pruning.
+
+Plan, diff, saved apply, sync, delete, dump, explain/scaffold and adoption are
+integrated. Omitted optional fields preserve current configuration; explicit
+empty arrays clear it. Every client PATCH and adoption preserves the fresh
+authentication method when omitted (Q15), without sending credential material.
+Scope deletion can follow a proven client detachment or deletion, but retained
+or late references still block it. Saved writes recheck remote parent identity
+and client identity, ownership and protection.
+
+Initial client creation requires `--secret-output-dir` at execution. Before any
+API mutations, the executor reserves new `0600` capture files for all client
+creates. Resolved parent IDs are persisted before POST. Generated secret values
+exist only in those files; normal execution reports paths and resource IDs.
+Plans, dumps and ordinary output contain no material or output paths. Unused
+reservations are removed; uncertain attempts retain recovery metadata. SDK and
+transport issue a single creation attempt. No automatic rotation or rollback
+tries to recover an inaccessible value.
+
+The new `identity/declarative-clients` scenario verifies all public fields,
+secret-file privacy, saved-plan application, repeated no-op plans, dump/replan,
+updates and empty arrays, scope detachment/removal, protection, adoption,
+external servers, namespace-isolated sync, explicit deletion and cleanup.
+It mints real client-credentials tokens using the initial secret before and
+after updates/adoption and scans artifacts for both material and Basic-auth
+encoding. The full live run passed at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-client-live-4/20261031-023002`.
+Final validation and early-stop cleanup are recorded with the implementation
+commit. Existing replay-enabled coverage is unchanged.
+
+Q20 adds one API-only question: whether the working `client_secret_basic`
+method should retain its canonical `x-enum-dev` annotation. The public preview
+enum filters it out, while SDK passthrough and live authentication work.
+Validation accepts this verified canonical value explicitly. Authorization-code
+and refresh-token grant enums remain excluded from this preview; Q17 records
+the deployed authorization-code denial. Unsupported internal client fields and
+independent secret-slot declarations remain outside the implemented contract.
+
+Examples: `docs/examples/declarative/identity/auth-server-clients.yaml` and its
+companion tutorial. Metadata: client labels; secret records still have no
+remote ownership store. Issues #1401/#1404 remain In Progress until merge; no
+implementation PR has been opened.
+
+Final client validation: modernize, clean formatting, build, lint, unit race
+tests, integration tests, harness race tests and weighted scenario inventory
+all pass. All seven live Identity scenarios pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-client-identity-regression/20261031-023727`.
+A final client run also verifies clearing the login URI at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-client-final-live/20261031-024003`.
+Early-stop cleanup passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-client-stopped/20261031-024044`.
+All five private capture paths from these runs were removed after cleanup.

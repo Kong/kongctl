@@ -14,6 +14,15 @@ var identityClientIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,48}$`)
 
 type IdentityAuthServerClientsAPI interface {
 	IdentityAuthServerClientsReader
+	CreateAuthServerClient(context.Context, string, kkComps.CreateClient, ...kkOps.Option) (
+		*kkOps.CreateAuthServerClientResponse, error,
+	)
+	UpdateAuthServerClient(context.Context, kkOps.UpdateAuthServerClientRequest, ...kkOps.Option) (
+		*kkOps.UpdateAuthServerClientResponse, error,
+	)
+	DeleteAuthServerClient(context.Context, string, string, ...kkOps.Option) (
+		*kkOps.DeleteAuthServerClientResponse, error,
+	)
 	GetAuthServerClient(context.Context, string, string, ...kkOps.Option) (
 		*kkOps.GetAuthServerClientResponse, error,
 	)
@@ -36,10 +45,10 @@ type IdentityAuthServerClientsAPI interface {
 
 // Secret values are deliberately absent even if a read response contains one.
 type IdentityClientSecret struct {
-	ID        string    `json:"id" yaml:"id"`
+	ID        string    `json:"id"                yaml:"id"`
 	Enabled   *bool     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	CreatedAt time.Time `json:"created_at" yaml:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" yaml:"updated_at"`
+	CreatedAt time.Time `json:"created_at"        yaml:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"        yaml:"updated_at"`
 }
 
 func identityClientSecret(value kkComps.ClientSecretItem) IdentityClientSecret {
@@ -95,7 +104,8 @@ func ListIdentityClientSecrets(ctx context.Context, api IdentityAuthServerClient
 			if err != nil {
 				return nil, nil, identitySecretAPIError("list client secrets", err)
 			}
-			if err != nil || response == nil || response.ClientSecretList == nil || response.ClientSecretList.Data == nil {
+			if err != nil || response == nil || response.ClientSecretList == nil ||
+				response.ClientSecretList.Data == nil {
 				return nil, nil, err
 			}
 			values := make([]IdentityClientSecret, 0, len(response.ClientSecretList.Data))

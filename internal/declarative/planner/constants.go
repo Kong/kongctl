@@ -10,6 +10,15 @@ import (
 const (
 	FieldAudience                   = "audience"
 	FieldAuthServerID               = "auth_server_id"
+	FieldGrantTypes                 = "grant_types"
+	FieldResponseTypes              = "response_types"
+	FieldRedirectURIs               = "redirect_uris"
+	FieldLoginURI                   = "login_uri"
+	FieldAccessTokenDuration        = "access_token_duration"
+	FieldIDTokenDuration            = "id_token_duration" //nolint:gosec // API field name, not credential material.
+	FieldAllowAllScopes             = "allow_all_scopes"
+	FieldAllowScopes                = "allow_scopes"
+	FieldTokenEndpointAuthMethod    = "token_endpoint_auth_method"
 	FieldDefault                    = "default"
 	FieldIncludeInMetadata          = "include_in_metadata"
 	FieldIncludeInToken             = "include_in_token"
@@ -263,6 +272,7 @@ const (
 	ResourceTypeIdentityAuthServer               = string(resources.ResourceTypeIdentityAuthServer)
 	ResourceTypeIdentityAuthServerScope          = string(resources.ResourceTypeIdentityAuthServerScope)
 	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
+	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
