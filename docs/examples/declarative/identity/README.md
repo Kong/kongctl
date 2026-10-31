@@ -8,6 +8,10 @@ access to the regional directory administration API.
 and explicit secret rotation. Client ownership uses labels independently of
 the server.
 
+[Principal identity inspection](principal-identities.md) explains OIDC, OAuth
+client, Gateway consumer and custom associations. Their declarative lifecycle
+is the next active slice under #1416.
+
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it
 separately from the other examples. Plan and apply it, inspect the principals,

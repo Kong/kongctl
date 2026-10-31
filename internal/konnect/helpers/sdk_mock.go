@@ -4,6 +4,7 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityPrincipalIdentitiesFactory    func() IdentityPrincipalIdentitiesAPI
 	IdentityAuthServerClientsAPIFactory   func() IdentityAuthServerClientsAPI
 	IdentityAuthServerClientsFactory      func() IdentityAuthServerClientsReader
 	IdentityAuthServerScopesFactory       func() IdentityAuthServerScopesAPI
@@ -134,6 +135,13 @@ func (m *MockKonnectSDK) GetIdentityPrincipalsAPI() IdentityPrincipalsAPI {
 		return nil
 	}
 	return m.IdentityPrincipalsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI {
+	if m.IdentityPrincipalIdentitiesFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalIdentitiesFactory()
 }
 
 // Returns a mock instance of the ControlPlaneAPI

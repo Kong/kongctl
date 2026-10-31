@@ -127,6 +127,68 @@ func TestResourceCleanupPreservesUnmarkedPrincipalInTestDirectory(t *testing.T) 
 	require.True(t, os.IsNotExist(err), "neither foreign descendants nor the directory may be deleted")
 }
 
+func TestPrincipalIdentityCleanupChecksEveryCollectionAndFreshLabels(t *testing.T) {
+	for _, fault := range []string{"", "unmarked-identity", "identity-read-error", "identity-label-change"} {
+		t.Run(fault, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			cli.WithEnv(map[string]string{"CLEANUP_FAULT": fault})
+			directory := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			principal := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb2"
+			identity := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb3"
+			labels := map[string]string{"e2e-fixture": directory, "e2e-principal-id": principal}
+			observed := []map[string]any{
+				{"id": directory, "name": "generated"},
+				{
+					"id":           principal,
+					"kind":         "principal",
+					"directory_id": directory,
+					"labels":       map[string]string{"e2e-fixture": directory},
+				},
+				{
+					"id":           identity,
+					"kind":         "identity",
+					"directory_id": directory,
+					"principal_id": principal,
+					"labels":       labels,
+				},
+			}
+			if fault == "unmarked-identity" {
+				other := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb4"
+				observed = append(
+					observed,
+					map[string]any{
+						"id": other, "kind": "principal", "directory_id": directory,
+						"labels": map[string]string{"e2e-fixture": directory},
+					},
+					map[string]any{
+						"id": "c0b37b67-06c8-49fb-b51b-2c8f49b20fb5", "kind": "identity",
+						"directory_id": directory, "principal_id": other, "labels": map[string]string{},
+					},
+				)
+			}
+			data, err := json.Marshal(observed)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
+			err = cleanupResource(
+				t.Context(),
+				cli,
+				cleanupTarget{kind: resources.ResourceTypeIdentityDirectory, name: "generated"},
+			)
+			if fault == "" {
+				require.NoError(t, err)
+				deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
+				require.NoError(t, err)
+				require.Equal(t, "/v2/directories/"+directory+"/principals/"+principal+"/identities/"+identity+"\n"+
+					"/v2/directories/"+directory+"/principals/"+principal+"\n/v2/directories/"+directory+"?force=false\n", string(deleted))
+			} else {
+				require.Error(t, err)
+				_, err := os.Stat(filepath.Join(dir, "deleted"))
+				require.True(t, os.IsNotExist(err), "incomplete or changed ownership cannot authorize cleanup")
+			}
+		})
+	}
+}
+
 func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
 	for _, fault := range []string{"", "scope", "claim", "client", "marked-client", "missing-client-label"} {
 		t.Run(fault, func(t *testing.T) {
@@ -197,7 +259,19 @@ if args[0]=='get':
         sys.exit(1)
     if fault=='duplicate': values=values+values
     if fault=='missing-id': values[0]['id']=''
-    if args[:3]==['get','identity','principals']:
+    if args[:3] in [['get','identity','principal-identities'],['get','identity','principal-identity']]:
+        if fault=='identity-read-error':
+            print('identity inventory failed',file=sys.stderr)
+            sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        principal=args[args.index('--principal-id')+1]
+        values=[v for v in values if v.get('kind')=='identity' and v.get('directory_id')==directory and v.get('principal_id')==principal]
+        if args[2]=='principal-identity':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='identity-label-change': values['labels']={}
+    elif args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
     elif args[2] in ['auth-server-claims','auth-server-scopes','auth-server-clients']:
@@ -205,7 +279,7 @@ if args[0]=='get':
         kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client']]
+        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client','identity']]
     print(json.dumps(values))
 elif args[:2]==['api','get'] and '/clients?' in args[2]:
     values=[v for v in values if v.get('kind')=='client']

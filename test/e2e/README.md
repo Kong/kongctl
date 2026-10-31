@@ -112,8 +112,12 @@ protected or not-yet-adopted fixtures through the raw API. Normal
 end-of-scenario
 deletion assertions remain useful; teardown tolerates already-absent resources.
 Principal fixtures must carry the label `e2e-fixture` equal to their directory
-UUID. Cleanup removes those principals before the directory and refuses cleanup
-when an unmarked principal is present.
+UUID. Identity children must also carry `e2e-fixture` equal to the directory
+UUID and `e2e-principal-id` equal to their principal UUID. Cleanup observes
+every principal/identity collection before deleting anything, rechecks identity
+membership and labels before DELETE (API question Q21), removes identities
+first, and requires an empty fresh collection before deleting a principal.
+Unmarked or incompletely observed descendants stop cleanup.
 This is opt-in and does not change shared organization reset or replay routing.
 
 ### Environment Variables

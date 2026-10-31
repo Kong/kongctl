@@ -264,3 +264,50 @@ sync and explicit deletion. It authenticates using the initial secret before
 and after updates/adoption, and scans artifacts for the raw secret and its
 Basic-auth encoding. Private capture directories are outside artifacts and
 removed after remote fixture cleanup, including early-stopped runs.
+
+## Principal-identity inspection and parent scoping
+
+Related questions: Q21–Q23. The four variants generate IDs and retain the
+five managed_by ref/ownership entries and public labels on direct create,
+read and PUT probes. Metadata PATCH is rejected; type-specific PATCH works.
+An API Gateway consumer identity also returns `control_plane_type`. These
+probes establish the next declarative slice's available contract, while the
+implemented product slice currently adds get/list inspection.
+
+GET and DELETE accept an identity through another existing principal in the
+same directory. PUT rejects that path, and each collection lists only its
+actual principal's identities. Scoped detail reads therefore prove membership
+in a complete fresh collection before GET. Future update/adoption/deletion
+paths must repeat that proof, especially before DELETE. Fixture cleanup uses
+this proof, validates fresh fixture labels, observes every child collection
+before starting writes, and requires empty child collections before parent
+removal. Unowned or incompletely observed children stop cleanup.
+
+Remove the extra membership workaround only after direct probes verify that
+GET and DELETE both reject a wrong existing principal with 404, without
+changing the actual owner's identity. Preserve saved-plan identity/ownership
+checks independently of the service fix. Parent linkage alone never confers
+ownership over an identity.
+
+## Directory cursor request serialization
+
+The shared CursorPageQuery parameter omits an explicit serialization style.
+Default form/explode generation emits flat `size` and `after`; the deployed
+API ignores them and reports its default page size 20. This was hidden in
+earlier small live collections. Direct bracketed size/cursor probes verify
+the actual contract. Q22 asks engineering to correct the common definition.
+
+Preview SDK `6ca9d1f8b309`, using patch source `ef232ca0`, changes only the
+request tags for directory, principal and principal-identity list operations
+to deepObject. No operations or response fields are added; all earlier
+KongCTL patches remain. The wire regression fails on all three old request
+shapes and passes with bracketed names, including opaque cursor encoding.
+Future directory resource readers must verify their own generated query
+parameters before claiming complete pagination; this patch enrolls three
+implemented lists rather than altering unrelated SDK resources. Remove it
+when upstream generation yields the same wire contract.
+
+The principal-identity live scenario uses ten identities and page size one,
+checks all four response shapes and explicitly verifies trace evidence of
+actual cursor traversal. A larger initial fixture hit a maximum-ten quota
+(Q23); no client-side fixed quota is inferred from that observation.

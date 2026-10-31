@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `221af2edb788`, generated
+The current source is the public preview SDK at `6ca9d1f8b309`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Live observations are from US `.com`. Keep this ledger current as each
@@ -40,7 +40,7 @@ These rows describe available API fields, not completed implementations.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
-| Principal identities, all four variants | `labels`, `managed_by` | Prefer `managed_by` for a persisted ref and independent ownership after live write checks. PATCH omits it; PUT needs verification. #1416. |
+| Principal identities, all four variants | `labels`, `managed_by` | Create, GET, list and PUT retain all five ref/ownership values in live probes, including API Gateway consumer response type. Get/list is implemented; declarative stamping/adoption remain #1416. PATCH metadata is rejected. Q21 requires fresh collection-membership proof; Q22 corrects cursor requests. |
 | Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
 | Generated principal and group API keys | `managed_by`; no labels | Persist ref/ownership only after create and update retention are verified. Generated-secret capture is separate. #1417, #2659. |
 | Imported principal and group API keys | Read/update expose `managed_by`; imported create lacks it | No atomic ownership stamp at creation in the inspected body. Q4 tracks the gap; do not equate a later PATCH with atomic creation. #1417, #2659. |
@@ -115,8 +115,6 @@ authority for another resource family.
   credential; it is not a tool/namespace/protection stamp on the API resource.
   Live rotation verifies actual authentication, disabled/deleted rejection,
   imported material and two-slot limits. Q19 tracks uncertain-create recovery.
-
-
 - Declarative OAuth clients: labels store independent namespace/protection,
   including beneath external servers. Complete local matching uses unique
   client names and rejects unowned or foreign records before mutation. Saved
@@ -126,6 +124,14 @@ authority for another resource family.
   substitute for remote client labels or ownership on secret records. Client
   namespace scopes do not widen auth-server pruning. Scope detachment/deletion
   dependencies use the actual explicit PATCH list and fresh reference checks.
+
+- Principal-identity verification: all four variants generate IDs and retain
+  labels/managed_by on create and PUT. This verifies a future ownership store;
+  current product support is inspection, with no automatic metadata writes.
+  Scoped reads prove collection membership because detail/delete paths accept
+  another existing principal (Q21). The SDK fixes bracketed cursor requests
+  for directories, principals and identities (Q22); future resource list
+  implementations must verify their own generated wire parameters.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

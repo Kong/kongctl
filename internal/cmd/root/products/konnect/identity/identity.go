@@ -155,6 +155,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	}
 	group.AddCommand(child, newAuthServerCommand(verb, addParentFlags, parentPreRun))
 	group.AddCommand(newPrincipalCommand(verb, addParentFlags, parentPreRun))
+	principalIdentity, err := newPrincipalIdentityCommand(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return nil, err
+	}
+	group.AddCommand(principalIdentity)
 	group.AddCommand(newAuthServerChildCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newAuthServerChildCommand(verb, true, addParentFlags, parentPreRun))
 	group.AddCommand(newAuthServerClientCommand(verb, false, addParentFlags, parentPreRun))

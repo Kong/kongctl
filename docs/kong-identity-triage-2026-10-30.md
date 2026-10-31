@@ -18,16 +18,21 @@ children, plus get/list, examples and live E2E coverage. Their issues #1402 and
 are implemented. Explicit secret creation/capture, enable/disable and deletion
 now have live rotation coverage. Client declarative lifecycle, adoption and
 initial-secret capture pass live verification, including runtime credential
-continuity. Sections 19–23
-record contracts, verification and questions. #1401 and #1404 remain In
-Progress.
+continuity. Sections 19–24 record contracts, verification and questions.
+#1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `221af2edb788`, including targeted
+The public preview SDK is now pinned to `6ca9d1f8b309`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
 public SDK approach rather than switching to the internal SDK's unrelated
 model differences.
+
+Principal-identity get/list now covers all four variants with explicit parent
+selection and fresh collection membership checks. Direct probes verified
+managed_by retention and exposed two additional issues: GET/DELETE principal
+scoping (Q21) and cursor-query serialization (Q22). Q23 tracks identity quota
+scope/discovery. Section 24 records the next declarative work.
 
 Keep these two running logs alongside this report:
 
@@ -1495,3 +1500,63 @@ A final client run also verifies clearing the login URI at
 Early-stop cleanup passes at
 `/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-client-stopped/20261031-024044`.
 All five private capture paths from these runs were removed after cleanup.
+
+## 24. Principal-identity contracts and inspection
+
+Issue #1416 is In Progress. Direct probes verified custom, OIDC, OAuth-client
+and API Gateway consumer identities. All generate IDs without user IDs and
+retain all five managed_by ref/ownership values plus public labels on create,
+GET/list and PUT. Custom and OIDC association fields update through PUT;
+custom type-specific PATCH works. Labels/managed_by PATCH is rejected. A
+probed discriminator change was rejected. The API Gateway response returns
+read-only `control_plane_type: api_gateway`.
+
+The detail/delete paths have a reproducible discrepancy (Q21). With two
+existing principals in one directory, GET through the wrong principal returns
+the other principal's identity and DELETE actually removes it. PUT through
+the wrong principal returns 404. The collection routes filter correctly. New
+get/list commands inspect all four types and verify complete parent membership
+before a detail GET. Future writers must use fresh membership proof before
+mutations; GET alone cannot establish parent identity. Fixture cleanup applies
+that guard and checks marked descendants before removing anything.
+
+A generated SDK request mismatch was also found. Directory, principal and
+identity list requests emitted flat size/after keys, while the deployed API
+uses bracketed page[size]/page[after]. Flat keys are ignored, leaving page size
+20, which hid the problem in earlier small collections. SDK wire tests fail
+before the correction and pass afterward. Preview SDK 6ca9d1f8b309 changes
+only those three request tags, with patch source ef232ca0. No API additions,
+response-model differences or internal SDK shapes are introduced. Earlier
+KongCTL patches remain installed; the operation inventory is still 112 new
+Identity operations and 990 baseline operations. Q22 records the missing
+shared specification style.
+
+The read scenario verifies actual ten-page traversal from trace records, all
+four types, metadata, opaque OAuth client IDs, Gateway response type, workspace
+omission, JSON/YAML/text, explicit product selection and wrong-parent refusal.
+The original attempt at 24 fixtures hit a maximum-ten identity quota; Q23 asks
+about quota scope and discoverability. The scenario now stays within that
+observed limit while verifying cursor requests directly. No artificial local
+quota is imposed. API probes and failed-run cleanup removed their fixtures.
+
+The next #1416 increment remains the complete declarative lifecycle: nested
+and grouped declarations, persisted-ref identity, typed and external refs,
+same-plan dependencies, hydrated PUT updates, adoption, independent ownership
+and protection, dump, safe sync/delete, and lifecycle examples/E2E. Existing
+importer/JIT/Portal-owned identities cannot be managed merely because they
+appear under a managed principal. Parent deletion/cascade contracts also need
+explicit coverage when children gain independent ownership.
+
+Final verification for this increment: modernize, clean formatting, build,
+lint, unit race tests, integration tests, harness race tests, patch-tool tests
+and weighted scenario inventory all pass. All eight live Identity scenarios
+pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-inspection-all-regression/20261031-031724`.
+The new scenario verifies ten identity pages through explicit request-trace
+assertions rather than inferring traversal from a small result count.
+Early stop after the seventh custom association also passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-inspection-stopped/20261031-031917`.
+The three generated client capture files in the complete run and the stopped
+run's capture were removed. Fresh inventories show no directories, auth
+servers or remaining probe/test control planes. Replay-enabled coverage is
+unchanged. Work remains on branches; no PR opened.
