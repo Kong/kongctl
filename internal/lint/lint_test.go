@@ -61,8 +61,11 @@ rules:
 	rs, err := getRuleSet(ruleset)
 	require.NoError(t, err)
 
-	output := Bytes(input, rs, "error", false, "test.yaml")
+	output, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
+	require.NotNil(t, output)
 	assert.Equal(t, 0, output.FailCount)
+	assert.Equal(t, 0, output.TotalCount)
 }
 
 func TestBytes_WithViolations(t *testing.T) {
@@ -84,7 +87,9 @@ rules:
 	rs, err := getRuleSet(ruleset)
 	require.NoError(t, err)
 
-	output := Bytes(input, rs, "error", false, "test.yaml")
+	output, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
+	require.NotNil(t, output)
 	assert.Greater(t, output.TotalCount, 0)
 	assert.Greater(t, output.FailCount, 0)
 	assert.NotEmpty(t, output.Results)
@@ -121,10 +126,12 @@ rules:
 	require.NoError(t, err)
 
 	// Without onlyFailures, should include both
-	outputAll := Bytes(input, rs, "error", false, "test.yaml")
+	outputAll, err := Bytes(input, rs, "error", false, "test.yaml")
+	require.NoError(t, err)
 
 	// With onlyFailures and fail-severity=error, should exclude info; only the error-level result remains
-	outputFailOnly := Bytes(input, rs, "error", true, "test.yaml")
+	outputFailOnly, err := Bytes(input, rs, "error", true, "test.yaml")
+	require.NoError(t, err)
 
 	assert.Equal(t, 1, outputFailOnly.TotalCount)
 	assert.Greater(t, outputAll.TotalCount, outputFailOnly.TotalCount)
@@ -210,6 +217,175 @@ rules:
 	assert.NotNil(t, output)
 	// Both files should have violations
 	assert.Greater(t, output.TotalCount, 1)
+}
+
+const (
+	malformedSelectorRuleset = `
+rules:
+  must-have-name:
+    description: "name is required"
+    given: "$.apis["
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	zeroMatchRuleset = `
+rules:
+  missing-path:
+    description: "this path does not exist"
+    given: "$.does_not_exist"
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	validNameRuleset = `
+rules:
+  must-have-name:
+    description: "name is required"
+    given: "$"
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	sampleLintInput = `
+name: test-service
+host: example.com
+`
+	sampleLintInputNoName = `
+host: example.com
+`
+)
+
+func assertMalformedSelectorError(t *testing.T, err error, fileName string) {
+	t.Helper()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.Contains(t, err.Error(), "must-have-name")
+	assert.Contains(t, err.Error(), "$.apis[")
+	if fileName != "" {
+		assert.Contains(t, err.Error(), fileName)
+	}
+}
+
+func TestBytes_MalformedSelector(t *testing.T) {
+	rs, err := getRuleSet([]byte(malformedSelectorRuleset))
+	require.NoError(t, err)
+
+	output, err := Bytes([]byte(sampleLintInput), rs, "error", false, "test.yaml")
+	assert.Nil(t, output)
+	assertMalformedSelectorError(t, err, "test.yaml")
+}
+
+func TestBytes_MalformedSelector_NotSuppressedBySeverityFlags(t *testing.T) {
+	rs, err := getRuleSet([]byte(malformedSelectorRuleset))
+	require.NoError(t, err)
+
+	output, err := Bytes([]byte(sampleLintInput), rs, "hint", true, "test.yaml")
+	assert.Nil(t, output)
+	assertMalformedSelectorError(t, err, "test.yaml")
+}
+
+func TestBytes_ValidSelectorZeroMatches(t *testing.T) {
+	rs, err := getRuleSet([]byte(zeroMatchRuleset))
+	require.NoError(t, err)
+
+	output, err := Bytes([]byte(sampleLintInput), rs, "error", false, "test.yaml")
+	require.NoError(t, err)
+	require.NotNil(t, output)
+	assert.Equal(t, 0, output.TotalCount)
+	assert.Equal(t, 0, output.FailCount)
+	assert.Empty(t, output.Results)
+}
+
+func TestContent_MalformedSelector(t *testing.T) {
+	output, err := Content(
+		[]byte(sampleLintInput),
+		[]byte(malformedSelectorRuleset),
+		"error",
+		false,
+		"<stdin>",
+	)
+	assert.Nil(t, output)
+	assertMalformedSelectorError(t, err, "<stdin>")
+}
+
+func TestContent_ValidSelectorWithViolation(t *testing.T) {
+	output, err := Content(
+		[]byte(sampleLintInputNoName),
+		[]byte(validNameRuleset),
+		"error",
+		false,
+		"<stdin>",
+	)
+	require.NoError(t, err)
+	require.NotNil(t, output)
+	assert.Greater(t, output.TotalCount, 0)
+	assert.Greater(t, output.FailCount, 0)
+}
+
+func TestContent_ValidSelectorZeroMatches(t *testing.T) {
+	output, err := Content(
+		[]byte(sampleLintInput),
+		[]byte(zeroMatchRuleset),
+		"error",
+		false,
+		"<stdin>",
+	)
+	require.NoError(t, err)
+	require.NotNil(t, output)
+	assert.Equal(t, 0, output.TotalCount)
+	assert.Equal(t, 0, output.FailCount)
+}
+
+func TestFile_MalformedSelector(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(inputFile, []byte(sampleLintInput), 0o600))
+
+	output, err := File(inputFile, []byte(malformedSelectorRuleset), "error", false)
+	assert.Nil(t, output)
+	assertMalformedSelectorError(t, err, inputFile)
+}
+
+func TestFile_ValidSelectorZeroMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputFile := filepath.Join(tmpDir, "config.yaml")
+	require.NoError(t, os.WriteFile(inputFile, []byte(sampleLintInput), 0o600))
+
+	output, err := File(inputFile, []byte(zeroMatchRuleset), "error", false)
+	require.NoError(t, err)
+	require.NotNil(t, output)
+	assert.Equal(t, 0, output.TotalCount)
+	assert.Equal(t, 0, output.FailCount)
+}
+
+func TestFiles_MalformedSelector(t *testing.T) {
+	tmpDir := t.TempDir()
+	file1 := filepath.Join(tmpDir, "config1.yaml")
+	file2 := filepath.Join(tmpDir, "config2.yaml")
+	require.NoError(t, os.WriteFile(file1, []byte(sampleLintInput), 0o600))
+	require.NoError(t, os.WriteFile(file2, []byte(sampleLintInput), 0o600))
+
+	output, err := Files([]string{file1, file2}, []byte(malformedSelectorRuleset), "error", false)
+	assert.Nil(t, output)
+	assertMalformedSelectorError(t, err, file1)
+}
+
+func TestFiles_ValidSelectorZeroMatches(t *testing.T) {
+	tmpDir := t.TempDir()
+	file1 := filepath.Join(tmpDir, "config1.yaml")
+	file2 := filepath.Join(tmpDir, "config2.yaml")
+	require.NoError(t, os.WriteFile(file1, []byte(sampleLintInput), 0o600))
+	require.NoError(t, os.WriteFile(file2, []byte(sampleLintInput), 0o600))
+
+	output, err := Files([]string{file1, file2}, []byte(zeroMatchRuleset), "error", false)
+	require.NoError(t, err)
+	require.NotNil(t, output)
+	assert.Equal(t, 0, output.TotalCount)
+	assert.Equal(t, 0, output.FailCount)
 }
 
 func TestFormatPlain(t *testing.T) {

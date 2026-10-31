@@ -516,3 +516,158 @@ rules:
 	err = root.Execute()
 	assert.NoError(t, err)
 }
+
+const (
+	cmdMalformedSelectorRuleset = `
+rules:
+  must-have-name:
+    description: "name is required"
+    given: "$.apis["
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	cmdZeroMatchRuleset = `
+rules:
+  missing-path:
+    description: "this path does not exist"
+    given: "$.does_not_exist"
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	cmdValidNameRuleset = `
+rules:
+  must-have-name:
+    description: "name is required"
+    given: "$"
+    severity: error
+    then:
+      field: name
+      function: truthy
+`
+	cmdSampleInput = `
+name: test-service
+host: example.com
+`
+)
+
+func writeLintFiles(t *testing.T, input, ruleset string) (inputFile, rulesetFile string) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	inputFile = filepath.Join(tmpDir, "config.yaml")
+	rulesetFile = filepath.Join(tmpDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(inputFile, []byte(input), 0o600))
+	require.NoError(t, os.WriteFile(rulesetFile, []byte(ruleset), 0o600))
+	return inputFile, rulesetFile
+}
+
+func executeLint(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	root := newTestRootWithLint(t)
+	var output bytes.Buffer
+	root.SetOut(&output)
+	root.SetErr(&output)
+	root.SetContext(context.Background())
+	root.SetArgs(args)
+	err := root.Execute()
+	return output.String(), err
+}
+
+func TestLintCmd_MalformedSelector(t *testing.T) {
+	inputFile, rulesetFile := writeLintFiles(t, cmdSampleInput, cmdMalformedSelectorRuleset)
+
+	output, err := executeLint(t, "lint", "-f", inputFile, "-r", rulesetFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.Contains(t, err.Error(), "must-have-name")
+	assert.Contains(t, err.Error(), "$.apis[")
+	assert.Contains(t, err.Error(), inputFile)
+	assert.NotContains(t, output, `"total_count"`)
+	assert.NotContains(t, output, "Linting Violations")
+}
+
+func TestLintCmd_MalformedSelector_NotSuppressedByFlags(t *testing.T) {
+	inputFile, rulesetFile := writeLintFiles(t, cmdSampleInput, cmdMalformedSelectorRuleset)
+
+	output, err := executeLint(t,
+		"lint", "-f", inputFile, "-r", rulesetFile,
+		"--fail-severity", "error", "--display-only-failures",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.Contains(t, err.Error(), "must-have-name")
+	assert.Contains(t, err.Error(), inputFile)
+	assert.NotContains(t, output, `"total_count"`)
+}
+
+func TestLintCmd_MalformedSelector_JSONOutputStaysParseable(t *testing.T) {
+	inputFile, rulesetFile := writeLintFiles(t, cmdSampleInput, cmdMalformedSelectorRuleset)
+
+	output, err := executeLint(t, "lint", "-f", inputFile, "-r", rulesetFile, "--output", "json")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.NotContains(t, output, `"total_count"`)
+	assert.NotContains(t, output, `"results"`)
+}
+
+func TestLintCmd_MalformedSelector_Stdin(t *testing.T) {
+	tmpDir := t.TempDir()
+	rulesetFile := filepath.Join(tmpDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(rulesetFile, []byte(cmdMalformedSelectorRuleset), 0o600))
+
+	root := newTestRootWithLint(t)
+	var output bytes.Buffer
+	root.SetOut(&output)
+	root.SetErr(&output)
+	root.SetIn(bytes.NewReader([]byte(cmdSampleInput)))
+	root.SetContext(context.Background())
+	root.SetArgs([]string{"lint", "-f", "-", "-r", rulesetFile})
+
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.Contains(t, err.Error(), "must-have-name")
+	assert.Contains(t, err.Error(), "$.apis[")
+	assert.Contains(t, err.Error(), "<stdin>")
+	assert.NotContains(t, output.String(), `"total_count"`)
+}
+
+func TestLintCmd_MalformedSelector_Directory(t *testing.T) {
+	tmpDir := t.TempDir()
+	inputDir := filepath.Join(tmpDir, "configs")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	file1 := filepath.Join(inputDir, "a.yaml")
+	require.NoError(t, os.WriteFile(file1, []byte(cmdSampleInput), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(inputDir, "b.yaml"), []byte(cmdSampleInput), 0o600))
+
+	rulesetFile := filepath.Join(tmpDir, "ruleset.yaml")
+	require.NoError(t, os.WriteFile(rulesetFile, []byte(cmdMalformedSelectorRuleset), 0o600))
+
+	output, err := executeLint(t, "lint", "-f", inputDir, "-r", rulesetFile)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "lint engine error")
+	assert.Contains(t, err.Error(), "must-have-name")
+	assert.Contains(t, err.Error(), "$.apis[")
+	assert.Contains(t, err.Error(), file1)
+	assert.NotContains(t, output, "Linting Violations")
+}
+
+func TestLintCmd_ValidSelectorZeroMatches(t *testing.T) {
+	inputFile, rulesetFile := writeLintFiles(t, cmdSampleInput, cmdZeroMatchRuleset)
+
+	output, err := executeLint(t, "lint", "-f", inputFile, "-r", rulesetFile)
+	require.NoError(t, err, "valid selector with zero matches must succeed")
+	assert.NotContains(t, output, "Linting Violations")
+}
+
+func TestLintCmd_ValidSelectorWithViolation(t *testing.T) {
+	inputFile, rulesetFile := writeLintFiles(t, "host: example.com\n", cmdValidNameRuleset)
+
+	output, err := executeLint(t, "lint", "-f", inputFile, "-r", rulesetFile)
+	require.Error(t, err, "should fail when violations exist")
+	assert.Contains(t, err.Error(), "linting violation")
+	assert.Contains(t, output, "Linting Violations")
+}
