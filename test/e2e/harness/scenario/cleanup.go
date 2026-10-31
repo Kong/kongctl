@@ -122,7 +122,7 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		}
 		endpoint += id + "?force=false"
 	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
-		if err := cleanupAuthServerFixtures(ctx, cli, id); err != nil {
+		if err := cleanupAuthServerFixtures(ctx, cli, id, target.name); err != nil {
 			return err
 		}
 		endpoint += id + "?force=false"
@@ -135,8 +135,8 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 }
 
 // These APIs have no fixture labels. Only names carrying this generated
-// server's UUID are cleanup candidates, and every collection is checked first.
-func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID string) error {
+// server's UUID or generated name are cleanup candidates. Check all collections first.
+func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID, serverName string) error {
 	type fixture struct{ ID, Name string }
 	var claims, scopes []fixture
 	for _, collection := range []struct {
@@ -151,7 +151,9 @@ func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID s
 			return err
 		}
 		for _, value := range *collection.values {
-			if !strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") || !util.IsValidUUID(value.ID) {
+			marked := strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") ||
+				strings.HasPrefix(value.Name, serverName+"-")
+			if !marked || !util.IsValidUUID(value.ID) {
 				return fmt.Errorf("auth server contains an unmarked child; refusing fixture cleanup")
 			}
 		}

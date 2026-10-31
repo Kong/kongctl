@@ -7,9 +7,11 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
+	"github.com/Kong/sdk-konnect-go/retry"
 	declerrors "github.com/kong/kongctl/internal/declarative/errors"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/kong/kongctl/internal/konnect/httpclient"
 )
 
 type IdentityPrincipal struct {
@@ -68,7 +70,10 @@ func (c *Client) CreateIdentityPrincipal(ctx context.Context, directoryID string
 	if err := stampManagedByRequest(ctx, resources.ResourceTypeIdentityPrincipal, &request); err != nil {
 		return nil, err
 	}
-	response, err := c.identityPrincipalsAPI.CreatePrincipal(ctx, directoryID, request)
+	// managed_by is not a server-enforced unique key. Observe an uncertain
+	// outcome before a new create instead of replaying it inside either client.
+	response, err := c.identityPrincipalsAPI.CreatePrincipal(httpclient.WithoutRetries(ctx), directoryID, request,
+		kkOps.WithRetries(retry.Config{Strategy: "none"}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create principal: %w", err)
 	}

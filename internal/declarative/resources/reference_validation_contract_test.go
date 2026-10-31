@@ -27,6 +27,8 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeAIGatewayDatastore, ""},
 		{ResourceTypeIdentityDirectory, ""},
 		{ResourceTypeIdentityPrincipal, ""},
+		{ResourceTypeIdentityAuthServerScope, ""},
+		{ResourceTypeIdentityAuthServerClaim, ""},
 	}, got)
 
 	// These mapping implementations were not enrolled in the loader's reference

@@ -12,13 +12,13 @@ delivered directories and principals, including declarative lifecycle, reads,
 adoption, examples, and live E2E scenarios. Principal work is pushed in
 `c1e3cba3`. Authorization-server root support is the next implemented slice;
 its full live lifecycle scenario and protected-resource teardown pass.
-Child scopes, claims, OAuth clients, and secrets remain separate work.
-Scope/claim get/list commands and their complete collection readers are now
-implemented; their declarative lifecycle remains in progress under #1402
-and #1403. See Section 19 for newly verified contracts and API questions.
+Scopes and claims now have declarative lifecycle support as managed-server
+children, plus get/list, examples and live E2E coverage. Their issues #1402 and
+#1403 remain In Progress until merge. OAuth clients and secrets remain
+separate implementation work. Sections 19–20 record contracts and questions.
 
-The public preview SDK is now pinned to `56d878d0739c`, including the
-targeted serialization fix for clearing auth-server trusted origins.
+The public preview SDK is now pinned to `dfd890eb1a03`, including targeted
+serialization fixes for clearing auth-server origins and claim scope links.
 Existing KongCTL SDK patches are retained. This continues the selective
 public SDK approach rather than switching to the internal SDK's unrelated
 model differences.
@@ -1067,7 +1067,8 @@ unclassified examples under an existing directory. The live directory scenario
 also covers principal creation, no-op planning, field/metadata updates,
 omission, type/null/active rejection, dump/reload, protection, adoption,
 explicit deletion, and scoped sync. The expanded live run and a deliberate
-stop after protecting a principal both passed. Teardown removed the generated directory and its marked principals;
+stop after protecting a principal both passed. Teardown removed the generated
+directory and its marked principals;
 a fresh directory list was empty.
 
 Artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
@@ -1191,6 +1192,74 @@ declarative association clearing. This is an SDK issue, separate from Q13.
 OAuth client IDs observed in the probe are opaque strings rather than UUIDs;
 future client support must retain that distinction. Probe client secrets
 were never logged, and every disposable resource was deleted.
+
+## 20. Declarative scopes and claims
+
+`identity.auth_servers[].scopes` and `.claims` now support declarative
+lifecycle.
+Grouped `identity.scopes` and `identity.claims` also accept an `auth_server`
+reference to a managed server. All public mutable settings are exposed, with
+explicit names and claim values, optional-field preservation, false booleans,
+empty descriptions/association lists, typed scope references, and same-plan
+creation dependencies. Static JSON strings and server templates remain intact.
+
+Scopes and claims store no independent ownership metadata. Parent namespace
+and update/delete protection apply. Explicit collections are authoritative
+for sync; omission preserves them. Adoption is through the managed server.
+External parent references cannot authorize these writes. Read-only inspection
+still supports explicit parent selection. Duplicate claim names fail before
+mutation or dump. The metadata ledger records these boundaries.
+
+Scope deletion validates complete observed client and claim references.
+Planned claim detachment/deletion runs first, and execution checks fresh
+references again. A retained or newly introduced client/claim reference blocks
+deletion. Root deletion remains `force=false`; declared children run first,
+while undeclared children can block the server delete. Sync an explicit child
+collection to remove children while retaining the server.
+
+The preview SDK at `dfd890eb1a03` preserves explicit empty claim scope arrays.
+Its wire regression failed before the targeted tag fix and passes afterward.
+The shared patch bundle source is `b7e43b8d`, and existing KongCTL patches
+remain installed. No SDK release or PR was created.
+
+Q14 asks about creation idempotency/recovery. Claim and principal creation now
+disable retries in both SDK and HTTP transport; synthetic 503 tests with both
+retry layers enabled verify exactly one POST. An uncertain result requires a
+fresh observation/plan rather than an automatic replay. No service fault was
+injected. Typed SDK 404 handling was also fixed so repeated saved deletes can
+recognize records already removed by an earlier attempt.
+
+The complete live declarative scenario passes: saved create/apply, same-plan
+scope IDs, every field update, omission/clearing, no-op plans, diff,
+dump/reload,
+parent adoption with children, protection, omitted sync collections, reference
+guards, detach-before-prune, recreation and ordered deletion. A deliberate
+stop while the parent was protected also passes cleanup. Unit coverage adds
+parent/namespace isolation, cross-server scope rejection, stale ownership,
+late client references, and retry safety. The directory/principal live scenario
+passes again with the updated SDK and create policy.
+
+Artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `auth-child-decl-live-final/20261031-004139`
+- `auth-child-decl-cached-final/20261031-004953`
+- `auth-child-decl-stopped/20261031-004341`
+- `principal-claim-sdk-regression/20261031-004514`
+
+All final gates pass in order: modernization, clean formatting, CGO-disabled
+build, zero-issue lint, unit/integration/harness race tests, and scenario
+inventory checks. `auth-child-final-status.json` records zero exit codes.
+Planning caches complete unfiltered scope/claim/client observations per
+parent; execution still reads fresh state. The complete live scenario passes
+again after that cache integration. Enabled replay coverage and recordings
+are unchanged.
+
+The grouped example is `docs/examples/declarative/identity/auth-servers.yaml`.
+The new scenario is `test/e2e/scenarios/identity/auth-server-declarative`.
+Issues #1402/#1403 remain In Progress until merge, with no implementation PR.
+OAuth clients and secret lifecycle remain the next auth-server work. Directory
+identities, credentials, groups, and release-gated Vault/IdP/import families
+remain tracked in their existing issues and API questions.
 
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 

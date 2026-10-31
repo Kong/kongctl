@@ -358,6 +358,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	adjustAPIVersionTransitionDependencies(basePlan.Changes)
 
 	adjustIdentityDirectoryDeleteDependencies(basePlan.Changes)
+	if err := p.resolveIdentityAuthServerDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		var paths []string

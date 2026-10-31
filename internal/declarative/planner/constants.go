@@ -9,6 +9,12 @@ import (
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
 	FieldAudience                   = "audience"
+	FieldAuthServerID               = "auth_server_id"
+	FieldDefault                    = "default"
+	FieldIncludeInMetadata          = "include_in_metadata"
+	FieldIncludeInToken             = "include_in_token"
+	FieldIncludeInAllScopes         = "include_in_all_scopes"
+	FieldIncludeInScopes            = "include_in_scopes"
 	FieldProtected                  = "protected"
 	FieldDefaultAccessTokenDuration = "default_access_token_duration"
 	FieldDCR                        = "dcr"
@@ -255,6 +261,8 @@ const (
 const (
 	ResourceTypePortal                           = string(resources.ResourceTypePortal)
 	ResourceTypeIdentityAuthServer               = string(resources.ResourceTypeIdentityAuthServer)
+	ResourceTypeIdentityAuthServerScope          = string(resources.ResourceTypeIdentityAuthServerScope)
+	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)

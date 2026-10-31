@@ -12,6 +12,8 @@ type ResourceType string
 // Resource type constants
 const (
 	ResourceTypeIdentityAuthServer                      ResourceType = "identity_auth_server"
+	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
+	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
 	ResourceTypePortal                                  ResourceType = "portal"
