@@ -16,12 +16,13 @@ import (
 )
 
 type GroupAPI struct {
-	Directories      map[string][]helpers.IdentityGroup
-	Memberships      map[string][]kkComps.KongGroupMembershipEntry
-	Keys             map[string][]string
-	Writes           []kkComps.ReplaceGroupBody
-	Creates, Deletes int
-	Failure          string
+	Directories                          map[string][]helpers.IdentityGroup
+	Memberships                          map[string][]kkComps.KongGroupMembershipEntry
+	Keys                                 map[string][]string
+	Writes                               []kkComps.ReplaceGroupBody
+	Creates, Deletes                     int
+	MembershipCreates, MembershipDeletes int
+	Failure                              string
 }
 
 func Group(name, namespace string, protected bool) helpers.IdentityGroup {
@@ -190,3 +191,40 @@ func (a *GroupAPI) ListGroupKeys(_ context.Context, request kkOps.ListGroupKeysR
 }
 
 var _ helpers.IdentityGroupsAPI = (*GroupAPI)(nil)
+
+func (a *GroupAPI) CreateGroupMembershipEntry(_ context.Context, request kkOps.CreateGroupMembershipEntryRequest,
+	_ ...kkOps.Option,
+) (*kkOps.CreateGroupMembershipEntryResponse, error) {
+	a.MembershipCreates++
+	if a.Memberships == nil {
+		a.Memberships = make(map[string][]kkComps.KongGroupMembershipEntry)
+	}
+	body := request.CreateGroupMembershipEntryBody.Member
+	for _, value := range a.Memberships[request.GroupID] {
+		if value.Member.ID == body.ID && value.Member.Type == body.Type {
+			return nil, fmt.Errorf("duplicate member")
+		}
+	}
+	value := kkComps.KongGroupMembershipEntry{
+		ID:     uuid.NewString(),
+		Member: kkComps.KongGroupMember{ID: body.ID, Type: body.Type},
+	}
+	a.Memberships[request.GroupID] = append(a.Memberships[request.GroupID], value)
+	return &kkOps.CreateGroupMembershipEntryResponse{KongGroupMembershipEntry: &value}, nil
+}
+
+func (a *GroupAPI) DeleteGroupMembershipEntry(_ context.Context, request kkOps.DeleteGroupMembershipEntryRequest,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteGroupMembershipEntryResponse, error) {
+	a.MembershipDeletes++
+	for i, value := range a.Memberships[request.GroupID] {
+		if value.ID == request.GroupMembershipID {
+			a.Memberships[request.GroupID] = append(
+				a.Memberships[request.GroupID][:i],
+				a.Memberships[request.GroupID][i+1:]...,
+			)
+			break
+		}
+	}
+	return &kkOps.DeleteGroupMembershipEntryResponse{}, nil
+}

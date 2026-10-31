@@ -20,7 +20,9 @@ ownership updates and adoption. It does not expose credential material.
 
 [Group and direct membership inspection](groups.md) covers group/team get/list,
 UUID/name selectors and membership-entry IDs. Ordinary group lifecycle and
-adoption use `groups.yaml`. Membership declarations remain in progress; inspection alone grants no importer authority.
+adoption use `groups.yaml`. [Direct principal memberships](memberships.md)
+use `memberships.yaml`, with authority inherited from the managed ordinary
+group. Inspection alone grants no importer authority.
 
 The demos center on a directory named `default`, whether platform-provided or
 bootstrapped with KongCTL. First inspect the organization:

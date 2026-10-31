@@ -12,6 +12,16 @@ import (
 type IdentityGroupsAPI interface {
 	IdentityGroupsReader
 	IdentityGroupMembershipsReader
+	CreateGroupMembershipEntry(
+		context.Context,
+		kkOps.CreateGroupMembershipEntryRequest,
+		...kkOps.Option,
+	) (*kkOps.CreateGroupMembershipEntryResponse, error)
+	DeleteGroupMembershipEntry(
+		context.Context,
+		kkOps.DeleteGroupMembershipEntryRequest,
+		...kkOps.Option,
+	) (*kkOps.DeleteGroupMembershipEntryResponse, error)
 	CreateGroup(context.Context, string, kkComps.CreateGroupBody, ...kkOps.Option) (*kkOps.CreateGroupResponse, error)
 	ReplaceGroup(context.Context, kkOps.ReplaceGroupRequest, ...kkOps.Option) (*kkOps.ReplaceGroupResponse, error)
 	DeleteGroup(context.Context, string, string, ...kkOps.Option) (*kkOps.DeleteGroupResponse, error)
@@ -49,6 +59,10 @@ func VerifyIdentityGroupEmpty(ctx context.Context, api IdentityGroupsAPI, direct
 	if len(entries) != 0 {
 		return fmt.Errorf("group still has memberships; remove them explicitly before deleting it")
 	}
+	return VerifyIdentityGroupKeysEmpty(ctx, api, directoryID, groupID)
+}
+
+func VerifyIdentityGroupKeysEmpty(ctx context.Context, api IdentityGroupsAPI, directoryID, groupID string) error {
 	// No paging/filter parameters: prove an empty, terminal first page. Any key
 	// blocks deletion, so there is no need to traverse or expose credential data.
 	response, err := api.ListGroupKeys(ctx, kkOps.ListGroupKeysRequest{DirectoryID: directoryID, GroupID: groupID})

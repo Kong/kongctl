@@ -251,6 +251,7 @@ const (
 	FieldDestination                                = "destination"
 	FieldDNSLabel                                   = "dns_label"
 	FieldInsecureAllowAnonymousVirtualClusterAuth   = "insecure_allow_anonymous_virtual_cluster_auth"
+	FieldMember                                     = "member"
 	FieldMembers                                    = "members"
 	FieldMetadataUpdateIntervalSeconds              = "metadata_update_interval_seconds"
 	FieldMinRuntimeVersion                          = "min_runtime_version"
@@ -281,6 +282,7 @@ const (
 	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
 	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
+	ResourceTypeIdentityGroupMembership          = string(resources.ResourceTypeIdentityGroupMembership)
 	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeIdentityPrincipalIdentity        = string(resources.ResourceTypeIdentityPrincipalIdentity)

@@ -1,0 +1,33 @@
+# Use the organization's existing default directory. To create it first, use
+# directories.yaml. The group owns its direct membership collection;
+# membership entries have no independent management metadata.
+_defaults:
+  kongctl:
+    namespace: fulfillment
+
+identity:
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: dispatcher
+          type: agent
+          display_name: Order dispatcher
+          description: Assigns incoming orders
+      groups:
+        - ref: operators
+          name: OrderOperators
+          description: Principals allowed to process orders
+          memberships:
+            - ref: dispatcher-member
+              member:
+                type: principal
+                id: !ref dispatcher#id
+
+# Omission preserves the group's existing memberships. In sync mode, an
+# explicit memberships: [] removes its direct principal memberships. Adding
+# members with apply preserves undeclared entries. Teams and nested groups
+# are deferred pending verified API contracts (Q32).
