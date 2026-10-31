@@ -8,7 +8,7 @@ test:
       nameVar: directory_name
       nameEnv: KONGCTL_E2E_GROUP_READ_DIRECTORY_NAME
       principalGroups: true
-  info: Inspect ordinary/default/team groups and direct membership entries with complete cursor traversal, explicit selectors, public fields, JSON/YAML/text and scoped entry-ID resolution. Fixtures are manually created without credentials; opt-in cleanup verifies all ownership and membership markers.
+  info: Inspect ordinary/default groups and teams where creation is supported. Verify the exact Q32 enum error when teams are unavailable and use an ordinary alternate parent for scope isolation. Inspect groups and direct membership entries with complete cursor traversal, explicit selectors, public fields, JSON/YAML/text and scoped entry-ID resolution. Fixtures are manually created without credentials; opt-in cleanup verifies all ownership and membership markers.
 steps:
   - name: 001-group-inspection
     skipInputs: true
@@ -81,10 +81,18 @@ steps:
             responsePath: group_id
           - name: group_name
             responsePath: group_name
-          - name: team_id
-            responsePath: team_id
-          - name: team_name
-            responsePath: team_name
+          - name: alternate_id
+            responsePath: alternate_id
+          - name: alternate_name
+            responsePath: alternate_name
+          - name: alternate_type
+            responsePath: alternate_type
+          - name: ordinary_count
+            responsePath: ordinary_count
+          - name: team_count
+            responsePath: team_count
+          - name: team_available
+            responsePath: team_available
           - name: empty_id
             responsePath: empty_id
           - name: other_id
@@ -110,8 +118,8 @@ steps:
             expect:
               fields:
                 length(@): 4
-                length([?type == 'group']): 3
-                length([?type == 'team']): 1
+                "length([?type == 'group']) == `{{ .vars.ordinary_count }}`": true
+                "length([?type == 'team']) == `{{ .vars.team_count }}`": true
                 length([?managed_by.tool == 'kongctl']): 4
                 length([?managed_by."kongctl-namespace" == 'identity-group-read-e2e']): 4
                 length([?metadata.count == `42`]): 4
@@ -145,12 +153,12 @@ steps:
                 contains(keys(@), 'team_manager'): false
                 created_at != `null`: true
                 updated_at != `null`: true
-      - name: get-team-yaml
+      - name: get-alternate-group-yaml
         run:
           - get
           - identity
           - group
-          - '{{ .vars.team_id }}'
+          - '{{ .vars.alternate_id }}'
           - --directory-id
           - '{{ .vars.directory_id }}'
           - -o
@@ -159,8 +167,8 @@ steps:
           - select: '@'
             expect:
               fields:
-                id: '{{ .vars.team_id }}'
-                type: team
+                id: '{{ .vars.alternate_id }}'
+                type: '{{ .vars.alternate_type }}'
                 contains(keys(@), 'team_manager'): false
         outputFormat: disable
         parseAs: yaml
@@ -295,7 +303,7 @@ steps:
                 contains(stdout, '{{ .vars.entry_id }}'): true
         outputFormat: disable
         parseAs: raw
-      - name: list-team-members
+      - name: list-alternate-members
         run:
           - get
           - identity
@@ -303,7 +311,7 @@ steps:
           - --directory-id
           - '{{ .vars.directory_id }}'
           - --group-name
-          - '{{ .vars.team_name }}'
+          - '{{ .vars.alternate_name }}'
         assertions:
           - select: '@'
             expect:
@@ -338,7 +346,7 @@ steps:
               fields:
                 length(groups): 2
                 contains(groups, '{{ .vars.group_id }}'): true
-                contains(groups, '{{ .vars.team_id }}'): true
+                contains(groups, '{{ .vars.alternate_id }}'): true
       - name: reject-member-id-as-entry
         run:
           - get
