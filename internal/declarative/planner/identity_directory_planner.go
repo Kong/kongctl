@@ -57,6 +57,12 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 			current.NormalizedLabels[labels.NamespaceKey] != config.Namespace || externalIDs[current.ID] {
 			continue
 		}
+		if scope := p.planner.resources.SyncScope; plan.Metadata.Mode == PlanModeSync && scope != nil &&
+			scope.IdentityDirectoryNamespaces != nil {
+			if _, scoped := scope.IdentityDirectoryNamespaces[config.Namespace]; !scoped {
+				continue
+			}
+		}
 		currentRoots = append(currentRoots, managedRoot[state.IdentityDirectory]{
 			resource: current, name: current.Name, protected: resources.IsChildProtected(current.ManagedBy),
 		})

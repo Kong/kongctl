@@ -48,6 +48,7 @@ type PlanSyncScope struct {
 	ModelNamespaces              map[string][]string            `json:"model_namespaces,omitempty"`
 	GatewayNamespaces            []string                       `json:"gateway_namespaces,omitempty"`
 	IdentityAuthServerNamespaces []string                       `json:"identity_auth_server_namespaces,omitempty"`
+	IdentityDirectoryNamespaces  []string                       `json:"identity_directory_namespaces,omitempty"`
 	RootResourceTypes            []string                       `json:"root_resource_types,omitempty"`
 	ChildResourceTypes           []PlanSyncChildScope           `json:"child_resource_types,omitempty"`
 	RootChildResourceTypes       []string                       `json:"root_child_resource_types,omitempty"`
@@ -69,21 +70,29 @@ type PlannedChange struct {
 	ResourceRef  string `json:"resource_ref"`
 	ResourceID   string `json:"resource_id,omitempty"` // Only for UPDATE/DELETE
 	// Human-readable identifiers for resources without config refs
-	ResourceMonikers      map[string]string        `json:"resource_monikers,omitempty"`
-	Action                ActionType               `json:"action"`
-	Fields                map[string]any           `json:"fields"`
-	ChangedFields         map[string]FieldChange   `json:"changed_fields,omitempty"`
-	PostResolutionTargets []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
-	References            map[string]ReferenceInfo `json:"references,omitempty"`
-	PayloadReferences     []PayloadReference       `json:"payload_references,omitempty"`
-	LiteralPaths          []string                 `json:"literal_paths,omitempty"`
-	Parent                *ParentInfo              `json:"parent,omitempty"`
-	ProtectingParent      *ProtectingParentInfo    `json:"protecting_parent,omitempty"`
-	Protection            any                      `json:"protection,omitempty"` // bool or ProtectionChange
-	Namespace             string                   `json:"namespace"`
-	DependsOn             []string                 `json:"depends_on,omitempty"`
-	SecretWrites          []SecretWriteIntent      `json:"secret_writes,omitempty"`
-	ForceDelete           bool                     `json:"force_delete,omitempty"`
+	ResourceMonikers        map[string]string        `json:"resource_monikers,omitempty"`
+	Action                  ActionType               `json:"action"`
+	Fields                  map[string]any           `json:"fields"`
+	ChangedFields           map[string]FieldChange   `json:"changed_fields,omitempty"`
+	PostResolutionTargets   []PostResolutionTarget   `json:"post_resolution_targets,omitempty"`
+	References              map[string]ReferenceInfo `json:"references,omitempty"`
+	PayloadReferences       []PayloadReference       `json:"payload_references,omitempty"`
+	LiteralPaths            []string                 `json:"literal_paths,omitempty"`
+	Parent                  *ParentInfo              `json:"parent,omitempty"`
+	ProtectingParent        *ProtectingParentInfo    `json:"protecting_parent,omitempty"`
+	Protection              any                      `json:"protection,omitempty"` // bool or ProtectionChange
+	Namespace               string                   `json:"namespace"`
+	DependsOn               []string                 `json:"depends_on,omitempty"`
+	SecretWrites            []SecretWriteIntent      `json:"secret_writes,omitempty"`
+	ForceDelete             bool                     `json:"force_delete,omitempty"`
+	IdentityReferenceScopes []IdentityReferenceScope `json:"identity_reference_scopes,omitempty"`
+}
+
+// IdentityReferenceScope retains the explicitly observed collections whose
+// associations must be rechecked before deleting a referenced resource.
+type IdentityReferenceScope struct {
+	DirectoryID string `json:"directory_id"`
+	PrincipalID string `json:"principal_id"`
 }
 
 // PayloadReference binds an explicit payload expression to its declaration.

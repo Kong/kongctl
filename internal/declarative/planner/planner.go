@@ -269,6 +269,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
+	if err := p.resolvePrincipalIdentityDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 
 	// Child matching discovers identities during resource planning. If these
 	// make additional payload references concrete, compare again with the new
@@ -360,6 +363,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	adjustIdentityDirectoryDeleteDependencies(basePlan.Changes)
 	adjustIdentityAuthServerDependencies(basePlan.Changes)
 	if err := p.resolveIdentityAuthServerDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
+	if err := p.resolvePrincipalIdentityTargetDeletes(basePlan); err != nil {
 		return nil, err
 	}
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
@@ -965,6 +971,9 @@ func (p *Planner) resolveResourceIdentities(ctx context.Context, rs *resources.R
 		return fmt.Errorf("failed to resolve Event Gateway identities: %w", err)
 	}
 
+	if err := p.resolveIdentityPayloadIdentities(ctx, rs); err != nil {
+		return err
+	}
 	if err := p.externalResolver.resolveScopedDeclarations(ctx, rs); err != nil {
 		return fmt.Errorf("failed to resolve scoped external declarations: %w", err)
 	}
@@ -2624,6 +2633,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 	if rs.SyncScope != nil {
 		for _, kind := range []resources.ResourceType{
 			resources.ResourceTypeIdentityPrincipal,
+			resources.ResourceTypeIdentityPrincipalIdentity,
 			resources.ResourceTypeIdentityAuthServerClient,
 		} {
 			for _, scoped := range rs.SyncScope.ChildNamespaces[kind] {

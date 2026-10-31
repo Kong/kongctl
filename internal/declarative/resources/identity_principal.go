@@ -8,10 +8,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/maturity"
+	"github.com/kong/kongctl/internal/util"
 )
 
 func init() {
-	registerResourceTypeWithSliceAccessors(
+	registerExternalResourceTypeWithSliceAccessors(
 		ResourceTypeIdentityPrincipal,
 		identityPrincipalSlice,
 		ensureIdentityPrincipalSlice,
@@ -32,6 +33,10 @@ func init() {
 				},
 			),
 		),
+		ExternalResolutionRegistration{
+			Selectors:  []string{SchemaFieldID},
+			ParentType: ResourceTypeIdentityDirectory, ParentFieldPath: "directory",
+		},
 		WithNamespace(210, principalNamespaceParticipant),
 		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]IdentityPrincipalResource {
 			var groups [][]IdentityPrincipalResource
@@ -70,7 +75,9 @@ func init() {
 
 // IdentityPrincipalResource uses a persisted ref, never display_name, as identity.
 type IdentityPrincipalResource struct {
-	BaseResource `                  yaml:",inline"                json:",inline"`
+	Identities   []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"   json:"identities,omitempty"`
+	External     *ExternalBlock                      `yaml:"_external,omitempty"    json:"_external,omitempty"`
+	BaseResource `                                    yaml:",inline"                json:",inline"`
 	Directory    string            `yaml:"directory,omitempty"    json:"directory,omitempty"`
 	DisplayName  *string           `yaml:"display_name,omitempty" json:"display_name,omitempty"`
 	Description  *string           `yaml:"description,omitempty"  json:"description,omitempty"`
@@ -124,13 +131,15 @@ func (p IdentityPrincipalResource) TypeDeclared() bool { return p.typeDeclared |
 
 func (p *IdentityPrincipalResource) DeclareUnclassified() { p.Type = nil; p.typeDeclared = true }
 
-func (p IdentityPrincipalResource) GetType() ResourceType           { return ResourceTypeIdentityPrincipal }
-func (p IdentityPrincipalResource) GetMoniker() string              { return p.Ref }
-func (p IdentityPrincipalResource) GetLabels() map[string]string    { return p.Labels }
-func (p *IdentityPrincipalResource) SetLabels(v map[string]string)  { p.Labels = v }
-func (p *IdentityPrincipalResource) SetDefaults()                   {}
-func (p IdentityPrincipalResource) Protected() bool                 { return p.Kongctl.IsProtected() }
-func (p IdentityPrincipalResource) GetKonnectMonikerFilter() string { return p.Ref }
+func (p IdentityPrincipalResource) GetType() ResourceType             { return ResourceTypeIdentityPrincipal }
+func (p IdentityPrincipalResource) GetMoniker() string                { return p.Ref }
+func (p IdentityPrincipalResource) GetLabels() map[string]string      { return p.Labels }
+func (p *IdentityPrincipalResource) SetLabels(v map[string]string)    { p.Labels = v }
+func (p *IdentityPrincipalResource) SetDefaults()                     {}
+func (p *IdentityPrincipalResource) GetExternalBlock() *ExternalBlock { return p.External }
+func (p *IdentityPrincipalResource) IsExternal() bool                 { return p.External != nil }
+func (p IdentityPrincipalResource) Protected() bool                   { return p.Kongctl.IsProtected() }
+func (p IdentityPrincipalResource) GetKonnectMonikerFilter() string   { return p.Ref }
 func (p *IdentityPrincipalResource) TryMatchKonnectResource(value any) bool {
 	candidate, ok := value.(interface {
 		GetID() string
@@ -169,6 +178,17 @@ func (p IdentityPrincipalResource) GetReferenceFieldMappings() map[string]string
 func (p IdentityPrincipalResource) Validate() error {
 	if err := ValidateRef(p.Ref); err != nil {
 		return err
+	}
+	if p.IsExternal() {
+		if err := p.External.Validate(); err != nil {
+			return err
+		}
+		if !util.IsValidUUID(p.External.ID) || p.External.Selector != nil {
+			return fmt.Errorf(
+				"external principal requires an explicit UUID in _external.id; display names are not unique",
+			)
+		}
+		return nil
 	}
 	if p.Type != nil && *p.Type != "user" && *p.Type != "agent" {
 		return fmt.Errorf("type must be user, agent, or null")
@@ -264,6 +284,7 @@ func principalNamespaceParticipant(p *IdentityPrincipalResource) NamespacePartic
 		Label:             string(ResourceTypeIdentityPrincipal),
 		Meta:              &p.Kongctl,
 		SupportsProtected: true,
+		External:          p.IsExternal(),
 	}
 }
 
@@ -300,16 +321,34 @@ func capturePrincipalScopes(rs *ResourceSet, defaultNamespace string) {
 		return
 	}
 	scope := rs.EnsureSyncScope()
+	if scope.RootInScope(ResourceTypeIdentityDirectory) {
+		scope.IdentityDirectoryNamespaces = make(map[string]struct{})
+		if len(rs.Identity.Directories) == 0 {
+			scope.IdentityDirectoryNamespaces[defaultNamespace] = struct{}{}
+		}
+		for _, d := range rs.Identity.Directories {
+			if !d.IsExternal() {
+				scope.IdentityDirectoryNamespaces[GetNamespace(d.Kongctl)] = struct{}{}
+			}
+		}
+	}
 	for _, d := range rs.Identity.Directories {
 		var namespaces []string
 		for _, p := range d.Principals {
-			namespaces = append(namespaces, GetNamespace(p.Kongctl))
+			if !p.IsExternal() {
+				namespaces = append(namespaces, GetNamespace(p.Kongctl))
+			}
+		}
+		if len(d.Principals) != 0 && len(namespaces) == 0 {
+			continue
 		}
 		CaptureOwnedChildCollection(scope, ResourceTypeIdentityPrincipal, d.Ref, defaultNamespace,
 			scope.ChildInScope(ResourceTypeIdentityDirectory, d.Ref, ResourceTypeIdentityPrincipal), namespaces)
 	}
 	for _, p := range rs.Identity.Principals {
-		scope.AddChildNamespace(ResourceTypeIdentityPrincipal, p.Directory, GetNamespace(p.Kongctl))
+		if !p.IsExternal() {
+			scope.AddChildNamespace(ResourceTypeIdentityPrincipal, p.Directory, GetNamespace(p.Kongctl))
+		}
 	}
 }
 
