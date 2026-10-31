@@ -1,7 +1,9 @@
 package state
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -91,6 +93,9 @@ func (c *Client) CreateIdentityPrincipal(ctx context.Context, directoryID string
 			response.KongPrincipal.ID,
 		)
 	}
+	if request.Metadata != nil && !identityMetadataRetained(created.Metadata, request.Metadata) {
+		return nil, fmt.Errorf("principal %s was created but the API did not retain requested metadata", created.ID)
+	}
 	return created, nil
 }
 
@@ -113,7 +118,22 @@ func (c *Client) ReplaceIdentityPrincipal(ctx context.Context, directoryID, id s
 		!principalMetadataRetained(response.KongPrincipal.ManagedBy, request.ManagedBy) {
 		return fmt.Errorf("principal API did not retain ownership metadata")
 	}
+	if request.Metadata != nil && !identityMetadataRetained(response.KongPrincipal.Metadata, request.Metadata) {
+		return fmt.Errorf("principal API did not retain requested metadata")
+	}
 	return nil
+}
+
+func identityMetadataRetained(observed, requested map[string]kkComps.KongIdentityMetadata) bool {
+	if len(observed) == 0 && len(requested) == 0 {
+		return true
+	}
+	actual, err := json.Marshal(observed)
+	if err != nil {
+		return false
+	}
+	expected, err := json.Marshal(requested)
+	return err == nil && bytes.Equal(actual, expected)
 }
 
 func principalMetadataRetained(observed, requested map[string]string) bool {
