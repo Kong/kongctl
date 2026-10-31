@@ -21,6 +21,7 @@ type SDKAPI interface {
 	GetIdentityAuthServersAPI() IdentityAuthServersAPI
 	GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI
 	GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI
+	GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetControlPlaneAPI() ControlPlaneAPI
@@ -814,4 +815,11 @@ func (k *KonnectSDK) GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAP
 		return nil
 	}
 	return k.SDK.AuthServerClaims
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader {
+	if k.SDK == nil || k.SDK.AuthServerClients == nil {
+		return nil
+	}
+	return k.SDK.AuthServerClients
 }

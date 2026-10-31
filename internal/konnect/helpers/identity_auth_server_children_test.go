@@ -29,7 +29,7 @@ func (a *claimsReadAPI) GetAuthServerClaim(_ context.Context, serverID, id strin
 	return a.get(serverID, id)
 }
 
-func TestClaimPaginationExhaustsActualPagesDespiteInflatedTotal(t *testing.T) {
+func TestClaimPaginationExhaustsActualPagesDespiteUnreliableTotal(t *testing.T) {
 	for _, fault := range []string{"", "late-error", "repeat", "missing", "bad-page", "under-count"} {
 		t.Run(fault, func(t *testing.T) {
 			var pages []int64
@@ -67,7 +67,7 @@ func TestClaimPaginationExhaustsActualPagesDespiteInflatedTotal(t *testing.T) {
 				}}, nil
 			}}
 			values, err := helpers.ListIdentityAuthServerClaims(t.Context(), api, "server", 1)
-			if fault != "" {
+			if fault != "" && fault != "under-count" {
 				require.Error(t, err)
 				require.Nil(t, values, "never expose a partial result")
 				return

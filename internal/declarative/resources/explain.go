@@ -333,6 +333,10 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		case "directory", "directories":
 		case "principal", "principals":
 			kind = ResourceTypeIdentityPrincipal
+		case "scopes", "scope":
+			kind = ResourceTypeIdentityAuthServerScope
+		case "claims", "claim":
+			kind = ResourceTypeIdentityAuthServerClaim
 		case "auth_servers", "auth_server", "auth-servers", "auth-server":
 			kind = ResourceTypeIdentityAuthServer
 		default:
@@ -379,7 +383,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}}
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
-		doc.ResourceType == ResourceTypeIdentityAuthServer {
+		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
+		doc.ResourceType == ResourceTypeIdentityAuthServerClaim {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 		if err != nil {
 			return nil, err
@@ -390,6 +395,12 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		if doc.ResourceType == ResourceTypeIdentityAuthServer {
 			collection = "auth_servers"
+		}
+		if doc.ResourceType == ResourceTypeIdentityAuthServerScope {
+			collection = "scopes"
+		}
+		if doc.ResourceType == ResourceTypeIdentityAuthServerClaim {
+			collection = "claims"
 		}
 		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: collection, Array: true}}
 		subject.ScaffoldTrail = []ExplainScaffoldNode{
@@ -882,6 +893,10 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "analytics.dashboards"
 	case ResourceTypeIdentityAuthServer:
 		return "identity.auth_servers"
+	case ResourceTypeIdentityAuthServerScope:
+		return "identity.scopes"
+	case ResourceTypeIdentityAuthServerClaim:
+		return "identity.claims"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
 	case ResourceTypeIdentityPrincipal:
@@ -965,6 +980,12 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	rootKey := resourceSetRootKey(reg.typ)
 	if rt == ResourceTypeIdentityAuthServer {
 		rootKey = "identity.auth_servers"
+	}
+	if rt == ResourceTypeIdentityAuthServerScope {
+		rootKey = "identity.scopes"
+	}
+	if rt == ResourceTypeIdentityAuthServerClaim {
+		rootKey = "identity.claims"
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"

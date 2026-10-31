@@ -56,7 +56,7 @@ kongctl adopt identity auth-server existing-issuer --namespace identity-team
 Adoption changes only ownership labels and preserves public fields. Existing
 ownership requires `--overwrite-namespace`. Dump includes mutable public
 settings and namespace/protection, excluding generated issuer and discovery
-URLs. This slice does not configure OAuth clients, scopes, claims, or secrets.
+URLs. OAuth clients and secrets remain separate implementation work.
 Deletion always uses `force=false`, so existing child resources can block it.
 The preview public SDK exposes the DCR token duration; additional internal DCR
 settings are outside this manifest's schema.
@@ -78,8 +78,61 @@ Specify exactly one server name or UUID. Scope names are unique within the
 server; claim names can repeat. An ambiguous claim name fails and requires
 the claim UUID. Claim values, including `${ uuidv4 }` and JSON-valued strings,
 are returned verbatim. These commands inspect configuration; they do not
-evaluate token or userinfo behavior. Declarative child support is still in
-progress; the auth-server manifest above currently configures only the root.
+evaluate token or userinfo behavior.
+
+### Declarative scopes and claims
+
+`auth-servers.yaml` also declares scopes and claims. Scopes require explicit
+`ref` and API `name`; claims additionally require a nonempty string `value`.
+Values can contain static text, JSON encoded as a string, or server templates
+such as `${ uuidv4 }`. KongCTL preserves that text for the server to evaluate.
+`include_in_scopes` accepts scope UUIDs or `!ref scope-ref#id`, including scopes
+created in the same saved plan. Every referenced scope must belong to the
+same auth server.
+
+Scope settings are `description`, `default`, `include_in_metadata`, and
+`enabled`. A default scope is still subject to client authorization; discovery
+visibility alone grants no access. Claim settings are `include_in_token`,
+`include_in_all_scopes`, `include_in_scopes`, and `enabled`. According to the
+API contract, enabled claims excluded from tokens can be retrieved through
+userinfo. This example configures those flags without minting a runtime token.
+
+Both child families have no labels or `managed_by`. They inherit the managed
+server's namespace and update/delete protection, with no independent
+`kongctl` block. Explicitly adopt an existing server before managing its
+children. External server declarations support reads/references but cannot
+authorize these child writes. Grouped `identity.scopes` and `identity.claims`
+declarations are also accepted with `auth_server: issuer-ref`.
+
+An explicitly present child collection is authoritative during sync. Omission
+retains that collection; `scopes: []` or `claims: []` removes all members of
+that collection under the selected managed server. Use apply for partial
+collections. To remove children while retaining their server, sync an empty
+child collection under its managed declaration. Empty grouped collections
+cannot identify a parent and are rejected for sync.
+
+PATCH preserves omitted optional settings. An empty scope description or
+claim `include_in_scopes: []` clears that field. Explicit false flags are
+preserved. Names identify resources within their parent; changing a name
+creates a different child and sync can prune the old name. Refs remain local.
+Duplicate remote claim names cause a clear conflict before mutation or dump.
+Use UUID reads to inspect such records and resolve the ambiguity explicitly.
+
+Scope deletion is blocked while any observed client or claim explicitly
+references it, including records omitted from the manifest. A planned claim
+detachment or deletion runs first; execution checks references again. Deleting
+the example removes declared claims/scopes before the server, using
+`force=false`. Undeclared children remain and can block server deletion.
+
+Include children in a dump to export flags, values, and portable scope links:
+
+```sh
+kongctl dump declarative --resources identity.auth_servers \
+  --include-child-resources
+kongctl plan -f auth-servers.yaml --mode apply > auth-plan.json
+kongctl apply --plan auth-plan.json --auto-approve
+kongctl delete -f auth-servers.yaml --auto-approve
+```
 
 ## Directories and principals
 

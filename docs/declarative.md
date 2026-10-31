@@ -825,8 +825,12 @@ Each server requires an explicit unique `name` and `audience`. It uses
 conventional ownership/protection labels because this API has no `managed_by`
 field. PATCH preserves omitted settings; explicit empty descriptions, origin
 lists, and label maps clear them. Adoption is explicit, sync is scoped to
-declared collections, and deletion never requests a cascade. OAuth clients,
-scopes, claims, and secrets are separate resource work.
+declared collections, and deletion never requests a cascade. Scopes and claims
+inherit the managed server's namespace/protection. Explicit child collections
+define sync authority; omission preserves them. Scope references resolve in
+saved plans, and guarded deletion orders claim detachments before removing
+scopes. These children have no labels or `managed_by`. OAuth clients and
+secrets remain separate resource work.
 
 See the [Identity examples](examples/declarative/identity/README.md) for
 manifests, adoption, protection, sync scope, and current platform limitations.

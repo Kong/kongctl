@@ -686,6 +686,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		for i := range rs.Identity.Directories {
 			rs.ExtractRegisteredChildren(&rs.Identity.Directories[i])
 		}
+		for i := range rs.Identity.AuthServers {
+			rs.ExtractRegisteredChildren(&rs.Identity.AuthServers[i])
+		}
 	}
 	// Extract analytics nested resources.
 	if rs.Analytics != nil {

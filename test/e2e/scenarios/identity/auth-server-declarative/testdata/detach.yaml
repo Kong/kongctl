@@ -1,0 +1,17 @@
+_defaults:
+  kongctl: {namespace: identity-auth-decl-e2e}
+identity:
+  auth_servers:
+    - ref: issuer
+      name: !env KONGCTL_E2E_AUTH_DECL_SERVER_NAME
+      audience: https://api.example.test
+      scopes: []
+      claims:
+        - ref: department
+          name: !env KONGCTL_E2E_AUTH_DECL_DEPARTMENT_NAME
+          value: '${ uuidv4 }'
+          include_in_scopes: []
+        - ref: request-id
+          name: !env KONGCTL_E2E_AUTH_DECL_REQUEST_NAME
+          value: '${ uuidv4 }'
+          include_in_scopes: []

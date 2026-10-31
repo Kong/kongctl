@@ -24,6 +24,30 @@ type IdentityAuthServerScopesAPI interface {
 	DeleteAuthServerScope(context.Context, string, string, ...kkOps.Option) (*kkOps.DeleteAuthServerScopeResponse, error)
 }
 
+type IdentityAuthServerClientsReader interface {
+	ListAuthServerClients(context.Context, kkOps.ListAuthServerClientsRequest, ...kkOps.Option) (
+		*kkOps.ListAuthServerClientsResponse, error,
+	)
+}
+
+func ListIdentityAuthServerClients(ctx context.Context, api IdentityAuthServerClientsReader,
+	serverID string, pageSize int64,
+) ([]kkComps.AuthServerClient, error) {
+	if api == nil {
+		return nil, fmt.Errorf("identity auth-server clients API is not configured")
+	}
+	return listAuthServerChildren(ctx, "clients", pageSize, true,
+		func(ctx context.Context, number, size int64) ([]kkComps.AuthServerClient, *kkComps.PageMeta, error) {
+			response, err := api.ListAuthServerClients(ctx, kkOps.ListAuthServerClientsRequest{
+				AuthServerID: serverID, PageNumber: &number, PageSize: &size,
+			})
+			if err != nil || response == nil || response.ClientList == nil {
+				return nil, nil, err
+			}
+			return response.ClientList.Data, &response.ClientList.Meta.Page, nil
+		}, func(value kkComps.AuthServerClient) string { return value.ID })
+}
+
 type IdentityAuthServerClaimsAPI interface {
 	ListAuthServerClaims(context.Context, kkOps.ListAuthServerClaimsRequest, ...kkOps.Option) (
 		*kkOps.ListAuthServerClaimsResponse, error,
@@ -68,7 +92,7 @@ func listAuthServerChildren[T any](ctx context.Context, kind string, pageSize in
 			seen[key] = true
 		}
 		result = append(result, values...)
-		if float64(len(result)) > meta.Total {
+		if reliableTotal && float64(len(result)) > meta.Total {
 			return nil, fmt.Errorf("inconsistent auth-server %s pagination total", kind)
 		}
 		if reliableTotal && float64(len(result)) == meta.Total {

@@ -6,11 +6,16 @@ import (
 	"slices"
 	"strings"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
 )
 
 type planningResourceCache struct {
+	identityAuthScopes             map[string][]state.IdentityAuthServerScope
+	identityAuthClaims             map[string][]state.IdentityAuthServerClaim
+	identityAuthClients            map[string][]kkComps.AuthServerClient
 	identityAuthServers            observationCache[state.IdentityAuthServer]
 	identityPrincipals             map[string][]state.IdentityPrincipal
 	identityDirectories            observationCache[state.IdentityDirectory]
@@ -53,6 +58,9 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityAuthScopes:             make(map[string][]state.IdentityAuthServerScope),
+		identityAuthClaims:             make(map[string][]state.IdentityAuthServerClaim),
+		identityAuthClients:            make(map[string][]kkComps.AuthServerClient),
 		identityAuthServers:            newObservationCache[state.IdentityAuthServer](),
 		identityPrincipals:             make(map[string][]state.IdentityPrincipal),
 		identityDirectories:            newObservationCache[state.IdentityDirectory](),

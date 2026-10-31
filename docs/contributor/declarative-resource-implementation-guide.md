@@ -90,6 +90,14 @@ Registering a declaration does not complete those steps automatically.
   unique. Their verified PUT path preserves omitted public fields. See
   [Identity compatibility](kong-identity-compatibility.md) for temporary API
   restrictions.
+  Kong Identity auth-server scopes and claims use ordinary inherited ownership
+  instead: they have no labels or `managed_by`. A declared managed server and
+  explicit child collection define mutation/sync authority. Child writes
+  recheck the server's identity, namespace and update/delete protection;
+  external server references do not authorize them. Scope deletion observes
+  all client/claim references, orders proven detachments first, and rechecks
+  after those writes. Claim pagination uses terminal pages under API question
+  Q13. See the [metadata ledger](kong-identity-metadata-storage.md).
   Model namespace scope is captured per source, separately from gateway scope;
   parent linkage never authorizes model mutation. See
   [model ownership](../ai-gateway-model-ownership.md) for migration and API

@@ -15,3 +15,30 @@ identity:
         default_access_token_duration: 600
       labels:
         team: identity
+      scopes:
+        - ref: read-data
+          name: read:data
+          description: Read application data
+          default: true
+          enabled: true
+          include_in_metadata: true
+        - ref: write-data
+          name: write:data
+          description: Write application data
+          default: false
+          enabled: true
+          include_in_metadata: true
+      claims:
+        - ref: team-claim
+          name: team
+          value: '{"team":"identity"}'
+          include_in_token: true
+          include_in_all_scopes: false
+          include_in_scopes: [!ref read-data#id, !ref write-data#id]
+          enabled: true
+        - ref: request-id-claim
+          name: request_id
+          value: '${ uuidv4 }'
+          include_in_token: false
+          include_in_all_scopes: true
+          enabled: true

@@ -39,6 +39,8 @@ type IdentityAuthServerDCR struct {
 }
 
 type IdentityAuthServerResource struct {
+	Scopes           []IdentityAuthServerScopeResource `yaml:"scopes,omitempty" json:"scopes,omitzero"`
+	Claims           []IdentityAuthServerClaimResource `yaml:"claims,omitempty" json:"claims,omitzero"`
 	BaseResource     `yaml:",inline" json:",inline"`
 	Name             string                              `yaml:"name" json:"name"`
 	Audience         string                              `yaml:"audience" json:"audience"`

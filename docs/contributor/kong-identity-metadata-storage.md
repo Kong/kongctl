@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `56d878d0739c`, generated
+The current source is the public preview SDK at `dfd890eb1a03`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Live observations are from US `.com`. Keep this ledger current as each
@@ -19,6 +19,8 @@ resource is implemented.
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
+| Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
+| Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
 
 Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 `kongctl-protected`. Principal ownership adds `kongctl-ref` as the fifth entry.
@@ -55,8 +57,8 @@ or protection metadata on them.
 
 | Resource | Identity or parent | Implementation boundary |
 | --- | --- | --- |
-| Auth-server scopes | Unique name within auth server | Direct create/GET/PATCH verified; get/list implemented. Declarative parent authority and reference deletion guards remain work. #1402. |
-| Auth-server claims | Name filter and generated ID; duplicate names accepted | Direct create/GET/PATCH verified; get/list rejects ambiguous names and handles Q13 totals. Parent authority and scope dependencies remain work. #1403. |
+| Auth-server scopes | Unique name within auth server | Inherit managed parent namespace and update/delete protection. Explicit collection defines sync authority; fresh references guard deletion. #1402. |
+| Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle and secure capture; no invented declarative secret-slot name. #1404. |
 | Group memberships | Member type/ID under group | Relationship authority comes from an explicit collection contract. Import-managed memberships remain distinct. #2658. |
 | Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
@@ -67,11 +69,13 @@ or protection metadata on them.
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 
-Inherited ownership is a proposed policy where noted, not metadata persisted
-on a child. A parent with ownership fields does not automatically authorize
-all child mutation or deletion. Record each family's implemented policy,
-external-parent behavior, protection checks and sync scope before enabling
-destructive operations.
+Inherited ownership is not metadata persisted on a child. Scopes and claims
+require a declared managed server; its namespace and update/delete protection
+apply to child writes. An explicit collection is authoritative for sync;
+omission preserves it. Adoption is through the parent, and external parent
+references do not authorize these writes. Other rows remain proposed where
+noted. A parent with ownership fields alone does not establish collection
+authority for another resource family.
 
 ## Change log
 
@@ -87,7 +91,11 @@ destructive operations.
   ownership fields. Scope names reject duplicates; claim names allow them.
   Deleting a scope silently detaches client and claim associations. Get/list
   commands now inspect both families, including duplicate-safe UUID lookup.
-  Declarative child lifecycle and adoption policy remain in progress.
+  Declarative child lifecycle now uses the managed parent plus explicit
+  collection authority. Independent child adoption is unavailable because no
+  ownership field exists; adopt the parent. Saved writes recheck its identity,
+  namespace and protection. Claim/principal creation does not replay uncertain
+  POST outcomes; Q14 tracks the API idempotency contract.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

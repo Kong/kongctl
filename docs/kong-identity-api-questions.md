@@ -201,6 +201,19 @@ inference, not a confirmed implementation detail.
 increment the page number. Observed on October 31, 2026 UTC in US `.com`;
 temporary records were removed.
 
+### Q14 Creation retry contracts
+
+**Question:** Do authorization-server claim creation and directory principal
+creation support idempotency keys or another deduplication contract? After a
+timeout or server error with an uncertain creation outcome, what is the
+supported recovery procedure? Do the guarantees differ between these APIs?
+
+**Known:** Claim names are not unique (Q12), so resending the same create body
+can produce another record. No idempotency parameter is documented in the
+inspected create operations. Principal display names are likewise non-unique,
+and `managed_by` values have no documented uniqueness constraint. No failure
+was injected into the live service.
+
 ## Recorded answers
 
 No team answers have been recorded yet.
