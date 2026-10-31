@@ -1,66 +1,117 @@
-# Basic-auth username and password inspection
+# Basic-auth username records
 
 A basic-auth credential has two levels: a username record attached to a
 directory principal, and up to two password records under that username.
 The username is unique within the directory. Passwords have generated IDs
-and expiration metadata; they have no name. Two slots allow deliberate
-rotation, but expired records still occupy a slot in the tested API.
+and expiration metadata; they have no name. Expired records still occupy
+a password slot in the tested API.
 
-The preview branch supports public metadata reads for both levels. Use a
-principal that already has basic-auth credentials:
+`basic-auth.yaml` declares an agent principal and a username record under
+the external `default` directory. Bootstrap a missing default directory with
+`directories.yaml` first, as described in the [overview](README.md).
+Apply this example separately from the other principal examples:
 
 ```sh
+kongctl plan --mode apply -f basic-auth.yaml --output-file basic-plan.json
+kongctl diff --plan basic-plan.json
+kongctl apply --plan basic-plan.json --auto-approve
 kongctl get identity principals --directory-name default
+```
+
+This creates a username without a password. Password creation, capture and
+rotation are separate API operations and are not exposed by these
+declarations. Runtime authentication needs a supported integration context
+(Q30); this example does not establish authentication success.
+
+Use the returned principal UUID to inspect the credential:
+
+```sh
 kongctl get identity principal-basic-auths \
   --directory-name default --principal-id PRINCIPAL_UUID --page-size 1
 kongctl get identity principal-basic-auth \
   --directory-name default --principal-id PRINCIPAL_UUID \
-  --username worker@example.test -o yaml
+  --username kongctl-example-order-worker -o yaml
 kongctl get identity principal-basic-auth-passwords \
   --directory-name default --principal-id PRINCIPAL_UUID \
-  --username worker@example.test --page-size 1
-kongctl get identity principal-basic-auth-password PASSWORD_UUID \
-  --directory-name default --principal-id PRINCIPAL_UUID \
-  --basic-auth-id BASIC_AUTH_UUID -o text
+  --username kongctl-example-order-worker
 ```
 
-Positional arguments are resource UUIDs. `--username` always means the exact
-username, even if that username itself looks like a UUID. Password commands
-require exactly one parent `--basic-auth-id` or `--username`. An explicit
-directory UUID can replace its name. `list` and explicit `konnect` forms work
-as well. Principal display names are not selectors because they can repeat.
+The username record has four generated `managed_by` entries: `tool`,
+`version`, `kongctl-namespace` and `kongctl-protected`. Do not supply that
+map yourself. Ownership is independent of the principal/directory: an
+external or protected parent does not grant ownership over its credentials.
+Principal runtime `metadata` and public labels are separate API fields.
 
-JSON/YAML show public management metadata and timestamps, plus the username
-or password expiration. Text uses a table for both detail and list output.
-Password values are never displayed. These reads neither create credentials
-nor change their ownership. The live `.tech` scenario verifies user, agent
-and unclassified parents, real page-size-one traversal, wrong-parent errors,
-private captures and secret-free outputs/logs.
+## Matching, protection and sync
 
-## Declarative lifecycle work
+Required `username` accepts 1-255 characters and is the remote match key.
+`ref` stays local: changing only it does not recreate a username. Changing
+the username declares a different resource. Apply preserves the previous
+username; scoped sync can remove it only when unprotected and password-free.
+Changing the parent does not automatically move a credential between
+principals; the API enforces directory-wide username uniqueness.
 
-There are no basic-auth/password declarations or adoption commands yet.
-Continue using the principal examples for parent management; adding a
-credential through another API does not grant KongCTL ownership over it.
+Set the username's `kongctl.protected: true`, plan and apply to protect it.
+Set it back to false in a separate update before deletion. These metadata
+updates use fresh GET/full PUT/readback without sending any password value.
+The tested API preserves password IDs through username-record PUT; runtime
+credential continuity still needs Q30's integration setup.
 
-The verified username-record PUT path can preserve its management metadata
-without supplying passwords. Shared username-record write helpers now verify
-retained metadata and fresh readback; creation is single-attempt. Their
-deletion helper refuses a nonempty or incompletely observed password
-collection. These helpers do not yet add credential checks to declarative
-principal deletion. Native parent deletion can remove access to attached
-credentials, so the upcoming declarative lifecycle must enroll those checks.
+Nested `principals[].basic_auths` and grouped `identity.basic_auths` are
+supported. Grouped declarations require `principal: LOCAL_PRINCIPAL_REF`.
+Omitting the collection preserves credentials. An explicit empty collection
+selects only its source namespace for sync; other namespaces and unowned
+credentials are retained. Use apply for partial collections. Parent sync
+scope is separate, so keep a retained principal declared or external.
 
-Password PATCH ignores management-map changes and clears an omitted
-expiration. Password PUT requires explicit secret material and expiration.
-Metadata-only adoption cannot safely use either request today (Q35).
-Separately, preview SDK password write models lack the expiration field;
-read support does not establish complete write support. Secret sources,
-generation/capture, rotation and slot retirement need explicit contracts
-before declarative password management is enabled.
+Saved plans repeat identity, ownership and protection checks before writing.
+Username deletion refuses attached passwords, including expired ones.
+Principal deletion refuses API keys and requires explicit authorized
+username/identity/membership deletions before its fresh empty checks. Parent
+ownership never authorizes credential retirement. Observation failures block
+deletion; client checks cannot prevent concurrent attachment atomically.
 
-The [API question log](../../../kong-identity-api-questions.md),
+## Adoption, external references and dump
+
+Adopt an unowned username before managing it:
+
+```sh
+kongctl adopt identity principal-basic-auth \
+  --directory-name default --principal-id PRINCIPAL_UUID \
+  --username kongctl-example-order-worker --namespace identity-credentials
+```
+
+Existing ownership requires `--overwrite-namespace`. Adoption preserves the
+username and protection flag, replacing the management map through full PUT.
+It does not adopt or rotate password children. Positional selectors are UUIDs;
+`--username` always means the exact username, even if it resembles a UUID.
+Read commands also support `list`, explicit `konnect`, JSON/YAML and text
+tables for both detail and lists. Password reads never display material.
+
+An external username declaration supports `_external.id` or
+`_external.selector.matchFields.username` under a declared principal. It must
+exist in that selected principal; external-only collections do not authorize
+sync pruning. External principals themselves require explicit UUIDs.
+
+```sh
+kongctl dump declarative --resources identity.directories \
+  --filter-name default --include-child-resources > identity-dump.yaml
+kongctl delete -f basic-auth.yaml --auto-approve
+```
+
+Dump uses generated IDs as local username refs and translates ownership into
+`kongctl`. Unowned usernames stay external. Passwords and secret material are
+excluded: restoring a username does not restore its passwords. The delete
+command removes the declared username and principal only if all descendant
+checks pass, retaining the external default directory.
+An unmanaged directory also exports as an external name lookup, so dump/reload
+does not require adopting the platform-provided default.
+
+Password PATCH ignores management-map changes and clears omitted expiration.
+PUT requires secret material and expiration; metadata-only adoption has no
+verified preserving request (Q35). Preview SDK password write models also
+lack expiration. Secret-source/capture, rotation and slot-retirement support
+require separate work. See the
+[API questions](../../../kong-identity-api-questions.md),
 [compatibility tracker](../../../contributor/kong-identity-compatibility.md)
-and [metadata ledger](../../../contributor/kong-identity-metadata-storage.md)
-record these boundaries. Runtime authentication needs a supported integration
-context (Q30); metadata inspection does not establish authentication success.
+and [metadata ledger](../../../contributor/kong-identity-metadata-storage.md).

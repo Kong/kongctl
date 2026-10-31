@@ -18,9 +18,9 @@ until merge.
 public credential metadata and the API contracts still preventing declarative
 ownership updates and adoption. It does not expose credential material.
 
-[Basic-auth inspection](basic-auth.md) covers username records and their
-password metadata, explicit username/UUID selectors and private credential
-boundaries. Their declarative lifecycle is still under implementation.
+[Basic-auth username records](basic-auth.md) covers `basic-auth.yaml`,
+independent managed_by ownership, lifecycle/adoption/dump and password metadata
+inspection. Password values and rotation stay outside this declaration.
 
 [Group and direct membership inspection](groups.md) covers group/team get/list,
 UUID/name selectors and membership-entry IDs. Ordinary group lifecycle and
@@ -69,6 +69,10 @@ Start with `external-default.yaml` to verify lookup without managing children.
 An explicit directory ID is also supported. Lookup alone fails if `default`
 is absent; it never silently creates or adopts a directory. Do not load the
 managed bootstrap and external-reference examples together as one manifest.
+
+Directory dump preserves an unmanaged directory as an external name lookup
+while including independently managed children. Reloading that dump does not
+require adopting the platform-provided default.
 
 To start managing an existing unowned default directory, first adopt it:
 

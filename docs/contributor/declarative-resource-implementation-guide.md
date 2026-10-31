@@ -101,6 +101,14 @@ Registering a declaration does not complete those steps automatically.
   Final plans order authorized detachments before group/principal deletion.
   Team/importer writes remain deferred. These groups use the existing
   directory root planner and child dump inventory.
+
+  Basic-auth username records use independent four-entry managed_by metadata
+  under principals, with exact directory-wide unique usernames and local refs.
+  Their shared parent-scope builder handles principal aliases and namespace
+  selection; full PUT never sends passwords. Final plans order explicitly
+  authorized username deletions before principal deletion. Password/key
+  observations fail closed, and saved writes repeat the guards. Passwords
+  remain outside declarative enrollment under Q35 and the SDK expiration gap.
   Principal identities also persist refs with independent ownership under
   principals. Their four association variants use fresh full PUT payloads;
   external UUID references remain outside management. Parent and associated

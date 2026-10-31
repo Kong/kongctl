@@ -56,6 +56,7 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeIdentityBasicAuth: r.lookupIdentityBasicAuth,
 		resources.ResourceTypeIdentityPrincipalIdentity: func(context.Context, externalLookupRequest) (string, error) {
 			return "", fmt.Errorf("external principal identities require an explicit UUID")
 		},
@@ -77,6 +78,41 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		resources.ResourceTypeEventGatewayVirtualCluster: r.lookupEventGatewayVirtualCluster,
 	}
 	return r
+}
+
+func (r *externalLookupResolver) lookupIdentityBasicAuth(
+	ctx context.Context,
+	req externalLookupRequest,
+) (string, error) {
+	if r.planner.resources.Identity != nil {
+		for _, parent := range r.planner.resources.Identity.Principals {
+			if parent.GetKonnectID() != req.ParentID {
+				continue
+			}
+			directory, found := r.planner.resources.GetResourceByRef(resources.NormalizeResourceRef(parent.Directory))
+			if !found || directory.GetKonnectID() == "" {
+				continue
+			}
+			all, err := r.planner.listIdentityBasicAuths(ctx, directory.GetKonnectID(), req.ParentID)
+			if err != nil {
+				return "", err
+			}
+			id := ""
+			for _, value := range all {
+				if value.Username == req.MatchFields[FieldUsername] {
+					if id != "" {
+						return "", fmt.Errorf("multiple basic-auth credentials match the selected username")
+					}
+					id = value.ID
+				}
+			}
+			if id == "" {
+				return "", fmt.Errorf("basic-auth username not found in the selected principal")
+			}
+			return id, nil
+		}
+	}
+	return "", fmt.Errorf("external basic-auth lookup requires declared principal and directory parents")
 }
 
 func (r *externalLookupResolver) lookupIdentityDirectory(ctx context.Context,

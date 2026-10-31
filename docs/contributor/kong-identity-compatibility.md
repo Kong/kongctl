@@ -734,11 +734,43 @@ returns an error without automatic rollback. POST disables both retry layers.
 Delete requires a complete empty password observation; it never retires
 password slots. This client check cannot close a concurrent creation race.
 
-Declarative basic-auth registration/planning/execution/dump/adoption and
-principal credential-deletion guards are still pending. Password metadata
-writes/secret rotation remain outside this slice under Q35 and the separate
-SDK request-model gap. The live identity/basic-auth scenario verifies reads
+Declarative username registration/planning/execution/dump/adoption and
+principal credential-deletion guards are now implemented as described below.
+Password metadata writes/secret rotation remain outside this slice under Q35
+and the separate SDK request-model gap. The live identity/basic-auth scenario verifies reads
 for user, agent and unclassified principals, five username/password records,
 all output formats, actual bracketed cursor traversal and wrong-parent 404s.
 Generated/imported fixture material stays in private captures; observed
 credential descendants are removed explicitly before fixture principals.
+
+### Declarative username lifecycle and credential deletion guards
+
+Username records use independent four-entry managed_by ownership, exact
+username matching and local refs, under managed or external principals.
+Nested/grouped declarations, saved plans, protection, scoped sync/delete,
+adoption, external UUID/username lookup, dump and explain/scaffold are
+implemented. Parent directory/principal protection does not grant authority
+over these independently owned credentials. Changing a username creates a
+different record; no automatic credential move or password rotation occurs.
+
+Metadata updates use the verified full PUT/readback path. Saved execution
+checks fresh scoped identity, namespace and protection. Dump uses UUID local
+refs and exports unowned usernames as external; passwords are excluded.
+Adoption does not stamp password metadata or send password values.
+
+Any password blocks username deletion. Principal deletion requires explicit
+authorized username deletions and fresh empty username/key collections;
+any API key blocks it. Final merged plans order cross-namespace child deletes
+first. A newly attached credential or failed/malformed observation stops saved
+execution. Principal key checks use an unfiltered empty terminal first page,
+not an assumed resource count or an unsupported filter. Legacy user-key 404
+is an error, not proof that the collection is empty. These client observations
+cannot close an attachment race; Q24 still asks for an atomic API contract.
+
+The identity/declarative-basic-auth live scenario verifies same-plan protected
+parents, independent ownership, local-ref changes, protection/unprotection,
+adoption, external username lookup, dump/replan, explicit versus omitted sync,
+foreign/unowned retention, stale ownership/password guards and cross-namespace
+child-before-principal deletion. Password/key fixtures use private capture,
+secret/base64 artifact scans and verified explicit retirement. No additional
+SDK changes were required beyond preview 995778a1c448's cursor corrections.

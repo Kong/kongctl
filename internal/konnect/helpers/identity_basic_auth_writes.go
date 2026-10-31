@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"net/http"
@@ -25,6 +26,39 @@ type IdentityBasicAuthAPI interface {
 	DeletePrincipalBasicAuth(context.Context, kkOps.DeletePrincipalBasicAuthRequest, ...kkOps.Option) (
 		*kkOps.DeletePrincipalBasicAuthResponse, error,
 	)
+}
+
+// Any API key blocks parent deletion. An unfiltered, empty terminal page is
+// sufficient; no key material or remote ownership grants implicit revocation.
+func VerifyPrincipalAPIKeysEmpty(ctx context.Context, api IdentityPrincipalKeysReader,
+	directoryID, principalID string,
+) error {
+	if err := validatePrincipalKeyReader(api, directoryID, principalID); err != nil {
+		return err
+	}
+	response, err := api.ListPrincipalKeys(ctx, kkOps.ListPrincipalKeysRequest{
+		DirectoryID: directoryID, PrincipalID: principalID,
+	})
+	if err != nil {
+		return identitySecretAPIError("verify principal API keys before deletion", err)
+	}
+	if response == nil {
+		return fmt.Errorf("missing principal API-key collection response")
+	}
+	var page identityCredentialPage[json.RawMessage]
+	if err := decodeIdentityCredentialResponse(response.RawResponse, &page); err != nil {
+		return err
+	}
+	next, err := page.next()
+	if err != nil {
+		return err
+	}
+	if len(page.Data) != 0 || next != nil && *next != "" {
+		return fmt.Errorf(
+			"principal has API keys or an incomplete credential observation; remove keys explicitly before deletion",
+		)
+	}
+	return nil
 }
 
 // IdentityBasicAuthReplacement projects a fresh username record into a full

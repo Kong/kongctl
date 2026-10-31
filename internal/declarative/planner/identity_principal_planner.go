@@ -233,7 +233,10 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 			}
 		}
 	}
-	return p.planIdentities(ctx, config, plan, byName)
+	if err := p.planIdentities(ctx, config, plan, byName); err != nil {
+		return err
+	}
+	return p.planBasicAuths(ctx, config, plan, byName)
 }
 
 func (p *identityDirectoryPlanner) principalChange(action ActionType, ref, id string, fields map[string]any,

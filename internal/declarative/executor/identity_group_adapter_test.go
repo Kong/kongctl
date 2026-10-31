@@ -26,7 +26,13 @@ func groupExecutorFixture() (*IdentityGroupAdapter, *fixture.GroupAPI, *Executio
 		},
 	}
 	return &IdentityGroupAdapter{
-			client: state.NewClient(state.ClientConfig{IdentityGroupsAPI: api}),
+			client: state.NewClient(
+				state.ClientConfig{
+					IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+					IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+					IdentityGroupsAPI:           api,
+				},
+			),
 		}, api, NewExecutionContext(
 			&change,
 		)

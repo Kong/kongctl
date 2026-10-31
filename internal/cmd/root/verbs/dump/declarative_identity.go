@@ -32,7 +32,7 @@ func identityDirectoryCollector() declarativeCollector {
 			})
 			result := make([]resources.IdentityDirectoryResource, 0, len(values))
 			for _, current := range values {
-				result = append(result, resources.IdentityDirectoryResource{
+				declaration := resources.IdentityDirectoryResource{
 					BaseResource: resources.BaseResource{
 						Ref:     current.ID,
 						Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
@@ -42,7 +42,17 @@ func identityDirectoryCollector() declarativeCollector {
 					AllowAllControlPlanes: current.AllowAllControlPlanes, TTLSecs: current.TTLSecs,
 					NegativeTTLSecs: current.NegativeTTLSecs, VaultEnabled: current.VaultEnabled,
 					Labels: labels.GetUserLabels(current.Labels),
-				})
+				}
+				if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
+					declaration.Kongctl = nil
+					declaration.External = &resources.ExternalBlock{Selector: &resources.ExternalSelector{
+						MatchFields: map[string]string{resources.SchemaFieldName: current.Name},
+					}}
+				} else if err := resources.ValidateChildOwnership("directory", current.ManagedBy,
+					current.ManagedBy[resources.ChildNamespaceKey]); err != nil {
+					return nil, err
+				}
+				result = append(result, declaration)
 			}
 			slices.SortFunc(
 				result,
@@ -155,6 +165,32 @@ func identityDirectoryCollector() declarativeCollector {
 						principal.Identities,
 						func(a, b resources.IdentityPrincipalIdentityResource) int { return cmp.Compare(a.Ref, b.Ref) },
 					)
+					basicAuths, err := d.stateClient.ListIdentityBasicAuths(ctx, values[i].Ref, current.ID)
+					if err != nil {
+						return err
+					}
+					for _, basic := range basicAuths {
+						if seen[basic.ID] {
+							return fmt.Errorf("basic-auth ref is ambiguous in the dump")
+						}
+						seen[basic.ID] = true
+						declaration := resources.IdentityBasicAuthResource{
+							BaseResource: resources.BaseResource{Ref: basic.ID}, Username: basic.Username,
+						}
+						if basic.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool {
+							if err := resources.ValidateChildOwnership("basic-auth", basic.ManagedBy,
+								basic.ManagedBy[resources.ChildNamespaceKey]); err != nil {
+								return err
+							}
+							declaration.Kongctl = kongctlMetaFromLabels(basic.NormalizedLabels)
+						} else {
+							declaration.External = &resources.ExternalBlock{ID: basic.ID}
+						}
+						principal.BasicAuths = append(principal.BasicAuths, declaration)
+					}
+					slices.SortFunc(principal.BasicAuths, func(a, b resources.IdentityBasicAuthResource) int {
+						return cmp.Compare(a.Ref, b.Ref)
+					})
 					values[i].Principals = append(values[i].Principals, principal)
 				}
 				groups, err := d.stateClient.ListIdentityGroups(ctx, values[i].Ref)
@@ -238,5 +274,6 @@ func identityDirectoryCollector() declarativeCollector {
 			return nil
 		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
 		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
+		resources.ResourceTypeIdentityBasicAuth,
 	)
 }

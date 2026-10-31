@@ -44,7 +44,8 @@ const (
 	FieldID = "id"
 
 	// FieldName contains a resource name
-	FieldName = "name"
+	FieldName     = "name"
+	FieldUsername = "username"
 
 	// FieldDescription contains a resource description
 	FieldDescription = fieldcontracts.FieldDescription
@@ -283,6 +284,7 @@ const (
 	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
 	ResourceTypeIdentityGroupMembership          = string(resources.ResourceTypeIdentityGroupMembership)
+	ResourceTypeIdentityBasicAuth                = string(resources.ResourceTypeIdentityBasicAuth)
 	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeIdentityPrincipalIdentity        = string(resources.ResourceTypeIdentityPrincipalIdentity)

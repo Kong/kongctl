@@ -275,6 +275,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.resolveIdentityMembershipDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
+	if err := p.resolvePrincipalCredentialDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 
 	// Child matching discovers identities during resource planning. If these
 	// make additional payload references concrete, compare again with the new
@@ -2637,6 +2640,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		for _, kind := range []resources.ResourceType{
 			resources.ResourceTypeIdentityPrincipal,
 			resources.ResourceTypeIdentityPrincipalIdentity,
+			resources.ResourceTypeIdentityBasicAuth,
 			resources.ResourceTypeIdentityGroup,
 			resources.ResourceTypeIdentityAuthServerClient,
 		} {
