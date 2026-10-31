@@ -2407,3 +2407,57 @@ Future credential work must verify its own ownership/secret contracts and
 SDK models; membership success does not establish credential behavior.
 #2658/#2657/#1415 remain open/In Progress until merge to main. No PR is opened
 and the overall epic goal remains active.
+
+## 39. Basic-auth contract verification and SDK preparation
+
+Direct US .tech probes establish a feasible basic-auth username-record slice.
+Create/list/GET/full PUT work for user, agent and unclassified principals.
+Creation retains supplied management metadata. PATCH ignores management-map
+changes/removal; full PUT retains the supplied map and clears omitted maps.
+Username conflicts return 409 under the same or a different principal in the
+directory. Full PUT can rename a username while keeping existing password
+IDs administratively readable. Runtime authentication continuity is still
+unverified without Q30's supported context.
+
+Generated/imported password creation retains management metadata and explicit
+expiration. GET/list do not return secret values. Password PATCH ignores
+management-map changes/removal and clears omitted expiration. Explicit null
+and future expiration work. Password PUT requires both secret and expires_at;
+omitting either returns 400. Supplying both permits replacement and metadata
+updates. This is not a metadata-only preservation operation. Two total
+password slots include expired records; a third create returns 403 even after
+expiring one record. Q35 asks for ownership updates that preserve secret and
+expiration. Declarative password enrollment needs an explicit safe secret
+policy; metadata-only adoption is unavailable.
+
+Wrong-principal basic-auth GET/DELETE and wrong-principal/wrong-basic-auth
+password GET return 404. Principal DELETE succeeds with attached records and
+passwords, and basic-auth DELETE succeeds with passwords; descendant reads
+then return 404. These are administrative cascade observations, not proof of
+runtime revocation. Principal/credential deletion needs explicit empty or
+authorized child-deletion checks, without inherited credential authority.
+
+Native bracketed page[size]=1 requests traverse two pages for both basic-auth
+and password collections. Flat size=1 is ignored and returns page size 20.
+Existing SDK request tags for both lists are still flat. The expanded SDK wire
+regression fails exactly those two methods while the prior six lists pass.
+The patch bundle now enrolls those two request-tag corrections and preserves
+all prior patches. Root unit tests and patch-tool tests pass before the SDK
+snapshot is prepared. No resource API inventory or model fields change in
+this pagination correction. Password write models separately omit expires_at;
+that issue must be fixed before any SDK password writer relies on it.
+
+Sanitized native evidence is local under
+/home/rspurgeon/.cache/kong-identity-public-sdk:
+basic-auth-contracts.json, basic-auth-boundaries.json and
+basic-auth-pagination.json. All temporary password/basic-auth/principal
+fixtures were deleted. The unmanaged default directory was not changed.
+Generated and supplied secret material stayed in process memory; persisted
+secret fields are redacted. No original user capture was read or altered.
+
+#1418 is open/In Progress on Project 79. Next: prepare/push the SDK correction,
+verify its wire/full tests and consume the new pin, then enroll verified
+username-record lifecycle, safe password inspection and credential deletion
+guards. No password declarative lifecycle or new CLI is claimed by this
+preparation step. Existing Q24/Q30 and new API-only Q35 record the boundaries.
+No PR is opened; the overall epic goal remains active.

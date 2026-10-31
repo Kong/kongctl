@@ -63,8 +63,8 @@ These rows describe available API fields, not completed implementations.
 | Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is implemented under #1417, which remains open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
 | Group API keys, generated/imported | `managed_by`; no labels | US `.tech` list/create/read/PATCH/delete work; generated create retains the supplied map. Imported create rejects it and PATCH ignores changes/removal on both kinds. US `.com` returned 501. No product writes or ownership stamping are exposed yet. #2659, Q33. |
-| Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |
-| Basic-auth passwords | `managed_by`; no labels | Possible persisted ref/ownership. Write-only secret handling and password-slot limits also govern support. #1418. |
+| Basic-auth username records | `managed_by`; no labels | US `.tech` create/GET/list/full PUT retain ownership; PATCH ignores changes. Username uniqueness spans the directory. PUT preserves observed password IDs; runtime authentication is unverified. Declarative enrollment is in progress under #1418. |
+| Basic-auth passwords | `managed_by`; no labels | Generated/imported create retain ownership. PATCH ignores map changes and clears omitted expiration. Full PUT retains the map but requires explicit secret material. Two total slots include expired records. Metadata-only adoption is unavailable (Q35); secret-source/rotation policy needs explicit enrollment. #1418. |
 
 Presence in a response does not establish that every create/update variant can
 write the field. Record that distinction when testing each endpoint.
