@@ -18,7 +18,7 @@ children, plus get/list, examples and live E2E coverage. Their issues #1402 and
 are implemented. Explicit secret creation/capture, enable/disable and deletion
 now have live rotation coverage. Client declarative lifecycle, adoption and
 initial-secret capture pass live verification, including runtime credential
-continuity. Sections 19–24 record contracts, verification and questions.
+continuity. Sections 19–25 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
 The public preview SDK is now pinned to `6ca9d1f8b309`, including targeted
@@ -32,7 +32,11 @@ Principal-identity get/list now covers all four variants with explicit parent
 selection and fresh collection membership checks. Direct probes verified
 managed_by retention and exposed two additional issues: GET/DELETE principal
 scoping (Q21) and cursor-query serialization (Q22). Q23 tracks identity quota
-scope/discovery. Section 24 records the next declarative work.
+scope/discovery. Write helpers and verified OAuth-client/API Gateway
+retargeting now establish the next declarative foundations. Principal
+delete/sync refuse remaining identities at planning and execution; Q24 asks
+for the wider descendant-deletion contract and an atomic precondition.
+Sections 24–25 record remaining declarative work.
 
 Keep these two running logs alongside this report:
 
@@ -1560,3 +1564,51 @@ The three generated client capture files in the complete run and the stopped
 run's capture were removed. Fresh inventories show no directories, auth
 servers or remaining probe/test control planes. Replay-enabled coverage is
 unchanged. Work remains on branches; no PR opened.
+
+## 25. Identity write foundations and principal deletion boundary
+
+Further direct US `.com` probes verify that OAuth-client identities can move
+to a different server/client and API Gateway consumer identities can move
+to a different control plane/consumer through PUT, retaining all five
+management entries. AI Gateway OAuth consumers also link using the
+`control_plane_consumer` shape; responses report `ai_gateway` and metadata
+PUT retains the association. Cross-Gateway-type retargeting was not tested.
+Every probe fixture was removed afterward, including both Gateway families.
+
+Principal DELETE succeeds with identities still attached. The principal and
+its identity collection then return 404. The inspected delete operation
+does not specify descendant retention or a nonempty-child precondition.
+API-only question Q24 asks engineering to document identities, credentials
+and membership behavior and provide an atomic conditional-delete contract.
+
+Declarative principal delete and sync pruning now require a complete empty
+identity collection, both when generating a plan and immediately before the
+parent delete. This applies regardless of identity ownership, namespace or
+protection. Missing/failed observations stop deletion. It protects saved plans
+against later identities, but a concurrent creation between the last check
+and DELETE requires an API precondition to eliminate. This check is specific
+to identities; other descendant families need their own verified treatment.
+
+Shared Identity write helpers prepare complete PUT bodies for all four
+variants, excluding read-only fields while preserving labels, managed_by and
+workspace presence. Create disables both POST retry layers and verifies
+parent-scoped read-back. PUT/DELETE require fresh complete membership proof;
+PUT rejects type changes and verifies response identity/metadata. These are
+implementation foundations: no new imperative mutation commands or
+declarative identity declarations are exposed. Persisted-ref matching,
+metadata stamping, independent ownership/protection, typed/external refs,
+same-plan dependencies, dump, adoption and lifecycle examples remain active
+#1416 work. Existing importer/JIT/Portal identities remain outside management.
+
+Verification: modernize, clean formatting, build, zero-issue lint, unit race
+tests, integration tests, harness race tests and weighted scenario inventory
+pass. All eight live Identity scenarios pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-write-guard-regression/20261031-034108`.
+The focused scenario also passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-write-guard-live/20261031-034019`.
+It saves a principal-delete plan while the collection is empty, adds ten
+identities, then verifies both new delete/sync planning and saved-plan
+execution refuse removal while the principal remains readable. All four
+generated client capture paths across these runs were removed; fresh
+directory/auth-server inventories are empty. Replay-enabled coverage is
+unchanged. Work remains on `ki-triage`, with no PR opened.
