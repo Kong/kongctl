@@ -47,6 +47,44 @@ func TestIdentityDirectoryDumpRoundTrip(t *testing.T) {
 	require.Equal(t, directory, loaded.Identity.Directories[0])
 }
 
+func TestUnmanagedDefaultDirectoryDumpRetainsManagedBasicAuthChildren(t *testing.T) {
+	directory := fixture.Directory("default", "", false)
+	const principalID = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	principal := kkComps.KongPrincipal{
+		ID: principalID, DisplayName: new("Worker"),
+		ManagedBy: resources.BuildPrincipalManagedBy("principals", "worker", true, "old"),
+	}
+	basic := fixture.BasicAuth("worker", "credentials", true)
+	client := state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
+			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
+		},
+		IdentityBasicAuthAPI: &fixture.BasicAuthAPI{Parents: map[string][]helpers.IdentityBasicAuth{
+			directory.ID + "/" + principalID: {basic},
+		}}, IdentityGroupsAPI: &fixture.GroupAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+	})
+	rs := &resources.ResourceSet{}
+	require.NoError(t, identityDirectoryCollector().collect(t.Context(), &declarativeDumpContext{
+		stateClient: client, includeChildren: true,
+	}, rs))
+	declaration := rs.Identity.Directories[0]
+	require.True(t, declaration.IsExternal())
+	require.Nil(t, declaration.Kongctl)
+	require.Equal(t, "default", declaration.External.Selector.MatchFields[resources.SchemaFieldName])
+	require.Equal(t, "credentials", resources.GetNamespace(declaration.Principals[0].BasicAuths[0].Kongctl))
+	encoded, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "default.yaml")
+	require.NoError(t, os.WriteFile(path, encoded, 0o600))
+	loaded, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	plan, err := planner.NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), loaded,
+		planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+}
+
 func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T) {
 	directory := fixture.Directory("people", "directory-team", false)
 	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {
@@ -66,6 +104,8 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI:          api,
+		IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
 		IdentityGroupsAPI:              &fixture.GroupAPI{},
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	})}
@@ -113,7 +153,9 @@ func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) 
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {
 			{ID: principalID, Type: new(kkComps.KongPrincipalTypeUser)},
 		}}},
-		IdentityGroupsAPI: &fixture.GroupAPI{},
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           &fixture.GroupAPI{},
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{
 			Parents: map[string][]kkComps.KongPrincipalIdentity{directory.ID + "/" + principalID: identities},
 		},
@@ -158,9 +200,11 @@ func TestPrincipalDumpPreservesExplicitFalseAndTrue(t *testing.T) {
 			}}},
 		}
 		d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
-			IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
-			IdentityGroupsAPI:      &fixture.GroupAPI{},
-			IdentityPrincipalsAPI:  api, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+			IdentityDirectoriesAPI:      &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+			IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+			IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+			IdentityGroupsAPI:           &fixture.GroupAPI{},
+			IdentityPrincipalsAPI:       api, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 		})}
 		rs := &resources.ResourceSet{}
 		require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
@@ -192,7 +236,9 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
 			ID: principalID, ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
 		}}}}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
-		IdentityGroupsAPI: api,
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           api,
 	})
 	d := &declarativeDumpContext{includeChildren: true, stateClient: client}
 	rs := &resources.ResourceSet{}
@@ -234,8 +280,12 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 	}
 	fresh.Identity.Groups = managed
 	empty := state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{}, IdentityGroupsAPI: &fixture.GroupAPI{},
-		IdentityPrincipalsAPI: &fixture.PrincipalAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{},
+		IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:              &fixture.GroupAPI{},
+		IdentityPrincipalsAPI:          &fixture.PrincipalAPI{},
+		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	})
 	restored, err := planner.NewPlanner(empty, slog.Default()).
 		GeneratePlan(t.Context(), fresh, planner.Options{Mode: planner.PlanModeApply})

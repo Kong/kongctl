@@ -7,14 +7,14 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
-Basic-auth username/password get/list inspection is implemented with explicit
-ID versus username selection, public-only projections and complete cursor
-traversal. Shared username-record create/PUT/readback and password-aware
-delete helpers are ready for declarative enrollment. Their live inspection
-scenario passes in US `.tech`; declarative credential ownership, adoption,
-dump and principal credential-deletion guards are still pending. Section 41
-records the precise boundary and evidence. Password writes also need the
-SDK expiration-field correction and Q35's metadata-update contract.
+Basic-auth username records now support declarative lifecycle, independent
+four-entry managed_by ownership, adoption, external UUID/username lookup,
+scoped sync/delete and dump. Saved writes recheck authority; passwords block
+username deletion, and API keys/unplanned usernames block principal deletion.
+Reads expose public metadata only. The live lifecycle passes in US `.tech`;
+section 42 records the boundary and evidence. Password writes still need the
+SDK expiration correction and explicit secret-source/rotation policy; Q35
+tracks metadata updates preserving secret/expiration.
 
 The initial survey below is historical. Development on `ki-triage` has since
 delivered directories and principals, including declarative lifecycle, reads,
@@ -2578,3 +2578,87 @@ has no verified preserving request. No imperative credential mutations,
 declarative credential ownership or runtime authentication guarantee is
 introduced here. Keep #1418 open/In Progress until main merge; no PR is opened
 and the overall epic goal stays active.
+
+## 42. Declarative basic-auth usernames and credential-aware deletion
+
+Basic-auth username records now support the standard declarative lifecycle:
+nested principals[].basic_auths or grouped identity.basic_auths, saved
+plan/apply/delete/sync, diff, protection, adoption, external UUID/username
+lookup, dump, explain and scaffold. Every record requires an explicit username
+and local ref. Exact username identity is unique within a directory; refs
+remain local. Four canonical managed_by entries store namespace/protection,
+independently of the directory/principal. Client-side complete collection
+scans and duplicate checks are used; no server filtering is assumed.
+
+Metadata updates use the verified fresh full-PUT/readback path without sending
+password material. Changing a username declares another record, rather than
+implicitly renaming/moving a credential. Apply preserves the old record;
+explicit scoped sync can prune it only when unprotected and password-free.
+Omitted collections and external-only selections do not authorize pruning;
+foreign/unowned records are retained. Saved execution rejects changed scope,
+username, ownership or protection, and rechecks descendants immediately before
+deletion. No write metadata is stored in public labels or runtime metadata.
+
+Any password, including an expired one, blocks username deletion. Principal
+delete/sync requires explicitly authorized identity, membership and username
+deletions; any API key blocks it. Final merged plans order cross-namespace
+child deletes before their principal. Execution requires fresh empty
+credential observations, so later attachments cannot silently cascade through
+a saved plan. Errors/malformed responses block deletion; a legacy user-key
+404 is not an empty collection. These client checks cannot eliminate the
+attachment race without an atomic backend precondition (Q24).
+
+Dump translates owned username metadata into kongctl and uses UUIDs as local
+refs; unowned usernames stay external. Passwords are excluded. A related
+common-path defect was verified directly: dumping an unmanaged default
+directory produced a declaration requiring adoption on reload. Unmanaged
+directory export now uses an external exact-name selector, retaining managed
+children without taking over the directory. Claimed but invalid directory
+ownership fails validation. This is a client export fix, not an API defect.
+
+The live identity/declarative-basic-auth scenario passes with same-plan
+protected directory/principal creation, independent child namespaces, local
+ref-only changes, protection/unprotection, adoption, existing-password and
+expiration preservation, external username lookup, managed/unmanaged-directory
+dump/replan, omitted/empty sync, foreign/unowned retention, stale ownership
+and password guards, API-key/principal deletion guards, mixed grouped/nested
+declarations, cross-namespace child-before-parent deletion and repeated saved
+deletion after the parent is absent. Native password/key fixtures use private
+capture and explicit verified retirement. Secret/base64 artifact scans pass;
+these administrative observations do not establish runtime authentication
+continuity (Q30).
+
+Final complete live regression: all sixteen Identity scenarios pass together
+in 276.946 seconds. Artifacts are under
+/home/rspurgeon/.cache/kong-identity-public-sdk/,
+basic-auth-declarative-final-identity/20261031-143225.
+The standalone expanded lifecycle also passes at
+basic-auth-declarative-complete/20261031-143036 in that cache.
+
+The documented basic-auth.yaml example was separately applied against the
+unmanaged default directory: two resources created, four username and five
+principal metadata entries verified, normal replan and dump/replan both
+unchanged, then both resources deleted through the CLI. The default record
+was exactly unchanged. Evidence is basic-auth-example-demo/summary.json and
+its public command artifacts in the same cache. Existing user capture files
+were not accessed.
+
+Modernization, formatting, CGO-disabled build, zero-issue lint, full unit race
+tests, integration race tests, SDK patch tests, installer checks, E2E harness
+race tests and all 140 metrics tests pass. Final check log:
+basic-auth-declarative-final-gates-v2.log. The replay check target passes;
+replay membership and cassettes are unchanged. The pre-commit executable is
+not installed. Fresh direct API inventory proves empty principal/group/auth
+server collections and restored unmanaged default
+01a19377-2f73-711b-a3a7-bad75ffe231a, matching saved public settings. All seven
+referenced private capture directories are absent. Final evidence is
+basic-auth-declarative-final-inventory.json in that cache.
+
+No SDK revision was needed: preview 995778a1c448 already supplies username
+write models and the corrected cursor requests. Password request models still
+lack expires_at, and safe secret-source/capture/rotation policy is separate
+work. Metadata-only password adoption has no verified preserving request
+(Q35). No declarative passwords or imperative password mutations are claimed.
+Examples, resource reference, implementation guide, compatibility tracker and
+metadata ledger are updated. Keep #1418/#1415/#1414/#1132 open/In Progress
+until main merge; no PR is opened. The broader epic goal stays active.

@@ -84,6 +84,7 @@ func init() {
 
 // IdentityPrincipalResource uses a persisted ref, never display_name, as identity.
 type IdentityPrincipalResource struct {
+	BasicAuths   []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"  json:"basic_auths,omitempty"`
 	Identities   []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"   json:"identities,omitempty"`
 	External     *ExternalBlock                      `yaml:"_external,omitempty"    json:"_external,omitempty"`
 	BaseResource `                                    yaml:",inline"                json:",inline"`

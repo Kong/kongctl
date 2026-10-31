@@ -19,7 +19,9 @@ func membershipExecutorFixture() (*identityGroupMembershipAdapter, *fixture.Grou
 	group := fixture.Group("Operators", "group-team", false)
 	api := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directoryID: {group}}}
 	client := state.NewClient(state.ClientConfig{
-		IdentityGroupsAPI: api,
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           api,
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
 			Directories: map[string][]kkComps.KongPrincipal{directoryID: {{ID: principalID}}},
 		},

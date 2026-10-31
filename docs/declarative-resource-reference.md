@@ -329,7 +329,8 @@ this implementation covers directory configuration and principals.
 Declare principals under `identity.directories[].principals`, or in
 `identity.principals` with a `directory` selector referencing a declared
 managed or external directory. Each principal requires `ref`. Optional fields
-are `display_name`, `description`, `type`, `metadata`, `labels`, and `kongctl`.
+are `display_name`, `description`, `type`, `active`, `metadata`, `labels`, and
+`kongctl`.
 
 Identity is directory + namespace + ref, persisted in five generated
 `managed_by` entries. Display names need not be unique. Each principal has
@@ -339,8 +340,10 @@ locally and reject duplicate tuples; saved writes repeat those checks.
 `type` accepts `user`, `agent`, or null on creation. Until API question Q9 is
 resolved, existing classifications cannot change: omission preserves the
 current type, and explicit changes, including a reset to null, fail.
-`active` configuration is deferred under Q10. Inspection preserves missing
-state and dump never invents false. Updates and adoption use fresh GET + PUT
+`active` accepts an optional boolean where the API exposes that state. Omission
+preserves it; explicit reconciliation fails if responses omit the field.
+Developer-portal principals cannot be deactivated. Inspection preserves missing
+state and dump never invents false (Q10). Updates and adoption use fresh GET + PUT
 and preserve omitted public fields. Empty metadata/labels maps and an empty
 description clear those values.
 
@@ -356,6 +359,34 @@ owned refs. See [Identity examples](examples/declarative/identity/README.md)
 and the [temporary compatibility tracker][identity-compatibility].
 
 [identity-compatibility]: contributor/kong-identity-compatibility.md
+
+## Kong Identity basic-auth username records
+
+Declare username records under `principals[].basic_auths`, or grouped in
+`identity.basic_auths` with `principal: LOCAL_PRINCIPAL_REF`. Required fields
+are `ref` and `username`; `kongctl` controls independent namespace/protection.
+Username accepts 1-255 characters and is unique within a directory. Ref stays
+local; changing a username declares a different resource. Directory and
+principal selectors must refer to declared managed or external parents.
+
+Four generated `managed_by` entries store ownership and protection. Fresh
+full PUT/readback updates metadata without supplying password values. Saved
+plans recheck identity, namespace and protection. Sync only prunes explicitly
+selected namespaces/collections, preserving foreign and unowned credentials.
+Adoption requires a username or UUID and explicit directory/principal scope.
+External references support UUID or exact username selection under a principal.
+
+Passwords are separate resources and are not declared or exported here.
+Username deletion requires an empty password collection. Principal deletion
+refuses API keys and requires explicitly authorized child deletions, followed
+by fresh empty observations. No parent ownership authorizes password/key
+retirement. API failures block deletion. Runtime authentication continuity
+needs a supported integration context (Q30); password metadata-only updates
+remain constrained by Q35 and incomplete SDK write models.
+
+See the [username example](examples/declarative/identity/basic-auth.md),
+including default-directory lookup, read commands, adoption, protection and
+safe dump/delete boundaries.
 
 ## Kong Identity authorization servers
 

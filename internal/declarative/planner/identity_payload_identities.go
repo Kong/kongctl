@@ -138,6 +138,45 @@ func (p *Planner) resolveIdentityPayloadIdentities(ctx context.Context, rs *reso
 			return fmt.Errorf("multiple principals match the persisted identity of %q", principal.Ref)
 		}
 	}
+	for idx := range rs.Identity.BasicAuths {
+		basic := &rs.Identity.BasicAuths[idx]
+		basic.SetKonnectID("")
+		parent, found := rs.GetResourceByRef(resources.NormalizeResourceRef(basic.Principal))
+		if !found || parent.GetKonnectID() == "" {
+			if basic.IsExternal() {
+				return fmt.Errorf("external basic-auth %q requires an existing principal", basic.Ref)
+			}
+			continue
+		}
+		principal := parent.(*resources.IdentityPrincipalResource)
+		directory, found := rs.GetResourceByRef(resources.NormalizeResourceRef(principal.Directory))
+		if !found || directory.GetKonnectID() == "" {
+			return fmt.Errorf("basic-auth principal requires a resolved directory")
+		}
+		all, err := p.listIdentityBasicAuths(ctx, directory.GetKonnectID(), parent.GetKonnectID())
+		if err != nil {
+			return err
+		}
+		matches := 0
+		for _, current := range all {
+			if basic.IsExternal() {
+				byUsername := basic.External.Selector != nil &&
+					current.Username == basic.External.Selector.MatchFields[FieldUsername]
+				if current.ID == basic.External.ID || byUsername {
+					basic.SetKonnectID(current.ID)
+					matches++
+				}
+			} else if basic.TryMatchKonnectResource(current) {
+				matches++
+			}
+		}
+		if basic.IsExternal() && matches != 1 {
+			return fmt.Errorf("external basic-auth %q does not uniquely match the selected principal", basic.Ref)
+		}
+		if matches > 1 {
+			return fmt.Errorf("multiple basic-auth credentials match the selected username")
+		}
+	}
 	for idx := range rs.Identity.Identities {
 		identity := &rs.Identity.Identities[idx]
 		identity.SetKonnectID("")

@@ -333,6 +333,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		case "directory", "directories":
 		case "membership", "memberships":
 			kind = ResourceTypeIdentityGroupMembership
+		case "basic_auth", "basic_auths", "basic-auth", "basic-auths":
+			kind = ResourceTypeIdentityBasicAuth
 		case "group", "groups":
 			kind = ResourceTypeIdentityGroup
 		case "principal", "principals":
@@ -392,7 +394,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
-		doc.ResourceType == ResourceTypeIdentityGroupMembership ||
+		doc.ResourceType == ResourceTypeIdentityGroupMembership || doc.ResourceType == ResourceTypeIdentityBasicAuth ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
 		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
@@ -400,6 +402,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityBasicAuth {
+			collection = "basic_auths"
+		}
 		if doc.ResourceType == ResourceTypeIdentityGroupMembership {
 			collection = "memberships"
 		}
@@ -925,6 +930,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.directories"
 	case ResourceTypeIdentityGroupMembership:
 		return "identity.memberships"
+	case ResourceTypeIdentityBasicAuth:
+		return "identity.basic_auths"
 	case ResourceTypeIdentityGroup:
 		return "identity.groups"
 	case ResourceTypeIdentityPrincipal:
@@ -1025,6 +1032,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityGroupMembership {
 		rootKey = "identity.memberships"
+	}
+	if rt == ResourceTypeIdentityBasicAuth {
+		rootKey = "identity.basic_auths"
 	}
 	if rt == ResourceTypeIdentityGroup {
 		rootKey = "identity.groups"

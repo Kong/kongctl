@@ -1,0 +1,26 @@
+_defaults:
+  kongctl:
+    namespace: identity-credentials
+
+identity:
+  directories:
+  - ref: default-directory
+    _external:
+      selector:
+        matchFields:
+          name: default
+    principals:
+    - ref: basic-auth-worker
+      display_name: Basic-auth order worker
+      description: Principal for the username-record example
+      type: agent
+      active: true
+      metadata:
+        application: orders
+      labels:
+        team: fulfillment
+      basic_auths:
+      - ref: worker-login
+        username: kongctl-example-order-worker
+        kongctl:
+          protected: false

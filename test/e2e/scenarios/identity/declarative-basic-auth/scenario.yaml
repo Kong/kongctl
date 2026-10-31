@@ -1,0 +1,38 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+  - resource: identity_directory
+    nameVar: directory_name
+    nameEnv: KONGCTL_E2E_BASIC_AUTH_LIFECYCLE_DIRECTORY_NAME
+  info: Username-record declarative lifecycle with independent managed_by, protected parents, saved plans, adoption, external lookup, dump/reload, scoped sync, stale ownership/password guards and credential-aware principal deletion. Password/key fixtures are explicit native operations with private capture and verified teardown.
+steps:
+- name: 001-username-lifecycle
+  skipInputs: true
+  commands:
+  - name: verify-lifecycle
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/lifecycle.py'
+    - '{{ .bin }}'
+    - '{{ .vars.secret_dir }}'
+    - '{{ .workdir }}'
+    - '{{ .vars.directory_name }}'
+    env:
+      KONGCTL_PROFILE: e2e
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+          independent_ownership: true
+          saved_plan_guards: true
+          dump_reload: true
+          scoped_sync: true
+          credential_deletion_guards: true
+          artifacts_clean: true
+          fixtures_removed: true

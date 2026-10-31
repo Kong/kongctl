@@ -52,9 +52,10 @@ probes establish these limits:
 - Principal deletion succeeds with attached keys. The key detail/collection
   then return 404; this does not by itself prove runtime revocation (Q24).
 
-The existing declarative principal deletion check covers identity associations.
-It does not yet inspect API-key descendants. Do not rely on an API key's
-management map to prevent the API's native parent deletion behavior.
+Declarative principal deletion now checks API-key descendants and refuses any
+attached key, regardless of its management map. It also requires explicit
+authorized identity/username/membership deletions and fresh empty checks.
+These observations do not prevent a concurrent attachment atomically (Q24).
 
 These are API observations, separate from the SDK's request-model limits.
 The cursor request fix is included in preview `70a2818dde13`. Expiration is

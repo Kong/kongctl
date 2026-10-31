@@ -63,8 +63,10 @@ func TestPrincipalIdentitySavedPlanLifecycleAcrossNamespaces(t *testing.T) {
 	principals := &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)}
 	identities := &fixture.PrincipalIdentitiesAPI{Parents: make(map[string][]kkComps.KongPrincipalIdentity)}
 	client := state.NewClient(state.ClientConfig{
-		IdentityGroupsAPI:      &fixture.GroupAPI{},
-		IdentityDirectoriesAPI: directories, IdentityPrincipalsAPI: principals,
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           &fixture.GroupAPI{},
+		IdentityDirectoriesAPI:      directories, IdentityPrincipalsAPI: principals,
 		IdentityPrincipalIdentitiesAPI: identities,
 	})
 	file := filepath.Join(t.TempDir(), "manifest.yaml")
@@ -183,8 +185,10 @@ func TestProtectedIdentityPayloadReferencesAreNoOpsBeforeNamespacePlanning(t *te
 		}, ManagedBy: resources.BuildPrincipalManagedBy("association-team", "employee", true, "old"),
 	})
 	client := state.NewClient(state.ClientConfig{
-		IdentityGroupsAPI:      &fixture.GroupAPI{},
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           &fixture.GroupAPI{},
+		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
 			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
 		},
@@ -259,6 +263,8 @@ func TestIdentitySavedMutationRejectsLateOwnershipProtectionAndDuplicates(t *tes
 					metadata[mode] = "other"
 				}
 				client := state.NewClient(state.ClientConfig{
+					IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+					IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
 					IdentityGroupsAPI:              &fixture.GroupAPI{},
 					IdentityPrincipalIdentitiesAPI: api,
 					IdentityPrincipalsAPI: &fixture.PrincipalAPI{
