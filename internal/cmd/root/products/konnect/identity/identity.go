@@ -18,12 +18,37 @@ import (
 )
 
 func NewDirectIdentityCmd(verb verbs.VerbValue) (*cobra.Command, error) {
-	return NewIdentityCmd(verb, nil, func(cmd *cobra.Command, _ []string) error {
+	group, err := NewIdentityCmd(verb, nil, func(cmd *cobra.Command, args []string) error {
 		ctx := context.WithValue(cmd.Context(), products.Product, products.ProductKonnect)
 		ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(verb))
 		cmd.SetContext(ctx)
+		if verb == verbs.Patch {
+			cfg, err := cmdpkg.BuildHelper(cmd, args).GetConfig()
+			if err != nil {
+				return err
+			}
+			bindings := []struct{ flag, path string }{
+				{common.BaseURLFlagName, common.BaseURLConfigPath},
+				{common.RegionFlagName, common.RegionConfigPath},
+				{common.PATFlagName, common.PATConfigPath},
+			}
+			for _, binding := range bindings {
+				if err := verbs.BindFlag(cfg, cmd.Flags(), binding.flag, binding.path); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	if verb == verbs.Patch {
+		group.PersistentFlags().String(common.BaseURLFlagName, "", "Konnect API base URL")
+		group.PersistentFlags().String(common.RegionFlagName, "", "Konnect region")
+		group.PersistentFlags().String(common.PATFlagName, "", "Konnect personal access token")
+	}
+	return group, nil
 }
 
 func NewIdentityCmd(verb verbs.VerbValue,
@@ -55,6 +80,9 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {
+		if verb == verbs.Create || verb == verbs.Patch || verb == verbs.Delete {
+			group.AddCommand(newAuthServerSecretMutationCommand(verb, addParentFlags, parentPreRun))
+		}
 		return group, nil
 	}
 	child := &cobra.Command{

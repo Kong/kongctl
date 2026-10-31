@@ -292,6 +292,11 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Create {
+		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(identityCmd)
 		cmd.Example = normalizers.Examples(fmt.Sprintf(`
 		# Create a Konnect personal access token
 		%[1]s create konnect pat --name ci --expires-in 30d -o token

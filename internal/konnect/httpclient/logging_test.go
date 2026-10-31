@@ -229,6 +229,22 @@ func TestRedactMeshCredentialBodies(t *testing.T) {
 	}
 }
 
+func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
+	for _, path := range []string{
+		"/v1/auth-servers/server/clients/client/secrets",
+		"/v1/auth-servers/server/clients/client/secrets/id",
+	} {
+		parsedURL, err := url.Parse("https://example.test" + path)
+		require.NoError(t, err)
+		assert.Equal(t, redactedValue,
+			redactBodyForURL([]byte(`{"detail":"private-material"}`), "application/json", parsedURL))
+		assert.Equal(t, redactedValue, redactBodyForURL([]byte("private-material"), "text/plain", parsedURL))
+	}
+	other, err := url.Parse("https://example.test/v1/auth-servers/server/clients")
+	require.NoError(t, err)
+	assert.Contains(t, redactBodyForURL([]byte(`{"name":"public-name"}`), "application/json", other), "public-name")
+}
+
 func TestRedactBodyForURLScopesConfigStoreSecretValue(t *testing.T) {
 	body := []byte(`{"key":"api-key","value":"secret-value"}`)
 

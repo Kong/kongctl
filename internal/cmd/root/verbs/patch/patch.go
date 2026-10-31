@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/meta"
 	"github.com/kong/kongctl/internal/util/i18n"
@@ -20,12 +21,14 @@ const (
 var (
 	patchUse = Verb.String()
 
-	patchShort = i18n.T("root.verbs.patch.patchShort", "Apply patches to files")
+	patchShort = i18n.T("root.verbs.patch.patchShort", "Apply patches to files or supported resource settings")
 
 	patchLong = normalizers.LongDesc(i18n.T("root.verbs.patch.patchLong",
 		`Apply JSONPath-based patches to YAML or JSON files. Patches can set values,
 remove keys, or append to arrays using JSONPath selectors to target specific
-nodes in the document tree.`))
+nodes in the document tree.
+
+Use identity resource commands to enable or disable OAuth client secrets.`))
 
 	patchExamples = normalizers.Examples(i18n.T("root.verbs.patch.patchExamples",
 		fmt.Sprintf(`
@@ -54,6 +57,19 @@ func NewPatchCmd() (*cobra.Command, error) {
 	cmdpkg.ConfigureRequiresSubcommand(cmd)
 
 	cmd.AddCommand(newFileCmd())
+	identityCmd, err := identity.NewDirectIdentityCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+	cmd.AddCommand(identityCmd)
+	konnectIdentity, err := identity.NewDirectIdentityCmd(Verb)
+	if err != nil {
+		return nil, err
+	}
+	konnectCmd := &cobra.Command{Use: "konnect", Short: "Patch supported Konnect resource settings"}
+	cmdpkg.ConfigureRequiresSubcommand(konnectCmd)
+	konnectCmd.AddCommand(konnectIdentity)
+	cmd.AddCommand(konnectCmd)
 
 	return cmd, nil
 }

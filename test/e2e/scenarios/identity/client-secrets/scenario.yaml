@@ -1,0 +1,523 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+steps:
+- commands:
+  - create:
+      payload:
+        inline:
+          audience: https://api.example.test
+          name: '{{ .vars.server_name }}'
+      recordVar:
+        name: server_id
+        responsePath: id
+      recordVars:
+      - name: metadata_uri
+        responsePath: metadata_uri
+      resource: identity_auth_server
+    name: create-server
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          grant_types:
+          - client_credentials
+          labels:
+            e2e-fixture: '{{ .vars.server_id }}'
+          name: kongctl-e2e-{{ .vars.server_id }}-client
+          response_types: []
+          token_endpoint_auth_method: client_secret_basic
+      recordVar:
+        name: client_id
+        responsePath: id
+      resource: identity_auth_server_client
+    name: create-client
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          grant_types:
+          - client_credentials
+          labels:
+            e2e-fixture: '{{ .vars.server_id }}'
+          name: kongctl-e2e-{{ .vars.server_id }}-other-client
+          response_types: []
+      recordVar:
+        name: other_client_id
+        responsePath: id
+      resource: identity_auth_server_client
+    name: create-other-client
+    retry:
+      attempts: 1
+  - assertions:
+    - expect:
+        fields:
+          length(@): 1
+      select: '@'
+    name: initial-inventory
+    recordVar:
+      name: initial_id
+      responsePath: '[0].id'
+    run:
+    - get
+    - identity
+    - auth-server-client-secrets
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+  - expectFailure:
+      contains: secret-output-file
+      exitCode: 1
+    name: reject-missing-capture
+    outputFormat: disable
+    run:
+    - create
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+  - assertions:
+    - expect:
+        fields:
+          contains(keys(@), 'secret'): false
+          enabled: false
+      select: '@'
+    name: create-generated
+    recordVar:
+      name: generated_id
+      responsePath: id
+    run:
+    - create
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --enabled=false
+    - --secret-output-file
+    - '{{ .vars.secret_dir }}/generated.json'
+    - --log-level
+    - trace
+  - assertions:
+    - expect:
+        fields:
+          captured: true
+          has_ids: true
+          has_value: true
+          matches_source: true
+          private: true
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - verify
+    - '{{ .vars.secret_dir }}/generated.json'
+    name: verify-generated
+    parseAs: json
+  - expectFailure:
+      contains: HTTP 404
+      exitCode: 1
+    name: reject-wrong-client-patch
+    outputFormat: disable
+    run:
+    - patch
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.other_client_id }}'
+    - --enabled=true
+  - expectFailure:
+      contains: HTTP 404
+      exitCode: 1
+    name: reject-wrong-client-delete
+    outputFormat: disable
+    run:
+    - delete
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.other_client_id }}'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          has_token: false
+          status: 401
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/generated.json'
+    - '{{ .vars.metadata_uri }}'
+    name: disabled-generated-cannot-authenticate
+    parseAs: json
+  - expectFailure:
+      contains: file exists
+      exitCode: 1
+    name: reject-existing-output
+    outputFormat: disable
+    run:
+    - create
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --secret-output-file
+    - '{{ .vars.secret_dir }}/generated.json'
+  - assertions:
+    - expect:
+        fields:
+          enabled: true
+      select: '@'
+    name: enable-generated
+    run:
+    - patch
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --enabled=true
+  - assertions:
+    - expect:
+        fields:
+          has_token: true
+          status: 200
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/generated.json'
+    - '{{ .vars.metadata_uri }}'
+    name: enabled-generated-authenticates
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          enabled: false
+      select: '@'
+    name: disable-generated-explicit-product
+    run:
+    - patch
+    - konnect
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --enabled=false
+  - assertions:
+    - expect:
+        fields:
+          has_token: false
+          status: 401
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/generated.json'
+    - '{{ .vars.metadata_uri }}'
+    name: disabled-generated-revoked
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          enabled: true
+      select: '@'
+    name: enable-generated-by-name
+    run:
+    - patch
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+    - --client-name
+    - kongctl-e2e-{{ .vars.server_id }}-client
+    - --enabled=true
+  - expectFailure:
+      contains: HTTP 403
+      exitCode: 1
+    name: reject-third-secret
+    outputFormat: disable
+    run:
+    - create
+    - konnect
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --enabled=false
+    - --secret-output-file
+    - '{{ .vars.secret_dir }}/third.json'
+  - assertions:
+    - expect:
+        fields:
+          has_value: false
+          unconfirmed: true
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - verify-pending
+    - '{{ .vars.secret_dir }}/third.json'
+    name: verify-unconfirmed-file
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          length(@): 2
+      select: '@'
+    name: still-two-secrets
+    run:
+    - get
+    - identity
+    - auth-server-client-secrets
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+  - assertions:
+    - expect:
+        fields:
+          id: '{{ .vars.initial_id }}'
+          status: deleted
+      select: '@'
+    name: retire-initial-explicit-product
+    run:
+    - delete
+    - konnect
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.initial_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          prepared: true
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - prepare-source
+    - '{{ .vars.secret_dir }}/source.txt'
+    name: prepare-import
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          contains(keys(@), 'secret'): false
+          enabled: true
+      select: '@'
+    name: create-imported
+    recordVar:
+      name: imported_id
+      responsePath: id
+    run:
+    - create
+    - konnect
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --secret-file
+    - '{{ .vars.secret_dir }}/source.txt'
+    - --secret-output-file
+    - '{{ .vars.secret_dir }}/imported.json'
+    - --log-level
+    - trace
+  - assertions:
+    - expect:
+        fields:
+          captured: true
+          has_ids: true
+          has_value: true
+          matches_source: true
+          private: true
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - verify
+    - '{{ .vars.secret_dir }}/imported.json'
+    - '{{ .vars.secret_dir }}/source.txt'
+    name: verify-import
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          has_token: true
+          status: 200
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/imported.json'
+    - '{{ .vars.metadata_uri }}'
+    name: imported-authenticates
+    parseAs: json
+  - expectFailure:
+      contains: could not resolve
+      exitCode: 1
+    name: reject-missing-source
+    outputFormat: disable
+    run:
+    - create
+    - identity
+    - auth-server-client-secret
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --secret-file
+    - '{{ .vars.secret_dir }}/absent.txt'
+    - --secret-output-file
+    - '{{ .vars.secret_dir }}/missing-source.json'
+  - expectFailure:
+      contains: enabled
+      exitCode: 1
+    name: reject-missing-enabled
+    outputFormat: disable
+    run:
+    - patch
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.imported_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+  - assertions:
+    - expect:
+        fields:
+          id: '{{ .vars.generated_id }}'
+          status: deleted
+      select: '@'
+    name: retire-generated
+    run:
+    - delete
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.generated_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          has_token: false
+          status: 401
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/generated.json'
+    - '{{ .vars.metadata_uri }}'
+    name: deleted-generated-cannot-authenticate
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          id: '{{ .vars.imported_id }}'
+          status: deleted
+      select: '@'
+    name: retire-imported
+    run:
+    - delete
+    - identity
+    - auth-server-client-secret
+    - '{{ .vars.imported_id }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          has_token: false
+          status: 401
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - authenticate
+    - '{{ .vars.secret_dir }}/imported.json'
+    - '{{ .vars.metadata_uri }}'
+    name: deleted-imported-cannot-authenticate
+    parseAs: json
+  - assertions:
+    - expect:
+        fields:
+          length(@): 0
+      select: '@'
+    name: empty-secret-inventory
+    run:
+    - get
+    - identity
+    - auth-server-client-secrets
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --client-id
+    - '{{ .vars.client_id }}'
+  - assertions:
+    - expect:
+        fields:
+          captures_outside_artifacts: true
+          clean: true
+      select: '@'
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/verify_capture.py'
+    - verify-artifacts
+    - '{{ .vars.secret_dir }}/generated.json'
+    - '{{ .vars.secret_dir }}/imported.json'
+    - '{{ .workdir }}'
+    name: verify-public-artifacts
+    parseAs: json
+  name: 001-rotation
+  skipInputs: true
+test:
+  cleanupResources:
+  - nameEnv: KONGCTL_E2E_SECRET_SERVER_NAME
+    nameVar: server_name
+    resource: identity_auth_server
+  privateTempDirVar: secret_dir

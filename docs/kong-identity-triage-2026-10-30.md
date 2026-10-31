@@ -15,12 +15,14 @@ its full live lifecycle scenario and protected-resource teardown pass.
 Scopes and claims now have declarative lifecycle support as managed-server
 children, plus get/list, examples and live E2E coverage. Their issues #1402 and
 #1403 remain In Progress until merge. OAuth client and secret metadata get/list
-are implemented; client declarative writes and secret lifecycle remain
-separate work. Sections 19–21 record contracts and questions. #1401 and #1404
-are now In Progress.
+are implemented. Explicit secret creation/capture, enable/disable and deletion
+now have live rotation coverage. Client declarative writes and initial client
+creation capture remain separate work. Sections 19–22 record contracts and
+questions. #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `dfd890eb1a03`, including targeted
-serialization fixes for clearing auth-server origins and claim scope links.
+The public preview SDK is now pinned to `221af2edb788`, including targeted
+serialization fixes for clearing origins, claim scope links and client arrays,
+and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
 public SDK approach rather than switching to the internal SDK's unrelated
 model differences.
@@ -1332,6 +1334,66 @@ Commands and boundaries are documented in
 `docs/examples/declarative/identity/auth-server-clients.md`. #1401 and #1404
 remain open/In Progress; their declarative and rotation acceptance criteria
 are not complete. API questions and metadata findings are in the running logs.
+
+## 22. Explicit client-secret lifecycle and capture
+
+The new `create`, `patch` and `delete identity auth-server-client-secret`
+commands manage explicit secret records under a selected server/client.
+Both direct and `konnect` forms work. Creation generates material or imports
+an env/file source, reserves a new `0600` capture file before POST, and returns
+only metadata to stdout. Existing paths and symlinks fail before creation.
+Enabled state is explicit for PATCH; deletion uses standard confirmation.
+There is no automatic secret-slot retirement or ordinary declarative rotation.
+
+Capture includes server/client/secret IDs and issued material. A failure keeps
+recovery evidence; uncertain creation is never replayed through SDK or HTTP
+transport. Missing response values and missing/replaced output paths fail with
+known record IDs when available. No automatic rollback deletes the record.
+Source parser errors and SDK error bodies cannot publish supplied material.
+Q19 asks engineering for the API's uncertain-create recovery contract.
+
+The `identity/client-secrets` live scenario verifies generated and imported
+material, `0600` capture, overwrite refusal, two-slot rejection, metadata reads,
+all mutation routes and validation errors. It also authenticates with the
+captured values: disabled and deleted secrets return 401; enabled generated
+and imported secrets mint tokens (200). The helper reports only status and
+presence booleans. Secret files live in a private test-managed directory
+outside artifacts and are removed after remote fixture cleanup, including
+deliberate stops. The scenario does not expose material in recorded vars or
+public output.
+
+The public preview SDK is `221af2edb788`, with KongCTL patch source
+`2489716c`. SDK wire regressions failed before the new fixes: empty client
+arrays were dropped and an omitted authentication method was injected as
+`client_secret_post`. The patched SDK preserves empty grant, response,
+redirect and allowed-scope arrays and omits an unset method. The server's Q15
+defaulting still requires future client writers to carry the fresh method.
+All previous targeted patches are retained. Multiple replacements in one file
+now accumulate before writing; patch-tool tests cover that and atomic drift
+failure. The SDK branch is pushed without release or PR.
+
+Initial client creation and its generated-secret capture remain part of
+#1401; no client declarative declaration or write executor is enabled yet.
+#1404 remains open/In Progress until merge and coordination with #1401.
+The metadata ledger records that secret capture IDs are local output metadata,
+not remote ownership/namespace/protection storage.
+
+Final artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `secret-lifecycle-isolation-final/20261031-014115`: complete rotation at trace
+  level, including wrong-client PATCH/delete rejection and runtime checks.
+- `secret-lifecycle-stopped-final/20261031-014205`: deliberate stop immediately
+  after issuance; remote fixture cleanup and private directory removal pass.
+- `secret-sdk-auth-children-regression/20261031-014252`: existing full
+  auth-server/scope/claim declarative lifecycle with the updated SDK.
+
+The live helper scans public artifacts for both issued values and Basic-auth
+encodings before removing private captures; the check is clean. Five distinct
+capture paths across full/stopped runs were absent after teardown. The final
+remote server inventory is empty. All quality gates pass, with zero status
+codes in `secret-lifecycle-final-status.json`. Patch-tool tests (seven cases)
+and SDK root/models/internal/pkg tests also pass. Enabled replay scenarios
+and cassettes are unchanged. No implementation PR or SDK release was created.
 
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 

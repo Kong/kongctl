@@ -74,6 +74,9 @@ func runScenario(t *testing.T, scenarioPath string, s Scenario) (runErr error) {
 	if s.Vars == nil {
 		s.Vars = map[string]any{}
 	}
+	if err := registerPrivateTempDirectory(t, s.Test.PrivateTempDirVar, s.Vars); err != nil {
+		return err
+	}
 	if err := registerResourceCleanup(t, cli, s.Test.CleanupResources, s.Vars); err != nil {
 		return fmt.Errorf("register scenario resource cleanup: %w", err)
 	}

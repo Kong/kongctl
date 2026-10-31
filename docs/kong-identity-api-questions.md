@@ -264,6 +264,19 @@ empty with total 4. This resembles the claim-list behavior in Q13; counting
 joined associations is an inference. Observed October 31, 2026 UTC in US
 `.com` using direct HTTP requests against disposable test fixtures.
 
+### Q19 Recovery after uncertain generated-secret creation
+
+**Question:** Do OAuth client and client-secret creation support idempotency
+keys, request-outcome lookup, or another recovery contract after a timeout or
+server error? Can an issued value be recovered, or must the affected secret
+record be identified and explicitly revoked before creating a replacement?
+
+**Known:** Client creation and separate secret creation return generated
+material once; subsequent GET/list responses omit it. No idempotency parameter
+is documented in the inspected operations. Separate secret creation consumes
+one of two total slots (Q16). Synthetic client-side tests exercise uncertain
+responses without retrying; no failure was injected into the live service.
+
 ## Recorded answers
 
 No team answers have been recorded yet.
