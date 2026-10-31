@@ -25,17 +25,18 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
-	IdentityAuthServerClientAPI    helpers.IdentityAuthServerClientsAPI
-	IdentityAuthServersAPI         helpers.IdentityAuthServersAPI
-	IdentityAuthServerScopesAPI    helpers.IdentityAuthServerScopesAPI
-	IdentityAuthServerClaimsAPI    helpers.IdentityAuthServerClaimsAPI
-	IdentityAuthServerClientsAPI   helpers.IdentityAuthServerClientsReader
-	IdentityBasicAuthAPI           helpers.IdentityBasicAuthAPI
-	IdentityPrincipalKeysReader    helpers.IdentityPrincipalKeysReader
-	IdentityGroupsAPI              helpers.IdentityGroupsAPI
-	IdentityPrincipalsAPI          helpers.IdentityPrincipalsAPI
-	IdentityPrincipalIdentitiesAPI helpers.IdentityPrincipalIdentitiesAPI
-	IdentityDirectoriesAPI         helpers.IdentityDirectoriesAPI
+	IdentityAuthServerClientAPI      helpers.IdentityAuthServerClientsAPI
+	IdentityAuthServersAPI           helpers.IdentityAuthServersAPI
+	IdentityAuthServerScopesAPI      helpers.IdentityAuthServerScopesAPI
+	IdentityAuthServerClaimsAPI      helpers.IdentityAuthServerClaimsAPI
+	IdentityAuthServerClientsAPI     helpers.IdentityAuthServerClientsReader
+	IdentityBasicAuthAPI             helpers.IdentityBasicAuthAPI
+	IdentityPrincipalKeysReader      helpers.IdentityPrincipalKeysReader
+	IdentityGroupsAPI                helpers.IdentityGroupsAPI
+	IdentityPrincipalsAPI            helpers.IdentityPrincipalsAPI
+	IdentityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
+	IdentityDirectoriesAPI           helpers.IdentityDirectoriesAPI
+	IdentityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
 	// Core APIs
 	PortalAPI                         helpers.PortalAPI
 	APIAPI                            helpers.APIAPI
@@ -115,17 +116,18 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
-	identityAuthServersAPI         helpers.IdentityAuthServersAPI
-	identityAuthServerScopesAPI    helpers.IdentityAuthServerScopesAPI
-	identityAuthServerClaimsAPI    helpers.IdentityAuthServerClaimsAPI
-	identityAuthServerClientsAPI   helpers.IdentityAuthServerClientsReader
-	identityAuthServerClientAPI    helpers.IdentityAuthServerClientsAPI
-	identityBasicAuthAPI           helpers.IdentityBasicAuthAPI
-	identityPrincipalKeysReader    helpers.IdentityPrincipalKeysReader
-	identityGroupsAPI              helpers.IdentityGroupsAPI
-	identityPrincipalsAPI          helpers.IdentityPrincipalsAPI
-	identityPrincipalIdentitiesAPI helpers.IdentityPrincipalIdentitiesAPI
-	identityDirectoriesAPI         helpers.IdentityDirectoriesAPI
+	identityAuthServersAPI           helpers.IdentityAuthServersAPI
+	identityAuthServerScopesAPI      helpers.IdentityAuthServerScopesAPI
+	identityAuthServerClaimsAPI      helpers.IdentityAuthServerClaimsAPI
+	identityAuthServerClientsAPI     helpers.IdentityAuthServerClientsReader
+	identityAuthServerClientAPI      helpers.IdentityAuthServerClientsAPI
+	identityBasicAuthAPI             helpers.IdentityBasicAuthAPI
+	identityPrincipalKeysReader      helpers.IdentityPrincipalKeysReader
+	identityGroupsAPI                helpers.IdentityGroupsAPI
+	identityPrincipalsAPI            helpers.IdentityPrincipalsAPI
+	identityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
+	identityDirectoriesAPI           helpers.IdentityDirectoriesAPI
+	identityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
 	// Core APIs
 	portalAPI                         helpers.PortalAPI
 	apiAPI                            helpers.APIAPI
@@ -209,17 +211,18 @@ func NewClient(config ClientConfig) *Client {
 		config.IdentityAuthServerClientsAPI = config.IdentityAuthServerClientAPI
 	}
 	return &Client{
-		identityAuthServerClientAPI:    config.IdentityAuthServerClientAPI,
-		identityAuthServersAPI:         config.IdentityAuthServersAPI,
-		identityAuthServerScopesAPI:    config.IdentityAuthServerScopesAPI,
-		identityAuthServerClaimsAPI:    config.IdentityAuthServerClaimsAPI,
-		identityAuthServerClientsAPI:   config.IdentityAuthServerClientsAPI,
-		identityDirectoriesAPI:         config.IdentityDirectoriesAPI,
-		identityBasicAuthAPI:           config.IdentityBasicAuthAPI,
-		identityPrincipalKeysReader:    config.IdentityPrincipalKeysReader,
-		identityGroupsAPI:              config.IdentityGroupsAPI,
-		identityPrincipalsAPI:          config.IdentityPrincipalsAPI,
-		identityPrincipalIdentitiesAPI: config.IdentityPrincipalIdentitiesAPI,
+		identityAuthServerClientAPI:      config.IdentityAuthServerClientAPI,
+		identityAuthServersAPI:           config.IdentityAuthServersAPI,
+		identityAuthServerScopesAPI:      config.IdentityAuthServerScopesAPI,
+		identityAuthServerClaimsAPI:      config.IdentityAuthServerClaimsAPI,
+		identityAuthServerClientsAPI:     config.IdentityAuthServerClientsAPI,
+		identityDirectoriesAPI:           config.IdentityDirectoriesAPI,
+		identityDirectoryDependenciesAPI: config.IdentityDirectoryDependenciesAPI,
+		identityBasicAuthAPI:             config.IdentityBasicAuthAPI,
+		identityPrincipalKeysReader:      config.IdentityPrincipalKeysReader,
+		identityGroupsAPI:                config.IdentityGroupsAPI,
+		identityPrincipalsAPI:            config.IdentityPrincipalsAPI,
+		identityPrincipalIdentitiesAPI:   config.IdentityPrincipalIdentitiesAPI,
 		// Core APIs
 		portalAPI:                         config.PortalAPI,
 		apiAPI:                            config.APIAPI,

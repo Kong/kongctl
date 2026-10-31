@@ -823,6 +823,21 @@ steps:
           - '{{ .vars.directory_name }}'
     name: 006-protection
   - commands:
+      - name: disabled-vault-blocks-directory-sync
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+        expectFailure:
+          contains: explicitly enable Vault
+          exitCode: 1
+      - name: explicitly-enable-vault-before-sync
+        run:
+          - api
+          - patch
+          - /v2/directories/{{ .vars.directory_id }}
+          - 'vault_enabled:=true'
       - assertions:
           - expect:
               fields:
@@ -860,6 +875,9 @@ steps:
               ttl_secs: 900
               vault_enabled: false
           resource: identity_directory
+          recordVar:
+            name: directory_id
+            responsePath: id
         name: create-unmanaged
       - expectFailure:
           contains: explicitly adopt
@@ -939,6 +957,12 @@ steps:
           - --overwrite-namespace
     name: 008-adopt-unmanaged
   - commands:
+      - name: enable-vault-inspection-before-delete
+        run:
+          - api
+          - patch
+          - /v2/directories/{{ .vars.directory_id }}
+          - 'vault_enabled:=true'
       - assertions:
           - expect:
               fields:

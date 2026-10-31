@@ -4,7 +4,9 @@ package scenario
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"regexp"
 	"strings"
@@ -20,18 +22,23 @@ import (
 var cleanupEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 type cleanupTarget struct {
-	kind                    resources.ResourceType
-	name                    string
-	principalAPIKeys        bool
-	principalGroups         bool
-	groupNamespaces         []string
-	requireEmptyTrustedIDPs bool
+	kind                          resources.ResourceType
+	name                          string
+	principalAPIKeys              bool
+	principalGroups               bool
+	groupNamespaces               []string
+	requireEmptyTrustedIDPs       bool
+	requireEmptyVaultDependencies bool
 }
 
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
 	t.Helper()
 	seenVars, seenEnv := map[string]bool{}, map[string]bool{}
 	for _, spec := range specs {
+		if spec.RequireEmptyVaultDependencies &&
+			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("requireEmptyVaultDependencies cleanup requires an identity directory")
+		}
 		if spec.RequireEmptyTrustedIDPs &&
 			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
 			return fmt.Errorf("requireEmptyTrustedIdPs cleanup requires an identity directory")
@@ -80,9 +87,10 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		cli.WithEnv(map[string]string{spec.NameEnv: name})
 		targets = append(targets, cleanupTarget{
 			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
-			principalGroups:         spec.PrincipalGroups,
-			groupNamespaces:         spec.GroupNamespaces,
-			requireEmptyTrustedIDPs: spec.RequireEmptyTrustedIDPs,
+			principalGroups:               spec.PrincipalGroups,
+			groupNamespaces:               spec.GroupNamespaces,
+			requireEmptyTrustedIDPs:       spec.RequireEmptyTrustedIDPs,
+			requireEmptyVaultDependencies: spec.RequireEmptyVaultDependencies,
 		})
 	}
 	t.Cleanup(func() {
@@ -149,6 +157,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		return nil
 	}
 	if target.kind == resources.ResourceTypeIdentityDirectory {
+		if target.requireEmptyVaultDependencies {
+			if err := requireNoVaultDependencyFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
 		if target.requireEmptyTrustedIDPs {
 			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
 				return err
@@ -172,6 +185,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 			}
 		}
 		endpoint += id + "?force=false"
+		if target.requireEmptyVaultDependencies {
+			if err := requireNoVaultDependencyFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
 	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
 		if err := cleanupAuthServerFixtures(ctx, cli, id, target.name); err != nil {
 			return err
@@ -196,6 +214,34 @@ func requireNoTrustedIDPFixtures(ctx context.Context, cli *harness.CLI, director
 	}
 	if values == nil || len(values) != 0 {
 		return fmt.Errorf("trusted IdP fixture inventory is missing or nonempty; refusing directory cleanup")
+	}
+	return nil
+}
+
+func requireNoVaultDependencyFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+	for _, suffix := range []string{"vault/keys", "vault/providers", "trusted-idps"} {
+		var page struct {
+			Data []json.RawMessage `json:"data"`
+			Meta *struct {
+				Page *struct {
+					Size *float64        `json:"size"`
+					Next json.RawMessage `json:"next"`
+				} `json:"page"`
+			} `json:"meta"`
+		}
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &page, "api", "get", "/v2/directories/"+directoryID+"/"+suffix); err != nil {
+			return err
+		}
+		if page.Data == nil || len(page.Data) != 0 || page.Meta == nil || page.Meta.Page == nil ||
+			page.Meta.Page.Size == nil || *page.Meta.Page.Size < 1 ||
+			math.Trunc(*page.Meta.Page.Size) != *page.Meta.Page.Size || len(page.Meta.Page.Next) == 0 {
+			return fmt.Errorf("missing, nonempty or invalid %s fixture inventory; refusing directory cleanup", suffix)
+		}
+		var next *string
+		if err := json.Unmarshal(page.Meta.Page.Next, &next); err != nil || next != nil && *next != "" {
+			return fmt.Errorf("nonterminal %s fixture inventory; refusing directory cleanup", suffix)
+		}
 	}
 	return nil
 }

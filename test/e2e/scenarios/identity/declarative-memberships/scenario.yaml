@@ -475,6 +475,12 @@ steps:
         fields:
           applied: 1
           failed: 0
+  - name: explicitly-enable-vault-before-directory-delete
+    run:
+    - api
+    - patch
+    - /v2/directories/{{ .vars.directory_id }}
+    - 'vault_enabled:=true'
   - name: delete-members-before-parents
     env:
       KONGCTL_PROFILE: e2e

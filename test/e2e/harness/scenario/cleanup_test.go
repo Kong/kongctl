@@ -103,6 +103,10 @@ func TestResourceCleanupConfiguration(t *testing.T) {
 	cli, _ := cleanupFixtureCLI(t)
 	for _, specs := range [][]CleanupResource{
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", RequireEmptyTrustedIDPs: true}},
+		{{
+			Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME",
+			RequireEmptyVaultDependencies: true,
+		}},
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalAPIKeys: true}},
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalGroups: true}},
 		{{Resource: "portal", NameVar: "name", NameEnv: "NAME"}},
@@ -321,9 +325,21 @@ if args[0]=='get':
         kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        excluded=['principal','scope','claim','client','identity','api-key','group','membership','trusted-idp']
+        excluded=['principal','scope','claim','client','identity','api-key','group','membership',
+                  'trusted-idp','vault-key','vault-provider']
         values=[v for v in values if v.get('kind') not in excluded]
     print(json.dumps(values))
+elif args[:2]==['api','get'] and '/v2/directories/' in args[2]:
+    endpoint=args[2]
+    directory=endpoint.split('/')[3]
+    if fault=='vault-read-error': sys.exit(1)
+    kinds=[('vault/keys','vault-key'),('vault/providers','vault-provider'),('trusted-idps','trusted-idp')]
+    kind=next((kind for suffix,kind in kinds if endpoint.endswith('/'+suffix)),None)
+    if kind is None: raise RuntimeError('unexpected directory API collection')
+    values=[v for v in values if v.get('kind')==kind and v.get('directory_id')==directory]
+    if fault=='vault-missing': values=None
+    page={'size':20,'next':'cursor' if fault=='vault-nonterminal' else None}
+    print(json.dumps({'data':values,'meta':{'page':page}}))
 elif args[:2]==['api','get'] and '/clients?' in args[2]:
     values=[v for v in values if v.get('kind')=='client']
     print(json.dumps({'data':values[:1],'meta':{'page':{'total':len(values)}}}))

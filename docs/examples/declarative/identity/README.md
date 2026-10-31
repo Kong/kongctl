@@ -360,10 +360,13 @@ identity:
 
 Omitting the collection leaves directories alone during sync. External,
 foreign-namespace, and unowned directories are not pruned. `delete -f` can
-delete explicitly declared managed directories. KongCTL never requests
-forced cascading deletion; the API must permit deletion without losing
-descendant resources. Credentials, groups, Token Vault children, and other
-directory children remain separate follow-up work.
+delete explicitly declared managed directories. Directory deletion also
+requires explicitly enabled Vault and fresh empty Vault key, provider and
+Trusted IdP collections. The API hides them when Vault is disabled and can
+remove them even with force=false. No automatic enablement or child retirement
+is performed. [Directory deletion](directory-deletion.md) walks through the
+explicit inspection and teardown steps. Principal/group descendant guards
+and ownership/protection checks continue to apply.
 
 
 ## Ordinary groups
