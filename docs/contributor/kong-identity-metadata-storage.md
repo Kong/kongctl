@@ -17,7 +17,7 @@ resource is implemented.
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
-| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. |
+| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion checks the complete identity collection and refuses remaining identities (Q24). |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
@@ -40,7 +40,7 @@ These rows describe available API fields, not completed implementations.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
-| Principal identities, all four variants | `labels`, `managed_by` | Create, GET, list and PUT retain all five ref/ownership values in live probes, including API Gateway consumer response type. Get/list is implemented; declarative stamping/adoption remain #1416. PATCH metadata is rejected. Q21 requires fresh collection-membership proof; Q22 corrects cursor requests. |
+| Principal identities, all four variants | `labels`, `managed_by` | Create, GET, list and PUT retain all five ref/ownership values, including API and AI Gateway consumer identities. OAuth-client and API Gateway consumer retargeting retain metadata. Get/list and guarded API write helpers are implemented; declarative stamping/adoption remain #1416. PATCH metadata is rejected. Q21 requires fresh collection-membership proof; Q22 corrects cursor requests. |
 | Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
 | Generated principal and group API keys | `managed_by`; no labels | Persist ref/ownership only after create and update retention are verified. Generated-secret capture is separate. #1417, #2659. |
 | Imported principal and group API keys | Read/update expose `managed_by`; imported create lacks it | No atomic ownership stamp at creation in the inspected body. Q4 tracks the gap; do not equate a later PATCH with atomic creation. #1417, #2659. |
@@ -132,6 +132,14 @@ authority for another resource family.
   another existing principal (Q21). The SDK fixes bracketed cursor requests
   for directories, principals and identities (Q22); future resource list
   implementations must verify their own generated wire parameters.
+- Principal-identity write foundations: PUT projections preserve public
+  labels and every management-map entry for all four variants, but do not
+  synthesize ownership or adopt a resource. Direct probes additionally verify
+  OAuth-client/API Gateway consumer retargeting and AI Gateway consumer
+  metadata retention. Declarative stamping and adoption remain #1416 work.
+  Principal delete/sync now refuse attached identities at planning and
+  execution, independent of their metadata; Q24 tracks the wider API deletion
+  contract and an atomic nonempty-child precondition.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

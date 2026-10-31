@@ -14,7 +14,7 @@ test:
     - resource: control_plane
       nameVar: control_plane_name
       nameEnv: KONGCTL_E2E_IDENTITY_LOOKUP_CP_NAME
-  info: Inspect all four principal identity variants, verify actual cursor traversal and enforce parent membership despite Q21. Requires directory, auth-server and API Gateway administration.
+  info: Inspect all four principal identity variants, verify cursor traversal, enforce Q21 parent membership and reject principal deletion with remaining identities. Requires directory, auth-server and API Gateway administration.
 steps:
   - name: 001-identity-inspection
     skipInputs: true
@@ -58,6 +58,50 @@ steps:
             responsePath: id
           endpointParams:
             directoryId: '{{ .vars.directory_id }}'
+      - name: adopt-parent-for-delete-check
+        run:
+          - adopt
+          - identity
+          - principal
+          - '{{ .vars.principal_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --ref
+          - owner
+          - --namespace
+          - identity-id-e2e
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                namespace: identity-id-e2e
+      - name: prepare-parent-deletion
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - parent-delete
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: save-delete-before-identities
+        run:
+          - plan
+          - --mode
+          - delete
+          - -f
+          - '{{ .workdir }}/parent-delete.yaml'
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/parent-delete-plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
       - name: create-server
         create:
           resource: identity_auth_server
@@ -462,6 +506,49 @@ steps:
         expectFailure:
           exitCode: 1
           contains: principal-id
+      - name: reject-principal-delete-plan
+        run:
+          - plan
+          - --mode
+          - delete
+          - -f
+          - '{{ .workdir }}/parent-delete.yaml'
+        expectFailure:
+          exitCode: 1
+          contains: still has 10 identities
+      - name: reject-principal-sync-prune
+        run:
+          - plan
+          - --mode
+          - sync
+          - -f
+          - '{{ .workdir }}/parent-empty.yaml'
+        expectFailure:
+          exitCode: 1
+          contains: still has 10 identities
+      - name: reject-saved-parent-deletion
+        run:
+          - delete
+          - --plan
+          - '{{ .workdir }}/parent-delete-plan.json'
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: still has 10 identities
+      - name: verify-principal-survives-delete
+        run:
+          - get
+          - identity
+          - principal
+          - '{{ .vars.principal_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.principal_id }}'
+                managed_by."kongctl-ref": owner
       - name: yaml-output
         run:
           - get
