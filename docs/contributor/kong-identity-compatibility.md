@@ -404,6 +404,12 @@ explicit field limitation rather than a guessed workspace contract.
 
 ## Directory cursor request serialization
 
+The principal API-key reader is now included in the cursor correction under
+Q22, in preview SDK `70a2818dde13` from patch bundle `0103edc5`. Actual SDK wire
+tests fail before its request-tag correction and pass afterward. A live
+page-size-one scenario verifies three key pages from request traces, not only
+the result count. Response models and API operation inventory are unchanged.
+
 The shared CursorPageQuery parameter omits an explicit serialization style.
 Default form/explode generation emits flat `size` and `after`; the deployed
 API ignores them and reports its default page size 20. This was hidden in
@@ -424,3 +430,62 @@ The principal-identity live scenario uses ten identities and page size one,
 checks all four response shapes and explicitly verifies trace evidence of
 actual cursor traversal. A larger initial fixture hit a maximum-ten quota
 (Q23); no client-side fixed quota is inferred from that observation.
+
+## Principal API-key inspection and write boundaries
+
+The initial #1417 implementation is scoped get/list only. A dedicated public
+projection excludes material even if an unexpected read response includes a
+credential field. Errors from the credential API are reduced to status/context
+without response bodies. All pages are observed; repeated IDs/cursors, invalid
+IDs, missing collections and page errors fail the entire observation.
+The verified key detail route rejects a wrong existing principal with 404;
+the identity-specific Q21 workaround is not copied without that discrepancy.
+
+API-only Q27–Q30 and Q4 govern enrollment of mutations:
+
+- Keys work under `agent` and unclassified principals. A freshly readable
+  `user` principal's key create/list return 404. Reads report that failure;
+  they do not interpret it as an empty collection or enforce a local type ban.
+- Generated creation retains the five-entry ownership map and expiration.
+  Imported creation rejects `managed_by`. Both kinds ignore complete and
+  partial management-map PATCH changes. PUT returns 405. Adoption, namespace
+  movement and protection updates therefore remain unavailable.
+- Expiration PATCH works, including explicit null, but omission clears it.
+  A future metadata writer must hydrate expiration from a fresh read, then
+  verify actual credential continuity and metadata retention.
+- Name-bearing create returns 400, while name-bearing PATCH returns success
+  without making name observable. Missing/null names are omitted from the read
+  projection. No name identity or uniqueness rule is inferred.
+- An administration bearer token does not establish runtime mTLS context.
+  Generated/imported authentication returned "mTLS headers missing"; this
+  establishes no credential continuity or revocation guarantee.
+
+Before declarative writes/adoption, verify metadata changes and removal,
+duplicate/ref matching, preserved material/expiration, type applicability,
+atomic imported creation and uncertainty recovery. Add corresponding lifecycle
+and runtime tests. Declarative lifecycle and adoption remain pending those
+verified ownership contracts.
+
+Principal declarative delete/sync currently guards identity associations, not
+API-key descendants. Key enrollment must add production parent-deletion
+observations and ordering, including a verified contract for the user-type 404.
+The fixture cleanup checks below do not extend production deletion authority.
+Q24 records the API's native descendant deletion; public metadata alone does
+not provide independent protection against that operation.
+
+There is a separate SDK preparation issue: canonical key create/update bodies
+reference a mutable nullable expiration schema, while the merged preview's
+shared `ExpiresAt` is read-only. Generated write models consequently omit the
+field even though direct API writes work. Resolve that targeted schema/reference
+difference and verify omitted/value/null wire semantics before enabling writes;
+it is not evidence that the API lacks expiration support. The current SDK
+increment fixes only pagination and adds no write-model fields.
+
+The live inspection scenario uses generated keys with explicit fixture metadata
+under agent/unclassified principals, captures material privately, verifies
+three request pages and scans artifacts for material and its Base64 form.
+Fixture cleanup opts into API-key observation explicitly, checks every marked
+collection before deletion, rechecks metadata before individual deletes and
+requires empty collections before principal removal. Existing scenarios do not
+gain a new credential permission requirement. Group keys remain independently
+unverified; their shared schema is not sufficient to enroll them.

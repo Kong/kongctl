@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `6ca9d1f8b309`, generated
+The current source is the public preview SDK at `70a2818dde13`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Live observations are from US `.com`. Keep this ledger current as each
@@ -19,6 +19,7 @@ resource is implemented.
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions, then a fresh empty collection (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
+| Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
@@ -43,7 +44,7 @@ These rows describe available API fields, not completed implementations.
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
 | Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
-| Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is in progress under #1417. |
+| Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is implemented under #1417, which remains open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
 | Group API keys, generated/imported | Same schema metadata fields as principal keys | Separate live retention, parent and credential checks remain required. Do not assume principal-key observations establish group behavior. #2659. |
 | Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |

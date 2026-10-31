@@ -117,3 +117,22 @@ func TestIdentityPrincipalIdentityCommandsRequireExplicitParents(t *testing.T) {
 		require.Error(t, child.Args(child, []string{"one", "two"}))
 	}
 }
+
+func TestIdentityPrincipalKeyCommandsRequireExplicitParents(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		command, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		child, _, err := command.Find([]string{"principal-api-keys"})
+		require.NoError(t, err)
+		require.Equal(t, "principal-api-key", child.Name())
+		require.NotNil(t, child.RunE)
+		require.NotNil(t, child.Flags().Lookup("directory-id"))
+		require.NotNil(t, child.Flags().Lookup("directory-name"))
+		require.ErrorContains(t, child.Args(child, nil), "principal-id")
+		require.NoError(t, child.Flags().Set("principal-id", "731559d3-39bd-48c7-b33c-eb192847eb20"))
+		require.NoError(t, child.Args(child, nil))
+		require.NoError(t, child.Args(child, []string{"731559d3-39bd-48c7-b33c-eb192847eb21"}))
+		require.ErrorContains(t, child.Args(child, []string{"key-name"}), "UUID")
+		require.Error(t, child.Args(child, []string{"one", "two"}))
+	}
+}

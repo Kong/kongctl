@@ -336,6 +336,8 @@ produces `?size=1&after=...`. The deployed directory, principal and identity
 list endpoints ignore these flat keys: responses report the default size 20.
 `?page[size]=1` returns size 1. Following identity list links with the
 bracketed `page[after]` cursor retrieves distinct successive pages.
+Principal API-key lists also accept the bracketed parameters and return
+next-page URLs that traverse three distinct pages successfully.
 
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.

@@ -21,7 +21,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `6ca9d1f8b309`, including targeted
+The public preview SDK is now pinned to `70a2818dde13`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -39,6 +39,14 @@ until a valid API contract is demonstrated (Q25). Associated-resource deletion
 has differing native API effects (Q26); checks cover declared collections,
 with a warning about OAuth associations outside those scopes. Section 26
 records this implementation and its verification.
+
+Principal API-key inspection is implemented under #1417. New live probes show
+that keys work for agent/unclassified principals but return 404 for user
+principals; name is unavailable, management-map PATCH changes are ignored,
+and omitted expiration is cleared by PATCH. Imported creation rejects
+management metadata. These contracts defer declarative key writes/adoption;
+scoped get/list exposes public metadata with complete pagination and no secret
+material. Q27–Q30 record the API-only follow-up, and Section 27 records evidence.
 
 Keep these two running logs alongside this report:
 
@@ -1686,3 +1694,71 @@ management map; fresh hydration therefore preserves omitted manifest labels.
 Those disposable probe fixtures were removed too. Replay-enabled coverage is
 unchanged. #1416 and related issues remain open/In Progress until main merge;
 work stays on `ki-triage`, with no implementation PR opened.
+
+## 27. Principal API-key contracts and inspection
+
+Issue #1417 is In Progress. Direct US `.com` probes compare principal types:
+user, agent, explicit null and omitted type are all readable after creation,
+but API-key create/list return "principal not found" only for user. Agent and
+both unclassified variants support generated keys. Creation retains all five
+management entries and a supplied future expiration. Imported creation with
+management metadata returns 400; without it, creation succeeds with an empty
+map. Duplicate imported material under another principal returns 409.
+
+Both generated/imported PATCH ignore complete and partial management-map
+changes while returning success. Explicit expiration updates and null clearing
+work; omitted expiration is also cleared. PUT returns 405. Name-bearing create
+is rejected, while name-bearing PATCH is ignored and reads omit the field.
+These are Q4/Q27–Q29 contracts. Verified adoption, mutable ownership/protection
+and the normal declarative lifecycle remain pending working metadata updates
+and atomic imported creation.
+
+Key GET/PATCH/DELETE through a different existing agent return 404, and its
+collection is empty. Thus the principal-identity scoping workaround is not
+assumed for keys. Principal deletion with keys returns 204; their detail and
+collection then return 404 (additional Q24 evidence). Runtime calls with an
+administration token return "mTLS headers missing" (Q30). They do not prove
+credential continuity or revocation. All disposable probe fixtures were removed.
+
+The product adds `get|list [konnect] identity principal-api-keys` and individual
+UUID lookup, with explicit directory name/ID and principal UUID. A public-only
+projection includes expiration, management metadata and timestamps, plus a
+name if returned. Material and inferred creation methods are absent. Complete
+cursor observations reject page errors, duplicate IDs/cursors and malformed
+responses without returning partial inventories. Credential errors omit raw
+response bodies.
+
+SDK `70a2818dde13` adds one request-tag correction for principal API-key lists,
+from patch bundle `0103edc5`. Wire tests fail before and pass after it; prior
+patches remain, with no model/API-inventory changes. The mutable expiration
+request field is separately missing because the merged shared `ExpiresAt`
+schema is read-only, unlike the canonical directory input. That must be
+corrected before write enrollment; direct API expiration support is verified.
+
+The example tutorial is
+`docs/examples/declarative/identity/principal-api-keys.md`. The live inspection
+scenario covers generated key metadata under agent/unclassified principals,
+all output formats, explicit product selection, empty collections, wrong-parent
+refusal, actual three-page traversal and artifact scans. Test material remains
+in private captures. Opted-in cleanup verifies marked key collections before
+any deletion and rechecks metadata/emptiness before removing parents. The
+first focused run passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/principal-key-inspection-live/20261031-060908`.
+
+Final validation passes: modernization, clean formatting, CGO-disabled build,
+zero-issue lint, unit race tests, integration tests, harness race tests,
+weighted scenario inventory and replay/metrics checks. All ten live Identity
+scenarios pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/principal-key-inspection-all-regression/20261031-061542`.
+Stopping immediately after creating all four generated keys also passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/principal-key-inspection-stopped/20261031-061846`.
+The five client capture paths and the key scenario's private capture directory
+were removed after the complete run; the stopped run's private directory was
+also removed. Fresh directory/auth-server/control-plane inventories are empty.
+Replay-enabled coverage is unchanged. Work remains on branches, with no PR.
+
+Principal production delete/sync currently observes identity associations;
+API-key descendant checks are still pending key lifecycle enrollment and a
+verified user-type applicability contract. Fixture cleanup checks are separate
+test authority. Further feasible work includes groups/memberships after live
+verification and other credentials where their contracts support safe writes.

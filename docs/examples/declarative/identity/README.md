@@ -14,6 +14,10 @@ custom associations, independent managed_by ownership, scoped sync and adoption.
 Workspace configuration remains deferred under Q25. #1416 stays In Progress
 until merge.
 
+[Principal API-key inspection](principal-api-keys.md) covers scoped get/list,
+public credential metadata and the API contracts still preventing declarative
+ownership updates and adoption. It does not expose credential material.
+
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it
 separately from the other examples. Plan and apply it, inspect the principals,

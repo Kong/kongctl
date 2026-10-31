@@ -34,9 +34,10 @@ type ScenarioTest struct {
 
 // CleanupResource reserves a generated resource name for this scenario run.
 type CleanupResource struct {
-	Resource string `yaml:"resource"`
-	NameVar  string `yaml:"nameVar"`
-	NameEnv  string `yaml:"nameEnv"`
+	Resource         string `yaml:"resource"`
+	NameVar          string `yaml:"nameVar"`
+	NameEnv          string `yaml:"nameEnv"`
+	PrincipalAPIKeys bool   `yaml:"principalAPIKeys,omitempty"`
 }
 
 type Retry struct {

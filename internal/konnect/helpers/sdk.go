@@ -26,6 +26,7 @@ type SDKAPI interface {
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI
+	GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
@@ -132,6 +133,13 @@ func (k *KonnectSDK) GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdenti
 		return nil
 	}
 	return k.SDK.KongPrincipalIdentity
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
 }
 
 // Returns the real implementation of the GetControlPlaneAPI
