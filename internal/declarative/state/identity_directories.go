@@ -130,10 +130,25 @@ func (c *Client) DeleteIdentityDirectory(ctx context.Context, id string) error {
 	if err := ValidateAPIClient(c.identityDirectoriesAPI, "Kong Identity directories API"); err != nil {
 		return err
 	}
-	// Never request a cascade through principals or other unmanaged descendants.
-	_, err := c.identityDirectoriesAPI.DeleteDirectory(ctx, id, nil)
+	current, err := c.GetIdentityDirectoryByID(ctx, id)
+	if err != nil || current == nil {
+		return err
+	}
+	if current.ID != id {
+		return fmt.Errorf("directory identity changed before deletion")
+	}
+	if err := c.CheckIdentityDirectoryVaultDependencies(ctx, *current); err != nil {
+		return err
+	}
+	// force=false does not protect Vault children; the fresh observations above do.
+	_, err = c.identityDirectoriesAPI.DeleteDirectory(ctx, id, nil)
 	if err != nil && declerrors.ExtractStatusCodeFromError(err) != http.StatusNotFound {
 		return fmt.Errorf("failed to delete Kong Identity directory: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) CheckIdentityDirectoryVaultDependencies(ctx context.Context, directory IdentityDirectory) error {
+	return helpers.RequireEmptyIdentityDirectoryVault(ctx, c.identityDirectoryDependenciesAPI,
+		directory.ID, directory.VaultEnabled)
 }

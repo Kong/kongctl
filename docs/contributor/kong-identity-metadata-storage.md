@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `bf1d470c108c`, generated
+The current source is the public preview SDK at `2597fe249e26`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Initial live observations are from US `.com`; the October 31 `.tech`
@@ -17,7 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
-| Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
+| Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Declarative deletion requires enabled Vault and fresh empty key/provider/Trusted IdP inventories; it never grants child ownership or retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
@@ -107,6 +107,13 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, directory deletion observations: enabled Vault and fresh
+  empty key/provider/Trusted IdP collections are now preconditions for planned
+  and saved deletion. Disabled/unknown/incomplete inventories block instead
+  of granting cascade authority. No metadata is stamped on these children and
+  no parent adoption or child retirement is implicit. This does not establish
+  inherited writable ownership; Q37's backend atomicity question stays open.
 
 - October 31 UTC, Vault contract evaluation: five RSA/EC public keys match
   independently computed RFC 7638 kids; duplicate material conflicts while

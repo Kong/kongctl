@@ -875,6 +875,8 @@ claim follows from those administration responses.
 prevent deletion in both Vault states? Is there a non-mutating way to inspect
 all dependent records while Vault is disabled? Should attached Vault keys and
 credential providers also block a non-forced directory deletion?
+Is there a conditional deletion contract that atomically prevents a newly
+attached dependent from being removed between an observation and DELETE?
 
 The directory deletion summary describes optional cascading controlled by
 `force`. Its parameter description instead refers to auth-server clients,

@@ -208,6 +208,12 @@ steps:
             expect:
               fields:
                 total_changes: 0
+      - name: explicitly-enable-vault-before-directory-delete
+        run:
+          - api
+          - patch
+          - /v2/directories/{{ .vars.directory_id }}
+          - 'vault_enabled:=true'
       - name: delete-supported
         run:
           - delete

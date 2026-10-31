@@ -63,12 +63,16 @@ func TestIdentityDirectoryControlPlaneReferencesAndScope(t *testing.T) {
 	}
 
 	api := &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{fixture.Directory("people", "identity-team", false)}}
+	api.Directories[0].VaultEnabled = new(true)
+	api.Current = api.Directories[0]
 	for _, scoped := range []bool{false, true} {
 		rs := &resources.ResourceSet{DefaultNamespace: "identity-team", SyncScope: resources.NewSyncScope()}
 		if scoped {
 			rs.SyncScope.AddRoot(resources.ResourceTypeIdentityDirectory)
 		}
-		plan, err := NewPlanner(state.NewClient(state.ClientConfig{IdentityDirectoriesAPI: api}), slog.Default()).
+		plan, err := NewPlanner(state.NewClient(state.ClientConfig{
+			IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
+		}), slog.Default()).
 			GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
 		require.NoError(t, err)
 		if scoped {

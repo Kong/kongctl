@@ -27,6 +27,7 @@ identity:
     - ref: people
       name: people
       allow_all_control_planes: true
+      vault_enabled: true
       kongctl: {namespace: a-directory-team}
       principals:
         - ref: person
@@ -60,13 +61,15 @@ func TestPrincipalIdentitySavedPlanLifecycleAcrossNamespaces(t *testing.T) {
 		Lifecycle: true,
 		Current:   fixture.Directory("people", "a-directory-team", false),
 	}
+	directories.Current.VaultEnabled = new(true)
 	principals := &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)}
 	identities := &fixture.PrincipalIdentitiesAPI{Parents: make(map[string][]kkComps.KongPrincipalIdentity)}
 	client := state.NewClient(state.ClientConfig{
-		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-		IdentityGroupsAPI:           &fixture.GroupAPI{},
-		IdentityDirectoriesAPI:      directories, IdentityPrincipalsAPI: principals,
+		IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
+		IdentityBasicAuthAPI:             &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:      &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:                &fixture.GroupAPI{},
+		IdentityDirectoriesAPI:           directories, IdentityPrincipalsAPI: principals,
 		IdentityPrincipalIdentitiesAPI: identities,
 	})
 	file := filepath.Join(t.TempDir(), "manifest.yaml")

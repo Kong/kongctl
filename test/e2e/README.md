@@ -127,6 +127,15 @@ Vault-disabled or incomplete observations stop cleanup. Other scenarios do
 not gain new Vault read requirements. The explicit guard is needed because
 directory `force=false` does not prevent deletion with attached IdPs (Q37).
 
+Fixtures that exercise all Vault dependency families use
+`requireEmptyVaultDependencies: true` instead. It requires empty, terminal,
+unfiltered key/provider/Trusted IdP inventories before any cleanup writes and
+again before directory deletion. It never retires a child or implicitly
+enables Vault. The fixture must explicitly remove its verified children and
+leave Vault observable; unknown or disabled state stops cleanup. This option
+is restricted to directory cleanup entries and adds no permission requirement
+to other scenarios.
+
 Group inspection fixtures explicitly opt into `principalGroups: true` on the
 directory cleanup entry. Only manually provisioned, credential-free groups
 with the generated name prefix, directory fixture label and exact four-entry
