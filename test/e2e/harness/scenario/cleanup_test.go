@@ -103,6 +103,7 @@ func TestResourceCleanupConfiguration(t *testing.T) {
 	cli, _ := cleanupFixtureCLI(t)
 	for _, specs := range [][]CleanupResource{
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalAPIKeys: true}},
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalGroups: true}},
 		{{Resource: "portal", NameVar: "name", NameEnv: "NAME"}},
 		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "", NameEnv: "NAME"}},
 		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "name", NameEnv: "bad-name"}},
@@ -286,6 +287,26 @@ if args[0]=='get':
             values=values[0]
             if fault=='key-metadata-change': values['managed_by']={}
             if fault=='key-protection-change': values['managed_by']['kongctl-protected']='true'
+    elif args[:3] in [['get','identity','groups'],['get','identity','group']]:
+        if fault=='group-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        values=[v for v in values if v.get('kind')=='group' and v.get('directory_id')==directory]
+        if args[2]=='group':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='group-protection-change': values['managed_by']['kongctl-protected']='true'
+    elif args[:3] in [['get','identity','group-memberships'],['get','identity','group-membership']]:
+        if fault=='membership-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        group=args[args.index('--group-id')+1]
+        values=[v for v in values if v.get('kind')=='membership'
+                and v.get('directory_id')==directory and v.get('group_id')==group]
+        if args[2]=='group-membership':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='membership-member-change': values['member']['id']='changed'
     elif args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
@@ -294,7 +315,8 @@ if args[0]=='get':
         kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client','identity','api-key']]
+        excluded=['principal','scope','claim','client','identity','api-key','group','membership']
+        values=[v for v in values if v.get('kind') not in excluded]
     print(json.dumps(values))
 elif args[:2]==['api','get'] and '/clients?' in args[2]:
     values=[v for v in values if v.get('kind')=='client']

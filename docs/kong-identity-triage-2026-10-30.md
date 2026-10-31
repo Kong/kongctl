@@ -21,7 +21,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `70a2818dde13`, including targeted
+The public preview SDK is now pinned to `bf1d470c108c`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -48,9 +48,11 @@ management metadata. These contracts defer declarative key writes/adoption;
 scoped get/list exposes public metadata with complete pagination and no secret
 material. Q27–Q30 record the API-only follow-up, and Section 27 records evidence.
 
-Group/team contract investigation is in progress under #2657. Unique names
-and `managed_by` retention work; group keys currently return 501. Membership
-types and importer authority need clarification (Q32–Q33). Direct group tests
+Group/team and direct membership get/list are implemented under #2657/#2658,
+with scoped UUID/name lookup and complete pagination. Declarative lifecycle is
+still pending resource-specific authority and deletion work. Unique names and
+`managed_by` retention work; group keys currently return 501. Membership types
+and importer authority need clarification (Q32–Q33). Direct group tests
 also exposed numeric precision loss in principal/group runtime metadata
 (Q31). Principal validation and write-result checks now guard that behavior;
 use strings for exact numeric identifiers. Section 28 records the findings.
@@ -1832,3 +1834,116 @@ no longer exist. Fresh directory/auth-server/control-plane inventories are
 empty. Replay eligibility and cassettes are unchanged. SDK pin remains
 `70a2818dde13`; this increment changes KongCTL validation and verification,
 not the API schema or SDK model.
+
+## 29. Group and direct membership inspection
+
+The branch now exposes `get|list [konnect] identity group[s]` and
+`group-membership[s]`. Groups accept an exact name or UUID within an explicit
+directory. Membership detail accepts the relationship entry UUID, distinct
+from its member UUID, with an explicit group UUID/name and directory UUID/name.
+Both resolvers prove collection membership before fresh detail reads. Readers
+reject malformed/missing collection metadata, repeated IDs/cursors and
+duplicate member targets without exposing partial output. Public fields are
+preserved, while absent provisioning/team-manager fields gain no SDK defaults.
+JSON, YAML and text formats are covered.
+
+SDK wire tests reproduced flat query keys on `ListGroups` and
+`ListGroupMembership`. Patch source `f79e767d` extends the current Q22 request
+tag fix to six Identity operations. SDK `bf1d470c108c` includes those two
+replacements and the complete existing patch snapshot; SDK unit tests pass.
+The Go module replacement consumes that branch commit. No new spec release or
+SDK PR was created.
+
+Further direct API tests verified ordinary-group and manual-team membership
+removal. Principal GET reports group IDs as links change; principal deletion
+removes those links. Missing-directory routes reject reads. The organization
+permits only one directory, so scope isolation between two existing directories
+could not be directly established. Complete collection proofs avoid relying
+on detail routes alone. Q32 records the observations and remaining importer
+authority question. Q33 still prevents verifying group credential behavior.
+
+The new `identity/groups` live scenario passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/group-read-live/20261031-071956`.
+It covers four groups (ordinary, team, explicit-null default and omitted-type
+default), three principal types, ordinary/team direct entries, all output
+formats, explicit product aliases, public metadata, entry/member-ID distinction,
+wrong-group rejection and real four-page/three-page cursor traversal. Cleanup
+opts into manually created, credential-free groups; all fixture ownership and
+member scopes are checked before deletion, then freshly rechecked before
+removing entries/groups/parents. Existing scenarios gain no group permission
+requirement. This fixture authority does not authorize production group-key or
+importer-managed relationship mutation. The tutorial is
+`docs/examples/declarative/identity/groups.md`.
+
+Final validation passes: modernization, clean formatting, CGO-disabled build,
+zero-issue lint, unit/integration/harness race tests, weighted inventory,
+SDK-patch/installer checks, and replay/metrics checks. All twelve Identity live
+scenarios pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/group-read-all-regression/20261031-072142`.
+Stopping immediately after all four groups and their memberships are created
+also passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/group-read-stopped/20261031-072454`.
+The complete run's five generated capture paths and five private directories
+were removed automatically. Replay eligibility/cassettes are unchanged.
+Fresh directory/auth-server/control-plane inventories are empty after both
+the complete regression and stopped run.
+
+## 30. Requested stopping point and remaining work
+
+The user requested a pause after completing the current verified increment.
+The objective remains the feasible work in epics #1132/#1133; no issue should
+close before merge to main. Work remains on `ki-triage`, with no implementation
+PRs. The full API-only question list and metadata ledger remain the handoff
+sources, alongside compatibility removal criteria.
+
+| API surface | Declarative resources implemented | Important boundaries |
+| --- | --- | --- |
+| Directory administration | Directories; user/agent/unclassified principals; OIDC, custom, auth-server-client and Gateway-consumer principal identities | Plan/diff/apply/sync/delete/dump, references and independent ownership supported. Principal type is create-only, active is deferred, workspace-bearing identities are deferred and affected integers are rejected. Adoption/get/list are available for supported resources. |
+| Auth-server administration | Auth servers; scopes; claims; OAuth clients, including private initial-secret capture | Broad lifecycle, refs, dump and reads supported. Scope/claim authority is through the managed parent and explicit collections; parent adoption supplies authority. OAuth clients have independent ownership labels. Secret rotation/enable/disable/delete are explicit commands, not named declarative secret slots. |
+| Runtime authentication/lookup | No new declarative resource family | OAuth client credential continuity is tested through token requests. Identity credential runtime checks still need the supported mTLS context (Q30). Visibility/authentication responses do not grant management ownership. |
+
+Inspection-only additions are principal API keys, groups/teams and direct group
+memberships. Group and membership declarative lifecycle remains the current
+next implementation target. It needs independent group ownership/adoption,
+explicit membership collection authority, saved parent/member dependencies,
+reference and deletion guards, dump/explain/scaffold, configuration examples
+and full lifecycle scenarios. Group key availability and imported-team rules
+must remain explicit rather than being inferred from a shared SDK schema.
+
+Other pending families are principal API-key writes/adoption, basic-auth
+credentials/passwords, CSV and organization-chart imports, Token Vault keys,
+credential providers/shared credentials, user-enrolled credential inspection
+and revocation, and Trusted IdPs. Supported subsets should proceed only after
+their own deployed lifecycle, ownership, secret and matching contracts pass.
+
+The preview SDK uses the public SDK structure with the selected directory and
+auth-server specifications and existing KongCTL patches. Its current revision
+is `bf1d470c108c`, on `kongctl/kong-identity-public-preview`, locally at
+`/home/rspurgeon/dev/kong/ki-public-sdk-build/sdk-konnect-go`. SDK inclusion
+issues #1413/#1399 stay In Progress until the normal upstream generation and
+main-branch integration are complete. No additional SDK work is required for
+the implemented read/lifecycle slices. Before principal key writes, reconcile
+the missing request `expires_at` field with its canonical spec contract and
+verify omitted/value/null serialization; that is separate from API questions
+about ignored ownership updates.
+
+Verified on October 31: [platform-api product inclusion PR
+#3895](https://github.com/Kong/platform-api/pull/3895) merged at 07:21:50 UTC,
+adding both management specifications to both Go SDK product groups.
+[GA gating PR #3877](https://github.com/Kong/platform-api/pull/3877) remains
+open at revision `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`. Product inclusion is
+therefore complete upstream; normal public availability of the proposed
+additions still depends on gating changes and downstream SDK generation.
+
+Pending engineering questions are in
+[`docs/kong-identity-api-questions.md`](kong-identity-api-questions.md).
+They cover directory Vault/default/quota behavior (Q1–Q3), ownership and stable
+matching on forthcoming resources (Q4–Q8), principal type/active/PATCH behavior
+(Q9–Q11), auth-server pagination/retry/authentication/secret limits (Q12–Q20),
+identity scoping/quotas/workspaces/native deletion effects (Q21–Q26), API-key
+applicability/update/name/runtime contracts (Q27–Q30), integer precision (Q31),
+membership/importer boundaries (Q32), and group key availability (Q33). Several
+have bounded workarounds; they are not all blockers for existing support. No
+engineering answers have been recorded. The
+[metadata ledger](contributor/kong-identity-metadata-storage.md) distinguishes
+labels, `managed_by`, and resources without an independent ownership store.

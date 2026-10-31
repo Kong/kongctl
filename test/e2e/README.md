@@ -118,6 +118,15 @@ every principal/identity collection before deleting anything, rechecks identity
 membership and labels before DELETE (API question Q21), removes identities
 first, and requires an empty fresh collection before deleting a principal.
 Unmarked or incompletely observed descendants stop cleanup.
+
+Group inspection fixtures explicitly opt into `principalGroups: true` on the
+directory cleanup entry. Only manually provisioned, credential-free groups
+with the generated name prefix, directory fixture label and exact four-entry
+`identity-group-read-e2e` management map participate. Members must be marked
+principals in that directory. All collections are observed before writes;
+fresh group/entry checks and empty collection checks precede parent deletion.
+This test policy does not authorize imported-team or group-key management.
+Other scenarios do not acquire a group permission requirement.
 This is opt-in and does not change shared organization reset or replay routing.
 
 ### Environment Variables

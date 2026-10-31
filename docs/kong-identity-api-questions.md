@@ -338,6 +338,8 @@ list endpoints ignore these flat keys: responses report the default size 20.
 bracketed `page[after]` cursor retrieves distinct successive pages.
 Principal API-key lists also accept the bracketed parameters and return
 next-page URLs that traverse three distinct pages successfully.
+Group and group-membership requests have the same flat SDK encoding defect;
+direct bracketed queries retrieve successive pages of those collections too.
 
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
@@ -510,6 +512,13 @@ also be deleted by its entry ID. No import was involved in that probe. The
 schema describes team membership as importer-managed, including a removal
 restriction; confirm how that differs for manual and imported teams before
 clients infer authority over their relationships.
+
+Further direct tests confirm ordinary-group membership DELETE returns 204,
+then detail returns 404. Principal GET adds/removes the group ID as membership
+changes. Deleting a member principal removes its membership entry from the
+group collection. Missing-directory group/membership routes return 404. The
+test organization has a one-directory quota, so two existing directories could
+not be used to establish cross-directory behavior; that scope remains unproved.
 
 ### Q33 Group API-key deployment availability
 
