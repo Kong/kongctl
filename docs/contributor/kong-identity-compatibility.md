@@ -636,7 +636,7 @@ authority over unknown credentials or imported membership.
 
 Before full group-key pagination is added, verify the preview SDK listGroupKeys
 wire names: its page field still uses the flat form/explode annotation.
-The six existing cursor patches do not include this seventh operation. The
+The existing cursor patches do not cover this operation. The
 current unfiltered empty-page guard sends no page parameter and needs no SDK
 revision. Full key writers also need the missing expires_at request field
 and omitted/value/null serialization work already tracked under #1417/#2659.
@@ -708,7 +708,9 @@ passwords; later administrative reads return 404. Add credential observations
 before principal deletion, and password observations before basic-auth
 deletion, without inferring runtime revocation or cascading ownership.
 
-The preview SDK still needs bracketed pagination corrections for basic-auth
-and password lists. Existing write models suffice for username records.
+Preview SDK 995778a1c448 corrects bracketed pagination for basic-auth and
+password lists, extending the existing six list corrections to eight. The
+wire regression fails on both old request shapes and passes after correction;
+full SDK tests pass. Existing write models suffice for username records.
 Password write models separately omit expires_at due to the shared read-only
 merged schema; that is SDK preparation work, not proof of an unavailable API.

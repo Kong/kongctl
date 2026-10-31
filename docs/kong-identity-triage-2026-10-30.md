@@ -21,7 +21,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `bf1d470c108c`, including targeted
+The public preview SDK is now pinned to `995778a1c448`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -2461,3 +2461,42 @@ username-record lifecycle, safe password inspection and credential deletion
 guards. No password declarative lifecycle or new CLI is claimed by this
 preparation step. Existing Q24/Q30 and new API-only Q35 record the boundaries.
 No PR is opened; the overall epic goal remains active.
+
+## 40. Basic-auth pagination SDK preview
+
+KongCTL patch source d15373927f432be4ab7da870b398c54c1d972717 records the
+basic-auth/password cursor corrections and Q35's direct API evidence. SDK
+995778a1c448a0f4290de804f3facb9edb5b4fb4 is pushed to
+kongctl/kong-identity-public-preview. The generated code delta is exactly two
+request tags: ListPrincipalBasicAuths and ListPasswords now use deepObject
+for page. No operations, response models, write fields or unrelated internal
+attributes change. All prior KongCTL patches remain in the snapshot, with
+source provenance tied to d1537392.
+
+The wire regression fails both new list cases before correction and passes
+all eight Identity list cases afterward, including encoded cursor values.
+SDK root/model/internal/pkg tests and internal race tests pass. The first
+SDK make test.unit invocation used CGO disabled, which cannot run race tests;
+it was rerun successfully with CGO enabled for testing. Application builds
+remain CGO-disabled. Patch-tool tests and KongCTL unit tests pass for the
+source change. The consumer replacement is updated to
+v0.79.1-0.20261031183454-995778a1c448 and builds successfully.
+
+Consumer modernization/format/build and zero-issue lint pass. Unit,
+integration and harness race tests pass, alongside SDK patch, installer,
+replay-policy and 140 metrics checks. All fourteen Identity live scenarios
+pass together on the new SDK:
+/home/rspurgeon/.cache/kong-identity-public-sdk/basic-auth-sdk-all-identity/20261031-134030.
+Fresh direct inventories confirm empty principal/group/auth-server
+collections and the restored unmanaged default directory
+01a19347-410c-71fe-aac5-339b0c5c66c1. All seven referenced private capture
+paths are absent after teardown. Saved public directory settings are retained;
+existing user capture files were not read or changed. Evidence is local in
+basic-auth-sdk-final-inventory.json. Replay eligibility/recordings are unchanged.
+
+Basic-auth username declarative lifecycle, password metadata inspection and
+credential parent-deletion guards are the next implementation slice.
+Password write models still lack expires_at; no password writer is enabled
+by this query-only correction. Runtime continuity remains unverified under
+Q30, and metadata-only password updates remain Q35. No PR or SDK release is
+created; the overall epic goal stays active.
