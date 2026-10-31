@@ -14,7 +14,9 @@ var identityDirectoryNamePattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 func init() {
 	registerExternalResourceTypeWithSliceAccessors(
-		ResourceTypeIdentityDirectory, identityDirectorySlice, ensureIdentityDirectorySlice,
+		ResourceTypeIdentityDirectory,
+		identityDirectorySlice,
+		ensureIdentityDirectorySlice,
 		AutoExplain[IdentityDirectoryResource](
 			WithExplainAliases("identity.directory", "directory", "directories", "identity_directories"),
 			WithExplainRecommendedFields("ref", "name", "allow_all_control_planes"),
@@ -38,13 +40,17 @@ func init() {
 			Message: "Requires the Kong Identity SDK preview and regional directory-admin access.",
 		}),
 		WithRootSyncScope(),
-		withCollectionValidation(220, namedCollectionValidation(func(d *IdentityDirectoryResource) string { return d.Name })),
+		withCollectionValidation(
+			220,
+			namedCollectionValidation(func(d *IdentityDirectoryResource) string { return d.Name }),
+		),
 		withReferenceValidation(90),
 	)
 }
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
+	Principals  []IdentityPrincipalResource `yaml:"principals,omitempty"  json:"principals,omitempty"`
 	Directories []IdentityDirectoryResource `yaml:"directories,omitempty" json:"directories,omitempty"`
 }
 
@@ -64,16 +70,17 @@ func ensureIdentityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource 
 
 // IdentityDirectoryResource declares one regional Kong Identity directory.
 type IdentityDirectoryResource struct {
-	BaseResource          `yaml:",inline" json:",inline"`
-	Name                  string            `yaml:"name" json:"name"`
-	Description           *string           `yaml:"description,omitempty" json:"description,omitempty"`
-	AllowedControlPlanes  []string          `yaml:"allowed_control_planes,omitempty" json:"allowed_control_planes,omitempty"`                     //nolint:lll
-	AllowAllControlPlanes *bool             `yaml:"allow_all_control_planes,omitempty" json:"allow_all_control_planes,omitempty" default:"false"` //nolint:lll
-	TTLSecs               *int64            `yaml:"ttl_secs,omitempty" json:"ttl_secs,omitempty" default:"600"`
-	NegativeTTLSecs       *int64            `yaml:"negative_ttl_secs,omitempty" json:"negative_ttl_secs,omitempty" default:"600"` //nolint:lll
-	VaultEnabled          *bool             `yaml:"vault_enabled,omitempty" json:"vault_enabled,omitempty"`
-	Labels                map[string]string `yaml:"labels,omitempty" json:"labels,omitempty"`
-	External              *ExternalBlock    `yaml:"_external,omitempty" json:"_external,omitempty"`
+	BaseResource          `                            yaml:",inline"                            json:",inline"`
+	Principals            []IdentityPrincipalResource `yaml:"principals,omitempty"               json:"principals,omitempty"` //nolint:lll
+	Name                  string                      `yaml:"name"                               json:"name"`
+	Description           *string                     `yaml:"description,omitempty"              json:"description,omitempty"`                              //nolint:lll
+	AllowedControlPlanes  []string                    `yaml:"allowed_control_planes,omitempty"   json:"allowed_control_planes,omitempty"`                   //nolint:lll
+	AllowAllControlPlanes *bool                       `yaml:"allow_all_control_planes,omitempty" json:"allow_all_control_planes,omitempty" default:"false"` //nolint:lll
+	TTLSecs               *int64                      `yaml:"ttl_secs,omitempty"                 json:"ttl_secs,omitempty"                 default:"600"`   //nolint:lll
+	NegativeTTLSecs       *int64                      `yaml:"negative_ttl_secs,omitempty"        json:"negative_ttl_secs,omitempty"        default:"600"`   //nolint:lll
+	VaultEnabled          *bool                       `yaml:"vault_enabled,omitempty"            json:"vault_enabled,omitempty"`                            //nolint:lll
+	Labels                map[string]string           `yaml:"labels,omitempty"                   json:"labels,omitempty"`                                   //nolint:lll
+	External              *ExternalBlock              `yaml:"_external,omitempty"                json:"_external,omitempty"`                                //nolint:lll
 }
 
 func (d IdentityDirectoryResource) GetType() ResourceType              { return ResourceTypeIdentityDirectory }

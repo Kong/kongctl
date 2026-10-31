@@ -69,7 +69,7 @@ type ExplainDoc struct {
 	ResourceType              ResourceType      `json:"resource_type"               yaml:"resource_type"`
 	CanonicalAlias            string            `json:"canonical_alias"             yaml:"canonical_alias"`
 	Aliases                   []string          `json:"aliases,omitempty"           yaml:"aliases,omitempty"`
-	ResourceClass             string            `json:"resource_class" yaml:"resource_class"`
+	ResourceClass             string            `json:"resource_class"              yaml:"resource_class"`
 	RootKey                   string            `json:"root_key,omitempty"          yaml:"root_key,omitempty"`
 	SupportsRoot              bool              `json:"supports_root"               yaml:"supports_root"`
 	SupportsNestedDeclaration bool              `json:"supports_nested_declaration" yaml:"supports_nested_declaration"`
@@ -140,36 +140,36 @@ type ExplainField struct {
 }
 
 type JSONSchema struct {
-	Schema        string                  `json:"$schema,omitempty" yaml:"$schema,omitempty"`
-	ID            string                  `json:"$id,omitempty" yaml:"$id,omitempty"`
-	Ref           string                  `json:"$ref,omitempty" yaml:"$ref,omitempty"`
-	Defs          map[string]*JSONSchema  `json:"$defs,omitempty" yaml:"$defs,omitempty"`
-	Title         string                  `json:"title,omitempty" yaml:"title,omitempty"`
-	Description   string                  `json:"description,omitempty" yaml:"description,omitempty"`
-	Type          any                     `json:"type,omitempty" yaml:"type,omitempty"`
-	Properties    map[string]*JSONSchema  `json:"properties,omitempty" yaml:"properties,omitempty"`
-	Required      []string                `json:"required,omitempty"    yaml:"required,omitempty"`
-	Items         *JSONSchema             `json:"items,omitempty" yaml:"items,omitempty"`
-	Additional    any                     `json:"additionalProperties,omitempty" yaml:"additionalProperties,omitempty"`
-	OneOf         []*JSONSchema           `json:"oneOf,omitempty" yaml:"oneOf,omitempty"`
-	AnyOf         []*JSONSchema           `json:"anyOf,omitempty" yaml:"anyOf,omitempty"`
-	Const         any                     `json:"const,omitempty" yaml:"const,omitempty"`
-	Enum          []any                   `json:"enum,omitempty" yaml:"enum,omitempty"`
-	Default       any                     `json:"default,omitempty" yaml:"default,omitempty"`
-	XResource     any                     `json:"x-kongctl-resource,omitempty" yaml:"x-kongctl-resource,omitempty"`
-	XPath         string                  `json:"x-kongctl-path,omitempty" yaml:"x-kongctl-path,omitempty"`
-	XRootKey      string                  `json:"x-kongctl-root-key,omitempty" yaml:"x-kongctl-root-key,omitempty"`
-	XClass        string                  `json:"x-kongctl-resource-class,omitempty" yaml:"x-kongctl-resource-class,omitempty"` //nolint:lll
-	XRefKind      string                  `json:"x-kongctl-ref-kind,omitempty" yaml:"x-kongctl-ref-kind,omitempty"`
-	XRelationship *ExplainRelationship    `json:"x-kongctl-relationship,omitempty" yaml:"x-kongctl-relationship,omitempty"`
-	XTag          string                  `json:"x-kongctl-preferred-tag,omitempty" yaml:"x-kongctl-preferred-tag,omitempty"` //nolint:lll
-	XDefault      string                  `json:"x-kongctl-default-from,omitempty" yaml:"x-kongctl-default-from,omitempty"`
-	XNotes        []string                `json:"x-kongctl-notes,omitempty" yaml:"x-kongctl-notes,omitempty"`
-	XSubject      *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty" yaml:"x-kongctl-subject,omitempty"`
-	XPlacement    *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty" yaml:"x-kongctl-placement,omitempty"`
-	XRoot         *bool                   `json:"x-kongctl-supports-root,omitempty" yaml:"x-kongctl-supports-root,omitempty"`                             //nolint:lll
+	Schema        string                  `json:"$schema,omitempty"                               yaml:"$schema,omitempty"` //nolint:lll
+	ID            string                  `json:"$id,omitempty"                                   yaml:"$id,omitempty"`
+	Ref           string                  `json:"$ref,omitempty"                                  yaml:"$ref,omitempty"`
+	Defs          map[string]*JSONSchema  `json:"$defs,omitempty"                                 yaml:"$defs,omitempty"`       //nolint:lll
+	Title         string                  `json:"title,omitempty"                                 yaml:"title,omitempty"`       //nolint:lll
+	Description   string                  `json:"description,omitempty"                           yaml:"description,omitempty"` //nolint:lll
+	Type          any                     `json:"type,omitempty"                                  yaml:"type,omitempty"`
+	Properties    map[string]*JSONSchema  `json:"properties,omitempty"                            yaml:"properties,omitempty"`           //nolint:lll
+	Required      []string                `json:"required,omitempty"                              yaml:"required,omitempty"`             //nolint:lll
+	Items         *JSONSchema             `json:"items,omitempty"                                 yaml:"items,omitempty"`                //nolint:lll
+	Additional    any                     `json:"additionalProperties,omitempty"                  yaml:"additionalProperties,omitempty"` //nolint:lll
+	OneOf         []*JSONSchema           `json:"oneOf,omitempty"                                 yaml:"oneOf,omitempty"`                //nolint:lll
+	AnyOf         []*JSONSchema           `json:"anyOf,omitempty"                                 yaml:"anyOf,omitempty"`                //nolint:lll
+	Const         any                     `json:"const,omitempty"                                 yaml:"const,omitempty"`                //nolint:lll
+	Enum          []any                   `json:"enum,omitempty"                                  yaml:"enum,omitempty"`
+	Default       any                     `json:"default,omitempty"                               yaml:"default,omitempty"`                               //nolint:lll
+	XResource     any                     `json:"x-kongctl-resource,omitempty"                    yaml:"x-kongctl-resource,omitempty"`                    //nolint:lll
+	XPath         string                  `json:"x-kongctl-path,omitempty"                        yaml:"x-kongctl-path,omitempty"`                        //nolint:lll
+	XRootKey      string                  `json:"x-kongctl-root-key,omitempty"                    yaml:"x-kongctl-root-key,omitempty"`                    //nolint:lll
+	XClass        string                  `json:"x-kongctl-resource-class,omitempty"              yaml:"x-kongctl-resource-class,omitempty"`              //nolint:lll
+	XRefKind      string                  `json:"x-kongctl-ref-kind,omitempty"                    yaml:"x-kongctl-ref-kind,omitempty"`                    //nolint:lll
+	XRelationship *ExplainRelationship    `json:"x-kongctl-relationship,omitempty"                yaml:"x-kongctl-relationship,omitempty"`                //nolint:lll
+	XTag          string                  `json:"x-kongctl-preferred-tag,omitempty"               yaml:"x-kongctl-preferred-tag,omitempty"`               //nolint:lll
+	XDefault      string                  `json:"x-kongctl-default-from,omitempty"                yaml:"x-kongctl-default-from,omitempty"`                //nolint:lll
+	XNotes        []string                `json:"x-kongctl-notes,omitempty"                       yaml:"x-kongctl-notes,omitempty"`                       //nolint:lll
+	XSubject      *ExplainSchemaSubject   `json:"x-kongctl-subject,omitempty"                     yaml:"x-kongctl-subject,omitempty"`                     //nolint:lll
+	XPlacement    *ExplainSchemaPlacement `json:"x-kongctl-placement,omitempty"                   yaml:"x-kongctl-placement,omitempty"`                   //nolint:lll
+	XRoot         *bool                   `json:"x-kongctl-supports-root,omitempty"               yaml:"x-kongctl-supports-root,omitempty"`               //nolint:lll
 	XNestedDecl   *bool                   `json:"x-kongctl-supports-nested-declaration,omitempty" yaml:"x-kongctl-supports-nested-declaration,omitempty"` //nolint:lll
-	XMaturity     *ExplainMaturity        `json:"x-kongctl-maturity,omitempty" yaml:"x-kongctl-maturity,omitempty"`
+	XMaturity     *ExplainMaturity        `json:"x-kongctl-maturity,omitempty"                    yaml:"x-kongctl-maturity,omitempty"`                    //nolint:lll
 	loadRejected  map[string]string
 }
 
@@ -184,16 +184,16 @@ func (s *JSONSchema) LoadRejectedFieldMessage(name string) string {
 
 // ExplainRelationship describes the user-visible contract of a resource relationship field.
 type ExplainRelationship struct {
-	Target              ResourceType            `json:"target,omitempty" yaml:"target,omitempty"`
-	Targets             []ResourceType          `json:"targets,omitempty" yaml:"targets,omitempty"`
+	Target              ResourceType            `json:"target,omitempty"               yaml:"target,omitempty"`
+	Targets             []ResourceType          `json:"targets,omitempty"              yaml:"targets,omitempty"`
 	TargetDiscriminator string                  `json:"target_discriminator,omitempty" yaml:"target_discriminator,omitempty"` //nolint:lll
-	Kind                RelationshipKind        `json:"kind"                  yaml:"kind"`
-	Cardinality         RelationshipCardinality `json:"cardinality" yaml:"cardinality"`
-	ResultField         RelationshipResultField `json:"result_field" yaml:"result_field"`
-	AcceptedTags        []string                `json:"accepted_tags,omitempty" yaml:"accepted_tags,omitempty"`
-	Selectors           []string                `json:"selectors,omitempty" yaml:"selectors,omitempty"`
-	ScopeField          string                  `json:"scope_field,omitempty" yaml:"scope_field,omitempty"`
-	RootOnly            bool                    `json:"root_only,omitempty" yaml:"root_only,omitempty"`
+	Kind                RelationshipKind        `json:"kind"                           yaml:"kind"`
+	Cardinality         RelationshipCardinality `json:"cardinality"                    yaml:"cardinality"`
+	ResultField         RelationshipResultField `json:"result_field"                   yaml:"result_field"`
+	AcceptedTags        []string                `json:"accepted_tags,omitempty"        yaml:"accepted_tags,omitempty"`
+	Selectors           []string                `json:"selectors,omitempty"            yaml:"selectors,omitempty"`
+	ScopeField          string                  `json:"scope_field,omitempty"          yaml:"scope_field,omitempty"`
+	RootOnly            bool                    `json:"root_only,omitempty"            yaml:"root_only,omitempty"`
 }
 
 type ExplainSchemaSubject struct {
@@ -325,10 +325,18 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 
 	segments := strings.Split(path, ".")
 	if strings.TrimSpace(segments[0]) == "identity" {
-		if len(segments) < 2 || (segments[1] != "directory" && segments[1] != "directories") {
+		if len(segments) < 2 {
 			return nil, fmt.Errorf("unsupported resource path %q", path)
 		}
-		canonical := append([]string{string(ResourceTypeIdentityDirectory)}, segments[2:]...)
+		kind := ResourceTypeIdentityDirectory
+		switch segments[1] {
+		case "directory", "directories":
+		case "principal", "principals":
+			kind = ResourceTypeIdentityPrincipal
+		default:
+			return nil, fmt.Errorf("unsupported resource path %q", path)
+		}
+		canonical := append([]string{string(kind)}, segments[2:]...)
 		subject, err := ResolveExplainSubject(strings.Join(canonical, "."))
 		if err != nil {
 			return nil, err
@@ -368,12 +376,16 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
-	if doc.ResourceType == ResourceTypeIdentityDirectory {
+	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 		if err != nil {
 			return nil, err
 		}
-		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: "directories", Array: true}}
+		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityPrincipal {
+			collection = "principals"
+		}
+		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: collection, Array: true}}
 		subject.ScaffoldTrail = []ExplainScaffoldNode{
 			{Step: subject.ScaffoldSteps[0], Node: groupNode},
 			{Step: subject.ScaffoldSteps[1], Node: doc.Schema.clone()},
@@ -864,6 +876,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "analytics.dashboards"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
+	case ResourceTypeIdentityPrincipal:
+		return "identity.principals"
 	}
 
 	if _, ok := visiting[doc.ResourceType]; ok {
@@ -943,6 +957,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	rootKey := resourceSetRootKey(reg.typ)
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
+	}
+	if rt == ResourceTypeIdentityPrincipal {
+		rootKey = "identity.principals"
 	}
 	aliases := []string{string(rt)}
 	if hyphenAlias := strings.ReplaceAll(string(rt), "_", "-"); hyphenAlias != string(rt) {

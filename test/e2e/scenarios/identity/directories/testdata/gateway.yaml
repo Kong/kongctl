@@ -3,4 +3,4 @@ _defaults:
     namespace: "identity-directory-e2e"
 control_planes:
   - ref: identity-gateway
-    name: "Identity Directory E2E Gateway"
+    name: !env KONGCTL_E2E_IDENTITY_GATEWAY_NAME

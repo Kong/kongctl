@@ -42,9 +42,18 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 			externalIDs[item.GetKonnectID()] = true
 		}
 	}
+	externalOnly := p.planner.resources.Identity != nil && len(p.planner.resources.Identity.Directories) > 0
+	if externalOnly {
+		for _, d := range p.planner.resources.Identity.Directories {
+			if !d.IsExternal() {
+				externalOnly = false
+				break
+			}
+		}
+	}
 	var currentRoots []managedRoot[state.IdentityDirectory]
 	for _, current := range all {
-		if !labels.IsManagedResource(current.NormalizedLabels) ||
+		if externalOnly || !labels.IsManagedResource(current.NormalizedLabels) ||
 			current.NormalizedLabels[labels.NamespaceKey] != config.Namespace || externalIDs[current.ID] {
 			continue
 		}
@@ -59,7 +68,10 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 		}
 		if current, exists := byName[directory.Name]; exists {
 			if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
-				return fmt.Errorf("directory %q is not owned by kongctl; explicitly adopt it before managing it", directory.Name)
+				return fmt.Errorf(
+					"directory %q is not owned by kongctl; explicitly adopt it before managing it",
+					directory.Name,
+				)
 			}
 			if err := resources.ValidateChildOwnership(
 				"directory "+directory.Name, current.ManagedBy, config.Namespace,
@@ -85,7 +97,7 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 			resource: directory, name: directory.Name, protected: directory.Protected(),
 		})
 	}
-	return reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityDirectory, desiredRoots, currentRoots,
+	if err := reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityDirectory, desiredRoots, currentRoots,
 		managedRootOperations[resources.IdentityDirectoryResource, state.IdentityDirectory]{
 			diff: p.diff,
 			create: func(d resources.IdentityDirectoryResource, plan *Plan) string {
@@ -117,7 +129,10 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 					Namespace: current.ManagedBy[resources.ChildNamespaceKey], Protection: false,
 				})
 			},
-		}, plan)
+		}, plan); err != nil {
+		return err
+	}
+	return p.planPrincipals(ctx, config, plan, byName)
 }
 
 func identityDirectoryFields(d resources.IdentityDirectoryResource) map[string]any {
