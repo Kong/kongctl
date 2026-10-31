@@ -402,16 +402,27 @@ joined associations is an inference. Observed October 31, 2026 UTC in US
 
 ### Q19 Recovery after uncertain generated-secret creation
 
-**Question:** Do OAuth client and client-secret creation support idempotency
-keys, request-outcome lookup, or another recovery contract after a timeout or
-server error? Can an issued value be recovered, or must the affected secret
-record be identified and explicitly revoked before creating a replacement?
+**Question:** Do OAuth client, client-secret and basic-auth password creation
+support idempotency keys, request-outcome lookup, or another recovery contract
+after a timeout or server error? Can an issued value be recovered, or must the
+affected secret record be identified and explicitly revoked before creating
+a replacement?
 
 **Known:** Client creation and separate secret creation return generated
 material once; subsequent GET/list responses omit it. No idempotency parameter
 is documented in the inspected operations. Separate secret creation consumes
 one of two total slots (Q16). Synthetic client-side tests exercise uncertain
 responses without retrying; no failure was injected into the live service.
+
+Basic-auth password creation has the same recovery question: POST returns
+generated material while later GET/list omit it, and two total slots include
+expired records (Q35). Direct US `.tech` calls verify successful generated and
+imported creation. Timeout/503 behavior is covered only by synthetic client
+tests; no outage or failure was injected into the deployed API.
+
+```http
+POST /v2/directories/{directoryId}/principals/{principalId}/basic-auths/{basicAuthId}/passwords
+```
 
 ### Q20 Client Basic authentication availability and enum annotation
 
@@ -779,6 +790,12 @@ imported creation both work. Duplicate usernames under the same principal or
 another principal in the directory return 409. Wrong-principal basic-auth
 GET/DELETE and wrong-principal/wrong-basic-auth password GET return 404.
 These results apply to the tested `.tech` deployment.
+
+Additional direct US `.tech` requests verify that password PATCH, PUT and
+DELETE reject an existing wrong principal or basic-auth record with 404,
+without altering the original password. Delete-all rejects a wrong principal
+with 404. Under the correct parent, delete-all returns 204 for both empty and
+populated collections; fresh list is empty and removed details return 404.
 
 ### Q36 Writable credential expiration in the combined SDK specification
 

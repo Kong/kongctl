@@ -19,9 +19,9 @@ kongctl get identity principals --directory-name default
 ```
 
 This creates a username without a password. Password creation, capture and
-rotation are separate API operations and are not exposed by these
-declarations. Runtime authentication needs a supported integration context
-(Q30); this example does not establish authentication success.
+rotation use the [explicit password commands](passwords.md) and are not
+exposed by these declarations. Runtime authentication needs an integration
+context (Q30); this example does not establish authentication success.
 
 Use the returned principal UUID to inspect the credential:
 
@@ -109,9 +109,10 @@ does not require adopting the platform-provided default.
 
 Password PATCH ignores management-map changes and clears omitted expiration.
 PUT requires secret material and expiration; metadata-only adoption has no
-verified preserving request (Q35). Preview SDK password write models also
-lack expiration. Secret-source/capture, rotation and slot-retirement support
-require separate work. See the
+verified preserving request (Q35). The preview SDK preserves omitted, dated
+and null expiration. Explicit password commands capture creation values and
+preserve existing metadata on updates; they do not enroll passwords into
+declarative ownership. See the
 [API questions](../../../kong-identity-api-questions.md),
 [compatibility tracker](../../../contributor/kong-identity-compatibility.md)
 and [metadata ledger](../../../contributor/kong-identity-metadata-storage.md).
