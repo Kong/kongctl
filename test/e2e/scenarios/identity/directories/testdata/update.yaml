@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: "identity-directory-e2e"
+identity:
+  directories:
+    - ref: people
+      name: "e2e-identity-directory"
+      description: Updated directory
+      allow_all_control_planes: true
+      allowed_control_planes: []
+      ttl_secs: 1200
+      negative_ttl_secs: 600
+      vault_enabled: false
+      labels: {}

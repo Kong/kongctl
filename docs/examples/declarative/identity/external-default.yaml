@@ -1,0 +1,13 @@
+# Reference an existing directory without changing it or claiming ownership.
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+
+# A known UUID can be used instead of the name selector:
+#     - ref: default-directory
+#       _external:
+#         id: 7a5e1b58-48a4-4586-b02d-0d91eccca152

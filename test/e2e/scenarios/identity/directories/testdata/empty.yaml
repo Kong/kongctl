@@ -1,0 +1,5 @@
+_defaults:
+  kongctl:
+    namespace: "identity-directory-e2e"
+identity:
+  directories: []
