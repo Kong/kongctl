@@ -301,9 +301,6 @@ func (p *Planner) resolvePrincipalIdentityDeletes(ctx context.Context, plan *Pla
 			}
 			parent.DependsOn = append(parent.DependsOn, plan.Changes[deletion].ID)
 		}
-		if err := p.client.VerifyPrincipalGroupMembershipsEmpty(ctx, parent.Parent.ID, parent.ResourceID); err != nil {
-			return err
-		}
 	}
 	for i := range plan.Changes {
 		child := &plan.Changes[i]

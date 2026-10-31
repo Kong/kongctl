@@ -331,6 +331,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		kind := ResourceTypeIdentityDirectory
 		switch segments[1] {
 		case "directory", "directories":
+		case "membership", "memberships":
+			kind = ResourceTypeIdentityGroupMembership
 		case "group", "groups":
 			kind = ResourceTypeIdentityGroup
 		case "principal", "principals":
@@ -390,6 +392,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
+		doc.ResourceType == ResourceTypeIdentityGroupMembership ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
 		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
@@ -397,6 +400,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityGroupMembership {
+			collection = "memberships"
+		}
 		if doc.ResourceType == ResourceTypeIdentityGroup {
 			collection = "groups"
 		}
@@ -917,6 +923,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.clients"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
+	case ResourceTypeIdentityGroupMembership:
+		return "identity.memberships"
 	case ResourceTypeIdentityGroup:
 		return "identity.groups"
 	case ResourceTypeIdentityPrincipal:
@@ -1014,6 +1022,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
+	}
+	if rt == ResourceTypeIdentityGroupMembership {
+		rootKey = "identity.memberships"
 	}
 	if rt == ResourceTypeIdentityGroup {
 		rootKey = "identity.groups"

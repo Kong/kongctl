@@ -50,6 +50,7 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
+	Memberships []IdentityGroupMembershipResource   `yaml:"memberships,omitempty"  json:"memberships,omitempty"`
 	Groups      []IdentityGroupResource             `yaml:"groups,omitempty"       json:"groups,omitempty"`
 	Identities  []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"   json:"identities,omitempty"`
 	Clients     []IdentityAuthServerClientResource  `yaml:"clients,omitempty"      json:"clients,omitempty"`

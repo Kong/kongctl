@@ -182,9 +182,16 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 	team := fixture.Group("OrgTeam", "importer", false)
 	team.Type = new(kkComps.KongGroupTypeTeam)
 	api := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directory.ID: {owned, team}}}
+	const principalID = "1248f559-063b-4f10-9098-9e6553b21d9b"
+	api.Memberships = map[string][]kkComps.KongGroupMembershipEntry{owned.ID: {{
+		ID:     "2248f559-063b-4f10-9098-9e6553b21d9b",
+		Member: kkComps.KongGroupMember{Type: kkComps.KongGroupMembershipTypePrincipal, ID: principalID},
+	}}}
 	client := state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
-		IdentityPrincipalsAPI:  &fixture.PrincipalAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+		IdentityPrincipalsAPI: &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
+			ID: principalID, ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
+		}}}}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 		IdentityGroupsAPI: api,
 	})
 	d := &declarativeDumpContext{includeChildren: true, stateClient: client}
@@ -201,6 +208,8 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 	require.NoError(t, err)
 	for _, group := range loaded.Identity.Groups {
 		if group.Ref == owned.ID {
+			require.Len(t, loaded.Identity.Memberships, 1)
+			require.Equal(t, "__REF__:alice#id", loaded.Identity.Memberships[0].Member.ID)
 			require.True(t, group.Protected())
 			require.False(t, group.IsExternal())
 			require.Equal(t, "group-team", resources.GetNamespace(group.Kongctl))
@@ -213,4 +222,23 @@ func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
 		GeneratePlan(t.Context(), loaded, planner.Options{Mode: planner.PlanModeApply})
 	require.NoError(t, err)
 	require.Empty(t, plan.Changes)
+	// Managed principals must be re-creatable with fresh IDs. A membership
+	// cannot keep the exported principal's old UUID in a new directory.
+	fresh, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	var managed []resources.IdentityGroupResource
+	for _, group := range fresh.Identity.Groups {
+		if !group.IsExternal() {
+			managed = append(managed, group)
+		}
+	}
+	fresh.Identity.Groups = managed
+	empty := state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{}, IdentityGroupsAPI: &fixture.GroupAPI{},
+		IdentityPrincipalsAPI: &fixture.PrincipalAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+	})
+	restored, err := planner.NewPlanner(empty, slog.Default()).
+		GeneratePlan(t.Context(), fresh, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.Len(t, restored.Changes, 4)
 }
