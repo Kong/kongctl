@@ -7,6 +7,15 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Basic-auth username/password get/list inspection is implemented with explicit
+ID versus username selection, public-only projections and complete cursor
+traversal. Shared username-record create/PUT/readback and password-aware
+delete helpers are ready for declarative enrollment. Their live inspection
+scenario passes in US `.tech`; declarative credential ownership, adoption,
+dump and principal credential-deletion guards are still pending. Section 41
+records the precise boundary and evidence. Password writes also need the
+SDK expiration-field correction and Q35's metadata-update contract.
+
 The initial survey below is historical. Development on `ki-triage` has since
 delivered directories and principals, including declarative lifecycle, reads,
 adoption, examples, and live E2E scenarios. Principal work is pushed in
@@ -2500,3 +2509,72 @@ Password write models still lack expires_at; no password writer is enabled
 by this query-only correction. Runtime continuity remains unverified under
 Q30, and metadata-only password updates remain Q35. No PR or SDK release is
 created; the overall epic goal stays active.
+
+## 41. Basic-auth inspection and username-record write foundations
+
+The branch adds scoped `get|list [konnect] identity principal-basic-auths`
+and `principal-basic-auth-passwords`, with singular forms for detail. The
+parent directory remains explicit, normally `--directory-name default`;
+principals require UUIDs because their display names are not unique.
+Basic-auth ID arguments are UUIDs, while `--username` always selects the
+exact username, including UUID-shaped usernames. Password commands select a
+username-record parent with either `--basic-auth-id` or `--username`.
+
+Dedicated response projections contain only public username/password
+metadata. They never serialize SDK credential items or propagate raw
+credential error bodies. Both detail and list support JSON, YAML and text
+tables. Complete cursor traversal validates raw data/page presence and
+rejects repeated IDs/cursors, malformed observations and failed pages without
+returning partial results. Existing SDK 995778a1c448 supplies the bracketed
+page query contract; no new SDK revision or model change was needed here.
+
+Shared username-record helpers now provide single-attempt creation, full
+PUT and fresh readback verification of ID/username/management metadata.
+The request projection contains no password fields. Metadata is not stamped
+by these helpers: ownership decisions and fresh omitted-field hydration
+belong to the future declarative callers. Deletion requires a complete empty
+password collection and never removes password slots automatically. Failure
+after a write reports the uncertainty without retry or rollback; a client
+emptiness check cannot prevent concurrent attachments atomically.
+
+The new live `identity/basic-auth` scenario passes in US `.tech`. It exercises
+user, agent and unclassified principals, five username records, five password
+records including generated/imported material and expiring/nonexpiring
+entries, exact username/ID lookup, all output formats, explicit product/list
+forms and wrong-principal/wrong-credential 404s. Request traces prove actual
+page-size-one traversal for both collections. The scenario scans outputs/logs
+for issued material and its base64 encoding. Captures are private and outside
+artifacts. Fixture teardown verifies all descendants before removing
+passwords, username records and principals; unexpected leftovers are not
+marked for the harness's generic principal cascade cleanup.
+
+Final live evidence:
+/home/rspurgeon/.cache/kong-identity-public-sdk/basic-auth-inspection-final/20261031-140226.
+An earlier full run also passed. A deliberate stop immediately after
+directory creation verified directory teardown. Fresh API inventory confirms
+empty principal/group/auth-server collections and restored unmanaged default
+01a19357-bd21-7cd8-9e5c-f18b5261f847. Both full runs' private capture paths
+are absent after teardown. Public directory settings match the saved baseline;
+existing user capture files were not accessed. Final inventory is saved in
+basic-auth-foundation-final-inventory.json under the same cache directory.
+
+Modernization, formatting, CGO-disabled build, zero-issue lint, full unit race
+tests, integration race tests, SDK patch tests, installer tests, E2E harness
+race tests, all 140 metrics tests and replay-input validation pass. Integration
+and auxiliary check logs are basic-auth-foundation-integration.log and
+basic-auth-foundation-other-gates.log in that cache. The pre-commit executable
+is not installed in this environment. Replay membership/cassettes are
+unchanged. Examples are documented in
+docs/examples/declarative/identity/basic-auth.md; compatibility restrictions
+and the metadata storage ledger are updated. No new API discrepancy was
+found; Q35 still records the password metadata-update question.
+
+This is a foundation, not completed #1418 acceptance. Declarative resource
+registration, namespace/ref identity policy, planning/execution/adoption/dump,
+full lifecycle examples/E2E and principal credential-deletion guards remain
+the next implementation work. Password request models still need expires_at
+and an explicit secret-source/capture/rotation policy; metadata-only adoption
+has no verified preserving request. No imperative credential mutations,
+declarative credential ownership or runtime authentication guarantee is
+introduced here. Keep #1418 open/In Progress until main merge; no PR is opened
+and the overall epic goal stays active.

@@ -714,3 +714,31 @@ wire regression fails on both old request shapes and passes after correction;
 full SDK tests pass. Existing write models suffice for username records.
 Password write models separately omit expires_at due to the shared read-only
 merged schema; that is SDK preparation work, not proof of an unavailable API.
+
+### Implemented read and username-write foundations
+
+Basic-auth username and password get/list commands now use dedicated public
+response projections, sanitized errors and complete raw-presence-aware
+pagination. Missing data/page metadata, repeated IDs/cursors and failed pages
+return no partial result. ID arguments are always UUIDs; exact username
+selection is a separate flag so UUID-shaped usernames remain usable.
+Detail and list text output both use tables.
+
+Shared username-record helpers provide create, GET/full PUT/readback and
+password-aware deletion. They do not grant ownership, stamp management maps,
+or expose imperative mutation commands. A full PUT body contains only the
+explicit username and management map; callers must hydrate omitted fields
+from fresh state. Requested identity/metadata must survive both the write
+response and a subsequent detail read. An uncertain or inconsistent result
+returns an error without automatic rollback. POST disables both retry layers.
+Delete requires a complete empty password observation; it never retires
+password slots. This client check cannot close a concurrent creation race.
+
+Declarative basic-auth registration/planning/execution/dump/adoption and
+principal credential-deletion guards are still pending. Password metadata
+writes/secret rotation remain outside this slice under Q35 and the separate
+SDK request-model gap. The live identity/basic-auth scenario verifies reads
+for user, agent and unclassified principals, five username/password records,
+all output formats, actual bracketed cursor traversal and wrong-parent 404s.
+Generated/imported fixture material stays in private captures; observed
+credential descendants are removed explicitly before fixture principals.

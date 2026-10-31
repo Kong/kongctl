@@ -27,6 +27,7 @@ type SDKAPI interface {
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI
 	GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader
+	GetIdentityBasicAuthAPI() IdentityBasicAuthAPI
 	GetIdentityGroupsAPI() IdentityGroupsAPI
 	GetIdentityGroupsReader() IdentityGroupsReader
 	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
@@ -139,6 +140,13 @@ func (k *KonnectSDK) GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdenti
 }
 
 func (k *KonnectSDK) GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader {
+	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipalCredential
+}
+
+func (k *KonnectSDK) GetIdentityBasicAuthAPI() IdentityBasicAuthAPI {
 	if k.SDK == nil || k.SDK.KongPrincipalCredential == nil {
 		return nil
 	}
