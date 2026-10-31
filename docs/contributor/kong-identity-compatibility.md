@@ -132,6 +132,53 @@ direct contract tests verify safe recovery after uncertain outcomes. Any
 future retry must use the verified deduplication mechanism; name/ref matching
 alone is not proof that a POST is safe to replay.
 
+## OAuth client update and pagination contracts
+
+Related API questions: Q15–Q18. Client get/list and secret metadata get/list
+are implemented. Full client declarative writes and explicit secret lifecycle
+remain separate work; reads do not imply that those operations are complete.
+
+- Client pagination now follows actual pages to an empty terminal page,
+  ignoring totals for completion. Two clients each linked to two scopes
+  reported total four. This also fixes the shared client observation used
+  when planning or executing scope deletion. Missing/repeated IDs, invalid
+  pagination and failed pages still reject the complete observation.
+- Client names are documented unique per server and a direct duplicate
+  create returned 409. Positional CLI selectors are always opaque client IDs;
+  exact-name selection uses `--client-name`, with full-scan duplicate and
+  fresh detail checks. Name/ID ambiguity must not be guessed from UUID shape.
+- A labels-only PATCH resets `token_endpoint_auth_method` to
+  `client_secret_post`. Future writers must carry the fresh existing method
+  explicitly when it is omitted from configuration, including adoption and
+  protection-only updates. Verify preservation before enabling writes. Remove
+  that workaround only after direct basic/none omission tests pass (Q15).
+  A direct runtime probe verified the safe path: the same original secret
+  minted a client-credentials token before and after a label PATCH carrying
+  the existing `client_secret_basic` method. Deleting that secret changed
+  authentication to 401; importing replacement material restored 200. No
+  token or secret values were logged. This establishes the tested HTTP path,
+  not a completed SDK executor or output-capture implementation.
+- Raw HTTP accepts explicit empty grant, response, redirect and allowed-scope
+  arrays, and null or empty login URI. The SDK's update slices currently use
+  `omitempty`, and its authentication-method field has a default. Wire tests
+  and targeted serialization fixes are required before declarative writes;
+  do not assume the working raw request equals the SDK payload.
+- Authorization-code grants were rejected in US `.com`. Keep API capability
+  limits explicit and verify other grants independently; do not silently
+  rewrite a requested grant or make broad support claims (Q17).
+- Secrets have two total slots even when both records are disabled. An
+  explicit lifecycle must never delete a record merely to make room without
+  a requested retirement. Creation generates material once; secure capture,
+  single-attempt failure handling, and recovery guidance remain required.
+  No declarative secret-slot naming contract exists (Q16).
+- Secret reads project onto a metadata-only type. No read command serializes
+  an SDK secret item directly. Regression tests inject unexpected values and
+  assert they cannot appear in JSON/YAML; live coverage checks all formats.
+
+Revisit count traversal only after multi-scope, page-size-one tests verify a
+correct resource total (Q18). Keep compatibility with older deployments and
+the no-partial-inventory guarantee.
+
 ## Recording resolution
 
 For each resolved question, record the team answer, date, environment/API

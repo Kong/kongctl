@@ -21,6 +21,8 @@ resource is implemented.
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
+| Auth-server OAuth client | `labels`; no `managed_by` | Planned: `labels`; writes pending | Get/list implemented. Direct create/GET/list/PATCH retain labels; null deletes individual keys. Unrelated PATCH resets auth method (Q15). Creation returns a secret once. #1401 is In Progress. |
+| Auth-server client secret | None | None | GET/list metadata inspection; generated ID, enabled state and timestamps only. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress. |
 
 Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 `kongctl-protected`. Principal ownership adds `kongctl-ref` as the fifth entry.
@@ -44,7 +46,6 @@ These rows describe available API fields, not completed implementations.
 | Imported principal and group API keys | Read/update expose `managed_by`; imported create lacks it | No atomic ownership stamp at creation in the inspected body. Q4 tracks the gap; do not equate a later PATCH with atomic creation. #1417, #2659. |
 | Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Possible persisted ref/ownership. Write-only secret handling and password-slot limits also govern support. #1418. |
-| Auth-server OAuth clients | `labels`; no `managed_by` | Follow established label ownership after verification. Initial generated-secret capture is required for creation. #1401. |
 
 Presence in a response does not establish that every create/update variant can
 write the field. Record that distinction when testing each endpoint.
@@ -96,6 +97,16 @@ authority for another resource family.
   ownership field exists; adopt the parent. Saved writes recheck its identity,
   namespace and protection. Claim/principal creation does not replay uncertain
   POST outcomes; Q14 tracks the API idempotency contract.
+- OAuth clients/secrets, October 31 UTC: conventional client labels persist
+  through direct HTTP create, reads and partial updates; the client name is
+  unique per server (duplicate POST returns 409). Namespace/protection writes
+  remain pending. The new commands inspect client configuration and project
+  secrets onto a type containing only ID, enabled state and timestamps.
+  Client pagination traverses terminal pages because totals exceed client
+  counts with multiple scope links (Q18). Complete observations also guard
+  scope deletion.
+  Q15 records the unrelated authentication-method reset on PATCH, Q16 the
+  two-record secret limit, and Q17 unavailable authorization-code grants.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

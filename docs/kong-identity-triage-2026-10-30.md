@@ -14,8 +14,10 @@ adoption, examples, and live E2E scenarios. Principal work is pushed in
 its full live lifecycle scenario and protected-resource teardown pass.
 Scopes and claims now have declarative lifecycle support as managed-server
 children, plus get/list, examples and live E2E coverage. Their issues #1402 and
-#1403 remain In Progress until merge. OAuth clients and secrets remain
-separate implementation work. Sections 19–20 record contracts and questions.
+#1403 remain In Progress until merge. OAuth client and secret metadata get/list
+are implemented; client declarative writes and secret lifecycle remain
+separate work. Sections 19–21 record contracts and questions. #1401 and #1404
+are now In Progress.
 
 The public preview SDK is now pinned to `dfd890eb1a03`, including targeted
 serialization fixes for clearing auth-server origins and claim scope links.
@@ -1260,6 +1262,76 @@ Issues #1402/#1403 remain In Progress until merge, with no implementation PR.
 OAuth clients and secret lifecycle remain the next auth-server work. Directory
 identities, credentials, groups, and release-gated Vault/IdP/import families
 remain tracked in their existing issues and API questions.
+
+## 21. OAuth clients and secret metadata inspection
+
+Get/list commands now inspect OAuth clients by an explicit parent server and
+opaque client ID or `--client-name`. They expose public configuration in
+JSON, YAML and text. Client IDs are not inferred from UUID syntax. Exact-name
+lookup scans all pages, rejects duplicates and rechecks the detail response.
+Secret inspection requires an explicit client ID/name within that server;
+its output type contains only ID, enabled state and timestamps. Secret values
+cannot be serialized by these commands, even if returned unexpectedly.
+
+Direct HTTP probes confirmed unique client names (409 on duplicate), label
+merge/null removal, array clearing, durations, scope policies and one-time
+generated secrets. They also found new engineering questions:
+
+- Q15: labels-only PATCH resets an omitted client authentication method to
+  `client_secret_post`, including from `client_secret_basic` or `none`.
+  Future writes must preserve the fresh method explicitly.
+- Q16: the two-secret limit counts disabled records. A third creation returns
+  403 even with no enabled secrets; explicitly deleting a record frees a slot.
+- Q17: authorization-code grants are enumerated in the schema but rejected
+  in the current US `.com` environment.
+- Q18: two clients linked to two scopes each report client-list total four.
+  Terminal pages contain no additional clients. Client observations now follow
+  actual pages rather than that total; incomplete results still fail closed.
+  This correction also applies to existing scope-deletion reference guards.
+
+Client labels provide a future independent ownership store. Secret records
+have no labels, `managed_by`, or name. No declarative secret-slot identity is
+invented. Client creation and explicit rotation still require secure capture,
+retry/recovery behavior and SDK serialization fixes for empty arrays before
+they can ship. No client writes are exposed by this inspection slice.
+
+A direct runtime probe minted a client-credentials token with the original
+secret before and after a label PATCH that explicitly retained
+`client_secret_basic`; both returned 200. Deleting the secret produced 401.
+Creating a replacement with supplied material returned 201, echoed the
+supplied value once, and restored token issuance (200). Values stayed in
+memory and were never logged; the temporary client/server were removed.
+
+The new scenario creates two clients with multiple scope links, a disabled
+second secret and a second server. It checks pagination, every public read
+field, parent/client isolation, selector errors and all output formats.
+Fixture cleanup scans all child collections before deleting anything, and
+deletes only generated clients bearing the server-ID fixture label. This also
+supports a deliberate stop immediately after creating a secret.
+Enabled replay coverage and recordings are unchanged.
+
+Live artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `oauth-read-live-fixed/20261031-010726`
+- `oauth-read-stopped/20261031-010825`
+- `oauth-client-observation-regression/20261031-010908`
+
+The first client run exposed Q18; guarded cleanup refused the incomplete
+inventory. All of those exact generated fixtures were subsequently inspected
+and removed. The corrected run and stopped run both clean up successfully.
+The scope/claim lifecycle scenario also passes with the client traversal fix.
+An artifact scan checked 193 JSON files in the successful read/stopped runs
+and found no unredacted `secret` or `client_secret` fields.
+
+All final quality gates pass: modernization, formatting, CGO-disabled build,
+zero-issue lint, unit/integration/harness race tests and scenario inventory.
+`oauth-read-final-status.json` records all zero exit codes. A final remote
+inventory is empty after fixture cleanup.
+
+Commands and boundaries are documented in
+`docs/examples/declarative/identity/auth-server-clients.md`. #1401 and #1404
+remain open/In Progress; their declarative and rotation acceptance criteria
+are not complete. API questions and metadata findings are in the running logs.
 
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 

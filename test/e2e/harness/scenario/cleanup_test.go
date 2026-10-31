@@ -128,7 +128,7 @@ func TestResourceCleanupPreservesUnmarkedPrincipalInTestDirectory(t *testing.T) 
 }
 
 func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
-	for _, fault := range []string{"", "scope", "claim", "client"} {
+	for _, fault := range []string{"", "scope", "claim", "client", "marked-client", "missing-client-label"} {
 		t.Run(fault, func(t *testing.T) {
 			cli, dir := cleanupFixtureCLI(t)
 			server := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
@@ -146,14 +146,22 @@ func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
 			case "claim":
 				values[2]["name"] = "foreign-claim"
 			case "client":
-				values = append(values, map[string]any{"id": "opaque-client", "kind": "client"})
+				values = append(values, map[string]any{"id": "opaque-client", "kind": "client", "server_id": server})
+			case "marked-client", "missing-client-label":
+				labels := map[string]string{}
+				if fault == "marked-client" {
+					labels["e2e-fixture"] = server
+				}
+				values = append(values, map[string]any{
+					"id": "opaque-client", "name": prefix + "client", "kind": "client", "server_id": server, "labels": labels,
+				})
 			}
 			data, err := json.Marshal(values)
 			require.NoError(t, err)
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
 			err = cleanupResource(t.Context(), cli,
 				cleanupTarget{kind: resources.ResourceTypeIdentityAuthServer, name: "generated-server"})
-			if fault != "" {
+			if fault != "" && fault != "marked-client" {
 				require.Error(t, err)
 				_, err = os.Stat(filepath.Join(dir, "deleted"))
 				require.True(t, os.IsNotExist(err), "foreign children must prevent all fixture deletion")
@@ -162,7 +170,11 @@ func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
 			require.NoError(t, err)
 			deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
 			require.NoError(t, err)
-			require.Equal(t, "/v1/auth-servers/"+server+"/claims/"+claimID+"\n"+
+			clientDeletion := ""
+			if fault == "marked-client" {
+				clientDeletion = "/v1/auth-servers/" + server + "/clients/opaque-client\n"
+			}
+			require.Equal(t, clientDeletion+"/v1/auth-servers/"+server+"/claims/"+claimID+"\n"+
 				"/v1/auth-servers/"+server+"/scopes/"+scopeID+"\n"+
 				"/v1/auth-servers/"+server+"?force=false\n", string(deleted))
 		})
@@ -188,9 +200,9 @@ if args[0]=='get':
     if args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
-    elif args[2] in ['auth-server-claims','auth-server-scopes']:
+    elif args[2] in ['auth-server-claims','auth-server-scopes','auth-server-clients']:
         server=args[args.index('--auth-server-id')+1]
-        kind='claim' if args[2]=='auth-server-claims' else 'scope'
+        kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
         values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client']]

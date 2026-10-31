@@ -5,6 +5,7 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -134,8 +135,9 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 	return err
 }
 
-// These APIs have no fixture labels. Only names carrying this generated
-// server's UUID or generated name are cleanup candidates. Check all collections first.
+// Scopes and claims have no fixture labels. Only names carrying this generated
+// server's UUID or generated name are candidates. Clients must also carry the
+// server's ID in a fixture label. Check all collections before deleting anything.
 func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID, serverName string) error {
 	type fixture struct{ ID, Name string }
 	var claims, scopes []fixture
@@ -158,33 +160,39 @@ func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID, 
 			}
 		}
 	}
-	var clients struct {
-		Data []any `json:"data"`
-		Meta struct {
-			Page struct {
-				Total *int64 `json:"total"`
-			} `json:"page"`
-		} `json:"meta"`
+	var clients []struct {
+		ID     string            `json:"id"`
+		Name   string            `json:"name"`
+		Labels map[string]string `json:"labels"`
 	}
 	cli.OverrideNextOutput("json")
 	if _, err := cli.RunJSON(
 		ctx, &clients,
-		"api", "get", "/v1/auth-servers/"+serverID+"/clients?page[size]=1&page[number]=1",
+		"get", "identity", "auth-server-clients", "--auth-server-id", serverID,
 	); err != nil {
 		return err
 	}
-	if clients.Data == nil || clients.Meta.Page.Total == nil || *clients.Meta.Page.Total != 0 || len(clients.Data) != 0 {
-		return fmt.Errorf("auth-server clients must be absent before fixture cleanup")
+	if clients == nil {
+		return fmt.Errorf("missing auth-server client inventory before fixture cleanup")
+	}
+	clientFixtures := make([]fixture, 0, len(clients))
+	for _, value := range clients {
+		marked := strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") ||
+			strings.HasPrefix(value.Name, serverName+"-")
+		if value.ID == "" || !marked || value.Labels["e2e-fixture"] != serverID {
+			return fmt.Errorf("auth server contains an unmarked client; refusing fixture cleanup")
+		}
+		clientFixtures = append(clientFixtures, fixture{ID: value.ID, Name: value.Name})
 	}
 	for _, collection := range []struct {
 		path   string
 		values []fixture
-	}{{"claims", claims}, {"scopes", scopes}} {
+	}{{"clients", clientFixtures}, {"claims", claims}, {"scopes", scopes}} {
 		for _, value := range collection.values {
 			cli.OverrideNextOutput("json")
 			if _, err := cli.Run(
 				ctx,
-				"api", "delete", "/v1/auth-servers/"+serverID+"/"+collection.path+"/"+value.ID,
+				"api", "delete", "/v1/auth-servers/"+serverID+"/"+collection.path+"/"+url.PathEscape(value.ID),
 			); err != nil {
 				return err
 			}

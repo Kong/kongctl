@@ -4,6 +4,7 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityAuthServerClientsAPIFactory   func() IdentityAuthServerClientsAPI
 	IdentityAuthServerClientsFactory      func() IdentityAuthServerClientsReader
 	IdentityAuthServerScopesFactory       func() IdentityAuthServerScopesAPI
 	IdentityAuthServerClaimsFactory       func() IdentityAuthServerClaimsAPI
@@ -93,6 +94,16 @@ type MockKonnectSDK struct {
 func (m *MockKonnectSDK) GetIdentityAuthServerClientsReader() IdentityAuthServerClientsReader {
 	if m.IdentityAuthServerClientsFactory != nil {
 		return m.IdentityAuthServerClientsFactory()
+	}
+	if m.IdentityAuthServerClientsAPIFactory != nil {
+		return m.IdentityAuthServerClientsAPIFactory()
+	}
+	return nil
+}
+
+func (m *MockKonnectSDK) GetIdentityAuthServerClientsAPI() IdentityAuthServerClientsAPI {
+	if m.IdentityAuthServerClientsAPIFactory != nil {
+		return m.IdentityAuthServerClientsAPIFactory()
 	}
 	return nil
 }
