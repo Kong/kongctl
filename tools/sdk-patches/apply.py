@@ -67,8 +67,33 @@ def post_generate(sdk, manifest):
             continue
         text = replacements[path] if path in replacements else path.read_text()
         replacements[path] = replace_tag(text, patch)
+    for patch in manifest.get("post_generation_doc_sections", []):
+        path = sdk / patch["file"]
+        if patch.get("optional_file") and not path.exists():
+            continue
+        text = replacements[path] if path in replacements else path.read_text()
+        replacements[path] = replace_doc_section(text, patch)
     for path, text in replacements.items():
         path.write_text(text)
+
+
+def replace_doc_section(text, patch):
+    pattern = r"^## " + re.escape(patch["section"]) + r"\n.*?(?=^## |\Z)"
+    matches = list(re.finditer(pattern, text, re.M | re.S))
+    if len(matches) != 1:
+        raise ValueError(f"{patch['file']}: expected one documentation section {patch['section']}")
+    section = matches[0]
+    updated = replace_tag(section.group(), patch)
+    imports = list(re.finditer(r"^import[ \t]*\(\n.*?^\)", updated, re.M | re.S))
+    if len(imports) != 1:
+        raise ValueError(f"{patch['file']}: expected one Go example import block in {patch['section']}")
+    block = imports[0]
+    new_imports = block.group()
+    for name in patch["imports"]:
+        if f'"{name}"' not in new_imports:
+            new_imports = re.sub(r"^import[ \t]*\(\n", f'import (\n\t"{name}"\n', new_imports, count=1)
+    updated = updated[:block.start()] + new_imports + updated[block.end():]
+    return text[:section.start()] + updated + text[section.end():]
 
 
 def prepare(sdk, manifest):

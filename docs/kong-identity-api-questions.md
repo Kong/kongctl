@@ -774,6 +774,41 @@ another principal in the directory return 409. Wrong-principal basic-auth
 GET/DELETE and wrong-principal/wrong-basic-auth password GET return 404.
 These results apply to the tested `.tech` deployment.
 
+### Q36 Writable credential expiration in the combined SDK specification
+
+**Observed (October 31, 2026, source/specification inspection):** The
+canonical directory specification accepts a writable, nullable date-time
+`expires_at` in principal/group API-key and basic-auth password requests.
+`ReplacePasswordBody` also requires that property. Direct US `.tech` requests
+accept expiration values and null; this finding concerns specification
+composition rather than a missing HTTP API capability.
+
+The combined Go SDK specification resolves those request references to an
+`ExpiresAt` component with `readOnly: true`. Generated request models then
+omit expiration, including the password replacement's required property.
+Two common definitions share that component name:
+
+- `src/common/definitions/properties.yaml#/components/schemas/ExpiresAt`
+  is writable and nullable, and is referenced by credential request bodies.
+- `src/common/definitions/identity.yaml#/components/schemas/ExpiresAt`
+  inherits a read-only timestamp for IAM token responses.
+
+**Question:** Can composition preserve the writable credential expiration
+schema separately from read-only token timestamps, including nullable values
+and the password replacement's required property?
+
+Example affected operation:
+
+```http
+PUT /v2/directories/{directoryId}/principals/{principalId}/basic-auths/{basicAuthId}/passwords/{passwordId}
+```
+
+The canonical request requires both `secret` and `expires_at`. A generated
+request model that omits `expires_at` cannot express that documented request.
+The principal/group generated/imported key-create and key/password PATCH
+bodies also reference the writable schema. Backend expiration omission and
+management-map behavior are separate observations in Q28/Q35.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

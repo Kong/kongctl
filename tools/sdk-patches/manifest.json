@@ -132,6 +132,120 @@
       "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
       "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
       "optional_file": true
+    },
+    {
+      "file": "models/components/createprincipalkeybody.go",
+      "before": "import (\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"encoding/json\"\n\t\"errors\"\n\t\"fmt\"\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createprincipalkeybody.go",
+      "before": "type CreatePrincipalKeyBodyv1 struct {\n\tType CreatePrincipalKeyBodyv1Type `json:\"type\"`\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName *string `json:\"name,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt *time.Time `json:\"expires_at,omitempty\"`",
+      "after": "type CreatePrincipalKeyBodyv1 struct {\n\tType CreatePrincipalKeyBodyv1Type `json:\"type\"`\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName *string `json:\"name,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt optionalnullable.OptionalNullable[time.Time] `json:\"expires_at,omitempty\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createprincipalkeybody.go",
+      "before": "func (c *CreatePrincipalKeyBodyv1) GetExpiresAt() *time.Time {",
+      "after": "func (c *CreatePrincipalKeyBodyv1) GetExpiresAt() optionalnullable.OptionalNullable[time.Time] {",
+      "optional_file": true
+    },
+    {
+      "file": "docs/models/components/createprincipalkeybodyv1.md",
+      "before": "[*time.Time](https://pkg.go.dev/time#Time)",
+      "after": "`optionalnullable.OptionalNullable[time.Time]`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createprincipalkeybody.go",
+      "before": "type CreatePrincipalKeyBodyImported struct {\n\tType CreatePrincipalKeyBodyImportedType `json:\"type\"`\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName   *string `json:\"name,omitempty\"`\n\tSecret string  `json:\"secret\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt *time.Time `json:\"expires_at,omitempty\"`",
+      "after": "type CreatePrincipalKeyBodyImported struct {\n\tType CreatePrincipalKeyBodyImportedType `json:\"type\"`\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName   *string `json:\"name,omitempty\"`\n\tSecret string  `json:\"secret\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt optionalnullable.OptionalNullable[time.Time] `json:\"expires_at,omitempty\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createprincipalkeybody.go",
+      "before": "func (c *CreatePrincipalKeyBodyImported) GetExpiresAt() *time.Time {",
+      "after": "func (c *CreatePrincipalKeyBodyImported) GetExpiresAt() optionalnullable.OptionalNullable[time.Time] {",
+      "optional_file": true
+    },
+    {
+      "file": "docs/models/components/createprincipalkeybodyimported.md",
+      "before": "[*time.Time](https://pkg.go.dev/time#Time)",
+      "after": "`optionalnullable.OptionalNullable[time.Time]`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateprincipalkeybody.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateprincipalkeybody.go",
+      "before": "type UpdatePrincipalKeyBody struct {\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName *string `json:\"name,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt *time.Time `json:\"expires_at,omitempty\"`",
+      "after": "type UpdatePrincipalKeyBody struct {\n\t// Human-readable name of the API key. `null` if the key has no name.\n\t//\n\tName *string `json:\"name,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt optionalnullable.OptionalNullable[time.Time] `json:\"expires_at,omitempty\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateprincipalkeybody.go",
+      "before": "func (u *UpdatePrincipalKeyBody) GetExpiresAt() *time.Time {",
+      "after": "func (u *UpdatePrincipalKeyBody) GetExpiresAt() optionalnullable.OptionalNullable[time.Time] {",
+      "optional_file": true
+    },
+    {
+      "file": "docs/models/components/updateprincipalkeybody.md",
+      "before": "[*time.Time](https://pkg.go.dev/time#Time)",
+      "after": "`optionalnullable.OptionalNullable[time.Time]`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createpasswordbody.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createpasswordbody.go",
+      "before": "type CreatePasswordBody struct {\n\tSecret *string `json:\"secret,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt *time.Time `json:\"expires_at,omitempty\"`",
+      "after": "type CreatePasswordBody struct {\n\tSecret *string `json:\"secret,omitempty\"`\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt optionalnullable.OptionalNullable[time.Time] `json:\"expires_at,omitempty\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/createpasswordbody.go",
+      "before": "func (c *CreatePasswordBody) GetExpiresAt() *time.Time {",
+      "after": "func (c *CreatePasswordBody) GetExpiresAt() optionalnullable.OptionalNullable[time.Time] {",
+      "optional_file": true
+    },
+    {
+      "file": "docs/models/components/createpasswordbody.md",
+      "before": "[*time.Time](https://pkg.go.dev/time#Time)",
+      "after": "`optionalnullable.OptionalNullable[time.Time]`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updatepasswordbody.go",
+      "before": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"time\"\n)",
+      "after": "import (\n\t\"github.com/Kong/sdk-konnect-go/internal/utils\"\n\t\"github.com/Kong/sdk-konnect-go/optionalnullable\"\n\t\"time\"\n)",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updatepasswordbody.go",
+      "before": "type UpdatePasswordBody struct {\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt *time.Time `json:\"expires_at,omitempty\"`",
+      "after": "type UpdatePasswordBody struct {\n\t// An ISO-8601 timestamp representation of entity expiration date.\n\tExpiresAt optionalnullable.OptionalNullable[time.Time] `json:\"expires_at,omitempty\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updatepasswordbody.go",
+      "before": "func (u *UpdatePasswordBody) GetExpiresAt() *time.Time {",
+      "after": "func (u *UpdatePasswordBody) GetExpiresAt() optionalnullable.OptionalNullable[time.Time] {",
+      "optional_file": true
+    },
+    {
+      "file": "docs/models/components/updatepasswordbody.md",
+      "before": "[*time.Time](https://pkg.go.dev/time#Time)",
+      "after": "`optionalnullable.OptionalNullable[time.Time]`",
+      "optional_file": true
     }
   ],
   "tests": {
@@ -143,6 +257,53 @@
     "tests/auth_server_arrays_test.go.txt": "auth_server_arrays_kongctl_test.go",
     "tests/auth_server_claim_arrays_test.go.txt": "auth_server_claim_arrays_kongctl_test.go",
     "tests/auth_server_client_fields_test.go.txt": "auth_server_client_fields_kongctl_test.go",
-    "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go"
-  }
+    "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go",
+    "tests/identity_credential_expiration_test.go.txt": "identity_credential_expiration_kongctl_test.go"
+  },
+  "post_generation_doc_sections": [
+    {
+      "file": "docs/sdks/kongprincipalcredential/README.md",
+      "section": "UpdatePrincipalKey",
+      "before": "UpdatePrincipalKeyBody: components.UpdatePrincipalKeyBody{\n            ExpiresAt: types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\"),",
+      "after": "UpdatePrincipalKeyBody: components.UpdatePrincipalKeyBody{\n            ExpiresAt: optionalnullable.From(types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\")),",
+      "imports": [
+        "github.com/Kong/sdk-konnect-go/types",
+        "github.com/Kong/sdk-konnect-go/optionalnullable"
+      ],
+      "optional_file": true
+    },
+    {
+      "file": "docs/sdks/kongprincipalcredential/README.md",
+      "section": "CreatePassword",
+      "before": "CreatePasswordBody: components.CreatePasswordBody{\n            ExpiresAt: types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\"),",
+      "after": "CreatePasswordBody: components.CreatePasswordBody{\n            ExpiresAt: optionalnullable.From(types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\")),",
+      "imports": [
+        "github.com/Kong/sdk-konnect-go/types",
+        "github.com/Kong/sdk-konnect-go/optionalnullable"
+      ],
+      "optional_file": true
+    },
+    {
+      "file": "docs/sdks/kongprincipalcredential/README.md",
+      "section": "UpdatePassword",
+      "before": "UpdatePasswordBody: components.UpdatePasswordBody{\n            ExpiresAt: types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\"),",
+      "after": "UpdatePasswordBody: components.UpdatePasswordBody{\n            ExpiresAt: optionalnullable.From(types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\")),",
+      "imports": [
+        "github.com/Kong/sdk-konnect-go/types",
+        "github.com/Kong/sdk-konnect-go/optionalnullable"
+      ],
+      "optional_file": true
+    },
+    {
+      "file": "docs/sdks/principalgroup/README.md",
+      "section": "UpdateGroupKey",
+      "before": "UpdatePrincipalKeyBody: components.UpdatePrincipalKeyBody{\n            ExpiresAt: types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\"),",
+      "after": "UpdatePrincipalKeyBody: components.UpdatePrincipalKeyBody{\n            ExpiresAt: optionalnullable.From(types.MustNewTimeFromString(\"2022-11-04T20:10:06.927Z\")),",
+      "imports": [
+        "github.com/Kong/sdk-konnect-go/types",
+        "github.com/Kong/sdk-konnect-go/optionalnullable"
+      ],
+      "optional_file": true
+    }
+  ]
 }
