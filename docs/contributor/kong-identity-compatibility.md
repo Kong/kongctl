@@ -6,10 +6,18 @@ for engineering stay in the separate
 [question log](../kong-identity-api-questions.md), without client-specific
 implementation requirements.
 
+The original restrictions below derive from dated US `.com` probes. They do
+not establish equivalent prerelease `.tech` limitations. Revalidate the
+native API in `.tech` before deciding which restrictions remain necessary.
+The October 31 native revalidation is recorded below and in the engineering
+question matrix. No CLI behavior was changed during that validation pass.
+
 ## Principal type changes
 
 Related API question: Q9. Creation supports user, agent, and unclassified/null
 types, but tested PUT/PATCH requests did not change an existing type.
+In `.tech`, a non-null type change now returns an explicit immutable-field
+error; a requested null still returns success without clearing the type.
 
 - Initial contract: type is create-only. Preserve it when omitted on update;
   reject requested changes, including a requested reset to null.
@@ -22,8 +30,18 @@ types, but tested PUT/PATCH requests did not change an existing type.
 
 ## Principal active state
 
-Related API question: Q10. Tested responses omitted active. The generated
-SDK's plain bool cannot distinguish absence from false.
+Related API question: Q10. Earlier US `.com` responses omitted active. The
+generated SDK's plain bool cannot distinguish absence from false.
+
+US `.tech` revalidation clears the native API blocker for directly provisioned
+principals: false creation/read/list, PUT activation, PATCH deactivation and
+reactivation work. Unrelated PUT/PATCH preserve omitted false on user, agent
+and unclassified principals. Existing SDK request models already expose
+optional `*bool` fields without defaults; no new SDK field is required.
+Declarative active support is still unimplemented. Its next slice should add
+explicit false/true comparison, saved writes, dump and live lifecycle coverage,
+while keeping presence-aware reads and a clear policy for deployments that
+omit the field. Other provisioning actors remain unverified.
 
 - Initial contract: defer declarative active configuration. Inspection omits
   absent values in JSON/YAML and shows unknown in text. Never dump a fabricated
@@ -40,6 +58,7 @@ SDK's plain bool cannot distinguish absence from false.
 
 Related API question: Q11. PUT retained management metadata updates; PATCH
 returned success while leaving a requested version change unchanged.
+The partial/full-map and null-removal failure is also reproduced in `.tech`.
 
 - Initial contract: use a fresh read plus PUT for management metadata changes,
   adoption, and protection updates; preserve omitted settings.
@@ -59,6 +78,7 @@ Fresh GET confirms the change. For example, `9007199254740993` becomes
 Raw JSON was parsed with exact integers. These results match a binary64
 conversion followed by decimal serialization; this is an observed model,
 not a documented guarantee about the service's internal representation.
+Direct `.tech` principal PUT/group-create probes reproduce the same digits.
 
 - Initial contract: validate declared principal metadata in the loader and
   again when executing saved plan fields. Reject integer digits that change
@@ -551,6 +571,15 @@ authority, reference ordering and descendant deletion checks. Q32 tracks
 group-to-group rejection and imported-team boundaries; Q33 tracks unavailable
 group key endpoints. Working manual membership deletion does not establish
 authority over imported or inherited relationships.
+
+The later `.tech` revalidation changes that availability assessment: group
+keys support list/create/read/PATCH/delete, while team creation returns 400
+and accepts only type group. Group-to-group membership is still rejected.
+Generated group-key creation retains ownership, but PATCH ignores ownership
+changes; imported creation rejects that map. Group-key name behavior also
+differs from principal keys (Q29). Future group lifecycle work can now observe
+key descendants in `.tech`; it must not infer mutable ownership or credential
+continuity from endpoint availability alone.
 
 The live group scenario uses manually created, credential-free fixtures.
 Cleanup opts into `principalGroups: true`, observes all group/member scopes,

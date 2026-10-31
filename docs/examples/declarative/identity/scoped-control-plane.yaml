@@ -1,7 +1,8 @@
+# Advanced configuration of an adopted/managed default directory.
 # This requires an organization that allows restricted directory access.
 _defaults:
   kongctl:
-    namespace: identity-team
+    namespace: identity-directory
 
 control_planes:
   - ref: gateway
@@ -9,8 +10,8 @@ control_planes:
 
 identity:
   directories:
-    - ref: people
-      name: people
+    - ref: default-directory
+      name: default
       allow_all_control_planes: false
       allowed_control_planes:
         - !ref gateway#id

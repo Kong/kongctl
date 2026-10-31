@@ -22,18 +22,57 @@ ownership updates and adoption. It does not expose credential material.
 UUID/name selectors and membership-entry IDs. Declarative writes remain in
 progress; inspection alone does not grant authority over imported teams.
 
-`tutorial.yaml` creates a directory plus user and agent principals in the
-`ki-tutorial` namespace. It requires a free directory quota slot; run it
-separately from the other examples. Plan and apply it, inspect the principals,
-then repeat the plan to verify no changes. Edit a principal's display name or
-metadata and apply again. `delete -f tutorial.yaml` removes the principals
-before their directory. For an existing directory, use `principals.yaml`.
+The demos center on a directory named `default`, whether platform-provided or
+bootstrapped with KongCTL. First inspect the organization:
 
-Most users can reference an existing directory, commonly named `default`.
-Start with `external-default.yaml`: it resolves the directory by its exact
-name, without creating or modifying it. An explicit ID is also supported.
-KongCTL does not create an implicit default directory or select one silently.
-Other Kong Identity resource types are described below as they are added.
+```sh
+kongctl get identity directories
+```
+
+If `default` exists, use `external-default.yaml` to resolve it through
+`_external.selector.matchFields.name: default`. No adoption is required. The
+principal/client tutorials retain that external reference: they do not change
+the directory's settings or ownership, or delete it during cleanup.
+
+If `default` is missing, `directories.yaml` bootstraps it declaratively with
+the observed new-organization settings: unrestricted control-plane access,
+empty allowlist/labels/description, 600-second positive and negative TTLs, and
+Vault disabled. KongCTL adds its four ownership entries in `managed_by` and
+protects the directory from KongCTL updates/deletion. Bootstrap is a separate
+step:
+
+```sh
+kongctl plan -f directories.yaml --mode apply --output-file directory-plan.json
+kongctl diff --plan directory-plan.json
+kongctl apply --plan directory-plan.json --auto-approve
+kongctl get identity directory default -o json
+```
+
+Then run the same principal/client tutorials. Their external lookup can resolve
+a KongCTL-managed directory too. Directory ownership uses `identity-directory`;
+each tutorial's principals/identities retain their independent namespace.
+
+`tutorial.yaml` creates user and agent principals in the `ki-tutorial`
+namespace under that external directory. Plan and apply it, inspect the
+principals, then repeat the plan to verify no changes. Edit a principal's
+display name or metadata and apply again. `delete -f tutorial.yaml` removes
+the declared principals and retains the default directory. `principals.yaml`
+also uses the external default directory.
+
+Start with `external-default.yaml` to verify lookup without managing children.
+An explicit directory ID is also supported. Lookup alone fails if `default`
+is absent; it never silently creates or adopts a directory. Do not load the
+managed bootstrap and external-reference examples together as one manifest.
+
+To start managing an existing unowned default directory, first adopt it:
+
+```sh
+kongctl adopt identity directory default --namespace identity-directory
+kongctl plan -f directories.yaml --mode apply
+```
+
+Review the explicit settings before applying. Applying the bootstrap manifest
+without adoption does not take over an existing unowned directory.
 
 ## Authorization servers
 
@@ -156,10 +195,8 @@ kongctl delete -f auth-servers.yaml --auto-approve
 
 ## Directories and principals
 
-`directories.yaml` manages a directory's configuration. Run this example
-separately from `external-default.yaml`. Creating another directory requires
-available organization quota. The API requires `allow_all_control_planes:
-true` for organizations with a one-directory quota.
+The normal examples use the default directory externally. Begin by inspecting
+it, then plan the principal tutorial:
 
 ```sh
 kongctl get identity directories
@@ -167,18 +204,19 @@ kongctl get identity directory default -o json
 kongctl get identity principals --directory-name default -o json
 kongctl get identity principal <principal-id> --directory-name default -o json
 kongctl plan -f external-default.yaml
-kongctl plan -f directories.yaml --mode apply > plan.json
+kongctl plan -f tutorial.yaml --mode apply > plan.json
 kongctl apply --plan plan.json --auto-approve
+kongctl get identity principals --directory-name default -o json
 kongctl dump declarative --resources identity.directories
 ```
 
 Principal inspection requires an explicit directory name or ID. Principal
 display names are not unique, so individual reads require the principal UUID.
 JSON/YAML omit `active` when the API does not return it; text shows unknown.
-`principals.yaml` declares user, agent, and unclassified principals under an
-existing directory. A managed directory may also contain principals. Each
-principal has independent namespace and protection settings; ownership of the
-directory does not authorize changes to its principals.
+`principals.yaml` declares user, agent, and unclassified principals under the
+external default directory. A managed directory may also contain principals.
+Each principal has independent namespace and protection settings; directory
+ownership does not authorize changes to its principals.
 
 Principal matching uses the directory ID plus `kongctl-namespace` and
 `kongctl-ref` in `managed_by`. The other generated entries are `tool`,
@@ -224,11 +262,20 @@ and namespace/protection, and omits active. Dumps of unowned principals require
 explicit adoption before management. Filter to one directory if multiple
 remote resources use the same ref.
 
+### Advanced directory administration
+
+`directories.yaml` bootstraps or configures the managed default directory.
+`scoped-control-plane.yaml` shows restricted access on a managed default;
+it requires an organization that permits restricted directory access.
+Organizations with a one-directory quota require
+`allow_all_control_planes: true`. A protected default must be unprotected in a
+separate operation before changing its public settings.
+
 To manage an existing directory, explicitly adopt it into your namespace
 before applying a managed declaration with the same name:
 
 ```sh
-kongctl adopt identity directory default --namespace identity-team
+kongctl adopt identity directory default --namespace identity-directory
 ```
 
 Adoption preserves its settings, public labels, and protection status. It
@@ -252,16 +299,19 @@ setting. Omitted settings on creation use the documented API defaults.
 Updates use a fresh read and full replacement because PATCH cannot update
 `description` or `managed_by`.
 
-The preview specification exposes `vault_enabled`, but the US `.com` API
-currently accepts `true` and returns `false`. KongCTL reports that mismatch
-as an error. Keep it false until Token Vault is available in your environment;
+The preview specification exposes `vault_enabled`. Original US `.com`
+probes accepted `true` and returned `false`. KongCTL reports that mismatch as
+an error. Keep it false until Token Vault is available in your environment;
 the directory lifecycle scenario verifies false, while unit coverage verifies
 that a true request is sent and an ignored value is reported.
+Native `.tech` revalidation confirms true persists and enables Vault
+provider/key lists there. The common bootstrap still uses false to match a
+new organization's default settings; availability is environment-specific.
 
 `scoped-control-plane.yaml` shows restricted access with a control plane
 reference. Use UUIDs or `!ref gateway#id`, including references to external
-control planes. New control planes are created before directories that
-reference them. Apply each example separately.
+control planes. Control planes are created before directory settings that
+reference them are applied. Apply each example separately.
 
 Protection follows the usual KongCTL lifecycle. Set `kongctl.protected` to
 false and apply that change separately before changing protected settings or
@@ -274,7 +324,7 @@ scope. To remove every managed, unprotected directory in this namespace:
 ```yaml
 _defaults:
   kongctl:
-    namespace: identity-team
+    namespace: identity-directory
 identity:
   directories: []
 ```

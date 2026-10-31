@@ -1,4 +1,4 @@
-# Run separately from the other examples. Requires a free directory quota slot.
+# Use the platform-provided default directory without claiming its ownership.
 _defaults:
   kongctl:
     namespace: ki-tutorial
@@ -6,8 +6,10 @@ _defaults:
 identity:
   directories:
     - ref: tutorial-directory
-      name: ki-tutorial
-      allow_all_control_planes: true
+      _external:
+        selector:
+          matchFields:
+            name: default
       principals:
         - ref: tutorial-user
           display_name: Tutorial user

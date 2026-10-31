@@ -9,8 +9,9 @@ it does not establish which tool or namespace owns it.
 The current source is the public preview SDK at `bf1d470c108c`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
-Live observations are from US `.com`. Keep this ledger current as each
-resource is implemented.
+Initial live observations are from US `.com`; the October 31 `.tech`
+revalidation below distinguishes deployment-specific behavior. Keep this
+ledger current as each resource is implemented.
 
 ## Implemented and active resource work
 
@@ -33,6 +34,14 @@ Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 fifth entry.
 Client-side filtering and duplicate checks use the complete remote collection.
 Public labels and principal runtime metadata retain their API meanings.
+Normal usage examples resolve the platform-provided `default` directory as
+external, so they write no ownership metadata on that directory. Its managed
+principals and identities still persist their own five-entry ownership maps.
+If default is missing, the separate `directories.yaml` bootstrap example
+creates it with four ownership entries under `identity-directory` and enables
+KongCTL protection. Subsequent tutorials still use external lookup; their
+cleanup preserves the directory. The .tech manual test setup instead matches
+new .com provisioning with empty `managed_by`/`labels`, verified by fresh GET.
 Runtime `metadata` is not an ownership store. Its integer values have a
 verified API precision limit (Q31); exact numeric identifiers should be strings.
 
@@ -40,6 +49,8 @@ Auth-server label ownership follows the existing `KONGCTL-namespace` and
 `KONGCTL-protected` convention. It does not gain a `managed_by` field through
 the preview SDK. An absent protection label means false. The implementation
 is tracked in #1400 and remains In Progress until merged to main.
+Q34 asks whether labels are the intended long-term management metadata
+contract for auth servers and OAuth clients, or `managed_by` is planned.
 
 ## Remaining resources with API metadata storage
 
@@ -50,7 +61,7 @@ These rows describe available API fields, not completed implementations.
 | Principal Groups, including team subtype | `labels`, `managed_by`, runtime `metadata` | Direct POST/GET/list/full PUT retain all four directory-style ownership entries; names are unique per directory. Partial PUT clears omitted maps. Group implementation is in progress, with no product writes yet. Import-owned teams require separate treatment (Q32). #2657. |
 | Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is implemented under #1417, which remains open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
-| Group API keys, generated/imported | Same schema metadata fields as principal keys | Direct GET/POST return 501 (Q33). Metadata retention and credential lifecycle are unverified; no product writes or ownership stamping are exposed. #2659. |
+| Group API keys, generated/imported | `managed_by`; no labels | US `.tech` list/create/read/PATCH/delete work; generated create retains the supplied map. Imported create rejects it and PATCH ignores changes/removal on both kinds. US `.com` returned 501. No product writes or ownership stamping are exposed yet. #2659, Q33. |
 | Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Possible persisted ref/ownership. Write-only secret handling and password-slot limits also govern support. #1418. |
 
@@ -95,6 +106,18 @@ authority for another resource family.
 
 ## Change log
 
+- October 31 UTC, native `.tech` revalidation: active state is observable and
+  writable, Vault enablement persists, user principals support keys and group
+  key operations are available. None changes ownership storage: generated keys
+  retain their initial map, imported keys cannot acquire one through tested
+  PATCH, and principal/key ownership PATCH still ignores changes. Principal-key
+  names are supported but non-unique; group-key names have narrower update
+  support. Team creation is rejected in this `.tech` org despite `.com`
+  accepting it. Auth-server/client POST accepts an extra `managed_by` field
+  without exposing it in the response or subsequent reads; labels remain their
+  verified ownership store. Native precision, scoping, expiration omission and
+  auth-server PATCH/pagination issues persist. All probe records were removed;
+  the manual directory settings were restored.
 - October 31 UTC, group/membership inspection: product get/list now expose
   observed metadata without writing ownership. SDK `bf1d470c108c` fixes both
   cursor requests. Complete collection proofs scope detail reads; group

@@ -1947,3 +1947,187 @@ have bounded workarounds; they are not all blockers for existing support. No
 engineering answers have been recorded. The
 [metadata ledger](contributor/kong-identity-metadata-storage.md) distinguishes
 labels, `managed_by`, and resources without an independent ownership store.
+
+## 31. Default-directory manual demonstration setup
+
+At the user's request, the `.tech` organization selected by profile
+`rspurgeon-e2e-kongctl-testing_tech` now has a directory named `default`, ID
+`01a1922b-ed6a-7c8d-9938-7164fb435035`. It was created through the API with the
+reported new `.com` organization settings: empty description/labels/managed_by,
+all control planes allowed, an empty allowlist, positive/negative TTLs of 600
+seconds and Vault disabled. Fresh detail GET verifies every supplied value.
+This is the user's manual-demo baseline, not a disposable scenario fixture.
+
+Examples cover both common entry paths. `external-default.yaml` and the normal
+principal/identity tutorials resolve an existing default without adoption or
+directory mutation. `directories.yaml` separately bootstraps a missing default
+with the same public settings, KongCTL ownership under `identity-directory`
+and protection enabled. An existing unowned default requires explicit adoption
+before that managed manifest can be used. Both entry paths then use external
+lookup in the service tutorial, keeping directory lifecycle separate from its
+independently managed principals and identities.
+
+Read-only plans against the prepared `.tech` organization verify two tutorial
+principal creations, three principal-example creations, and five combined
+service-demo creations, all with zero directory mutations. The managed
+bootstrap manifest correctly rejects the existing unowned default rather than
+taking ownership implicitly. No principal, OAuth client or auth server has
+been created by this setup. The manual guide and manifests are under
+`.cache/identity-orders-demo`; earlier plans that created a separate demo
+directory were archived. Example/documentation edits remain local pending
+review and commit.
+
+## 32. Manual demonstration follow-ups
+
+These are implementation follow-ups, separate from API-only questions. No
+command behavior is changed while the user manually tests the current slice.
+
+- [ ] Default directory selection: directory-scoped imperative commands should
+  imply `--directory-name default` when neither directory flag is supplied.
+  Preserve explicit name/ID overrides and mutual exclusion. Missing default
+  must fail lookup without automatic creation/adoption. Auth-server commands
+  have their own parent selectors and do not acquire a directory dependency.
+- [ ] Text detail rendering: an individual `auth-server-client` requested with
+  `-o text` currently goes through a branch that JSON-formats the detail
+  object. Replace that shortcut with the normal text/detail presentation and
+  check other newly added Identity commands for the same inconsistency.
+- [ ] Token-duration diff rendering: `access_token_duration` is incorrectly
+  redacted by the generic sensitive-field display policy; keep actual secret
+  redaction while showing non-secret numeric durations.
+- [ ] Principal active implementation: October 31 native `.tech` probes now
+  verify false creation, true/false updates and omitted-field preservation
+  across directly provisioned user/agent/unclassified principals (Q10). Add
+  declarative support and lifecycle coverage; preserve presence-aware reads
+  and an explicit compatibility policy for deployments that omit the field.
+
+The user's first manual create/read pass verifies an agent principal with the
+five-entry `managed_by` tuple, application labels and runtime metadata, plus
+an OAuth client with independently owned labels, `client_credentials`, an
+explicit allowed scope, a 600-second access-token lifetime and
+`client_secret_basic`. The OAuth client ID is opaque (`ka5swfe0x78oz86x`),
+whereas the principal ID is a generated UUID. No implementation changes were
+made in response to these observations. Q34 now asks about the intentional
+lack of `managed_by` on auth servers and OAuth clients; the metadata ledger
+already records label-based ownership for both.
+
+## 33. Revalidate production findings against the prerelease environment
+
+The user identified `.tech` as the intended current-spec testing environment.
+The original `.com` observations remain production compatibility evidence;
+they must not be generalized into prerelease API limitations. The engineering
+question log now starts with an environment-specific revalidation matrix for
+all question families.
+
+Read-only direct `.tech` checks confirm active=true on the manual agent,
+an empty principal API-key collection with HTTP 200, and an empty group list.
+Only active visibility changes the earlier `.com` assessment. These reads do
+not establish type mutability, active transitions, credential ownership PATCH,
+large-integer preservation or group-key deployment. The manual identity GET
+also confirms the expected server/client association and persisted ownership.
+
+Prioritize disposable principal field/map/numeric probes, credential writes,
+groups/keys/memberships and auth-server native PATCH/pagination behavior.
+Preserve the user's default directory and manual registrations. Do not use
+KongCTL's existing guards or hydration as evidence of the native API contract;
+direct requests are needed to decide whether those workarounds can be lifted.
+No implementation restrictions were changed during this read-only pass.
+
+
+## 34. Native US .tech revalidation results
+
+October 31 direct API revalidation completed 272 requests across directory,
+principal, group, credential, auth-server and runtime surfaces. These are
+environment-specific observations, not a guarantee that every organization
+has the same release or entitlements. The earlier US `.com` evidence is
+retained and labeled separately in the
+[API question log](kong-identity-api-questions.md).
+
+### Availability improvements
+
+- Principal `active`: false creation, detail/list reads, PUT activation,
+  PATCH deactivation/reactivation and omitted-field preservation all work.
+  User, agent and unclassified principals retain false during unrelated
+  PUT/PATCH. These checks use directly provisioned records; other
+  provisioning paths remain unverified.
+- Directory Vault: `vault_enabled: true` persists and enables provider/key
+  lists. The setting was restored to false. Provider templates list eight
+  entries. Provider, credential, trusted-IdP and key write lifecycles were
+  not validated by these availability probes.
+- Principal keys: user, agent and unclassified parents accept both generated
+  and imported keys. Names and renames work, but duplicate names are accepted.
+- Group keys: list/create/read/PATCH/delete are available. Generated creation
+  retains the supplied ownership map. Imported creation rejects it, and
+  PATCH does not update ownership. Generated names work at creation; imported
+  names and subsequent renames are ignored in the tested group-key routes.
+
+### Restrictions still necessary
+
+Principal ownership PATCH still ignores full/partial maps and null removal;
+fresh read plus PUT remains necessary. Group full PUT retains ownership but
+clears omitted public maps, so hydration is required. Key PATCH still ignores
+ownership and clears an omitted expiration. Imported keys cannot acquire an
+ownership map through the tested create/PATCH sequence. Large integer
+rounding in principal/group metadata still reproduces.
+
+Principal type changes now receive an explicit immutable-field error when
+the replacement type is non-null; null still succeeds without clearing the
+existing value. Keep the create-only policy. Identity detail/delete still
+accept another existing principal's path, so complete scoped collection
+proofs remain necessary before mutation.
+
+Auth-server probes reproduce duplicate claim names, inflated claim/client
+totals, labels-only client PATCH resetting Basic to post authentication,
+interactive grants rejected, and two total secret slots even when disabled.
+Scope deletion still detaches claim/client associations. Auth-server/client
+responses do not expose an extra `managed_by` property supplied at creation;
+labels remain the verified ownership field (Q34).
+
+Ordinary groups accept user/agent/unclassified members and reject nested
+groups. Unlike the earlier `.com` deployment, this `.tech` organization
+rejects team creation and accepts only type group. Do not treat prerelease
+deployment as a uniform superset of production.
+
+### Boundaries and cleanup
+
+Native principal deletion with a key, identity and membership succeeds;
+the related administrative endpoints then return 404 and the membership
+disappears. Group deletion likewise removes administrative access to its
+keys. These observations do not prove physical deletion or runtime
+revocation. Runtime authentication with a valid imported key and an
+administrative bearer still requires the supported mTLS context (Q30).
+
+All disposable records were removed; cleanup responses were 204 or expected
+404 after cascade tests. The manual issuer/client/principal/identity remain.
+The default directory's public settings are restored, including Vault false;
+its update timestamp changed during the temporary toggle. Sanitized evidence
+is local under
+`/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
+`directory-contracts.json`, plus `auth/`, `followup/` and `capabilities/`
+results. A recursive audit verifies secret-bearing fields are redacted.
+Full unit tests (`make test`, including race detection) pass after the
+documentation/example changes. No implementation or SDK changes were made
+during this validation pass.
+
+### Recommended implementation order
+
+1. Add declarative principal active state, including false/true/no-op/dump
+   and saved-plan coverage. The current SDK already has optional request
+   booleans; this needs client implementation, not a new field in the SDK.
+   Keep deployment-aware handling of absent response fields.
+2. Finish ordinary groups and direct memberships with independent group
+   ownership and explicit collection authority. Defer imported teams and
+   nested groups until their supported contracts are clear.
+3. Evaluate generated principal/group keys as a bounded lifecycle slice.
+   Before writes, repair the preview SDK's missing request `expires_at`
+   and verify omitted/value/null encoding. Mutable ownership, adoption,
+   imported-key ownership and runtime verification remain constraints.
+4. Probe Vault/provider/credential/trusted-IdP CRUD and ownership separately;
+   successful Vault enablement clears the entry barrier but does not prove
+   safe declarative matching or reconciliation for those child resources.
+
+The full engineering handoff remains the API-only question log. Q1, Q10,
+Q27, Q29 and Q33 now distinguish improvements from still-open rollout and
+contract questions. Q4/Q5/Q11/Q28/Q31 and auth-server/scoping findings still
+have reproducible `.tech` evidence. Automatic default provisioning,
+importer coexistence, workspace-bearing identities, recovery guarantees and
+the remaining deletion/runtime variants were not settled by this pass.
