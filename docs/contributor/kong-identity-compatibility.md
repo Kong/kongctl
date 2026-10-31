@@ -893,3 +893,33 @@ declarative deletion refuses attached passwords. Runtime authentication needs
 Q30's integration context; metadata-only password adoption needs Q35's API
 contract. Correcting those contracts is necessary before considering a
 declarative password resource; these commands do not claim that support.
+
+## Token Vault contracts and list cursor SDK correction
+
+Related questions: Q6, Q7, Q22 and Q37–Q40. Direct US `.tech` probes verify
+Vault key/provider/template collections before declarative enrollment.
+RSA/EC keys have RFC 7638 kid identity and non-unique names. Providers have
+directory-unique names. Neither family has ownership metadata. Vault disabling
+hides keys/providers with 403, and directory force=false cascades with an
+attached key/provider in either Vault state. Existing directory deletion policy
+is unchanged; ownership/deletion policy is still required before enrollment.
+
+Provider PUT cannot replace the verified custom OAuth DCR configuration,
+including when creation-time registration/DCR fields are supplied. PATCH
+cannot clear scopes with an empty array. POST enabled:false is ignored, while
+explicit PATCH false and PUT true work. PUT omission retains enabled but
+resets a refresh buffer. Q39/Q40 capture the API-only requests and questions.
+Public configuration probes do not establish stored OAuth secret preservation,
+enrollment, DCR execution or runtime encryption/authentication effects.
+
+SDK preview 2597fe249e26, from patch source bd2ee640, changes only the three
+list request Page tags for Vault keys, providers and provider templates.
+Bracketed queries traverse five keys, five providers and eight templates;
+flat size is ignored. The actual-wire regression fails exactly those three
+methods before correction and passes all thirteen Identity list operations
+after generation. The SDK audit preserves prepared OpenAPI, global generation
+configuration, module dependencies, response models and the 1,102-operation
+inventory, including prior credential expiration/array fixes. Remove the
+targeted replacements only when upstream generation emits the same documented
+bracketed query contract. No product declarations or commands are enabled by
+this dependency change alone.
