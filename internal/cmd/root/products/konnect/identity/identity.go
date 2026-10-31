@@ -76,7 +76,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		if err != nil {
 			return nil, err
 		}
-		group.AddCommand(child, principal, authServer)
+		client, err := adopt.NewIdentityAuthServerClientCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(child, principal, authServer, client)
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {

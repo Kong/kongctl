@@ -10,16 +10,106 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	kkErrors "github.com/Kong/sdk-konnect-go/models/sdkerrors"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 type AuthServerChildrenAPI struct {
+	helpers.IdentityAuthServerClientsAPI
 	Scopes          map[string][]kkComps.AuthServerScope
 	Claims          map[string][]kkComps.Claim
 	Clients         map[string][]kkComps.AuthServerClient
 	ScopeUpdates    []kkOps.UpdateAuthServerScopeRequest
 	ClaimUpdates    []kkOps.UpdateAuthServerClaimRequest
+	ClientUpdates   []kkOps.UpdateAuthServerClientRequest
 	Deleted         []string
 	Writes, created int
+}
+
+func (a *AuthServerChildrenAPI) GetAuthServerClient(
+	_ context.Context,
+	parent, id string,
+	_ ...kkOps.Option,
+) (*kkOps.GetAuthServerClientResponse, error) {
+	for _, value := range a.Clients[parent] {
+		if value.ID == id {
+			return &kkOps.GetAuthServerClientResponse{AuthServerClient: &value}, nil
+		}
+	}
+	return nil, &kkErrors.NotFoundError{Status: 404}
+}
+
+func (a *AuthServerChildrenAPI) CreateAuthServerClient(
+	_ context.Context,
+	parent string,
+	request kkComps.CreateClient,
+	_ ...kkOps.Option,
+) (*kkOps.CreateAuthServerClientResponse, error) {
+	a.created++
+	a.Writes++
+	if a.Clients == nil {
+		a.Clients = make(map[string][]kkComps.AuthServerClient)
+	}
+	data, _ := json.Marshal(request)
+	var value kkComps.CreatedClient
+	_ = json.Unmarshal(data, &value)
+	value.ID = fmt.Sprintf("opaque-client-%d", a.created)
+	if value.TokenEndpointAuthMethod == nil {
+		method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_post")
+		value.TokenEndpointAuthMethod = &method
+	}
+	value.ClientSecret = "fixture-initial-secret"
+	data, _ = json.Marshal(value)
+	var public kkComps.AuthServerClient
+	_ = json.Unmarshal(data, &public)
+	a.Clients[parent] = append(a.Clients[parent], public)
+	return &kkOps.CreateAuthServerClientResponse{CreatedClient: &value}, nil
+}
+
+func (a *AuthServerChildrenAPI) UpdateAuthServerClient(
+	_ context.Context,
+	request kkOps.UpdateAuthServerClientRequest,
+	_ ...kkOps.Option,
+) (*kkOps.UpdateAuthServerClientResponse, error) {
+	a.ClientUpdates = append(a.ClientUpdates, request)
+	for i, value := range a.Clients[request.AuthServerID] {
+		if value.ID != request.ClientID {
+			continue
+		}
+		next := patchAuthChild(value, request.UpdateClient)
+		if request.UpdateClient.TokenEndpointAuthMethod == nil {
+			method := kkComps.AuthServerTokenEndpointAuthMethod("client_secret_post")
+			next.TokenEndpointAuthMethod = &method
+		}
+		next.Labels = maps.Clone(value.Labels)
+		if next.Labels == nil {
+			next.Labels = make(map[string]string)
+		}
+		for key, value := range request.UpdateClient.Labels {
+			if value == nil {
+				delete(next.Labels, key)
+			} else {
+				next.Labels[key] = *value
+			}
+		}
+		a.Clients[request.AuthServerID][i] = next
+		a.Writes++
+		return &kkOps.UpdateAuthServerClientResponse{AuthServerClient: &next}, nil
+	}
+	return nil, &kkErrors.NotFoundError{Status: 404}
+}
+
+func (a *AuthServerChildrenAPI) DeleteAuthServerClient(
+	_ context.Context,
+	parent, id string,
+	_ ...kkOps.Option,
+) (*kkOps.DeleteAuthServerClientResponse, error) {
+	a.Clients[parent] = slices.DeleteFunc(
+		a.Clients[parent],
+		func(v kkComps.AuthServerClient) bool { return v.ID == id },
+	)
+	a.Deleted = append(a.Deleted, id)
+	a.Writes++
+	return &kkOps.DeleteAuthServerClientResponse{StatusCode: 204}, nil
 }
 
 func fixturePage[T any](all []T, number, size *int64) ([]T, kkComps.PaginatedMeta) {

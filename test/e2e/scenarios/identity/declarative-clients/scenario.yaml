@@ -1,0 +1,469 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_auth_server
+      nameVar: server_name
+      nameEnv: KONGCTL_E2E_DECLARATIVE_CLIENT_SERVER_NAME
+  info: Uses private captures and an isolated auth server. Requires regional Sliver administration and client_credentials runtime access.
+steps:
+  - name: 001-client-lifecycle
+    commands:
+      - name: create-server
+        create:
+          resource: identity_auth_server
+          payload:
+            inline:
+              name: '{{ .vars.server_name }}'
+              audience: https://api.example.test
+              labels:
+                KONGCTL-namespace: identity-client-parent-e2e
+          recordVar:
+            name: server_id
+            responsePath: id
+          recordVars:
+            - name: metadata_uri
+              responsePath: metadata_uri
+      - name: prepare-inputs
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - prepare
+          - '{{ .workdir }}'
+          - '{{ .vars.server_id }}'
+          - '{{ .vars.server_name }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: plan-create
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+      - name: diff-saved
+        run:
+          - diff
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - -o
+          - json
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+      - name: reject-missing-capture
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: secret-output-dir
+      - name: no-clients-after-preflight-failure
+        run:
+          - get
+          - identity
+          - auth-server-clients
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
+      - name: apply-saved
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+          - --secret-output-dir
+          - '{{ .vars.secret_dir }}'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+        recordVar:
+          name: initial_capture
+          responsePath: execution.generated_files[0]
+      - name: find-client
+        run:
+          - get
+          - identity
+          - auth-server-clients
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+        recordVar:
+          name: client_id
+          responsePath: '[0].id'
+      - name: verify-all-fields
+        run:
+          - get
+          - identity
+          - auth-server-client
+          - '{{ .vars.client_id }}'
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                grant_types[0]: client_credentials
+                length(response_types): 0
+                redirect_uris[0]: https://client.example.test/callback
+                login_uri: https://client.example.test/login
+                access_token_duration: 600
+                id_token_duration: 900
+                allow_all_scopes: false
+                length(allow_scopes): 1
+                token_endpoint_auth_method: client_secret_basic
+                labels."KONGCTL-namespace": identity-client-e2e
+                labels.team: identity
+                contains(keys(@), 'client_secret'): false
+      - name: verify-initial-capture
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - verify
+          - '{{ .vars.initial_capture }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                captured: true
+                private: true
+                has_value: true
+                has_ids: true
+                has_ref: true
+                namespace: identity-client-e2e
+      - name: initial-credential-authenticates
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
+          - authenticate
+          - '{{ .vars.initial_capture }}'
+          - '{{ .vars.metadata_uri }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                status: 200
+                has_token: true
+      - name: repeat-is-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - --resources
+          - identity.auth_servers
+          - --filter-id
+          - '{{ .vars.server_id }}'
+          - --include-child-resources
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(identity.auth_servers[0].clients): 1
+                identity.auth_servers[0].clients[0].kongctl.namespace: identity-client-e2e
+                contains(keys(identity.auth_servers[0].clients[0]), 'client_secret'): false
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+      - name: dump-is-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+      - name: detach-and-delete-scope
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: verify-patch-preserves-auth
+        run:
+          - get
+          - identity
+          - auth-server-client
+          - '{{ .vars.client_id }}'
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(allow_scopes): 0
+                length(redirect_uris): 0
+                access_token_duration: 1200
+                id_token_duration: 1800
+                token_endpoint_auth_method: client_secret_basic
+                labels.team: updated
+                login_uri == '' || login_uri == `null`: true
+      - name: credential-still-authenticates
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
+          - authenticate
+          - '{{ .vars.initial_capture }}'
+          - '{{ .vars.metadata_uri }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                status: 200
+                has_token: true
+      - name: updated-is-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+      - name: protect
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/protected.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: protected-delete-fails
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/protected.yaml'
+          - --auto-approve
+        expectFailure:
+          exitCode: 1
+          contains: protected
+      - name: unprotect
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: transfer-namespace
+        run:
+          - adopt
+          - identity
+          - auth-server-client
+          - '{{ .vars.client_id }}'
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+          - --namespace
+          - identity-other-client-e2e
+          - --overwrite-namespace
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                namespace: identity-other-client-e2e
+      - name: foreign-client-fails
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: namespace
+      - name: adopt-back
+        run:
+          - adopt
+          - identity
+          - auth-server-client
+          - '{{ .vars.client_id }}'
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+          - --namespace
+          - identity-client-e2e
+          - --overwrite-namespace
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                namespace: identity-client-e2e
+      - name: adoption-preserves-credential
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/../client-secrets/verify_capture.py'
+          - authenticate
+          - '{{ .vars.initial_capture }}'
+          - '{{ .vars.metadata_uri }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                status: 200
+                has_token: true
+      - name: adopted-is-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/updated.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+      - name: external-parent-is-empty
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/external.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+        outputFormat: disable
+      - name: create-other-namespace
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/foreign.yaml'
+          - --auto-approve
+          - --secret-output-dir
+          - '{{ .vars.secret_dir }}'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+        recordVar:
+          name: foreign_capture
+          responsePath: execution.generated_files[0]
+      - name: sync-only-own-namespace
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: foreign-client-remains
+        run:
+          - get
+          - identity
+          - auth-server-clients
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].labels."KONGCTL-namespace"': identity-other-client-e2e
+      - name: delete-foreign-explicitly
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/foreign.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: verify-secret-free-artifacts
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - verify-artifacts
+          - '{{ .vars.initial_capture }}'
+          - '{{ .vars.foreign_capture }}'
+          - '{{ .workdir }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                clean: true
+                captures_outside_artifacts: true
+    skipInputs: true

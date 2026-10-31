@@ -19,12 +19,13 @@ func (p *identityAuthServerPlanner) PlanChanges(ctx context.Context, config *Con
 	desired := resources.GetResourcesByNamespace[resources.IdentityAuthServerResource](
 		p.planner.resources, config.Namespace,
 	)
-	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync {
+	hasClients := p.planner.resources.Identity != nil && len(p.planner.resources.Identity.Clients) > 0
+	if len(desired) == 0 && plan.Metadata.Mode != PlanModeSync && !hasClients {
 		return nil
 	}
 	all, err := p.planner.listIdentityAuthServers(ctx)
 	if err != nil {
-		if state.IsAPIClientError(err) && len(desired) == 0 {
+		if state.IsAPIClientError(err) && len(desired) == 0 && !hasClients {
 			return nil
 		}
 		return err
@@ -52,6 +53,12 @@ func (p *identityAuthServerPlanner) PlanChanges(ctx context.Context, config *Con
 	for _, current := range all {
 		if externalOnly || externalIDs[current.ID] || current.Labels[labels.NamespaceKey] != config.Namespace {
 			continue
+		}
+		if scope := p.planner.resources.SyncScope; plan.Metadata.Mode == PlanModeSync && scope != nil &&
+			scope.IdentityAuthServerNamespaces != nil {
+			if _, scoped := scope.IdentityAuthServerNamespaces[config.Namespace]; !scoped {
+				continue
+			}
 		}
 		currentRoots = append(currentRoots, managedRoot[state.IdentityAuthServer]{
 			resource: current, name: current.Name, protected: labels.IsProtectedResource(current.NormalizedLabels),
@@ -107,7 +114,14 @@ func (p *identityAuthServerPlanner) PlanChanges(ctx context.Context, config *Con
 		}, plan); err != nil {
 		return err
 	}
-	return p.planChildren(ctx, config, plan, byName)
+	if err := p.planChildren(ctx, config, plan, byName); err != nil {
+		return err
+	}
+	serverIDs := make(map[string]string)
+	for name, server := range byName {
+		serverIDs[name] = server.ID
+	}
+	return p.planClients(ctx, config, plan, serverIDs)
 }
 
 func (p *identityAuthServerPlanner) change(action ActionType, ref, id, namespace string,

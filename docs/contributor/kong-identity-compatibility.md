@@ -87,8 +87,8 @@ question for the service team.
 
 Auth-server deletion always requests `force=false`. Existing children may
 block deletion; no root-level cleanup or declarative delete silently cascades.
-Revisit deletion ordering only when child resource support observes and
-validates the complete dependency graph.
+Declared child deletions run before their parent; the API still rejects
+unobserved children instead of silently cascading.
 
 ## Claim names and pagination
 
@@ -134,9 +134,11 @@ alone is not proof that a POST is safe to replay.
 
 ## OAuth client update and pagination contracts
 
-Related API questions: Q15–Q19. Client reads and explicit secret lifecycle
-are implemented. Full client declarative writes and initial client-secret
-capture remain separate work; they are not implied by secret rotation support.
+Related API questions: Q15–Q20. Client declarative lifecycle, initial-secret
+capture, reads, adoption and explicit secret lifecycle are implemented.
+Resource metadata lives in client labels; secret records have no ownership
+field. The live client lifecycle and explicit rotation scenarios verify these
+separate contracts.
 
 - Client pagination now follows actual pages to an empty terminal page,
   ignoring totals for completion. Two clients each linked to two scopes
@@ -148,23 +150,24 @@ capture remain separate work; they are not implied by secret rotation support.
   exact-name selection uses `--client-name`, with full-scan duplicate and
   fresh detail checks. Name/ID ambiguity must not be guessed from UUID shape.
 - A labels-only PATCH resets `token_endpoint_auth_method` to
-  `client_secret_post`. Future writers must carry the fresh existing method
-  explicitly when it is omitted from configuration, including adoption and
-  protection-only updates. Verify preservation before enabling writes. Remove
-  that workaround only after direct basic/none omission tests pass (Q15).
+  `client_secret_post`. All declarative updates and adoption carry the fresh
+  existing method explicitly when omitted, including adoption and protection
+  changes. Live credential continuity verifies preservation. Remove the
+  workaround only after direct basic/none omission tests pass (Q15).
   A direct runtime probe verified the safe path: the same original secret
   minted a client-credentials token before and after a label PATCH carrying
   the existing `client_secret_basic` method. Deleting that secret changed
   authentication to 401; importing replacement material restored 200. No
-  token or secret values were logged. This establishes the tested HTTP path,
-  not a completed declarative client executor. Separate secret issuance now
-  has private file capture and live rotation coverage.
+  token or secret values were logged. The declarative executor and adoption now
+  verify that continuity with a privately captured initial secret. Separate
+  secret issuance also has
+  private file capture and live rotation coverage.
 - Raw HTTP accepts explicit empty grant, response, redirect and allowed-scope
   arrays, and null or empty login URI. The preview SDK at `221af2edb788` now
   preserves explicit empty grant/response/redirect/allowed-scope arrays and
   omits an unset authentication method. The wire regression failed before
   those fixes and passes afterward. This changes serialization, not Q15's
-  deployed defaulting; future executors must still preserve the fresh method.
+  deployed defaulting; executors still preserve the fresh method.
 - Authorization-code grants were rejected in US `.com`. Keep API capability
   limits explicit and verify other grants independently; do not silently
   rewrite a requested grant or make broad support claims (Q17).
@@ -208,8 +211,8 @@ The live `identity/client-secrets` scenario covers generated and imported
 material, two-slot rejection, output overwrite refusal, all mutation routes,
 missing sources/flags, metadata reads and actual token authentication through
 enable/disable/delete. Private files stay outside artifacts in a test-managed
-directory, removed even after a deliberate stop. No secret-slot declaration
-or initial client-create capture is included in this slice.
+directory, removed even after a deliberate stop. Secret-slot declarations
+remain unavailable; initial client-create capture is covered separately below.
 
 Revisit count traversal only after multi-scope, page-size-one tests verify a
 correct resource total (Q18). Keep compatibility with older deployments and
@@ -222,3 +225,42 @@ version, and direct-call evidence in the question log. Update #1415 and this
 tracker, remove or revise the corresponding guard, and add the verification
 above in the same change. Do not silently broaden support based solely on a
 specification or SDK regeneration.
+
+## Declarative client implementation and initial capture
+
+`identity.auth_servers[].clients` and grouped `identity.clients` support
+explicit required name/grant/response fields, all public optional settings,
+and scope UUIDs or typed refs under the same server. Namespace/protection use
+independent labels, including under external server parents. Omitted child
+collections do not authorize pruning; explicit empty collections select their
+source namespace. Auth-server pruning tracks its own source namespaces.
+
+Client scope matching observes existing scopes even when a client's namespace
+is planned before the server's. Final dependencies include parent creates,
+client/claim scope detachment or deletion, and child-before-parent deletion.
+Fresh execution observations still reject late references and changed parent
+identity, ownership or protection. A metadata-only update is not proof that a
+client detached from a scope. Ordinary client updates never send secret values.
+
+Initial creation requires `--secret-output-dir` on apply/sync. All create
+outputs are reserved before API mutations; conflicts fail the entire
+preflight. Unattempted reservations are removed, attempted uncertain creates
+retain recovery markers, and successful files contain generated values plus
+public identification metadata. File paths appear in execution results, not
+plans. SDK and transport retries are disabled for initial creation.
+
+Canonical Sliver marks `client_secret_basic` as `x-enum-dev`, so the selective
+public SDK enum excludes a deployed, working method. Declarative validation
+explicitly accepts that canonical value; SDK wire tests and live runtime
+authentication verify passthrough. Q20 asks engineering to clarify that
+annotation. Remove the extra validation case once the generated enum includes
+the value. Authorization-code and refresh-token grants remain outside this
+preview enum; Q17 records the deployed authorization-code denial.
+
+The `identity/declarative-clients` live scenario covers saved plan/diff/apply,
+initial capture, all public fields, dump/replan, explicit empty list updates,
+scope detachment and deletion, protection, adoption, external parents, scoped
+sync and explicit deletion. It authenticates using the initial secret before
+and after updates/adoption, and scans artifacts for the raw secret and its
+Basic-auth encoding. Private capture directories are outside artifacts and
+removed after remote fixture cleanup, including early-stopped runs.

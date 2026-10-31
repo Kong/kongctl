@@ -15,6 +15,7 @@ type SyncScope struct {
 	ModelNamespaces map[string]map[string]struct{}
 	// GatewayNamespaces excludes namespaces introduced only by independent models.
 	GatewayNamespaces                map[string]struct{}
+	IdentityAuthServerNamespaces     map[string]struct{}
 	RootResourceTypes                map[ResourceType]struct{}
 	ChildResourceTypes               map[ResourceType]map[string]map[ResourceType]struct{}
 	RootChildResourceTypes           map[ResourceType]struct{}
@@ -286,6 +287,14 @@ func (s *SyncScope) Merge(other *SyncScope) {
 		}
 		for namespace := range other.GatewayNamespaces {
 			s.GatewayNamespaces[namespace] = struct{}{}
+		}
+	}
+	if other.IdentityAuthServerNamespaces != nil {
+		if s.IdentityAuthServerNamespaces == nil {
+			s.IdentityAuthServerNamespaces = make(map[string]struct{})
+		}
+		for namespace := range other.IdentityAuthServerNamespaces {
+			s.IdentityAuthServerNamespaces[namespace] = struct{}{}
 		}
 	}
 	for kind, parents := range other.ChildNamespaces {

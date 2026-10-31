@@ -337,6 +337,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			kind = ResourceTypeIdentityAuthServerScope
 		case "claims", "claim":
 			kind = ResourceTypeIdentityAuthServerClaim
+		case "clients", "client":
+			kind = ResourceTypeIdentityAuthServerClient
 		case "auth_servers", "auth_server", "auth-servers", "auth-server":
 			kind = ResourceTypeIdentityAuthServer
 		default:
@@ -384,7 +386,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
-		doc.ResourceType == ResourceTypeIdentityAuthServerClaim {
+		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 		if err != nil {
 			return nil, err
@@ -401,6 +403,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		if doc.ResourceType == ResourceTypeIdentityAuthServerClaim {
 			collection = "claims"
+		}
+		if doc.ResourceType == ResourceTypeIdentityAuthServerClient {
+			collection = "clients"
 		}
 		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: collection, Array: true}}
 		subject.ScaffoldTrail = []ExplainScaffoldNode{
@@ -897,6 +902,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.scopes"
 	case ResourceTypeIdentityAuthServerClaim:
 		return "identity.claims"
+	case ResourceTypeIdentityAuthServerClient:
+		return "identity.clients"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
 	case ResourceTypeIdentityPrincipal:
@@ -986,6 +993,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityAuthServerClaim {
 		rootKey = "identity.claims"
+	}
+	if rt == ResourceTypeIdentityAuthServerClient {
+		rootKey = "identity.clients"
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"

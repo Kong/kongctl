@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
@@ -27,8 +28,11 @@ func identityAuthServerCollector() declarativeCollector {
 			result := make([]resources.IdentityAuthServerResource, 0, len(values))
 			for _, value := range values {
 				a := resources.IdentityAuthServerResource{
-					BaseResource: resources.BaseResource{Ref: value.ID, Kongctl: kongctlMetaFromLabels(value.NormalizedLabels)},
-					Name:         value.Name, Audience: value.Audience, Description: &value.Description,
+					BaseResource: resources.BaseResource{
+						Ref:     value.ID,
+						Kongctl: kongctlMetaFromLabels(value.NormalizedLabels),
+					},
+					Name: value.Name, Audience: value.Audience, Description: &value.Description,
 					SigningAlgorithm: value.SigningAlgorithm, TrustedOrigins: slices.Clone(value.TrustedOrigins),
 					Labels: labels.GetUserLabels(value.Labels),
 				}
@@ -39,11 +43,16 @@ func identityAuthServerCollector() declarativeCollector {
 					a.Labels = map[string]string{}
 				}
 				if value.Dcr != nil {
-					a.DCR = &resources.IdentityAuthServerDCR{DefaultAccessTokenDuration: value.Dcr.DefaultAccessTokenDuration}
+					a.DCR = &resources.IdentityAuthServerDCR{
+						DefaultAccessTokenDuration: value.Dcr.DefaultAccessTokenDuration,
+					}
 				}
 				result = append(result, a)
 			}
-			slices.SortFunc(result, func(a, b resources.IdentityAuthServerResource) int { return cmp.Compare(a.Name, b.Name) })
+			slices.SortFunc(
+				result,
+				func(a, b resources.IdentityAuthServerResource) int { return cmp.Compare(a.Name, b.Name) },
+			)
 			return result, nil
 		}, func(rs *resources.ResourceSet) *[]resources.IdentityAuthServerResource {
 			if rs.Identity == nil {
@@ -51,7 +60,8 @@ func identityAuthServerCollector() declarativeCollector {
 			}
 			return &rs.Identity.AuthServers
 		}, collectIdentityAuthServerChildren,
-		resources.ResourceTypeIdentityAuthServerScope, resources.ResourceTypeIdentityAuthServerClaim)
+		resources.ResourceTypeIdentityAuthServerScope, resources.ResourceTypeIdentityAuthServerClaim,
+		resources.ResourceTypeIdentityAuthServerClient)
 }
 
 func collectIdentityAuthServerChildren(ctx context.Context, d *declarativeDumpContext,
@@ -69,6 +79,11 @@ func collectIdentityAuthServerChildren(ctx context.Context, d *declarativeDumpCo
 		}
 		server.Scopes = make([]resources.IdentityAuthServerScopeResource, 0, len(scopes))
 		server.Claims = make([]resources.IdentityAuthServerClaimResource, 0, len(claims))
+		clients, err := d.stateClient.ListIdentityAuthServerClients(ctx, server.Ref)
+		if err != nil {
+			return err
+		}
+		server.Clients = make([]resources.IdentityAuthServerClientResource, 0, len(clients))
 		scopeIDs := make(map[string]bool)
 		for _, scope := range scopes {
 			scopeIDs[scope.ID] = true
@@ -104,6 +119,47 @@ func collectIdentityAuthServerChildren(ctx context.Context, d *declarativeDumpCo
 		slices.SortFunc(server.Claims, func(a, b resources.IdentityAuthServerClaimResource) int {
 			return cmp.Compare(a.Name, b.Name)
 		})
+		clientNames := make(map[string]bool)
+		for _, client := range clients {
+			if clientNames[client.Name] {
+				return fmt.Errorf("cannot dump auth server %q: duplicate client name %q", server.Name, client.Name)
+			}
+			clientNames[client.Name] = true
+			links := make([]string, 0, len(client.AllowScopes))
+			for _, id := range client.AllowScopes {
+				if !scopeIDs[id] {
+					return fmt.Errorf("client %q references an unobserved scope", client.Name)
+				}
+				links = append(links, tags.RefPlaceholderPrefix+id+"#id")
+			}
+			server.Clients = append(server.Clients, identityClientForDump(client, links))
+		}
+		slices.SortFunc(
+			server.Clients,
+			func(a, b resources.IdentityAuthServerClientResource) int { return cmp.Compare(a.Name, b.Name) },
+		)
 	}
 	return nil
+}
+
+func identityClientForDump(
+	client kkComps.AuthServerClient,
+	scopes []string,
+) resources.IdentityAuthServerClientResource {
+	userLabels := labels.GetUserLabels(client.Labels)
+	if userLabels == nil {
+		userLabels = map[string]string{}
+	}
+	redirects := slices.Clone(client.RedirectUris)
+	if redirects == nil {
+		redirects = []string{}
+	}
+	return resources.IdentityAuthServerClientResource{
+		BaseResource: resources.BaseResource{Ref: client.ID, Kongctl: kongctlMetaFromLabels(client.Labels)},
+		Name:         client.Name, GrantTypes: append([]kkComps.AuthServerGrantType{}, client.GrantTypes...),
+		ResponseTypes: append([]kkComps.ResponseType{}, client.ResponseTypes...), RedirectURIs: redirects,
+		LoginURI: client.LoginURI, AccessTokenDuration: client.AccessTokenDuration, IDTokenDuration: client.IDTokenDuration,
+		AllowAllScopes: client.AllowAllScopes, AllowScopes: scopes, TokenEndpointAuthMethod: client.TokenEndpointAuthMethod,
+		Labels: userLabels,
+	}
 }

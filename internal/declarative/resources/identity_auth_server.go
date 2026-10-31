@@ -16,7 +16,10 @@ func init() {
 			WithExplainRecommendedFields("ref", "name", "audience"),
 			WithExplainFieldHint("audience", ExplainFieldHint{Literal: "https://api.example.com"}),
 			WithExplainFieldHint("signing_algorithm", ExplainFieldHint{Default: "RS256", Literal: "RS256"}),
-			WithExplainFieldHint("dcr.default_access_token_duration", ExplainFieldHint{Default: int64(300), Literal: "300"}),
+			WithExplainFieldHint(
+				"dcr.default_access_token_duration",
+				ExplainFieldHint{Default: int64(300), Literal: "300"},
+			),
 		),
 		ExternalResolutionRegistration{Selectors: []string{SchemaFieldName}},
 		WithNamespace(220, func(a *IdentityAuthServerResource) NamespaceParticipant {
@@ -39,8 +42,9 @@ type IdentityAuthServerDCR struct {
 }
 
 type IdentityAuthServerResource struct {
-	Scopes           []IdentityAuthServerScopeResource `yaml:"scopes,omitempty" json:"scopes,omitzero"`
-	Claims           []IdentityAuthServerClaimResource `yaml:"claims,omitempty" json:"claims,omitzero"`
+	Clients          []IdentityAuthServerClientResource `yaml:"clients,omitempty" json:"clients,omitzero"`
+	Scopes           []IdentityAuthServerScopeResource  `yaml:"scopes,omitempty" json:"scopes,omitzero"`
+	Claims           []IdentityAuthServerClaimResource  `yaml:"claims,omitempty" json:"claims,omitzero"`
 	BaseResource     `yaml:",inline" json:",inline"`
 	Name             string                              `yaml:"name" json:"name"`
 	Audience         string                              `yaml:"audience" json:"audience"`

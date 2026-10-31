@@ -14,6 +14,7 @@ const (
 	ResourceTypeIdentityAuthServer                      ResourceType = "identity_auth_server"
 	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
 	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"
+	ResourceTypeIdentityAuthServerClient                ResourceType = "identity_auth_server_client"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
 	ResourceTypePortal                                  ResourceType = "portal"
