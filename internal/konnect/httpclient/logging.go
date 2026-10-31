@@ -563,7 +563,7 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 	var exactKeys map[string]struct{}
 	route := routeFromURL(parsedURL)
 	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route) ||
-		isIdentityClientSecretRoute(route)) {
+		isIdentityClientSecretRoute(route) || isIdentityPasswordRoute(route)) {
 		return redactedValue
 	}
 	if isConfigStoreSecretRoute(route) {
@@ -572,6 +572,13 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 		exactKeys = normalizedKeySet([]string{"key", "key_alt"})
 	}
 	return redactBodyWithExactKeys(body, contentType, exactKeys)
+}
+
+func isIdentityPasswordRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return (len(parts) == 8 || len(parts) == 9) && parts[0] == "v2" && parts[1] == "directories" &&
+		parts[2] != "" && parts[3] == "principals" && parts[4] != "" && parts[5] == "basic-auths" &&
+		parts[6] != "" && parts[7] == "passwords"
 }
 
 func isIdentityClientSecretRoute(route string) bool {

@@ -13,9 +13,13 @@ type Metadata struct {
 	ResourceRef  string `json:"resource_ref,omitempty"`
 	Namespace    string `json:"namespace,omitempty"`
 	ParentRef    string `json:"parent_ref,omitempty"`
-	AuthServerID string `json:"auth_server_id"`
+	AuthServerID string `json:"auth_server_id,omitempty"`
 	ClientID     string `json:"client_id,omitempty"`
 	SecretID     string `json:"secret_id,omitempty"`
+	DirectoryID  string `json:"directory_id,omitempty"`
+	PrincipalID  string `json:"principal_id,omitempty"`
+	BasicAuthID  string `json:"basic_auth_id,omitempty"`
+	PasswordID   string `json:"password_id,omitempty"`
 }
 
 type record struct {
