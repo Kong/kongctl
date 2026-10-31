@@ -84,6 +84,24 @@
       "before": "TokenEndpointAuthMethod *AuthServerTokenEndpointAuthMethod `default:\"client_secret_post\" json:\"token_endpoint_auth_method\"`",
       "after": "TokenEndpointAuthMethod *AuthServerTokenEndpointAuthMethod `json:\"token_endpoint_auth_method,omitempty\"`",
       "optional_file": true
+    },
+    {
+      "file": "models/operations/listkongdirectories.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/operations/listprincipals.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/operations/listidentities.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
     }
   ],
   "tests": {
@@ -94,6 +112,7 @@
     "tests/internal_spec_format_test.go.txt": "models/operations/internal_spec_format_test.go",
     "tests/auth_server_arrays_test.go.txt": "auth_server_arrays_kongctl_test.go",
     "tests/auth_server_claim_arrays_test.go.txt": "auth_server_claim_arrays_kongctl_test.go",
-    "tests/auth_server_client_fields_test.go.txt": "auth_server_client_fields_kongctl_test.go"
+    "tests/auth_server_client_fields_test.go.txt": "auth_server_client_fields_kongctl_test.go",
+    "tests/identity_cursor_query_test.go.txt": "identity_cursor_query_kongctl_test.go"
   }
 }

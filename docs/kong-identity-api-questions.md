@@ -294,6 +294,43 @@ enum value despite that deployed behavior.
 with the supported API contract. This does not resolve the separate omitted
 method reset in Q15 or unavailable authorization-code grant in Q17.
 
+### Q21 Principal-identity detail and delete parent scoping
+
+**Question:** Should identity GET and DELETE verify that the identity belongs
+to the principal named in the request path, consistently with list and PUT?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Create two principals A and B
+in one directory, then create custom identity I under A. Listing A's
+identities contains I; listing B's identities is empty.
+
+- GET `/v2/directories/D/principals/B/identities/I` returns 200 and I.
+- PUT through B returns 404 and leaves I unchanged under A.
+- DELETE through B returns 204 and actually deletes I from A.
+- A missing principal or directory returns 404 on GET. Both parents used in
+  the discrepancy above exist. OIDC GET also returns an identity through the
+  other existing principal's path.
+
+All resources were isolated probe fixtures and were removed afterward.
+Confirm the expected parent-association validation for each method and whether
+the detail/delete behavior will be aligned with the collection route.
+
+### Q22 Cursor-page query serialization
+
+**Question:** Should the shared `CursorPageQuery` parameter explicitly declare
+`style: deepObject` and `explode: true` to match the deployed query contract?
+
+**Observed (October 31, 2026 UTC, US `.com`):** The shared parameter is an object
+named `page` without a declared style. Standard form/explode serialization
+produces `?size=1&after=...`. The deployed directory, principal and identity
+list endpoints ignore these flat keys: responses report the default size 20.
+`?page[size]=1` returns size 1. Following identity list links with the
+bracketed `page[after]` cursor retrieves distinct successive pages.
+
+The missing annotation is in
+`src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
+Confirm the intended wire names and whether the shared definition should be
+corrected for all operations referencing it.
+
 ## Recorded answers
 
 No team answers have been recorded yet.
