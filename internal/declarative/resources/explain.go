@@ -333,6 +333,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		case "directory", "directories":
 		case "principal", "principals":
 			kind = ResourceTypeIdentityPrincipal
+		case "auth_servers", "auth_server", "auth-servers", "auth-server":
+			kind = ResourceTypeIdentityAuthServer
 		default:
 			return nil, fmt.Errorf("unsupported resource path %q", path)
 		}
@@ -376,7 +378,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
-	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal {
+	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
+		doc.ResourceType == ResourceTypeIdentityAuthServer {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 		if err != nil {
 			return nil, err
@@ -384,6 +387,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		collection := "directories"
 		if doc.ResourceType == ResourceTypeIdentityPrincipal {
 			collection = "principals"
+		}
+		if doc.ResourceType == ResourceTypeIdentityAuthServer {
+			collection = "auth_servers"
 		}
 		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: collection, Array: true}}
 		subject.ScaffoldTrail = []ExplainScaffoldNode{
@@ -874,6 +880,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "organization.system-accounts." + SchemaFieldRoles
 	case ResourceTypeDashboard:
 		return "analytics.dashboards"
+	case ResourceTypeIdentityAuthServer:
+		return "identity.auth_servers"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
 	case ResourceTypeIdentityPrincipal:
@@ -955,6 +963,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	applyManagedByInputPolicy(node, rt)
 
 	rootKey := resourceSetRootKey(reg.typ)
+	if rt == ResourceTypeIdentityAuthServer {
+		rootKey = "identity.auth_servers"
+	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
 	}

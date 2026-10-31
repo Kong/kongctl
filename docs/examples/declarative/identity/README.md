@@ -1,4 +1,4 @@
-# Kong Identity directories and principals
+# Kong Identity administration
 
 These examples require the Kong Identity SDK preview used by this branch and
 access to the regional directory administration API.
@@ -14,7 +14,54 @@ Most users can reference an existing directory, commonly named `default`.
 Start with `external-default.yaml`: it resolves the directory by its exact
 name, without creating or modifying it. An explicit ID is also supported.
 KongCTL does not create an implicit default directory or select one silently.
-Other Kong Identity resource types will be added separately.
+Other Kong Identity resource types are described below as they are added.
+
+## Authorization servers
+
+`auth-servers.yaml` manages an authorization server through the separate
+regional auth-server administration API. It requires an explicit `name` and
+`audience`. Optional fields are `description`, `signing_algorithm`,
+`trusted_origins`, `dcr.default_access_token_duration`, and public `labels`.
+The DCR token duration ranges from 60 through 2592000 seconds.
+
+```sh
+kongctl plan -f auth-servers.yaml --mode apply > auth-plan.json
+kongctl apply --plan auth-plan.json --auto-approve
+kongctl get identity auth-servers
+kongctl get identity auth-server kongctl-example-issuer -o json
+kongctl dump declarative --resources identity.auth_servers
+kongctl delete -f auth-servers.yaml --auto-approve
+```
+
+Names are unique within the regional organization. KongCTL matches the exact
+name after reading every list page and stores ownership and protection in
+`KONGCTL-namespace` and `KONGCTL-protected` labels. Auth servers have no
+`managed_by` field. Do not set these reserved labels yourself. An absent
+protection label means false, following the existing label convention.
+
+PATCH updates preserve omitted fields. An empty description,
+`trusted_origins: []`, or `labels: {}` clears that setting. Set protection to
+false in a separate operation before changing protected settings or deleting.
+Sync prunes only when `identity.auth_servers` is explicitly present; an empty
+collection prunes owned, unprotected servers in the source namespace.
+External references support `_external.id` or an exact name selector and do
+not authorize mutation.
+
+Adopt an existing server before applying a managed declaration with its name:
+
+```sh
+kongctl adopt identity auth-server existing-issuer --namespace identity-team
+```
+
+Adoption changes only ownership labels and preserves public fields. Existing
+ownership requires `--overwrite-namespace`. Dump includes mutable public
+settings and namespace/protection, excluding generated issuer and discovery
+URLs. This slice does not configure OAuth clients, scopes, claims, or secrets.
+Deletion always uses `force=false`, so existing child resources can block it.
+The preview public SDK exposes the DCR token duration; additional internal DCR
+settings are outside this manifest's schema.
+
+## Directories and principals
 
 `directories.yaml` manages a directory's configuration. Run this example
 separately from `external-default.yaml`. Creating another directory requires

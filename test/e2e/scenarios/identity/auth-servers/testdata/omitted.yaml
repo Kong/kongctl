@@ -1,0 +1,3 @@
+_defaults:
+  kongctl: {namespace: identity-auth-e2e}
+identity: {}

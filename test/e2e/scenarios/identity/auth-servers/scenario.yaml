@@ -1,0 +1,514 @@
+baseInputsPath: testdata
+env:
+  KONGCTL_LOG_LEVEL: info
+steps:
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          type: object
+      select: '@'
+    name: explain
+    run:
+    - explain
+    - identity.auth_servers
+    - -o
+    - json
+  - assertions:
+    - expect:
+        fields:
+          contains(stdout, 'auth_servers:'): true
+      select: '@'
+    name: scaffold
+    outputFormat: disable
+    parseAs: raw
+    run:
+    - scaffold
+    - identity.auth_servers
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 1
+      select: summary
+    name: plan-create
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+    stdoutFile: '{{ .workdir }}/plan.json'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 1
+      select: summary
+    name: diff-saved
+    run:
+    - diff
+    - --plan
+    - '{{ .workdir }}/plan.json'
+    - -o
+    - json
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: apply-saved
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/plan.json'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          audience: https://api.example.test
+          dcr.default_access_token_duration: 600
+          description: Initial auth server
+          labels."KONGCTL-namespace": identity-auth-e2e
+          labels."KONGCTL-protected" == `null`: true
+          labels.team: identity
+          length(issuer) > `0`: true
+          length(metadata_uri) > `0`: true
+          signing_algorithm: RS256
+          trusted_origins[0]: https://client.example.test
+      select: '@'
+    name: verify-created
+    recordVar:
+      name: auth_server_id
+      responsePath: id
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          name: '{{ .vars.auth_server_name }}'
+      select: '@'
+    name: get-by-id
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_id }}'
+  - assertions:
+    - expect:
+        fields:
+          length([?name=='{{ .vars.auth_server_name }}']): 1
+      select: '@'
+    name: list-page-size-one
+    run:
+    - list
+    - identity
+    - auth-servers
+    - --page-size
+    - "1"
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: diff-no-op
+    run:
+    - diff
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    - --mode
+    - apply
+    - -o
+    - json
+  name: 001-create
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 1
+      select: summary
+    name: plan-update
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/update.yaml'
+    - --mode
+    - apply
+    stdoutFile: '{{ .workdir }}/update-plan.json'
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: apply-saved-update
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/update-plan.json'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          audience: https://updated-api.example.test
+          dcr.default_access_token_duration: 900
+          description: Updated auth server
+          length(labels): 1
+          signing_algorithm: PS256
+          trusted_origins[0]: https://updated-client.example.test
+      select: '@'
+    name: verify-all-fields
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: clear-fields
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/clear.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          dcr.default_access_token_duration: 900
+          description: ""
+          length(trusted_origins || `[]`): 0
+          signing_algorithm: PS256
+      select: '@'
+    name: verify-cleared
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: partial-update
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          dcr.default_access_token_duration: 900
+          description: Partial update
+          labels."KONGCTL-namespace": identity-auth-e2e
+          length(trusted_origins || `[]`): 0
+          signing_algorithm: PS256
+      select: '@'
+    name: verify-omissions
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: no-op-after-clear
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --mode
+    - apply
+  name: 002-update
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          audience: https://updated-api.example.test
+          dcr.default_access_token_duration: 900
+          issuer: null
+          labels: {}
+          name: '{{ .vars.auth_server_name }}'
+          signing_algorithm: PS256
+      select: identity.auth_servers[0]
+    name: dump
+    outputFormat: none
+    parseAs: yaml
+    run:
+    - dump
+    - declarative
+    - --resources
+    - identity.auth_servers
+    - --filter-name
+    - '{{ .vars.auth_server_name }}'
+    - --default-namespace
+    - identity-auth-e2e
+    stdoutFile: '{{ .workdir }}/dump.yaml'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: dump-no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          applied: 0
+          failed: 0
+      select: summary
+    name: apply-dump
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 0
+          failed: 0
+      select: summary
+    name: external-sync
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/external.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 0
+          failed: 0
+      select: summary
+    name: omitted-sync
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/omitted.yaml'
+    - --auto-approve
+  name: 003-dump-and-scope
+- commands:
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: protect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/protected.yaml'
+    - --auto-approve
+  - expectFailure:
+      contains: protected
+      exitCode: 1
+    name: block-update
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/blocked.yaml'
+    - --auto-approve
+  - expectFailure:
+      contains: protected
+      exitCode: 1
+    name: block-sync
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/empty.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: unprotect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/unprotect.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: sync-empty
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/empty.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          length([?name=='{{ .vars.auth_server_name }}']): 0
+      select: '@'
+    name: verify-pruned
+    run:
+    - get
+    - identity
+    - auth-servers
+  name: 004-protection
+- commands:
+  - create:
+      payload:
+        inline:
+          audience: https://adopt-api.example.test
+          dcr:
+            default_access_token_duration: 480
+          description: Keep this description
+          labels:
+            owner: adoption
+          name: '{{ .vars.auth_server_name }}'
+          trusted_origins:
+          - https://adopt-client.example.test
+      resource: identity_auth_server
+    name: create-unowned
+  - expectFailure:
+      contains: adopt
+      exitCode: 1
+    name: reject-unowned
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/adopt.yaml'
+    - --mode
+    - apply
+  - assertions:
+    - expect:
+        fields:
+          namespace: identity-auth-e2e
+      select: '@'
+    name: adopt
+    run:
+    - adopt
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+    - --namespace
+    - identity-auth-e2e
+  - assertions:
+    - expect:
+        fields:
+          audience: https://adopt-api.example.test
+          dcr.default_access_token_duration: 480
+          description: Keep this description
+          labels."KONGCTL-namespace": identity-auth-e2e
+          labels.owner: adoption
+          trusted_origins[0]: https://adopt-client.example.test
+      select: '@'
+    name: verify-adoption
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+  - assertions:
+    - expect:
+        fields:
+          total_changes: 0
+      select: summary
+    name: adopted-no-op
+    outputFormat: disable
+    run:
+    - plan
+    - -f
+    - '{{ .workdir }}/adopt.yaml'
+    - --mode
+    - apply
+  - expectFailure:
+      contains: overwrite-namespace
+      exitCode: 1
+    name: require-explicit-takeover
+    run:
+    - adopt
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+    - --namespace
+    - identity-auth-e2e
+  - assertions:
+    - expect:
+        fields:
+          namespace: identity-auth-e2e
+      select: '@'
+    name: explicit-takeover
+    run:
+    - adopt
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+    - --namespace
+    - identity-auth-e2e
+    - --overwrite-namespace
+  - assertions:
+    - expect:
+        fields:
+          applied: 1
+          failed: 0
+      select: summary
+    name: delete
+    run:
+    - delete
+    - -f
+    - '{{ .workdir }}/adopt.yaml'
+    - --auto-approve
+  - assertions:
+    - expect:
+        fields:
+          length([?name=='{{ .vars.auth_server_name }}']): 0
+      select: '@'
+    name: verify-gone
+    run:
+    - get
+    - identity
+    - auth-servers
+  name: 005-adoption-and-delete
+test:
+  cleanupResources:
+  - nameEnv: KONGCTL_E2E_IDENTITY_AUTH_SERVER_NAME
+    nameVar: auth_server_name
+    resource: identity_auth_server
+  info: Requires regional auth-server administration access. Uses one uniquely named
+    temporary auth server and never force-cascades deletion.
+vars:
+  namespace: identity-auth-e2e

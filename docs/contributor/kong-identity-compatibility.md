@@ -1,6 +1,7 @@
 # Kong Identity compatibility tracking
 
-Track temporary implementation restrictions here and in #1415. API questions
+Track temporary implementation restrictions here and in the resource issues.
+API questions
 for engineering stay in the separate
 [question log](../kong-identity-api-questions.md), without client-specific
 implementation requirements.
@@ -68,6 +69,26 @@ principal lifecycle, including user/agent/null creation, repeated no-op plans,
 PUT updates, omitted fields, metadata clearing, dump/reload, adoption,
 protection, deletion, and scoped sync. Q9/Q10 rejection assertions should be
 replaced with supported behavior when those restrictions are removed.
+
+## Auth-server preview SDK boundaries
+
+The public preview SDK exposes `dcr.default_access_token_duration`. Internal
+DCR options remain outside the public manifest schema. PATCH writes only
+declared public fields, preserving omitted backend options. Verify any future
+DCR expansion against its create, partial-update, secret, and read contracts
+before exposing it.
+
+The preview includes a targeted SDK serialization patch that preserves an
+explicit empty `trusted_origins` array. A nil slice still omits the field.
+Keep the SDK wire regression and live clear/replan scenario when regenerating
+or upgrading the SDK; remove the patch only when upstream serialization
+preserves this distinction. This is a generated-client constraint, not an API
+question for the service team.
+
+Auth-server deletion always requests `force=false`. Existing children may
+block deletion; no root-level cleanup or declarative delete silently cascades.
+Revisit deletion ordering only when child resource support observes and
+validates the complete dependency graph.
 
 ## Recording resolution
 

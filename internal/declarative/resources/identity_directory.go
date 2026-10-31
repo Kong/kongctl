@@ -50,8 +50,9 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
-	Principals  []IdentityPrincipalResource `yaml:"principals,omitempty"  json:"principals,omitempty"`
-	Directories []IdentityDirectoryResource `yaml:"directories,omitempty" json:"directories,omitempty"`
+	AuthServers []IdentityAuthServerResource `yaml:"auth_servers,omitempty" json:"auth_servers,omitempty"`
+	Principals  []IdentityPrincipalResource  `yaml:"principals,omitempty"  json:"principals,omitempty"`
+	Directories []IdentityDirectoryResource  `yaml:"directories,omitempty" json:"directories,omitempty"`
 }
 
 func identityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource {

@@ -1,0 +1,17 @@
+_defaults:
+  kongctl:
+    namespace: identity-auth-example
+
+identity:
+  auth_servers:
+    - ref: application-issuer
+      name: kongctl-example-issuer
+      description: Authorization server for an example application
+      audience: https://api.example.com
+      signing_algorithm: RS256
+      trusted_origins:
+        - https://app.example.com
+      dcr:
+        default_access_token_duration: 600
+      labels:
+        team: identity

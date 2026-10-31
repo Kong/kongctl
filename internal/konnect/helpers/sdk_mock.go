@@ -4,6 +4,7 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityAuthServersFactory            func() IdentityAuthServersAPI
 	IdentityPrincipalsFactory             func() IdentityPrincipalsAPI
 	IdentityDirectoriesFactory            func() IdentityDirectoriesAPI
 	Token                                 string
@@ -671,6 +672,14 @@ func (m *MockKonnectSDKFactory) Build(token string) (SDKAPI, error) {
 func (m *MockKonnectSDK) GetAIGatewayCustomPoliciesAPI() AIGatewayCustomPoliciesAPI {
 	if m.AIGatewayCustomPoliciesFactory != nil {
 		return m.AIGatewayCustomPoliciesFactory()
+	}
+	return nil
+}
+
+
+func (m *MockKonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
+	if m.IdentityAuthServersFactory != nil {
+		return m.IdentityAuthServersFactory()
 	}
 	return nil
 }
