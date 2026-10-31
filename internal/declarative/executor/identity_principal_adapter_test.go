@@ -116,8 +116,8 @@ func TestPrincipalRejectsChangedOwnershipTypeAndProtection(t *testing.T) {
 	var request kkComps.ReplacePrincipalBody
 	require.ErrorContains(
 		t,
-		a.MapUpdateFields(t.Context(), execCtx, map[string]any{"active": false}, &request, nil),
-		"Q10",
+		a.MapUpdateFields(t.Context(), execCtx, map[string]any{planner.FieldActive: nil}, &request, nil),
+		"cannot be null",
 	)
 }
 
@@ -213,4 +213,59 @@ func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrincipalSavedActiveUpdates(t *testing.T) {
+	for _, desired := range []bool{false, true} {
+		a, api, execCtx := principalExecutorFixture()
+		api.ExposeActive = true
+		api.Directories["directory-id"][0].Active = !desired
+		execCtx.PlannedChange.Fields[planner.FieldActive] = desired
+		data, err := json.Marshal(execCtx.PlannedChange)
+		require.NoError(t, err)
+		var saved planner.PlannedChange
+		require.NoError(t, json.Unmarshal(data, &saved))
+		execCtx = NewExecutionContext(&saved)
+		var request kkComps.ReplacePrincipalBody
+		require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, saved.Fields, &request, nil))
+		_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		require.NoError(t, err)
+		require.Len(t, api.Writes, 1)
+		require.Equal(t, new(desired), api.Writes[0].Active)
+		require.Equal(t, desired, api.Directories["directory-id"][0].Active)
+	}
+	for _, absent := range []bool{true, false} {
+		a, api, execCtx := principalExecutorFixture()
+		api.ExposeActive = !absent
+		api.Directories["directory-id"][0].ProvisionedBy = new(kkComps.ProvisionedByDeveloperPortal)
+		execCtx.PlannedChange.Fields[planner.FieldActive] = false
+		var request kkComps.ReplacePrincipalBody
+		require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+		_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		require.Error(t, err)
+		require.Empty(t, api.Writes)
+	}
+}
+
+func TestPrincipalActiveProtectionAndOmission(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	api.ExposeActive = true
+	api.Directories["directory-id"][0].Active = true
+	api.Directories["directory-id"][0].ManagedBy[resources.ChildProtectedKey] = "true"
+	execCtx.PlannedChange.Fields[planner.FieldActive] = false
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.ErrorContains(t, err, "protected")
+	require.Empty(t, api.Writes)
+	api.Directories["directory-id"][0].ManagedBy[resources.ChildProtectedKey] = "false"
+	api.Directories["directory-id"][0].Active = false
+	delete(execCtx.PlannedChange.Fields, planner.FieldActive)
+	// Map into a fresh request, as the executor does for each change.
+	request = kkComps.ReplacePrincipalBody{}
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Nil(t, api.Writes[0].Active)
+	require.False(t, api.Directories["directory-id"][0].Active)
 }

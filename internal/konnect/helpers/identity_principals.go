@@ -154,10 +154,25 @@ func GetIdentityPrincipal(ctx context.Context, api IdentityPrincipalsAPI, direct
 }
 
 // IdentityPrincipalReplacement hydrates full PUT fields from a fresh response.
-// Q10: Active is deliberately omitted; absence cannot be inferred as false.
+// Active is omitted: its documented PUT omission semantics preserve the current
+// state, including on deployments that do not return the field (Q10).
 func IdentityPrincipalReplacement(value IdentityPrincipal) kkComps.ReplacePrincipalBody {
 	return kkComps.ReplacePrincipalBody{
 		DisplayName: value.DisplayName, Description: &value.Description,
 		Type: value.Type, Metadata: value.Metadata, Labels: value.Labels, ManagedBy: value.ManagedBy,
 	}
+}
+
+// ValidatePrincipalActiveUpdate requires observable state for explicit writes.
+func ValidatePrincipalActiveUpdate(value IdentityPrincipal, desired *bool) error {
+	if desired == nil {
+		return nil
+	}
+	if value.Active == nil {
+		return fmt.Errorf("API does not expose principal active state; explicit active management requires support (Q10)")
+	}
+	if !*desired && value.ProvisionedBy != nil && *value.ProvisionedBy == kkComps.ProvisionedByDeveloperPortal {
+		return fmt.Errorf("developer-portal principals cannot be deactivated")
+	}
+	return nil
 }

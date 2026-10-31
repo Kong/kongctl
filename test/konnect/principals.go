@@ -1,9 +1,12 @@
 package konnect
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -12,10 +15,22 @@ import (
 
 // PrincipalAPI keeps parent-scoped fixtures and captures full replacement writes.
 type PrincipalAPI struct {
-	Directories map[string][]kkComps.KongPrincipal
-	Writes      []kkComps.ReplacePrincipalBody
-	Creates     int
-	Deletes     int
+	Directories  map[string][]kkComps.KongPrincipal
+	Writes       []kkComps.ReplacePrincipalBody
+	Creates      int
+	Deletes      int
+	ExposeActive bool
+}
+
+func (a *PrincipalAPI) rawResponse(value any) (*http.Response, error) {
+	if !a.ExposeActive {
+		return nil, nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return &http.Response{Body: io.NopCloser(bytes.NewReader(data))}, nil
 }
 
 func (a *PrincipalAPI) ListPrincipals(
@@ -23,7 +38,18 @@ func (a *PrincipalAPI) ListPrincipals(
 	request kkOps.ListPrincipalsRequest,
 	_ ...kkOps.Option,
 ) (*kkOps.ListPrincipalsResponse, error) {
+	values := a.Directories[request.DirectoryID]
+	if values == nil {
+		values = []kkComps.KongPrincipal{}
+	}
+	raw, err := a.rawResponse(struct {
+		Data []kkComps.KongPrincipal `json:"data"`
+	}{values})
+	if err != nil {
+		return nil, err
+	}
 	return &kkOps.ListPrincipalsResponse{
+		RawResponse:        raw,
 		ListKongPrincipals: &kkComps.ListKongPrincipals{Data: a.Directories[request.DirectoryID]},
 	}, nil
 }
@@ -35,7 +61,8 @@ func (a *PrincipalAPI) GetPrincipal(
 ) (*kkOps.GetPrincipalResponse, error) {
 	for _, value := range a.Directories[directoryID] {
 		if value.ID == id {
-			return &kkOps.GetPrincipalResponse{KongPrincipal: &value}, nil
+			raw, err := a.rawResponse(value)
+			return &kkOps.GetPrincipalResponse{KongPrincipal: &value, RawResponse: raw}, err
 		}
 	}
 	return nil, fmt.Errorf("principal fixture %q not found", id)
@@ -57,6 +84,9 @@ func (a *PrincipalAPI) CreatePrincipal(
 		return nil, err
 	}
 	value.ID = fmt.Sprintf("00000000-0000-4000-8000-%012d", a.Creates)
+	if a.ExposeActive && request.Active == nil {
+		value.Active = true
+	}
 	a.Directories[directoryID] = append(a.Directories[directoryID], value)
 	return &kkOps.CreatePrincipalResponse{KongPrincipal: &value}, nil
 }
@@ -72,7 +102,7 @@ func (a *PrincipalAPI) ReplacePrincipal(
 		if value.ID != request.PrincipalID {
 			continue
 		}
-		id := value.ID
+		id, active, provisionedBy := value.ID, value.Active, value.ProvisionedBy
 		data, err := json.Marshal(request.ReplacePrincipalBody)
 		if err != nil {
 			return nil, err
@@ -82,6 +112,10 @@ func (a *PrincipalAPI) ReplacePrincipal(
 			return nil, err
 		}
 		value.ID = id
+		value.ProvisionedBy = provisionedBy
+		if request.ReplacePrincipalBody.Active == nil {
+			value.Active = active
+		}
 		return &kkOps.ReplacePrincipalResponse{KongPrincipal: value}, nil
 	}
 	return nil, fmt.Errorf("principal fixture not found")

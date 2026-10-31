@@ -20,6 +20,7 @@ identity:
         - ref: alice
           display_name: Shared name
           type: user
+          active: false
           metadata:
             department: engineering
             enabled: true
@@ -35,6 +36,7 @@ identity:
     - ref: agent
       directory: people
       type: agent
+      active: true
 `
 	rs, err := New().LoadFile(writeLoaderTestFile(t, input))
 	require.NoError(t, err)
@@ -56,13 +58,23 @@ identity:
 		{"large: 9007199254740994", "large: 9007199254740993", "Q31"},
 		{"numbers: [1, 2]", "numbers: [1, 9007199254740993]", "Q31"},
 		{"type: user", "type: group", "type must be"},
-		{"type: user", "active: false", "Q10"},
+		{"active: false", "active: null", "active must be a boolean"},
 		{"type: user", "managed_by: {tool: other}", "managed_by"},
 		{"type: user", "metadata: {nested: {a: b}}", "metadata"},
 		{"directory: people", "directory: absent", "directory"},
 	} {
 		_, err := New().LoadFile(writeLoaderTestFile(t, strings.Replace(input, replacement.old, replacement.next, 1)))
 		require.ErrorContains(t, err, replacement.message)
+	}
+	for _, p := range rs.Identity.Principals {
+		switch p.Ref {
+		case "alice":
+			require.Equal(t, new(false), p.Active)
+		case "agent":
+			require.Equal(t, new(true), p.Active)
+		default:
+			require.Nil(t, p.Active)
+		}
 	}
 }
 

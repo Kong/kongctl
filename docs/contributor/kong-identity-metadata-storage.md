@@ -106,6 +106,13 @@ authority for another resource family.
 
 ## Change log
 
+- October 31 UTC, principal active: optional public state now supports
+  declarative create/update/dump with presence-aware verification. Ownership
+  remains in the same five-entry managed_by map. Active omission preserves
+  state during adoption/protection updates. Developer-portal deactivation is
+  rejected; setting false can change provenance as documented by the API.
+
+
 - October 31 UTC, native `.tech` revalidation: active state is observable and
   writable, Vault enablement persists, user principals support keys and group
   key operations are available. None changes ownership storage: generated keys
