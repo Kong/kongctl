@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_BASIC_AUTH_DIRECTORY_NAME
+  info: Inspect basic-auth username records and public password metadata under user, agent and unclassified principals. Verify exact username selection, UUID-shaped usernames, real cursor traversal, all output formats and wrong-parent rejection. Native fixtures capture generated/imported secrets privately and remove their verified descendants before returning. Declarative credential writes are a separate implementation slice.
+steps:
+  - name: 001-basic-auth-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: false
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-scoped-credential-reads
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inspection.py'
+          - '{{ .bin }}'
+          - '{{ .vars.secret_dir }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                principal_types: 3
+                username_records: 5
+                password_records: 5
+                real_username_pagination: true
+                real_password_pagination: true
+                output_formats: 3
+                wrong_parent_rejected: true
+                captures_private: true
+                artifacts_clean: true
+                fixtures_removed: true

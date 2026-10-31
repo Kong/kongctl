@@ -176,6 +176,13 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return nil, err
 	}
 	group.AddCommand(principalKey)
+	for _, passwords := range []bool{false, true} {
+		basicAuth, err := newBasicAuthReadCommand(verb, passwords, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(basicAuth)
+	}
 	group.AddCommand(newAuthServerChildCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newAuthServerChildCommand(verb, true, addParentFlags, parentPreRun))
 	group.AddCommand(newAuthServerClientCommand(verb, false, addParentFlags, parentPreRun))
