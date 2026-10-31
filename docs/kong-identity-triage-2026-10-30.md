@@ -12,9 +12,10 @@ four-entry managed_by ownership, adoption, external UUID/username lookup,
 scoped sync/delete and dump. Saved writes recheck authority; passwords block
 username deletion, and API keys/unplanned usernames block principal deletion.
 Reads expose public metadata only. The live lifecycle passes in US `.tech`;
-section 42 records the boundary and evidence. Password writes still need the
-SDK expiration correction and explicit secret-source/rotation policy; Q35
-tracks metadata updates preserving secret/expiration.
+section 42 records the boundary and evidence. The SDK expiration correction
+is now verified in `79bc3dbbb928` (section 43). Password writes still need an
+explicit secret-source/rotation policy; Q35 tracks metadata updates preserving
+secret/expiration.
 
 The initial survey below is historical. Development on `ki-triage` has since
 delivered directories and principals, including declarative lifecycle, reads,
@@ -30,7 +31,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `995778a1c448`, including targeted
+The public preview SDK is now pinned to `79bc3dbbb928`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -2662,3 +2663,93 @@ work. Metadata-only password adoption has no verified preserving request
 Examples, resource reference, implementation guide, compatibility tracker and
 metadata ledger are updated. Keep #1418/#1415/#1414/#1132 open/In Progress
 until main merge; no PR is opened. The broader epic goal stays active.
+
+## 43. Credential expiration SDK correction
+
+SDK preview `79bc3dbbb928b1129be0687d6fa8acd37c560ba1` is pushed to
+`kongctl/kong-identity-public-preview`. KongCTL patch source is
+`190e5b5716c951fb13a1d1126ef38a0b9d8d5b70`, also pushed to `ki-triage`.
+The consumer replacement is
+`v0.79.1-0.20261031201742-79bc3dbbb928`. No release or PR is created.
+
+Canonical credential requests reference writable nullable ExpiresAt from
+common/properties.yaml. The combined specification instead selected the
+same-named read-only IAM timestamp from common/identity.yaml. Generation
+therefore omitted expiration, including password PUT's required property.
+Q36 records that composition issue for engineering, separately from backend
+PATCH ownership and omission behavior (Q28/Q35).
+
+Preview preparation now adds one dedicated writable nullable schema and
+retargets exactly six request schemas: principal/group generated/imported
+API-key create, key PATCH, password create/PATCH and password PUT. Five
+optional fields use the SDK's existing OptionalNullable date-time wrapper;
+unset/date/null remain distinct. Required password PUT uses a nullable time
+pointer and always sends the field. No global nullable-wrapper switch or
+existing public field type changes are introduced. Models, examples and wire
+regressions are maintained in the source patch bundle.
+
+The 30-case HTTP wire regression has 21 failures before schema correction;
+schema correction alone leaves nine null failures. Full correction passes
+all cases. Two preparation tests verify the correction's scope, idempotence
+and drift rejection. An AST audit finds no removed or changed existing
+exported members/signatures across 39,350 declarations, with 14 added methods.
+The operation inventory stays 1,102 (990 baseline plus 112 Identity additions).
+The SDK audit confirms
+zero unrelated schema/operation changes and unchanged global configuration.
+Verified formatting-only regeneration changes were removed from 385 unrelated
+files. Existing KongCTL patches and upstream persistent edits are retained.
+
+Full pinned generation succeeds, with zero specification lint errors and
+255 warnings. A missing linked-worktree pristine snapshot was
+recovered into the shared Git object store rather than disabling persistent
+edits. The current snapshot ref is also pushed, so future regeneration can
+fetch it. SDK root/model/internal/pkg tests and the internal race suite pass.
+
+KongCTL compiles against the new pin without application-code changes.
+Modernization, formatting, CGO-disabled build and make test-all pass, including
+lint, unit/integration/harness race tests, installer checks, nine patch-tool
+tests and 140 metrics tests. The default replay cassette check passes; replay
+membership and cassettes are unchanged. All sixteen Identity live scenarios
+pass together in 273.613 seconds. Their artifacts are under
+credential-expiration-all-identity/20261031-151929 in the evidence cache.
+Fresh direct API inventory confirms empty principal/group/auth-server
+collections and restored unmanaged default
+01a193a2-4bfe-733a-adb3-e71309787a37, with its saved public settings. All seven
+referenced private capture directories are absent. Final evidence is
+credential-expiration-final-inventory.json and the consumer gate log is
+credential-expiration-consumer-gates.log. The pre-commit executable remains
+unavailable; the explicit repository checks above were run.
+
+Native SDK requests pass 84 US `.tech` checks: generated/imported key/password
+creation with omitted/date/null expiration; principal/group key and password
+PATCH with those states; password PUT with a timestamp or null. Fresh raw GETs
+verify each resulting expiration. Omitted PATCH still clears expiration; the
+SDK faithfully represents that request rather than fixing backend semantics.
+All disposable credentials, username records, principals and groups are
+removed. Generated/imported secret values stay in memory and are not logged.
+The check uses explicit `.tech` transport routing because these SDK operations
+have per-operation server URLs. It establishes administrative behavior only;
+runtime authentication/continuity still needs Q30's integration context.
+
+Evidence under /home/rspurgeon/.cache/kong-identity-public-sdk/:
+
+- credential-expiration-wire-before.log
+- credential-expiration-wire-schema-only.log
+- credential-expiration-wire-after.log
+- credential-expiration-preparation-tests.log
+- credential-expiration-go-api-audit.json
+- credential-expiration-native-sdk.json
+- credential-expiration-generate-final.log
+- credential-expiration-sdk-final-tests.log
+- credential-expiration-sdk-final-race.log
+
+The SDK contains the scoped audit and generation provenance under
+identity-preview/.
+
+This removes the SDK prerequisite for further credential work. It does not
+enable a product writer or change metadata storage. Imported keys still cannot
+acquire verified ownership; key/password metadata PATCH is ignored; password
+PUT requires secret material. Explicit secret-source/capture/rotation policy,
+declarative feasibility and lifecycle examples/E2E remain the next work under
+#1417/#1418/#2659. Keep those issues and SDK issues #1413/#1399 In Progress
+until main merge. The broader epic goal stays active.

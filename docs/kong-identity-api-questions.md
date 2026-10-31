@@ -32,6 +32,7 @@ open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
 | Runtime prerequisites (Q30) | Administrative bearer plus a valid key still gets mTLS-context error. | Supported runtime context still required. |
 | Unverified contracts | Provisioning lifecycle, importer/user enrollment, workspace fixtures, cross-resource deletion variants and recovery guarantees. | Do not present these as resolved or as reproduced `.tech` defects. |
 | Cursor query (Q22) | Shared source annotation and SDK wire mismatch remain established separately. | Keep upstream spec correction and SDK tests. |
+| Credential expiration schema (Q36) | Native timestamp/null writes work; combined SDK spec selects a read-only component for writable requests. | Correct the component-name collision in specification composition; this is separate from backend PATCH behavior. |
 
 Sanitized request/response evidence is saved locally under
 `/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:

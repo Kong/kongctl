@@ -495,6 +495,10 @@ the identity-specific Q21 workaround is not copied without that discrepancy.
 
 API-only Q27–Q30 and Q4 govern enrollment of mutations:
 
+The following initial US `.com` observations are historical. The engineering
+question matrix records the newer `.tech` availability results; ownership and
+expiration-omission restrictions are still reproduced there.
+
 - Keys work under `agent` and unclassified principals. A freshly readable
   `user` principal's key create/list return 404. Reads report that failure;
   they do not interpret it as an empty collection or enforce a local type ban.
@@ -518,10 +522,12 @@ atomic imported creation and uncertainty recovery. Add corresponding lifecycle
 and runtime tests. Declarative lifecycle and adoption remain pending those
 verified ownership contracts.
 
-Principal declarative delete/sync currently guards identity associations, not
-API-key descendants. Key enrollment must add production parent-deletion
-observations and ordering, including a verified contract for the user-type 404.
-The fixture cleanup checks below do not extend production deletion authority.
+Principal declarative delete/sync now observes basic-auth and API-key
+descendants as well as identity associations. Any API key blocks deletion;
+none is automatically revoked. Failed observations, including a legacy
+user-type 404, fail closed. Future declarative key enrollment must add explicit
+authorized key deletions and child-before-parent ordering. The fixture cleanup
+checks below do not extend production deletion authority.
 Q24 records the API's native descendant deletion; public metadata alone does
 not provide independent protection against that operation.
 
@@ -530,8 +536,9 @@ reference a mutable nullable expiration schema, while the merged preview's
 shared `ExpiresAt` is read-only. Generated write models consequently omit the
 field even though direct API writes work. Resolve that targeted schema/reference
 difference and verify omitted/value/null wire semantics before enabling writes;
-it is not evidence that the API lacks expiration support. The current SDK
-increment fixes only pagination and adds no write-model fields.
+it is not evidence that the API lacks expiration support. SDK `79bc3dbbb928`
+now corrects this gap; see the credential-expiration correction below. Backend
+ownership restrictions still apply independently.
 
 The live inspection scenario uses generated keys with explicit fixture metadata
 under agent/unclassified principals, captures material privately, verifies
@@ -539,9 +546,9 @@ three request pages and scans artifacts for material and its Base64 form.
 Fixture cleanup opts into API-key observation explicitly, checks every marked
 collection before deletion, rechecks metadata before individual deletes and
 requires empty collections before principal removal. Existing scenarios do not
-gain a new credential permission requirement. Subsequent direct group-key GET
-and POST requests returned 501 (Q33); their shared schema is not sufficient to
-enroll them.
+gain a new credential permission requirement. Earlier US `.com` group-key GET
+and POST returned 501 (Q33); the newer `.tech` deployment supports them. Their
+shared schema alone is not sufficient to enroll a product lifecycle.
 
 ## Group and direct membership inspection
 
@@ -712,8 +719,9 @@ Preview SDK 995778a1c448 corrects bracketed pagination for basic-auth and
 password lists, extending the existing six list corrections to eight. The
 wire regression fails on both old request shapes and passes after correction;
 full SDK tests pass. Existing write models suffice for username records.
-Password write models separately omit expires_at due to the shared read-only
-merged schema; that is SDK preparation work, not proof of an unavailable API.
+Password write models originally omitted expires_at due to the shared
+read-only merged schema. SDK `79bc3dbbb928` corrects this separate composition
+and serialization gap; it does not resolve Q35's backend metadata behavior.
 
 ### Implemented read and username-write foundations
 
@@ -774,3 +782,39 @@ foreign/unowned retention, stale ownership/password guards and cross-namespace
 child-before-principal deletion. Password/key fixtures use private capture,
 secret/base64 artifact scans and verified explicit retirement. No additional
 SDK changes were required beyond preview 995778a1c448's cursor corrections.
+
+## Credential expiration SDK correction
+
+Related specification question: Q36. Preview SDK `79bc3dbbb928` separates the
+canonical writable credential expiration schema from the merged read-only
+IAM timestamp. Six request schemas gain their documented expiration property;
+principal/group generated/imported keys reuse those same request bodies.
+
+Five optional fields use the SDK's existing OptionalNullable date-time type:
+unset omits the property, a date sends a timestamp, and explicit null sends
+JSON null. Required password replacement keeps a nullable time pointer and
+always sends the property, including null. The global generator configuration
+and all existing public SDK fields remain unchanged. The snapshot records
+patch source `190e5b57`; no ordinary KongCTL build performs these patches.
+
+The wire regression has 30 cases. Before correction, 21 fail because request
+models omit expiration. Correcting the schema alone leaves nine explicit-null
+failures; the targeted wrappers resolve those failures. All 30 pass after full
+generation. Two preparation tests verify scope, idempotence and drift checks.
+An AST audit finds no removed or changed existing exported members/signatures
+across 39,350 declarations; the 1,102-operation inventory is unchanged.
+
+Native SDK requests in US `.tech` pass 84 creation/update/replacement and
+fresh-GET expiration checks, with generated/imported principal/group keys and
+passwords. Fixture secrets stay in memory and all fixture resources are
+removed. These are administrative expiration checks, not runtime credential
+continuity evidence (Q30). Operation-specific SDK server URLs require the
+same environment routing used by existing KongCTL helpers.
+
+This removes the SDK preparation prerequisite, not the backend limitations:
+imported-key ownership is still unavailable, key/password metadata PATCH is
+ignored, and omitted expiration still clears it (Q4/Q28/Q35). No key/password
+product writer is enabled by this dependency change. Remove the scoped schema
+and wrapper corrections together only when upstream composition/generation
+passes the same omitted/value/null wire cases without changing unrelated
+public SDK models.
