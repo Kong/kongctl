@@ -1,0 +1,517 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_IDENTITY_LOOKUP_DIRECTORY_NAME
+    - resource: identity_auth_server
+      nameVar: server_name
+      nameEnv: KONGCTL_E2E_IDENTITY_LOOKUP_SERVER_NAME
+    - resource: control_plane
+      nameVar: control_plane_name
+      nameEnv: KONGCTL_E2E_IDENTITY_LOOKUP_CP_NAME
+  info: Inspect all four principal identity variants, verify actual cursor traversal and enforce parent membership despite Q21. Requires directory, auth-server and API Gateway administration.
+steps:
+  - name: 001-identity-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: false
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: create-owner-principal
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              display_name: Repeated display name
+              type: user
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          recordVar:
+            name: principal_id
+            responsePath: id
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+      - name: create-other-principal
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              display_name: Repeated display name
+              type: user
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          recordVar:
+            name: other_principal_id
+            responsePath: id
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+      - name: create-server
+        create:
+          resource: identity_auth_server
+          payload:
+            inline:
+              name: '{{ .vars.server_name }}'
+              audience: https://api.example.test
+          recordVar:
+            name: server_id
+            responsePath: id
+      - name: prepare-client
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - client
+          - '{{ .workdir }}'
+          - '{{ .vars.server_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: create-client-with-private-capture
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/client.yaml'
+          - --auto-approve
+          - --secret-output-dir
+          - '{{ .vars.secret_dir }}'
+        recordVar:
+          name: capture_path
+          responsePath: execution.generated_files[0]
+      - name: get-client
+        run:
+          - get
+          - identity
+          - auth-server-clients
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+        recordVar:
+          name: client_id
+          responsePath: '[0].id'
+      - name: create-control-plane
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: '{{ .vars.control_plane_name }}'
+              cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+              labels:
+                e2e-fixture: identity-inspection
+          recordVar:
+            name: control_plane_id
+            responsePath: id
+      - name: create-consumer
+        run:
+          - api
+          - post
+          - /v2/control-planes/{{ .vars.control_plane_id }}/core-entities/consumers
+          - username=kongctl-identity-{{ .vars.directory_id }}
+        recordVar:
+          name: consumer_id
+          responsePath: id
+      - name: prepare-identities
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - identities
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.principal_id }}'
+          - '{{ .vars.server_id }}'
+          - '{{ .vars.client_id }}'
+          - '{{ .vars.control_plane_id }}'
+          - '{{ .vars.consumer_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: create-custom-0
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-0.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-0
+        recordVar:
+          name: identity_custom_0
+          responsePath: id
+      - name: create-custom-1
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-1.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-1
+        recordVar:
+          name: identity_custom_1
+          responsePath: id
+      - name: create-custom-2
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-2.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-2
+        recordVar:
+          name: identity_custom_2
+          responsePath: id
+      - name: create-custom-3
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-3.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-3
+        recordVar:
+          name: identity_custom_3
+          responsePath: id
+      - name: create-custom-4
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-4.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-4
+        recordVar:
+          name: identity_custom_4
+          responsePath: id
+      - name: create-custom-5
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-5.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-5
+        recordVar:
+          name: identity_custom_5
+          responsePath: id
+      - name: create-custom-6
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/custom-6.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": custom-6
+        recordVar:
+          name: identity_custom_6
+          responsePath: id
+      - name: create-oidc
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/oidc.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": oidc
+        recordVar:
+          name: identity_oidc
+          responsePath: id
+      - name: create-oauth
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/oauth.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": oauth
+        recordVar:
+          name: identity_oauth
+          responsePath: id
+      - name: create-consumer
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/consumer.json'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-ref": consumer
+        recordVar:
+          name: identity_consumer
+          responsePath: id
+      - name: list-all-pages
+        run:
+          - list
+          - identity
+          - principal-identities
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 10
+                length([?type=='custom']): 7
+                length([?type=='oidc']): 1
+                length([?type=='auth_server_client']): 1
+                length([?type=='control_plane_consumer']): 1
+      - name: verify-actual-cursor-traversal
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - verify-pagination
+          - '{{ .workdir }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                traversed_pages: true
+                followed_cursors: true
+                bracketed_size: true
+      - name: get-custom-page
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_custom_6 }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.identity_custom_6 }}'
+                type: custom
+                key: employee_id
+                value: '{{ .vars.directory_id }}-6'
+                managed_by."kongctl-ref": custom-6
+                managed_by."kongctl-namespace": identity-id-e2e
+                labels.team: identity
+      - name: get-oidc
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_oidc }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                type: oidc
+                issuer: https://issuer.example.test
+                claim.name: sub
+                claim.value: '{{ .vars.directory_id }}'
+                managed_by."kongctl-ref": oidc
+      - name: get-oauth
+        run:
+          - get
+          - konnect
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_oauth }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                type: auth_server_client
+                auth_server_id: '{{ .vars.server_id }}'
+                client_id: '{{ .vars.client_id }}'
+                managed_by."kongctl-ref": oauth
+      - name: get-consumer
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_consumer }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                type: control_plane_consumer
+                control_plane_id: '{{ .vars.control_plane_id }}'
+                consumer_id: '{{ .vars.consumer_id }}'
+                control_plane_type: api_gateway
+                workspace_id == `null`: true
+      - name: empty-other-principal
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.other_principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
+      - name: reject-other-principal
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_custom_6 }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.other_principal_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: does not belong to the selected principal
+      - name: reject-invalid-identity
+        run:
+          - get
+          - identity
+          - principal-identity
+          - not-a-uuid
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: UUID
+      - name: reject-missing-principal
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+        expectFailure:
+          exitCode: 1
+          contains: principal-id
+      - name: yaml-output
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_oidc }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                type: oidc
+                claim.value: '{{ .vars.directory_id }}'
+        outputFormat: yaml
+        parseAs: yaml
+      - name: text-list
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'TYPE'): true
+                contains(stdout, 'control_plane_consumer'): true
+        outputFormat: text
+        parseAs: raw
+      - name: text-detail
+        run:
+          - get
+          - identity
+          - principal-identity
+          - '{{ .vars.identity_custom_6 }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'employee_id'): true
+                contains(stdout, 'managed_by'): true
+        outputFormat: text
+        parseAs: raw
