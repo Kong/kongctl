@@ -681,3 +681,34 @@ deferred under Q32. Unsupported nested state blocks authoritative pruning
 and managed membership export. No inherited relationship is removed through
 the principal's computed groups field. These boundaries need native tests and
 lifecycle coverage before expansion, rather than inference from the schema.
+
+## Basic-auth credential contracts under evaluation
+
+Direct US `.tech` probes verify basic-auth records/passwords for user, agent
+and unclassified principals. Username conflicts return 409 within/across
+principals in one directory. Basic-auth full PUT retains a supplied management
+map and clears omitted metadata. PATCH ignores management changes. PUT and
+username rename preserve observed password IDs; no runtime continuity is
+claimed without Q30's supported context. Metadata writes must hydrate the
+username from fresh state and verify retained ownership/public fields.
+
+Generated/imported password creation retains ownership and explicit expiry.
+Read responses omit secret material. PATCH ignores ownership changes/removal
+and clears omitted expiry. PUT requires explicit secret material and can
+retain new metadata/expiry when supplied. Two total password slots remain
+occupied even after expiration; a third create returns 403. Do not implicitly
+retire a password to make room or resend a creation after an uncertain result.
+Q35 asks for metadata updates that preserve secret/expiration. Password
+metadata-only adoption is unavailable; declarative enrollment still requires
+an explicit secret-source/rotation policy rather than an assumed preserve.
+
+Wrong-parent basic-auth GET/DELETE and wrong-principal/wrong-basic-auth
+password GET return 404. Principal DELETE succeeds with attached records and
+passwords; later administrative reads return 404. Add credential observations
+before principal deletion, and password observations before basic-auth
+deletion, without inferring runtime revocation or cascading ownership.
+
+The preview SDK still needs bracketed pagination corrections for basic-auth
+and password lists. Existing write models suffice for username records.
+Password write models separately omit expires_at due to the shared read-only
+merged schema; that is SDK preparation work, not proof of an unavailable API.

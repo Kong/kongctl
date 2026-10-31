@@ -31,6 +31,8 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 		{"KongPrincipal", "ListPrincipals", false},
 		{"KongPrincipalIdentity", "ListIdentities", false},
 		{"KongPrincipalCredential", "ListPrincipalKeys", false},
+		{"KongPrincipalCredential", "ListPrincipalBasicAuths", false},
+		{"KongPrincipalCredential", "ListPasswords", false},
 		{"PrincipalGroup", "ListGroups", false},
 		{"PrincipalGroup", "ListGroupMembership", false},
 	} {
@@ -54,7 +56,7 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 				page = reflect.New(pageField.Type().Elem())
 				pageField.Set(page)
 				argument.Elem().FieldByName("DirectoryID").SetString("731559d3-39bd-48c7-b33c-eb192847eb20")
-				for _, parent := range []string{"PrincipalID", "GroupID"} {
+				for _, parent := range []string{"PrincipalID", "GroupID", "BasicAuthID"} {
 					if field := argument.Elem().FieldByName(parent); field.IsValid() {
 						field.SetString("731559d3-39bd-48c7-b33c-eb192847eb21")
 					}
