@@ -29,6 +29,20 @@ class PatchTests(unittest.TestCase):
             self.assertEqual(result.count("./kongctl-patches/overlays/" + name), 1)
         self.assertEqual(patches.configure_workflow(result, self.manifest), result)
 
+    def test_preserves_multiline_speakeasy_overlay_entries(self):
+        workflow = (
+            "speakeasyVersion: latest\nsources:\n    konnect:\n"
+            "        overlays:\n            -\n                location: ./upstream.yaml\n"
+            "            -\n                location: ./kongctl-patches/overlays/update-portal-patch-defaults.yaml\n"
+            "        registry:\n                location: registry\n"
+        )
+        result = patches.configure_workflow(workflow, self.manifest)
+        self.assertIn("            -\n                location: ./upstream.yaml\n", result)
+        for name in self.manifest["overlays"]:
+            self.assertEqual(result.count("./kongctl-patches/overlays/" + name), 1)
+        self.assertIn("        registry:\n                location: registry\n", result)
+        self.assertEqual(patches.configure_workflow(result, self.manifest), result)
+
     def test_installs_overlays_in_upstream_workflow(self):
         result = patches.configure_workflow(
             "speakeasyVersion: latest\nsources:\n    konnect:\n        registry:\n"

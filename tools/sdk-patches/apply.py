@@ -19,16 +19,20 @@ POST_GENERATE = f"\tpython3 {SNAPSHOT}/apply.py post-generate .\n"
 def configure_workflow(text, manifest):
     """Preserve upstream overlays while replacing this bundle's entries."""
     names = set(manifest["overlays"])
-    section = re.search(r"^        overlays:\n(?:            - location: .*\n)*", text, re.M)
+    section = re.search(r"^        overlays:\n(?:(?: {12,}.*|[ \t]*)\n)*", text, re.M)
     entries = []
     if section:
-        for line in section.group().splitlines()[1:]:
-            location = line.split("location: ", 1)[1]
+        blocks = re.findall(r"^            -[^\n]*\n(?: {13,}.*\n)*", section.group(), re.M)
+        for block in blocks:
+            match = re.search(r"^\s*(?:-\s+)?location:\s*(.+?)\s*$", block, re.M)
+            if not match:
+                raise ValueError("expected a location in each SDK overlay entry")
+            location = match.group(1).strip("\"'")
             if location.startswith(f"./{SNAPSHOT}/overlays/"):
                 continue
             if location.startswith("./.speakeasy/overlays/") and Path(location).name in names:
                 continue
-            entries.append(line + "\n")
+            entries.append(block)
     entries.extend(f"            - location: ./{SNAPSHOT}/overlays/{name}\n" for name in manifest["overlays"])
     replacement = "        overlays:\n" + "".join(entries)
     if section:
