@@ -30,6 +30,7 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 		{"KongIdentityDirectories", "ListKongDirectories", true},
 		{"KongPrincipal", "ListPrincipals", false},
 		{"KongPrincipalIdentity", "ListIdentities", false},
+		{"KongPrincipalCredential", "ListPrincipalKeys", false},
 	} {
 		t.Run(tc.method, func(t *testing.T) {
 			capture := &identityCursorCapture{}

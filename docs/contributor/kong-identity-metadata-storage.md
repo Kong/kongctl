@@ -43,8 +43,9 @@ These rows describe available API fields, not completed implementations.
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
 | Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
-| Generated principal and group API keys | `managed_by`; no labels | Persist ref/ownership only after create and update retention are verified. Generated-secret capture is separate. #1417, #2659. |
-| Imported principal and group API keys | Read/update expose `managed_by`; imported create lacks it | No atomic ownership stamp at creation in the inspected body. Q4 tracks the gap; do not equate a later PATCH with atomic creation. #1417, #2659. |
+| Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is in progress under #1417. |
+| Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
+| Group API keys, generated/imported | Same schema metadata fields as principal keys | Separate live retention, parent and credential checks remain required. Do not assume principal-key observations establish group behavior. #2659. |
 | Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Possible persisted ref/ownership. Write-only secret handling and password-slot limits also govern support. #1418. |
 
@@ -157,6 +158,13 @@ authority for another resource family.
   client/Gateway references supply deletion dependencies and saved scopes for
   fresh execution checks. Collections outside the declarations are not scanned;
   native API effects described in Q26 remain a limit of metadata protection.
+- Principal API-key probes: generated creation retains namespace/ref/protection
+  metadata atomically; imported creation rejects it. Both generated/imported
+  PATCH ignore management-map changes, including complete maps. Metadata-only
+  PATCH also clears an omitted expiration. Q27 records `user` principal 404s,
+  Q28 the update behavior, Q29 unavailable names and Q30 runtime mTLS setup.
+  Key GET/list omit secret material. No declarative ownership updates or
+  adoption are claimed from schema presence alone.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

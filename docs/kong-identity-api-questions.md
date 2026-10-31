@@ -60,6 +60,12 @@ created atomically?
 The inspected imported-key create body does not expose `managed_by`. Is
 there another supported way to attach it during creation?
 
+**Observed (October 31, 2026 UTC, US `.com`):** Imported create with
+`managed_by` returns 400, identifying that property as unsupported. Creation
+without it succeeds and returns an empty map. A subsequent complete-map PATCH
+returns 200 but GET still shows the empty map (Q28), so a second write does not
+currently provide an ownership workaround.
+
 ### Q5 Ownership update semantics
 
 **Question:** For principals, identities, and credentials, which operations
@@ -69,6 +75,8 @@ Are management metadata updates supported for every resource that exposes it?
 **Observed:** Directory and principal PUT requests retained the supplied
 management metadata values. Principal PATCH behaved differently; see Q11.
 Omission and removal semantics still need confirmation across resource types.
+Principal API-key PATCH also ignores partial and complete management maps;
+see Q28 for its expiration side effect.
 
 ### Q6 Vault and trusted IdP ownership
 
@@ -366,6 +374,11 @@ Confirm which associated resources are deleted, detached or retained, and
 whether independently managed associations can prevent parent deletion.
 All probe resources were disposable and were removed afterward.
 
+Additional API-key probes show that principal DELETE also succeeds with
+generated and imported keys attached. The principal's key detail and collection
+routes then return 404. Runtime revocation was not established because the
+runtime endpoint requires a supported mTLS setup (Q30).
+
 ### Q25 Consumer identity workspace configuration
 
 **Question:** When is `workspace_id` required or supported on a
@@ -400,6 +413,61 @@ established by these observations. All fixtures were removed afterward.
 
 Confirm the intended lifecycle, including whether retained associations can
 be distinguished from associations whose targets still exist.
+
+### Q27 Principal types supported by API-key credentials
+
+**Question:** Which principal types support API-key credentials? Should create
+and list return "principal not found" for an existing `user` principal, or
+should that type support keys or return an explicit unsupported-type error?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Fresh principals created as
+`user`, `agent`, explicit null and omitted type all return 200 from principal
+GET. API-key create/list return 404 for the `user`, with detail "The requested
+principal was not found". The same operations succeed for `agent` and both
+unclassified variants. Generated creation retains all five supplied management
+entries. This comparison used the same directory and administration token.
+
+### Q28 API-key PATCH metadata and expiration omission
+
+**Question:** Does API-key PATCH support `managed_by` changes, and should an
+omitted `expires_at` preserve expiration? What operation can change management
+metadata without changing credential material or its expiration?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Generated creation retains a
+future expiration and the supplied management map. PATCH with a partial map,
+then with a complete five-entry map changing version/ref/protection, returns
+200 but GET retains the original map. Imported-key PATCH likewise leaves its
+empty map unchanged. An expiration-only PATCH works, and explicit null clears
+expiration. Omitting expiration from a metadata-only PATCH also clears it.
+Sending the existing expiration explicitly preserves it. PUT returns 405.
+
+Confirm supported merge/removal semantics and whether successful responses
+should reject unsupported metadata changes instead of ignoring them.
+
+### Q29 API-key name availability
+
+**Question:** When will API-key `name` be supported consistently on create,
+read and update? Until then, should PATCH reject the field explicitly?
+
+**Observed (October 31, 2026 UTC, US `.com`):** The inspected upcoming schema
+includes nullable names. Generated create with a nonempty name returns 400
+because `name` is unsupported; the same request without name succeeds. GET and
+list omit name. PATCH with a nonempty name or null returns 200, but fresh GET
+still omits it. No uniqueness rule was inferred.
+
+### Q30 Runtime authentication prerequisites
+
+**Question:** What is the supported way to call a directory's runtime
+`/{directoryName}/v2/authenticate` endpoint from an administrative integration
+test? Which client certificate, control-plane association and organization
+context are required? Can you provide a working request example?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Generated and imported keys can
+be created and inspected through administration endpoints. Requests to
+`us.identity.konghq.com` using an administration bearer token return 400 with
+"mTLS headers missing". This does not establish whether either key can
+authenticate. No internal mTLS context headers were fabricated. A supported
+runtime setup is needed to verify credential continuity and revocation.
 
 ## Recorded answers
 
