@@ -70,6 +70,15 @@ func requireEmptyIdentityDirectoryCollection(response *http.Response, resource s
 func RequireEmptyIdentityDirectoryVault(ctx context.Context, api IdentityDirectoryDependenciesAPI,
 	directory string, vaultEnabled *bool,
 ) error {
+	return RequireIdentityDirectoryVaultRetirements(ctx, api, directory, vaultEnabled, nil)
+}
+
+// RequireIdentityDirectoryVaultRetirements permits only explicitly planned key
+// removals during planning. Execution still requires empty collections through
+// RequireEmptyIdentityDirectoryVault after the ordered key deletes.
+func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityDirectoryDependenciesAPI,
+	directory string, vaultEnabled *bool, keysToRemove map[string]string,
+) error {
 	if !util.IsValidUUID(directory) {
 		return fmt.Errorf("directory ID must be a UUID")
 	}
@@ -80,15 +89,27 @@ func RequireEmptyIdentityDirectoryVault(ctx context.Context, api IdentityDirecto
 	if api == nil {
 		return fmt.Errorf("directory Vault dependency APIs are not configured; deletion is blocked")
 	}
-	keys, err := api.ListVaultKeys(ctx, kkOps.ListVaultKeysRequest{DirectoryID: directory})
-	if err != nil {
-		return identitySecretAPIError("observe directory Vault keys before deletion", err)
-	}
-	if keys == nil {
-		return fmt.Errorf("missing directory Vault key collection response; deletion is blocked")
-	}
-	if err := requireEmptyIdentityDirectoryCollection(keys.RawResponse, "Vault keys"); err != nil {
-		return err
+	if len(keysToRemove) > 0 {
+		keys, err := ListIdentityVaultKeys(ctx, api, directory, 100)
+		if err != nil {
+			return err
+		}
+		for _, key := range keys {
+			if keysToRemove[key.ID] != key.Kid {
+				return fmt.Errorf("directory has attached Vault keys without explicit planned deletion")
+			}
+		}
+	} else {
+		keys, err := api.ListVaultKeys(ctx, kkOps.ListVaultKeysRequest{DirectoryID: directory})
+		if err != nil {
+			return identitySecretAPIError("observe directory Vault keys before deletion", err)
+		}
+		if keys == nil {
+			return fmt.Errorf("missing directory Vault key collection response; deletion is blocked")
+		}
+		if err := requireEmptyIdentityDirectoryCollection(keys.RawResponse, "Vault keys"); err != nil {
+			return err
+		}
 	}
 	providers, err := api.ListVaultProviders(ctx, kkOps.ListVaultProvidersRequest{DirectoryID: directory})
 	if err != nil {

@@ -1,0 +1,13 @@
+_defaults:
+  kongctl:
+    namespace: identity-directory
+identity:
+  directories:
+    - ref: default-directory
+      name: default
+      allow_all_control_planes: true
+      vault_enabled: true
+      vault_keys:
+        - ref: application-encryption-key
+          name: application-encryption
+          public_key: !file ./vault-public-key.pem

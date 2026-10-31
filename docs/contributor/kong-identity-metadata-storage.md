@@ -17,6 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
+| Token Vault keys | None | Managed directory | Verified live lifecycle. |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Declarative deletion requires enabled Vault and fresh empty key/provider/Trusted IdP inventories; it never grants child ownership or retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
@@ -90,13 +91,24 @@ or protection metadata on them.
 | Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
-| Token Vault public keys | Directory; RFC 7638 `kid` fingerprint | Direct US `.tech` probes verify RSA/EC kid identity, duplicate material rejection and non-unique names. No independent ownership stamp exists. Directory force=false cascades even while disabled Vault hides the keys (Q37); ownership/deletion policy remains unresolved. Q6, #2661. |
+| Token Vault keys | Directory + `kid` | Parent ownership; see below. |
 | Token Vault Credential Providers | Unique name per directory | Direct US `.tech` create/name-update conflicts confirm uniqueness. No independent tool/namespace/protection stamp exists. Directory force=false cascades while Vault-disabled inspection fails (Q37). Custom DCR PUT and initial enabled state need Q39/Q40; stored-secret preservation is unverified. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
+
+Token Vault public keys now inherit ownership from an explicitly managed
+directory. Matching uses the verified RFC 7638 fingerprint, never nonunique
+names or a locally stored ref. Adoption is through the parent; external
+directories authorize inspection only. A declared collection supplies sync
+authority, omission preserves it, and parent protection applies to updates and
+deletions. Dump exports keys beneath enabled managed parents only. Directory
+deletion can plan exact authorized key removals, then requires fresh empty
+key/provider/IdP inventories at execution. Q6 asks about future API ownership
+fields; Q37's native cascade/visibility and atomicity limitations still apply.
+See [the key tutorial](../examples/declarative/identity/vault-keys.md), #2661.
 
 Inherited ownership is not metadata persisted on a child. Scopes and claims
 require a declared managed server; its namespace and update/delete protection
@@ -107,6 +119,13 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31, Token Vault public keys: declarative lifecycle and public
+  inspection use fingerprint identity and explicitly managed directory
+  ownership. No child metadata is stamped. Parent adoption, collection sync,
+  protection, saved writes, public dump/reload and ordered retirement are
+  covered by a live `.tech` scenario. No SDK revision beyond `2597fe249e26`
+  is needed. Runtime encryption/private-key retention is not claimed.
 
 - October 31 UTC, directory deletion observations: enabled Vault and fresh
   empty key/provider/Trusted IdP collections are now preconditions for planned

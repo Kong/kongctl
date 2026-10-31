@@ -2065,6 +2065,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_vault_key
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []

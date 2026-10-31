@@ -68,6 +68,28 @@ func identityDirectoryCollector() declarativeCollector {
 		}, func(ctx context.Context, d *declarativeDumpContext, values []resources.IdentityDirectoryResource) error {
 			seen := make(map[string]bool)
 			for i := range values {
+				// An external directory does not confer key ownership. A disabled
+				// Vault cannot be inspected; omit the collection without claiming
+				// emptiness or granting sync authority over hidden children.
+				if !values[i].IsExternal() && values[i].VaultEnabled != nil && *values[i].VaultEnabled {
+					keys, err := d.stateClient.ListIdentityVaultKeys(ctx, values[i].Ref)
+					if err != nil {
+						return err
+					}
+					for _, key := range keys {
+						ref := "vault-key-" + key.ID
+						if seen[ref] {
+							return fmt.Errorf("vault key ref is ambiguous in the dump")
+						}
+						seen[ref] = true
+						values[i].VaultKeys = append(values[i].VaultKeys, resources.IdentityVaultKeyResource{
+							Ref: ref, Name: key.Name, PublicKey: key.PublicKey,
+						})
+					}
+					slices.SortFunc(values[i].VaultKeys, func(a, b resources.IdentityVaultKeyResource) int {
+						return cmp.Compare(a.GetMoniker(), b.GetMoniker())
+					})
+				}
 				principals, err := d.stateClient.ListIdentityPrincipals(ctx, values[i].Ref)
 				if err != nil {
 					return err
@@ -275,5 +297,6 @@ func identityDirectoryCollector() declarativeCollector {
 		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
 		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
 		resources.ResourceTypeIdentityBasicAuth,
+		resources.ResourceTypeIdentityVaultKey,
 	)
 }
