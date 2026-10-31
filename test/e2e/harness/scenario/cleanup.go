@@ -23,6 +23,7 @@ type cleanupTarget struct {
 	kind             resources.ResourceType
 	name             string
 	principalAPIKeys bool
+	principalGroups  bool
 }
 
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
@@ -31,6 +32,9 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 	for _, spec := range specs {
 		if spec.PrincipalAPIKeys && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
 			return fmt.Errorf("principalAPIKeys cleanup requires an identity directory")
+		}
+		if spec.PrincipalGroups && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("principalGroups cleanup requires an identity directory")
 		}
 		// Only families with complete list commands and safe raw deletion participate.
 		//nolint:exhaustive
@@ -58,6 +62,7 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		cli.WithEnv(map[string]string{spec.NameEnv: name})
 		targets = append(targets, cleanupTarget{
 			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
+			principalGroups: spec.PrincipalGroups,
 		})
 	}
 	t.Cleanup(func() {
@@ -124,6 +129,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		return nil
 	}
 	if target.kind == resources.ResourceTypeIdentityDirectory {
+		if target.principalGroups {
+			if err := cleanupGroupFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
 		if err := cleanupPrincipalFixtures(ctx, cli, id, target.principalAPIKeys); err != nil {
 			return err
 		}

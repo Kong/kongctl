@@ -520,3 +520,42 @@ requires empty collections before principal removal. Existing scenarios do not
 gain a new credential permission requirement. Subsequent direct group-key GET
 and POST requests returned 501 (Q33); their shared schema is not sufficient to
 enroll them.
+
+## Group and direct membership inspection
+
+The preview SDK fixes bracketed pagination for `ListGroups` and
+`ListGroupMembership`, extending the same Q22 workaround to six operations.
+Wire tests fail before the patch and pass afterward; the complete SDK unit
+suite also passes. Keep these replacements until upstream generation produces
+the documented query shape. No unrelated internal SDK model is introduced.
+
+Group UUID/name lookup observes the complete directory collection before a
+fresh detail GET. Membership detail likewise proves entry-ID association
+through the complete selected group collection. Missing/malformed data,
+pagination, repeated IDs or duplicate members fail without partial output.
+Reads retain actual provisioning/team-manager presence instead of applying
+generated SDK defaults. They do not expand transitive relationships.
+
+Direct manual group/user membership removal works. Principal GET reports
+group IDs as links are added/removed, and principal deletion removes its
+membership entries. Cross-directory behavior with two existing parents is not
+verified: the test organization allows only one directory. Current collection
+proofs avoid relying on a detail route alone for parent association.
+Principal delete/sync currently guards identity associations, without observing
+incoming group memberships. Future membership enrollment must define and test
+the required removal/reference policy against this native deletion behavior.
+
+Group/membership writes and adoption are not exposed by this inspection
+increment. Future declarative lifecycle needs explicit parent/collection
+authority, reference ordering and descendant deletion checks. Q32 tracks
+group-to-group rejection and imported-team boundaries; Q33 tracks unavailable
+group key endpoints. Working manual membership deletion does not establish
+authority over imported or inherited relationships.
+
+The live group scenario uses manually created, credential-free fixtures.
+Cleanup opts into `principalGroups: true`, observes all group/member scopes,
+requires exact management markers, direct-user provenance and marked principal
+targets, rechecks identity/protection/membership before deletion, then requires
+empty collections before removing parents. This test policy grants no product
+authority over group keys or importer-managed teams. Existing scenarios gain
+no new group permissions.

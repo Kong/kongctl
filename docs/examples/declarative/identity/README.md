@@ -18,6 +18,10 @@ until merge.
 public credential metadata and the API contracts still preventing declarative
 ownership updates and adoption. It does not expose credential material.
 
+[Group and direct membership inspection](groups.md) covers group/team get/list,
+UUID/name selectors and membership-entry IDs. Declarative writes remain in
+progress; inspection alone does not grant authority over imported teams.
+
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it
 separately from the other examples. Plan and apply it, inspect the principals,
