@@ -119,7 +119,81 @@ imports? Which records may an import overwrite or remove?
 its own during sync. Org-chart import remains an explicit operation until
 those boundaries are established.
 
-## Answered questions
+## Principal deployment questions
+
+### Q9 Principal type changes
+
+**Question:** Are principal type changes intentionally unsupported, or is the
+deployed update implementation behind the specification? Should a classified
+principal be changeable between user/agent or back to null?
+
+**Observed:** On 2026-10-30 in US `.com`, creation retained user, agent, and
+unclassified/null types. PUT requesting agent for an existing user returned
+user, as did subsequent reads. PATCH with `type: null` also left user unchanged.
+The [type schema][principal-type] is referenced by both update bodies without
+an immutable-field restriction.
+
+**Direct request:** For a disposable principal created as user, PUT the
+observed mutable settings back with `"type": "agent"`, or send:
+
+```http
+PATCH /v2/directories/{directoryId}/principals/{principalId}
+Content-Type: application/json
+
+{"type": null}
+```
+
+Both requests succeeded but retained user in the response and subsequent GET.
+
+**Impact:** A declarative implementation must not report successful type
+changes that the API ignores. The first slice can preserve type on updates
+and reject changes until this contract is clarified.
+
+### Q10 Principal active state is absent
+
+**Question:** When will principal create/GET/list/update responses expose
+`active`, and which deployed environments support setting it?
+
+**Observed:** The same US `.com` probes sent true and false but no response
+included the field. This does not establish whether the writes took effect.
+The [active schema][principal-active] describes a boolean returned by the API.
+
+**Direct requests:** Create a disposable principal with `"active": true`;
+then PUT its observed mutable settings with `"active": false`. Inspect both
+responses, GET that principal, and list its directory. None included active
+in the tested deployment.
+
+**Impact:** The SDK represents active as a plain Go bool; it becomes false
+when the API omits it. KongCTL must preserve field presence rather than
+inventing a false value in inspection, planning, or dump output.
+
+### Q11 Principal PATCH ignores ownership updates
+
+**Question:** Is principal PATCH expected to update `managed_by` today?
+The specification exposes it, but a requested version change was ignored.
+
+**Observed:** Principal PUT retained changes to version, protection, and the
+fifth `kongctl-ref` entry. PATCH changing only the version entry succeeded but
+returned the previous map. All principal probes cleaned up their resources.
+
+**Direct request:** After creating a disposable principal with
+`managed_by.version` set to `probe-put`, send:
+
+```http
+PATCH /v2/directories/{directoryId}/principals/{principalId}
+Content-Type: application/json
+
+{"managed_by": {"version": "probe-patched"}}
+```
+
+The response and subsequent reads retained `probe-put`. PUT changing the
+complete ownership map did retain the requested values.
+
+**Impact:** Principal configuration and adoption must use a fresh GET plus
+PUT for ownership changes until PATCH behavior is confirmed. Complete
+`managed_by` filtering remains local.
+
+## Recorded answers
 
 No team answers have been recorded yet.
 
@@ -129,3 +203,5 @@ No team answers have been recorded yet.
 [vault-update]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml#L3604-L3605
 [vault-response]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml#L4217-L4218
 [directory-spec]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml#L3511-L3519
+[principal-type]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml#L4353-L4363
+[principal-active]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml#L4431-L4437
