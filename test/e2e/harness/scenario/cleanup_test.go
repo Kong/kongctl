@@ -102,6 +102,7 @@ func TestResourceCleanupRejectsAmbiguousAndIncompleteObservations(t *testing.T) 
 func TestResourceCleanupConfiguration(t *testing.T) {
 	cli, _ := cleanupFixtureCLI(t)
 	for _, specs := range [][]CleanupResource{
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalAPIKeys: true}},
 		{{Resource: "portal", NameVar: "name", NameEnv: "NAME"}},
 		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "", NameEnv: "NAME"}},
 		{{Resource: string(resources.ResourceTypeIdentityDirectory), NameVar: "name", NameEnv: "bad-name"}},
@@ -271,6 +272,20 @@ if args[0]=='get':
             if not values: sys.exit(1)
             values=values[0]
             if fault=='identity-label-change': values['labels']={}
+    elif args[:3] in [['get','identity','principal-api-keys'],['get','identity','principal-api-key']]:
+        if fault=='key-read-error':
+            print('key inventory failed',file=sys.stderr)
+            sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        principal=args[args.index('--principal-id')+1]
+        values=[v for v in values if v.get('kind')=='api-key'
+                and v.get('directory_id')==directory and v.get('principal_id')==principal]
+        if args[2]=='principal-api-key':
+            values=[v for v in values if v['id']==args[3]]
+            if not values: sys.exit(1)
+            values=values[0]
+            if fault=='key-metadata-change': values['managed_by']={}
+            if fault=='key-protection-change': values['managed_by']['kongctl-protected']='true'
     elif args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
@@ -279,7 +294,7 @@ if args[0]=='get':
         kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client','identity']]
+        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client','identity','api-key']]
     print(json.dumps(values))
 elif args[:2]==['api','get'] and '/clients?' in args[2]:
     values=[v for v in values if v.get('kind')=='client']

@@ -1,0 +1,247 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_KEY_READ_DIRECTORY_NAME
+      principalAPIKeys: true
+  info: Inspect scoped generated principal API-key metadata for agent and unclassified principals, with private test captures, real cursor traversal, wrong-parent rejection and guarded fixture cleanup. Metadata writes and imported-key enrollment remain deferred pending API contracts.
+steps:
+  - name: 001-key-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: false
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: create-agent
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: agent
+              display_name: create-agent
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: agent_id
+            responsePath: id
+      - name: create-legacy
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: null
+              display_name: create-legacy
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: legacy_id
+            responsePath: id
+      - name: create-other-agent
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: agent
+              display_name: create-other-agent
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: other_agent_id
+            responsePath: id
+      - name: create-private-key-fixtures
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - create
+          - '{{ .vars.secret_dir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.agent_id }}'
+          - '{{ .vars.legacy_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                created: 4
+        recordVars:
+          - name: primary_id
+            responsePath: primary_id
+          - name: legacy_key_id
+            responsePath: legacy_key_id
+      - name: list-agent-page-one
+        run:
+          - get
+          - identity
+          - principal-api-keys
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.agent_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 3
+                length([?managed_by.tool == 'kongctl']): 3
+                length([?managed_by."kongctl-namespace" == 'identity-key-read-e2e']): 3
+                length([?expires_at != `null`]): 1
+                contains(keys([0]), 'secret'): false
+                contains(keys([0]), 'name'): false
+      - name: get-expiring-key
+        run:
+          - get
+          - identity
+          - principal-api-key
+          - '{{ .vars.primary_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.agent_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.primary_id }}'
+                expires_at != `null`: true
+                contains(keys(@), 'secret'): false
+                managed_by."kongctl-protected": "false"
+      - name: list-explicit-product
+        run:
+          - list
+          - konnect
+          - identity
+          - principal-api-keys
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --principal-id
+          - '{{ .vars.agent_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 3
+      - name: get-yaml
+        run:
+          - get
+          - identity
+          - principal-api-key
+          - '{{ .vars.primary_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.agent_id }}'
+          - -o
+          - yaml
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'managed_by:'): true
+                contains(stdout, 'expires_at:'): true
+                contains(stdout, 'secret:'): false
+        outputFormat: disable
+        parseAs: raw
+      - name: list-text
+        run:
+          - get
+          - identity
+          - principal-api-keys
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.agent_id }}'
+          - -o
+          - text
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'EXPIRES_AT'): true
+                contains(stdout, 'secret'): false
+        outputFormat: disable
+        parseAs: raw
+      - name: list-legacy
+        run:
+          - get
+          - identity
+          - principal-api-keys
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.legacy_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].id': '{{ .vars.legacy_key_id }}'
+                '[0].expires_at': null
+      - name: list-empty
+        run:
+          - get
+          - identity
+          - principal-api-keys
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.other_agent_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
+      - name: reject-wrong-parent
+        run:
+          - get
+          - identity
+          - principal-api-key
+          - '{{ .vars.primary_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.other_agent_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: HTTP 404
+      - name: verify-private-captures-and-pagination
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - verify
+          - '{{ .vars.secret_dir }}'
+          - '{{ .workdir }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                captures: 4
+                private: true
+                clean: true
+                captures_outside_artifacts: true
+                traversed_pages: true
+                bracketed_size: true
+                followed_cursors: true
