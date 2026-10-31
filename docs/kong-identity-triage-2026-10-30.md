@@ -39,7 +39,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `30c3834c9846`, including targeted
+The public preview SDK is now pinned to `2597fe249e26`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -3036,7 +3036,7 @@ Q37 now includes these families. This defeats treating force=false as a
 universal child-preservation guard. Public matching alone does not confer
 namespace/protection or deletion ownership; no independent metadata store
 exists on either family. Declarative enrollment needs that explicit policy.
-Each test restores the unmanaged default directory and saved public settings;
+The probe restores the unmanaged default directory and saved public settings;
 the final restored ID is 01a193f8-bb9f-7a2d-9bef-792f5c170696.
 
 Native evidence is vault-contracts.json, vault-contract-summary.json,
@@ -3048,3 +3048,56 @@ exactly Vault keys/providers/templates before correction. Targeted tags and
 regression coverage are added to the SDK patch source, with no model/schema
 or unrelated request changes. SDK generation/integration remains the next
 step; no new product command or declaration is claimed by this preparation.
+
+## 48. Token Vault cursor SDK preview integration
+
+SDK 2597fe249e2602e37377758a4fce8c9da0a79a9b is pushed to
+kongctl/kong-identity-public-preview, from patch source
+bd2ee64085b0b02eeaca800780d9d3d3b3837cdd. KongCTL consumes
+v0.79.1-0.20261031220541-2597fe249e26. No application compatibility change
+is required. The exact generated-code delta from 30c3834c9846 is three Page
+tags, in ListVaultKeys, ListVaultProviders and ListCredentialProviderTemplates:
+form becomes deepObject. The cursor wire test has thirteen operations and
+fails exactly these three before correction; all thirteen pass afterward.
+
+The SDK's identity-preview/vault-cursor-audit.json verifies exact tag-only
+changes. Prepared OpenAPI, global generation settings, response models,
+go.mod/go.sum and the 1,102-operation inventory are unchanged. Prior targeted
+credential expiration, omission/default and array patches are retained.
+Generation succeeds with zero errors and 255 existing validation warnings;
+SDK root/model/internal/pkg tests, internal race checks and the two expiration
+preparation tests pass. This SDK change does not resolve Q37/Q39/Q40.
+
+A standalone SDK read probe passes against native US `.tech` fixtures:
+three keys on three pages, three providers on three pages and eight templates
+on eight pages, all with page size one and matching get-by-ID/name responses.
+All 28 SDK requests route to US `.tech` through the same host-rewrite strategy
+required by the existing helpers; no global-server override alone is assumed.
+Fixture teardown verifies public key identity, provider names and empty
+credential collections before explicit deletion, then restores directory
+settings. Evidence: vault-sdk-live-v2.log and vault-sdk-live-summary.json.
+The first probe attempt had wrong Go method argument shapes and failed at
+compile time; fixture cleanup passed, and the corrected standalone probe
+passes. It is not an API failure or another SDK patch.
+
+No new product command or declarative resource is enabled by this pin alone.
+The next implementation work is public key/provider/template integration
+using these verified observations, with ownership and parent-deletion policy
+explicitly established before writable declarations.
+
+Consumer modernization, stable formatting, CGO-disabled build and final
+make test-all pass: zero-issue lint, full unit/integration/harness race tests,
+nine SDK patch tests, installer checks and 140 metrics tests. The default
+cassette check passes; replay membership/cassettes are unchanged. All eighteen
+Identity live scenarios pass together on the new pin in 297.747 seconds,
+with eight referenced private capture directories removed. Artifacts are
+vault-sdk-all-identity/20261031-170816; gate evidence is
+vault-consumer-gates.log and vault-artifact-verification.json.
+
+Fresh native inventory temporarily enables Vault to inspect hidden child
+collections and then restores the saved settings. The final unmanaged default
+is 01a19406-3817-74ac-b4f6-300f806fd4fb; principal/group/IdP/provider/vault-key
+and auth-server inventories are empty. Evidence is
+vault-sdk-final-inventory.json. SDK #1413/#1399, #2660/#2661, ownership #2656
+and directory epic #1132 remain In Progress until main merge. No PR, SDK
+release, provider/key product writer or implicit parent adoption is created.

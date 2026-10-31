@@ -34,6 +34,7 @@ open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
 | Cursor query (Q22) | Shared source annotation and SDK wire mismatch remain established separately. | Keep upstream spec correction and SDK tests. |
 | Credential expiration schema (Q36) | Native timestamp/null writes work; combined SDK spec selects a read-only component for writable requests. | Correct the component-name collision in specification composition; this is separate from backend PATCH behavior. |
 | Trusted IdPs (Q37–Q38) | Directory force=false removes attached IdPs; disabled Vault hides them. PATCH jwks_uri null retains an override, while PUT omission clears it. | Clarify deletion dependencies, disabled-Vault inspection and nullable PATCH clearing. |
+| Vault keys/providers (Q37, Q39–Q40) | Directory force=false also removes attached keys/providers in either Vault state. Custom DCR provider PUT fails; POST enabled:false is ignored. | Clarify deletion dependencies, preserving DCR replacement, initial disabling and PUT omission. |
 
 Sanitized request/response evidence is saved locally under
 `/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
@@ -918,7 +919,16 @@ also returns 400; a fresh GET preserves the original record.
 PUT /v2/directories/{directoryId}/vault/providers/{providerId}
 Content-Type: application/json
 
-{"name":"custom-provider","template_name":"custom-oauth","dcr_enabled":true,"registration_endpoint":"https://issuer.example.test/register","authorization_endpoint":"https://issuer.example.test/authorize","token_endpoint":"https://issuer.example.test/token","pkce_enabled":true,"scopes":["read"]}
+{
+  "name": "custom-provider",
+  "template_name": "custom-oauth",
+  "dcr_enabled": true,
+  "registration_endpoint": "https://issuer.example.test/register",
+  "authorization_endpoint": "https://issuer.example.test/authorize",
+  "token_endpoint": "https://issuer.example.test/token",
+  "pkce_enabled": true,
+  "scopes": ["read"]
+}
 ```
 
 CreateVaultProviderBody exposes registration_endpoint and dcr_enabled, while
@@ -947,7 +957,12 @@ different omission behavior.
 POST /v2/directories/{directoryId}/vault/providers
 Content-Type: application/json
 
-{"name":"disabled-provider","template_name":"static_secret","credential_type":"shared","enabled":false}
+{
+  "name": "disabled-provider",
+  "template_name": "static_secret",
+  "credential_type": "shared",
+  "enabled": false
+}
 ```
 
 **Question:** Is creating a provider disabled supported? If it requires a
