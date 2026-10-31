@@ -89,6 +89,24 @@ class PatchTests(unittest.TestCase):
             patches.post_generate(sdk, {"post_generation": [patch]})
             self.assertEqual(target.read_text(), patch["after"])
 
+    def test_multiple_replacements_in_one_file_accumulate_and_fail_atomically(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            target = sdk / "request.go"
+            target.write_text("first second")
+            manifest = {"post_generation": [
+                {"file": "request.go", "before": "first", "after": "FIRST"},
+                {"file": "request.go", "before": "second", "after": "SECOND"},
+            ]}
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "FIRST SECOND")
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "FIRST SECOND")
+            target.write_text("first drift")
+            with self.assertRaises(ValueError):
+                patches.post_generate(sdk, manifest)
+            self.assertEqual(target.read_text(), "first drift")
+
 
 if __name__ == "__main__":
     unittest.main()
