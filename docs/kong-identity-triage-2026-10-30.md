@@ -2005,8 +2005,8 @@ command behavior is changed while the user manually tests the current slice.
 - [x] Principal active implementation: October 31 native `.tech` probes now
   verify false creation, true/false updates and omitted-field preservation
   across directly provisioned user/agent/unclassified principals (Q10). Add
-  declarative support and lifecycle coverage; preserve presence-aware reads
-  and an explicit compatibility policy for deployments that omit the field.
+  declarative support and lifecycle coverage are implemented in section 35,
+  including presence-aware reads and missing-field compatibility.
 
 The user's first manual create/read pass verifies an agent principal with the
 five-entry `managed_by` tuple, application labels and runtime metadata, plus
@@ -2182,6 +2182,44 @@ Verification on October 31:
 The user authorized removing all .tech fixtures for validation. The prior
 orders demo issuer/client/principal/identity and default directory were
 removed to free the one-directory quota; old demo IDs and captured OAuth
-secrets are no longer valid. The normal unmanaged default settings will be
-restored after scenario validation. Existing local secret files were not read
+secrets are no longer valid. The normal unmanaged default settings were
+restored after final scenario validation; see section 36. Existing local secret files were not read
 or deleted. #1415 remains In Progress until merge to main.
+
+## 36. Final .tech regression run and default restoration
+
+All twelve Identity scenarios pass together after the group inspection fixture
+was updated to account for Q32's exact team-unavailable response. The fixture
+records team_available=false and uses an explicitly identified ordinary
+alternate group for the same pagination, membership and parent-scope checks.
+When team creation succeeds, the team branch is still exercised. Other
+errors fail the scenario. This changes test fixtures, not the API type or
+product write behavior.
+
+Evidence:
+`/home/rspurgeon/.cache/kong-identity-public-sdk/active-all-e2e-final/20261031-105721`.
+The combined run covers all existing auth-server, client/secret, scope/claim,
+directory/principal, identity, key inspection, numeric and group/membership
+inspection scenarios. The group-specific corrected run also passes:
+`/home/rspurgeon/.cache/kong-identity-public-sdk/active-group-e2e-final/20261031-105603`.
+Replay eligibility and recordings are unchanged. Unit tests pass again after
+the scenario changes.
+
+Fresh inventories after cleanup show zero directories and auth servers. A new
+unmanaged directory named default was then created with the standard observed
+new-organization settings and verified by GET: unrestricted control planes,
+empty allowlist/description/labels/managed_by, both TTLs 600 and Vault false.
+Its ID is `01a192b1-d9df-7c25-a491-1366f78e5353`. Principal/group collections
+are empty and no test auth servers remain. The original orders-demo resources
+and IDs are retired; generate fresh plans and a fresh secret-output directory
+when recreating that demonstration. Existing local user capture files were
+not read or removed.
+
+Principal active support is committed as 6dc67da5. The SDK pin remains
+bf1d470c108c, with no SDK modifications needed for this field. The next
+implementation slice is ordinary groups/direct memberships with verified
+ownership, saved references, omission/protection/adoption, descendant checks,
+examples and full declarative lifecycle scenarios. Team/importer behavior,
+key mutable ownership, and runtime mTLS prerequisites remain bounded by the
+API-only questions. The overall epic work is still active; no issue is closed
+before main merge and no PR has been opened.

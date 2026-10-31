@@ -49,3 +49,9 @@ requests returned 501 (Q33). Ownership PATCH still fails for keys in `.tech`.
 Future declarative deletion must account for relationships and credentials.
 See the [API questions](../../../kong-identity-api-questions.md) and
 [metadata ledger](../../../contributor/kong-identity-metadata-storage.md).
+
+The inspection scenario explicitly probes team creation. A successful create
+exercises team reads/membership; the exact recorded Q32 enum rejection
+records teams as unavailable and uses an ordinary alternate group for scope
+and pagination checks. Other failures fail the scenario. This does not
+establish importer behavior or grant team mutation authority.
