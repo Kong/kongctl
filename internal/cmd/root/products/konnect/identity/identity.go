@@ -64,6 +64,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return nil, err
 	}
 	if verb == verbs.Adopt {
+		basicAuth, err := adopt.NewIdentityBasicAuthCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(basicAuth)
 		child, err := adopt.NewIdentityDirectoryCmd(verb, addParentFlags, parentPreRun)
 		if err != nil {
 			return nil, err

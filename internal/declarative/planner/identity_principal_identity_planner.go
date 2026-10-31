@@ -34,64 +34,9 @@ func (p *identityDirectoryPlanner) planIdentities(ctx context.Context, config *C
 	if rs.Identity == nil {
 		return nil
 	}
-	type parentScope struct {
-		ref, id, directoryRef, directoryID string
-		refs                               map[string]bool
-		scoped                             bool
-	}
-	var parents []*parentScope
-	byID := make(map[string]*parentScope)
-	for _, principal := range rs.Identity.Principals {
-		d, found := rs.GetResourceByRef(resources.NormalizeResourceRef(principal.Directory))
-		if !found {
-			return fmt.Errorf("identity principal %q has no declared directory", principal.Ref)
-		}
-		directory := d.(*resources.IdentityDirectoryResource)
-		directoryID := directory.GetKonnectID()
-		if current, found := directories[directory.Name]; found && !directory.IsExternal() {
-			directoryID = current.ID
-		}
-		id := principal.GetKonnectID()
-		if !principal.IsExternal() {
-			id = ""
-		}
-		if !principal.IsExternal() && directoryID != "" {
-			all, err := p.planner.listIdentityPrincipals(ctx, directoryID)
-			if err != nil {
-				return err
-			}
-			matches := 0
-			for _, current := range all {
-				if current.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool &&
-					current.ManagedBy[resources.ChildNamespaceKey] == resources.GetNamespace(principal.Kongctl) &&
-					current.GetName() == principal.Ref {
-					id = current.ID
-					matches++
-				}
-			}
-			if matches > 1 {
-				return fmt.Errorf("multiple principals match identity parent %q", principal.Ref)
-			}
-		}
-		key := directoryID + "/" + id
-		if id == "" {
-			key = principal.Ref
-		}
-		parent := byID[key]
-		if parent == nil {
-			parent = &parentScope{
-				ref: principal.Ref, id: id, directoryRef: directory.Ref, directoryID: directoryID,
-				refs: make(map[string]bool),
-			}
-			parents = append(parents, parent)
-			byID[key] = parent
-		}
-		parent.refs[principal.Ref] = true
-		if rs.SyncScope != nil {
-			byPrincipal := rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipalIdentity]
-			_, scoped := byPrincipal[principal.Ref][config.Namespace]
-			parent.scoped = parent.scoped || scoped
-		}
+	parents, err := p.principalChildScopes(ctx, config, directories, resources.ResourceTypeIdentityPrincipalIdentity)
+	if err != nil {
+		return err
 	}
 	for _, parent := range parents {
 		var desired []managedRoot[resources.IdentityPrincipalIdentityResource]

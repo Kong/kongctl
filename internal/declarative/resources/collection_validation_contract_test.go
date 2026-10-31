@@ -71,6 +71,7 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeIdentityPrincipalIdentity,
 		ResourceTypeIdentityGroup,
 		ResourceTypeIdentityGroupMembership,
+		ResourceTypeIdentityBasicAuth,
 		ResourceTypeIdentityAuthServerScope,
 		ResourceTypeIdentityAuthServerClaim,
 		ResourceTypeIdentityAuthServerClient,

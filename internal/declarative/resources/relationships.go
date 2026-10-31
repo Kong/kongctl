@@ -55,6 +55,10 @@ var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
 		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
 		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
 	}},
+	ResourceTypeIdentityBasicAuth: {{
+		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
 	ResourceTypeIdentityAuthServerClient: {
 		{
 			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,

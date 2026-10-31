@@ -30,7 +30,10 @@ func groupPlan(t *testing.T, api *fixture.GroupAPI, desired []resources.Identity
 	return NewPlanner(state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{
 			Directories: []kkComps.KongDirectory{directory},
-		}, IdentityGroupsAPI: api,
+		},
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           api,
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: mode})
 }
 
@@ -117,8 +120,10 @@ func TestNewGroupDependsOnDirectoryAcrossNamespaces(t *testing.T) {
 		},
 	}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{},
-		IdentityGroupsAPI:      &fixture.GroupAPI{},
+		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{},
+		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:           &fixture.GroupAPI{},
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 2)

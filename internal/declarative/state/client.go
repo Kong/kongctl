@@ -30,6 +30,8 @@ type ClientConfig struct {
 	IdentityAuthServerScopesAPI    helpers.IdentityAuthServerScopesAPI
 	IdentityAuthServerClaimsAPI    helpers.IdentityAuthServerClaimsAPI
 	IdentityAuthServerClientsAPI   helpers.IdentityAuthServerClientsReader
+	IdentityBasicAuthAPI           helpers.IdentityBasicAuthAPI
+	IdentityPrincipalKeysReader    helpers.IdentityPrincipalKeysReader
 	IdentityGroupsAPI              helpers.IdentityGroupsAPI
 	IdentityPrincipalsAPI          helpers.IdentityPrincipalsAPI
 	IdentityPrincipalIdentitiesAPI helpers.IdentityPrincipalIdentitiesAPI
@@ -119,6 +121,8 @@ type Client struct {
 	identityAuthServerClaimsAPI    helpers.IdentityAuthServerClaimsAPI
 	identityAuthServerClientsAPI   helpers.IdentityAuthServerClientsReader
 	identityAuthServerClientAPI    helpers.IdentityAuthServerClientsAPI
+	identityBasicAuthAPI           helpers.IdentityBasicAuthAPI
+	identityPrincipalKeysReader    helpers.IdentityPrincipalKeysReader
 	identityGroupsAPI              helpers.IdentityGroupsAPI
 	identityPrincipalsAPI          helpers.IdentityPrincipalsAPI
 	identityPrincipalIdentitiesAPI helpers.IdentityPrincipalIdentitiesAPI
@@ -213,6 +217,8 @@ func NewClient(config ClientConfig) *Client {
 		identityAuthServerClaimsAPI:    config.IdentityAuthServerClaimsAPI,
 		identityAuthServerClientsAPI:   config.IdentityAuthServerClientsAPI,
 		identityDirectoriesAPI:         config.IdentityDirectoriesAPI,
+		identityBasicAuthAPI:           config.IdentityBasicAuthAPI,
+		identityPrincipalKeysReader:    config.IdentityPrincipalKeysReader,
 		identityGroupsAPI:              config.IdentityGroupsAPI,
 		identityPrincipalsAPI:          config.IdentityPrincipalsAPI,
 		identityPrincipalIdentitiesAPI: config.IdentityPrincipalIdentitiesAPI,

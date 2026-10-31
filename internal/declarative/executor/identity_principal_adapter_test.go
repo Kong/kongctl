@@ -33,7 +33,12 @@ func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAP
 	}
 	return &IdentityPrincipalAdapter{
 			client: state.NewClient(
-				state.ClientConfig{IdentityPrincipalsAPI: api, IdentityGroupsAPI: &fixture.GroupAPI{}},
+				state.ClientConfig{
+					IdentityPrincipalsAPI:       api,
+					IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+					IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+					IdentityGroupsAPI:           &fixture.GroupAPI{},
+				},
 			),
 		}, api, NewExecutionContext(
 			&change,
@@ -68,10 +73,70 @@ func TestPrincipalSavedDeleteRechecksIncomingGroupMemberships(t *testing.T) {
 			}
 			a.client = state.NewClient(state.ClientConfig{
 				IdentityPrincipalsAPI:          principals,
-				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{}, IdentityGroupsAPI: groups,
+				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+				IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+				IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
+				IdentityGroupsAPI:              groups,
 			})
 			err := a.Delete(t.Context(), principalID, execCtx)
 			if kind == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, principals.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, principals.Deletes)
+			}
+		})
+	}
+}
+
+func TestPrincipalSavedDeleteRechecksCredentialChildren(t *testing.T) {
+	const directoryID = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	const principalID = "5078f559-063b-4f10-9098-9e6553b21d9b"
+	for _, mode := range []string{
+		"empty", "unowned-basic", "owned-basic", "foreign-basic", "key",
+		"failed-basic", "failed-key", "unconfigured-basic", "unconfigured-key",
+	} {
+		t.Run(mode, func(t *testing.T) {
+			a, principals, execCtx := principalExecutorFixture()
+			current := principals.Directories["directory-id"][0]
+			current.ID = principalID
+			principals.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			credentials := &fixture.BasicAuthAPI{}
+			key := directoryID + "/" + principalID
+			switch mode {
+			case "owned-basic", "foreign-basic", "unowned-basic":
+				basic := fixture.BasicAuth("late-username", "principal-team", false)
+				switch mode {
+				case "foreign-basic":
+					basic.ManagedBy[resources.ChildNamespaceKey] = "other"
+				case "unowned-basic":
+					basic.ManagedBy = nil
+				}
+				credentials.Parents = map[string][]helpers.IdentityBasicAuth{key: {basic}}
+			case "key":
+				credentials.Keys = map[string][]string{key: {principalID}}
+			case "failed-basic":
+				credentials.Failure = "list"
+			case "failed-key":
+				credentials.Failure = "keys"
+			}
+			config := state.ClientConfig{
+				IdentityPrincipalsAPI: principals, IdentityGroupsAPI: &fixture.GroupAPI{},
+				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+			}
+			if mode != "unconfigured-basic" {
+				config.IdentityBasicAuthAPI = credentials
+			}
+			if mode != "unconfigured-key" {
+				config.IdentityPrincipalKeysReader = credentials
+			}
+			a.client = state.NewClient(config)
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if mode == "empty" {
 				require.NoError(t, err)
 				require.Equal(t, 1, principals.Deletes)
 			} else {
@@ -231,7 +296,12 @@ func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
 					}),
 				}
 			}
-			config := state.ClientConfig{IdentityPrincipalsAPI: api, IdentityGroupsAPI: &fixture.GroupAPI{}}
+			config := state.ClientConfig{
+				IdentityPrincipalsAPI:       api,
+				IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
+				IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+				IdentityGroupsAPI:           &fixture.GroupAPI{},
+			}
 			if mode != "unconfigured" {
 				config.IdentityPrincipalIdentitiesAPI = identities
 			}

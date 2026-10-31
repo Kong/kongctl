@@ -423,7 +423,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 	switch childType {
 	case ResourceTypeIdentityGroupMembership:
 		return ResourceTypeIdentityGroup
-	case ResourceTypeIdentityPrincipalIdentity:
+	case ResourceTypeIdentityPrincipalIdentity, ResourceTypeIdentityBasicAuth:
 		return ResourceTypeIdentityPrincipal
 	case ResourceTypeIdentityPrincipal, ResourceTypeIdentityGroup:
 		return ResourceTypeIdentityDirectory
