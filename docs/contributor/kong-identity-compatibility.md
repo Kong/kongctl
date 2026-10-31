@@ -818,3 +818,43 @@ product writer is enabled by this dependency change. Remove the scoped schema
 and wrapper corrections together only when upstream composition/generation
 passes the same omitted/value/null wire cases without changing unrelated
 public SDK models.
+
+## Directory Trusted IdP inspection
+
+Related questions: Q6, Q22, Q37 and Q38. Native US `.tech` supports multiple
+IdPs with directory-unique issuer URLs and duplicate display names. Full PUT
+retains supplied configuration and resets omitted fields as documented.
+Associated-principal reads include manually created OIDC associations. No
+runtime provisioning or authentication guarantee follows from these reads.
+
+SDK `30c3834c9846` changes only the two list request Page tags to deepObject,
+from source `280bdecc`. The ten-operation wire regression fails exactly the
+two new list methods before correction and passes afterward. Schema/model
+inventory and prior expiration/array/default fixes are unchanged.
+
+Public-only get/list commands use explicit directory selection and ID/exact
+issuer lookup. Raw parsing preserves false and nullable configuration without
+SDK defaults; missing required identity/configuration, duplicate IDs/cursors,
+invalid page metadata and failed pages produce no partial inventory. Lookup
+reads fresh detail after complete duplicate detection. No ownership is stamped.
+Text always includes the full issuer because display names are not unique.
+
+The live scenario verifies three IdP pages, two associated-principal pages,
+all public configuration/output formats and declaratively managed principal
+associations under an external directory. Inspection leaves native IdP
+configuration unchanged. Token Vault must be enabled; disabled reads fail
+with the observed 403 rather than claiming an empty collection.
+
+Directory force=false deletes attached IdPs, even while disabled Vault hides
+them. Production directory deletion policy remains under review (Q37).
+Fixtures opt into requireEmptyTrustedIdPs before cleanup writes and before
+parent deletion. This test-only check grants no IdP mutation authority and
+does not change production directory deletion. Other scenarios have no new
+Vault permission requirement. Missing/nonempty/error inventories fail closed.
+
+PATCH jwks_uri null retains an override despite success, while PUT omission
+clears it (Q38). A future declaration writer can use verified fresh full-PUT
+hydration, but must establish ownership/protection, external-parent and scoped
+sync rules before enrollment. IdPs expose no labels/managed_by store; matching
+an issuer alone is not adoption. The engineering answers and direct omitted/
+null/dependency probes must accompany any relaxation of these boundaries.

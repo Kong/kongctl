@@ -20,17 +20,22 @@ import (
 var cleanupEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 type cleanupTarget struct {
-	kind             resources.ResourceType
-	name             string
-	principalAPIKeys bool
-	principalGroups  bool
-	groupNamespaces  []string
+	kind                    resources.ResourceType
+	name                    string
+	principalAPIKeys        bool
+	principalGroups         bool
+	groupNamespaces         []string
+	requireEmptyTrustedIDPs bool
 }
 
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
 	t.Helper()
 	seenVars, seenEnv := map[string]bool{}, map[string]bool{}
 	for _, spec := range specs {
+		if spec.RequireEmptyTrustedIDPs &&
+			resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("requireEmptyTrustedIdPs cleanup requires an identity directory")
+		}
 		if spec.PrincipalAPIKeys && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
 			return fmt.Errorf("principalAPIKeys cleanup requires an identity directory")
 		}
@@ -75,8 +80,9 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		cli.WithEnv(map[string]string{spec.NameEnv: name})
 		targets = append(targets, cleanupTarget{
 			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
-			principalGroups: spec.PrincipalGroups,
-			groupNamespaces: spec.GroupNamespaces,
+			principalGroups:         spec.PrincipalGroups,
+			groupNamespaces:         spec.GroupNamespaces,
+			requireEmptyTrustedIDPs: spec.RequireEmptyTrustedIDPs,
 		})
 	}
 	t.Cleanup(func() {
@@ -143,6 +149,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		return nil
 	}
 	if target.kind == resources.ResourceTypeIdentityDirectory {
+		if target.requireEmptyTrustedIDPs {
+			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
+				return err
+			}
+		}
 		if target.principalGroups {
 			policy := groupCleanupPolicy{
 				namespaces: target.groupNamespaces,
@@ -154,6 +165,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		}
 		if err := cleanupPrincipalFixtures(ctx, cli, id, target.principalAPIKeys); err != nil {
 			return err
+		}
+		if target.requireEmptyTrustedIDPs {
+			if err := requireNoTrustedIDPFixtures(ctx, cli, id); err != nil {
+				return err
+			}
 		}
 		endpoint += id + "?force=false"
 	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
@@ -167,6 +183,21 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 	cli.OverrideNextOutput("json")
 	_, err := cli.Run(ctx, "api", "delete", endpoint)
 	return err
+}
+
+// Q37: force=false does not stop a directory deletion with attached IdPs.
+// Opted-in fixtures must remove their verified records before parent cleanup;
+// this check never grants authority to delete a remaining IdP.
+func requireNoTrustedIDPFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+	var values []struct{ ID string }
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(ctx, &values, "get", "identity", "trusted-idps", "--directory-id", directoryID); err != nil {
+		return err
+	}
+	if values == nil || len(values) != 0 {
+		return fmt.Errorf("trusted IdP fixture inventory is missing or nonempty; refusing directory cleanup")
+	}
+	return nil
 }
 
 // Scopes and claims have no fixture labels. Only names carrying this generated

@@ -108,7 +108,8 @@ Registering a declaration does not complete those steps automatically.
   selection; full PUT never sends passwords. Final plans order explicitly
   authorized username deletions before principal deletion. Password/key
   observations fail closed, and saved writes repeat the guards. Passwords
-  remain outside declarative enrollment under Q35 and the SDK expiration gap.
+  remain outside declarative enrollment under Q35 and explicit secret-write
+  policy; the SDK expiration gap is corrected in the current preview.
   Principal identities also persist refs with independent ownership under
   principals. Their four association variants use fresh full PUT payloads;
   external UUID references remain outside management. Parent and associated
