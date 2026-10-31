@@ -62,6 +62,7 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		resources.ResourceTypeIdentityPrincipal: func(context.Context, externalLookupRequest) (string, error) {
 			return "", fmt.Errorf("external principals require an explicit UUID; display names are not unique")
 		},
+		resources.ResourceTypeIdentityGroup:              r.lookupIdentityGroup,
 		resources.ResourceTypeIdentityAuthServer:         r.lookupIdentityAuthServer,
 		resources.ResourceTypeIdentityDirectory:          r.lookupIdentityDirectory,
 		resources.ResourceTypeAPI:                        r.lookupAPI,
@@ -950,6 +951,27 @@ func (r *externalLookupResolver) lookupIdentityAuthServer(
 	}
 	if id == "" {
 		return "", fmt.Errorf("auth server %q not found", name)
+	}
+	return id, nil
+}
+
+func (r *externalLookupResolver) lookupIdentityGroup(ctx context.Context, req externalLookupRequest) (string, error) {
+	values, err := r.planner.listIdentityGroups(ctx, req.ParentID)
+	if err != nil {
+		return "", err
+	}
+	var id string
+	for _, value := range values {
+		if value.Name != req.MatchFields[FieldName] {
+			continue
+		}
+		if id != "" {
+			return "", fmt.Errorf("multiple groups match the directory-scoped name")
+		}
+		id = value.ID
+	}
+	if id == "" {
+		return "", fmt.Errorf("group matching name %q not found in selected directory", req.MatchFields[FieldName])
 	}
 	return id, nil
 }

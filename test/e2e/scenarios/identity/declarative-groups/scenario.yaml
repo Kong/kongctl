@@ -1,0 +1,630 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+  - resource: identity_directory
+    nameVar: directory_name
+    nameEnv: KONGCTL_E2E_GROUP_DIRECTORY_NAME
+    principalGroups: true
+    groupNamespaces:
+    - identity-group-e2e
+    - identity-group-foreign-e2e
+  info: Ordinary group declarative lifecycle with independent managed_by, new protected parent, saved
+    plans, all public fields, omission/clear, dump, external lookup, adoption, protection, membership
+    guards and scoped sync/delete. Exact legacy group-key 501 is a verified fail-closed deletion boundary.
+    Fixtures create no credentials.
+steps:
+- name: 001-group-lifecycle
+  skipInputs: true
+  commands:
+  - name: prepare
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - prepare
+    - '{{ .workdir }}'
+    - '{{ .vars.directory_name }}'
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          prepared: true
+    recordVars:
+    - name: alpha_name
+      responsePath: alpha_name
+    - name: adopted_name
+      responsePath: adopted_name
+    - name: foreign_name
+      responsePath: foreign_name
+  - name: explain
+    run:
+    - explain
+    - identity.group
+    - -o
+    - json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          type: object
+    outputFormat: disable
+  - name: scaffold
+    run:
+    - scaffold
+    - identity.group
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          contains(stdout, 'groups:'): true
+    parseAs: raw
+    outputFormat: disable
+  - name: plan-new-parent-and-group
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 3
+    outputFormat: disable
+    stdoutFile: '{{ .workdir }}/create.json'
+  - name: apply-saved-create
+    run:
+    - apply
+    - --plan
+    - '{{ .workdir }}/create.json'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 3
+          failed: 0
+  - name: directory-id
+    run:
+    - get
+    - identity
+    - directory
+    - '{{ .vars.directory_name }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          managed_by."kongctl-protected": 'true'
+    recordVar:
+      name: directory_id
+      responsePath: id
+  - name: verify-created
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.alpha_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          name: '{{ .vars.alpha_name }}'
+          type: group
+          description: Initial group
+          metadata.count: 3
+          metadata.enabled: false
+          metadata.department: operations
+          metadata.roles:
+          - reader
+          - writer
+          metadata.levels:
+          - 1
+          - 2
+          metadata.large: 9007199254740994
+          labels.team: operations
+          labels."e2e-fixture": '{{ .vars.directory_id }}'
+          length(managed_by): 4
+          managed_by.tool: kongctl
+          managed_by."kongctl-namespace": identity-group-e2e
+          managed_by."kongctl-protected": 'false'
+          provisioned_by: konnect_user
+    recordVar:
+      name: group_id
+      responsePath: id
+  - name: principal-id
+    run:
+    - get
+    - identity
+    - principals
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          length(@): 1
+    recordVar:
+      name: principal_id
+      responsePath: '[0].id'
+  - name: create-no-op
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/initial.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: diff-public-fields
+    run:
+    - diff
+    - -f
+    - '{{ .workdir }}/update.yaml'
+    - -o
+    - text
+    outputFormat: disable
+    parseAs: raw
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          contains(stdout, 'identity_group'): true
+          contains(stdout, 'Updated group'): true
+          contains(stdout, 'metadata'): true
+  - name: update-public-fields
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/update.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: verify-updated
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.alpha_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          description: Updated group
+          metadata.count: 5
+          metadata.enabled: true
+          labels.team: updated
+  - name: clear-public-fields
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/clear.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: verify-clear
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.alpha_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          description: ''
+          length(metadata): 0
+          length(labels): 0
+          length(managed_by): 4
+  - name: preserve-omitted-fields
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: verify-preserved
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.alpha_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          description: Preserve omitted maps
+          length(metadata): 0
+          length(labels): 0
+          length(managed_by): 4
+  - name: partial-no-op
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/partial.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: restore-fixture-labels
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/restore-labels.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: dump
+    run:
+    - dump
+    - declarative
+    - --resources
+    - identity.directories
+    - --filter-id
+    - '{{ .vars.directory_id }}'
+    - --include-child-resources
+    - --default-namespace
+    - identity-group-e2e
+    assertions:
+    - select: identity.directories[0].groups[0]
+      expect:
+        fields:
+          ref: '{{ .vars.group_id }}'
+          name: '{{ .vars.alpha_name }}'
+          type: group
+          kongctl.namespace: identity-group-e2e
+          managed_by: null
+    outputFormat: none
+    parseAs: yaml
+    stdoutFile: '{{ .workdir }}/dump.yaml'
+  - name: dump-no-op
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: dump-apply
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/dump.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 0
+          failed: 0
+  - name: external-group-read-only
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/external.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: native-membership
+    create:
+      resource: identity_group_membership
+      endpointParams:
+        directoryId: '{{ .vars.directory_id }}'
+        groupId: '{{ .vars.group_id }}'
+      payload:
+        inline:
+          member:
+            type: principal
+            id: '{{ .vars.principal_id }}'
+      recordVar:
+        name: membership_id
+        responsePath: id
+  - name: reject-group-cascade
+    run:
+    - plan
+    - --mode
+    - delete
+    - -f
+    - '{{ .workdir }}/group-only.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: memberships
+    outputFormat: disable
+  - name: reject-principal-membership-cascade
+    run:
+    - plan
+    - --mode
+    - delete
+    - -f
+    - '{{ .workdir }}/principal-only.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: direct membership
+    outputFormat: disable
+  - name: remove-native-membership
+    run:
+    - api
+    - delete
+    - /v2/directories/{{ .vars.directory_id }}/groups/{{ .vars.group_id }}/membership/{{ .vars.membership_id
+      }}
+  - name: protect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/protected.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: reject-protected-public-update
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/blocked.yaml'
+    - --auto-approve
+    expectFailure:
+      exitCode: 1
+      contains: protected
+  - name: reject-protected-sync
+    run:
+    - sync
+    - -f
+    - '{{ .workdir }}/empty.yaml'
+    - --auto-approve
+    expectFailure:
+      exitCode: 1
+      contains: protected
+  - name: unprotect
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/unprotect.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: create-unowned
+    create:
+      resource: identity_group
+      endpointParams:
+        directoryId: '{{ .vars.directory_id }}'
+      payload:
+        inline:
+          name: '{{ .vars.adopted_name }}'
+          type: group
+          description: Unowned group
+          metadata:
+            retained: true
+          labels:
+            e2e-fixture: '{{ .vars.directory_id }}'
+            team: adoption
+      recordVar:
+        name: adopted_id
+        responsePath: id
+  - name: reject-implicit-adoption
+    run:
+    - plan
+    - --mode
+    - apply
+    - -f
+    - '{{ .workdir }}/adopted.yaml'
+    expectFailure:
+      exitCode: 1
+      contains: adopt
+    outputFormat: disable
+  - name: adopt
+    run:
+    - adopt
+    - identity
+    - group
+    - '{{ .vars.adopted_id }}'
+    - --directory-name
+    - '{{ .vars.directory_name }}'
+    - --namespace
+    - identity-group-e2e
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          namespace: identity-group-e2e
+  - name: verify-adoption
+    run:
+    - get
+    - identity
+    - group
+    - '{{ .vars.adopted_name }}'
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          description: Unowned group
+          metadata.retained: true
+          labels.team: adoption
+          length(managed_by): 4
+          managed_by."kongctl-namespace": identity-group-e2e
+  - name: update-adopted
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/adopted.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: create-foreign-namespace
+    run:
+    - apply
+    - -f
+    - '{{ .workdir }}/foreign.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0
+  - name: delete-adopted
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - remove
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    - delete
+    - '{{ .workdir }}/adopted.yaml'
+    - '1'
+    - delete-adopted
+    env:
+      KONGCTL_PROFILE: e2e
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+    recordVar:
+      name: deletion_supported
+      responsePath: deletion_supported
+  - name: omitted-preserves-groups
+    run:
+    - plan
+    - --mode
+    - sync
+    - -f
+    - '{{ .workdir }}/omitted.yaml'
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          total_changes: 0
+    outputFormat: disable
+  - name: sync-selected-namespace
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - remove
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    - sync
+    - '{{ .workdir }}/empty.yaml'
+    - '1'
+    - sync-selected-namespace
+    env:
+      KONGCTL_PROFILE: e2e
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+  - name: observe-scoped-sync
+    run:
+    - get
+    - identity
+    - groups
+    - --directory-id
+    - '{{ .vars.directory_id }}'
+    stdoutFile: '{{ .workdir }}/scope.json'
+  - name: verify-foreign-preserved
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - scope
+    - '{{ .workdir }}'
+    - '{{ .workdir }}/scope.json'
+    - '{{ .vars.deletion_supported }}'
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+          foreign_preserved: true
+  - name: delete-foreign-explicitly
+    exec:
+    - python3
+    - '{{ .scenario_dir }}/fixtures.py'
+    - remove
+    - '{{ .workdir }}'
+    - '{{ .bin }}'
+    - delete
+    - '{{ .workdir }}/foreign.yaml'
+    - '1'
+    - delete-foreign-explicitly
+    env:
+      KONGCTL_PROFILE: e2e
+    parseAs: json
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          verified: true
+  - name: delete-principal-after-detachment
+    run:
+    - delete
+    - -f
+    - '{{ .workdir }}/principal-only.yaml'
+    - --auto-approve
+    assertions:
+    - select: summary
+      expect:
+        fields:
+          applied: 1
+          failed: 0

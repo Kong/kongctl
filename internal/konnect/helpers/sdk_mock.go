@@ -4,6 +4,7 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityGroupsAPIFactory              func() IdentityGroupsAPI
 	IdentityGroupsFactory                 func() IdentityGroupsReader
 	IdentityGroupMembershipsFactory       func() IdentityGroupMembershipsReader
 	IdentityPrincipalKeysFactory          func() IdentityPrincipalKeysReader
@@ -137,6 +138,13 @@ func (m *MockKonnectSDK) GetIdentityPrincipalsAPI() IdentityPrincipalsAPI {
 		return nil
 	}
 	return m.IdentityPrincipalsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityGroupsAPI() IdentityGroupsAPI {
+	if m.IdentityGroupsAPIFactory == nil {
+		return nil
+	}
+	return m.IdentityGroupsAPIFactory()
 }
 
 func (m *MockKonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {

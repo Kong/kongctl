@@ -252,6 +252,9 @@ func (a *IdentityPrincipalAdapter) Delete(ctx context.Context, id string, execCt
 			len(identities),
 		)
 	}
+	if err := a.client.VerifyPrincipalGroupMembershipsEmpty(ctx, directoryID, id); err != nil {
+		return err
+	}
 	return a.client.DeleteIdentityPrincipal(ctx, directoryID, id)
 }
 

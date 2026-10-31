@@ -18,10 +18,11 @@ ledger current as each resource is implemented.
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
-| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions, then a fresh empty collection (Q24). |
+| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions and no direct group memberships, with fresh checks (Q24). API-key descendant enrollment is separate. |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
-| Group/team inspection | `labels`, `managed_by`, runtime `metadata` | Read-only in KongCTL | Scoped get/list preserve returned fields and verify complete directory membership. Direct probes retain four ownership entries, but product stamping/adoption is not exposed yet. #2657. |
+| Ordinary Principal Groups | `labels`, `managed_by`, runtime `metadata` | Four-entry `managed_by`; unique directory/name matching | Declarative lifecycle, PUT hydration, adoption, protection and dump are implemented. Group metadata stays independent of directory ownership. Members/keys must be removed before deletion. #2657. |
+| Teams/imported group inspection | Same fields as groups | Read-only in KongCTL | Returned provisioning/team-manager presence is retained. Team/importer writes/adoption are deferred (Q32). |
 | Direct group membership inspection | None | None | Scoped entry-ID get/list distinguish the relationship from its member. No product mutation or inherited/imported authority is implied. #2658, Q32. |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
@@ -29,7 +30,7 @@ ledger current as each resource is implemented.
 | Auth-server OAuth client | `labels`; no `managed_by` | Independent `labels` | Declarative lifecycle, adoption and live credential continuity pass. Namespace/protection are separate from the server. Every PATCH preserves the fresh auth method when omitted (Q15). Initial secret goes only to private capture. #1401 remains In Progress until merge. |
 | Auth-server client secret | None | None | Explicit create/capture, get/list metadata, enable/disable and confirmed delete. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress; initial creation capture is integrated with #1401. |
 
-Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
+Directory and ordinary group ownership use `tool`, `version`, `kongctl-namespace`, and
 `kongctl-protected`. Principal and identity ownership add `kongctl-ref` as the
 fifth entry.
 Client-side filtering and duplicate checks use the complete remote collection.
@@ -58,7 +59,7 @@ These rows describe available API fields, not completed implementations.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
-| Principal Groups, including team subtype | `labels`, `managed_by`, runtime `metadata` | Direct POST/GET/list/full PUT retain all four directory-style ownership entries; names are unique per directory. Partial PUT clears omitted maps. Group implementation is in progress, with no product writes yet. Import-owned teams require separate treatment (Q32). #2657. |
+| Importer-managed teams | `labels`, `managed_by`, runtime `metadata` | Schema availability does not grant importer mutation authority. Ordinary group management is implemented; team/importer contracts remain deferred (Q32). #2657. |
 | Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is implemented under #1417, which remains open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
 | Group API keys, generated/imported | `managed_by`; no labels | US `.tech` list/create/read/PATCH/delete work; generated create retains the supplied map. Imported create rejects it and PATCH ignores changes/removal on both kinds. US `.com` returned 501. No product writes or ownership stamping are exposed yet. #2659, Q33. |
@@ -105,6 +106,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, ordinary groups: directory/name identity uses four canonical
+  managed_by entries, independent of directory ownership. Public labels and
+  runtime metadata retain their API meaning. Adoption/PUT/dump and scoped
+  sync/delete are implemented; team/importer writes stay deferred. Group
+  deletion checks memberships and keys; principal deletion checks incoming
+  direct memberships. Relationships still have no independent metadata store.
+
 
 - October 31 UTC, principal active: optional public state now supports
   declarative create/update/dump with presence-aware verification. Ownership

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kong/kongctl/internal/declarative/resources"
 	"sigs.k8s.io/yaml"
 )
 
@@ -324,6 +325,13 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"identity_auth_server_client_secret": {
 		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/clients/{clientId}/secrets",
 		ParamKeys: []string{"authServerId", "clientId"},
+	},
+	string(resources.ResourceTypeIdentityGroup): {
+		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/groups", ParamKeys: []string{"directoryId"},
+	},
+	string(resources.ResourceTypeIdentityGroupMembership): {
+		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/groups/{groupId}/membership",
+		ParamKeys: []string{"directoryId", "groupId"},
 	},
 	"identity_directory": {Method: http.MethodPost, Path: "/v2/directories"},
 	"identity_principal": {

@@ -48,15 +48,17 @@ management metadata. These contracts defer declarative key writes/adoption;
 scoped get/list exposes public metadata with complete pagination and no secret
 material. Q27–Q30 record the API-only follow-up, and Section 27 records evidence.
 
-Group/team and direct membership get/list are implemented under #2657/#2658,
-with scoped UUID/name lookup and complete pagination. Declarative lifecycle is
-still pending resource-specific authority and deletion work. Unique names and
-`managed_by` retention work. Group keys work in US `.tech`; earlier US `.com`
-requests returned 501. The tested `.tech` org rejects team creation. Membership types
-and importer authority need clarification (Q32–Q33). Direct group tests
-also exposed numeric precision loss in principal/group runtime metadata
-(Q31). Principal validation and write-result checks now guard that behavior;
-use strings for exact numeric identifiers. Section 28 records the findings.
+Ordinary groups now support declarative lifecycle/adoption, independent
+four-entry managed_by ownership and directory/name matching. Full PUT
+preserves omitted public settings. Saved writes repeat scope/ownership and
+protection checks; group deletion requires empty membership and key
+observations. Principal deletion also guards incoming direct memberships.
+Team/importer writes and membership declarations remain pending in #2657/#2658.
+Group/team and direct membership get/list preserve full pagination and read
+presence. Group keys work in US .tech; earlier US .com returned 501, which
+blocks safe declarative group deletion. The tested .tech org rejects team
+creation. Q31 guards metadata precision; Q32/Q33 bound importer/key behavior.
+Section 37 records the group lifecycle implementation and verification.
 
 Principal active configuration now supports explicit false/true creation and
 updates, saved plans, diff, dump, omission, protection and adoption. The SDK
@@ -2224,3 +2226,88 @@ examples and full declarative lifecycle scenarios. Team/importer behavior,
 key mutable ownership, and runtime mTLS prerequisites remain bounded by the
 API-only questions. The overall epic work is still active; no issue is closed
 before main merge and no PR has been opened.
+
+## 37. Ordinary group declarative lifecycle
+
+Ordinary groups now support plan/diff, saved apply, scoped sync/delete,
+external name/UUID lookup, adoption, dump/replan, explain and scaffold.
+Names are required ASCII alphanumeric values and are unique within the
+selected directory. Four canonical managed_by entries store tool/version,
+namespace and protection; refs remain local. Ownership is independent of
+directory ownership/protection, including under external directories.
+
+Full PUT hydrates omitted description, labels and runtime metadata, overlays
+only planned fields, and verifies retained ownership/public values.
+Explicit empty maps/description clear fields. Group metadata uses the existing
+Q31 integer guard in loading and saved execution. Name changes create a new
+identity, following name-matched resource behavior; ordinary apply preserves
+the old group and explicit scoped sync may remove it only when safe.
+
+The implemented mutation boundary is directly provisioned ordinary groups
+with observable konnect_user provenance and no team-manager state. The
+schema's omitted/null group type means ordinary group; inspection preserves
+field presence. Team/importer writes remain deferred (Q32). Duplicate
+directory/name matches, duplicate declarations across directory aliases,
+unowned/foreign targets and changed saved-plan identity fail before mutation.
+External-only group declarations never widen pruning scope.
+
+Group deletion observes complete direct membership collections and requires
+an empty, terminal unfiltered key page. Any key, failed/malformed observation
+or unsupported key endpoint blocks deletion. No credential is rotated or
+removed to make group deletion succeed. Principal plan/delete/sync also
+observes incoming direct group entries and refuses implicit membership
+removal, including foreign/protected/unowned groups. This adds group and
+membership read requirements for principal deletion. Explicit membership
+detachment dependencies belong to the next #2658 slice; no membership
+declarative mutation is claimed here.
+
+Native US .tech probes verify that full group PUT retains its four ownership
+entries, an existing membership entry and the observed key record. Directory
+DELETE with force=false rejects a directory containing a group with 409.
+Evidence is local at group-write-contracts.json and
+group-directory-delete-contract.json under
+/home/rspurgeon/.cache/kong-identity-public-sdk. Runtime key continuity is
+unverified without Q30's mTLS setup, and client checks do not provide Q24's
+atomic conditional deletion.
+
+SDK pin remains bf1d470c108c. Existing group write models suffice. The new
+group-key emptiness check omits pagination arguments; it adds no SDK patch.
+Before full group-key pagination, verify/fix the still-flat listGroupKeys
+page tags; the six prior cursor corrections do not cover that seventh route.
+Credential writes also need the missing expires_at request model and
+omitted/value/null serialization already tracked in #1417/#2659.
+
+Verification:
+
+- Modernization, formatting, CGO-disabled build and zero-issue lint pass.
+- Unit/integration/harness race tests pass, alongside SDK patch, installer,
+  replay-policy and 140 metrics checks.
+- The new 43-command declarative-groups scenario passes in US .tech,
+  including a new protected parent, all public fields, saved creation,
+  diff/update, clearing/omission, dump/apply/no-op, scoped external lookup,
+  adoption, protection, membership guards and namespace-scoped deletion.
+- All thirteen Identity scenarios pass together:
+  /home/rspurgeon/.cache/kong-identity-public-sdk/group-all-identity-live/20261031-121823.
+- Early stops after clearing labels, attaching a membership, and protecting
+  a group all pass automatic teardown. Evidence is under group-stop-cleared,
+  group-stop-membership and group-stop-protected in the same cache root.
+- A read-only plan of docs/examples/declarative/identity/groups.yaml against
+  restored default produces exactly two group creations and no directory
+  mutations. The example was not applied.
+
+Fixture cleanup now has an explicit namespace allowlist for lifecycle groups
+under a freshly generated directory/name prefix. It accepts canonical owned
+metadata, protected fixtures and deliberately cleared public labels, or
+explicitly marked unowned adoption fixtures. Unknown/imported/foreign shapes
+and changing ownership/membership stop cleanup. This credential-free fixture
+authority does not expand product cascading deletion permissions. Replay
+eligibility and recordings are unchanged.
+
+Final inventories show no test auth servers/principals/groups. The unmanaged
+default directory was restored with its saved standard settings; its ID is
+`01a192fe-6115-7aac-96a9-731d5f02cf51`. All seven referenced test capture paths
+are absent after teardown. Existing user capture files were untouched.
+
+The overall epic goal remains active. #2657/#1415 stay In Progress until main
+merge; #2658's direct membership declarations are next. API-only questions,
+metadata storage and compatibility boundaries are updated. No PR is opened.

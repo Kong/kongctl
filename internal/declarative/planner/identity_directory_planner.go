@@ -138,7 +138,10 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 		}, plan); err != nil {
 		return err
 	}
-	return p.planPrincipals(ctx, config, plan, byName)
+	if err := p.planPrincipals(ctx, config, plan, byName); err != nil {
+		return err
+	}
+	return p.planGroups(ctx, config, plan, byName)
 }
 
 func identityDirectoryFields(d resources.IdentityDirectoryResource) map[string]any {
