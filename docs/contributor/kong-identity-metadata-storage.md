@@ -21,6 +21,7 @@ ledger current as each resource is implemented.
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity and direct-membership deletions, with fresh empty checks (Q24). API-key descendant enrollment is separate. |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
+| Basic-auth username/password inspection | `managed_by`; no labels | Read-only in KongCTL | Scoped get/list uses public-only projections and complete pagination. Username selectors are explicit. Shared username-record PUT helpers verify retention; their delete helper requires empty passwords. No declarative credential ownership, adoption or principal credential-deletion guard is exposed yet. #1418, Q35. |
 | Ordinary Principal Groups | `labels`, `managed_by`, runtime `metadata` | Four-entry `managed_by`; unique directory/name matching | Declarative lifecycle, PUT hydration, adoption, protection and dump are implemented. Group metadata stays independent of directory ownership. Members/keys must be removed before deletion. #2657. |
 | Teams/imported group inspection | Same fields as groups | Read-only in KongCTL | Returned provisioning/team-manager presence is retained. Team/importer writes/adoption are deferred (Q32). |
 | Direct principal group membership | None | Inherits managed ordinary-group authority | No independent stamp or adoption. Match parent/type/member ID, route by entry ID. Explicit collection sync, group protection/adoption, saved references and dump are implemented; team/importer/nested writes remain deferred. #2658, Q32. |
@@ -106,6 +107,13 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, basic-auth inspection: username and password get/list now
+  expose public management metadata without writing ownership or displaying
+  credential material. Complete cursor observations and explicit username
+  selectors pass live `.tech` checks. Shared username-record write helpers
+  provide verified PUT/readback and password-aware deletion foundations;
+  declarative enrollment and principal credential guards are still pending.
 
 - October 31 UTC, ordinary groups: directory/name identity uses four canonical
   managed_by entries, independent of directory ownership. Public labels and

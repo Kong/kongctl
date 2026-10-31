@@ -18,6 +18,10 @@ until merge.
 public credential metadata and the API contracts still preventing declarative
 ownership updates and adoption. It does not expose credential material.
 
+[Basic-auth inspection](basic-auth.md) covers username records and their
+password metadata, explicit username/UUID selectors and private credential
+boundaries. Their declarative lifecycle is still under implementation.
+
 [Group and direct membership inspection](groups.md) covers group/team get/list,
 UUID/name selectors and membership-entry IDs. Ordinary group lifecycle and
 adoption use `groups.yaml`. [Direct principal memberships](memberships.md)
