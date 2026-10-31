@@ -284,8 +284,8 @@ server clients, and should its `TokenEndpointAuthMethod.x-enum-dev` annotation
 be removed?
 
 **Observed (October 31, 2026 UTC):** The canonical Sliver schema lists
-`client_secret_basic` both in `enum` and `x-enum-dev`. US `.com` accepts it on client create and PATCH. A
-client-credentials token request using HTTP Basic succeeds with the initial
+`client_secret_basic` both in `enum` and `x-enum-dev`. US `.com` accepts it on
+client create and PATCH. A client-credentials token request using HTTP Basic succeeds with the initial
 issued secret, including after public configuration and label updates that
 explicitly preserve this method. Public specification filtering removes the
 enum value despite that deployed behavior.
@@ -293,6 +293,8 @@ enum value despite that deployed behavior.
 **Status:** Open. Confirm availability/gating and align the schema annotation
 with the supported API contract. This does not resolve the separate omitted
 method reset in Q15 or unavailable authorization-code grant in Q17.
+
+## Principal identities and directory pagination
 
 ### Q21 Principal-identity detail and delete parent scoping
 
@@ -330,6 +332,17 @@ The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
 Confirm the intended wire names and whether the shared definition should be
 corrected for all operations referencing it.
+
+### Q23 Principal identity quotas
+
+**Question:** Are identity-count limits scoped per principal, directory or
+organization, and how can an API client discover its applicable limit?
+
+**Observed (October 31, 2026 UTC, US `.com`):** After ten custom identities had
+been created under one isolated principal, another POST returned 403 with
+`Maximum number of [identities] exceeded. Max allowed: [10]`. The response
+does not identify the quota's scope. The inspected identity operation does
+not expose quota discovery. All probe resources were removed afterward.
 
 ## Recorded answers
 

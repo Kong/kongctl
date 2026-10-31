@@ -63,7 +63,7 @@ func TestPrincipalListObservesAllPagesAndRejectsIncompleteData(t *testing.T) {
 				if calls == 1 {
 					return `{"data":[],"meta":{"page":{"size":100,"next":"cursor-two"}}}`
 				}
-				require.Equal(t, "cursor-two", request.URL.Query().Get("after"), request.URL.String())
+				require.Equal(t, "cursor-two", request.URL.Query().Get("page[after]"), request.URL.String())
 				if fault == "missing-data" {
 					return `{"meta":{"page":{"size":100,"next":null}}}`
 				}

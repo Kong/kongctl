@@ -220,7 +220,57 @@ func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID
 			return fmt.Errorf("principal fixture has no valid ID")
 		}
 	}
+	type identityFixture struct {
+		ID     string            `json:"id"`
+		Labels map[string]string `json:"labels"`
+	}
+	identities := make(map[string][]identityFixture)
+	for _, principal := range values {
+		var children []identityFixture
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &children, "get", "identity", "principal-identities",
+			"--directory-id", directoryID, "--principal-id", principal.ID); err != nil {
+			return err
+		}
+		if children == nil {
+			return fmt.Errorf("missing principal identity inventory before fixture cleanup")
+		}
+		for _, child := range children {
+			if !util.IsValidUUID(child.ID) || child.Labels["e2e-fixture"] != directoryID ||
+				child.Labels["e2e-principal-id"] != principal.ID {
+				return fmt.Errorf("principal contains an unmarked identity; refusing fixture cleanup")
+			}
+		}
+		identities[principal.ID] = children
+	}
 	for _, value := range values {
+		for _, child := range identities[value.ID] {
+			// Q21: raw GET/DELETE do not enforce principal association. The scoped
+			// command proves current collection membership before cleanup writes.
+			var current identityFixture
+			cli.OverrideNextOutput("json")
+			if _, err := cli.RunJSON(ctx, &current, "get", "identity", "principal-identity", child.ID,
+				"--directory-id", directoryID, "--principal-id", value.ID); err != nil {
+				return err
+			}
+			if current.ID != child.ID || current.Labels["e2e-fixture"] != directoryID ||
+				current.Labels["e2e-principal-id"] != value.ID {
+				return fmt.Errorf("identity fixture association or labels changed before cleanup")
+			}
+			cli.OverrideNextOutput("json")
+			if _, err := cli.Run(ctx, "api", "delete", "/v2/directories/"+directoryID+"/principals/"+value.ID+"/identities/"+child.ID); err != nil {
+				return err
+			}
+		}
+		var remaining []identityFixture
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(ctx, &remaining, "get", "identity", "principal-identities",
+			"--directory-id", directoryID, "--principal-id", value.ID); err != nil {
+			return err
+		}
+		if remaining == nil || len(remaining) > 0 {
+			return fmt.Errorf("principal still contains identities; refusing parent cleanup")
+		}
 		cli.OverrideNextOutput("json")
 		if _, err := cli.Run(ctx, "api", "delete", "/v2/directories/"+directoryID+"/principals/"+value.ID); err != nil {
 			return err
