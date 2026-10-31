@@ -8,9 +8,11 @@ access to the regional directory administration API.
 and explicit secret rotation. Client ownership uses labels independently of
 the server.
 
-[Principal identity inspection](principal-identities.md) explains OIDC, OAuth
-client, Gateway consumer and custom associations. Their declarative lifecycle
-is the next active slice under #1416.
+[Principal identity declarations and inspection](principal-identities.md)
+covers `principal-identities.yaml`, OIDC, OAuth-client, Gateway-consumer and
+custom associations, independent managed_by ownership, scoped sync and adoption.
+Workspace configuration remains deferred under Q25. #1416 stays In Progress
+until merge.
 
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it

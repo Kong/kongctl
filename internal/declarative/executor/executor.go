@@ -129,6 +129,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.registerIdentityAuthServerClientExecutor()
 	e.registerIdentityDirectoryExecutor()
 	e.registerIdentityPrincipalExecutor()
+	e.registerIdentityPrincipalIdentityExecutor()
 	e.registerCatalogServiceExecutor()
 	e.registerAIGatewayExecutors()
 	e.registerAICostManagementTagsExecutor()
@@ -2277,6 +2278,9 @@ func (e *Executor) updateResource(ctx context.Context, change *planner.PlannedCh
 
 func (e *Executor) deleteResource(ctx context.Context, change *planner.PlannedChange) error {
 	if resource := e.resourceExecutors[change.ResourceType]; resource.remove != nil {
+		if err := e.validateIdentityReferenceScopes(ctx, change); err != nil {
+			return err
+		}
 		return resource.remove(ctx, change)
 	}
 

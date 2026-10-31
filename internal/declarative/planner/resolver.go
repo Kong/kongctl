@@ -225,6 +225,8 @@ func (r *ReferenceResolver) isReferenceField(fieldName string) bool {
 // getResourceTypeForField maps field names to resource types
 func (r *ReferenceResolver) getResourceTypeForField(fieldName string) string {
 	switch fieldName {
+	case FieldDirectoryID:
+		return ResourceTypeIdentityDirectory
 	case FieldDefaultApplicationStrategyID, FieldAuthStrategyIDs:
 		return ResourceTypeApplicationAuthStrategy
 	case FieldAuditLogDestinationID:

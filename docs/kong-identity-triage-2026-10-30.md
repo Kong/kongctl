@@ -18,7 +18,7 @@ children, plus get/list, examples and live E2E coverage. Their issues #1402 and
 are implemented. Explicit secret creation/capture, enable/disable and deletion
 now have live rotation coverage. Client declarative lifecycle, adoption and
 initial-secret capture pass live verification, including runtime credential
-continuity. Sections 19–25 record contracts, verification and questions.
+continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
 The public preview SDK is now pinned to `6ca9d1f8b309`, including targeted
@@ -28,15 +28,17 @@ Existing KongCTL SDK patches are retained. This continues the selective
 public SDK approach rather than switching to the internal SDK's unrelated
 model differences.
 
-Principal-identity get/list now covers all four variants with explicit parent
-selection and fresh collection membership checks. Direct probes verified
-managed_by retention and exposed two additional issues: GET/DELETE principal
-scoping (Q21) and cursor-query serialization (Q22). Q23 tracks identity quota
-scope/discovery. Write helpers and verified OAuth-client/API Gateway
-retargeting now establish the next declarative foundations. Principal
-delete/sync refuse remaining identities at planning and execution; Q24 asks
-for the wider descendant-deletion contract and an atomic precondition.
-Sections 24–25 record remaining declarative work.
+Principal identities now support all four declarative variants, independently
+owned through five-entry `managed_by` maps. Nested/grouped configuration,
+typed references, external principals, adoption, dump, saved plans and scoped
+sync/delete are implemented. Fresh collection membership checks address the
+GET/DELETE parent-scoping discrepancy (Q21); the SDK fixes cursor requests
+(Q22). Principal deletion requires explicit identity deletions first, followed
+by a fresh empty collection (Q24). Workspace writes/adoption remain deferred
+until a valid API contract is demonstrated (Q25). Associated-resource deletion
+has differing native API effects (Q26); checks cover declared collections,
+with a warning about OAuth associations outside those scopes. Section 26
+records this implementation and its verification.
 
 Keep these two running logs alongside this report:
 
@@ -1612,3 +1614,75 @@ execution refuse removal while the principal remains readable. All four
 generated client capture paths across these runs were removed; fresh
 directory/auth-server inventories are empty. Replay-enabled coverage is
 unchanged. Work remains on `ki-triage`, with no PR opened.
+
+## 26. Declarative principal identities
+
+Issue #1416 now implements custom, OIDC, OAuth-client and Gateway consumer
+identity associations. Nested `principals[].identities` and grouped
+`identity.identities` declarations support plan, diff, saved apply, sync,
+delete, dump, explain/scaffold and adoption. Required association fields stay
+explicit; generated IDs are discovered through complete parent collections
+and independent tool/namespace/ref identity in five-entry `managed_by` maps.
+Public labels remain ordinary API data. Parent ownership/protection is
+independent, including external principals selected by UUID.
+
+Updates hydrate full PUT bodies from fresh reads, retain omitted public
+fields, and verify current identity, parent membership, ownership, protection
+and duplicate tuples. Creates issue a single POST attempt. Type changes
+require separate associations. Adoption preserves public configuration and
+protection while explicitly changing the ownership tuple. Unowned principals
+and identities dump as external references. Child namespaces and explicit
+empty collections cannot broaden directory/principal pruning authority.
+Existing referenced IDs resolve before protected payload comparison, including
+targets in other namespaces that need no operation.
+
+Final plans require explicit authorized identity deletions before deleting a
+principal; execution still requires a fresh empty collection. For observed
+OAuth-client/server or Gateway references, deletion/retargeting precedes
+target deletion. Saved plans retain the observed directory/principal scopes
+and recheck them at execution, so late unowned associations also block removal.
+These checks cover declared collections, not an organization-wide reverse
+inventory. OAuth-client deletion warns about native effects outside those
+scopes. API atomic preconditions remain necessary to close concurrent races.
+
+Two additional engineering questions record direct US `.com` observations:
+
+- Q25: consumer identities accept omitted workspace, but text and UUID-shaped
+  workspace values return 500 on otherwise working PUTs. Neither probe used a
+  known existing workspace. A valid example, format, availability and clearing
+  contract are needed. Declarative workspace writes and workspace-bearing
+  adoption are deferred; reads retain the field and dumps use external refs.
+- Q26: deleting an associated OAuth client removes its identity from GET/list;
+  deleting an API Gateway consumer and then its control plane leaves the
+  identity visible with the old IDs. AI consumer deletion was not verified.
+  Engineering should establish the intended retention/deletion contract.
+
+Further direct probes verify AI-to-API Gateway consumer retargeting and
+management-map retention. All disposable probe fixtures were removed.
+The SDK pin remains `6ca9d1f8b309`; this increment changes no generated models.
+
+The example is `docs/examples/declarative/identity/principal-identities.yaml`,
+with a short companion tutorial. The new live scenario
+`identity/declarative-identities` covers all four types under a protected
+principal, independent namespaces, same-plan client dependencies, no-op
+planning, association updates, label removal, diff, dump/replan, adoption,
+protection, omitted/empty sync, foreign/unowned preservation and ordered
+parent teardown. Its focused live run passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-identity-live-2/20261031-044615`.
+Unit regressions also cover saved-plan ownership/protection/duplicate changes,
+failed observations, late references and external dump boundaries.
+
+Final validation passes: modernization, clean formatting, CGO-disabled build,
+zero-issue lint, unit race tests, integration tests, harness race tests,
+weighted scenario inventory and replay/metrics checks. All nine live Identity
+scenarios pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-identity-final-regression/20261031-054209`.
+Early stop after creating and inspecting all four types also passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/declarative-identity-stopped/20261031-054437`.
+The complete run's five generated client capture paths and the stopped run's
+two paths were removed. Additional direct custom/OIDC probes verify that PUT
+with omitted labels or explicit empty labels clears them while retaining the
+management map; fresh hydration therefore preserves omitted manifest labels.
+Those disposable probe fixtures were removed too. Replay-enabled coverage is
+unchanged. #1416 and related issues remain open/In Progress until main merge;
+work stays on `ki-triage`, with no implementation PR opened.

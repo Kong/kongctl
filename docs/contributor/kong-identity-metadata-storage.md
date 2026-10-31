@@ -17,7 +17,8 @@ resource is implemented.
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
-| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion checks the complete identity collection and refuses remaining identities (Q24). |
+| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions, then a fresh empty collection (Q24). |
+| Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
@@ -25,7 +26,8 @@ resource is implemented.
 | Auth-server client secret | None | None | Explicit create/capture, get/list metadata, enable/disable and confirmed delete. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress; initial creation capture is integrated with #1401. |
 
 Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
-`kongctl-protected`. Principal ownership adds `kongctl-ref` as the fifth entry.
+`kongctl-protected`. Principal and identity ownership add `kongctl-ref` as the
+fifth entry.
 Client-side filtering and duplicate checks use the complete remote collection.
 Public labels and principal runtime metadata retain their API meanings.
 
@@ -40,7 +42,6 @@ These rows describe available API fields, not completed implementations.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
-| Principal identities, all four variants | `labels`, `managed_by` | Create, GET, list and PUT retain all five ref/ownership values, including API and AI Gateway consumer identities. OAuth-client and API Gateway consumer retargeting retain metadata. Get/list and guarded API write helpers are implemented; declarative stamping/adoption remain #1416. PATCH metadata is rejected. Q21 requires fresh collection-membership proof; Q22 corrects cursor requests. |
 | Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
 | Generated principal and group API keys | `managed_by`; no labels | Persist ref/ownership only after create and update retention are verified. Generated-secret capture is separate. #1417, #2659. |
 | Imported principal and group API keys | Read/update expose `managed_by`; imported create lacks it | No atomic ownership stamp at creation in the inspected body. Q4 tracks the gap; do not equate a later PATCH with atomic creation. #1417, #2659. |
@@ -49,6 +50,14 @@ These rows describe available API fields, not completed implementations.
 
 Presence in a response does not establish that every create/update variant can
 write the field. Record that distinction when testing each endpoint.
+
+Further identity probes verify AI-to-API Gateway consumer retargeting through
+PUT. Q25 records unverified workspace semantics: two supplied workspace values
+returned 500 without changing either consumer association. No valid workspace
+fixture was available, so this is not evidence that all workspace values fail.
+Q26 records that OAuth-client deletion removes its identity from GET/list,
+while API Gateway consumer/control-plane deletion leaves the identity visible.
+An ownership stamp on an identity does not prevent these native API effects.
 
 ## Resources without an ownership metadata field
 
@@ -125,21 +134,29 @@ authority for another resource family.
   namespace scopes do not widen auth-server pruning. Scope detachment/deletion
   dependencies use the actual explicit PATCH list and fresh reference checks.
 
-- Principal-identity verification: all four variants generate IDs and retain
-  labels/managed_by on create and PUT. This verifies a future ownership store;
-  current product support is inspection, with no automatic metadata writes.
+- Principal-identity inspection milestone: all four variants generate IDs and
+  retain labels/managed_by on create and PUT. That milestone established an
+  ownership store, with inspection but no automatic metadata writes.
   Scoped reads prove collection membership because detail/delete paths accept
   another existing principal (Q21). The SDK fixes bracketed cursor requests
   for directories, principals and identities (Q22); future resource list
   implementations must verify their own generated wire parameters.
-- Principal-identity write foundations: PUT projections preserve public
+- Principal-identity write-foundation milestone: PUT projections preserve public
   labels and every management-map entry for all four variants, but do not
   synthesize ownership or adopt a resource. Direct probes additionally verify
   OAuth-client/API Gateway consumer retargeting and AI Gateway consumer
-  metadata retention. Declarative stamping and adoption remain #1416 work.
+  metadata retention. Declarative stamping and adoption were still pending.
   Principal delete/sync now refuse attached identities at planning and
   execution, independent of their metadata; Q24 tracks the wider API deletion
   contract and an atomic nonempty-child precondition.
+- Declarative identities: generated five-entry maps persist on create, PUT
+  and adoption. Namespace/ref matching is independent of principal ownership;
+  empty collection scope does not widen principal or directory pruning.
+  Unowned principals/identities export as external references. Workspace-bearing
+  identities also export externally while Q25 remains unverified. Observed
+  client/Gateway references supply deletion dependencies and saved scopes for
+  fresh execution checks. Collections outside the declarations are not scanned;
+  native API effects described in Q26 remain a limit of metadata protection.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

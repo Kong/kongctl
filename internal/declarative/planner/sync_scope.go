@@ -23,6 +23,7 @@ func syncScopeMetadata(scope *resources.SyncScope) *PlanSyncScope {
 		ChildNamespaces:              childScopeNamespaces(scope),
 		GatewayNamespaces:            slices.Sorted(maps.Keys(scope.GatewayNamespaces)),
 		IdentityAuthServerNamespaces: slices.Sorted(maps.Keys(scope.IdentityAuthServerNamespaces)),
+		IdentityDirectoryNamespaces:  slices.Sorted(maps.Keys(scope.IdentityDirectoryNamespaces)),
 		RootResourceTypes:            make([]string, 0, len(rootTypes)),
 		ChildResourceTypes:           make([]PlanSyncChildScope, 0, len(childScopes)),
 		RootChildResourceTypes:       make([]string, 0, len(rootChildTypes)),

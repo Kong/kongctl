@@ -64,7 +64,14 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		}
 	}
 	for _, parent := range parents {
+		externalIDs := make(map[string]bool)
 		for _, principal := range rs.Identity.Principals {
+			if principal.IsExternal() {
+				if parent.refs[resources.NormalizeResourceRef(principal.Directory)] {
+					externalIDs[principal.GetKonnectID()] = true
+				}
+				continue
+			}
 			if parent.refs[resources.NormalizeResourceRef(principal.Directory)] &&
 				resources.GetNamespace(principal.Kongctl) == config.Namespace {
 				parent.desired = append(parent.desired, principal)
@@ -83,6 +90,16 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		}
 		currentByRef := make(map[string]state.IdentityPrincipal)
 		for _, value := range all {
+			if externalIDs[value.ID] {
+				for _, desired := range parent.desired {
+					if value.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool &&
+						value.ManagedBy[resources.ChildNamespaceKey] == config.Namespace &&
+						value.GetName() == desired.Ref {
+						return fmt.Errorf("principal %q is declared as both managed and external", desired.Ref)
+					}
+				}
+				continue
+			}
 			if value.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool ||
 				value.ManagedBy[resources.ChildNamespaceKey] != config.Namespace {
 				continue
@@ -195,20 +212,6 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		for i := start; i < len(plan.Changes); i++ {
 			change := &plan.Changes[i]
 			change.Parent = &ParentInfo{Ref: parent.ref, ID: parent.id}
-			if change.Action == ActionDelete {
-				identities, err := p.planner.client.ListIdentityPrincipalIdentities(ctx, parent.id, change.ResourceID)
-				if err != nil {
-					return fmt.Errorf(
-						"cannot verify identities before deleting principal %q: %w",
-						change.ResourceRef,
-						err,
-					)
-				}
-				if len(identities) != 0 {
-					return fmt.Errorf("principal %q still has %d identities; remove them explicitly before deleting it",
-						change.ResourceRef, len(identities))
-				}
-			}
 			for j := range plan.Changes[:start] {
 				directoryChange := &plan.Changes[j]
 				if directoryChange.ResourceType != ResourceTypeIdentityDirectory {
@@ -224,7 +227,7 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 			}
 		}
 	}
-	return nil
+	return p.planIdentities(ctx, config, plan, byName)
 }
 
 func (p *identityDirectoryPlanner) principalChange(action ActionType, ref, id string, fields map[string]any,

@@ -333,6 +333,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		case "directory", "directories":
 		case "principal", "principals":
 			kind = ResourceTypeIdentityPrincipal
+		case "identities", "principal_identity", "principal_identities":
+			kind = ResourceTypeIdentityPrincipalIdentity
 		case "scopes", "scope":
 			kind = ResourceTypeIdentityAuthServerScope
 		case "claims", "claim":
@@ -385,6 +387,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}}
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
+		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
 		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
@@ -394,6 +397,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		collection := "directories"
 		if doc.ResourceType == ResourceTypeIdentityPrincipal {
 			collection = "principals"
+		}
+		if doc.ResourceType == ResourceTypeIdentityPrincipalIdentity {
+			collection = "identities"
 		}
 		if doc.ResourceType == ResourceTypeIdentityAuthServer {
 			collection = "auth_servers"
@@ -908,6 +914,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.directories"
 	case ResourceTypeIdentityPrincipal:
 		return "identity.principals"
+	case ResourceTypeIdentityPrincipalIdentity:
+		return "identity.identities"
 	}
 
 	if _, ok := visiting[doc.ResourceType]; ok {
@@ -1002,6 +1010,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityPrincipal {
 		rootKey = "identity.principals"
+	}
+	if rt == ResourceTypeIdentityPrincipalIdentity {
+		rootKey = "identity.identities"
 	}
 	aliases := []string{string(rt)}
 	if hyphenAlias := strings.ReplaceAll(string(rt), "_", "-"); hyphenAlias != string(rt) {

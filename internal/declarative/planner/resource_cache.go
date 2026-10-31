@@ -10,9 +10,11 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 type planningResourceCache struct {
+	identityPrincipalIdentities    map[string][]helpers.PrincipalIdentity
 	identityAuthScopes             map[string][]state.IdentityAuthServerScope
 	identityAuthClaims             map[string][]state.IdentityAuthServerClaim
 	identityAuthClients            map[string][]kkComps.AuthServerClient
@@ -58,6 +60,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityPrincipalIdentities:    make(map[string][]helpers.PrincipalIdentity),
 		identityAuthScopes:             make(map[string][]state.IdentityAuthServerScope),
 		identityAuthClaims:             make(map[string][]state.IdentityAuthServerClaim),
 		identityAuthClients:            make(map[string][]kkComps.AuthServerClient),

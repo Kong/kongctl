@@ -271,14 +271,14 @@ Related questions: Q21–Q23. The four variants generate IDs and retain the
 five managed_by ref/ownership entries and public labels on direct create,
 read and PUT probes. Metadata PATCH is rejected; type-specific PATCH works.
 An API Gateway consumer identity also returns `control_plane_type`. These
-probes establish the next declarative slice's available contract, while the
-implemented product slice currently adds get/list inspection.
+contracts now underpin the declarative lifecycle described below, alongside
+get/list inspection.
 
 GET and DELETE accept an identity through another existing principal in the
 same directory. PUT rejects that path, and each collection lists only its
 actual principal's identities. Scoped detail reads therefore prove membership
-in a complete fresh collection before GET. Future update/adoption/deletion
-paths must repeat that proof, especially before DELETE. Fixture cleanup uses
+in a complete fresh collection before GET. Update, adoption and deletion
+repeat that proof, especially before DELETE. Fixture cleanup uses
 this proof, validates fresh fixture labels, observes every child collection
 before starting writes, and requires empty child collections before parent
 removal. Unowned or incompletely observed children stop cleanup.
@@ -297,18 +297,19 @@ The principal and its identity collection then return 404. The schema does
 not document descendant retention/deletion or an atomic nonempty-child
 precondition; Q24 asks for that API contract.
 
-Declarative principal delete and sync pruning require a complete empty
-identity collection. Planning rejects known remaining identities, including
-unowned, protected or foreign-namespace associations. Execution repeats that
-observation so a saved plan cannot silently cascade through later identities.
+Declarative principal delete and sync pruning require explicit authorized
+deletions for every observed identity. Unplanned identities, including unowned,
+protected or foreign-namespace associations, stop planning. Execution requires
+a fresh empty collection after those deletions, so a saved plan cannot
+silently cascade through later identities.
 Missing/failed/incomplete observations fail closed. These are client checks;
 without a server-side precondition a concurrent creation between observation
 and deletion remains possible. Credentials and group memberships require
 their own verified contracts as those families are enrolled.
 
-When identity deletion is implemented, final plans must order explicitly
-authorized identity deletions before their principal. Keep the fresh empty
-collection check for unplanned or late children. Prefer an atomic API
+Final plans order explicitly authorized identity deletions before their
+principal. Keep the fresh empty collection check for unplanned or late
+children. Prefer an atomic API
 precondition if engineering supplies and verifies one; do not remove these
 checks merely because the cascading behavior is documented.
 
@@ -322,14 +323,84 @@ new identity back through the selected parent. PUT and DELETE repeat complete
 fresh membership proof before mutation (Q21); PUT rejects type changes and
 checks retained metadata/ID in its response. These helpers do not establish
 ownership, adopt resources or synthesize a metadata stamp. Declarative callers
-still need independently scoped ownership/protection, collision checks,
-fresh omitted-field hydration, persisted refs and final dependencies under
-#1416. No new imperative mutation command is exposed by these foundations.
+and the adoption command add independently scoped ownership/protection,
+collision checks, fresh omitted-field hydration, persisted refs and final
+dependencies under #1416.
+
+Direct custom/OIDC probes verify that PUT with omitted or empty labels clears
+them while retaining the supplied management map. Declarative hydration
+preserves labels omitted from the manifest before sending that full PUT;
+explicit `labels: {}` clears them.
 
 OAuth-client and API Gateway consumer associations can be retargeted through
 PUT while retaining metadata. AI Gateway OAuth consumers also work with
 `control_plane_consumer`, returning `control_plane_type: ai_gateway` and
-retaining metadata on PUT. Cross-Gateway-type retargeting remains untested.
+retaining metadata on PUT. A later probe verified AI-to-API Gateway
+retargeting; the reverse direction has not been verified.
+
+## Further identity API contracts under implementation
+
+Q25 asks for valid workspace configuration, field semantics and validation.
+The schema supplies only a string. Text and UUID-shaped probe values both
+returned 500 on otherwise working API and AI Gateway consumer identity PUTs;
+subsequent GETs retained the original association without a workspace. These
+were not known existing workspaces, so the probes cannot establish whether
+a valid workspace is unsupported. Explicit workspace configuration is deferred
+while the other four identity variants are implemented. Read models and
+generic PUT projections preserve workspace presence. Enable configuration
+only after a valid create/read/PUT fixture establishes the contract, including
+metadata updates, omission and clearing. Add live coverage and remove the
+Q25 validation restriction together.
+
+Tracked implementation sites are resource validation/explain notes, the
+workspace adoption guard, external export handling and the examples/lifecycle
+scenario. Workspace-bearing records are inspectable and export as external
+references; their remote metadata is unchanged. This avoids exporting a
+managed declaration whose workspace configuration cannot yet be verified.
+
+AI-to-API Gateway consumer retargeting works through the same identity type;
+the response changes read-only `control_plane_type` to `api_gateway` while
+retaining management metadata. Q26 records a separate lifecycle distinction:
+deleting an OAuth client makes its identity disappear from both GET and list,
+but deleting an API Gateway consumer and then its control plane leaves the
+identity readable with the original IDs. No cross-family cleanup policy is
+inferred for AI consumers. Do not equate an identity's independent metadata
+with an API-enforced guarantee against deletion of an associated resource.
+
+## Declarative principal identity lifecycle
+
+All four variants use independent namespace/protection and persisted refs in
+five-entry managed_by maps. Nested and grouped declarations, external principal
+and identity UUIDs, same-plan parent/client/control-plane references, saved
+plans, adoption and dump use this contract. External membership is verified
+against complete scoped collections before planning. Existing Identity IDs
+are resolved before protected payload comparison, including unchanged targets
+in other namespaces. This prevents unresolved label/association references
+from becoming false updates on protected resources.
+
+Principal deletion checks the final cross-namespace plan for explicit identity
+deletions, orders those first, and still requires a fresh empty collection at
+execution. Referenced OAuth-client/server and Gateway deletions similarly
+require observed associations to be deleted or retargeted first. Full PUT
+fields establish detachment; metadata-only changes do not. Saved plans retain
+the observed directory/principal scopes and repeat complete reference checks
+at execution, including late foreign or unowned associations. A principal
+removed by a preceding planned deletion makes that scoped collection absent;
+other observation failures block the referenced-resource deletion.
+
+These checks cover collections observed from declarations. They do not add
+organization-wide reverse scans or require directory permissions for an
+auth-server-only manifest. OAuth client deletion warns about native cascade
+effects outside the inspected scopes. An old plan without captured reference
+scopes cannot gain those checks retroactively; regenerate it when introducing
+identity associations. API-level atomic preconditions remain Q24/Q26 work.
+
+The live scenario covers all four types under a protected principal, distinct
+ownership namespaces, same-plan directory/principal/client dependencies,
+idempotent saved plans, association updates, public-label removal, diff,
+dump/replan, adoption, protected updates, omitted versus explicit empty scope,
+foreign/unowned preservation and child-before-parent deletion. Q25 is the
+explicit field limitation rather than a guessed workspace contract.
 
 ## Directory cursor request serialization
 

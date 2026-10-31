@@ -56,6 +56,12 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeIdentityPrincipalIdentity: func(context.Context, externalLookupRequest) (string, error) {
+			return "", fmt.Errorf("external principal identities require an explicit UUID")
+		},
+		resources.ResourceTypeIdentityPrincipal: func(context.Context, externalLookupRequest) (string, error) {
+			return "", fmt.Errorf("external principals require an explicit UUID; display names are not unique")
+		},
 		resources.ResourceTypeIdentityAuthServer:         r.lookupIdentityAuthServer,
 		resources.ResourceTypeIdentityDirectory:          r.lookupIdentityDirectory,
 		resources.ResourceTypeAPI:                        r.lookupAPI,

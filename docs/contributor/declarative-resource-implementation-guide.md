@@ -90,6 +90,12 @@ Registering a declaration does not complete those steps automatically.
   unique. Their verified PUT path preserves omitted public fields. See
   [Identity compatibility](kong-identity-compatibility.md) for temporary API
   restrictions.
+  Principal identities also persist refs with independent ownership under
+  principals. Their four association variants use fresh full PUT payloads;
+  external UUID references remain outside management. Parent and associated
+  resource deletions use final cross-namespace dependencies and fresh scoped
+  observations. See the same compatibility tracker for workspace limits and
+  the boundary of those reference checks.
   Kong Identity auth-server scopes and claims use ordinary inherited ownership
   instead: they have no labels or `managed_by`. A declared managed server and
   explicit child collection define mutation/sync authority. Child writes

@@ -211,6 +211,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			IdentityAuthServerClaimsAPI:         sdk.GetIdentityAuthServerClaimsAPI(),
 			IdentityAuthServerClientsAPI:        sdk.GetIdentityAuthServerClientsReader(),
 			IdentityPrincipalsAPI:               sdk.GetIdentityPrincipalsAPI(),
+			IdentityPrincipalIdentitiesAPI:      sdk.GetIdentityPrincipalIdentitiesAPI(),
 			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
 			GatewayServiceAPI:                   sdk.GetGatewayServiceAPI(),
@@ -281,12 +282,13 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	if stateClient == nil && needsIdentityClient {
 		stateClient = declstate.NewClient(
 			declstate.ClientConfig{
-				IdentityDirectoriesAPI:       sdk.GetIdentityDirectoriesAPI(),
-				IdentityAuthServersAPI:       sdk.GetIdentityAuthServersAPI(),
-				IdentityAuthServerScopesAPI:  sdk.GetIdentityAuthServerScopesAPI(),
-				IdentityAuthServerClaimsAPI:  sdk.GetIdentityAuthServerClaimsAPI(),
-				IdentityAuthServerClientsAPI: sdk.GetIdentityAuthServerClientsReader(),
-				IdentityPrincipalsAPI:        sdk.GetIdentityPrincipalsAPI(),
+				IdentityDirectoriesAPI:         sdk.GetIdentityDirectoriesAPI(),
+				IdentityAuthServersAPI:         sdk.GetIdentityAuthServersAPI(),
+				IdentityAuthServerScopesAPI:    sdk.GetIdentityAuthServerScopesAPI(),
+				IdentityAuthServerClaimsAPI:    sdk.GetIdentityAuthServerClaimsAPI(),
+				IdentityAuthServerClientsAPI:   sdk.GetIdentityAuthServerClientsReader(),
+				IdentityPrincipalsAPI:          sdk.GetIdentityPrincipalsAPI(),
+				IdentityPrincipalIdentitiesAPI: sdk.GetIdentityPrincipalIdentitiesAPI(),
 			},
 		)
 	}

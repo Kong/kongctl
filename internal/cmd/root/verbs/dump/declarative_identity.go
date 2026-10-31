@@ -93,11 +93,61 @@ func identityDirectoryCollector() declarativeCollector {
 						},
 						DisplayName: current.DisplayName, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
 					}
+					if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
+						principal.External = &resources.ExternalBlock{ID: current.ID}
+						principal.Kongctl = nil
+					}
 					if current.Type != nil {
 						principal.Type = new(string(*current.Type))
 					} else {
 						principal.DeclareUnclassified()
 					}
+					identities, err := d.stateClient.ListIdentityPrincipalIdentities(ctx, values[i].Ref, current.ID)
+					if err != nil {
+						return err
+					}
+					for _, identity := range identities {
+						data, err := json.Marshal(identity)
+						if err != nil {
+							return err
+						}
+						var declaration resources.IdentityPrincipalIdentityResource
+						if err := json.Unmarshal(data, &declaration); err != nil {
+							return err
+						}
+						declaration.Ref = identity.ID
+						if identity.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool {
+							declaration.Ref = identity.ManagedBy[resources.ManagedByRefKey]
+							if err := resources.ValidateRef(declaration.Ref); err != nil {
+								return fmt.Errorf(
+									"identity %s has invalid persisted ref; explicitly adopt it before dumping",
+									identity.ID,
+								)
+							}
+							owned := state.NormalizeIdentityPrincipalIdentity(identity)
+							declaration.Kongctl = kongctlMetaFromLabels(owned.NormalizedLabels)
+						} else {
+							declaration.External = &resources.ExternalBlock{ID: identity.ID}
+						}
+						if identity.WorkspaceID != nil {
+							// Q25: preserve the inspected association without promising
+							// declarative writes for an unverified workspace contract.
+							declaration.External = &resources.ExternalBlock{ID: identity.ID}
+							declaration.Kongctl = nil
+						}
+						if seen[declaration.Ref] {
+							return fmt.Errorf(
+								"identity ref %q is ambiguous in the dump; filter the dump",
+								declaration.Ref,
+							)
+						}
+						seen[declaration.Ref] = true
+						principal.Identities = append(principal.Identities, declaration)
+					}
+					slices.SortFunc(
+						principal.Identities,
+						func(a, b resources.IdentityPrincipalIdentityResource) int { return cmp.Compare(a.Ref, b.Ref) },
+					)
 					values[i].Principals = append(values[i].Principals, principal)
 				}
 				slices.SortFunc(
@@ -106,6 +156,6 @@ func identityDirectoryCollector() declarativeCollector {
 				)
 			}
 			return nil
-		}, resources.ResourceTypeIdentityPrincipal,
+		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
 	)
 }
