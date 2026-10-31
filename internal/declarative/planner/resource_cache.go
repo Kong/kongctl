@@ -11,6 +11,7 @@ import (
 )
 
 type planningResourceCache struct {
+	identityPrincipals             map[string][]state.IdentityPrincipal
 	identityDirectories            observationCache[state.IdentityDirectory]
 	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
@@ -51,6 +52,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityPrincipals:             make(map[string][]state.IdentityPrincipal),
 		identityDirectories:            newObservationCache[state.IdentityDirectory](),
 		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),

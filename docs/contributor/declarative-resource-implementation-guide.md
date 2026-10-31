@@ -85,6 +85,11 @@ Registering a declaration does not complete those steps automatically.
   certificates, and SNIs are intentional exceptions: `WithNamespace` supplies
   independent ownership and protection using reserved lowercase `managed_by`
   keys. Nested namespace groups must visit original slices before extraction.
+  Kong Identity principals use the same independent ownership capability under
+  directories, with an additional persisted ref because display names are not
+  unique. Their verified PUT path preserves omitted public fields. See
+  [Identity compatibility](kong-identity-compatibility.md) for temporary API
+  restrictions.
   Model namespace scope is captured per source, separately from gateway scope;
   parent linkage never authorizes model mutation. See
   [model ownership](../ai-gateway-model-ownership.md) for migration and API

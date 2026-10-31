@@ -1,8 +1,11 @@
 package dump
 
 import (
+	"bytes"
 	"cmp"
 	"context"
+	"encoding/json"
+	"fmt"
 	"slices"
 
 	"github.com/kong/kongctl/internal/declarative/labels"
@@ -27,7 +30,7 @@ func identityDirectoryCollector() declarativeCollector {
 			for _, current := range values {
 				result = append(result, resources.IdentityDirectoryResource{
 					BaseResource: resources.BaseResource{
-						Ref:     current.Name,
+						Ref:     current.ID,
 						Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
 					},
 					Name: current.Name, Description: &current.Description,
@@ -37,7 +40,10 @@ func identityDirectoryCollector() declarativeCollector {
 					Labels: labels.GetUserLabels(current.Labels),
 				})
 			}
-			slices.SortFunc(result, func(a, b resources.IdentityDirectoryResource) int { return cmp.Compare(a.Name, b.Name) })
+			slices.SortFunc(
+				result,
+				func(a, b resources.IdentityDirectoryResource) int { return cmp.Compare(a.Name, b.Name) },
+			)
 			return result, nil
 		},
 		func(rs *resources.ResourceSet) *[]resources.IdentityDirectoryResource {
@@ -45,6 +51,61 @@ func identityDirectoryCollector() declarativeCollector {
 				rs.Identity = &resources.IdentityResource{}
 			}
 			return &rs.Identity.Directories
-		}, nil,
+		}, func(ctx context.Context, d *declarativeDumpContext, values []resources.IdentityDirectoryResource) error {
+			seen := make(map[string]bool)
+			for i := range values {
+				principals, err := d.stateClient.ListIdentityPrincipals(ctx, values[i].Ref)
+				if err != nil {
+					return err
+				}
+				for _, current := range principals {
+					ref := current.ID
+					if current.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool {
+						if err := resources.ValidateRef(current.GetName()); err != nil {
+							return fmt.Errorf(
+								"principal %s has invalid persisted ref; explicitly adopt it before dumping",
+								current.ID,
+							)
+						}
+						ref = current.GetName()
+					}
+					if seen[ref] {
+						return fmt.Errorf(
+							"principal ref %q occurs in multiple directories or namespaces; filter the directory dump",
+							ref,
+						)
+					}
+					seen[ref] = true
+					data, err := json.Marshal(current.Metadata)
+					if err != nil {
+						return err
+					}
+					metadata := make(map[string]any)
+					decoder := json.NewDecoder(bytes.NewReader(data))
+					decoder.UseNumber()
+					if err := decoder.Decode(&metadata); err != nil {
+						return err
+					}
+					principal := resources.IdentityPrincipalResource{
+						BaseResource: resources.BaseResource{
+							Ref:     ref,
+							Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
+						},
+						DisplayName: current.DisplayName, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
+					}
+					if current.Type != nil {
+						principal.Type = new(string(*current.Type))
+					} else {
+						principal.DeclareUnclassified()
+					}
+					values[i].Principals = append(values[i].Principals, principal)
+				}
+				slices.SortFunc(
+					values[i].Principals,
+					func(a, b resources.IdentityPrincipalResource) int { return cmp.Compare(a.Ref, b.Ref) },
+				)
+			}
+			return nil
+		}, resources.ResourceTypeIdentityPrincipal,
 	)
 }

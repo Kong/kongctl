@@ -1,0 +1,23 @@
+# Run separately from the other examples. Requires a free directory quota slot.
+_defaults:
+  kongctl:
+    namespace: ki-tutorial
+
+identity:
+  directories:
+    - ref: tutorial-directory
+      name: ki-tutorial
+      allow_all_control_planes: true
+      principals:
+        - ref: tutorial-user
+          display_name: Tutorial user
+          description: A human principal
+          type: user
+          metadata:
+            department: engineering
+          labels:
+            purpose: tutorial
+        - ref: tutorial-agent
+          display_name: Tutorial agent
+          description: A deployed AI agent principal
+          type: agent

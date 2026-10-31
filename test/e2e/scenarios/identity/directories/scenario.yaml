@@ -79,6 +79,9 @@ steps:
                 vault_enabled: false
             select: '@'
         name: verify-directory
+        recordVar:
+          name: directory_id
+          responsePath: id
         run:
           - get
           - identity
@@ -108,6 +111,485 @@ steps:
           - --mode
           - apply
     name: 002-create
+  - name: 002a-principal-reads
+    commands:
+      - name: create-user-principal
+        create:
+          resource: identity_principal
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          payload:
+            inline:
+              display_name: Shared display name
+              description: Inspection fixture
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+              metadata:
+                department: engineering
+                attempts: 3
+                trusted: false
+                roles: [reader, writer]
+                numbers: [1, 2]
+              managed_by:
+                tool: kongctl
+                version: e2e
+                kongctl-namespace: '{{ .vars.namespace }}'
+                kongctl-protected: "false"
+                kongctl-ref: user-fixture
+              type: user
+          recordVar:
+            name: principal_user_id
+            responsePath: id
+      - name: create-agent-principal
+        create:
+          resource: identity_principal
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          payload:
+            inline:
+              display_name: Shared display name
+              description: Inspection fixture
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+              metadata:
+                department: engineering
+                attempts: 3
+                trusted: false
+                roles: [reader, writer]
+                numbers: [1, 2]
+              managed_by:
+                tool: kongctl
+                version: e2e
+                kongctl-namespace: '{{ .vars.namespace }}'
+                kongctl-protected: "false"
+                kongctl-ref: agent-fixture
+              type: agent
+          recordVar:
+            name: principal_agent_id
+            responsePath: id
+      - name: create-unclassified-principal
+        create:
+          resource: identity_principal
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          payload:
+            inline:
+              display_name: Shared display name
+              description: Inspection fixture
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+              metadata:
+                department: engineering
+                attempts: 3
+                trusted: false
+                roles: [reader, writer]
+                numbers: [1, 2]
+              managed_by:
+                tool: kongctl
+                version: e2e
+                kongctl-namespace: '{{ .vars.namespace }}'
+                kongctl-protected: "false"
+                kongctl-ref: unclassified-fixture
+          recordVar:
+            name: principal_unclassified_id
+            responsePath: id
+      - name: list-principals-by-directory-id
+        run: [get, identity, principals, --directory-id, "{{ .vars.directory_id }}"]
+        assertions:
+          - select: "length([?display_name=='Shared display name'])"
+            expect:
+              fields:
+                '@': 3
+      - name: list-principals-by-directory-name
+        run: [list, identity, principals, --directory-name, "{{ .vars.directory_name }}"]
+        assertions:
+          - select: "[?type=='agent'] | [0]"
+            expect:
+              fields:
+                display_name: Shared display name
+                type: agent
+                metadata.trusted: false
+                metadata.attempts: 3
+      - name: get-principal-by-id
+        run: [get, identity, principal, "{{ .vars.principal_user_id }}", --directory-name, "{{ .vars.directory_name }}"]
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                display_name: Shared display name
+                type: user
+                metadata.roles: [reader, writer]
+                metadata.numbers: [1, 2]
+                managed_by."kongctl-ref": user-fixture
+      - name: display-name-is-not-an-identifier
+        run: [get, identity, principal, "Shared display name", --directory-id, "{{ .vars.directory_id }}"]
+        expectFailure:
+          exitCode: 1
+          contains: display names are not unique
+      - name: delete-user-principal
+        run: [api, delete, "/v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_user_id }}"]
+      - name: delete-agent-principal
+        run: [api, delete, "/v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_agent_id }}"]
+      - name: delete-unclassified-principal
+        run: [api, delete, "/v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_unclassified_id }}"]
+  -
+    "name": "002b-principal-declarative"
+    env:
+      "KONGCTL_E2E_IDENTITY_DIRECTORY_ID": "{{ .vars.directory_id }}"
+    commands:
+      -
+        "name": "principal-explain"
+        run:
+          - "explain"
+          - "identity.principals"
+          - "-o"
+          - "json"
+        assertions:
+          -
+            "select": "@"
+            expect:
+              "fields": {"type": "object"}
+      -
+        "name": "principal-plan-create"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-initial.yaml"
+          - "--mode"
+          - "apply"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "total_changes": 3
+        "outputFormat": "disable"
+        "stdoutFile": "{{ .workdir }}/principals-plan.json"
+      -
+        "name": "principal-apply-saved"
+        run:
+          - "apply"
+          - "--plan"
+          - "{{ .workdir }}/principals-plan.json"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 3
+                "failed": 0
+      -
+        "name": "principal-no-op"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-initial.yaml"
+          - "--mode"
+          - "apply"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "total_changes": 0
+        "outputFormat": "disable"
+      -
+        "name": "principal-list-created"
+        run:
+          - "get"
+          - "identity"
+          - "principals"
+          - "--directory-id"
+          - "{{ .vars.directory_id }}"
+        assertions:
+          -
+            "select": "@"
+            expect:
+              fields:
+                "length(@)": 3
+                "length([?display_name=='Shared declarative display name'])": 2
+                "length([?managed_by.\"kongctl-ref\"=='human'])": 1
+      -
+        "name": "principal-update"
+        run:
+          - "apply"
+          - "-f"
+          - "{{ .workdir }}/principals-update.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-partial"
+        run:
+          - "apply"
+          - "-f"
+          - "{{ .workdir }}/principals-partial.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-verify-preserved"
+        run:
+          - "get"
+          - "identity"
+          - "principals"
+          - "--directory-id"
+          - "{{ .vars.directory_id }}"
+        assertions:
+          -
+            "select": "[?managed_by.\"kongctl-ref\"=='human'] | [0]"
+            expect:
+              fields:
+                "description": ""
+                "type": "user"
+                "length(metadata)": 0
+                "length(labels)": 1
+                "managed_by.\"kongctl-ref\"": "human"
+                "managed_by.\"kongctl-namespace\"": "identity-principal-e2e"
+                "length(managed_by)": 5
+      -
+        "name": "principal-reject-type-change"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-type-change.yaml"
+          - "--mode"
+          - "apply"
+        expectFailure:
+          "exitCode": 1
+          "contains": "Q9"
+        "outputFormat": "disable"
+      -
+        "name": "principal-reject-type-null"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-type-null.yaml"
+          - "--mode"
+          - "apply"
+        expectFailure:
+          "exitCode": 1
+          "contains": "Q9"
+        "outputFormat": "disable"
+      -
+        "name": "principal-reject-active"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-active.yaml"
+          - "--mode"
+          - "apply"
+        expectFailure:
+          "exitCode": 1
+          "contains": "Q10"
+        "outputFormat": "disable"
+      -
+        "name": "principal-dump"
+        run:
+          - "dump"
+          - "declarative"
+          - "--resources"
+          - "identity.directories"
+          - "--include-child-resources"
+          - "--default-namespace"
+          - "{{ .vars.namespace }}"
+        assertions:
+          -
+            "select": "identity.directories[0]"
+            expect:
+              fields:
+                "length(principals)": 3
+                "length(principals[?active!=null])": 0
+        "outputFormat": "none"
+        "parseAs": "yaml"
+        "stdoutFile": "{{ .workdir }}/principals-dump.yaml"
+      -
+        "name": "principal-dump-no-op"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-dump.yaml"
+          - "--mode"
+          - "apply"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "total_changes": 0
+        "outputFormat": "disable"
+      -
+        "name": "principal-protect"
+        run:
+          - "apply"
+          - "-f"
+          - "{{ .workdir }}/principals-protect.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-protected-sync"
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/principals-empty.yaml"
+          - "--auto-approve"
+        expectFailure:
+          "exitCode": 1
+          "contains": "protected"
+      -
+        "name": "principal-unprotect"
+        run:
+          - "apply"
+          - "-f"
+          - "{{ .workdir }}/principals-unprotect.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-create-unowned"
+        create:
+          "resource": "identity_principal"
+          endpointParams:
+            "directoryId": "{{ .vars.directory_id }}"
+          payload:
+            inline:
+              "display_name": "Before adoption"
+              "type": "user"
+              labels:
+                "e2e-fixture": "{{ .vars.directory_id }}"
+              metadata:
+                "retained": true
+          recordVar:
+            "name": "principal_adopt_id"
+            "responsePath": "id"
+      -
+        "name": "principal-reject-adopt-collision"
+        run:
+          - "adopt"
+          - "identity"
+          - "principal"
+          - "{{ .vars.principal_adopt_id }}"
+          - "--directory-id"
+          - "{{ .vars.directory_id }}"
+          - "--ref"
+          - "human"
+          - "--namespace"
+          - "identity-principal-e2e"
+        expectFailure:
+          "exitCode": 1
+          "contains": "another principal"
+      -
+        "name": "principal-adopt"
+        run:
+          - "adopt"
+          - "identity"
+          - "principal"
+          - "{{ .vars.principal_adopt_id }}"
+          - "--directory-name"
+          - "{{ .vars.directory_name }}"
+          - "--ref"
+          - "adopted"
+          - "--namespace"
+          - "identity-principal-e2e"
+        assertions:
+          -
+            "select": "@"
+            expect:
+              fields:
+                "namespace": "identity-principal-e2e"
+      -
+        "name": "principal-apply-adopted"
+        run:
+          - "apply"
+          - "-f"
+          - "{{ .workdir }}/principals-adopt.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-delete-adopted"
+        run:
+          - "delete"
+          - "-f"
+          - "{{ .workdir }}/principals-adopt.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 1
+                "failed": 0
+      -
+        "name": "principal-sync-omitted"
+        run:
+          - "plan"
+          - "-f"
+          - "{{ .workdir }}/principals-omitted.yaml"
+          - "--mode"
+          - "sync"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "total_changes": 0
+        "outputFormat": "disable"
+      -
+        "name": "principal-sync-empty"
+        run:
+          - "sync"
+          - "-f"
+          - "{{ .workdir }}/principals-empty.yaml"
+          - "--auto-approve"
+        assertions:
+          -
+            "select": "summary"
+            expect:
+              fields:
+                "applied": 3
+                "failed": 0
+      -
+        "name": "principal-verify-empty"
+        run:
+          - "get"
+          - "identity"
+          - "principals"
+          - "--directory-name"
+          - "{{ .vars.directory_name }}"
+        assertions:
+          -
+            "select": "@"
+            expect:
+              fields:
+                "length(@)": 0
   - commands:
       - assertions:
           - expect:
@@ -489,8 +971,13 @@ steps:
           - directories
     name: 009-explicit-delete
 test:
-  info: Requires directory-admin access and capacity for one temporary directory; supports a one-directory quota. Deletes only resources created by this scenario.
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_IDENTITY_DIRECTORY_NAME
+    - resource: control_plane
+      nameVar: gateway_name
+      nameEnv: KONGCTL_E2E_IDENTITY_GATEWAY_NAME
+  info: Requires directory/principal-admin access and capacity for one temporary directory; supports a one-directory quota. Deletes only resources created by this scenario.
 vars:
-  directory_name: e2e-identity-directory
-  gateway_name: Identity Directory E2E Gateway
   namespace: identity-directory-e2e
