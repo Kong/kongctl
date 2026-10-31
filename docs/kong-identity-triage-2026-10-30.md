@@ -2753,3 +2753,62 @@ PUT requires secret material. Explicit secret-source/capture/rotation policy,
 declarative feasibility and lifecycle examples/E2E remain the next work under
 #1417/#1418/#2659. Keep those issues and SDK issues #1413/#1399 In Progress
 until main merge. The broader epic goal stays active.
+
+## 44. Trusted IdP contract evaluation
+
+Issue #2664 is In Progress. Direct US `.tech` probes establish deterministic
+issuer URL matching within a directory: duplicate issuer create and update
+return 409. Multiple issuers can use the same display name. Create/get/list,
+PATCH/full PUT and delete work; no labels or managed_by store is available.
+Inherited ownership under an explicitly managed directory follows the existing
+auth-server scope/claim pattern and is being evaluated for this family.
+
+Creation validates reachable signing keys through issuer discovery or an
+explicit JWKS override. A temporary auth server provides both for isolated
+fixtures; example.test placeholder discovery correctly fails validation.
+False/true JIT provisioning and Vault access settings persist. Full PUT
+resets omitted display name, JWKS override and JIT mapping, and restores
+documented boolean defaults. A replacement mapping drops omitted mapping
+fields; empty mapping/metadata work. PATCH with jit alone empty preserves the
+old mapping; null jit is rejected. A fresh full representation is therefore
+available for omitted-field preservation and explicit mapping removal.
+
+PATCH display_name null clears it. PATCH jwks_uri null instead retains the
+previous override despite success; PUT omission clears it. API-only Q38 asks
+for that nullable PATCH contract. The observed jwks_uri distinguishes a stored
+override from discovery: issuer-only creation and clearing PUT return null.
+
+An ordinary principal with an OIDC identity whose issuer matches the IdP
+appears in its associated-principal collection. Deleting the IdP leaves that
+principal and its identity readable. Trust configuration does not imply
+ownership of these principals. Runtime provisioning/revocation is not tested.
+
+Vault must be enabled for IdP reads/writes. Disabling it while IdPs exist
+succeeds and hides their list/detail behind 403. Directory DELETE with
+force=false still succeeds with an attached IdP, with Vault either enabled
+or disabled. The same request rejects a directory containing a principal or
+group with 409 and preserves the child. API-only Q37 asks which dependencies
+must block deletion and how hidden records can be inspected without mutation.
+The choice of directory-deletion guard is under review before enrolling IdP
+declarative writes. No IdP application code is claimed at this point.
+
+Native bracketed page-size-one traversal visits both IdPs. Flat size=1 is
+ignored and returns size 20. The preview SDK has the same CursorPageQuery
+serialization gap as Q22 on ListTrustedIdps and ListTrustedIdpPrincipals.
+The expanded wire regression fails exactly these two methods before targeted
+request-tag corrections and passes all ten list methods afterward. Patch
+source is being prepared; no request/response fields or operation inventory
+change is needed.
+
+All disposable auth servers, IdPs, principals and identities were removed.
+The default directory was recreated during the explicit parent-deletion
+probes and restored with its original public settings and empty ownership
+maps. Evidence under /home/rspurgeon/.cache/kong-identity-public-sdk/:
+
+- trusted-idp-contracts.json
+- trusted-idp-followup.json
+- directory-child-delete-contracts.json
+- trusted-idp-cursor-wire-before.log
+- trusted-idp-cursor-wire-after.log
+
+The broader epic goal stays active; no PR is opened.

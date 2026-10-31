@@ -24,17 +24,19 @@ func (c *identityCursorCapture) Do(request *http.Request) (*http.Response, error
 
 func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 	for _, tc := range []struct {
-		field, method string
-		positional    bool
+		field, method             string
+		positional, directoryPage bool
 	}{
-		{"KongIdentityDirectories", "ListKongDirectories", true},
-		{"KongPrincipal", "ListPrincipals", false},
-		{"KongPrincipalIdentity", "ListIdentities", false},
-		{"KongPrincipalCredential", "ListPrincipalKeys", false},
-		{"KongPrincipalCredential", "ListPrincipalBasicAuths", false},
-		{"KongPrincipalCredential", "ListPasswords", false},
-		{"PrincipalGroup", "ListGroups", false},
-		{"PrincipalGroup", "ListGroupMembership", false},
+		{"KongIdentityDirectories", "ListKongDirectories", true, false},
+		{"KongPrincipal", "ListPrincipals", false, false},
+		{"KongPrincipalIdentity", "ListIdentities", false, false},
+		{"KongPrincipalCredential", "ListPrincipalKeys", false, false},
+		{"KongPrincipalCredential", "ListPrincipalBasicAuths", false, false},
+		{"KongPrincipalCredential", "ListPasswords", false, false},
+		{"PrincipalGroup", "ListGroups", false, false},
+		{"PrincipalGroup", "ListGroupMembership", false, false},
+		{"TrustedIDPs", "ListTrustedIdps", false, true},
+		{"TrustedIDPs", "ListTrustedIdpPrincipals", false, false},
 	} {
 		t.Run(tc.method, func(t *testing.T) {
 			capture := &identityCursorCapture{}
@@ -51,12 +53,14 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 			var page reflect.Value
 			if tc.positional {
 				page = reflect.New(method.Type().In(1).Elem())
+			} else if tc.directoryPage {
+				page = reflect.New(method.Type().In(2).Elem())
 			} else {
 				pageField := argument.Elem().FieldByName("Page")
 				page = reflect.New(pageField.Type().Elem())
 				pageField.Set(page)
 				argument.Elem().FieldByName("DirectoryID").SetString("731559d3-39bd-48c7-b33c-eb192847eb20")
-				for _, parent := range []string{"PrincipalID", "GroupID", "BasicAuthID"} {
+				for _, parent := range []string{"PrincipalID", "GroupID", "BasicAuthID", "TrustedIdpID"} {
 					if field := argument.Elem().FieldByName(parent); field.IsValid() {
 						field.SetString("731559d3-39bd-48c7-b33c-eb192847eb21")
 					}
@@ -68,6 +72,9 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 			if tc.positional {
 				args[1] = page
 				args = append(args, reflect.Zero(method.Type().In(2)))
+			} else if tc.directoryPage {
+				args[1] = reflect.ValueOf("731559d3-39bd-48c7-b33c-eb192847eb20")
+				args = append(args, page)
 			}
 			method.Call(args)
 			if capture.query.Get("page[size]") != "1" || capture.query.Get("page[after]") != "cursor+/==" {

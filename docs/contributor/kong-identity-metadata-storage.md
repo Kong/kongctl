@@ -94,7 +94,7 @@ or protection metadata on them.
 | Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
-| Directory Trusted IdPs | Generated ID; display name not unique | No independent ownership stamp or verified unique human moniker. Q6, #2664. |
+| Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Native `.tech` duplicate issuer create/update returns 409; multiple issuers can share a display name. No ownership stamp exists. Inherited managed-directory ownership is under evaluation; Q37 governs parent deletion and disabled-Vault visibility. Q6/Q38, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 
