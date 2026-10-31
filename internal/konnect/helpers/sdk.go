@@ -18,6 +18,7 @@ const (
 // "github.com/Kong/sdk-konnect-go" SDK struct
 // allowing for easier testing and mocking
 type SDKAPI interface {
+	GetIdentityAuthServersAPI() IdentityAuthServersAPI
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetControlPlaneAPI() ControlPlaneAPI
@@ -790,4 +791,11 @@ func (k *KonnectSDK) GetAICostManagementTagsAPI() AICostManagementTagsAPI {
 		return nil
 	}
 	return &AICostManagementTagsAPIImpl{SDK: k.SDK}
+}
+
+func (k *KonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
+	if k.SDK == nil || k.SDK.AuthServer == nil {
+		return nil
+	}
+	return k.SDK.AuthServer
 }

@@ -2081,6 +2081,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_auth_server
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: identity_directory
     defaults:
       - path: allow_all_control_planes

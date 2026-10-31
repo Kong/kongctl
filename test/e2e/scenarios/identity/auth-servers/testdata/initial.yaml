@@ -1,0 +1,12 @@
+_defaults:
+  kongctl: {namespace: identity-auth-e2e}
+identity:
+  auth_servers:
+    - ref: issuer
+      name: !env KONGCTL_E2E_IDENTITY_AUTH_SERVER_NAME
+      audience: https://api.example.test
+      description: Initial auth server
+      signing_algorithm: RS256
+      trusted_origins: [https://client.example.test]
+      dcr: {default_access_token_duration: 600}
+      labels: {team: identity}

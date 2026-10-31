@@ -23,6 +23,10 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{
+			resourceType: resources.ResourceTypeIdentityAuthServer, displayName: "Kong Identity auth server",
+			planner: &identityAuthServerPlanner{BasePlanner: base},
+		},
+		{
 			resourceType: resources.ResourceTypeAICostManagementTags,
 			displayName:  "AI cost management tags",
 			planner:      &aiCostManagementTagsPlanner{BasePlanner: base},

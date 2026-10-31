@@ -30,7 +30,7 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		// Only families with complete list commands and safe raw deletion participate.
 		//nolint:exhaustive
 		switch resources.ResourceType(spec.Resource) {
-		case resources.ResourceTypeIdentityDirectory, resources.ResourceTypeControlPlane:
+		case resources.ResourceTypeIdentityDirectory, resources.ResourceTypeControlPlane, resources.ResourceTypeIdentityAuthServer:
 		default:
 			return fmt.Errorf("unsupported cleanup resource %q", spec.Resource)
 		}
@@ -85,6 +85,8 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 	// Only explicitly supported, independently named resources participate.
 	//nolint:exhaustive
 	switch target.kind {
+	case resources.ResourceTypeIdentityAuthServer:
+		args, endpoint = []string{"get", "identity", "auth-servers"}, "/v1/auth-servers/"
 	case resources.ResourceTypeIdentityDirectory:
 		args, endpoint = []string{"get", "identity", "directories"}, "/v2/directories/"
 	case resources.ResourceTypeControlPlane:
@@ -117,6 +119,8 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		if err := cleanupPrincipalFixtures(ctx, cli, id); err != nil {
 			return err
 		}
+		endpoint += id + "?force=false"
+	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
 		endpoint += id + "?force=false"
 	} else {
 		endpoint += id

@@ -357,6 +357,32 @@ and the [temporary compatibility tracker][identity-compatibility].
 
 [identity-compatibility]: contributor/kong-identity-compatibility.md
 
+## Kong Identity authorization servers
+
+Declare servers in `identity.auth_servers`. Required fields are `ref`, `name`,
+and `audience`. Optional fields are `description`, `signing_algorithm`,
+`trusted_origins`, `dcr.default_access_token_duration`, `labels`, and `kongctl`.
+Supported signing algorithms are RS256/384/512 and PS256/384/512. DCR token
+duration ranges from 60 through 2592000 seconds.
+
+The exact API name identifies the server within its regional organization.
+Ownership/protection use `KONGCTL-namespace` and `KONGCTL-protected` labels;
+there is no `managed_by` field. Full list scans reject ambiguous matches.
+Unowned servers require explicit adoption. External references support an ID
+or an exact name selector and do not authorize writes.
+
+PATCH preserves omitted settings. Empty descriptions, `trusted_origins: []`,
+and `labels: {}` clear their respective fields. Unprotect separately before
+changing or deleting a protected server. Sync requires an explicitly declared
+collection; `identity.auth_servers: []` prunes owned, unprotected servers in
+the source namespace. Deletion uses `force=false`; it cannot silently cascade
+to clients or other children. Dump excludes generated issuer/discovery URLs.
+
+This resource exposes the public DCR token-duration setting. It does not
+configure internal DCR options or OAuth clients, scopes, claims, and secrets.
+See [Identity examples](examples/declarative/identity/README.md) and the
+[metadata storage ledger](contributor/kong-identity-metadata-storage.md).
+
 ## DCR Providers
 
 [API Specification](https://developer.konghq.com/api/konnect/application-auth-strategies/v2/#/operations/create-dcr-provider)

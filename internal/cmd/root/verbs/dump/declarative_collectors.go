@@ -36,6 +36,7 @@ var declarativeCollectors = buildDeclarativeCollectors()
 func buildDeclarativeCollectors() map[string]declarativeCollector {
 	registrations := []declarativeCollector{
 		identityDirectoryCollector(),
+		identityAuthServerCollector(),
 		rootCollector(
 			"ai_cost_management_tags",
 			func(ctx context.Context, d *declarativeDumpContext) ([]declresources.AICostManagementTagsResource, error) {

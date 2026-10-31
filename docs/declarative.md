@@ -805,7 +805,7 @@ existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
 `audit_log_webhook: null` is rejected because null is not a reset or delete
 signal.
 
-## Kong Identity directories and principals
+## Kong Identity administration
 
 The preview `identity.directories` collection manages directory settings using
 `managed_by` for namespace and protection metadata. Existing directories,
@@ -819,6 +819,14 @@ independent namespace/protection settings. Matching uses directory + namespace
 + persisted ref, rather than non-unique display names. PUT updates preserve
 omitted fields. Initial support treats type as create-only and defers active
 configuration pending verified API behavior.
+
+The separate `identity.auth_servers` collection manages authorization servers.
+Each server requires an explicit unique `name` and `audience`. It uses
+conventional ownership/protection labels because this API has no `managed_by`
+field. PATCH preserves omitted settings; explicit empty descriptions, origin
+lists, and label maps clear them. Adoption is explicit, sync is scoped to
+declared collections, and deletion never requests a cascade. OAuth clients,
+scopes, claims, and secrets are separate resource work.
 
 See the [Identity examples](examples/declarative/identity/README.md) for
 manifests, adoption, protection, sync scope, and current platform limitations.

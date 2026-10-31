@@ -206,6 +206,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			APIAPI:                              sdk.GetAPIAPI(),
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
 			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
+			IdentityAuthServersAPI:              sdk.GetIdentityAuthServersAPI(),
 			IdentityPrincipalsAPI:               sdk.GetIdentityPrincipalsAPI(),
 			DCRProviderAPI:                      sdk.GetDCRProvidersAPI(),
 			ControlPlaneAPI:                     sdk.GetControlPlaneAPI(),
@@ -272,10 +273,13 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 		})
 	}
 
-	if stateClient == nil && slices.Contains(opts.resources, resourceIdentityDirectories) {
+	needsIdentityClient := slices.Contains(opts.resources, resourceIdentityDirectories) ||
+		slices.Contains(opts.resources, resourceIdentityAuthServers)
+	if stateClient == nil && needsIdentityClient {
 		stateClient = declstate.NewClient(
 			declstate.ClientConfig{
 				IdentityDirectoriesAPI: sdk.GetIdentityDirectoriesAPI(),
+				IdentityAuthServersAPI: sdk.GetIdentityAuthServersAPI(),
 				IdentityPrincipalsAPI:  sdk.GetIdentityPrincipalsAPI(),
 			},
 		)

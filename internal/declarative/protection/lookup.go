@@ -38,6 +38,14 @@ func IsManagedResourceProtected(
 	}
 
 	switch resourceType {
+	case resources.ResourceTypeIdentityAuthServer:
+		return fetchProtection(resourceName, "auth server", func() (map[string]string, error) {
+			value, err := client.GetIdentityAuthServerByName(ctx, resourceName)
+			if value == nil {
+				return nil, err
+			}
+			return value.NormalizedLabels, err
+		})
 	case resources.ResourceTypeIdentityDirectory:
 		return fetchProtection(resourceName, "directory", func() (map[string]string, error) {
 			r, err := client.GetIdentityDirectoryByName(ctx, resourceName)

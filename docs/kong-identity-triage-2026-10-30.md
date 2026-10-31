@@ -5,6 +5,34 @@ Date: October 30, 2026
 KongCTL branch: `ki-triage`
 KongCTL commit inspected: `2beef7be`
 
+## Current branch status
+
+The initial survey below is historical. Development on `ki-triage` has since
+delivered directories and principals, including declarative lifecycle, reads,
+adoption, examples, and live E2E scenarios. Principal work is pushed in
+`c1e3cba3`. Authorization-server root support is the next implemented slice;
+its full live lifecycle scenario and protected-resource teardown pass.
+Child scopes, claims, OAuth clients, and secrets remain separate work.
+
+The public preview SDK is now pinned to `56d878d0739c`, including the
+targeted serialization fix for clearing auth-server trusted origins.
+Existing KongCTL SDK patches are retained. This continues the selective
+public SDK approach rather than switching to the internal SDK's unrelated
+model differences.
+
+Keep these two running logs alongside this report:
+
+- [API questions for engineering](kong-identity-api-questions.md), phrased in
+  terms of observed API behavior and resource contracts.
+- [Metadata storage ledger](contributor/kong-identity-metadata-storage.md),
+  distinguishing labels, `managed_by`, and resources without independent
+  metadata storage. It separates schema capability from verified behavior.
+
+[Compatibility tracking](contributor/kong-identity-compatibility.md) records
+temporary principal restrictions and criteria for removing them. Work remains
+on branches; issues stay In Progress until merge to main. No PR is open for
+these implementation slices.
+
 ## Executive assessment
 
 We can resume Kong Identity work without waiting for server-side
@@ -1051,6 +1079,53 @@ The execution regression covers integer metadata through saved-plan cloning
 and environment resolution as well as SDK mapping. Enabled replay scenarios
 and recordings remain unchanged. #1415 remains In Progress until merge;
 implementation is on the working branch and no PR has been opened.
+
+## 18. Authorization-server root lifecycle
+
+The branch now manages `identity.auth_servers`, with explicit name/audience,
+description, signing algorithm, trusted origins, public labels, and the public
+DCR token-duration setting. Get/list, adoption, explain/scaffold, plan/diff,
+saved apply, dump/reload, protection, delete, and scoped sync are implemented.
+Examples are in `docs/examples/declarative/identity/auth-servers.yaml`.
+
+Direct US `.com` HTTP probes verified name uniqueness, create/GET/list/PATCH,
+omission preservation, individual label removal, array clearing, signing
+changes, DCR duration updates, and non-cascading deletion. Newly created
+servers had no automatic scopes, claims, or clients. Auth servers expose
+`labels` rather than `managed_by`; the new metadata ledger records that
+distinction and the storage capabilities of each remaining family.
+
+The SDK originally dropped explicit empty trusted origins from PATCH. A
+targeted `omitzero` patch now preserves empty arrays while omitting nil ones;
+its HTTP wire regression fails before the patch and passes afterward. The
+preview SDK branch is pushed at `56d878d0739c`, and this branch uses its Go
+pseudo-version `v0.79.1-0.20261031043735-56d878d0739c`. The patch tool also now
+preserves multiline generated overlay entries without duplicating them.
+
+The full auth-server live scenario passes, including create/update of every
+exposed field, omission, explicit clearing, saved plans, no-op plans,
+dump/reload, external references, omitted sync scope, protection, adoption,
+explicit takeover, deletion, and empty-collection sync. A deliberate stop
+after protection also passes teardown. A fresh server list is empty. The
+directory/principal live scenario passes again against the updated SDK.
+
+Artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `auth-root-e2e/20261030-235503`
+- `auth-root-e2e-stopped/20261030-235539`
+- `principal-sdk-update-regression/20261030-235647`
+
+Modernization, clean formatting, CGO-disabled build, zero-issue lint,
+race-enabled unit tests, integration tests, harness race tests, and
+replay/allocation inventory checks pass. Logs use the `auth-root-` prefix.
+Existing replay selections and recordings are unchanged. #1400 remains
+In Progress until merge; OAuth clients, scopes, claims, and secrets remain
+separate work. No additional API question arose from the root contract;
+internal SDK serialization issues stay outside the API team question log.
+
+Deletion always requests `force=false`, so children may block root deletion.
+Only the public DCR duration is exposed; internal DCR settings remain outside
+the manifest schema and are preserved by partial writes.
 
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 

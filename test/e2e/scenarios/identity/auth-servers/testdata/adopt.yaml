@@ -1,0 +1,7 @@
+_defaults:
+  kongctl: {namespace: identity-auth-e2e}
+identity:
+  auth_servers:
+    - ref: issuer
+      name: !env KONGCTL_E2E_IDENTITY_AUTH_SERVER_NAME
+      audience: https://adopt-api.example.test

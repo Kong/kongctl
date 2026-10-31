@@ -25,6 +25,7 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
+	IdentityAuthServersAPI helpers.IdentityAuthServersAPI
 	IdentityPrincipalsAPI  helpers.IdentityPrincipalsAPI
 	IdentityDirectoriesAPI helpers.IdentityDirectoriesAPI
 	// Core APIs
@@ -107,6 +108,7 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
+	identityAuthServersAPI helpers.IdentityAuthServersAPI
 	identityPrincipalsAPI  helpers.IdentityPrincipalsAPI
 	identityDirectoriesAPI helpers.IdentityDirectoriesAPI
 	// Core APIs
@@ -190,6 +192,7 @@ type Client struct {
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
 	return &Client{
+		identityAuthServersAPI: config.IdentityAuthServersAPI,
 		identityDirectoriesAPI: config.IdentityDirectoriesAPI,
 		identityPrincipalsAPI:  config.IdentityPrincipalsAPI,
 		// Core APIs

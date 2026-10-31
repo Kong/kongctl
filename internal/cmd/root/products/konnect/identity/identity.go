@@ -34,7 +34,7 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	cmdpkg.ConfigureRequiresSubcommand(group)
 	if err := maturity.AnnotateCommand(group, maturity.Metadata{
 		Level:   maturity.LevelTechPreview,
-		Message: "Requires the Kong Identity SDK preview and regional directory-admin access.",
+		Message: "Requires the Kong Identity SDK preview and regional management API access.",
 	}); err != nil {
 		return nil, err
 	}
@@ -47,7 +47,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		if err != nil {
 			return nil, err
 		}
-		group.AddCommand(child, principal)
+		authServer, err := adopt.NewIdentityAuthServerCmd(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(child, principal, authServer)
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {
@@ -117,7 +121,7 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		printer.Print(data)
 		return nil
 	}
-	group.AddCommand(child)
+	group.AddCommand(child, newAuthServerCommand(verb, addParentFlags, parentPreRun))
 	group.AddCommand(newPrincipalCommand(verb, addParentFlags, parentPreRun))
 	return group, nil
 }
