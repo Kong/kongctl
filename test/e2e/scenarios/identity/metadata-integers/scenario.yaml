@@ -1,0 +1,222 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_INTEGER_DIRECTORY_NAME
+  info: >-
+    Reject metadata integers that the deployed API rounds, verify stable large
+    integer and string values through saved plans and raw JSON, retain omitted
+    metadata and dump/replan without floating-point comparison.
+steps:
+  - name: 001-numeric-metadata
+    skipInputs: true
+    commands:
+      - name: prepare-manifests
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - prepare
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_name }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: reject-invalid-scalar
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/invalid-scalar.yaml'
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: Q31
+      - name: reject-invalid-array
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/invalid-array.yaml'
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: Q31
+      - name: reject-invalid-large
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/invalid-large.yaml'
+          - --mode
+          - apply
+        expectFailure:
+          exitCode: 1
+          contains: Q31
+      - name: plan-supported-integers
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/plan.json'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+      - name: apply-saved
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: get-directory
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+        recordVar:
+          name: directory_id
+          responsePath: id
+      - name: get-agent-id
+        run:
+          - get
+          - identity
+          - principals
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+        recordVar:
+          name: principal_id
+          responsePath: '[0].id'
+      - name: get-exact-json
+        run:
+          - get
+          - identity
+          - principal
+          - '{{ .vars.principal_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - -o
+          - json
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/principal.json'
+      - name: verify-raw-json
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - verify
+          - '{{ .workdir }}'
+          - '{{ .workdir }}/principal.json'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                exact_metadata: true
+                integer_types: true
+                string_preserved: true
+      - name: no-op-supported
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: update-omitted-metadata
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: get-after-omission
+        run:
+          - get
+          - identity
+          - principal
+          - '{{ .vars.principal_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - -o
+          - json
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/after.json'
+      - name: verify-omitted-retention
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - verify
+          - '{{ .workdir }}'
+          - '{{ .workdir }}/after.json'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                exact_metadata: true
+                integer_types: true
+                string_preserved: true
+      - name: dump-numeric-metadata
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources
+          - identity.directories
+          - --include-child-resources
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+      - name: dump-replan
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: delete-supported
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0

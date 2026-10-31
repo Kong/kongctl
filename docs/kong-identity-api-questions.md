@@ -471,6 +471,56 @@ be created and inspected through administration endpoints. Requests to
 authenticate. No internal mTLS context headers were fabricated. A supported
 runtime setup is needed to verify credential continuity and revocation.
 
+### Q31 Integer precision in principal and group metadata
+
+**Question:** What integer range and precision are guaranteed for metadata on
+principals and groups, including integer arrays and propagation to the data
+plane? Can requests retain the exact integer digits instead of silently
+rounding values during JSON conversion?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Group create/PUT and principal
+PUT accept integer metadata but can return different digits. Fresh GETs for
+user, agent and unclassified principals return `9007199254740992` after
+receiving `9007199254740993`; the same change occurs in integer arrays and for
+the negative value. `9007199254740991`, `9007199254740992` and
+`9007199254740994` return unchanged. `1152921504606846976` returns as
+`1152921504606847000`. Both int64 extrema are also rounded, producing digits
+outside their original int64 bounds. These comparisons parse raw JSON using
+integer-preserving decoding rather than floating-point assertions.
+
+The observed results match a binary64 conversion followed by decimal JSON
+serialization; the internal representation has not been established. Confirm
+the supported contract and validation behavior for values that cannot retain
+their requested digits. All disposable fixtures were removed afterward.
+
+### Q32 Group membership types and team removal
+
+**Question:** Which group-to-group memberships are currently supported, and
+which team memberships may be created or removed through the membership API?
+How can clients distinguish manual relationships from importer-managed ones?
+
+**Observed (October 31, 2026 UTC, US `.com`):** A plain group accepts user,
+agent and unclassified principal members and rejects a duplicate member with
+409. Adding another group returns 400, "groups cannot be members of a group",
+although the inspected schema permits groups. A team accepts a user principal,
+but rejects agent/unclassified members. A self-membership is rejected.
+Membership detail reads use the generated entry ID and reject another group's
+path. A user membership created manually under a directly created team can
+also be deleted by its entry ID. No import was involved in that probe. The
+schema describes team membership as importer-managed, including a removal
+restriction; confirm how that differs for manual and imported teams before
+clients infer authority over their relationships.
+
+### Q33 Group API-key deployment availability
+
+**Question:** In which deployment/release are group API-key operations
+available, and what response should identify an unsupported capability?
+
+**Observed (October 31, 2026 UTC, US `.com`):** GET and POST on an existing
+plain group's `/api-keys` collection return 501 with no response body. The
+group itself supports create, get, list, PUT and delete. Schema and generated
+SDK presence therefore do not establish group-key availability.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

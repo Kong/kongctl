@@ -50,6 +50,36 @@ returned success while leaving a requested version change unchanged.
 - Reassess whether PATCH simplifies the implementation once verified. Working
   PUT support remains valid even if switching is unnecessary.
 
+## Integer metadata precision
+
+Related API question: Q31. Direct principal PUT and group POST/PUT requests
+accept large integers but can return rounded digits, including inside arrays.
+Fresh GET confirms the change. For example, `9007199254740993` becomes
+`9007199254740992`; `1152921504606846976` becomes `1152921504606847000`.
+Raw JSON was parsed with exact integers. These results match a binary64
+conversion followed by decimal serialization; this is an observed model,
+not a documented guarantee about the service's internal representation.
+
+- Initial contract: validate declared principal metadata in the loader and
+  again when executing saved plan fields. Reject integer digits that change
+  through the observed conversion. Keep stable integers and string values
+  intact; do not silently convert numbers into strings. Values above the
+  binary64 consecutive-integer range are not categorically rejected:
+  `9007199254740994` and the returned `1152921504606847000` remain stable.
+- Create readback and PUT responses must retain explicitly requested metadata.
+  A mismatch returns an error without retry or rollback: the resource may
+  already exist or have changed remotely. Omitted fields still use fresh
+  hydration, preserving remote metadata without inventing configuration.
+- Removal trigger: engineering establishes the supported numeric contract,
+  and direct create/PUT/fresh GET tests retain exact digits or explicitly
+  reject unsupported values. Verify negative values, integer arrays, int64
+  boundaries and downstream propagation before relaxing the guard.
+- Required coverage: raw JSON integer comparisons, saved plans, omitted-field
+  preservation, no-op plans and dump/reload. Client serialization tests alone
+  cannot establish server retention. The live `identity/metadata-integers`
+  scenario compares JSON through Python integers, avoiding floating-point
+  assertion decoding.
+
 ## Current implementation and regression coverage
 
 The principal resource validates deferred `active` input in
@@ -487,5 +517,6 @@ three request pages and scans artifacts for material and its Base64 form.
 Fixture cleanup opts into API-key observation explicitly, checks every marked
 collection before deletion, rechecks metadata before individual deletes and
 requires empty collections before principal removal. Existing scenarios do not
-gain a new credential permission requirement. Group keys remain independently
-unverified; their shared schema is not sufficient to enroll them.
+gain a new credential permission requirement. Subsequent direct group-key GET
+and POST requests returned 501 (Q33); their shared schema is not sufficient to
+enroll them.

@@ -44,6 +44,19 @@ func mapIdentityPrincipalFields(fields map[string]any, destination any) error {
 	if err != nil {
 		return fmt.Errorf("invalid principal payload")
 	}
+	if _, present := fields[planner.FieldMetadata]; present {
+		var payload struct {
+			Metadata map[string]any `json:"metadata"`
+		}
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.UseNumber()
+		if err := decoder.Decode(&payload); err != nil {
+			return fmt.Errorf("invalid principal metadata")
+		}
+		if err := resources.ValidateIdentityMetadata(payload.Metadata); err != nil {
+			return err
+		}
+	}
 	if err := json.Unmarshal(data, destination); err != nil {
 		return fmt.Errorf("invalid principal payload fields")
 	}

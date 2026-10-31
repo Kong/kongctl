@@ -52,7 +52,7 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 			DisplayName: new("Shared name"),
 			ManagedBy:   resources.BuildPrincipalManagedBy("principal-team", "alice", true, "old"),
 			Metadata: map[string]kkComps.KongIdentityMetadata{
-				"large": kkComps.CreateKongIdentityMetadataInteger(9007199254740993),
+				"large": kkComps.CreateKongIdentityMetadataInteger(9007199254740994),
 			},
 		},
 		{
@@ -69,7 +69,7 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 	require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
 	encoded, err := yaml.Marshal(rs)
 	require.NoError(t, err)
-	require.Contains(t, string(encoded), "9007199254740993")
+	require.Contains(t, string(encoded), "9007199254740994")
 	require.Contains(t, string(encoded), "type: null")
 	require.NotContains(t, string(encoded), "active:")
 	require.NotContains(t, string(encoded), "managed_by:")

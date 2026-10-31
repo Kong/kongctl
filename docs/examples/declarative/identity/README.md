@@ -184,6 +184,12 @@ sync. Do not supply `managed_by` yourself.
 
 Updates use a fresh GET plus PUT and preserve omitted public fields. Explicit
 empty `description`, `labels: {}`, or `metadata: {}` clears those values.
+Use strings for exact numeric identifiers in metadata. The deployed API
+rounds some large integer values, including integers in arrays. Configuration
+rejects integers that change under the observed numeric conversion (Q31),
+before making API requests. Stable values retain their integer type; strings
+are never converted to numbers. Writes also check returned metadata and report
+an error if it differs, even though the remote write may already have occurred.
 `type` is currently create-only: omission preserves the existing type, while
 requesting another type or resetting a classified principal to null fails.
 `active` configuration is deferred and is never inferred as false. Track

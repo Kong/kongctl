@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"unicode/utf8"
 
 	"github.com/kong/kongctl/internal/maturity"
@@ -22,6 +21,13 @@ func init() {
 			WithExplainFieldHint(
 				"active",
 				ExplainFieldHint{Notes: []string{"Configuration is deferred pending API question Q10."}},
+			),
+			WithExplainFieldHint(
+				"metadata",
+				ExplainFieldHint{Notes: []string{
+					"Integers that change in the deployed API's numeric round trip are rejected (Q31). " +
+						"Use strings for exact identifiers.",
+				}},
 			),
 			WithExplainFieldHint(
 				"type",
@@ -204,35 +210,7 @@ func (p IdentityPrincipalResource) Validate() error {
 			return fmt.Errorf("%s must be at most 255 characters", field.name)
 		}
 	}
-	if len(p.Metadata) > 50 {
-		return fmt.Errorf("metadata supports at most 50 entries")
-	}
-	// Validate against the SDK union without silently accepting floats, objects or nulls.
-	for key, value := range p.Metadata {
-		if !validPrincipalMetadata(value) {
-			return fmt.Errorf(
-				"metadata %q must contain strings, booleans, integers, string arrays, or integer arrays",
-				key,
-			)
-		}
-		if items := reflect.ValueOf(value); items.Kind() == reflect.Slice {
-			if items.Len() > 255 {
-				return fmt.Errorf("metadata %q supports at most 255 array entries", key)
-			}
-			seen := make(map[string]bool)
-			for i := range items.Len() {
-				encoded, err := json.Marshal(items.Index(i).Interface())
-				if err != nil {
-					return fmt.Errorf("invalid metadata array %q", key)
-				}
-				if seen[string(encoded)] {
-					return fmt.Errorf("metadata %q array entries must be unique", key)
-				}
-				seen[string(encoded)] = true
-			}
-		}
-	}
-	return nil
+	return ValidateIdentityMetadata(p.Metadata)
 }
 
 func validPrincipalMetadata(value any) bool {
