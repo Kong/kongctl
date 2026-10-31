@@ -1,0 +1,391 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_GROUP_READ_DIRECTORY_NAME
+      principalGroups: true
+  info: Inspect ordinary/default/team groups and direct membership entries with complete cursor traversal, explicit selectors, public fields, JSON/YAML/text and scoped entry-ID resolution. Fixtures are manually created without credentials; opt-in cleanup verifies all ownership and membership markers.
+steps:
+  - name: 001-group-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: false
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: create-user
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: user
+              display_name: user
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: user_id
+            responsePath: id
+      - name: create-agent
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: agent
+              display_name: agent
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: agent_id
+            responsePath: id
+      - name: create-legacy
+        create:
+          resource: identity_principal
+          payload:
+            inline:
+              type: null
+              display_name: legacy
+              labels:
+                e2e-fixture: '{{ .vars.directory_id }}'
+          endpointParams:
+            directoryId: '{{ .vars.directory_id }}'
+          recordVar:
+            name: legacy_id
+            responsePath: id
+      - name: create-group-fixtures
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - create
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.user_id }}'
+          - '{{ .vars.agent_id }}'
+          - '{{ .vars.legacy_id }}'
+        parseAs: json
+        recordVars:
+          - name: group_id
+            responsePath: group_id
+          - name: group_name
+            responsePath: group_name
+          - name: team_id
+            responsePath: team_id
+          - name: team_name
+            responsePath: team_name
+          - name: empty_id
+            responsePath: empty_id
+          - name: other_id
+            responsePath: other_id
+          - name: entry_id
+            responsePath: entry_id
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                created: 4
+      - name: list-groups-json
+        run:
+          - get
+          - identity
+          - groups
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 4
+                length([?type == 'group']): 3
+                length([?type == 'team']): 1
+                length([?managed_by.tool == 'kongctl']): 4
+                length([?managed_by."kongctl-namespace" == 'identity-group-read-e2e']): 4
+                length([?metadata.count == `42`]): 4
+      - name: get-group-by-name
+        run:
+          - get
+          - identity
+          - group
+          - '{{ .vars.group_name }}'
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.group_id }}'
+                type: group
+                description: Manual inspection fixture
+                metadata.count: 42
+                metadata.enabled: true
+                metadata.strings:
+                  - a
+                  - b
+                metadata.numbers:
+                  - 1
+                  - 2
+                labels.team: identity
+                provisioned_by: konnect_user
+                contains(keys(@), 'team_manager'): false
+                created_at != `null`: true
+                updated_at != `null`: true
+      - name: get-team-yaml
+        run:
+          - get
+          - identity
+          - group
+          - '{{ .vars.team_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - -o
+          - yaml
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.team_id }}'
+                type: team
+                contains(keys(@), 'team_manager'): false
+        outputFormat: disable
+        parseAs: yaml
+      - name: list-product-alias
+        run:
+          - list
+          - konnect
+          - identity
+          - groups
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 4
+      - name: list-groups-text
+        run:
+          - get
+          - identity
+          - groups
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - -o
+          - text
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'NAME'): true
+                contains(stdout, 'TYPE'): true
+                contains(stdout, '{{ .vars.group_id }}'): true
+        outputFormat: disable
+        parseAs: raw
+      - name: list-members-json
+        run:
+          - get
+          - identity
+          - group-memberships
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.group_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 3
+                length([?member.type == 'principal']): 3
+                contains([].member.id, '{{ .vars.user_id }}'): true
+                contains([].member.id, '{{ .vars.agent_id }}'): true
+                contains([].member.id, '{{ .vars.legacy_id }}'): true
+      - name: get-membership-entry
+        run:
+          - get
+          - identity
+          - group-membership
+          - '{{ .vars.entry_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.group_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                id: '{{ .vars.entry_id }}'
+                member.id: '{{ .vars.user_id }}'
+                member.type: principal
+                member.display_name: user
+                created_at != `null`: true
+      - name: list-members-yaml
+        run:
+          - get
+          - identity
+          - group-memberships
+          - --directory-name
+          - '{{ .vars.directory_name }}'
+          - --group-name
+          - '{{ .vars.group_name }}'
+          - -o
+          - yaml
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 3
+        outputFormat: disable
+        parseAs: yaml
+      - name: list-members-text
+        run:
+          - list
+          - identity
+          - group-memberships
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.group_id }}'
+          - -o
+          - text
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'MEMBER_ID'): true
+                contains(stdout, 'MEMBER_TYPE'): true
+                contains(stdout, '{{ .vars.entry_id }}'): true
+                contains(stdout, '{{ .vars.user_id }}'): true
+        outputFormat: disable
+        parseAs: raw
+      - name: get-membership-text
+        run:
+          - get
+          - identity
+          - group-membership
+          - '{{ .vars.entry_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.group_id }}'
+          - -o
+          - text
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'member'): true
+                contains(stdout, '{{ .vars.entry_id }}'): true
+        outputFormat: disable
+        parseAs: raw
+      - name: list-team-members
+        run:
+          - get
+          - identity
+          - group-memberships
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-name
+          - '{{ .vars.team_name }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].member.id': '{{ .vars.user_id }}'
+      - name: list-empty-members
+        run:
+          - get
+          - identity
+          - group-memberships
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.empty_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 0
+      - name: get-principal-groups
+        run:
+          - get
+          - identity
+          - principal
+          - '{{ .vars.user_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(groups): 2
+                contains(groups, '{{ .vars.group_id }}'): true
+                contains(groups, '{{ .vars.team_id }}'): true
+      - name: reject-member-id-as-entry
+        run:
+          - get
+          - identity
+          - group-membership
+          - '{{ .vars.user_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.group_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: not found in the selected group
+      - name: reject-wrong-group
+        run:
+          - get
+          - identity
+          - group-membership
+          - '{{ .vars.entry_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --group-id
+          - '{{ .vars.other_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: not found in the selected group
+      - name: reject-unknown-name
+        run:
+          - get
+          - identity
+          - group
+          - MissingGroup
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        expectFailure:
+          exitCode: 1
+          contains: not found in the selected directory
+      - name: verify-pagination
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/fixtures.py'
+          - verify-pagination
+          - '{{ .workdir }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                '"list-groups-json"': true
+                '"list-members-json"': true

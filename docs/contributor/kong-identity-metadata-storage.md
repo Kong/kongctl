@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `70a2818dde13`, generated
+The current source is the public preview SDK at `bf1d470c108c`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Live observations are from US `.com`. Keep this ledger current as each
@@ -20,6 +20,8 @@ resource is implemented.
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions, then a fresh empty collection (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
+| Group/team inspection | `labels`, `managed_by`, runtime `metadata` | Read-only in KongCTL | Scoped get/list preserve returned fields and verify complete directory membership. Direct probes retain four ownership entries, but product stamping/adoption is not exposed yet. #2657. |
+| Direct group membership inspection | None | None | Scoped entry-ID get/list distinguish the relationship from its member. No product mutation or inherited/imported authority is implied. #2658, Q32. |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
@@ -93,6 +95,13 @@ authority for another resource family.
 
 ## Change log
 
+- October 31 UTC, group/membership inspection: product get/list now expose
+  observed metadata without writing ownership. SDK `bf1d470c108c` fixes both
+  cursor requests. Complete collection proofs scope detail reads; group
+  memberships still have no independent namespace/protection store. The
+  credential-free scenario uses four-entry group fixture markers, separate
+  from production ownership policy. Principal deletion removes its links in
+  direct API tests; future lifecycle work must account for those relationships.
 - October 31 UTC, group contract probes: unique names and full replacement
   retain `managed_by` ownership values, including protection changes. No group
   resource implementation is exposed yet. Memberships have no ownership

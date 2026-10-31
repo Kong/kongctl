@@ -38,6 +38,7 @@ type CleanupResource struct {
 	NameVar          string `yaml:"nameVar"`
 	NameEnv          string `yaml:"nameEnv"`
 	PrincipalAPIKeys bool   `yaml:"principalAPIKeys,omitempty"`
+	PrincipalGroups  bool   `yaml:"principalGroups,omitempty"`
 }
 
 type Retry struct {
