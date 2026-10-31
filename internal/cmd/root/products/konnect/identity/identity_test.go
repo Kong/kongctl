@@ -61,6 +61,31 @@ func TestPrincipalDisplayDoesNotInventActiveState(t *testing.T) {
 	require.Equal(t, "true", principalDisplay(helpers.IdentityPrincipal{Active: new(true)}).Active)
 }
 
+func TestIdentityClientReadCommandsRequireExplicitSelectors(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		command, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		client, _, err := command.Find([]string{"auth-server-clients"})
+		require.NoError(t, err)
+		require.NotNil(t, client.RunE)
+		require.NoError(t, client.Args(client, []string{"opaque-client-id"}))
+		require.NoError(t, client.Flags().Set("client-name", "machine"))
+		require.ErrorContains(t, client.Args(client, []string{"opaque-id"}), "not both")
+		require.NoError(t, client.Args(client, nil))
+		secret, _, err := command.Find([]string{"auth-server-client-secrets"})
+		require.NoError(t, err)
+		require.NotNil(t, secret.RunE)
+		require.ErrorContains(t, secret.Args(secret, nil), "exactly one")
+		require.NoError(t, secret.Flags().Set("client-id", "opaque-id"))
+		require.NoError(t, secret.Args(secret, nil))
+		require.ErrorContains(t, secret.Args(secret, []string{"not-a-uuid"}), "UUID")
+		require.NoError(t, secret.Args(secret, []string{"731559d3-39bd-48c7-b33c-eb192847eb20"}))
+		require.NoError(t, secret.Flags().Set("client-name", "machine"))
+		require.ErrorContains(t, secret.Args(secret, nil), "exactly one")
+		require.Error(t, secret.Args(secret, []string{"one", "two"}))
+	}
+}
+
 func TestIdentityPrincipalCommands(t *testing.T) {
 	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
 		command, err := NewIdentityCmd(verb, nil, nil)
