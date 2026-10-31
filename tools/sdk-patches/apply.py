@@ -60,13 +60,14 @@ def replace_tag(text, patch):
 
 
 def post_generate(sdk, manifest):
-    replacements = []
+    replacements = {}
     for patch in manifest["post_generation"]:
         path = sdk / patch["file"]
         if patch.get("optional_file") and not path.exists():
             continue
-        replacements.append((path, replace_tag(path.read_text(), patch)))
-    for path, text in replacements:
+        text = replacements[path] if path in replacements else path.read_text()
+        replacements[path] = replace_tag(text, patch)
+    for path, text in replacements.items():
         path.write_text(text)
 
 

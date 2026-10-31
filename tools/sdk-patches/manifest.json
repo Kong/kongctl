@@ -54,6 +54,36 @@
       "before": "IncludeInScopes []string `json:\"include_in_scopes,omitempty\"`",
       "after": "IncludeInScopes []string `json:\"include_in_scopes,omitzero\"`",
       "optional_file": true
+    },
+    {
+      "file": "models/components/updateclient.go",
+      "before": "GrantTypes []AuthServerGrantType `json:\"grant_types,omitempty\"`",
+      "after": "GrantTypes []AuthServerGrantType `json:\"grant_types,omitzero\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateclient.go",
+      "before": "ResponseTypes []ResponseType `json:\"response_types,omitempty\"`",
+      "after": "ResponseTypes []ResponseType `json:\"response_types,omitzero\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateclient.go",
+      "before": "RedirectUris []string `json:\"redirect_uris,omitempty\"`",
+      "after": "RedirectUris []string `json:\"redirect_uris,omitzero\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateclient.go",
+      "before": "AllowScopes []string `json:\"allow_scopes,omitempty\"`",
+      "after": "AllowScopes []string `json:\"allow_scopes,omitzero\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/components/updateclient.go",
+      "before": "TokenEndpointAuthMethod *AuthServerTokenEndpointAuthMethod `default:\"client_secret_post\" json:\"token_endpoint_auth_method\"`",
+      "after": "TokenEndpointAuthMethod *AuthServerTokenEndpointAuthMethod `json:\"token_endpoint_auth_method,omitempty\"`",
+      "optional_file": true
     }
   ],
   "tests": {
@@ -63,6 +93,7 @@
     "tests/identity_realms_test.go.txt": "identity_realms_kongctl_test.go",
     "tests/internal_spec_format_test.go.txt": "models/operations/internal_spec_format_test.go",
     "tests/auth_server_arrays_test.go.txt": "auth_server_arrays_kongctl_test.go",
-    "tests/auth_server_claim_arrays_test.go.txt": "auth_server_claim_arrays_kongctl_test.go"
+    "tests/auth_server_claim_arrays_test.go.txt": "auth_server_claim_arrays_kongctl_test.go",
+    "tests/auth_server_client_fields_test.go.txt": "auth_server_client_fields_kongctl_test.go"
   }
 }

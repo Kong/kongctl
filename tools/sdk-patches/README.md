@@ -20,6 +20,15 @@ without auth-server management and checks actual wire presence when available.
 The same rule preserves explicit empty claim `include_in_scopes` arrays in
 PATCH requests. Both patches are optional on SDKs without those APIs.
 
+OAuth client PATCH has the same nil-versus-empty requirement for grant types,
+response types, redirect URIs and allowed scopes. A targeted request patch
+also removes the automatic endpoint-authentication-method default. An omitted
+method must stay omitted in the serialized request; explicit methods remain
+supported. This does not fix the deployed API's omission behavior (Q15).
+Writers must still preserve the fresh current method explicitly until that
+API behavior is resolved. Actual SDK wire tests cover empty, omitted and
+populated fields. These patches skip SDKs without auth-server clients.
+
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
