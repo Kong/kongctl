@@ -52,6 +52,15 @@ func (c *Client) ListIdentityGroups(ctx context.Context, directoryID string) ([]
 func (c *Client) GetIdentityGroup(ctx context.Context, directoryID, id string) (*IdentityGroup, error) {
 	values, err := c.ListIdentityGroups(ctx, directoryID)
 	if err != nil {
+		if declerrors.ExtractStatusCodeFromError(err) == http.StatusNotFound {
+			directory, directoryErr := c.GetIdentityDirectoryByID(ctx, directoryID)
+			if directoryErr != nil {
+				return nil, directoryErr
+			}
+			if directory == nil {
+				return nil, nil
+			}
+		}
 		return nil, err
 	}
 	for _, value := range values {
@@ -165,6 +174,16 @@ func (c *Client) VerifyPrincipalGroupMembershipsEmpty(ctx context.Context, direc
 	for _, group := range groups {
 		entries, err := helpers.ListIdentityGroupMemberships(ctx, c.identityGroupsAPI, directoryID, group.ID, 100)
 		if err != nil {
+			if declerrors.ExtractStatusCodeFromError(err) == http.StatusNotFound {
+				// An independently deleted group cannot retain this direct link.
+				current, lookupErr := c.GetIdentityGroup(ctx, directoryID, group.ID)
+				if lookupErr != nil {
+					return fmt.Errorf("cannot verify principal group memberships: %w", lookupErr)
+				}
+				if current == nil {
+					continue
+				}
+			}
 			return fmt.Errorf("cannot verify principal group memberships: %w", err)
 		}
 		for _, entry := range entries {

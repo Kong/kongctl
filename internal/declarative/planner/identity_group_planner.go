@@ -210,11 +210,6 @@ func (p *identityDirectoryPlanner) planGroups(ctx context.Context, config *Confi
 		for i := start; i < len(plan.Changes); i++ {
 			value := &plan.Changes[i]
 			value.Parent = &ParentInfo{Ref: parent.ref, ID: parent.id}
-			if value.Action == ActionDelete {
-				if err := p.planner.client.VerifyIdentityGroupEmpty(ctx, parent.id, value.ResourceID); err != nil {
-					return err
-				}
-			}
 			for _, earlier := range plan.Changes[:start] {
 				if earlier.ResourceType == ResourceTypeIdentityDirectory && earlier.Action == ActionCreate &&
 					parent.refs[earlier.ResourceRef] {

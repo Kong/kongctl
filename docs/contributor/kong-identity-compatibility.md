@@ -566,10 +566,11 @@ proofs avoid relying on a detail route alone for parent association.
 Principal delete/sync now guards identity associations and incoming direct
 group memberships. Fresh directory-wide group/membership observations prevent
 principal ownership from authorizing implicit removal of another group's link.
-Membership lifecycle enrollment must add explicit detachment dependencies.
+Explicit authorized membership deletions now supply detachment dependencies
+before principal/group deletion; execution repeats fresh empty checks.
 
-Group/membership writes and adoption are not exposed by this inspection
-increment. Future declarative lifecycle needs explicit parent/collection
+The initial inspection increment did not expose writes. Ordinary group and
+direct principal membership lifecycle below adds explicit parent/collection
 authority, reference ordering and descendant deletion checks. Q32 tracks
 group-to-group rejection and imported-team boundaries; Q33 tracks unavailable
 group key endpoints. Working manual membership deletion does not establish
@@ -580,9 +581,9 @@ keys support list/create/read/PATCH/delete, while team creation returns 400
 and accepts only type group. Group-to-group membership is still rejected.
 Generated group-key creation retains ownership, but PATCH ignores ownership
 changes; imported creation rejects that map. Group-key name behavior also
-differs from principal keys (Q29). Future group lifecycle work can now observe
-key descendants in `.tech`; it must not infer mutable ownership or credential
-continuity from endpoint availability alone.
+differs from principal keys (Q29). Current group lifecycle observes key descendants in `.tech`; it does not
+infer mutable ownership or runtime credential continuity from endpoint
+availability alone.
 
 The live group scenario uses manually created, credential-free fixtures.
 Cleanup opts into `principalGroups: true`, observes all group/member scopes,
@@ -639,3 +640,44 @@ The six existing cursor patches do not include this seventh operation. The
 current unfiltered empty-page guard sends no page parameter and needs no SDK
 revision. Full key writers also need the missing expires_at request field
 and omitted/value/null serialization work already tracked under #1417/#2659.
+
+## Direct principal membership lifecycle
+
+Direct principal memberships inherit ordinary-group ownership and protection.
+They store no independent metadata. The parent must be a declared managed
+group with verified konnect_user provenance; external groups are read-only.
+Match the directory-scoped group plus principal ID, and use entry IDs only
+for route selection. Refs remain local. Same-directory collection proofs,
+duplicate checks and fresh parent/entry observations precede writes.
+
+Nested/grouped declarations, saved creation and deletion, add-only apply,
+explicit collection sync, dump, explain and scaffold are implemented. Omission
+preserves links; an explicit empty collection selects principal memberships
+for pruning. Sync also retains the existing parent-group collection scope.
+Changed member IDs add different relationships; sync removes omitted links.
+There is no relationship update or independent adoption operation. Explicit
+group adoption preserves links and establishes authority over its collection.
+
+New memberships may be added to a protected group under the existing
+protected-parent creation policy. Removal requires a separately unprotected
+group; a simultaneous protection change cannot authorize removal. Saved
+execution rechecks fresh group name, namespace, provenance and protection,
+and verifies entry identity before deletion. Creation is single-attempt in
+both retry layers and checks scoped readback without rollback or blind retry.
+
+Final cross-namespace plans require explicit authorized detachments before
+deleting a principal or group. Unplanned direct links block those deletions.
+Fresh execution still requires empty collections, and group keys must be
+observably empty. A 404 while observing memberships is not an empty collection
+unless a fresh directory-scoped observation proves that group disappeared.
+If the entire group collection returns 404, fresh directory absence is
+required before treating it as gone; an existing or unreadable directory
+preserves the failure. This also supports replay of saved deletes after
+successful parent-directory removal.
+Client checks cannot supply the atomic precondition requested in Q24.
+
+Nested group members, importer/team writes and batch operations remain
+deferred under Q32. Unsupported nested state blocks authoritative pruning
+and managed membership export. No inherited relationship is removed through
+the principal's computed groups field. These boundaries need native tests and
+lifecycle coverage before expansion, rather than inference from the schema.

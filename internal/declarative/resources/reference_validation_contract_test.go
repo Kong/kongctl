@@ -29,6 +29,7 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeIdentityPrincipal, ""},
 		{ResourceTypeIdentityPrincipalIdentity, ""},
 		{ResourceTypeIdentityGroup, ""},
+		{ResourceTypeIdentityGroupMembership, ""},
 		{ResourceTypeIdentityAuthServerScope, ""},
 		{ResourceTypeIdentityAuthServerClaim, ""},
 		{ResourceTypeIdentityAuthServerClient, ""},

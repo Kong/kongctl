@@ -94,6 +94,11 @@ Registering a declaration does not complete those steps automatically.
   with directory/name matching and full-PUT hydration. They preserve foreign
   groups during scoped sync and require empty membership/key observations
   before deletion. Principal deletion also checks incoming direct memberships.
+  Direct principal memberships inherit that group's ownership through
+  `WithNamespaceFrom`; they have no metadata store and require explicit
+  collection authority for pruning. The membership planner/executor enforce
+  directory-scoped group protection independently of directory protection.
+  Final plans order authorized detachments before group/principal deletion.
   Team/importer writes remain deferred. These groups use the existing
   directory root planner and child dump inventory.
   Principal identities also persist refs with independent ownership under

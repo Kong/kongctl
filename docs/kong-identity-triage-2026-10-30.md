@@ -53,12 +53,16 @@ four-entry managed_by ownership and directory/name matching. Full PUT
 preserves omitted public settings. Saved writes repeat scope/ownership and
 protection checks; group deletion requires empty membership and key
 observations. Principal deletion also guards incoming direct memberships.
-Team/importer writes and membership declarations remain pending in #2657/#2658.
+Direct principal memberships now inherit managed ordinary-group authority:
+add-only apply, explicit collection sync, saved references/deletion ordering,
+dump, group adoption/protection and examples are implemented under #2658.
+Team/importer and nested-group writes remain deferred (Q32).
 Group/team and direct membership get/list preserve full pagination and read
 presence. Group keys work in US .tech; earlier US .com returned 501, which
 blocks safe declarative group deletion. The tested .tech org rejects team
 creation. Q31 guards metadata precision; Q32/Q33 bound importer/key behavior.
-Section 37 records the group lifecycle implementation and verification.
+Section 37 records the group lifecycle implementation and verification;
+section 38 records direct principal membership lifecycle.
 
 Principal active configuration now supports explicit false/true creation and
 updates, saved plans, diff, dump, omission, protection and adoption. The SDK
@@ -2311,3 +2315,95 @@ are absent after teardown. Existing user capture files were untouched.
 The overall epic goal remains active. #2657/#1415 stay In Progress until main
 merge; #2658's direct membership declarations are next. API-only questions,
 metadata storage and compatibility boundaries are updated. No PR is opened.
+
+## 38. Direct principal membership declarative lifecycle
+
+Direct memberships now support nested groups[].memberships and grouped
+identity.memberships declarations. The API's required member.type is explicit
+and limited to the verified principal variant. member.id accepts a principal
+UUID or typed principal reference. A complete directory observation proves
+literal/resolved membership targets; unresolved same-plan targets must declare
+the same directory. Group/principal creation dependencies survive saved plans.
+
+Membership entries have no metadata store. Their namespace and protection come
+from a managed ordinary group, independently of directory protection or
+principal ownership. External groups grant no mutation authority. A local ref is
+not persisted; the group's identity plus principal ID matches a relationship,
+while the generated entry ID routes GET/DELETE. Refs can change without
+replacing the relationship. A changed principal adds a different relationship;
+apply preserves undeclared members and explicit collection sync removes
+omissions. Sync retains the existing parent-group collection scope, documented
+in the tutorial; membership-only intent must not be mistaken for ignoring
+declared group scope.
+
+Omitted collections preserve links. Explicit empty collections select direct
+principal entries for pruning. Protected groups permit new members under the
+existing protected-parent creation pattern, but removal requires a separate
+unprotection. Simultaneous unprotection does not authorize removal. Saved
+execution checks fresh group name, namespace, provisioning/protection and
+membership identity. POST is single-attempt through both retry layers and
+verifies scoped readback without rollback or blind retry.
+
+Final cross-namespace plans require explicitly authorized membership deletions
+before deleting a group or principal. Unplanned links, including links from
+foreign/imported groups, block parent deletion. Executors still require fresh
+empty observations; any group key blocks group deletion. A disappearing-group
+404 is accepted only after fresh scoped proof that the group is absent. These
+checks do not supply Q24's atomic server-side precondition.
+
+Dump exports direct principal entries under managed ordinary groups with entry
+IDs as local refs and typed references to included principals. Other targets
+retain UUIDs. A restore-planning regression verifies fresh principal IDs are
+bound when recreating managed resources. Unowned/team/importer groups stay
+external; unsupported nested membership blocks managed collection export instead
+of silently exporting a partial authoritative list. Adoption applies to the
+owning group and preserves links; there is no independent membership adoption
+command. Teams, nested-group writes, inherited relationships and batch
+operations remain outside the verified slice (Q32).
+
+The selective public preview SDK remains bf1d470c108c. Existing group/member
+write models and cursor fixes suffice; no SDK patch or module pin changed.
+Remaining credential write-model/pagination issues and runtime mTLS setup are
+unchanged. Examples now include memberships.yaml and memberships.md, centered on
+external lookup of default with separate directories.yaml bootstrap guidance.
+The metadata ledger and compatibility/removal notes record inherited
+relationship authority and unsupported boundaries.
+
+The new 37-command US .tech scenario passes, including saved-delete replay
+after its directory is removed. The final combined run passes all fourteen
+Identity scenarios:
+/home/rspurgeon/.cache/kong-identity-public-sdk/membership-all-identity-final/20261031-130426.
+The final standalone lifecycle also passes at membership-live-final/20261031-125957
+under the same cache root.
+It verifies new directory/group/principal dependencies, all writable member
+fields, saved creation, idempotency, diff, add-only application, sync pruning,
+omitted/empty collections, dump/replan/apply, protection, group adoption with
+existing links, stale-owner rejection, and explicit child-before-parent
+deletion. The initial run reached final teardown but used an unresolved test
+binary placeholder; correcting it to the harness's .bin and e2e profile fixed
+the test invocation. No API defect was inferred from that harness failure.
+
+Modernization, formatting, CGO-disabled build and zero-issue lint pass. Full
+unit/integration/harness race tests pass, alongside SDK patch, installer,
+replay-policy and 140 metrics checks. Enabled replay coverage and cassettes
+are unchanged. Deliberate stops after created members, group protection and
+foreign group ownership all pass automatic teardown. Their evidence is under
+membership-stop-created/20261031-130906,
+membership-stop-protected/20261031-130915 and
+membership-stop-foreign/20261031-130933 in the same cache root.
+
+Fresh direct API inventories confirm an unmanaged default directory with its
+saved public settings, zero principals/groups and zero auth servers. Its ID
+is 01a19327-5a26-753e-bb9e-05957807805b. Evidence is saved in
+membership-final-inventory.json. All seven referenced private capture paths
+from the full run are absent after teardown. Existing user capture files
+were not read or removed. A read-only plan of memberships.yaml creates exactly
+one principal, group and membership, with zero directory mutations; it was
+not applied.
+
+No additional API behavior question was found in this membership slice.
+Q24/Q32 still bound atomic deletion, nested groups and importer/team writes.
+Future credential work must verify its own ownership/secret contracts and
+SDK models; membership success does not establish credential behavior.
+#2658/#2657/#1415 remain open/In Progress until merge to main. No PR is opened
+and the overall epic goal remains active.

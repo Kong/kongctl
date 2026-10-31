@@ -13,7 +13,8 @@ import (
 var identityGroupNamePattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 
 type IdentityGroupResource struct {
-	BaseResource `                  yaml:",inline"               json:",inline"`
+	Memberships  []IdentityGroupMembershipResource `yaml:"memberships,omitempty" json:"memberships,omitempty"`
+	BaseResource `                                  yaml:",inline"               json:",inline"`
 	Directory    string            `yaml:"directory,omitempty"   json:"directory,omitempty"`
 	Name         string            `yaml:"name"                  json:"name"`
 	Description  *string           `yaml:"description,omitempty" json:"description,omitempty"`

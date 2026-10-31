@@ -8,7 +8,8 @@ Konnect organization IAM team. Names are unique within a directory and
 case-sensitive for local lookup.
 
 `groups.yaml` declares ordinary groups under an externally resolved directory
-named `default`. Groups start empty; membership declarations are separate work.
+named `default`. Groups start empty; [memberships.yaml](memberships.yaml) and the
+[membership tutorial](memberships.md) add direct principal relationships.
 The directory is neither adopted nor modified by this example.
 
 ```sh
@@ -99,10 +100,9 @@ The text list shows `ID`, `MEMBER_ID`, `MEMBER_TYPE` and `DISPLAY_NAME`.
 These commands inspect direct entries without expanding inherited membership.
 
 Ordinary group lifecycle and adoption are implemented under #2657. Direct
-membership declarations remain in progress under #2658; memberships have no
-independent ownership field. Inspection does not assign ownership or authorize
-mutation of
-an imported team. Direct tests reject group-to-group creation despite the
+membership declarations inherit managed ordinary-group authority under #2658;
+memberships have no independent ownership field. Inspection does not assign
+ownership or authorize mutation of an imported team. Direct tests reject group-to-group creation despite the
 schema (Q32). Group API-key operations work in US `.tech`; earlier US `.com`
 requests returned 501 (Q33). Ownership PATCH still fails for keys in `.tech`.
 Group deletion blocks while those relationships or credentials remain.

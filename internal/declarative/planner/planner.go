@@ -272,6 +272,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.resolvePrincipalIdentityDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
+	if err := p.resolveIdentityMembershipDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 
 	// Child matching discovers identities during resource planning. If these
 	// make additional payload references concrete, compare again with the new

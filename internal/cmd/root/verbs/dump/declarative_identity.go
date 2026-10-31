@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"slices"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
+
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/declarative/tags"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
@@ -59,6 +62,7 @@ func identityDirectoryCollector() declarativeCollector {
 				if err != nil {
 					return err
 				}
+				principalRefs := make(map[string]string, len(principals))
 				for _, current := range principals {
 					ref := current.ID
 					if current.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool {
@@ -77,6 +81,7 @@ func identityDirectoryCollector() declarativeCollector {
 						)
 					}
 					seen[ref] = true
+					principalRefs[current.ID] = ref
 					data, err := json.Marshal(current.Metadata)
 					if err != nil {
 						return err
@@ -187,6 +192,38 @@ func identityDirectoryCollector() declarativeCollector {
 						group.External = &resources.ExternalBlock{ID: current.ID}
 						group.Kongctl = nil
 					}
+					if !group.IsExternal() {
+						entries, err := d.stateClient.ListIdentityGroupMemberships(ctx, values[i].Ref, current.ID)
+						if err != nil {
+							return err
+						}
+						for _, entry := range entries {
+							if entry.Member.Type != kkComps.KongGroupMembershipTypePrincipal {
+								return fmt.Errorf(
+									"group %s has unsupported nested/imported membership; cannot export a managed membership collection (Q32)",
+									current.ID,
+								)
+							}
+							if seen[entry.ID] {
+								return fmt.Errorf("membership ref %q is ambiguous in the dump", entry.ID)
+							}
+							seen[entry.ID] = true
+							memberID := entry.Member.ID
+							if principalRef, found := principalRefs[memberID]; found {
+								memberID = tags.RefPlaceholderPrefix + principalRef + "#id"
+							}
+							group.Memberships = append(group.Memberships, resources.IdentityGroupMembershipResource{
+								Ref: entry.ID,
+								Member: resources.IdentityGroupMemberResource{
+									Type: string(entry.Member.Type), ID: memberID,
+								},
+							})
+						}
+						slices.SortFunc(
+							group.Memberships,
+							func(a, b resources.IdentityGroupMembershipResource) int { return cmp.Compare(a.Ref, b.Ref) },
+						)
+					}
 					values[i].Groups = append(values[i].Groups, group)
 				}
 				slices.SortFunc(
@@ -200,6 +237,6 @@ func identityDirectoryCollector() declarativeCollector {
 			}
 			return nil
 		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
-		resources.ResourceTypeIdentityGroup,
+		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
 	)
 }

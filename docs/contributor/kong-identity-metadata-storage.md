@@ -18,12 +18,12 @@ ledger current as each resource is implemented.
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. |
-| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity deletions and no direct group memberships, with fresh checks (Q24). API-key descendant enrollment is separate. |
+| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity and direct-membership deletions, with fresh empty checks (Q24). API-key descendant enrollment is separate. |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
 | Ordinary Principal Groups | `labels`, `managed_by`, runtime `metadata` | Four-entry `managed_by`; unique directory/name matching | Declarative lifecycle, PUT hydration, adoption, protection and dump are implemented. Group metadata stays independent of directory ownership. Members/keys must be removed before deletion. #2657. |
 | Teams/imported group inspection | Same fields as groups | Read-only in KongCTL | Returned provisioning/team-manager presence is retained. Team/importer writes/adoption are deferred (Q32). |
-| Direct group membership inspection | None | None | Scoped entry-ID get/list distinguish the relationship from its member. No product mutation or inherited/imported authority is implied. #2658, Q32. |
+| Direct principal group membership | None | Inherits managed ordinary-group authority | No independent stamp or adoption. Match parent/type/member ID, route by entry ID. Explicit collection sync, group protection/adoption, saved references and dump are implemented; team/importer/nested writes remain deferred. #2658, Q32. |
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
@@ -88,7 +88,7 @@ or protection metadata on them.
 | Auth-server scopes | Unique name within auth server | Inherit managed parent namespace and update/delete protection. Explicit collection defines sync authority; fresh references guard deletion. #1402. |
 | Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
-| Group memberships | Generated entry ID; member type/ID under group | No independent ownership fields. Manual membership creation, duplicate rejection and scoped reads work; manual team-user removal also works. Group-to-group creation is rejected (Q32). Import-managed authority needs clarification. #2658. |
+| Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
 | Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
@@ -233,3 +233,9 @@ temporary implementation restrictions and their removal criteria.
 
 [directory-spec]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/kong-identity/v2/openapi.yaml
 [auth-spec]: https://github.com/Kong/platform-api/blob/98137d7be3772b67693cc1ceb0469e77f8ecf0f5/src/konnect/definitions/sliver/v1/openapi.yaml
+
+- October 31, direct memberships: membership entries have no metadata store.
+  Declarative authority inherits the ordinary group's namespace/protection;
+  only an explicitly selected collection permits sync pruning. Group adoption
+  preserves existing links and grants collection authority, without stamping
+  entries. External groups and importer/team/nested mutations are excluded.
