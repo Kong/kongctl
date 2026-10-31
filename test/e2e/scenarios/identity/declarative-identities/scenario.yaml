@@ -516,6 +516,14 @@ steps:
           - api
           - delete
           - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities/{{ .vars.foreign_identity_id }}
+      - name: enable-vault-inspection-before-delete
+        # Vault collections must be observable before a directory deletion.
+        # This explicit update is separate from the delete operation.
+        run:
+          - api
+          - patch
+          - /v2/directories/{{ .vars.directory_id }}
+          - 'vault_enabled:=true'
       - name: plan-delete
         run:
           - plan

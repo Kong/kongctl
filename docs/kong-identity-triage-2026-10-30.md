@@ -7,6 +7,13 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Directory deletion now requires explicitly enabled Vault and fresh empty
+key/provider/Trusted IdP collections during planning and saved execution.
+Disabled/unknown/incomplete observations block deletion without automatic
+enablement or child retirement. Section 49 records this boundary, examples
+and verification. This establishes a deletion prerequisite for future Vault
+declarations; it does not grant those children ownership.
+
 Trusted IdP configuration and associated-principal inspection now support
 complete pagination, exact issuer lookup and all output formats. An example
 connects an externally configured IdP to declaratively managed principals
@@ -3101,3 +3108,91 @@ and auth-server inventories are empty. Evidence is
 vault-sdk-final-inventory.json. SDK #1413/#1399, #2660/#2661, ownership #2656
 and directory epic #1132 remain In Progress until main merge. No PR, SDK
 release, provider/key product writer or implicit parent adoption is created.
+
+## 49. Directory Vault dependency deletion guard
+
+Native Q37 proves force=false does not preserve attached Vault children.
+Directory delete and scoped-sync planning now read fresh directory detail,
+validate its ID/name, and require observable empty Vault key/provider/Trusted
+IdP collections. Saved execution repeats current settings and all dependency
+observations before the API DELETE. Existing namespace/protection checks are
+retained. Older saved plans do not bypass the new execution precondition;
+an already absent directory remains an idempotent deletion success.
+
+The shared helper sends no pagination, sort or filter arguments. An empty
+data array with valid terminal pagination proves empty; missing data/meta,
+nonterminal emptiness, fractional/invalid size, read failure or missing APIs
+block deletion. Disabled or unknown vault_enabled is an explicit error.
+Planning and deletion never enable Vault. The operator must explicitly enable
+it and retire dependencies first. No key/provider/IdP ownership is stamped,
+no adoption is inferred, and no remaining child is removed automatically.
+Ordinary directory create/update and external-default principal workflows do
+not acquire these inspection requirements. The SDK stays 2597fe249e26.
+
+This follows the established fail-closed credential-deletion behavior rather
+than treating a successful native non-forced DELETE as a preservation proof.
+It deliberately restricts directory deletion where the API cannot expose its
+dependencies, including deployments unable to retain vault_enabled:true.
+It does not make observation/delete atomic: Q37 requests a backend conditional
+contract for attachments between the final read and DELETE. Future writable
+child integration must prove explicit authorized removals in planning and
+fresh emptiness after those child operations, not bypass this precondition.
+
+The new identity/directory-delete-guards live scenario passes independently
+in 39.746 seconds (directory-guard-v1/20261031-172951). It creates one child
+from each family, then verifies plan/delete, scoped-sync planning/execution,
+and previously saved deletion all refuse the attached record. Explicitly
+disabling Vault with that child preserves the directory and blocks saved
+execution; re-enabling restores visibility. Late disabling of an otherwise
+empty directory also blocks deletion. After explicit child retirement and
+enablement, saved deletion succeeds and repeated execution is idempotent.
+The issuer fixture supplies public OIDC discovery; the key fixture contains
+only public material. No credential secret or runtime-auth claim is involved.
+
+Fixture cleanup opts into requireEmptyVaultDependencies. It observes all three
+empty collections before any cleanup writes and immediately before parent
+deletion; missing/nonempty/error/nonterminal results preserve the fixture.
+It grants no child-deletion or implicit-enable authority. Tests cover invalid
+configuration and each refusal, while other scenarios gain no new permissions.
+Existing managed-directory teardown examples now enable inspection explicitly,
+after separate unprotection. New directory-deletion.md documents those steps,
+raw collection inspection, permissions, saved plans and the atomicity limit.
+
+Early broad live runs exposed two teardown fixtures needing that explicit
+step: memberships had combined enablement with unprotection (correctly
+rejected), and numeric metadata still deleted a Vault-disabled directory.
+Those fixture sequences are corrected; memberships and directory lifecycle
+pass in the second run. Numeric metadata then passes separately in 6.762
+seconds (directory-guard-integers-fixed/20261031-174451). These are client
+fixture changes, not additional API findings. Failed broad runs are retained
+as directory-guard-all-identity and directory-guard-all-identity-v2; they are
+not passing-suite evidence.
+
+Final verification passes all nineteen Identity live scenarios together in
+334.715 seconds: directory-guard-all-identity-v3/20261031-174619. All eight
+referenced private capture directories are absent. A separate early stop
+after create-issuer runs exactly two commands and passes the new fixture
+cleanup in 3.346 seconds: directory-guard-stopped/20261031-175625. Fresh native
+inventory, including an explicit temporary Vault inspection and restoration,
+confirms empty principal/group/key/provider/IdP/auth-server inventories. The
+unmanaged default and public settings are restored with ID
+01a1942d-c2ba-7ccc-ab74-25d906544915.
+
+Modernization, stable formatting, CGO-disabled build and make test-all pass,
+including zero-issue regular lint, full unit/integration/harness race tests,
+nine SDK patch tests, installer checks and 140 metrics tests. Final unit and
+focused helper/cleanup checks also pass after strengthening populated-response
+coverage. The default cassette check passes and all replay membership/cassettes
+are unchanged. An optional whole-repository E2E-tag lint run reports existing
+findings outside this change; after correcting new line wrapping, E2E-tag lint
+restricted to changed lines reports zero issues. It is not a clean expanded
+repository-lint claim.
+
+Evidence is directory-guard-gates.log, directory-guard-final-unit.log,
+directory-guard-final-lint.log, directory-guard-e2e-diff-lint.log,
+directory-guard-artifact-verification.json and
+directory-guard-final-inventory.json under the local evidence cache. Issue
+#1414, ownership #2656, Vault child issues and epic #1132 stay In Progress
+until main merge. No PR or SDK revision is needed for this guard. Writable
+Vault children remain separate implementation work under an explicit
+ownership/collection policy.

@@ -65,7 +65,10 @@ func TestIdentityDirectoryRejectsChangedOwnershipAndProtection(t *testing.T) {
 	for _, namespace := range []string{"identity-team", "foreign", ""} {
 		for _, protected := range []bool{false, true} {
 			api := &fixture.DirectoryAPI{Current: fixture.Directory("people", namespace, protected)}
-			adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{IdentityDirectoriesAPI: api})}
+			api.Current.VaultEnabled = new(true)
+			adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
+				IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: &fixture.DirectoryDependenciesAPI{},
+			})}
 			change := directorySavedChange(t, map[string]any{
 				planner.FieldName: "people", planner.FieldDescription: "changed",
 				planner.FieldManagedBy: resources.BuildChildManagedBy("identity-team", false, "dev"),
@@ -86,6 +89,43 @@ func TestIdentityDirectoryRejectsChangedOwnershipAndProtection(t *testing.T) {
 				require.Zero(t, api.Deletes)
 			}
 		}
+	}
+}
+
+func TestIdentityDirectorySavedDeletionReobservesVaultChildren(t *testing.T) {
+	for _, attached := range []string{"", "Vault keys", "Vault providers", "Trusted IdPs"} {
+		t.Run(attached, func(t *testing.T) {
+			api := &fixture.DirectoryAPI{Current: fixture.Directory("people", "identity-team", false)}
+			api.Current.VaultEnabled = new(true)
+			dependencies := &fixture.DirectoryDependenciesAPI{Attached: attached}
+			adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
+				IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
+			})}
+			change := directorySavedChange(t, map[string]any{planner.FieldName: "people"})
+			err := adapter.Delete(t.Context(), change.ResourceID, NewExecutionContext(change))
+			if attached == "" {
+				require.NoError(t, err)
+				require.Equal(t, 1, api.Deletes)
+				require.Len(t, dependencies.Calls, 3)
+			} else {
+				require.ErrorContains(t, err, attached)
+				require.Zero(t, api.Deletes)
+			}
+		})
+	}
+	for _, value := range []*bool{nil, new(false)} {
+		api := &fixture.DirectoryAPI{Current: fixture.Directory("people", "identity-team", false)}
+		api.Current.VaultEnabled = value
+		dependencies := &fixture.DirectoryDependenciesAPI{}
+		adapter := &IdentityDirectoryAdapter{client: state.NewClient(state.ClientConfig{
+			IdentityDirectoriesAPI: api, IdentityDirectoryDependenciesAPI: dependencies,
+		})}
+		change := directorySavedChange(t, map[string]any{planner.FieldName: "people"})
+		err := adapter.Delete(t.Context(), change.ResourceID, NewExecutionContext(change))
+		require.ErrorContains(t, err, "explicitly enable Vault")
+		require.Empty(t, dependencies.Calls)
+		require.Zero(t, api.Deletes)
+		require.Zero(t, api.Replaces, "observations must not implicitly enable Vault")
 	}
 }
 

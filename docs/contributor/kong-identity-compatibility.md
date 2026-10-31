@@ -923,3 +923,34 @@ inventory, including prior credential expiration/array fixes. Remove the
 targeted replacements only when upstream generation emits the same documented
 bracketed query contract. No product declarations or commands are enabled by
 this dependency change alone.
+
+## Directory deletion observations
+
+Related question: Q37. Planning a directory DELETE or scoped sync now requires
+a fresh directory detail and observable empty Vault key, provider and Trusted
+IdP collections. Execution repeats those reads. No pagination/filter arguments
+are sent: only an empty data array with valid terminal metadata proves empty.
+Missing APIs, malformed/incomplete observations, nonterminal emptiness and
+read errors block deletion. Disabled/unknown Vault is an explicit error;
+neither planning nor execution enables it automatically.
+
+This is the existing fail-closed credential-deletion rule applied to directory
+dependencies that the native API cascades even with force=false. It adds no
+ownership to a key/provider/IdP and grants no child-retirement authority.
+Ordinary creates, updates and external-directory principal workflows do not
+require these extra observations. Tokens without the required read permissions
+cannot prove safe declarative directory deletion. A deployment that cannot
+retain vault_enabled:true cannot satisfy this deletion precondition.
+
+Saved plans do not bypass the guard. A late attachment or disabled setting
+blocks the operation; an already absent directory stays an idempotent success.
+The SDK remains 2597fe249e26. Fixture cleanup can opt into observing all three
+collections before any cleanup writes and again before parent deletion.
+It never removes a remaining Vault child. Other fixtures gain no permission
+requirement from that opt-in.
+
+There is still no atomic observation/delete guarantee. Do not remove these
+guards merely because a server returns success: require documented and live
+verified conditional deletion across all dependent families and non-mutating
+visibility of disabled-Vault state. Any alternate explicit cascade policy
+needs separate ownership/deletion semantics and coverage.
