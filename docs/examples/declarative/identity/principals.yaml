@@ -8,7 +8,7 @@ identity:
       _external:
         selector:
           matchFields:
-            name: people
+            name: default
       principals:
         - ref: jane-doe
           display_name: Jane Doe

@@ -2,9 +2,10 @@
 
 Groups organize principals inside a directory. Ordinary groups accept user,
 agent and unclassified principals. Teams are the organization-chart subtype;
-direct tests accept user principals. A group is separate from a Konnect
-organization IAM team. Names are unique within a directory and case-sensitive
-for local lookup.
+US `.com` tests accept user principals, but the current `.tech` test org rejects
+team creation and accepts only ordinary groups. A group is separate from a
+Konnect organization IAM team. Names are unique within a directory and
+case-sensitive for local lookup.
 
 Use the preview SDK branch and select the directory explicitly:
 
@@ -43,7 +44,8 @@ Group and membership declarative writes/adoption are still being implemented
 under #2657/#2658. Groups expose `managed_by`; memberships have no independent
 ownership field. Inspection does not assign ownership or authorize mutation of
 an imported team. Direct tests reject group-to-group creation despite the
-schema (Q32), and group API-key collection operations return 501 (Q33).
+schema (Q32). Group API-key operations work in US `.tech`; earlier US `.com`
+requests returned 501 (Q33). Ownership PATCH still fails for keys in `.tech`.
 Future declarative deletion must account for relationships and credentials.
 See the [API questions](../../../kong-identity-api-questions.md) and
 [metadata ledger](../../../contributor/kong-identity-metadata-storage.md).
