@@ -90,8 +90,8 @@ or protection metadata on them.
 | Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
-| Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
-| Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
+| Token Vault public keys | Directory; RFC 7638 `kid` fingerprint | Direct US `.tech` probes verify RSA/EC kid identity, duplicate material rejection and non-unique names. No independent ownership stamp exists. Directory force=false cascades even while disabled Vault hides the keys (Q37); ownership/deletion policy remains unresolved. Q6, #2661. |
+| Token Vault Credential Providers | Unique name per directory | Direct US `.tech` create/name-update conflicts confirm uniqueness. No independent tool/namespace/protection stamp exists. Directory force=false cascades while Vault-disabled inspection fails (Q37). Custom DCR PUT and initial enabled state need Q39/Q40; stored-secret preservation is unverified. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
@@ -107,6 +107,15 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, Vault contract evaluation: five RSA/EC public keys match
+  independently computed RFC 7638 kids; duplicate material conflicts while
+  duplicate names work. Provider names conflict on create and update. Neither
+  resource exposes labels/managed_by. Four direct parent-delete probes remove
+  the directory with an attached key/provider under force=false, in both Vault
+  states; disabled Vault hides the same collections. No inherited ownership
+  policy is implied. No provider/key declarative writer is claimed by this
+  contract/SDK preparation work.
 
 - October 31 UTC, explicit password operations: generated/imported creation
   captures values privately without ownership stamping. Expiration-only PATCH
