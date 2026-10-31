@@ -56,6 +56,7 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeIdentityAuthServer:         r.lookupIdentityAuthServer,
 		resources.ResourceTypeIdentityDirectory:          r.lookupIdentityDirectory,
 		resources.ResourceTypeAPI:                        r.lookupAPI,
 		resources.ResourceTypeApplicationAuthStrategy:    r.lookupApplicationAuthStrategy,
@@ -922,4 +923,27 @@ func findSettableTaggedField(value reflect.Value, name string) reflect.Value {
 		}
 	}
 	return reflect.Value{}
+}
+
+func (r *externalLookupResolver) lookupIdentityAuthServer(
+	ctx context.Context, request externalLookupRequest,
+) (string, error) {
+	values, err := r.planner.listIdentityAuthServers(ctx)
+	if err != nil {
+		return "", err
+	}
+	name := request.MatchFields[FieldName]
+	var id string
+	for _, value := range values {
+		if value.Name == name {
+			if id != "" {
+				return "", fmt.Errorf("multiple auth servers have name %q", name)
+			}
+			id = value.ID
+		}
+	}
+	if id == "" {
+		return "", fmt.Errorf("auth server %q not found", name)
+	}
+	return id, nil
 }

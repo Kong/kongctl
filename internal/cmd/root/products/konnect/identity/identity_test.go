@@ -23,6 +23,18 @@ func TestIdentityDirectoryCommands(t *testing.T) {
 	}
 }
 
+func TestIdentityAuthServerCommands(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Adopt} {
+		command, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		child, _, err := command.Find([]string{"auth-servers"})
+		require.NoError(t, err)
+		require.Equal(t, "auth-server", child.Name())
+		require.NotNil(t, child.RunE)
+		require.Error(t, child.Args(child, []string{"one", "two"}))
+	}
+}
+
 func TestPrincipalDisplayDoesNotInventActiveState(t *testing.T) {
 	require.Equal(t, "unknown", principalDisplay(helpers.IdentityPrincipal{}).Active)
 	require.Equal(t, "false", principalDisplay(helpers.IdentityPrincipal{Active: new(false)}).Active)

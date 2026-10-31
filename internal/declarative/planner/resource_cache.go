@@ -11,6 +11,7 @@ import (
 )
 
 type planningResourceCache struct {
+	identityAuthServers            observationCache[state.IdentityAuthServer]
 	identityPrincipals             map[string][]state.IdentityPrincipal
 	identityDirectories            observationCache[state.IdentityDirectory]
 	ownedChildrenPlanned           map[string]bool
@@ -52,6 +53,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityAuthServers:            newObservationCache[state.IdentityAuthServer](),
 		identityPrincipals:             make(map[string][]state.IdentityPrincipal),
 		identityDirectories:            newObservationCache[state.IdentityDirectory](),
 		ownedChildrenPlanned:           make(map[string]bool),
@@ -324,4 +326,16 @@ func namespaceCacheKey(normalizedNamespaces []string) string {
 		return ""
 	}
 	return strings.Join(normalizedNamespaces, ",")
+}
+
+func (p *Planner) listIdentityAuthServers(ctx context.Context) ([]state.IdentityAuthServer, error) {
+	var cache *observationCache[state.IdentityAuthServer]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.identityAuthServers
+	}
+	return cache.list(ctx, []string{"*"}, false,
+		func(ctx context.Context, _ []string) ([]state.IdentityAuthServer, error) {
+			return p.client.ListIdentityAuthServers(ctx)
+		},
+		func(a state.IdentityAuthServer) string { return a.NormalizedLabels[labels.NamespaceKey] })
 }
