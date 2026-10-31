@@ -8,6 +8,7 @@ import (
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	FieldPublicKey                  = "public_key"
 	FieldDirectoryID                = "directory_id"
 	FieldPrincipalID                = "principal_id"
 	FieldIssuer                     = "issuer"
@@ -283,6 +284,7 @@ const (
 	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
 	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
+	ResourceTypeIdentityVaultKey                 = string(resources.ResourceTypeIdentityVaultKey)
 	ResourceTypeIdentityGroupMembership          = string(resources.ResourceTypeIdentityGroupMembership)
 	ResourceTypeIdentityBasicAuth                = string(resources.ResourceTypeIdentityBasicAuth)
 	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)

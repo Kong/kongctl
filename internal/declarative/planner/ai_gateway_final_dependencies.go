@@ -56,7 +56,7 @@ func (p *Planner) resolveFinalAIGatewayDependencies(ctx context.Context, plan *P
 	// rather than payload reference expressions. Replacement creates participate.
 	for i := range plan.Changes {
 		user := &plan.Changes[i]
-		if user.Action == ActionDelete {
+		if user.Action == ActionDelete || !strings.HasPrefix(user.ResourceType, ResourceTypeAIGateway+"_") {
 			continue
 		}
 		ref, id := aiGatewayChangeGateway(*user)

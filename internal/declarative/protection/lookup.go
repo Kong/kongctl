@@ -129,6 +129,7 @@ func IsManagedResourceProtected(
 	case resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
 		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
 		resources.ResourceTypeIdentityBasicAuth,
+		resources.ResourceTypeIdentityVaultKey,
 		resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
