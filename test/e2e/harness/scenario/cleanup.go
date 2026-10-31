@@ -24,6 +24,7 @@ type cleanupTarget struct {
 	name             string
 	principalAPIKeys bool
 	principalGroups  bool
+	groupNamespaces  []string
 }
 
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
@@ -35,6 +36,18 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		}
 		if spec.PrincipalGroups && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
 			return fmt.Errorf("principalGroups cleanup requires an identity directory")
+		}
+		if len(spec.GroupNamespaces) != 0 {
+			if !spec.PrincipalGroups {
+				return fmt.Errorf("groupNamespaces cleanup requires principalGroups")
+			}
+			seen := make(map[string]bool)
+			for _, namespace := range spec.GroupNamespaces {
+				if strings.TrimSpace(namespace) == "" || seen[namespace] {
+					return fmt.Errorf("cleanup group namespaces must be nonempty and unique")
+				}
+				seen[namespace] = true
+			}
 		}
 		// Only families with complete list commands and safe raw deletion participate.
 		//nolint:exhaustive
@@ -63,6 +76,7 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		targets = append(targets, cleanupTarget{
 			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
 			principalGroups: spec.PrincipalGroups,
+			groupNamespaces: spec.GroupNamespaces,
 		})
 	}
 	t.Cleanup(func() {
@@ -130,7 +144,11 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 	}
 	if target.kind == resources.ResourceTypeIdentityDirectory {
 		if target.principalGroups {
-			if err := cleanupGroupFixtures(ctx, cli, id); err != nil {
+			policy := groupCleanupPolicy{
+				namespaces: target.groupNamespaces,
+				namePrefix: "Kongctl" + strings.ReplaceAll(target.name, "-", ""),
+			}
+			if err := cleanupGroupFixtures(ctx, cli, id, policy); err != nil {
 				return err
 			}
 		}

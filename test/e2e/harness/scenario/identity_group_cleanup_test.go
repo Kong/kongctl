@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/resources"
+	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/stretchr/testify/require"
 )
 
@@ -76,6 +78,41 @@ func TestGroupFixtureCleanupRequiresManualMarkedGroupsAndMembers(t *testing.T) {
 				"/v2/directories/"+directory+"/groups/"+other+"\n"+
 				"/v2/directories/"+directory+"/principals/"+principal+"\n"+
 				"/v2/directories/"+directory+"?force=false\n", string(deleted))
+		})
+	}
+}
+
+func TestDeclaredGroupFixtureMarkersRemainBounded(t *testing.T) {
+	const directory = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	policy := groupCleanupPolicy{namespaces: []string{"allowed"}, namePrefix: "KongctlGenerated"}
+	for _, fault := range []string{
+		"", "protected", "cleared-labels", "unowned", "foreign", "outside-map", "unmarked", "wrong-prefix", "imported", "team",
+	} {
+		t.Run(fault, func(t *testing.T) {
+			value := fixture.Group("KongctlGeneratedAlpha", "allowed", false)
+			value.Labels = map[string]string{"e2e-fixture": directory}
+			switch fault {
+			case "protected":
+				value.ManagedBy[resources.ChildProtectedKey] = "true"
+			case "cleared-labels":
+				value.Labels = map[string]string{}
+			case "unowned":
+				value.ManagedBy = nil
+			case "foreign":
+				value.ManagedBy[resources.ChildNamespaceKey] = "other"
+			case "outside-map":
+				value.ManagedBy["outside"] = "unexpected"
+			case "unmarked":
+				value.Labels = map[string]string{"team": "other"}
+			case "wrong-prefix":
+				value.Name = "Other"
+			case "imported":
+				value.ProvisionedBy = new(kkComps.ProvisionedByTrustedIdp)
+			case "team":
+				value.Type = new(kkComps.KongGroupTypeTeam)
+			}
+			expected := fault == "" || fault == "protected" || fault == "cleared-labels" || fault == "unowned"
+			require.Equal(t, expected, markedGroupFixture(value, directory, policy))
 		})
 	}
 }

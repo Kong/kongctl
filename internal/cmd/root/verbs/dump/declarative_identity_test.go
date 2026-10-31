@@ -1,6 +1,7 @@
 package dump
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,8 +9,10 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/loader"
+	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
@@ -63,6 +66,7 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI:          api,
+		IdentityGroupsAPI:              &fixture.GroupAPI{},
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	})}
 	rs := &resources.ResourceSet{}
@@ -109,6 +113,7 @@ func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) 
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {
 			{ID: principalID, Type: new(kkComps.KongPrincipalTypeUser)},
 		}}},
+		IdentityGroupsAPI: &fixture.GroupAPI{},
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{
 			Parents: map[string][]kkComps.KongPrincipalIdentity{directory.ID + "/" + principalID: identities},
 		},
@@ -145,12 +150,16 @@ func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) 
 func TestPrincipalDumpPreservesExplicitFalseAndTrue(t *testing.T) {
 	for _, active := range []bool{false, true} {
 		directory := fixture.Directory("people", "directory-team", false)
-		api := &fixture.PrincipalAPI{ExposeActive: true, Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
-			ID: "1248f559-063b-4f10-9098-9e6553b21d9b", Active: active,
-			ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
-		}}}}
+		api := &fixture.PrincipalAPI{
+			ExposeActive: true,
+			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
+				ID: "1248f559-063b-4f10-9098-9e6553b21d9b", Active: active,
+				ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
+			}}},
+		}
 		d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
 			IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+			IdentityGroupsAPI:      &fixture.GroupAPI{},
 			IdentityPrincipalsAPI:  api, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 		})}
 		rs := &resources.ResourceSet{}
@@ -164,4 +173,44 @@ func TestPrincipalDumpPreservesExplicitFalseAndTrue(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, new(active), loaded.Identity.Principals[0].Active)
 	}
+}
+
+func TestGroupDumpUsesSafeRefsAndKeepsUnsupportedGroupsExternal(t *testing.T) {
+	directory := fixture.Directory("people", "directory-team", false)
+	owned := fixture.Group("Fulfillment", "group-team", true)
+	owned.Metadata["large"] = kkComps.CreateKongIdentityMetadataInteger(9007199254740994)
+	team := fixture.Group("OrgTeam", "importer", false)
+	team.Type = new(kkComps.KongGroupTypeTeam)
+	api := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directory.ID: {owned, team}}}
+	client := state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI:  &fixture.PrincipalAPI{}, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+		IdentityGroupsAPI: api,
+	})
+	d := &declarativeDumpContext{includeChildren: true, stateClient: client}
+	rs := &resources.ResourceSet{}
+	require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
+	require.Len(t, rs.Identity.Directories[0].Groups, 2)
+	encoded, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "managed_by:")
+	require.Contains(t, string(encoded), "9007199254740994")
+	path := filepath.Join(t.TempDir(), "groups.yaml")
+	require.NoError(t, os.WriteFile(path, encoded, 0o600))
+	loaded, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	for _, group := range loaded.Identity.Groups {
+		if group.Ref == owned.ID {
+			require.True(t, group.Protected())
+			require.False(t, group.IsExternal())
+			require.Equal(t, "group-team", resources.GetNamespace(group.Kongctl))
+		} else {
+			require.True(t, group.IsExternal())
+			require.Nil(t, group.Kongctl)
+		}
+	}
+	plan, err := planner.NewPlanner(client, slog.Default()).
+		GeneratePlan(t.Context(), loaded, planner.Options{Mode: planner.PlanModeApply})
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
 }

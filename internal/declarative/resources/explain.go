@@ -331,6 +331,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		kind := ResourceTypeIdentityDirectory
 		switch segments[1] {
 		case "directory", "directories":
+		case "group", "groups":
+			kind = ResourceTypeIdentityGroup
 		case "principal", "principals":
 			kind = ResourceTypeIdentityPrincipal
 		case "identities", "principal_identity", "principal_identities":
@@ -387,7 +389,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}}
 	}
 	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
-		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity ||
+		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
 		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
@@ -395,6 +397,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityGroup {
+			collection = "groups"
+		}
 		if doc.ResourceType == ResourceTypeIdentityPrincipal {
 			collection = "principals"
 		}
@@ -912,6 +917,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.clients"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
+	case ResourceTypeIdentityGroup:
+		return "identity.groups"
 	case ResourceTypeIdentityPrincipal:
 		return "identity.principals"
 	case ResourceTypeIdentityPrincipalIdentity:
@@ -1007,6 +1014,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
+	}
+	if rt == ResourceTypeIdentityGroup {
+		rootKey = "identity.groups"
 	}
 	if rt == ResourceTypeIdentityPrincipal {
 		rootKey = "identity.principals"

@@ -90,6 +90,12 @@ Registering a declaration does not complete those steps automatically.
   unique. Their verified PUT path preserves omitted public fields. See
   [Identity compatibility](kong-identity-compatibility.md) for temporary API
   restrictions.
+  Ordinary Identity groups use independent four-entry managed_by ownership
+  with directory/name matching and full-PUT hydration. They preserve foreign
+  groups during scoped sync and require empty membership/key observations
+  before deletion. Principal deletion also checks incoming direct memberships.
+  Team/importer writes remain deferred. These groups use the existing
+  directory root planner and child dump inventory.
   Principal identities also persist refs with independent ownership under
   principals. Their four association variants use fresh full PUT payloads;
   external UUID references remain outside management. Parent and associated
@@ -1458,7 +1464,7 @@ engine contract. Each refactoring migration should:
 [portal-child-dump]:
   ../../internal/cmd/root/verbs/dump/declarative_portal_child_collectors.go
 [cp-child-dump]:
-  ../../internal/cmd/root/verbs/dump/declarative_control_plane_child_collectors.go
+../../internal/cmd/root/verbs/dump/declarative_control_plane_child_collectors.go
 
 [portal-child-plan]:
   ../../internal/declarative/planner/portal_child_traversal.go

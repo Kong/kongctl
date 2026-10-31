@@ -2634,6 +2634,7 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		for _, kind := range []resources.ResourceType{
 			resources.ResourceTypeIdentityPrincipal,
 			resources.ResourceTypeIdentityPrincipalIdentity,
+			resources.ResourceTypeIdentityGroup,
 			resources.ResourceTypeIdentityAuthServerClient,
 		} {
 			for _, scoped := range rs.SyncScope.ChildNamespaces[kind] {

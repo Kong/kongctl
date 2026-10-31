@@ -36,6 +36,7 @@ func principalPlan(t *testing.T, api *fixture.PrincipalAPI, desired []resources.
 		state.NewClient(
 			state.ClientConfig{
 				IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+				IdentityGroupsAPI:              &fixture.GroupAPI{},
 				IdentityPrincipalsAPI:          api,
 				IdentityPrincipalIdentitiesAPI: identityAPI,
 			},
@@ -146,6 +147,7 @@ func TestPrincipalParentCreationAcrossNamespaces(t *testing.T) {
 	}}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{},
+		IdentityGroupsAPI:      &fixture.GroupAPI{},
 		IdentityPrincipalsAPI:  &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)},
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
@@ -181,6 +183,7 @@ func TestPrincipalEmptyScopeSelectsNamespaceWithoutPruningDirectories(t *testing
 	}}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
 		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory, other}},
+		IdentityGroupsAPI:              &fixture.GroupAPI{},
 		IdentityPrincipalsAPI:          api,
 		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})

@@ -343,7 +343,8 @@ func adjustIdentityDirectoryDeleteDependencies(changes []PlannedChange) {
 			continue
 		}
 		for _, child := range changes {
-			if child.ResourceType == ResourceTypeIdentityPrincipal && child.Action == ActionDelete &&
+			if (child.ResourceType == ResourceTypeIdentityPrincipal || child.ResourceType == ResourceTypeIdentityGroup) &&
+				child.Action == ActionDelete &&
 				child.Parent != nil &&
 				(child.Parent.ID == parent.ResourceID || child.Parent.Ref == parent.ResourceRef) &&
 				!contains(parent.DependsOn, child.ID) {
@@ -353,7 +354,7 @@ func adjustIdentityDirectoryDeleteDependencies(changes []PlannedChange) {
 	}
 }
 
-// Preserve integer metadata when reloading a principal's saved plan. Other
+// Preserve integer metadata when reloading a principal or group's saved plan. Other
 // resource payloads retain their existing JSON number representation.
 func (change *PlannedChange) UnmarshalJSON(data []byte) error {
 	type plain PlannedChange
@@ -361,7 +362,7 @@ func (change *PlannedChange) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	if value.ResourceType == ResourceTypeIdentityPrincipal {
+	if value.ResourceType == ResourceTypeIdentityPrincipal || value.ResourceType == ResourceTypeIdentityGroup {
 		decoder := json.NewDecoder(bytes.NewReader(data))
 		decoder.UseNumber()
 		value = plain{}

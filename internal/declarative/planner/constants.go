@@ -281,6 +281,7 @@ const (
 	ResourceTypeIdentityAuthServerClaim          = string(resources.ResourceTypeIdentityAuthServerClaim)
 	ResourceTypeIdentityAuthServerClient         = string(resources.ResourceTypeIdentityAuthServerClient)
 	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
+	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
 	ResourceTypeIdentityPrincipalIdentity        = string(resources.ResourceTypeIdentityPrincipalIdentity)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)

@@ -563,9 +563,10 @@ group IDs as links are added/removed, and principal deletion removes its
 membership entries. Cross-directory behavior with two existing parents is not
 verified: the test organization allows only one directory. Current collection
 proofs avoid relying on a detail route alone for parent association.
-Principal delete/sync currently guards identity associations, without observing
-incoming group memberships. Future membership enrollment must define and test
-the required removal/reference policy against this native deletion behavior.
+Principal delete/sync now guards identity associations and incoming direct
+group memberships. Fresh directory-wide group/membership observations prevent
+principal ownership from authorizing implicit removal of another group's link.
+Membership lifecycle enrollment must add explicit detachment dependencies.
 
 Group/membership writes and adoption are not exposed by this inspection
 increment. Future declarative lifecycle needs explicit parent/collection
@@ -590,3 +591,51 @@ targets, rechecks identity/protection/membership before deletion, then requires
 empty collections before removing parents. This test policy grants no product
 authority over group keys or importer-managed teams. Existing scenarios gain
 no new group permissions.
+
+
+## Ordinary group declarative lifecycle
+
+Ordinary groups reconcile by directory/name with independent four-entry
+managed_by ownership. Names are explicit ASCII alphanumeric values; refs are
+local and are not a substitute for the required name. Canonical metadata
+normalization, adoption and protection follow the existing owned-child
+pattern. Parent directory ownership/protection does not authorize or block
+independently owned group changes.
+
+Full PUT hydrates omitted description, labels and runtime metadata from a
+fresh read, overlays saved fields, and verifies ownership/public settings.
+Loader and saved execution both enforce Q31's integer restrictions.
+Only directly provisioned konnect_user groups are managed; missing provenance,
+teams and team-manager state are rejected. Omitted/null type is ordinary
+group according to the schema; reads preserve presence rather than adding it.
+Unsupported/importer group kinds are preserved during ordinary sync.
+
+Group deletion requires fresh complete membership observations plus an empty,
+terminal unfiltered first key page. Any key, missing/malformed pagination,
+unavailable endpoint or failed observation blocks deletion. Because any key
+blocks, no key-page query or traversal is needed; this does not add group-key
+pagination support or a new SDK patch. Legacy 501 (Q33) is a bounded deletion
+limitation, not an empty collection. Native directory force=false also rejects
+a directory containing a group (verified 409).
+
+Native group PUT preserves an observed membership entry and key record in
+US .tech. This establishes administrative continuity only; runtime key
+authentication still needs Q30's supported mTLS context. Client emptiness
+checks cannot close a race with a concurrent attachment; Q24 requests an
+atomic service precondition.
+
+The live declarative-groups scenario covers a new protected directory plus
+group/principal, saved plans, all public fields, clear/omit, dump/replan,
+external name lookup, adoption, protection, membership deletion guards and
+namespace-scoped sync/delete. Legacy key 501 is asserted as a specific
+fail-closed boundary. Credential-free fixture cleanup explicitly opts into
+generated-name prefixes and a namespace allowlist; this grants no product
+authority over unknown credentials or imported membership.
+
+
+Before full group-key pagination is added, verify the preview SDK listGroupKeys
+wire names: its page field still uses the flat form/explode annotation.
+The six existing cursor patches do not include this seventh operation. The
+current unfiltered empty-page guard sends no page parameter and needs no SDK
+revision. Full key writers also need the missing expires_at request field
+and omitted/value/null serialization work already tracked under #1417/#2659.
