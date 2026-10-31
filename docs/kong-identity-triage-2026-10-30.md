@@ -7,6 +7,13 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Trusted IdP configuration and associated-principal inspection now support
+complete pagination, exact issuer lookup and all output formats. An example
+connects an externally configured IdP to declaratively managed principals
+under the external default directory. Section 45 records this slice. Trust
+configuration declarations remain pending the Q37 ownership/deletion policy;
+there is no independent metadata store on an IdP.
+
 Basic-auth username records now support declarative lifecycle, independent
 four-entry managed_by ownership, adoption, external UUID/username lookup,
 scoped sync/delete and dump. Saved writes recheck authority; passwords block
@@ -31,7 +38,7 @@ initial-secret capture pass live verification, including runtime credential
 continuity. Sections 19–26 record contracts, verification and questions.
 #1401 and #1404 remain In Progress.
 
-The public preview SDK is now pinned to `79bc3dbbb928`, including targeted
+The public preview SDK is now pinned to `30c3834c9846`, including targeted
 serialization fixes for clearing origins, claim scope links and client arrays,
 and for omitting an unset client authentication method.
 Existing KongCTL SDK patches are retained. This continues the selective
@@ -2812,3 +2819,94 @@ maps. Evidence under /home/rspurgeon/.cache/kong-identity-public-sdk/:
 - trusted-idp-cursor-wire-after.log
 
 The broader epic goal stays active; no PR is opened.
+
+## 45. Trusted IdP inspection and declarative principal associations
+
+Preview SDK `30c3834c9846636c6866e818f8085b46c237dc23` is pushed to
+kongctl/kong-identity-public-preview from patch source
+280bdeccb5e107286904184d84484e05efcc3e38. The consumer replacement is
+v0.79.1-0.20261031204931-30c3834c9846. The only generated-code changes are
+Page query tags in ListTrustedIdps and ListTrustedIdpPrincipals. All previous
+patches, including credential expiration, are retained. Schemas, response
+models, global generator settings, module dependencies and the 1,102-operation
+inventory are unchanged. Generation, SDK tests/race checks and the two
+expiration preparation tests pass. The expanded actual-wire regression fails
+exactly these two new methods before correction and passes all ten afterward.
+
+KongCTL get/list now support identity trusted-idp[s] by UUID or exact
+--issuer-url, and identity trusted-idp-principals by parent UUID or issuer.
+Both require an explicit directory name/ID. Display names never select an
+IdP. New public projections preserve false values and null JWKS/display names,
+expose all JIT mapping fields, and reject missing required configuration
+instead of synthesizing SDK defaults. Complete cursors, unique/valid IDs,
+pagination metadata and fresh issuer lookup are checked. Failed or incomplete
+observations produce no partial inventory. Errors suppress raw response
+bodies. Text displays the full issuer URL; JSON/YAML expose public fields.
+
+The read commands do not stamp ownership, provision principals or exercise
+runtime authentication. The associated-principal collection includes directly
+managed OIDC associations, not only JIT-provisioned records. The new
+trusted-idps.md tutorial and trusted-idp-principals.yaml example use an
+externally referenced default directory and an already configured issuer.
+Principal and identity lifecycle retain their existing independent managed_by
+metadata. Trust configuration declarations and adoption remain pending the
+ownership/deletion policy, including the Q37 visibility problem. Production
+directory deletion behavior is unchanged by this inspection slice.
+
+The new identity/trusted-idps live scenario creates three native IdPs using
+a disposable auth server for discovery/public signing keys, then declaratively
+creates two principals and their OIDC associations under an external directory.
+It verifies all public fields, shared display names, exact issuer lookup,
+default/explicit product paths, all output formats, empty/wrong scope cases,
+three IdP pages and two associated-principal pages. Reads leave full native
+configuration unchanged. A final disabled-Vault read fails explicitly.
+Principals/identities are deleted through the declarative CLI; each verified
+IdP is removed explicitly before parent teardown. No credential values are
+returned or captured by this scenario; the issuer exposes public signing keys.
+
+Fixture cleanup opts into requireEmptyTrustedIdPs: true. It observes an empty
+IdP collection before any cleanup writes and again before directory deletion;
+it never authorizes deleting remaining IdPs. Other scenarios gain no new Vault
+permissions. Missing/nonempty/error cases are covered by harness tests.
+A first fixture-format failure left three IdPs and the guard refused parent
+cleanup; only the exact fixture issuers were removed before restoring default.
+The corrected complete scenario passes in 12.761 seconds. A second attempt
+identified that automatic text columns hid the unique issuer; fixed text
+output and a regression now keep it visible. Those fixture/UI findings are
+separate from API-only Q37/Q38.
+
+Evidence under /home/rspurgeon/.cache/kong-identity-public-sdk/ includes:
+
+- trusted-idp-cursor-wire-before.log and trusted-idp-cursor-wire-after.log
+- trusted-idp-cursor-generate.log and trusted-idp-cursor-sdk-tests.log
+- trusted-idp-cursor-sdk-race.log
+- trusted-idp-inspection-v3/20261031-160719
+- trusted-idp-before-all-inventory.json
+
+All seventeen Identity live scenarios pass together on this SDK pin in
+275.796 seconds. Artifacts are trusted-idp-all-identity/20261031-160943.
+An additional complete repeat passes, and a verified stop immediately after
+create-issuer runs only the two creation commands and passes cleanup:
+trusted-idp-inspection-stopped-v2/20261031-161817. All seven referenced private
+capture directories from the full suite are absent. Replay membership and
+cassettes are unchanged; the default cassette check passes.
+
+Modernization, formatting, CGO-disabled build and final make test-all pass,
+including zero-issue lint, unit/integration/harness race tests, SDK patch and
+installer checks, and 140 metrics tests. The final gate log is
+trusted-idp-final-gates-v2.log. The documented example separately plans exactly
+two creates (principal and identity) with its issuer environment variable;
+evidence is trusted-idp-example-plan.json. The pre-commit executable is not
+installed.
+
+Fresh direct inventory, including temporarily enabling Vault to inspect its
+hidden collections and restoring the saved settings, confirms zero principals,
+groups, IdPs, providers, vault keys and auth servers. The final default is
+unmanaged with its original public settings:
+01a193d3-e99f-7cbe-9475-4502618fa341. Evidence is
+trusted-idp-final-inventory.json in the cache above.
+
+SDK #1413/#1399, resource #2664 and directory epic #1132 stay In Progress
+until main merge. Declarative IdP configuration/adoption and the production
+parent-deletion policy are not delivered by this inspection slice. No PR or
+release is created; the broader goal stays active.

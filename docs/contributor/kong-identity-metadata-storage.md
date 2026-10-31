@@ -94,7 +94,7 @@ or protection metadata on them.
 | Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
-| Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Native `.tech` duplicate issuer create/update returns 409; multiple issuers can share a display name. No ownership stamp exists. Inherited managed-directory ownership is under evaluation; Q37 governs parent deletion and disabled-Vault visibility. Q6/Q38, #2664. |
+| Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 
@@ -107,6 +107,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, Trusted IdP inspection: configuration and associated-principal
+  commands preserve public metadata and do not stamp IdP ownership. IdPs have
+  no labels or managed_by field. Associated principals retain their existing
+  independent ownership; matching an issuer does not imply JIT provisioning
+  or authorize principal mutation. SDK `30c3834c9846` corrects both list query
+  tags. Declarative trust configuration remains pending its ownership/deletion
+  policy; native force=false and disabled-Vault visibility are Q37.
 
 - October 31 UTC, credential expiration SDK correction: preview
   `79bc3dbbb928` restores omitted/date/null request support without changing
