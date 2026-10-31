@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -25,14 +26,25 @@ def main():
         def create(path, body):
             request = urllib.request.Request(base.rstrip("/") + path, method="POST", headers=headers,
                                              data=json.dumps(body).encode())
-            with urllib.request.urlopen(request, timeout=30) as response:
-                value = json.load(response)
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    value = json.load(response)
+            except urllib.error.HTTPError as error:
+                if error.code != 400 or body.get("type") != "team":
+                    raise
+                failure = json.load(error)
+                expected = {"field": "type", "rule": "enum", "reason": "type must be one of: group",
+                            "source": "body"}
+                # Q32: this exact deployment response identifies unavailable team creation.
+                assert failure.get("invalid_parameters") == [expected]
+                return None
             assert response.status == 201 and value.get("id")
             return value
 
         prefix = "Kongctl" + directory.replace("-", "")
         path = "/v2/directories/" + directory + "/groups"
         groups = {}
+        team_available = True
         for suffix, kind in [("Group", "group"), ("Team", "team"), ("Default", None), ("Empty", "group")]:
             body = {
                 "name": prefix + suffix, "description": "Manual inspection fixture",
@@ -46,6 +58,10 @@ def main():
             if suffix != "Empty":
                 body["type"] = kind
             groups[suffix] = create(path, body)
+            if groups[suffix] is None:
+                assert suffix == "Team"
+                team_available = False
+                groups[suffix] = create(path, dict(body, type="group", name=body["name"] + "Fallback"))
         first = None
         for principal in [user, agent, legacy]:
             entry = create(path + "/" + groups["Group"]["id"] + "/membership",
@@ -56,8 +72,10 @@ def main():
                {"member": {"type": "principal", "id": user}})
         return {
             "created": len(groups), "group_id": groups["Group"]["id"], "group_name": groups["Group"]["name"],
-            "team_id": groups["Team"]["id"], "team_name": groups["Team"]["name"],
+            "alternate_id": groups["Team"]["id"], "alternate_name": groups["Team"]["name"],
             "empty_id": groups["Empty"]["id"], "other_id": groups["Default"]["id"], "entry_id": first,
+            "team_available": team_available, "alternate_type": "team" if team_available else "group",
+            "ordinary_count": 3 if team_available else 4, "team_count": 1 if team_available else 0,
         }
     if action == "verify-pagination":
         work = Path(sys.argv[2]).resolve()
