@@ -1,0 +1,8 @@
+_defaults:
+  kongctl: {namespace: identity-auth-decl-e2e}
+identity:
+  auth_servers:
+    - ref: issuer
+      name: !env KONGCTL_E2E_AUTH_DECL_SERVER_NAME
+      audience: https://api.example.test
+      scopes: []

@@ -74,7 +74,7 @@ func (p *identityAuthServerPlanner) PlanChanges(ctx context.Context, config *Con
 			resource: a, name: a.Name, protected: a.Protected(),
 		})
 	}
-	return reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityAuthServer, desiredRoots, currentRoots,
+	if err := reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityAuthServer, desiredRoots, currentRoots,
 		managedRootOperations[resources.IdentityAuthServerResource, state.IdentityAuthServer]{
 			diff: diffIdentityAuthServer,
 			create: func(a resources.IdentityAuthServerResource, plan *Plan) string {
@@ -104,7 +104,10 @@ func (p *identityAuthServerPlanner) PlanChanges(ctx context.Context, config *Con
 				plan.AddChange(p.change(ActionDelete, c.Name, c.ID, c.Labels[labels.NamespaceKey],
 					map[string]any{FieldName: c.Name}, nil, false))
 			},
-		}, plan)
+		}, plan); err != nil {
+		return err
+	}
+	return p.planChildren(ctx, config, plan, byName)
 }
 
 func (p *identityAuthServerPlanner) change(action ActionType, ref, id, namespace string,

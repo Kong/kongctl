@@ -112,10 +112,25 @@ claims referenced multiple scopes.
   failed or repeated pages. Scope deletion also needs fresh claim/client
   observations because the API silently detaches associations.
 
-The generated claim PATCH request also currently omits explicit empty
-`include_in_scopes`. Declarative claim configuration must preserve an empty
-list on the wire before exposing association clearing. This serializer issue
-is separate from the service API questions.
+The preview SDK at `dfd890eb1a03` includes a targeted claim PATCH fix for
+explicit empty `include_in_scopes`. Its wire regression fails before the
+patch and passes afterward; the live declarative scenario verifies clearing
+and no-op replanning. Keep that regression during SDK upgrades and remove the
+patch only when upstream serialization preserves nil versus empty arrays.
+This serializer issue is separate from the service API questions.
+
+## Creation retry safety
+
+Creation of principals and claims uses a single attempt in both the HTTP
+transport and generated SDK. Neither resource has a server-enforced unique
+match key. After an uncertain result, generate a fresh plan to observe any
+created record; duplicate matches fail before mutation. Q14 tracks the
+service idempotency/recovery contract. The regression enables both retry
+layers and verifies that a 503 response produces exactly one POST.
+Revisit this restriction only after engineering documents idempotency and
+direct contract tests verify safe recovery after uncertain outcomes. Any
+future retry must use the verified deduplication mechanism; name/ref matching
+alone is not proof that a POST is safe to replay.
 
 ## Recording resolution
 

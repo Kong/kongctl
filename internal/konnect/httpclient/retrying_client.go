@@ -56,6 +56,14 @@ var jsonInstanceFieldPattern = regexp.MustCompile(`"instance"\s*:\s*"(?:\\.|[^"\
 // RetryClientOption is a functional option for RetryingHTTPClient.
 type RetryClientOption func(*RetryingHTTPClient)
 
+type withoutRetriesKey struct{}
+
+// WithoutRetries marks a request whose uncertain outcome must be observed
+// before another attempt, such as creation without an idempotency contract.
+func WithoutRetries(ctx context.Context) context.Context {
+	return context.WithValue(ctx, withoutRetriesKey{}, true)
+}
+
 // WithRetryableCodes overrides the set of HTTP status codes that trigger a retry.
 func WithRetryableCodes(codes ...int) RetryClientOption {
 	return func(c *RetryingHTTPClient) {
@@ -116,6 +124,10 @@ func (c *RetryingHTTPClient) Do(req *http.Request) (*http.Response, error) {
 	}
 	if req == nil {
 		return nil, fmt.Errorf("request is nil")
+	}
+	if disabled, _ := req.Context().Value(withoutRetriesKey{}).(bool); disabled {
+		c.logRetryDisabled(req, "request requires a single attempt")
+		return c.inner.Do(req)
 	}
 
 	if c.cfg.Strategy != RetryStrategyBackoff || c.cfg.MaxAttempts <= 1 {

@@ -379,9 +379,37 @@ the source namespace. Deletion uses `force=false`; it cannot silently cascade
 to clients or other children. Dump excludes generated issuer/discovery URLs.
 
 This resource exposes the public DCR token-duration setting. It does not
-configure internal DCR options or OAuth clients, scopes, claims, and secrets.
+configure internal DCR options or OAuth clients and secrets.
 See [Identity examples](examples/declarative/identity/README.md) and the
 [metadata storage ledger](contributor/kong-identity-metadata-storage.md).
+
+### Authorization-server scopes and claims
+
+Nest `scopes` and `claims` under a managed `identity.auth_servers` entry.
+Grouped `identity.scopes` and `identity.claims` entries use an `auth_server`
+reference to a declared managed server. Each requires `ref` and an explicit
+API `name`. Claims also require a nonempty string `value`, preserved verbatim
+for static, JSON-encoded, or server-templated values.
+
+Scope fields are `description`, `default`, `include_in_metadata`, and
+`enabled`. Claim fields are `include_in_token`, `include_in_all_scopes`,
+`include_in_scopes`, and `enabled`. Scope links accept UUIDs or
+`!ref scope-ref#id`, including same-plan creates, within the same server.
+PATCH preserves omitted optional fields, explicit false flags, and empty
+association lists. Empty descriptions and association lists clear settings.
+
+These children have no independent ownership/protection metadata. Parent
+ownership and explicit collection scope authorize operations. They cannot
+declare `kongctl` or use an external parent to authorize writes. Adoption is
+through their server. Sync omission preserves a collection; an explicit empty
+collection under the server prunes it. Apply supports partial collections.
+
+Duplicate claim names fail before mutation or dump. Scope deletion checks
+all observed client/claim references, orders planned claim detachment/deletion
+first, and repeats the check during execution. Root deletion never cascades;
+declared child deletes run first and undeclared children may block it. Dump
+with `--include-child-resources` preserves flags and raw values and emits
+scope links as references. See the Identity example for a complete manifest.
 
 ## DCR Providers
 

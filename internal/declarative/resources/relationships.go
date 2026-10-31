@@ -35,6 +35,22 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeIdentityAuthServerScope: {
+		{
+			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,
+			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+		},
+	},
+	ResourceTypeIdentityAuthServerClaim: {
+		{
+			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,
+			Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+		},
+		{
+			FieldPath: "include_in_scopes", TargetType: ResourceTypeIdentityAuthServerScope,
+			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList, ScopeFieldPath: "auth_server",
+		},
+	},
 	ResourceTypeIdentityPrincipal: {
 		{
 			FieldPath:  "directory",
