@@ -2990,3 +2990,61 @@ password-artifact-verification.json in the evidence cache.
 
 Issue #1418 and epic #1132 remain In Progress until main merge. No PR or SDK
 release is created; the broader resource implementation goal stays active.
+
+## 47. Token Vault key/provider contracts and SDK preparation
+
+Issues #2660/#2661 are In Progress. Direct US `.tech` probes verify the
+credential-provider template catalog, provider configuration and public
+encryption keys before enrolling their declarations. The first probe passes
+113 requests and removes all fixtures. Bracketed page-size-one requests
+traverse eight templates, five providers and five keys. All five RSA/EC keys
+match independently computed RFC 7638 SHA-256 thumbprints (RSA-2048 and
+P-256/P-384/P-521). Private keys exist only in generator memory; probe fixtures
+contain public keys, without OAuth/client/credential secret material.
+
+Providers have directory-unique names: duplicate create and rename conflict
+with 409. Static and OAuth configuration create/read/PATCH work; templates
+provide effective endpoints and defaults. Static-secret templates reject a
+client_id. Template changes can succeed through PUT. GitHub PUT needs the
+static client_id even though the request schema does not mark it required.
+PATCH accepts nonempty valid scopes and rejects an empty collection. Creating
+Datadog without client_id selects its documented DCR/PKCE defaults. No OAuth
+consent, DCR registration, secret preservation or runtime flow is exercised.
+
+The 58-request follow-up verifies duplicate public material returns 409 below
+the quota, including CRLF PEM. Names are non-unique. PKCS#1 RSA PUBLIC KEY,
+RSA-1024 and invalid material return 400; the supported representation in
+these tests is PKIX PUBLIC KEY. PATCH changes the key name; a supplied new
+public_key is ignored rather than replacing immutable material. A sixth key
+returns quota-exceeded 403. Quota validation precedes duplicate checks when
+already full, so a full-quota response is not uniqueness evidence.
+
+Custom OAuth DCR provider PUT fails with 400 even when the original creation
+fields are supplied: it reports a move to a template without a registration
+endpoint. ReplaceVaultProviderBody omits both registration_endpoint and
+dcr_enabled. Q39 records the direct request, preserving GET and clearing-scope
+question. A separate 12-request probe confirms POST enabled:false still
+creates an enabled provider, explicit PATCH false works, PUT omission retains
+false, and explicit PUT true sets true. The same omitted PUT resets refresh
+buffer to zero. Q40 asks for initial-disable and omission semantics.
+
+Four isolated parent-delete tests show directory force=false removes a
+directory with one Vault key or one empty-credential provider, with Vault
+either enabled or disabled. The old child then returns 404. Disabling Vault
+hides key/provider list/detail behind 403, just as it hides Trusted IdPs.
+Q37 now includes these families. This defeats treating force=false as a
+universal child-preservation guard. Public matching alone does not confer
+namespace/protection or deletion ownership; no independent metadata store
+exists on either family. Declarative enrollment needs that explicit policy.
+Each test restores the unmanaged default directory and saved public settings;
+the final restored ID is 01a193f8-bb9f-7a2d-9bef-792f5c170696.
+
+Native evidence is vault-contracts.json, vault-contract-summary.json,
+vault-followup-contracts.json, vault-followup-summary.json and
+vault-provider-enabled-contracts.json under the local evidence cache. Q22 now
+also records the three list operations' flat SDK Page tags. The expanded
+actual-wire regression passes the previous ten list operations and fails
+exactly Vault keys/providers/templates before correction. Targeted tags and
+regression coverage are added to the SDK patch source, with no model/schema
+or unrelated request changes. SDK generation/integration remains the next
+step; no new product command or declaration is claimed by this preparation.

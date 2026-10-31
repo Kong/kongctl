@@ -37,6 +37,9 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 		{"PrincipalGroup", "ListGroupMembership", false, false},
 		{"TrustedIDPs", "ListTrustedIdps", false, true},
 		{"TrustedIDPs", "ListTrustedIdpPrincipals", false, false},
+		{"TokenVaultKeys", "ListVaultKeys", false, false},
+		{"TokenVaultProviders", "ListVaultProviders", false, false},
+		{"TokenVaultProviders", "ListCredentialProviderTemplates", true, false},
 	} {
 		t.Run(tc.method, func(t *testing.T) {
 			capture := &identityCursorCapture{}
@@ -71,7 +74,9 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 			args := []reflect.Value{reflect.ValueOf(t.Context()), argument.Elem()}
 			if tc.positional {
 				args[1] = page
-				args = append(args, reflect.Zero(method.Type().In(2)))
+				if method.Type().NumIn() > 3 {
+					args = append(args, reflect.Zero(method.Type().In(2)))
+				}
 			} else if tc.directoryPage {
 				args[1] = reflect.ValueOf("731559d3-39bd-48c7-b33c-eb192847eb20")
 				args = append(args, page)
