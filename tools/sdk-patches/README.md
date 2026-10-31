@@ -29,12 +29,12 @@ Writers must still preserve the fresh current method explicitly until that
 API behavior is resolved. Actual SDK wire tests cover empty, omitted and
 populated fields. These patches skip SDKs without auth-server clients.
 
-Directory, principal, principal-identity, principal API-key, group and group
-membership lists use bracketed
+Directory, principal, principal-identity, principal API-key, basic-auth,
+password, group and group membership lists use bracketed
 `page[size]` and `page[after]` query names. The shared API parameter omits
 `style: deepObject`, so generated form/explode encoding sends flat keys that
 the deployed API ignores (Q22). Targeted request-tag replacements correct
-these six operations without changing unrelated SDK resources. A wire
+these eight operations without changing unrelated SDK resources. A wire
 regression verifies the bracketed names and cursor encoding; it fails before
 the patches. Skip SDKs without these operations. Remove the replacements when
 upstream generation preserves the documented/deployed cursor shape.

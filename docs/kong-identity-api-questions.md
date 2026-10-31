@@ -491,6 +491,13 @@ not expose quota discovery. All probe resources were removed afterward.
 
 ### Q24 Principal deletion with attached resources
 
+**Additional US .tech observation (October 31, 2026):** Principal DELETE
+returns 204 while basic-auth records and generated/imported passwords remain
+attached. Subsequent basic-auth/password GETs return 404. This establishes
+loss of administration access, not runtime revocation; Q30 still governs the
+supported authentication test context.
+
+
 **US .tech retest (October 31, 2026):** Native `.tech` principal DELETE succeeds
 with API keys, a custom identity and a group membership attached; child
 key/identity routes then return 404 and the group membership disappears. Group
@@ -727,6 +734,45 @@ but do not expose `managed_by`, unlike the directory administration schemas.
 Label updates work in the verified lifecycle. This is a question about the
 intended metadata contract; working label storage does not depend on adding a
 new field.
+
+### Q35 Basic-auth and password metadata updates
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** Basic-auth
+username records and generated/imported passwords retain supplied
+`managed_by` at creation. Basic-auth and password PATCH return 200 but ignore
+partial/full management-map changes and null removal. Full basic-auth PUT
+retains the supplied map; omission clears it. Existing password IDs remain
+readable after a username-record PUT or username rename.
+
+Password PATCH also clears an omitted `expires_at`. Explicit expiration and
+null work. Password PUT without `secret` returns 400; with an explicit secret,
+expiration and management map, all public requested values are retained.
+Password GET/list omit secret values. These administration checks do not
+establish runtime authentication continuity without Q30's integration setup.
+
+**Question:** Which request can update a password's `managed_by` while
+preserving its existing secret and expiration? Should PATCH apply the supplied
+management map and preserve an omitted expiration, or reject unsupported
+metadata changes instead of returning success?
+
+```http
+PATCH /v2/directories/{directoryId}/principals/{principalId}/basic-auths/{basicAuthId}/passwords/{passwordId}
+Content-Type: application/json
+
+{"managed_by":{"version":"partial","kongctl-ref":null},"expires_at":"2031-01-01T00:00:00Z"}
+```
+
+The response and fresh GET retain the original management map. Sending a
+complete five-entry map gives the same result. Omitting expiration clears it.
+A username-record metadata update has a working PUT alternative; a password
+PUT requires secret material.
+
+Two total password slots were observed: a third create returns 403, including
+after setting one existing password's expiration to the past. Generated and
+imported creation both work. Duplicate usernames under the same principal or
+another principal in the directory return 409. Wrong-principal basic-auth
+GET/DELETE and wrong-principal/wrong-basic-auth password GET return 404.
+These results apply to the tested `.tech` deployment.
 
 ## Recorded answers
 
