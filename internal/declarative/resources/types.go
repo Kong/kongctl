@@ -15,6 +15,8 @@ const (
 	ResourceTypeIdentityAuthServerScope                 ResourceType = "identity_auth_server_scope"
 	ResourceTypeIdentityAuthServerClaim                 ResourceType = "identity_auth_server_claim"
 	ResourceTypeIdentityAuthServerClient                ResourceType = "identity_auth_server_client"
+	ResourceTypeIdentityGroupMembership                 ResourceType = "identity_group_membership"
+	ResourceTypeIdentityGroup                           ResourceType = "identity_group"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
 	ResourceTypeIdentityPrincipalIdentity               ResourceType = "identity_principal_identity"

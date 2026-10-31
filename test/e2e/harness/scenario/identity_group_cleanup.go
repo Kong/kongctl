@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -15,7 +16,29 @@ import (
 	"github.com/kong/kongctl/test/e2e/harness"
 )
 
-func markedGroupFixture(value helpers.IdentityGroup, directoryID string) bool {
+type groupCleanupPolicy struct {
+	namespaces []string
+	namePrefix string
+}
+
+func markedGroupFixture(value helpers.IdentityGroup, directoryID string, policies ...groupCleanupPolicy) bool {
+	if len(policies) != 0 && len(policies[0].namespaces) != 0 {
+		policy := policies[0]
+		if !util.IsValidUUID(value.ID) || !strings.HasPrefix(value.Name, policy.namePrefix) ||
+			value.Type != nil && *value.Type != kkComps.KongGroupTypeGroup || value.ProvisionedBy == nil ||
+			*value.ProvisionedBy != kkComps.ProvisionedByKonnectUser || value.TeamManager != nil {
+			return false
+		}
+		marked := value.Labels["e2e-fixture"] == directoryID
+		if len(value.ManagedBy) == 0 {
+			return marked
+		}
+		protected := value.ManagedBy[resources.ChildProtectedKey]
+		namespace, version := value.ManagedBy[resources.ChildNamespaceKey], value.ManagedBy[resources.ManagedByVersionKey]
+		return (marked || len(value.Labels) == 0) && slices.Contains(policy.namespaces, namespace) && version != "" &&
+			(protected == "true" || protected == "false") &&
+			maps.Equal(value.ManagedBy, resources.BuildChildManagedBy(namespace, protected == "true", version))
+	}
 	expected := map[string]string{
 		resources.ManagedByToolKey: resources.ManagedByTool, resources.ManagedByVersionKey: "e2e-fixture",
 		resources.ChildNamespaceKey: "identity-group-read-e2e", resources.ChildProtectedKey: "false",
@@ -47,10 +70,15 @@ func groupMembershipFixtures(ctx context.Context, cli *harness.CLI, directoryID,
 	return values, nil
 }
 
-// This opt-in policy covers manually created, credential-free inspection
-// fixtures only. It does not establish production authority over group keys
-// (Q33) or importer-managed memberships (Q32).
-func cleanupGroupFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+// This opt-in policy covers credential-free inspection fixtures and explicitly
+// enrolled lifecycle namespaces in a freshly generated directory. It does not
+// establish production authority over group keys (Q33) or imported memberships.
+func cleanupGroupFixtures(
+	ctx context.Context,
+	cli *harness.CLI,
+	directoryID string,
+	policies ...groupCleanupPolicy,
+) error {
 	var groups []helpers.IdentityGroup
 	cli.OverrideNextOutput("json")
 	if _, err := cli.RunJSON(ctx, &groups, "get", "identity", "groups", "--directory-id", directoryID); err != nil {
@@ -79,7 +107,7 @@ func cleanupGroupFixtures(ctx context.Context, cli *harness.CLI, directoryID str
 	}
 	entries := make(map[string][]kkComps.KongGroupMembershipEntry)
 	for _, value := range groups {
-		if !markedGroupFixture(value, directoryID) {
+		if !markedGroupFixture(value, directoryID, policies...) {
 			return fmt.Errorf("directory contains an unmarked group; refusing fixture cleanup")
 		}
 		members, err := groupMembershipFixtures(ctx, cli, directoryID, value.ID, principals)
@@ -95,7 +123,8 @@ func cleanupGroupFixtures(ctx context.Context, cli *harness.CLI, directoryID str
 			"--directory-id", directoryID); err != nil {
 			return err
 		}
-		if current.ID != value.ID || current.Name != value.Name || !markedGroupFixture(current, directoryID) {
+		if current.ID != value.ID || current.Name != value.Name || !maps.Equal(current.ManagedBy, value.ManagedBy) ||
+			!markedGroupFixture(current, directoryID, policies...) {
 			return fmt.Errorf("group fixture identity or ownership changed before cleanup")
 		}
 		members, err := groupMembershipFixtures(ctx, cli, directoryID, value.ID, principals)

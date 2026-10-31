@@ -2113,6 +2113,10 @@ resources:
         source: sdk
     overrides: []
     exclusions: []
+  - resource_type: identity_group
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: identity_principal
     defaults: []
     overrides: []

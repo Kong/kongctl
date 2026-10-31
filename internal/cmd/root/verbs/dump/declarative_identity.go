@@ -11,6 +11,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/labels"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 const resourceIdentityDirectories = "identity.directories"
@@ -151,6 +152,47 @@ func identityDirectoryCollector() declarativeCollector {
 					)
 					values[i].Principals = append(values[i].Principals, principal)
 				}
+				groups, err := d.stateClient.ListIdentityGroups(ctx, values[i].Ref)
+				if err != nil {
+					return err
+				}
+				for _, current := range groups {
+					ref := current.ID
+					if seen[ref] {
+						return fmt.Errorf("group ref %q is ambiguous in the dump", ref)
+					}
+					seen[ref] = true
+					data, err := json.Marshal(current.Metadata)
+					if err != nil {
+						return err
+					}
+					var metadata map[string]any
+					decoder := json.NewDecoder(bytes.NewReader(data))
+					decoder.UseNumber()
+					if err := decoder.Decode(&metadata); err != nil {
+						return err
+					}
+					group := resources.IdentityGroupResource{
+						BaseResource: resources.BaseResource{
+							Ref:     ref,
+							Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
+						},
+						Name: current.Name, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
+					}
+					if current.Type != nil {
+						group.Type = new(string(*current.Type))
+					}
+					if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool ||
+						helpers.ValidateIdentityGroupManagement(current.IdentityGroup) != nil {
+						group.External = &resources.ExternalBlock{ID: current.ID}
+						group.Kongctl = nil
+					}
+					values[i].Groups = append(values[i].Groups, group)
+				}
+				slices.SortFunc(
+					values[i].Groups,
+					func(a, b resources.IdentityGroupResource) int { return cmp.Compare(a.Ref, b.Ref) },
+				)
 				slices.SortFunc(
 					values[i].Principals,
 					func(a, b resources.IdentityPrincipalResource) int { return cmp.Compare(a.Ref, b.Ref) },
@@ -158,5 +200,6 @@ func identityDirectoryCollector() declarativeCollector {
 			}
 			return nil
 		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
+		resources.ResourceTypeIdentityGroup,
 	)
 }

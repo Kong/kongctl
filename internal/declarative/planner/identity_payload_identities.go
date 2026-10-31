@@ -68,6 +68,44 @@ func (p *Planner) resolveIdentityPayloadIdentities(ctx context.Context, rs *reso
 			}
 		}
 	}
+	for idx := range rs.Identity.Groups {
+		group := &rs.Identity.Groups[idx]
+		expected := group.GetKonnectID()
+		if group.IsExternal() && group.External.ID != "" {
+			expected = group.External.ID
+		}
+		group.SetKonnectID("")
+		parent, found := rs.GetResourceByRef(resources.NormalizeResourceRef(group.Directory))
+		if !found || parent.GetKonnectID() == "" {
+			if group.IsExternal() {
+				return fmt.Errorf("external group %q requires an existing directory", group.Ref)
+			}
+			continue
+		}
+		all, err := p.listIdentityGroups(ctx, parent.GetKonnectID())
+		if err != nil {
+			return err
+		}
+		matches := 0
+		for _, current := range all {
+			if group.IsExternal() {
+				matchesName := group.External.Selector != nil &&
+					current.Name == group.External.Selector.MatchFields[FieldName]
+				if current.ID == expected || matchesName {
+					group.SetKonnectID(current.ID)
+					matches++
+				}
+			} else if group.TryMatchKonnectResource(current) {
+				matches++
+			}
+		}
+		if group.IsExternal() && matches != 1 {
+			return fmt.Errorf("external group %q does not belong to the selected directory", group.Ref)
+		}
+		if matches > 1 {
+			return fmt.Errorf("multiple groups match name %q in the selected directory", group.Name)
+		}
+	}
 	for idx := range rs.Identity.Principals {
 		principal := &rs.Identity.Principals[idx]
 		principal.SetKonnectID("")

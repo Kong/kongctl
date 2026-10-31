@@ -9,6 +9,7 @@ import (
 	"github.com/kong/kongctl/internal/declarative/planner"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/stretchr/testify/require"
 )
@@ -31,10 +32,54 @@ func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAP
 		},
 	}
 	return &IdentityPrincipalAdapter{
-			client: state.NewClient(state.ClientConfig{IdentityPrincipalsAPI: api}),
+			client: state.NewClient(
+				state.ClientConfig{IdentityPrincipalsAPI: api, IdentityGroupsAPI: &fixture.GroupAPI{}},
+			),
 		}, api, NewExecutionContext(
 			&change,
 		)
+}
+
+func TestPrincipalSavedDeleteRechecksIncomingGroupMemberships(t *testing.T) {
+	const directoryID = "4078f559-063b-4f10-9098-9e6553b21d9b"
+	const principalID = "5078f559-063b-4f10-9098-9e6553b21d9b"
+	for _, kind := range []string{"empty", "unowned", "foreign", "protected", "failed"} {
+		t.Run(kind, func(t *testing.T) {
+			a, principals, execCtx := principalExecutorFixture()
+			current := principals.Directories["directory-id"][0]
+			current.ID = principalID
+			principals.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			group := fixture.Group("OtherOwnersGroup", "other-team", kind == "protected")
+			if kind == "unowned" {
+				group.ManagedBy = nil
+			}
+			groups := &fixture.GroupAPI{Directories: map[string][]helpers.IdentityGroup{directoryID: {group}}}
+			if kind != "empty" {
+				groups.Memberships = map[string][]kkComps.KongGroupMembershipEntry{group.ID: {{
+					ID:     "6078f559-063b-4f10-9098-9e6553b21d9b",
+					Member: kkComps.KongGroupMember{ID: principalID, Type: kkComps.KongGroupMembershipTypePrincipal},
+				}}}
+			}
+			if kind == "failed" {
+				groups.Failure = "membership"
+			}
+			a.client = state.NewClient(state.ClientConfig{
+				IdentityPrincipalsAPI:          principals,
+				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{}, IdentityGroupsAPI: groups,
+			})
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if kind == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, principals.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, principals.Deletes)
+			}
+		})
+	}
 }
 
 func TestPrincipalSavedPutPreservesFreshOmittedFields(t *testing.T) {
@@ -186,7 +231,7 @@ func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
 					}),
 				}
 			}
-			config := state.ClientConfig{IdentityPrincipalsAPI: api}
+			config := state.ClientConfig{IdentityPrincipalsAPI: api, IdentityGroupsAPI: &fixture.GroupAPI{}}
 			if mode != "unconfigured" {
 				config.IdentityPrincipalIdentitiesAPI = identities
 			}

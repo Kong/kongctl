@@ -14,6 +14,7 @@ import (
 )
 
 type planningResourceCache struct {
+	identityGroups                 map[string][]state.IdentityGroup
 	identityPrincipalIdentities    map[string][]helpers.PrincipalIdentity
 	identityAuthScopes             map[string][]state.IdentityAuthServerScope
 	identityAuthClaims             map[string][]state.IdentityAuthServerClaim
@@ -60,6 +61,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityGroups:                 make(map[string][]state.IdentityGroup),
 		identityPrincipalIdentities:    make(map[string][]helpers.PrincipalIdentity),
 		identityAuthScopes:             make(map[string][]state.IdentityAuthServerScope),
 		identityAuthClaims:             make(map[string][]state.IdentityAuthServerClaim),

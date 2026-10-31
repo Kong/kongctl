@@ -475,7 +475,8 @@ direct bracketed queries retrieve successive pages of those collections too.
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
 Confirm the intended wire names and whether the shared definition should be
-corrected for all operations referencing it.
+corrected for all operations referencing it. The group API-key list also
+uses this parameter shape; does the same bracketed contract apply there?
 
 ### Q23 Principal identity quotas
 
@@ -500,7 +501,8 @@ Runtime revocation was not established by these administrative observations.
 when a principal is deleted? Is there a conditional-delete option that
 atomically rejects a principal with attached resources, or an equivalent
 precondition that prevents resources added after a client checks for them
-from being removed?
+from being removed? Does group DELETE offer the same conditional behavior
+for attached membership entries and API keys?
 
 **Observed (October 31, 2026 UTC, US `.com`):** DELETE on an isolated principal
 with OAuth-client and Gateway-consumer identities returns 204. A fresh

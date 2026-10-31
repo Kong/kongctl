@@ -19,8 +19,8 @@ public credential metadata and the API contracts still preventing declarative
 ownership updates and adoption. It does not expose credential material.
 
 [Group and direct membership inspection](groups.md) covers group/team get/list,
-UUID/name selectors and membership-entry IDs. Declarative writes remain in
-progress; inspection alone does not grant authority over imported teams.
+UUID/name selectors and membership-entry IDs. Ordinary group lifecycle and
+adoption use `groups.yaml`. Membership declarations remain in progress; inspection alone grants no importer authority.
 
 The demos center on a directory named `default`, whether platform-provided or
 bootstrapped with KongCTL. First inspect the organization:
@@ -346,3 +346,13 @@ delete explicitly declared managed directories. KongCTL never requests
 forced cascading deletion; the API must permit deletion without losing
 descendant resources. Credentials, groups, Token Vault children, and other
 directory children remain separate follow-up work.
+
+
+## Ordinary groups
+
+`groups.yaml` manages ordinary groups in the external default directory.
+`groups.md` covers unique-name matching, independent four-entry managed_by
+ownership, full-PUT omission/clearing, adoption, protection and scoped sync.
+Membership declarations remain separate work; get/list inspect direct entries.
+Group deletion requires empty memberships and readable empty API-key state.
+A principal cannot be deleted while direct group memberships remain.
