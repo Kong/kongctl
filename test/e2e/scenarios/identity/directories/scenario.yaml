@@ -383,17 +383,22 @@ steps:
           "contains": "Q9"
         "outputFormat": "disable"
       -
-        "name": "principal-reject-active"
-        run:
-          - "plan"
-          - "-f"
-          - "{{ .workdir }}/principals-active.yaml"
-          - "--mode"
-          - "apply"
-        expectFailure:
-          "exitCode": 1
-          "contains": "Q10"
-        "outputFormat": "disable"
+        "name": "principal-active-lifecycle"
+        env:
+          KONGCTL_PROFILE: e2e
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/active.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+        timeout: 8m
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                verified: true
       -
         "name": "principal-dump"
         run:
@@ -410,7 +415,6 @@ steps:
             expect:
               fields:
                 "length(principals)": 3
-                "length(principals[?active!=null])": 0
         "outputFormat": "none"
         "parseAs": "yaml"
         "stdoutFile": "{{ .workdir }}/principals-dump.yaml"

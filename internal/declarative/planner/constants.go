@@ -108,6 +108,7 @@ const (
 	FieldTools          = "tools"
 	FieldConsumers      = "consumers"
 	FieldEnabled        = "enabled"
+	FieldActive         = "active"
 	FieldGlobal         = "global"
 	FieldVersion        = fieldcontracts.FieldVersion
 	FieldSpec           = "spec"

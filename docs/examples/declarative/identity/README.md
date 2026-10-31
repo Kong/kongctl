@@ -234,8 +234,19 @@ are never converted to numbers. Writes also check returned metadata and report
 an error if it differs, even though the remote write may already have occurred.
 `type` is currently create-only: omission preserves the existing type, while
 requesting another type or resetting a classified principal to null fails.
-`active` configuration is deferred and is never inferred as false. Track
-removal of these temporary limits in the
+Optional `active: true` or `active: false` controls the principal's state.
+Inactive principals are treated as nonexistent when authenticating; they
+remain visible to administration reads. Omission preserves the existing
+state; creation without it uses the documented API default of true. Explicit
+null is rejected. The specification prohibits deactivating developer-portal
+principals and says setting false changes provisioning to `konnect_user`.
+US `.tech` supports the verified lifecycle on directly provisioned principals.
+
+An API deployment that omits active cannot reconcile an explicit declaration:
+updates fail before writing, while a create reports unverifiable state after
+the record may have been created. Inspect it and generate a fresh plan rather
+than blindly retrying. Inspection/dump never infer false from an absent field.
+Track deployment differences and type restrictions in the
 [compatibility tracker](../../../contributor/kong-identity-compatibility.md).
 
 To adopt an existing principal, select its UUID and persist the desired ref:
@@ -258,7 +269,7 @@ under a directory prunes only owned principals in the source default namespace.
 Foreign namespaces and unowned principals remain untouched. An empty grouped
 `identity.principals: []` cannot identify a parent and is rejected for sync.
 Dump includes principals with `--include-child-resources`, preserves owned refs
-and namespace/protection, and omits active. Dumps of unowned principals require
+and namespace/protection, and includes active only when the API returns it. Dumps of unowned principals require
 explicit adoption before management. Filter to one directory if multiple
 remote resources use the same ref.
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
+	"github.com/kong/kongctl/internal/konnect/helpers"
 )
 
 func (p *Planner) listIdentityPrincipals(ctx context.Context, directoryID string) ([]state.IdentityPrincipal, error) {
@@ -125,6 +126,11 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		var desired []managedRoot[resources.IdentityPrincipalResource]
 		for _, value := range parent.desired {
 			if current, found := currentByRef[value.Ref]; found {
+				if plan.Metadata.Mode != PlanModeDelete {
+					if err := helpers.ValidatePrincipalActiveUpdate(current.IdentityPrincipal, value.Active); err != nil {
+						return fmt.Errorf("principal %q: %w", value.Ref, err)
+					}
+				}
 				// Q9 compatibility restriction; see contributor/kong-identity-compatibility.md.
 				if plan.Metadata.Mode != PlanModeDelete && value.TypeDeclared() &&
 					!principalTypeEqual(current.Type, value.Type) {
@@ -259,6 +265,9 @@ func identityPrincipalFields(d resources.IdentityPrincipalResource) map[string]a
 	if d.Type != nil {
 		fields[FieldType] = *d.Type
 	}
+	if d.Active != nil {
+		fields[FieldActive] = *d.Active
+	}
 	if d.Metadata != nil {
 		fields[FieldMetadata] = d.Metadata
 	}
@@ -291,6 +300,13 @@ func diffIdentityPrincipal(
 	}
 	if d.Description != nil {
 		compare(FieldDescription, c.Description, *d.Description)
+	}
+	if d.Active != nil {
+		var old any
+		if c.Active != nil {
+			old = *c.Active
+		}
+		compare(FieldActive, old, *d.Active)
 	}
 	if d.Metadata != nil {
 		var old any = c.Metadata

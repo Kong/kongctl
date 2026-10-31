@@ -92,6 +92,7 @@ func identityDirectoryCollector() declarativeCollector {
 							Kongctl: kongctlMetaFromLabels(current.NormalizedLabels),
 						},
 						DisplayName: current.DisplayName, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
+						Active: current.Active,
 					}
 					if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
 						principal.External = &resources.ExternalBlock{ID: current.ID}

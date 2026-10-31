@@ -56,3 +56,34 @@ func TestPrincipalWritesReportChangedMetadata(t *testing.T) {
 		require.ErrorContains(t, err, "did not retain requested metadata")
 	}
 }
+
+func TestPrincipalActiveWriteReadback(t *testing.T) {
+	for _, exposed := range []bool{false, true} {
+		for _, desired := range []bool{false, true} {
+			for _, create := range []bool{false, true} {
+				api := &fixture.PrincipalAPI{ExposeActive: exposed, Directories: map[string][]kkComps.KongPrincipal{
+					"directory-id": {{ID: "principal-id"}},
+				}}
+				client := NewClient(ClientConfig{IdentityPrincipalsAPI: api})
+				management := resources.BuildPrincipalManagedBy("identity-team", "alice", false, "test")
+				var err error
+				if create {
+					_, err = client.CreateIdentityPrincipal(t.Context(), "directory-id", kkComps.CreatePrincipalBody{
+						Active: new(desired), ManagedBy: management,
+					})
+					require.Equal(t, 1, api.Creates)
+				} else {
+					err = client.ReplaceIdentityPrincipal(t.Context(), "directory-id", "principal-id", kkComps.ReplacePrincipalBody{
+						Active: new(desired), ManagedBy: management,
+					})
+					require.Len(t, api.Writes, 1)
+				}
+				if exposed {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, "did not retain observable requested active state")
+				}
+			}
+		}
+	}
+}

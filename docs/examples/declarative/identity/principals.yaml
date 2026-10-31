@@ -14,6 +14,7 @@ identity:
           display_name: Jane Doe
           description: Example human principal
           type: user
+          active: true
           metadata:
             department: engineering
             trusted: false
@@ -28,6 +29,8 @@ identity:
           display_name: Support agent
           description: Example deployed AI agent
           type: agent
+          # Inactive principals cannot authenticate. Requires API active support.
+          active: false
         - ref: unclassified
           display_name: Unclassified principal
           type: null

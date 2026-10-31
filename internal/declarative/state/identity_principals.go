@@ -96,6 +96,11 @@ func (c *Client) CreateIdentityPrincipal(ctx context.Context, directoryID string
 	if request.Metadata != nil && !identityMetadataRetained(created.Metadata, request.Metadata) {
 		return nil, fmt.Errorf("principal %s was created but the API did not retain requested metadata", created.ID)
 	}
+	if request.Active != nil && (created.Active == nil || *created.Active != *request.Active) {
+		return nil, fmt.Errorf(
+			"principal %s was created but the API did not retain observable requested active state (Q10)", created.ID,
+		)
+	}
 	return created, nil
 }
 
@@ -120,6 +125,15 @@ func (c *Client) ReplaceIdentityPrincipal(ctx context.Context, directoryID, id s
 	}
 	if request.Metadata != nil && !identityMetadataRetained(response.KongPrincipal.Metadata, request.Metadata) {
 		return fmt.Errorf("principal API did not retain requested metadata")
+	}
+	if request.Active != nil {
+		current, err := c.GetIdentityPrincipal(ctx, directoryID, id)
+		if err != nil {
+			return fmt.Errorf("principal %s was updated but active state could not be verified: %w", id, err)
+		}
+		if current == nil || current.Active == nil || *current.Active != *request.Active {
+			return fmt.Errorf("principal %s was updated but the API did not retain observable requested active state (Q10)", id)
+		}
 	}
 	return nil
 }

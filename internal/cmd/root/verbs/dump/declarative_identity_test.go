@@ -141,3 +141,27 @@ func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) 
 	require.True(t, loaded.Identity.Principals[0].IsExternal())
 	require.Len(t, loaded.Identity.Identities, 3)
 }
+
+func TestPrincipalDumpPreservesExplicitFalseAndTrue(t *testing.T) {
+	for _, active := range []bool{false, true} {
+		directory := fixture.Directory("people", "directory-team", false)
+		api := &fixture.PrincipalAPI{ExposeActive: true, Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
+			ID: "1248f559-063b-4f10-9098-9e6553b21d9b", Active: active,
+			ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
+		}}}}
+		d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
+			IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+			IdentityPrincipalsAPI:  api, IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+		})}
+		rs := &resources.ResourceSet{}
+		require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
+		require.Equal(t, new(active), rs.Identity.Directories[0].Principals[0].Active)
+		encoded, err := yaml.Marshal(rs)
+		require.NoError(t, err)
+		path := filepath.Join(t.TempDir(), "principals.yaml")
+		require.NoError(t, os.WriteFile(path, encoded, 0o600))
+		loaded, err := loader.New().LoadFile(path)
+		require.NoError(t, err)
+		require.Equal(t, new(active), loaded.Identity.Principals[0].Active)
+	}
+}

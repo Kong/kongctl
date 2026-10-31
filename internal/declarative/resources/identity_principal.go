@@ -20,7 +20,10 @@ func init() {
 			WithExplainRecommendedFields("ref", "directory", "display_name"),
 			WithExplainFieldHint(
 				"active",
-				ExplainFieldHint{Notes: []string{"Configuration is deferred pending API question Q10."}},
+				ExplainFieldHint{Notes: []string{
+					"Omission preserves the current state. Requires API responses exposing active. " +
+						"Developer-portal principals cannot be deactivated.",
+				}},
 			),
 			WithExplainFieldHint(
 				"metadata",
@@ -63,7 +66,7 @@ func init() {
 		WithMaturity(
 			maturity.Metadata{
 				Level:   maturity.LevelTechPreview,
-				Message: "Requires the Kong Identity SDK preview. Type changes and active configuration are deferred.",
+				Message: "Requires the Kong Identity SDK preview. Principal type is create-only.",
 			},
 		),
 		withChildLoad(
@@ -90,8 +93,7 @@ type IdentityPrincipalResource struct {
 	Type         *string           `yaml:"type,omitempty"         json:"type,omitempty"`
 	Metadata     map[string]any    `yaml:"metadata,omitempty"     json:"metadata,omitempty"`
 	Labels       map[string]string `yaml:"labels,omitempty"       json:"labels,omitempty"`
-	// Q10: reject configuration until deployed responses expose active reliably.
-	Active       *bool `yaml:"active,omitempty"       json:"active,omitempty"`
+	Active       *bool             `yaml:"active,omitempty"       json:"active,omitempty"`
 	typeDeclared bool
 }
 
@@ -106,6 +108,9 @@ func (p *IdentityPrincipalResource) UnmarshalJSON(data []byte) error {
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
+	}
+	if raw, present := fields["active"]; present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return fmt.Errorf("principal active must be a boolean")
 	}
 	*p = IdentityPrincipalResource(value)
 	_, p.typeDeclared = fields["type"]
@@ -198,9 +203,6 @@ func (p IdentityPrincipalResource) Validate() error {
 	}
 	if p.Type != nil && *p.Type != "user" && *p.Type != "agent" {
 		return fmt.Errorf("type must be user, agent, or null")
-	}
-	if p.Active != nil {
-		return fmt.Errorf("principal active configuration is deferred pending API question Q10")
 	}
 	for _, field := range []struct {
 		name  string

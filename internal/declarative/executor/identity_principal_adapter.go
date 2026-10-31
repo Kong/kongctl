@@ -30,6 +30,7 @@ func mapIdentityPrincipalFields(fields map[string]any, destination any) error {
 		case planner.FieldDisplayName,
 			planner.FieldDescription,
 			planner.FieldType,
+			planner.FieldActive,
 			planner.FieldMetadata,
 			planner.FieldLabels,
 			planner.FieldManagedBy:
@@ -37,7 +38,7 @@ func mapIdentityPrincipalFields(fields map[string]any, destination any) error {
 				return fmt.Errorf("principal payload field %q cannot be null", field)
 			}
 		default:
-			return fmt.Errorf("unsupported principal payload field %q (active is deferred pending Q10)", field)
+			return fmt.Errorf("unsupported principal payload field %q", field)
 		}
 	}
 	data, err := json.Marshal(fields)
@@ -129,9 +130,6 @@ func (a *IdentityPrincipalAdapter) Create(ctx context.Context, request kkComps.C
 	if err != nil {
 		return "", err
 	}
-	if request.Active != nil {
-		return "", fmt.Errorf("principal active configuration is deferred pending Q10")
-	}
 	if err := validatePrincipalWrite(request.ManagedBy, namespace, execCtx); err != nil {
 		return "", err
 	}
@@ -160,9 +158,6 @@ func (a *IdentityPrincipalAdapter) Update(ctx context.Context, id string, reques
 	if err != nil {
 		return "", err
 	}
-	if request.Active != nil {
-		return "", fmt.Errorf("principal active configuration is deferred pending Q10")
-	}
 	if err := validatePrincipalWrite(request.ManagedBy, namespace, execCtx); err != nil {
 		return "", err
 	}
@@ -177,6 +172,9 @@ func (a *IdentityPrincipalAdapter) Update(ctx context.Context, id string, reques
 		return "", err
 	}
 	if err := validateChildPlannedProtection("principal", current.ManagedBy, execCtx.PlannedChange); err != nil {
+		return "", err
+	}
+	if err := helpers.ValidatePrincipalActiveUpdate(current.IdentityPrincipal, request.Active); err != nil {
 		return "", err
 	}
 	// Q9: reject saved-plan type changes as well as planner-generated ones.
