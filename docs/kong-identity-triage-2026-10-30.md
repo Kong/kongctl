@@ -20,9 +20,10 @@ scoped sync/delete and dump. Saved writes recheck authority; passwords block
 username deletion, and API keys/unplanned usernames block principal deletion.
 Reads expose public metadata only. The live lifecycle passes in US `.tech`;
 section 42 records the boundary and evidence. The SDK expiration correction
-is now verified in `79bc3dbbb928` (section 43). Password writes still need an
-explicit secret-source/rotation policy; Q35 tracks metadata updates preserving
-secret/expiration.
+is now verified (section 43). Explicit password create/capture, expiration,
+material replacement and selected/all deletion are implemented separately from
+declarations (section 46). Q35 still blocks metadata-only password adoption;
+no declarative password ownership or rotation is claimed.
 
 The initial survey below is historical. Development on `ki-triage` has since
 delivered directories and principals, including declarative lifecycle, reads,
@@ -2910,3 +2911,82 @@ SDK #1413/#1399, resource #2664 and directory epic #1132 stay In Progress
 until main merge. Declarative IdP configuration/adoption and the production
 parent-deletion policy are not delivered by this inspection slice. No PR or
 release is created; the broader goal stays active.
+
+## 46. Explicit basic-auth password lifecycle
+
+Create/patch/delete identity principal-basic-auth-password now operate under
+an explicitly selected directory, principal and basic-auth record. Parents
+resolve by basic-auth UUID or exact username, including UUID-shaped usernames.
+Create supports generated material or existing deferred file/environment
+sources, with required exclusive 0600 capture. Public output contains only
+metadata. The capture records directory/principal/basic-auth/password IDs;
+its pending state identifies the parent after an uncertain create.
+
+Expiration-only PATCH sends an explicit timestamp or null. Supplying a source
+to patch explicitly requests in-place PUT replacement. Fresh GET hydrates
+omitted expiration and the full management map; missing response fields block
+the write instead of becoming null/empty defaults. Both operations verify
+public read-back. They never stamp ownership or silently rotate material.
+PUT takes supplied material once and cannot prove runtime authentication from
+public metadata. POST and PUT disable SDK and transport retries; failures do
+not trigger another write or implicit rollback. Captured values survive a
+later public-field/read-back failure. Whole password-route trace bodies are
+suppressed, including arbitrary error details that could echo material.
+
+Selected deletion uses the normal confirmation. Explicit --all deletes every
+password under the selected username, including unowned records, and verifies
+an empty collection. No omitted declaration or slot limit authorizes this
+operation. Expired records still occupy one of two slots. Passwords remain
+excluded from declarative ownership, adoption, dump and sync. Their presence
+continues to block username deletion; ordinary username plans stay unchanged
+after password operations. Q35's metadata-only update problem remains open.
+
+Native US `.tech` mutation probes pass 44 requests: wrong-principal and wrong
+username PATCH/PUT/DELETE return 404 and preserve the original record;
+wrong-principal delete-all returns 404. Delete-all works on empty/populated
+collections, with fresh empty list and 404 details. All fixtures are removed.
+The sanitized evidence is password-mutation-contracts.json and
+password-mutation-contract-summary.json under the local evidence cache.
+Q19 now also asks about password issuance recovery; timeout/503 behavior is
+synthetic-client coverage, not an injected live-service failure.
+
+The new identity/passwords scenario passes in 17.76 seconds in US `.tech`.
+It exercises generated/imported capture, file/environment sources, exclusive
+file/symlink refusal, timestamp/null expiration, preserving PUT, arbitrary
+management maps, wrong-parent rejection, expired-slot limits, all output
+formats, selected/all deletion, unchanged plans and declarative deletion
+guards. It scans normal output/logs/artifacts for material and encoded values,
+keeps captures outside artifacts, and explicitly verifies all descendants
+before fixture teardown. The unmanaged default directory is restored.
+Evidence: password-lifecycle-v1/20261031-164604. This is administrative
+coverage; runtime password authentication requires Q30's integration setup.
+
+The new passwords.md tutorial builds on basic-auth.yaml under the external
+default directory. It documents creation, private material transfer,
+expiration/replacement, overlapping-record rotation and explicit retirement.
+The metadata ledger and compatibility tracker record the exact boundaries.
+SDK `30c3834c9846` already contains the necessary pagination/expiration
+corrections; this slice requires no SDK revision, release or new patch.
+
+Final make test-all passes: zero-issue lint, unit/integration/harness race
+tests, nine SDK patch tests, installer checks and 140 metrics tests.
+Modernization, stable formatting, CGO-disabled build and the default cassette
+check also pass. Existing replay membership/cassettes are unchanged; no full
+isolated replay claim is made. Early lint failures were limited to test UUID
+constant names flagged as credentials, line wrapping and Go idioms; these
+are corrected without disabling the linters. Final evidence is
+password-final-gates-v2.log and password-verified-build.log.
+
+All eighteen Identity live scenarios pass together in 304.390 seconds:
+password-all-identity/20261031-164719. All eight referenced private capture
+directories are absent. A separate stop immediately after create-directory
+runs exactly one command and passes cleanup in 0.999 seconds:
+password-lifecycle-stopped/20261031-165244. Fresh native inventory includes
+temporarily enabling Vault to inspect hidden collections, then restoring the
+saved settings. The unmanaged default directory is restored as
+01a193f3-6e4a-7992-8223-42ccdb9502ca; principal/group/IdP/provider/vault-key and
+auth-server inventories are empty. See password-final-inventory.json and
+password-artifact-verification.json in the evidence cache.
+
+Issue #1418 and epic #1132 remain In Progress until main merge. No PR or SDK
+release is created; the broader resource implementation goal stays active.

@@ -858,3 +858,38 @@ hydration, but must establish ownership/protection, external-parent and scoped
 sync rules before enrollment. IdPs expose no labels/managed_by store; matching
 an issuer alone is not adoption. The engineering answers and direct omitted/
 null/dependency probes must accompany any relaxation of these boundaries.
+
+## Explicit basic-auth password lifecycle
+
+Related questions: Q19, Q30 and Q35. Explicit create/patch/delete commands
+operate separately from the username's declarative lifecycle. Generated and
+imported creation require an exclusively reserved private output file. Its
+public parent IDs identify the selected collection even when creation is
+unconfirmed. Capture persists before public-field/read-back validation; no
+automatic retry or rollback is performed after a possible issuance.
+
+An expiration-only PATCH sends a date or null explicitly, because omission
+clears it in the deployed API. Existing management metadata is observed and
+verified. Supplying a material source explicitly selects full PUT: fresh GET
+hydrates omitted expiration and the entire management map. Missing response
+properties block a preserving PUT instead of becoming null/empty defaults.
+SDK and transport retries are disabled for both secret-bearing POST and PUT.
+Uncertain replacement requires inspecting the selected record and verifying
+authentication before another attempt. Public read-back proves expiration and
+metadata, not runtime material continuity.
+
+These imperative operations never stamp ownership or adopt password records.
+They can explicitly retire a selected record or every password under the
+selected username with normal confirmation. Delete-all verifies a fresh empty
+collection. Expired records still occupy slots; no automatic retirement is
+inferred. Whole password-route trace bodies are suppressed, including errors
+that could echo material outside a secret-named property.
+
+The live scenario covers generated/imported private capture, file/environment
+sources, exclusive file/symlink refusal, explicit expiration/null, preserving
+PUT, arbitrary management maps, wrong parent scopes, two-slot limits, all
+output formats, selected/all deletion and unchanged username plans. Username
+declarative deletion refuses attached passwords. Runtime authentication needs
+Q30's integration context; metadata-only password adoption needs Q35's API
+contract. Correcting those contracts is necessary before considering a
+declarative password resource; these commands do not claim that support.

@@ -21,6 +21,8 @@ ownership updates and adoption. It does not expose credential material.
 [Basic-auth username records](basic-auth.md) covers `basic-auth.yaml`,
 independent managed_by ownership, lifecycle/adoption/dump and password metadata
 inspection. Password values and rotation stay outside this declaration.
+[Password creation and lifecycle](passwords.md) adds generated/imported private
+capture, explicit expiration, replacement and retirement under that username.
 
 [Group and direct membership inspection](groups.md) covers group/team get/list,
 UUID/name selectors and membership-entry IDs. Ordinary group lifecycle and

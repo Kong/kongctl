@@ -100,6 +100,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	if verb != verbs.Get && verb != verbs.List {
 		if verb == verbs.Create || verb == verbs.Patch || verb == verbs.Delete {
 			group.AddCommand(newAuthServerSecretMutationCommand(verb, addParentFlags, parentPreRun))
+			password, err := newPasswordMutationCommand(verb, addParentFlags, parentPreRun)
+			if err != nil {
+				return nil, err
+			}
+			group.AddCommand(password)
 		}
 		return group, nil
 	}
