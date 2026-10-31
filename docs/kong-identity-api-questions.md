@@ -8,9 +8,53 @@ Unless stated otherwise, observations were collected on October 30, 2026
 Specification links are pinned to the inspected platform-api PR 3877 revision.
 Temporary test resources were deleted after the probes.
 
+## Environment review before engineering follow-up
+
+The original `.com` findings are dated production observations, not automatic
+limitations of the prerelease API in `.tech`. The October 31 direct HTTP
+revalidation used US `.tech` and separate disposable records under the user's
+default directory, plus an isolated auth server. The inspected PR remains
+open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
+
+| Area | US `.tech` result | Engineering status |
+| --- | --- | --- |
+| Principal active (Q10) | False create/read/list, true/false updates and omitted-field preservation work. | Backend blocker cleared for directly provisioned records; deployment/provisioning differences remain. |
+| Vault enablement (Q1) | True persists and unlocks provider/key lists. Restored to false after testing. | Backend blocker cleared in the tested org; production rollout remains separate. |
+| Principal key applicability (Q27) | User, agent and unclassified parents support generated/imported keys. | Production user-404 not reproduced. |
+| Principal key names (Q29) | Generated/imported names and rename work; duplicates are accepted. | Availability improved; names are not unique identifiers. |
+| Group keys (Q33) | List/create/read/PATCH/delete work. | Production 501 not reproduced; ownership updates still fail. |
+| Group team subtype (Q32) | Create rejects team with 400, only group accepted. | Different from production; deployment/entitlement contract needs clarification. |
+| Principal type (Q9) | Non-null type change gets explicit immutable error; null is silently ignored. | Create-only policy remains; nullable/error semantics remain open. |
+| Ownership PATCH (Q4–Q5, Q11, Q28) | Principal/key map changes ignored; imported key create rejects management map. | Still reproducible. |
+| Integer precision (Q31) | Large integer digits still round, including arrays. | Still reproducible. |
+| Identity parent scoping (Q21) | GET/DELETE accept another existing principal's path. | Still reproducible; scoped collection proof required. |
+| Auth-server behavior (Q12–Q13, Q15–Q18) | Duplicate claims, inflated totals, PATCH method reset, two total secret slots and rejected interactive grants persist. | Still reproducible in tested org. |
+| Runtime prerequisites (Q30) | Administrative bearer plus a valid key still gets mTLS-context error. | Supported runtime context still required. |
+| Unverified contracts | Provisioning lifecycle, importer/user enrollment, workspace fixtures, cross-resource deletion variants and recovery guarantees. | Do not present these as resolved or as reproduced `.tech` defects. |
+| Cursor query (Q22) | Shared source annotation and SDK wire mismatch remain established separately. | Keep upstream spec correction and SDK tests. |
+
+Sanitized request/response evidence is saved locally under
+`/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
+`directory-contracts.json`, plus `auth/`, `followup/` and `capabilities/`
+results. Issued material was not written into those logs; temporary credentials
+and their parent fixtures were removed. The manual demo registrations remain.
+Default directory public settings were restored; its update timestamp changed
+during the Vault toggle.
+
+No broad compatibility guard was lifted during this validation pass. Group
+and principal credential contracts must not be inferred from one another.
+Operations involving imported teams, user-enrolled credentials or a supported
+runtime context still need their own verification.
+
 ## Directory API questions
 
 ### Q1 Directory Token Vault enablement
+
+**US .tech retest (October 31, 2026):** PUT with `vault_enabled: true` returns
+and retains true in US `.tech`; provider/key lists change from 403 (Vault
+disabled) to 200. The original false setting was restored. This availability
+blocker is cleared for the tested `.tech` organization; production rollout
+remains a separate question.
 
 **Question:** Is `vault_enabled` supported in the US directory API today?
 Is enablement awaiting deployment, gated by an entitlement, or failing to
@@ -35,7 +79,23 @@ it have any special behavior beyond that name?
 organization. The inspected schema exposes name and ID without a default
 marker.
 
+**Additional user observation (October 31, 2026):** A recently created
+organization has a directory named `default`, created October 28. It has empty
+`labels`/`managed_by`, TTLs of 600 seconds, `allow_all_control_planes: true`, an
+empty control-plane allowlist and `vault_enabled: false`. This establishes an
+observed provisioning default, without establishing the universal lifecycle
+guarantee. Usage examples now look up `default` externally. The separate
+`.tech` test organization returned an empty collection before a manual
+bootstrap. At the user's request, a directory named `default` was created
+there with those reported settings and empty ownership/label maps; a fresh
+GET retained all supplied values. This test setup does not establish an
+automatic-provisioning guarantee. External lookup still never creates one.
+
 ### Q3 Directory quota and control plane access
+
+**US .tech retest (October 31, 2026):** Creating a second disposable directory
+returns 403 with max directories 1 in the tested `.tech` organization. No
+existing directory was deleted to bypass that quota.
 
 **Question:** Is `allow_all_control_planes: true` permanently required when
 an organization has a one-directory quota? Which organizations may restrict
@@ -53,6 +113,11 @@ These questions concern the resource contracts in
 
 ### Q4 Imported API key ownership
 
+**US .tech retest (October 31, 2026):** Imported key create still rejects
+`managed_by` with 400 for user, agent, unclassified and group parents. Creation
+without it succeeds; subsequent PATCH still leaves the empty map unchanged. This
+remains an open ownership limitation in `.tech`.
+
 **Question:** Can imported principal and group API keys accept `managed_by`
 in the initial create request, so the key and its management metadata are
 created atomically?
@@ -67,6 +132,12 @@ returns 200 but GET still shows the empty map (Q28), so a second write does not
 currently provide an ownership workaround.
 
 ### Q5 Ownership update semantics
+
+**US .tech retest (October 31, 2026):** Principal PATCH ignores partial/full
+management maps and null removal in `.tech`; full group PUT retains all four
+ownership entries, while a name-only PUT clears omitted public maps.
+Principal/group key PATCH ignores map changes/removal. Map behavior must remain
+resource/operation-specific.
 
 **Question:** For principals, identities, and credentials, which operations
 replace the whole `managed_by` map, which merge keys, and how are keys removed?
@@ -109,6 +180,12 @@ organization-chart imports? Which records may an import overwrite or remove?
 
 ### Q9 Principal type changes
 
+**US .tech retest (October 31, 2026):** A non-null user-to-agent PUT now returns
+400 with `type is immutable after creation`, instead of the earlier production
+silent success. PUT with type null still returns 200 and retains user.
+Create-only type remains appropriate; nullable-update/error semantics still need
+clarification.
+
 **Question:** Are principal type changes intentionally unsupported, or is the
 deployed update implementation behind the specification? Can a principal
 change between user/agent or return to null? If type is immutable, should an
@@ -134,25 +211,50 @@ Content-Type: application/json
 
 Both requests succeeded but retained user in the response and subsequent GET.
 
-### Q10 Principal active state is absent
+<a id="q10-principal-active-state-is-absent"></a>
 
-**Question:** When will principal create/GET/list/update responses expose
-`active`, and which deployed environments support setting it? If writes are
-supported before the field is returned, how can their effective value be
-verified?
+### Q10 Principal active state availability
+
+**US .tech retest (October 31, 2026):** Agent create with active=false,
+detail/list reads, PUT false-to-true and PATCH true-to-false-to-true are
+verified, including fresh GETs. User/agent/unclassified creation with false is
+retained, and unrelated PUT/PATCH with active omitted preserves false. The
+`.tech` backend limitation is cleared for directly provisioned records; other
+provisioning paths and production rollout remain separate.
+
+**Question:** Which releases and provisioning paths support reading and
+setting `active`? US `.tech` supports both for directly provisioned principals,
+while earlier US `.com` responses omitted it. Is that difference expected,
+and how should callers detect support in a deployment?
 
 **Observed:** Requests supplied true and false, but no response included
 `active`. This does not establish whether the writes took effect.
 
+**Additional observation (user-provided, October 31, 2026, `.tech`):** A
+new agent created without an explicit active setting returns `active: true`
+and `provisioned_by: konnect_user` on GET. This establishes field visibility
+for that resource/deployment, but does not establish support for true/false
+updates. What accounts for the difference from the earlier US `.com`
+responses, and what deployment/provisioning contract governs availability?
+
+An independent direct HTTP GET in US `.tech` subsequently confirmed that
+same `active: true` value. No active-state mutation was attempted on the
+manual demonstration principal.
+
 **Specification:** The [active schema][principal-active] describes the
 boolean state and its update/provisioning restrictions.
 
-**Reproduction:** Create a disposable principal with `"active": true`;
+**Original US .com reproduction:** Create a disposable principal with
+`"active": true`;
 then PUT its observed mutable settings with `"active": false`. Inspect both
 responses, GET that principal, and list its directory. None included active
 in the tested deployment.
 
 ### Q11 Principal PATCH ignores ownership updates
+
+**US .tech retest (October 31, 2026):** Partial/full management-map PATCH and
+null removal still return 200 without changing stored values in `.tech`. The PUT
+workaround remains necessary.
 
 **Question:** Is principal PATCH expected to update `managed_by` today?
 The specification exposes it, but a requested version change was ignored.
@@ -179,6 +281,9 @@ complete management metadata map did retain the requested values.
 
 ### Q12 Duplicate claim names
 
+**US .tech retest (October 31, 2026):** Two claims with the same name are
+accepted in `.tech`. Matching by a duplicate name remains ambiguous.
+
 **Question:** Are duplicate case-sensitive claim names within an authorization
 server intentional? If multiple enabled claims with the same name apply to a
 token or userinfo response, how is the resulting value selected?
@@ -190,6 +295,11 @@ rejects a duplicate name with 409. Observed on October 31, 2026 UTC in US
 `.com`; temporary records were removed.
 
 ### Q13 Claim pagination total exceeds result count
+
+**US .tech retest (October 31, 2026):** Two `.tech` claims linked to three
+scopes each return two records but meta.page.total=6. Page-size-one requests
+exhaust the real records and then return empty pages. The pagination workaround
+remains necessary.
 
 **Question:** Should claim-list `meta.page.total` count claims, rather than
 their scope associations? Can the total be corrected so it agrees with the
@@ -224,6 +334,10 @@ was injected into the live service.
 
 ### Q15 Client PATCH resets omitted authentication method
 
+**US .tech retest (October 31, 2026):** A labels-only PATCH changes
+client_secret_basic to client_secret_post in `.tech`; fresh GET confirms the
+reset. Explicit preservation remains necessary.
+
 **Question:** Should PATCH preserve `token_endpoint_auth_method` when the
 field is omitted? Currently an unrelated update changes the authentication
 method to `client_secret_post`. Is this defaulting intentional?
@@ -238,6 +352,10 @@ Temporary records were removed.
 
 ### Q16 Client secret limit counts disabled records
 
+**US .tech retest (October 31, 2026):** The third secret returns 403/max 2 even
+when both existing records are disabled in `.tech`. Disabled records still
+consume the two slots.
+
 **Question:** Is the client-secret limit two records in total, including
 disabled secrets, rather than two active secrets? What is the supported
 rotation sequence when both slots already exist?
@@ -251,6 +369,10 @@ temporary records were removed.
 
 ### Q17 Authorization-code grants unavailable
 
+**US .tech retest (October 31, 2026):** A direct `.tech` PATCH requesting
+authorization_code/refresh_token returns 400: authorization code grant type is
+not allowed. This grant limitation remains in the tested organization.
+
 **Question:** When are `authorization_code` and `refresh_token` grants
 available for ordinary authorization-server clients? Are they gated by
 environment, entitlement, or another setting?
@@ -262,6 +384,10 @@ schema enumerates both values. `client_credentials` creation succeeds.
 Observed October 31, 2026 UTC in US `.com`; temporary records were removed.
 
 ### Q18 Client pagination total exceeds result count
+
+**US .tech retest (October 31, 2026):** Two `.tech` clients with two allowed
+scopes each return two records but meta.page.total=4. Continue observing
+terminal pages rather than trusting that total.
 
 **Question:** Should client-list `meta.page.total` count clients rather than
 allowed-scope associations? Can it agree with the items across all pages?
@@ -306,6 +432,11 @@ method reset in Q15 or unavailable authorization-code grant in Q17.
 ## Principal identities and directory pagination
 
 ### Q21 Principal-identity detail and delete parent scoping
+
+**US .tech retest (October 31, 2026):** A custom identity belonging to principal
+A is returned through principal B's path with 200 in `.tech`. DELETE through B
+returns 204 and removes A's identity. The collection-membership guard remains
+necessary.
 
 **Question:** Should identity GET and DELETE verify that the identity belongs
 to the principal named in the request path, consistently with list and PUT?
@@ -358,6 +489,12 @@ does not identify the quota's scope. The inspected identity operation does
 not expose quota discovery. All probe resources were removed afterward.
 
 ### Q24 Principal deletion with attached resources
+
+**US .tech retest (October 31, 2026):** Native `.tech` principal DELETE succeeds
+with API keys, a custom identity and a group membership attached; child
+key/identity routes then return 404 and the group membership disappears. Group
+DELETE with keys also succeeds, after which the key collection returns 404.
+Runtime revocation was not established by these administrative observations.
 
 **Question:** What happens to identities, credentials and group memberships
 when a principal is deleted? Is there a conditional-delete option that
@@ -420,6 +557,11 @@ be distinguished from associations whose targets still exist.
 
 ### Q27 Principal types supported by API-key credentials
 
+**US .tech retest (October 31, 2026):** API-key list and generated/imported
+create succeed for fresh user, agent and unclassified principals in `.tech`. The
+production user-principal 404 is not reproduced. This applicability blocker is
+cleared for the tested `.tech` organization.
+
 **Question:** Which principal types support API-key credentials? Should create
 and list return "principal not found" for an existing `user` principal, or
 should that type support keys or return an explicit unsupported-type error?
@@ -432,6 +574,11 @@ unclassified variants. Generated creation retains all five supplied management
 entries. This comparison used the same directory and administration token.
 
 ### Q28 API-key PATCH metadata and expiration omission
+
+**US .tech retest (October 31, 2026):** Principal and group key PATCH still
+ignore partial/full ownership maps and null removal. Omitting expiration clears
+it; explicit future expiration and null work. This remains a live `.tech`
+limitation.
 
 **Question:** Does API-key PATCH support `managed_by` changes, and should an
 omitted `expires_at` preserve expiration? What operation can change management
@@ -450,6 +597,13 @@ should reject unsupported metadata changes instead of ignoring them.
 
 ### Q29 API-key name availability
 
+**US .tech retest (October 31, 2026):** Principal generated/imported names are
+accepted and returned; PATCH renames both. Duplicate names under one principal
+are accepted, so names do not supply uniqueness. Group generated create accepts
+a name, but rename PATCH leaves it unchanged; group imported create ignores name
+and reads null, and rename is ignored. Availability is
+parent/operation-specific.
+
 **Question:** When will API-key `name` be supported consistently on create,
 read and update? Until then, should PATCH reject the field explicitly?
 
@@ -460,6 +614,12 @@ list omit name. PATCH with a nonempty name or null returns 200, but fresh GET
 still omits it. No uniqueness rule was inferred.
 
 ### Q30 Runtime authentication prerequisites
+
+**US .tech retest (October 31, 2026):** A direct request to
+us.identity.konghq.tech/default/v2/authenticate with a valid imported probe key
+and an administrative bearer token still returns 400, mTLS headers missing. No
+context headers were fabricated. A supported runtime integration setup remains
+necessary.
 
 **Question:** What is the supported way to call a directory's runtime
 `/{directoryName}/v2/authenticate` endpoint from an administrative integration
@@ -474,6 +634,11 @@ authenticate. No internal mTLS context headers were fabricated. A supported
 runtime setup is needed to verify credential continuity and revocation.
 
 ### Q31 Integer precision in principal and group metadata
+
+**US .tech retest (October 31, 2026):** Exact JSON comparisons reproduce
+9007199254740993 -> 9007199254740992, its negative/array variants, and
+1152921504606846976 -> 1152921504606847000 in principal PUT and group create.
+The numeric guard remains necessary.
 
 **Question:** What integer range and precision are guaranteed for metadata on
 principals and groups, including integer arrays and propagation to the data
@@ -496,6 +661,12 @@ the supported contract and validation behavior for values that cannot retain
 their requested digits. All disposable fixtures were removed afterward.
 
 ### Q32 Group membership types and team removal
+
+**US .tech retest (October 31, 2026):** Ordinary groups accept
+user/agent/unclassified members; duplicates return 409, nested groups and
+self-membership return 400. Creating a team returns 400, type must be one of:
+group. Therefore the production manual-team results cannot be generalized to
+`.tech`; importer behavior remains unverified.
 
 **Question:** Which group-to-group memberships are currently supported, and
 which team memberships may be created or removed through the membership API?
@@ -522,6 +693,12 @@ not be used to establish cross-directory behavior; that scope remains unproved.
 
 ### Q33 Group API-key deployment availability
 
+**US .tech retest (October 31, 2026):** Group-key list/create/read/PATCH/delete
+are available in `.tech`, replacing the production 501 result. Generated
+creation retains ownership; imported creation rejects it and later ownership
+PATCH is ignored. Name updates differ from principal keys (Q29). Native parent
+deletion removes administrative access to keys (Q24).
+
 **Question:** In which deployment/release are group API-key operations
 available, and what response should identify an unsupported capability?
 
@@ -529,6 +706,25 @@ available, and what response should identify an unsupported capability?
 plain group's `/api-keys` collection return 501 with no response body. The
 group itself supports create, get, list, PUT and delete. Schema and generated
 SDK presence therefore do not establish group-key availability.
+
+### Q34 Auth-server and OAuth-client management metadata
+
+**US .tech retest (October 31, 2026):** Auth-server and OAuth-client POST accept
+an extra managed_by property but do not expose it in the response or subsequent
+reads; inspected schemas still do not expose it. Labels remain the verified
+management metadata field. Successful acceptance of an unknown field does not
+establish a supported ownership write.
+
+**Question:** Is `labels` the intended long-term metadata field for identifying
+the system managing auth servers and OAuth clients, or is `managed_by` planned
+for these resources? If it is planned, what coexistence and migration contract
+should clients use for management metadata already stored in labels?
+
+**Known:** The inspected auth-server and OAuth-client schemas expose `labels`
+but do not expose `managed_by`, unlike the directory administration schemas.
+Label updates work in the verified lifecycle. This is a question about the
+intended metadata contract; working label storage does not depend on adding a
+new field.
 
 ## Recorded answers
 

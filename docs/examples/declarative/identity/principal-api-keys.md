@@ -16,15 +16,17 @@ kongctl get identity principal-api-key KEY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID -o yaml
 ```
 
-Use an existing agent or unclassified principal with keys. The deployed API
-returns 404 for a `user` principal's key collection even when principal GET
-succeeds (Q27). The command reports that failure; it does not turn it into an
-empty collection. Principal display names and key names cannot select records.
+Use an existing principal with keys. US `.tech` supports user, agent and
+unclassified principals. Earlier US `.com` tests returned 404 for a user's
+key collection even when principal GET succeeded (Q27). The command reports
+such failures rather than treating them as empty collections. Principal
+display names and key names cannot select records.
 An explicit directory UUID works in place of its name.
 
 `list` and explicit `konnect` forms are supported. JSON/YAML contain ID,
 expiration, management metadata and timestamps, plus a name if the API returns
-one. Current deployments omit name (Q29). Text lists show IDs and expiration;
+one. US `.tech` returns names; earlier US `.com` tests omitted them (Q29).
+Text lists show IDs and expiration;
 text details show public metadata. The output type has no credential field.
 Complete cursor traversal handles next-page URLs, validates IDs and rejects
 failed pages, repeated IDs/cursors and missing collections without returning
@@ -42,8 +44,9 @@ probes establish these limits:
   currently be updated through that operation (Q28).
 - PATCH clears expiration when it is omitted. Explicit expiration updates and
   null clearing work, but metadata writes must preserve an existing expiration.
-- Named creation is rejected, while named PATCH is ignored. Read responses
-  omit name. No name-uniqueness rule is assumed (Q29).
+- US `.tech` accepts generated/imported principal-key names and rename PATCH,
+  but accepts duplicate names under one principal. Earlier US `.com` rejected
+  named creation and ignored rename. Name is not a unique match key (Q29).
 - The runtime endpoint requires mTLS context beyond an administration token.
   Credential continuity and revocation need a supported runtime setup (Q30).
 - Principal deletion succeeds with attached keys. The key detail/collection
