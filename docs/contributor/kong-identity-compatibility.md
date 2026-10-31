@@ -926,17 +926,20 @@ this dependency change alone.
 
 ## Directory deletion observations
 
-Related question: Q37. Planning a directory DELETE or scoped sync now requires
-a fresh directory detail and observable empty Vault key, provider and Trusted
-IdP collections. Execution repeats those reads. No pagination/filter arguments
-are sent: only an empty data array with valid terminal metadata proves empty.
+Related question: Q37. Planning a directory DELETE or scoped sync requires
+a fresh directory detail and observable Vault key, provider and Trusted IdP
+collections. Keys must be empty or have exact authorized deletions in the plan;
+provider/IdP collections must be empty. Execution requires actual empty
+collections after the ordered child deletions. Unfiltered terminal observations
+prove emptiness; planned key removals require complete validated inventories.
 Missing APIs, malformed/incomplete observations, nonterminal emptiness and
 read errors block deletion. Disabled/unknown Vault is an explicit error;
 neither planning nor execution enables it automatically.
 
 This is the existing fail-closed credential-deletion rule applied to directory
 dependencies that the native API cascades even with force=false. It adds no
-ownership to a key/provider/IdP and grants no child-retirement authority.
+ownership to a key/provider/IdP. Key declarations separately establish explicit
+managed-directory and collection authority; other attachments cannot cascade.
 Ordinary creates, updates and external-directory principal workflows do not
 require these extra observations. Tokens without the required read permissions
 cannot prove safe declarative directory deletion. A deployment that cannot

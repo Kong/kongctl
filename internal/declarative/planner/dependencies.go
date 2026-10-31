@@ -425,7 +425,7 @@ func (d *DependencyResolver) getParentType(childType string) string {
 		return ResourceTypeIdentityGroup
 	case ResourceTypeIdentityPrincipalIdentity, ResourceTypeIdentityBasicAuth:
 		return ResourceTypeIdentityPrincipal
-	case ResourceTypeIdentityPrincipal, ResourceTypeIdentityGroup:
+	case ResourceTypeIdentityPrincipal, ResourceTypeIdentityGroup, ResourceTypeIdentityVaultKey:
 		return ResourceTypeIdentityDirectory
 	case ResourceTypeIdentityAuthServerClient:
 		return ResourceTypeIdentityAuthServer

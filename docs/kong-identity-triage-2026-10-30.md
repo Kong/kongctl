@@ -7,12 +7,18 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Token Vault public keys now have declarative lifecycle and public get/list
+support under explicitly managed directories. Fingerprints identify keys,
+names can repeat, and key material changes create another record. Section 50
+records collection authority, quota/rotation behavior and verification. This
+requires no further SDK revision beyond `2597fe249e26`.
+
 Directory deletion now requires explicitly enabled Vault and fresh empty
 key/provider/Trusted IdP collections during planning and saved execution.
 Disabled/unknown/incomplete observations block deletion without automatic
-enablement or child retirement. Section 49 records this boundary, examples
-and verification. This establishes a deletion prerequisite for future Vault
-declarations; it does not grant those children ownership.
+enablement or implicit child retirement. Section 49 records this boundary,
+examples and verification. Explicit key deletions can now precede the fresh
+empty checks as described in section 50; other attachments cannot cascade.
 
 Trusted IdP configuration and associated-principal inspection now support
 complete pagination, exact issuer lookup and all output formats. An example
@@ -3196,3 +3202,93 @@ directory-guard-final-inventory.json under the local evidence cache. Issue
 until main merge. No PR or SDK revision is needed for this guard. Writable
 Vault children remain separate implementation work under an explicit
 ownership/collection policy.
+
+## 50. Token Vault public key declarations and inspection
+
+Implemented `identity.directories[].vault_keys` and grouped
+`identity.vault_keys` with a `directory` ref. Required `name` and `public_key`
+remain explicit. The shared parser accepts PKIX `PUBLIC KEY` material for
+RSA >= 2048 bits and EC P-256/P-384/P-521, rejects private/other encodings, and
+computes RFC 7638 SHA-256 fingerprints. Independent vectors from native probes
+cover both RSA keys, all three EC curves and equivalent CRLF PEM. Complete
+reads verify route IDs, directory, material/fingerprint, algorithm, size and
+required timestamps; malformed, repeated or partial inventories fail closed.
+
+Keys have no metadata store. Explicitly managed directory ownership and a
+declared collection supply authority, as for inherited auth-server children.
+Parent adoption preserves existing keys and authorizes subsequent explicit
+collection management. No individual key metadata/adoption or hidden state is
+invented. External parents remain read-only. Omitted collections preserve keys;
+explicit empty collections authorize pruning. Saved writes recheck directory
+identity, namespace, ownership, protection, enablement and current key identity.
+Protected parents permit creation but block child updates/deletion, following
+the existing inherited-child policy. Existing disabled Vaults must be explicitly
+enabled before key planning; new enabled parents and keys can share one plan.
+
+Matching uses `kid`, not nonunique name or local ref. Name changes PATCH the
+existing route; material changes create another record. Apply preserves old
+material. Scoped sync creates new material before retiring old keys. Planning
+and saved creation enforce the five-key ceiling; capacity requires an explicit
+selected retirement before adding material, never an inferred deletion.
+POST retries are disabled. Public response validation distinguishes an
+uncertain outcome from success; a fresh plan can observe any created key.
+
+Directory deletion planning accepts only exact authorized key IDs/fingerprints
+scheduled for deletion and still requires empty provider/Trusted IdP
+collections. Parent dependencies order key retirement first. Execution retains
+the prior guard's fresh actual-empty checks and never cascades an extra child.
+Late attachments block parent deletion even after authorized key retirements;
+repeated saved deletion is idempotent. The Q37 observation/delete race remains
+an API contract limitation, not something these client checks can eliminate.
+
+Public get/list supports UUID or exact kid selection, all output formats and
+complete cursor traversal. Text summarizes public identity/algorithm/size;
+JSON/YAML include public PEM. Dump exports public keys only beneath managed,
+enabled parents and reloads without changes. External/disabled parent key
+collections are omitted without claiming emptiness. Explain/scaffold,
+default-directory bootstrap/adoption examples and the metadata ledger describe
+these boundaries. No private material or runtime encryption behavior is
+claimed; the deletion effect is attributed to the API specification.
+
+Live testing exposed an unrelated-family dependency leak: the AI Gateway
+name-replacement pass added delete-before-create edges to Identity keys with
+duplicate names. Its pass is now limited to AI Gateway kinds. A same-name key
+rotation regression preserves the intended create-before-retirement order;
+existing AI Gateway dependency tests pass. This was a KongCTL bug, not a new
+engineering API question. The first live run also used an incorrect test flag;
+the scenario now uses the established `--page-size`.
+
+The complete new scenario passes in US `.tech` in 32.250 seconds:
+`vault-keys-live-v3/20261031-181711`. It covers explicit parent adoption,
+RSA/EC public inspection, actual three-page lists and fingerprint lookup,
+duplicate names, same-route rename, CRLF no-op, grouped declarations,
+ownership/protection refusal of saved writes, disabled Vault behavior,
+dump/reload, omitted/empty sync, material rotation, quota retirement, late-child
+parent refusal, saved/repeated/direct deletion and new-parent-plus-key creation.
+The unmanaged default and saved settings were restored after fixture cleanup.
+Failed v1/v2 runs are retained as failed evidence, not passing validation.
+
+Final validation passes modernization, stable formatting, CGO-disabled build
+and make test-all: zero-issue lint, full unit/integration/harness race tests,
+nine SDK patch tests, installer checks and 140 metrics tests. Default cassette
+validation passes; all twenty replay memberships and their cassettes are
+unchanged. This is not a claim of twenty isolated replay executions.
+
+All twenty Identity live scenarios pass together in US `.tech` in 365.701
+seconds: `vault-key-all-identity/20261031-182243`. All diagnostics report
+passed, and all eight referenced private capture directories are absent.
+An early stop after the single directory-creation command passes guarded
+cleanup in 2.178 seconds: `vault-key-stopped/20261031-182931`.
+Both checked-in examples produce the expected one- and two-create plans during
+read-only `.tech` verification. The key example loads actual public PEM through
+`!file`.
+
+Fresh inventory confirms empty principal/group/key/provider/IdP/auth-server
+collections. The unmanaged default and saved settings are restored with ID
+`01a1944c-0cb9-7abe-aa41-8dc8b1f0bbfb`; Vault is false after inspection.
+Evidence is `vault-key-build.log`, `vault-key-gates.log`,
+`vault-key-replay.log`, `vault-key-artifact-verification.json`,
+`vault-key-final-inventory.json` and the example plan files in the local cache.
+
+#2661 stays open/In Progress until main merge. Providers, shared/enrolled
+credentials, Trusted IdP declarations and importer work remain separate slices.

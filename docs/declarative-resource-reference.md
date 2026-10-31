@@ -324,6 +324,29 @@ configuration, adoption, quota constraints, and sync behavior. Auth-server
 administration and runtime authentication/lookup are separate API surfaces;
 this implementation covers directory configuration and principals.
 
+## Kong Identity Token Vault public keys
+
+Nest `vault_keys` under a managed `identity.directories` entry, or declare
+`identity.vault_keys` with a `directory` ref. Required fields are `ref`, `name`
+and `public_key`. PKIX PEM RSA >= 2048 bits and EC P-256/P-384/P-521 are
+supported.
+RFC 7638 `kid`, computed from public material, identifies the resource; names
+are mutable and nonunique. Public material changes create a different key.
+
+Keys inherit directory namespace and protection; no independent management
+metadata or key adoption is exposed. External directories are read-only for
+these children. Existing Vaults must already be enabled for complete
+observation. Explicit key collections scope sync; omission preserves keys,
+while an explicit empty collection prunes them. Rotations create before
+retirement and fail at the five-key limit until a key is explicitly retired.
+
+Plan, diff, apply, scoped sync/delete, saved execution, public dump/reload,
+explain/scaffold and get/list are supported. Directory deletion orders selected
+key removals before fresh empty-dependency checks. Public export requires a
+managed, enabled parent. See the [Vault key tutorial][identity-vault-keys].
+
+[identity-vault-keys]: examples/declarative/identity/vault-keys.md
+
 ## Kong Identity principals
 
 Declare principals under `identity.directories[].principals`, or in

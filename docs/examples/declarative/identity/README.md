@@ -1,5 +1,9 @@
 # Kong Identity administration
 
+[Token Vault public encryption keys](vault-keys.md) covers explicit ownership
+of the default directory, public-key registration, fingerprint matching,
+rotation, scoped sync, export and guarded deletion.
+
 These examples require the Kong Identity SDK preview used by this branch and
 access to the regional directory administration API.
 

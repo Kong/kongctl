@@ -176,6 +176,7 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	group.AddCommand(newPrincipalCommand(verb, addParentFlags, parentPreRun))
 	group.AddCommand(newTrustedIDPReadCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newTrustedIDPReadCommand(verb, true, addParentFlags, parentPreRun))
+	group.AddCommand(newVaultKeyReadCommand(verb, addParentFlags, parentPreRun))
 	group.AddCommand(newGroupReadCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newGroupReadCommand(verb, true, addParentFlags, parentPreRun))
 	principalIdentity, err := newPrincipalIdentityCommand(verb, addParentFlags, parentPreRun)

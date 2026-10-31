@@ -19,6 +19,7 @@ const (
 	ResourceTypeIdentityGroup                           ResourceType = "identity_group"
 	ResourceTypeIdentityBasicAuth                       ResourceType = "identity_basic_auth"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
+	ResourceTypeIdentityVaultKey                        ResourceType = "identity_vault_key"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
 	ResourceTypeIdentityPrincipalIdentity               ResourceType = "identity_principal_identity"
 	ResourceTypePortal                                  ResourceType = "portal"

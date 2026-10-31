@@ -331,6 +331,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		kind := ResourceTypeIdentityDirectory
 		switch segments[1] {
 		case "directory", "directories":
+		case "vault_key", "vault_keys", "vault-key", "vault-keys":
+			kind = ResourceTypeIdentityVaultKey
 		case "membership", "memberships":
 			kind = ResourceTypeIdentityGroupMembership
 		case "basic_auth", "basic_auths", "basic-auth", "basic-auths":
@@ -392,7 +394,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
-	if doc.ResourceType == ResourceTypeIdentityDirectory || doc.ResourceType == ResourceTypeIdentityPrincipal ||
+	if doc.ResourceType == ResourceTypeIdentityVaultKey || doc.ResourceType == ResourceTypeIdentityDirectory ||
+		doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
 		doc.ResourceType == ResourceTypeIdentityGroupMembership || doc.ResourceType == ResourceTypeIdentityBasicAuth ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
@@ -402,6 +405,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityVaultKey {
+			collection = "vault_keys"
+		}
 		if doc.ResourceType == ResourceTypeIdentityBasicAuth {
 			collection = "basic_auths"
 		}
@@ -928,6 +934,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.clients"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
+	case ResourceTypeIdentityVaultKey:
+		return "identity.vault_keys"
 	case ResourceTypeIdentityGroupMembership:
 		return "identity.memberships"
 	case ResourceTypeIdentityBasicAuth:
@@ -1029,6 +1037,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
+	}
+	if rt == ResourceTypeIdentityVaultKey {
+		rootKey = "identity.vault_keys"
 	}
 	if rt == ResourceTypeIdentityGroupMembership {
 		rootKey = "identity.memberships"

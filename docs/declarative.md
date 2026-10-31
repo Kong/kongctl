@@ -817,8 +817,17 @@ separate from directory configuration and principal management.
 Principals can be nested under managed or external directories and have
 independent namespace/protection settings. Matching uses directory + namespace
 + persisted ref, rather than non-unique display names. PUT updates preserve
-omitted fields. Initial support treats type as create-only and defers active
-configuration pending verified API behavior.
+omitted fields. Type is create-only; optional `active` reconciliation requires
+the API to expose the current state. The `.tech` deployment supports it for
+directly provisioned principals.
+
+Token Vault public keys can be declared under a managed directory's
+`vault_keys`, or in grouped `identity.vault_keys`. They have no ownership
+metadata, so they inherit the explicitly managed directory's authority.
+Required public material determines the RFC 7638 `kid`; names are mutable and
+nonunique. Explicit collections scope sync; omission preserves keys. See the
+[Vault key example](examples/declarative/identity/vault-keys.md) for enablement,
+parent adoption, five-key rotation limits, public export and guarded deletion.
 
 The separate `identity.auth_servers` collection manages authorization servers.
 Each server requires an explicit unique `name` and `audience`. It uses
@@ -829,8 +838,9 @@ declared collections, and deletion never requests a cascade. Scopes and claims
 inherit the managed server's namespace/protection. Explicit child collections
 define sync authority; omission preserves them. Scope references resolve in
 saved plans, and guarded deletion orders claim detachments before removing
-scopes. These children have no labels or `managed_by`. OAuth clients and
-secrets remain separate resource work.
+scopes. These children have no labels or `managed_by`. OAuth clients have
+independent ownership labels and declarative lifecycle support. Client secrets
+use explicit create/capture, enable/disable and deletion commands.
 
 See the [Identity examples](examples/declarative/identity/README.md) for
 manifests, adoption, protection, sync scope, and current platform limitations.

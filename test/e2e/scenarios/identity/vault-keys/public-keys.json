@@ -1,0 +1,38 @@
+[
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7AgjGI6tR5UzNjvnh37l\nc2Bb82P9en0cmmwIDGEfKMMots4C4yJ4v+FDSJ2YkjKX1+AUbYbGhRgXjc+vrE8O\nVLEd7QkEf2Yw8buuhSsKRphLY6SgEUU858C4shLeeHQmuz4dspxAi6JR1W39w6Xc\n2p/jILbz4Xwwg3qSz0tKvoXTWNFYdW99uCEdP0SiE1Kvx+1nwJbJFU5Ut+10EgeR\nPiSeEgW93GlH9slvytOWyg2IXNOlUzqbUE6wYDV16XyiKAKN2VNbk2OgVR6bl0Xf\n6Jc6UQgU+zrOHouhdgRV0XLVwP9nQflKR1m3oLJhA6SWc7qc73B1C4ZxUgQdvj/t\nbQIDAQAB\n-----END PUBLIC KEY-----\n",
+    "kid": "yoyUJfs6w_CYRcQF3iKwM6d15CYE0JKX1nNSofZ6Y7w",
+    "algorithm": "RSA",
+    "bits": 2048
+  },
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7zPTirJbmSedzdiDfVgh\nxUDUucshKiIwSe/ca/3YFNRdVq+DF+qaDuV63Cay6dAeL9yeRT6GlS3WeO27e+1j\ndQVZ2fob+nnlZIIVcyv1Uueb6eTUB5PhRqkf/ecWXm8FNucXfZ3EkqC73rGY83Fx\n/mqFaO4NedKsecEMt0S3iW9uBrU25rSJL9le/wVeD7EpT0S6d8E93e/f6aNz9NGi\nZpx1DuDpcyjjW+NLX57zl9BEkDihDuHubBk8GIDpXewbKg/pOFUyNjMk2vty/04G\nicainRKDEzSZuZJ36QHXqtg+1nB/xP+l8QW99YD2EneMi4fJ19KK76xf/53CI68B\ntQIDAQAB\n-----END PUBLIC KEY-----\n",
+    "kid": "PCvwb5PLUmBs3sFFeoVOTDZTeZ7qPaXtavOYk31ApdA",
+    "algorithm": "RSA",
+    "bits": 2048
+  },
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEl97GVmoH8C2ngzcdu2quBbvnSmLe\n1200T00drTLl+SJiyJ2A8QEQnURh+Z/UwfcSxKEawifbwFgVicQvrk9BNQ==\n-----END PUBLIC KEY-----\n",
+    "kid": "oQxATEjLZxIilgPIMHe5GQx9ayLKsbCKhFGaFohRlYg",
+    "algorithm": "EC",
+    "bits": 256
+  },
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEACIDYgAE6IlsP2OV5ml/e8bK5M69hUt/Y3dbVagC\nJw+n5rzPqYn+YeDC40vG5X7hda6O9+NYy/Ow/GYxcBAUW4tlkVm0CoSLFqvFTgdC\nK8fL0LbFyq8gQ9Dadfsq0Kg3hD7YSOTJ\n-----END PUBLIC KEY-----\n",
+    "kid": "R-M6At6JdHARBkfo5Arf085QwPXRHsbhZXMA63O1h5A",
+    "algorithm": "EC",
+    "bits": 384
+  },
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQBu8sxtNTkaCk/DC7z9jJ6KmuTAu2e\nlj2nBV9nDGIhR8vjtw9rxMsUiU8GoUSlSUlqKmChFa8b3wVu7VtSxaFlRMIB/G58\nLJuedjuzQ7yMQ5vN6ZSaTR7hAv35azVgIK24uDzy7yJacuJOD7xyuOB+YtgP+DTc\nwFVehB/MHZmFeK24Q4w=\n-----END PUBLIC KEY-----\n",
+    "kid": "OOlud1TusADzlCNgXlqfFrgA8QY-qB4SyoS7FwzyrmQ",
+    "algorithm": "EC",
+    "bits": 521
+  },
+  {
+    "public_key": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMxR7NJSoipGtYj1JHaGNJcR5AFSS\nqbofh2i8qOqquo6kpkYkqHLqhYl55qgL3zv6UICP9S7Tc0Q+7ZPwB3Wzxw==\n-----END PUBLIC KEY-----\n",
+    "kid": "iVqpLQZFbD_zDNB70f_uJBcuOq8vdRoZ-SK8DkT3Q-M",
+    "algorithm": "EC",
+    "bits": 256
+  }
+]
