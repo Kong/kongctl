@@ -20,14 +20,18 @@ import (
 var cleanupEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 type cleanupTarget struct {
-	kind resources.ResourceType
-	name string
+	kind             resources.ResourceType
+	name             string
+	principalAPIKeys bool
 }
 
 func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupResource, vars map[string]any) error {
 	t.Helper()
 	seenVars, seenEnv := map[string]bool{}, map[string]bool{}
 	for _, spec := range specs {
+		if spec.PrincipalAPIKeys && resources.ResourceType(spec.Resource) != resources.ResourceTypeIdentityDirectory {
+			return fmt.Errorf("principalAPIKeys cleanup requires an identity directory")
+		}
 		// Only families with complete list commands and safe raw deletion participate.
 		//nolint:exhaustive
 		switch resources.ResourceType(spec.Resource) {
@@ -52,7 +56,9 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		name := "kongctl-e2e-" + strings.ReplaceAll(spec.Resource, "_", "-") + "-" + uuid.NewString()
 		vars[spec.NameVar] = name
 		cli.WithEnv(map[string]string{spec.NameEnv: name})
-		targets = append(targets, cleanupTarget{kind: resources.ResourceType(spec.Resource), name: name})
+		targets = append(targets, cleanupTarget{
+			kind: resources.ResourceType(spec.Resource), name: name, principalAPIKeys: spec.PrincipalAPIKeys,
+		})
 	}
 	t.Cleanup(func() {
 		// Preserve teardown evidence separately from finalized scenario diagnostics.
@@ -118,7 +124,7 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		return nil
 	}
 	if target.kind == resources.ResourceTypeIdentityDirectory {
-		if err := cleanupPrincipalFixtures(ctx, cli, id); err != nil {
+		if err := cleanupPrincipalFixtures(ctx, cli, id, target.principalAPIKeys); err != nil {
 			return err
 		}
 		endpoint += id + "?force=false"
@@ -203,7 +209,7 @@ func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID, 
 
 // Only principals explicitly marked with this test directory's ID are removed.
 // Unmarked descendants cause cleanup to stop before any deletion.
-func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID string) error {
+func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID string, includeKeys bool) error {
 	var values []struct {
 		ID     string            `json:"id"`
 		Labels map[string]string `json:"labels"`
@@ -225,6 +231,7 @@ func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID
 		Labels map[string]string `json:"labels"`
 	}
 	identities := make(map[string][]identityFixture)
+	keys := make(map[string][]principalKeyFixture)
 	for _, principal := range values {
 		var children []identityFixture
 		cli.OverrideNextOutput("json")
@@ -242,8 +249,20 @@ func cleanupPrincipalFixtures(ctx context.Context, cli *harness.CLI, directoryID
 			}
 		}
 		identities[principal.ID] = children
+		if includeKeys {
+			observed, err := principalAPIKeyFixtures(ctx, cli, directoryID, principal.ID)
+			if err != nil {
+				return err
+			}
+			keys[principal.ID] = observed
+		}
 	}
 	for _, value := range values {
+		if includeKeys {
+			if err := deletePrincipalAPIKeyFixtures(ctx, cli, directoryID, value.ID, keys[value.ID]); err != nil {
+				return err
+			}
+		}
 		for _, child := range identities[value.ID] {
 			// Q21: raw GET/DELETE do not enforce principal association. The scoped
 			// command proves current collection membership before cleanup writes.
