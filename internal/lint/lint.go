@@ -2,6 +2,7 @@ package lint
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -101,13 +102,15 @@ func isOpenAPISpec(fileBytes []byte) bool {
 }
 
 // Bytes lints raw file bytes against a pre-parsed ruleset.
+// Vacuum engine errors (such as a malformed JSONPath given selector) are
+// returned to the caller and are not affected by failSeverity or onlyFailures.
 func Bytes(
 	fileBytes []byte,
 	ruleSet *rulesets.RuleSet,
 	failSeverity string,
 	onlyFailures bool,
 	fileName string,
-) *Output {
+) (*Output, error) {
 	ruleSetResults := motor.ApplyRulesToRuleSet(&motor.RuleSetExecution{
 		RuleSet:           ruleSet,
 		Spec:              fileBytes,
@@ -115,6 +118,10 @@ func Bytes(
 		AllowLookup:       true,
 		SilenceLogs:       true,
 	})
+
+	if err := wrapEngineErrors(ruleSetResults.Errors, fileName); err != nil {
+		return nil, err
+	}
 
 	var (
 		failingCount int
@@ -174,7 +181,32 @@ func Bytes(
 		TotalCount: totalCount,
 		FailCount:  failingCount,
 		Results:    results,
+	}, nil
+}
+
+// wrapEngineErrors turns vacuum motor execution errors into a caller-facing
+// error that names the input file when it is known. These are independent of
+// rule-result severity filtering.
+func wrapEngineErrors(errs []error, fileName string) error {
+	if len(errs) == 0 {
+		return nil
 	}
+
+	wrapped := make([]error, 0, len(errs))
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		if fileName != "" {
+			wrapped = append(wrapped, fmt.Errorf("lint engine error in %q: %w", fileName, err))
+		} else {
+			wrapped = append(wrapped, fmt.Errorf("lint engine error: %w", err))
+		}
+	}
+	if len(wrapped) == 0 {
+		return nil
+	}
+	return errors.Join(wrapped...)
 }
 
 // Content lints raw content bytes against a ruleset provided as bytes.
@@ -190,7 +222,7 @@ func Content(
 	if err != nil {
 		return nil, err
 	}
-	return Bytes(content, ruleSet, failSeverity, onlyFailures, sourceName), nil
+	return Bytes(content, ruleSet, failSeverity, onlyFailures, sourceName)
 }
 
 // File reads a file from disk and lints it against the provided ruleset.
@@ -210,7 +242,10 @@ func File(
 		return nil, fmt.Errorf("failed to read input file %q: %w", filePath, err)
 	}
 
-	out := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
+	out, err := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, filePath)
+	if err != nil {
+		return nil, err
+	}
 	sortResults(out.Results)
 	return out, nil
 }
@@ -238,7 +273,10 @@ func Files(
 			return nil, fmt.Errorf("failed to read input file %q: %w", fp, err)
 		}
 
-		result := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, fp)
+		result, err := Bytes(fileBytes, ruleSet, failSeverity, onlyFailures, fp)
+		if err != nil {
+			return nil, err
+		}
 		aggregated.TotalCount += result.TotalCount
 		aggregated.FailCount += result.FailCount
 		aggregated.Results = append(aggregated.Results, result.Results...)
