@@ -61,6 +61,26 @@ Deletion always uses `force=false`, so existing child resources can block it.
 The preview public SDK exposes the DCR token duration; additional internal DCR
 settings are outside this manifest's schema.
 
+### Scope and claim inspection
+
+Scope and claim inspection is available under an explicitly selected server:
+
+```sh
+kongctl get identity auth-server-scopes --auth-server-name existing-issuer
+kongctl get identity auth-server-scope read:data \
+  --auth-server-name existing-issuer -o yaml
+kongctl get identity auth-server-claims --auth-server-name existing-issuer
+kongctl get identity auth-server-claim <claim-id> \
+  --auth-server-id <server-id> -o json
+```
+
+Specify exactly one server name or UUID. Scope names are unique within the
+server; claim names can repeat. An ambiguous claim name fails and requires
+the claim UUID. Claim values, including `${ uuidv4 }` and JSON-valued strings,
+are returned verbatim. These commands inspect configuration; they do not
+evaluate token or userinfo behavior. Declarative child support is still in
+progress; the auth-server manifest above currently configures only the root.
+
 ## Directories and principals
 
 `directories.yaml` manages a directory's configuration. Run this example

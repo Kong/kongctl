@@ -13,6 +13,9 @@ adoption, examples, and live E2E scenarios. Principal work is pushed in
 `c1e3cba3`. Authorization-server root support is the next implemented slice;
 its full live lifecycle scenario and protected-resource teardown pass.
 Child scopes, claims, OAuth clients, and secrets remain separate work.
+Scope/claim get/list commands and their complete collection readers are now
+implemented; their declarative lifecycle remains in progress under #1402
+and #1403. See Section 19 for newly verified contracts and API questions.
 
 The public preview SDK is now pinned to `56d878d0739c`, including the
 targeted serialization fix for clearing auth-server trusted origins.
@@ -1126,6 +1129,68 @@ internal SDK serialization issues stay outside the API team question log.
 Deletion always requests `force=false`, so children may block root deletion.
 Only the public DCR duration is exposed; internal DCR settings remain outside
 the manifest schema and are preserved by partial writes.
+
+## 19. Scope and claim contracts and inspection
+
+Direct US `.com` probes verified all public scope settings and claim settings,
+PATCH omission, false booleans, empty descriptions and scope associations,
+static JSON strings, and verbatim server templates such as `${ uuidv4 }`.
+Scope creation rejects duplicate names with 409. Claim creation accepts
+duplicate names and returns different IDs; Q12 asks how collisions affect
+issued claims.
+
+Claim-list totals do not reliably count claims. Two claims each linked to
+three scopes returned two items but total six; page-size-one traversal
+returned the claims on pages one and two, then empty pages with the same
+inflated total. This is reproducible directly and recorded as Q13. The
+collection reader follows actual pages through the terminal empty page,
+validates pagination metadata and unique nonempty IDs, and discards the full
+result after any page failure. Duplicate-name reads fail and require an ID.
+
+New commands accept exactly one `--auth-server-id` or `--auth-server-name`:
+
+```sh
+kongctl get identity auth-server-scopes --auth-server-name existing-issuer
+kongctl get identity auth-server-claims --auth-server-name existing-issuer
+kongctl get identity auth-server-claim <claim-id> \
+  --auth-server-id <server-id> -o yaml
+```
+
+JSON, YAML and text inspection are covered. The live child scenario exercises
+page size one, ambiguous claim names, UUID lookup, false booleans, scope
+associations, JSON-valued strings, and untouched server templates. Both full
+execution and a stop after fixture creation pass cleanup. Teardown checks all
+scope/claim fixture names against the generated parent's UUID, requires an
+empty client collection, deletes claims before scopes, and keeps root delete
+at `force=false`. It refuses all deletion when an unmarked child or client is
+observed. The metadata ledger records that neither scopes nor claims stores
+independent ownership metadata.
+
+Live artifacts under `/home/rspurgeon/.cache/kong-identity-public-sdk/`:
+
+- `auth-child-reads-e2e/20261031-000810`
+- `auth-child-reads-stopped/20261031-000920`
+
+Modernization, clean formatting, CGO-disabled build, zero-issue lint,
+race-enabled unit/integration/harness tests and replay/allocation inventory
+checks pass. Auth-server root lifecycle also passes after the cleanup change
+in `auth-root-child-read-regression/20261031-001009`. A fresh server list is
+empty. Logs use the `auth-child-` prefix. Enabled replay coverage and
+recordings remain unchanged.
+
+Declarative lifecycle remains unfinished. Next steps are an explicit
+parent/collection ownership contract, same-plan scope references, dump,
+omitted/empty collection scope, and deletion guards. Direct DELETE of a scope
+silently removed it from both a client allowlist and a claim's scope list;
+fresh complete observations must guard this side effect. Root deletion with
+children and `force=false` returned 400 without deleting the server.
+
+The generated claim PATCH currently omits an explicit empty
+`include_in_scopes`. Fix and wire-test that serialization before enabling
+declarative association clearing. This is an SDK issue, separate from Q13.
+OAuth client IDs observed in the probe are opaque strings rather than UUIDs;
+future client support must retain that distinction. Probe client secrets
+were never logged, and every disposable resource was deleted.
 
 <!-- Sources: long link destinations are kept intact for valid Markdown. -->
 

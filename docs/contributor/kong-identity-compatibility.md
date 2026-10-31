@@ -90,6 +90,33 @@ block deletion; no root-level cleanup or declarative delete silently cascades.
 Revisit deletion ordering only when child resource support observes and
 validates the complete dependency graph.
 
+## Claim names and pagination
+
+Related API questions: Q12 and Q13. Direct HTTP probes accepted duplicate
+claim names. Claim list totals exceeded the actual number of claims when
+claims referenced multiple scopes.
+
+- Initial read contract: name lookup exhausts the unfiltered collection and
+  rejects duplicate matches. UUID lookup remains available. Server template
+  strings are returned verbatim.
+- Claim pagination continues through an empty terminal page, rather than
+  trusting the inflated total as a resource count. It validates page metadata,
+  rejects repeated/missing IDs, and exposes no partial result after a failure.
+- Removal trigger: engineering documents name collision behavior and corrects
+  totals; direct multi-scope tests verify accurate counts and terminal pages.
+- Keep duplicate detection even if uniqueness becomes enforced, for records
+  created before the constraint. Keep terminal-page traversal compatible with
+  deployments that still report inflated totals.
+- Required verification: two claims linked to three scopes each, page size one
+  and one hundred, empty collections, duplicate names, exact UUID reads, and
+  failed or repeated pages. Scope deletion also needs fresh claim/client
+  observations because the API silently detaches associations.
+
+The generated claim PATCH request also currently omits explicit empty
+`include_in_scopes`. Declarative claim configuration must preserve an empty
+list on the wire before exposing association clearing. This serializer issue
+is separate from the service API questions.
+
 ## Recording resolution
 
 For each resolved question, record the team answer, date, environment/API
