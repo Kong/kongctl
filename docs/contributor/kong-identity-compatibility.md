@@ -38,21 +38,27 @@ principals: false creation/read/list, PUT activation, PATCH deactivation and
 reactivation work. Unrelated PUT/PATCH preserve omitted false on user, agent
 and unclassified principals. Existing SDK request models already expose
 optional `*bool` fields without defaults; no new SDK field is required.
-Declarative active support is still unimplemented. Its next slice should add
-explicit false/true comparison, saved writes, dump and live lifecycle coverage,
-while keeping presence-aware reads and a clear policy for deployments that
-omit the field. Other provisioning actors remain unverified.
+Declarative optional active is now implemented. Explicit false/true flows through
+planning, saved writes and dump. Omission uses the documented PUT semantics
+and preserves the current value without synthesizing a false value. Explicit
+null is rejected. Fresh observed state is required for updates; deployments
+omitting active fail explicit reconciliation before mutation. Create and update
+readback must retain the requested boolean; a failure after writing is reported
+without retry or rollback.
 
-- Initial contract: defer declarative active configuration. Inspection omits
-  absent values in JSON/YAML and shows unknown in text. Never dump a fabricated
-  false value or write one while preserving unrelated settings.
-- Removal trigger: engineering confirms deployment and provisioning rules;
-  direct create/GET/list/update tests return observable active state and verify
-  true/false transitions.
-- Required verification: omitted versus false, activation/deactivation,
-  provisioning restrictions, saved plans, and dump/reload.
-- Retain response-presence handling for compatibility with older environments
-  even after enabling active configuration.
+The specification prohibits deactivating developer-portal principals. Planner
+and executor enforce that rule against fresh provisioning information. Setting
+false can change provisioning provenance to konnect_user, as documented by the
+API. Other provisioning paths have not been live-tested; no broader guarantee
+is inferred.
+
+- Keep presence-aware reads/dump for older deployments (Q10).
+- A field omitted by the API stays absent in dumps and unknown in text.
+- Remove missing-field compatibility only after the deployment contract is
+  established. Other provisioning actors need dedicated lifecycle fixtures.
+- Coverage includes explicit false creation, false/true/no-op/saved updates,
+  omission, protection, adoption, diff, dump and sync; the live command also
+  verifies explicit reconciliation fails on deployments omitting the field.
 
 ## Principal management metadata PATCH
 
@@ -102,23 +108,19 @@ Direct `.tech` principal PUT/group-create probes reproduce the same digits.
 
 ## Current implementation and regression coverage
 
-The principal resource validates deferred `active` input in
-`internal/declarative/resources/identity_principal.go`. Type changes are
-rejected in `planner/identity_principal_planner.go` and rechecked against a
-fresh observation in `executor/identity_principal_adapter.go`. These guards
-reference Q9/Q10 explicitly.
+The principal resource accepts optional boolean active and rejects null.
+Type changes are rejected in planner/identity_principal_planner.go and
+rechecked against a fresh observation in executor/identity_principal_adapter.go.
+The active capability/provenance guard is shared with read helpers; state writes
+verify explicit active using presence-preserving GETs.
 
-`helpers.IdentityPrincipalReplacement` builds PUT requests without `active`.
-The principal executor hydrates omitted fields from a fresh detail response,
-then overlays only saved plan fields. Adoption uses the same replacement
-builder. Reads preserve response presence independently of SDK defaults.
-
-Coverage lives in the principal loader, planner, executor, adoption, and read
-helper tests. `test/e2e/scenarios/identity/directories` exercises the live
-principal lifecycle, including user/agent/null creation, repeated no-op plans,
-PUT updates, omitted fields, metadata clearing, dump/reload, adoption,
-protection, deletion, and scoped sync. Q9/Q10 rejection assertions should be
-replaced with supported behavior when those restrictions are removed.
+helpers.IdentityPrincipalReplacement builds hydrated PUT requests without
+active. The executor overlays active only when saved plan fields request it;
+adoption preserves it through omission. Coverage lives in loader, planner,
+executor, state, dump and read-helper tests. The identity/directories scenario
+includes active.py, which exercises the supported lifecycle or verifies Q10's
+explicit missing-field error according to observed API presence. Type/null
+rejection remains tied to Q9.
 
 ## Auth-server preview SDK boundaries
 

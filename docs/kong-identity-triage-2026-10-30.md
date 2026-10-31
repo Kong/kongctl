@@ -40,9 +40,9 @@ has differing native API effects (Q26); checks cover declared collections,
 with a warning about OAuth associations outside those scopes. Section 26
 records this implementation and its verification.
 
-Principal API-key inspection is implemented under #1417. New live probes show
-that keys work for agent/unclassified principals but return 404 for user
-principals; name is unavailable, management-map PATCH changes are ignored,
+Principal API-key inspection is implemented under #1417. US `.tech` supports
+keys on user/agent/unclassified principals and non-unique names; original US
+`.com` user/name limitations are deployment-specific. Management-map PATCH is ignored,
 and omitted expiration is cleared by PATCH. Imported creation rejects
 management metadata. These contracts defer declarative key writes/adoption;
 scoped get/list exposes public metadata with complete pagination and no secret
@@ -51,11 +51,19 @@ material. Q27–Q30 record the API-only follow-up, and Section 27 records eviden
 Group/team and direct membership get/list are implemented under #2657/#2658,
 with scoped UUID/name lookup and complete pagination. Declarative lifecycle is
 still pending resource-specific authority and deletion work. Unique names and
-`managed_by` retention work; group keys currently return 501. Membership types
+`managed_by` retention work. Group keys work in US `.tech`; earlier US `.com`
+requests returned 501. The tested `.tech` org rejects team creation. Membership types
 and importer authority need clarification (Q32–Q33). Direct group tests
 also exposed numeric precision loss in principal/group runtime metadata
 (Q31). Principal validation and write-result checks now guard that behavior;
 use strings for exact numeric identifiers. Section 28 records the findings.
+
+Principal active configuration now supports explicit false/true creation and
+updates, saved plans, diff, dump, omission, protection and adoption. The SDK
+already has the required optional request booleans. Missing response fields
+remain unknown; explicit reconciliation requires observable state. Developer
+portal deactivation is rejected according to the spec. Section 35 records
+verification; Q10 still tracks deployment/provisioning differences.
 
 Keep these two running logs alongside this report:
 
@@ -1994,7 +2002,7 @@ command behavior is changed while the user manually tests the current slice.
 - [ ] Token-duration diff rendering: `access_token_duration` is incorrectly
   redacted by the generic sensitive-field display policy; keep actual secret
   redaction while showing non-secret numeric durations.
-- [ ] Principal active implementation: October 31 native `.tech` probes now
+- [x] Principal active implementation: October 31 native `.tech` probes now
   verify false creation, true/false updates and omitted-field preservation
   across directly provisioned user/agent/unclassified principals (Q10). Add
   declarative support and lifecycle coverage; preserve presence-aware reads
@@ -2131,3 +2139,49 @@ contract questions. Q4/Q5/Q11/Q28/Q31 and auth-server/scoping findings still
 have reproducible `.tech` evidence. Automatic default provisioning,
 importer coexistence, workspace-bearing identities, recovery guarantees and
 the remaining deletion/runtime variants were not settled by this pass.
+
+## 35. Principal active declarative lifecycle
+
+Optional boolean active now supports explicit false/true in creation, diffs,
+saved plans, PUT updates, no-op planning, sync and dump. Omission preserves the
+current value through the API's documented PUT contract, including adoption
+and protection changes. Null is rejected. No default is synthesized locally.
+
+Planning and execution require observable state before an explicit update.
+Developer-portal deactivation is rejected according to the specification;
+other provisioning actors have not been live-tested. Explicit create/update
+readback verifies the requested boolean using presence-preserving GETs.
+An unverifiable or ignored value is reported after the remote write, without
+automatic retry or rollback. Earlier deployments omitting active still support
+omitted declarations and inspection; dump never invents false.
+
+Ownership remains the same five-entry managed_by map. The preview SDK already
+has optional request booleans, so this slice changes no SDK files or pin.
+Examples demonstrate active true and false. The directory lifecycle scenario
+adds active.py, covering false creation, saved activation, omission,
+protection/unprotection, adoption, diff, dump, sync and cleanup. When responses
+omit the field, it asserts Q10's explicit reconciliation error instead.
+
+Verification on October 31:
+
+- Modernization, formatting, CGO-disabled build and zero-issue lint pass.
+- Unit race tests, integration race tests and E2E harness race tests pass.
+- SDK patch, installer, replay-policy and 140 metrics tests pass.
+- The standalone active lifecycle against the externally selected default
+  passes; it deletes only its own generated principal.
+- The complete directory/principal scenario passes in US .tech:
+  /home/rspurgeon/.cache/kong-identity-public-sdk/active-directory-e2e/20261031-104858.
+- All twelve Identity scenarios then ran together: eleven pass, including
+  directory/principal lifecycle; group inspection fails in fixture setup
+  because this environment rejects team creation. This is the Q32 deployment
+  difference, not a principal-active regression. Follow-up test work must
+  retain ordinary-group coverage and verify team availability explicitly.
+  Evidence:
+  /home/rspurgeon/.cache/kong-identity-public-sdk/active-all-e2e/20261031-105016.
+
+The user authorized removing all .tech fixtures for validation. The prior
+orders demo issuer/client/principal/identity and default directory were
+removed to free the one-directory quota; old demo IDs and captured OAuth
+secrets are no longer valid. The normal unmanaged default settings will be
+restored after scenario validation. Existing local secret files were not read
+or deleted. #1415 remains In Progress until merge to main.

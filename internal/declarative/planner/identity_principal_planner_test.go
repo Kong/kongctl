@@ -238,3 +238,46 @@ func TestPrincipalDeletionRequiresEmptyIdentityCollection(t *testing.T) {
 		})
 	}
 }
+
+func TestPrincipalActivePlanning(t *testing.T) {
+	id := fixture.Directory("people", "directory-team", false).ID
+	for _, old := range []bool{false, true} {
+		for _, next := range []bool{false, true} {
+			api := &fixture.PrincipalAPI{ExposeActive: true, Directories: map[string][]kkComps.KongPrincipal{
+				id: {principalObserved("alice", "principal-team")},
+			}}
+			api.Directories[id][0].Active = old
+			d := principalDesired()
+			d.Active = new(next)
+			plan, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+			require.NoError(t, err)
+			if old == next {
+				require.Empty(t, plan.Changes)
+			} else {
+				require.Len(t, plan.Changes, 1)
+				require.Equal(t, next, plan.Changes[0].Fields[FieldActive])
+				require.Equal(t, FieldChange{Old: old, New: next}, plan.Changes[0].ChangedFields[FieldActive])
+			}
+			d.Active = nil
+			plan, err = principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+			require.NoError(t, err)
+			require.Empty(t, plan.Changes)
+		}
+	}
+	d := principalDesired()
+	d.Active = new(false)
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{
+		id: {principalObserved("alice", "principal-team")},
+	}}
+	_, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.ErrorContains(t, err, "Q10")
+	api.ExposeActive = true
+	api.Directories[id][0].ProvisionedBy = new(kkComps.ProvisionedByDeveloperPortal)
+	_, err = principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.ErrorContains(t, err, "cannot be deactivated")
+	api.Directories[id] = nil
+	plan, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, false, plan.Changes[0].Fields[FieldActive])
+}
