@@ -39,6 +39,24 @@ regression verifies the bracketed names and cursor encoding; it fails before
 the patches. Skip SDKs without these operations. Remove the replacements when
 upstream generation preserves the documented/deployed cursor shape.
 
+Identity credential expiration requires a separate preview-spec correction:
+the combined specification merges a writable credential `ExpiresAt` definition
+with a read-only IAM timestamp. The preview preparation script gives the six
+credential request schemas a dedicated writable nullable date-time reference
+(Q36). It leaves the shared IAM response schema unchanged.
+
+For the five optional request fields, targeted replacements use the SDK's
+existing `optionalnullable.OptionalNullable[time.Time]` type. The zero value
+omits expiration, `optionalnullable.From(&expiration)` supplies a timestamp,
+and `optionalnullable.From[time.Time](nil)` sends explicit null. The required
+password replacement field stays `*time.Time` with no `omitempty`; nil sends
+the required null property. This does not enable nullable wrappers globally
+or change existing public SDK fields. Generated examples are updated within
+their affected operation sections. Wire regressions cover all three states
+for principal/group generated/imported keys and password create/update/replace.
+Remove these replacements only when upstream generation preserves those
+states. Backend metadata and expiration omission behavior (Q28/Q35) is separate.
+
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.

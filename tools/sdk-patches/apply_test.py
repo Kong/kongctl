@@ -107,6 +107,42 @@ class PatchTests(unittest.TestCase):
                 patches.post_generate(sdk, manifest)
             self.assertEqual(target.read_text(), "first drift")
 
+    def test_documentation_replacements_are_scoped_and_idempotent(self):
+        for declaration in ["import (", "import("]:
+            example = declaration + '\n\t"context"\n)\nExpiresAt: timestamp,\n'
+            source = "## First\n" + example + "## Second\n" + example
+            patch = {
+                "file": "README.md", "section": "Second",
+                "before": "ExpiresAt: timestamp,", "after": "ExpiresAt: nullable(timestamp),",
+                "imports": ["example/nullable"],
+            }
+            result = patches.replace_doc_section(source, patch)
+            self.assertEqual(result.split("## Second")[0], source.split("## Second")[0])
+            self.assertEqual(result.count('"example/nullable"'), 1)
+            self.assertIn("ExpiresAt: nullable(timestamp),", result)
+            self.assertEqual(patches.replace_doc_section(result, patch), result)
+
+    def test_documentation_drift_does_not_partially_write_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            sdk = Path(directory)
+            model, document = sdk / "request.go", sdk / "README.md"
+            model.write_text("before")
+            document.write_text("## Changed\nexample\n")
+            manifest = {
+                "post_generation": [{"file": "request.go", "before": "before", "after": "after"}],
+                "post_generation_doc_sections": [{
+                    "file": "README.md", "section": "Expected", "before": "example",
+                    "after": "updated", "imports": [], "optional_file": True,
+                }],
+            }
+            with self.assertRaises(ValueError):
+                patches.post_generate(sdk, manifest)
+            self.assertEqual(model.read_text(), "before")
+            self.assertEqual(document.read_text(), "## Changed\nexample\n")
+            document.unlink()
+            patches.post_generate(sdk, manifest)
+            self.assertEqual(model.read_text(), "after")
+
 
 if __name__ == "__main__":
     unittest.main()
