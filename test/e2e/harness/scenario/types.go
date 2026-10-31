@@ -34,12 +34,13 @@ type ScenarioTest struct {
 
 // CleanupResource reserves a generated resource name for this scenario run.
 type CleanupResource struct {
-	Resource         string   `yaml:"resource"`
-	NameVar          string   `yaml:"nameVar"`
-	NameEnv          string   `yaml:"nameEnv"`
-	PrincipalAPIKeys bool     `yaml:"principalAPIKeys,omitempty"`
-	PrincipalGroups  bool     `yaml:"principalGroups,omitempty"`
-	GroupNamespaces  []string `yaml:"groupNamespaces,omitempty"`
+	Resource                string   `yaml:"resource"`
+	NameVar                 string   `yaml:"nameVar"`
+	NameEnv                 string   `yaml:"nameEnv"`
+	PrincipalAPIKeys        bool     `yaml:"principalAPIKeys,omitempty"`
+	PrincipalGroups         bool     `yaml:"principalGroups,omitempty"`
+	GroupNamespaces         []string `yaml:"groupNamespaces,omitempty"`
+	RequireEmptyTrustedIDPs bool     `yaml:"requireEmptyTrustedIdPs,omitempty"`
 }
 
 type Retry struct {

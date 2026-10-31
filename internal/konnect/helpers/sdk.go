@@ -29,6 +29,7 @@ type SDKAPI interface {
 	GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader
 	GetIdentityBasicAuthAPI() IdentityBasicAuthAPI
 	GetIdentityGroupsAPI() IdentityGroupsAPI
+	GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI
 	GetIdentityGroupsReader() IdentityGroupsReader
 	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
 	GetControlPlaneAPI() ControlPlaneAPI
@@ -157,6 +158,13 @@ func (k *KonnectSDK) GetIdentityGroupsAPI() IdentityGroupsAPI {
 		return nil
 	}
 	return k.SDK.PrincipalGroup
+}
+
+func (k *KonnectSDK) GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI {
+	if k.SDK == nil || k.SDK.TrustedIDPs == nil {
+		return nil
+	}
+	return k.SDK.TrustedIDPs
 }
 
 func (k *KonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {

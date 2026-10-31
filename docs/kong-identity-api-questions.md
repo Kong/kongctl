@@ -33,6 +33,7 @@ open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
 | Unverified contracts | Provisioning lifecycle, importer/user enrollment, workspace fixtures, cross-resource deletion variants and recovery guarantees. | Do not present these as resolved or as reproduced `.tech` defects. |
 | Cursor query (Q22) | Shared source annotation and SDK wire mismatch remain established separately. | Keep upstream spec correction and SDK tests. |
 | Credential expiration schema (Q36) | Native timestamp/null writes work; combined SDK spec selects a read-only component for writable requests. | Correct the component-name collision in specification composition; this is separate from backend PATCH behavior. |
+| Trusted IdPs (Q37–Q38) | Directory force=false removes attached IdPs; disabled Vault hides them. PATCH jwks_uri null retains an override, while PUT omission clears it. | Clarify deletion dependencies, disabled-Vault inspection and nullable PATCH clearing. |
 
 Sanitized request/response evidence is saved locally under
 `/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
@@ -472,6 +473,10 @@ Principal API-key lists also accept the bracketed parameters and return
 next-page URLs that traverse three distinct pages successfully.
 Group and group-membership requests have the same flat SDK encoding defect;
 direct bracketed queries retrieve successive pages of those collections too.
+US `.tech` Trusted IdP and associated-principal lists use the same contract:
+bracketed parameters traverse three IdPs and two associated principals with
+page size one, while their generated SDK requests originally encoded flat
+keys. These are two more users of the same shared parameter annotation.
 
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.

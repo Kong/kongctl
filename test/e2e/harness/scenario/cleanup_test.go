@@ -102,6 +102,7 @@ func TestResourceCleanupRejectsAmbiguousAndIncompleteObservations(t *testing.T) 
 func TestResourceCleanupConfiguration(t *testing.T) {
 	cli, _ := cleanupFixtureCLI(t)
 	for _, specs := range [][]CleanupResource{
+		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", RequireEmptyTrustedIDPs: true}},
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalAPIKeys: true}},
 		{{Resource: string(resources.ResourceTypeControlPlane), NameVar: "name", NameEnv: "NAME", PrincipalGroups: true}},
 		{{Resource: "portal", NameVar: "name", NameEnv: "NAME"}},
@@ -307,6 +308,11 @@ if args[0]=='get':
             if not values: sys.exit(1)
             values=values[0]
             if fault=='membership-member-change': values['member']['id']='changed'
+    elif args[:3]==['get','identity','trusted-idps']:
+        if fault=='trusted-idp-read-error': sys.exit(1)
+        directory=args[args.index('--directory-id')+1]
+        values=[v for v in values if v.get('kind')=='trusted-idp' and v.get('directory_id')==directory]
+        if fault=='trusted-idp-missing': values=None
     elif args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
@@ -315,7 +321,7 @@ if args[0]=='get':
         kind={'auth-server-claims':'claim','auth-server-scopes':'scope','auth-server-clients':'client'}[args[2]]
         values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        excluded=['principal','scope','claim','client','identity','api-key','group','membership']
+        excluded=['principal','scope','claim','client','identity','api-key','group','membership','trusted-idp']
         values=[v for v in values if v.get('kind') not in excluded]
     print(json.dumps(values))
 elif args[:2]==['api','get'] and '/clients?' in args[2]:

@@ -119,6 +119,14 @@ membership and labels before DELETE (API question Q21), removes identities
 first, and requires an empty fresh collection before deleting a principal.
 Unmarked or incompletely observed descendants stop cleanup.
 
+Trusted IdP fixtures use `requireEmptyTrustedIdPs: true` on their directory
+cleanup entry. This requires an observable empty IdP collection before any
+cleanup writes and again before directory deletion. It never authorizes IdP
+deletion; the fixture must remove its verified records itself. Failed,
+Vault-disabled or incomplete observations stop cleanup. Other scenarios do
+not gain new Vault read requirements. The explicit guard is needed because
+directory `force=false` does not prevent deletion with attached IdPs (Q37).
+
 Group inspection fixtures explicitly opt into `principalGroups: true` on the
 directory cleanup entry. Only manually provisioned, credential-free groups
 with the generated name prefix, directory fixture label and exact four-entry
