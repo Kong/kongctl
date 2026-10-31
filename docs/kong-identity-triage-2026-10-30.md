@@ -2004,8 +2004,8 @@ command behavior is changed while the user manually tests the current slice.
   redaction while showing non-secret numeric durations.
 - [x] Principal active implementation: October 31 native `.tech` probes now
   verify false creation, true/false updates and omitted-field preservation
-  across directly provisioned user/agent/unclassified principals (Q10). Add
-  declarative support and lifecycle coverage are implemented in section 35,
+  across directly provisioned user/agent/unclassified principals (Q10).
+  Declarative support and lifecycle coverage are implemented in section 35,
   including presence-aware reads and missing-field compatibility.
 
 The user's first manual create/read pass verifies an agent principal with the
@@ -2210,7 +2210,8 @@ unmanaged directory named default was then created with the standard observed
 new-organization settings and verified by GET: unrestricted control planes,
 empty allowlist/description/labels/managed_by, both TTLs 600 and Vault false.
 Its ID is `01a192b1-d9df-7c25-a491-1366f78e5353`. Principal/group collections
-are empty and no test auth servers remain. The original orders-demo resources
+are empty and no test auth servers remain. All seven referenced test credential
+capture paths are absent after teardown. The original orders-demo resources
 and IDs are retired; generate fresh plans and a fresh secret-output directory
 when recreating that demonstration. Existing local user capture files were
 not read or removed.
