@@ -134,9 +134,9 @@ alone is not proof that a POST is safe to replay.
 
 ## OAuth client update and pagination contracts
 
-Related API questions: Q15–Q18. Client get/list and secret metadata get/list
-are implemented. Full client declarative writes and explicit secret lifecycle
-remain separate work; reads do not imply that those operations are complete.
+Related API questions: Q15–Q19. Client reads and explicit secret lifecycle
+are implemented. Full client declarative writes and initial client-secret
+capture remain separate work; they are not implied by secret rotation support.
 
 - Client pagination now follows actual pages to an empty terminal page,
   ignoring totals for completion. Two clients each linked to two scopes
@@ -157,23 +157,59 @@ remain separate work; reads do not imply that those operations are complete.
   the existing `client_secret_basic` method. Deleting that secret changed
   authentication to 401; importing replacement material restored 200. No
   token or secret values were logged. This establishes the tested HTTP path,
-  not a completed SDK executor or output-capture implementation.
+  not a completed declarative client executor. Separate secret issuance now
+  has private file capture and live rotation coverage.
 - Raw HTTP accepts explicit empty grant, response, redirect and allowed-scope
-  arrays, and null or empty login URI. The SDK's update slices currently use
-  `omitempty`, and its authentication-method field has a default. Wire tests
-  and targeted serialization fixes are required before declarative writes;
-  do not assume the working raw request equals the SDK payload.
+  arrays, and null or empty login URI. The preview SDK at `221af2edb788` now
+  preserves explicit empty grant/response/redirect/allowed-scope arrays and
+  omits an unset authentication method. The wire regression failed before
+  those fixes and passes afterward. This changes serialization, not Q15's
+  deployed defaulting; future executors must still preserve the fresh method.
 - Authorization-code grants were rejected in US `.com`. Keep API capability
   limits explicit and verify other grants independently; do not silently
   rewrite a requested grant or make broad support claims (Q17).
 - Secrets have two total slots even when both records are disabled. An
   explicit lifecycle must never delete a record merely to make room without
-  a requested retirement. Creation generates material once; secure capture,
-  single-attempt failure handling, and recovery guidance remain required.
+  a requested retirement. The explicit create command captures material once
+  in a new private file and makes a single request through both retry layers.
   No declarative secret-slot naming contract exists (Q16).
 - Secret reads project onto a metadata-only type. No read command serializes
   an SDK secret item directly. Regression tests inject unexpected values and
   assert they cannot appear in JSON/YAML; live coverage checks all formats.
+
+The patch bundle at `2489716c` also fixes accumulating multiple targeted
+replacements in one file before writing. Regeneration tests cover this and
+drift failures without partial file updates. Keep these regressions alongside
+the SDK's existing origin/claim array fixes and other KongCTL patches.
+
+## Explicit secret capture and rotation
+
+Client-secret commands use explicit parent/client selection and record UUIDs.
+They have no declarative ownership or automatic rotation policy. Creation
+reserves an unused `0600` file, writes recovery metadata before POST, and
+captures the issued value only there. Existing files and symlinks fail before
+creation; replaced/disappeared output paths are detected. The successful
+capture is synced and closed. Normal output uses a metadata-only projection.
+
+Missing sources fail before creation. Imported values use existing env/file
+secret resolution; parser failures do not publish source contents. SDK error
+bodies can echo supplied material, so secret operations expose status only.
+Synthetic tests verify a single POST even with SDK and transport retry enabled,
+failed output preflight, an uncertain server response, missing returned values
+and a path disappearing after remote creation.
+
+Failures retain capture/recovery evidence and never automatically replay
+creation or delete an issued record. Q19 asks engineering for the API recovery
+contract. A reserved file does not prove whether creation happened. Inspect
+remote metadata and explicitly retire an unusable record before retrying into
+a new path. Enable/disable is explicit; deletion uses standard confirmation.
+
+The live `identity/client-secrets` scenario covers generated and imported
+material, two-slot rejection, output overwrite refusal, all mutation routes,
+missing sources/flags, metadata reads and actual token authentication through
+enable/disable/delete. Private files stay outside artifacts in a test-managed
+directory, removed even after a deliberate stop. No secret-slot declaration
+or initial client-create capture is included in this slice.
 
 Revisit count traversal only after multi-scope, page-size-one tests verify a
 correct resource total (Q18). Keep compatibility with older deployments and

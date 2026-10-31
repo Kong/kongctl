@@ -3,9 +3,9 @@
 These examples require the Kong Identity SDK preview used by this branch and
 access to the regional directory administration API.
 
-[OAuth client and secret inspection](auth-server-clients.md) documents the
-new read commands. Client declarative lifecycle and secure generated-secret
-capture are tracked separately in #1401 and #1404.
+[OAuth client inspection and secret rotation](auth-server-clients.md) covers
+reads, explicit secret lifecycle and private capture. Client declarative
+lifecycle and initial client-secret capture remain tracked in #1401.
 
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it

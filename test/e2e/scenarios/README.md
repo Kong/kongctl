@@ -372,6 +372,21 @@ Notes
 - Assertions attach to commands so you can validate state in-between changes.
 - If a needed resource isn’t supported by kongctl get yet, add that coverage to the CLI so scenarios don’t need HTTP fallbacks.
 
+Private Credential Outputs
+
+- Set `test.privateTempDirVar: secret_dir` to reserve a private test-managed
+  directory outside the public artifact tree. Refer to it as
+  `{{ .vars.secret_dir }}` in command paths. The variable must be unused and
+  contain only letters, digits or underscores, starting with a letter or
+  underscore. The directory is removed after success, failure or a deliberate
+  stop, after registered remote-resource cleanup.
+- Use this for one-time credential capture and import sources. Never write
+  actual credential values into `stdoutFile`, input overlays, recorded vars,
+  expectations or diagnostics. Verification helpers should emit metadata or
+  booleans only. `identity/client-secrets` demonstrates rotation, actual token
+  authentication and private capture checks without persisting material in
+  public artifacts.
+
 Synthetic Create Recovery
 
 - A synthetic `create:` POST that times out, loses its response, or returns a

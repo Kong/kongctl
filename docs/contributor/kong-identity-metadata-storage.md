@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `dfd890eb1a03`, generated
+The current source is the public preview SDK at `221af2edb788`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Live observations are from US `.com`. Keep this ledger current as each
@@ -22,7 +22,7 @@ resource is implemented.
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
 | Auth-server OAuth client | `labels`; no `managed_by` | Planned: `labels`; writes pending | Get/list implemented. Direct create/GET/list/PATCH retain labels; null deletes individual keys. Unrelated PATCH resets auth method (Q15). Creation returns a secret once. #1401 is In Progress. |
-| Auth-server client secret | None | None | GET/list metadata inspection; generated ID, enabled state and timestamps only. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress. |
+| Auth-server client secret | None | None | Explicit create/capture, get/list metadata, enable/disable and confirmed delete. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress; initial client creation capture remains #1401. |
 
 Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 `kongctl-protected`. Principal ownership adds `kongctl-ref` as the fifth entry.
@@ -60,7 +60,7 @@ or protection metadata on them.
 | --- | --- | --- |
 | Auth-server scopes | Unique name within auth server | Inherit managed parent namespace and update/delete protection. Explicit collection defines sync authority; fresh references guard deletion. #1402. |
 | Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
-| Auth-server client secrets | Generated secret ID under client | Explicit lifecycle and secure capture; no invented declarative secret-slot name. #1404. |
+| Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
 | Group memberships | Member type/ID under group | Relationship authority comes from an explicit collection contract. Import-managed memberships remain distinct. #2658. |
 | Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
 | Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
@@ -107,6 +107,13 @@ authority for another resource family.
   scope deletion.
   Q15 records the unrelated authentication-method reset on PATCH, Q16 the
   two-record secret limit, and Q17 unavailable authorization-code grants.
+- Explicit secret lifecycle: creation reserves a new `0600` file before POST,
+  persists issued material and record IDs only there, and returns metadata to
+  normal output. Enable/disable and delete select explicit record IDs and do
+  not add remote ownership fields. Private capture metadata identifies the
+  credential; it is not a tool/namespace/protection stamp on the API resource.
+  Live rotation verifies actual authentication, disabled/deleted rejection,
+  imported material and two-slot limits. Q19 tracks uncertain-create recovery.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for
