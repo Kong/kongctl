@@ -41,6 +41,9 @@ type ManagedByPolicy struct {
 // labels, protection, and ownership decisions remain with their current adapters.
 func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
+		if ops.independentChildLabels {
+			return fmt.Errorf("managed_by cannot also use independent label ownership")
+		}
 		if policy.MaxEntries < 2 {
 			return fmt.Errorf("managed_by entry limit must accommodate tool and version")
 		}
@@ -92,7 +95,8 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 // UsesManagedByOwnership distinguishes metadata ownership from legacy label ownership.
 func UsesManagedByOwnership(kind ResourceType) bool {
 	policy := registry[kind].managedBy
-	return HasIndependentChildOwnership(kind) || policy != nil && policy.OwnsLifecycle
+	return (HasIndependentChildOwnership(kind) && !registry[kind].independentChildLabels) ||
+		policy != nil && policy.OwnsLifecycle
 }
 
 // ValidateManagedBy validates Konnect metadata keys and a resource-specific limit.

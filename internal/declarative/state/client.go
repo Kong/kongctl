@@ -25,6 +25,7 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
+	IdentityAuthServerClientAPI  helpers.IdentityAuthServerClientsAPI
 	IdentityAuthServersAPI       helpers.IdentityAuthServersAPI
 	IdentityAuthServerScopesAPI  helpers.IdentityAuthServerScopesAPI
 	IdentityAuthServerClaimsAPI  helpers.IdentityAuthServerClaimsAPI
@@ -115,6 +116,7 @@ type Client struct {
 	identityAuthServerScopesAPI  helpers.IdentityAuthServerScopesAPI
 	identityAuthServerClaimsAPI  helpers.IdentityAuthServerClaimsAPI
 	identityAuthServerClientsAPI helpers.IdentityAuthServerClientsReader
+	identityAuthServerClientAPI  helpers.IdentityAuthServerClientsAPI
 	identityPrincipalsAPI        helpers.IdentityPrincipalsAPI
 	identityDirectoriesAPI       helpers.IdentityDirectoriesAPI
 	// Core APIs
@@ -197,7 +199,11 @@ type Client struct {
 
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
+	if config.IdentityAuthServerClientsAPI == nil && config.IdentityAuthServerClientAPI != nil {
+		config.IdentityAuthServerClientsAPI = config.IdentityAuthServerClientAPI
+	}
 	return &Client{
+		identityAuthServerClientAPI:  config.IdentityAuthServerClientAPI,
 		identityAuthServersAPI:       config.IdentityAuthServersAPI,
 		identityAuthServerScopesAPI:  config.IdentityAuthServerScopesAPI,
 		identityAuthServerClaimsAPI:  config.IdentityAuthServerClaimsAPI,

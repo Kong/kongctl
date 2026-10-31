@@ -21,8 +21,8 @@ resource is implemented.
 | Auth server | `labels`; no `managed_by` | `labels` | Create, GET, list, PATCH, adoption and full live lifecycle pass. Name uniqueness, omission, label null removal and array clearing verified. |
 | Auth-server scope | None | None on child; parent namespace/protection | Declarative lifecycle inherits managed parent authority and explicit collection scope. Complete client/claim observations guard deletion. |
 | Auth-server claim | None | None on child; parent namespace/protection | Declarative lifecycle, typed scope links and dump supported; ambiguous names fail before mutation. Parent adoption supplies authority. |
-| Auth-server OAuth client | `labels`; no `managed_by` | Planned: `labels`; writes pending | Get/list implemented. Direct create/GET/list/PATCH retain labels; null deletes individual keys. Unrelated PATCH resets auth method (Q15). Creation returns a secret once. #1401 is In Progress. |
-| Auth-server client secret | None | None | Explicit create/capture, get/list metadata, enable/disable and confirmed delete. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress; initial client creation capture remains #1401. |
+| Auth-server OAuth client | `labels`; no `managed_by` | Independent `labels` | Declarative lifecycle, adoption and live credential continuity pass. Namespace/protection are separate from the server. Every PATCH preserves the fresh auth method when omitted (Q15). Initial secret goes only to private capture. #1401 remains In Progress until merge. |
+| Auth-server client secret | None | None | Explicit create/capture, get/list metadata, enable/disable and confirmed delete. Two-record limit includes disabled entries (Q16). No independent declarative identity. #1404 is In Progress; initial creation capture is integrated with #1401. |
 
 Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 `kongctl-protected`. Principal ownership adds `kongctl-ref` as the fifth entry.
@@ -100,7 +100,8 @@ authority for another resource family.
 - OAuth clients/secrets, October 31 UTC: conventional client labels persist
   through direct HTTP create, reads and partial updates; the client name is
   unique per server (duplicate POST returns 409). Namespace/protection writes
-  remain pending. The new commands inspect client configuration and project
+  now have independent declarative ownership and live lifecycle coverage. The
+  new commands inspect client configuration and project
   secrets onto a type containing only ID, enabled state and timestamps.
   Client pagination traverses terminal pages because totals exceed client
   counts with multiple scope links (Q18). Complete observations also guard
@@ -114,6 +115,17 @@ authority for another resource family.
   credential; it is not a tool/namespace/protection stamp on the API resource.
   Live rotation verifies actual authentication, disabled/deleted rejection,
   imported material and two-slot limits. Q19 tracks uncertain-create recovery.
+
+
+- Declarative OAuth clients: labels store independent namespace/protection,
+  including beneath external servers. Complete local matching uses unique
+  client names and rejects unowned or foreign records before mutation. Saved
+  writes recheck parent identity and client identity/ownership/protection.
+  Initial creation reserves private capture before any mutations; only those
+  local files contain generated credentials. Local capture metadata is not a
+  substitute for remote client labels or ownership on secret records. Client
+  namespace scopes do not widen auth-server pruning. Scope detachment/deletion
+  dependencies use the actual explicit PATCH list and fresh reference checks.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

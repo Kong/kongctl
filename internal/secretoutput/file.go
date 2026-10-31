@@ -9,6 +9,10 @@ import (
 
 // Metadata identifies the remote record without containing credential material.
 type Metadata struct {
+	ResourceType string `json:"resource_type,omitempty"`
+	ResourceRef  string `json:"resource_ref,omitempty"`
+	Namespace    string `json:"namespace,omitempty"`
+	ParentRef    string `json:"parent_ref,omitempty"`
 	AuthServerID string `json:"auth_server_id"`
 	ClientID     string `json:"client_id,omitempty"`
 	SecretID     string `json:"secret_id,omitempty"`
@@ -67,6 +71,11 @@ func (f *File) Capture(metadata Metadata, value string) error {
 	return nil
 }
 
+// RecordPending fills identities resolved after reservation, before the POST.
+func (f *File) RecordPending(metadata Metadata) error {
+	return f.write(record{Metadata: metadata, Status: "creation_not_confirmed"})
+}
+
 func (f *File) write(value record) error {
 	if f == nil || f.file == nil {
 		return fmt.Errorf("secret output is closed")
@@ -116,4 +125,19 @@ func (f *File) Close() error {
 	err := f.file.Close()
 	f.file = nil
 	return err
+}
+
+// Discard removes a reservation before any remote request was attempted.
+func (f *File) Discard() error {
+	if f == nil || f.file == nil {
+		return nil
+	}
+	if err := f.checkPath(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return os.Remove(f.path)
 }

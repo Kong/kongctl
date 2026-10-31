@@ -193,7 +193,10 @@ func TestReviewedDeclarativeSecretCatalogIsCoveredByHTTPRedaction(t *testing.T) 
 
 	for _, capability := range secrets.Capabilities() {
 		t.Run(string(capability.ResourceType)+capability.PathPattern, func(t *testing.T) {
-			payload := secretCatalogPatternValue(strings.Split(strings.Trim(capability.PathPattern, "/"), "/"), sentinel)
+			payload := secretCatalogPatternValue(
+				strings.Split(strings.Trim(capability.PathPattern, "/"), "/"),
+				sentinel,
+			)
 			redacted := RedactSensitiveFields(payload)
 			exactKeysByResourceType := map[resources.ResourceType][]string{
 				resources.ResourceTypeAIGatewayConfigStoreSecret: {"value"},
@@ -231,6 +234,7 @@ func TestRedactMeshCredentialBodies(t *testing.T) {
 
 func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
 	for _, path := range []string{
+		"/v1/auth-servers/server/clients",
 		"/v1/auth-servers/server/clients/client/secrets",
 		"/v1/auth-servers/server/clients/client/secrets/id",
 	} {
@@ -240,7 +244,7 @@ func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
 			redactBodyForURL([]byte(`{"detail":"private-material"}`), "application/json", parsedURL))
 		assert.Equal(t, redactedValue, redactBodyForURL([]byte("private-material"), "text/plain", parsedURL))
 	}
-	other, err := url.Parse("https://example.test/v1/auth-servers/server/clients")
+	other, err := url.Parse("https://example.test/v1/auth-servers/server/clients/client")
 	require.NoError(t, err)
 	assert.Contains(t, redactBodyForURL([]byte(`{"name":"public-name"}`), "application/json", other), "public-name")
 }

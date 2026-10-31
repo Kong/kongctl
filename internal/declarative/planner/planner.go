@@ -358,6 +358,7 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	adjustAPIVersionTransitionDependencies(basePlan.Changes)
 
 	adjustIdentityDirectoryDeleteDependencies(basePlan.Changes)
+	adjustIdentityAuthServerDependencies(basePlan.Changes)
 	if err := p.resolveIdentityAuthServerDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}
@@ -2618,12 +2619,17 @@ func (p *Planner) getResourceNamespaces(rs *resources.ResourceSet) []string {
 		return nil
 	})
 
-	// Explicit empty principal collections still select their independent namespace
-	// when the source contains only an external directory.
+	// Explicit empty independently owned collections still select a namespace
+	// when the source contains only an external parent.
 	if rs.SyncScope != nil {
-		for _, scoped := range rs.SyncScope.ChildNamespaces[resources.ResourceTypeIdentityPrincipal] {
-			for namespace := range scoped {
-				namespaceSet[namespace] = true
+		for _, kind := range []resources.ResourceType{
+			resources.ResourceTypeIdentityPrincipal,
+			resources.ResourceTypeIdentityAuthServerClient,
+		} {
+			for _, scoped := range rs.SyncScope.ChildNamespaces[kind] {
+				for namespace := range scoped {
+					namespaceSet[namespace] = true
+				}
 			}
 		}
 	}

@@ -3,9 +3,10 @@
 These examples require the Kong Identity SDK preview used by this branch and
 access to the regional directory administration API.
 
-[OAuth client inspection and secret rotation](auth-server-clients.md) covers
-reads, explicit secret lifecycle and private capture. Client declarative
-lifecycle and initial client-secret capture remain tracked in #1401.
+[OAuth client declarations and secret rotation](auth-server-clients.md) covers
+`auth-server-clients.yaml`, initial private capture, lifecycle, reads, adoption
+and explicit secret rotation. Client ownership uses labels independently of
+the server.
 
 `tutorial.yaml` creates a directory plus user and agent principals in the
 `ki-tutorial` namespace. It requires a free directory quota slot; run it
@@ -60,7 +61,8 @@ kongctl adopt identity auth-server existing-issuer --namespace identity-team
 Adoption changes only ownership labels and preserves public fields. Existing
 ownership requires `--overwrite-namespace`. Dump includes mutable public
 settings and namespace/protection, excluding generated issuer and discovery
-URLs. OAuth clients and secrets remain separate implementation work.
+URLs. Add `--include-child-resources` to include safe client, scope and claim
+configuration. Client secrets stay outside declarative dump.
 Deletion always uses `force=false`, so existing child resources can block it.
 The preview public SDK exposes the DCR token duration; additional internal DCR
 settings are outside this manifest's schema.

@@ -576,6 +576,10 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 
 func isIdentityClientSecretRoute(route string) bool {
 	parts := strings.Split(strings.Trim(route, "/"), "/")
+	// Client creation issues a generated secret; errors may echo arbitrary text.
+	if len(parts) == 4 && parts[0] == "v1" && parts[1] == "auth-servers" && parts[2] != "" && parts[3] == "clients" {
+		return true
+	}
 	return (len(parts) == 6 || len(parts) == 7) && parts[0] == "v1" && parts[1] == "auth-servers" &&
 		parts[2] != "" && parts[3] == "clients" && parts[4] != "" && parts[5] == "secrets"
 }

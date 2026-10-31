@@ -277,6 +277,23 @@ is documented in the inspected operations. Separate secret creation consumes
 one of two total slots (Q16). Synthetic client-side tests exercise uncertain
 responses without retrying; no failure was injected into the live service.
 
+### Q20 Client Basic authentication availability and enum annotation
+
+**Question:** Is `client_secret_basic` generally available for authorization
+server clients, and should its `TokenEndpointAuthMethod.x-enum-dev` annotation
+be removed?
+
+**Observed (October 31, 2026 UTC):** The canonical Sliver schema lists
+`client_secret_basic` both in `enum` and `x-enum-dev`. US `.com` accepts it on client create and PATCH. A
+client-credentials token request using HTTP Basic succeeds with the initial
+issued secret, including after public configuration and label updates that
+explicitly preserve this method. Public specification filtering removes the
+enum value despite that deployed behavior.
+
+**Status:** Open. Confirm availability/gating and align the schema annotation
+with the supported API contract. This does not resolve the separate omitted
+method reset in Q15 or unavailable authorization-code grant in Q17.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

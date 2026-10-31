@@ -2089,6 +2089,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_auth_server_client
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: identity_auth_server_scope
     defaults: []
     overrides: []

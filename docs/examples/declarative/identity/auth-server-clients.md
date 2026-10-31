@@ -1,11 +1,69 @@
 # OAuth clients and secret rotation
 
-This branch supports `get` and `list` for authorization-server OAuth clients
-and client-secret metadata, plus explicit secret creation, enable/disable and
-deletion. Client declarative lifecycle and initial client-secret capture are
-still being implemented in #1401. The existing
-`auth-servers.yaml` example manages servers, scopes and claims; it does not
-create OAuth clients yet.
+`auth-server-clients.yaml` declares an authorization server, scope and OAuth
+client. This branch supports the declarative client lifecycle, get/list and
+adoption, plus explicit secret creation, enable/disable and deletion.
+
+## Declare a client and capture its initial secret
+
+```sh
+kongctl plan -f auth-server-clients.yaml --mode apply > client-plan.json
+kongctl diff --plan client-plan.json
+kongctl apply --plan client-plan.json --auto-approve \
+  --secret-output-dir ./private-client-secrets
+kongctl plan -f auth-server-clients.yaml --mode apply
+```
+
+Creation requires `--secret-output-dir` on `apply` or `sync`. Every initial
+credential gets a new `0600` JSON file reserved before any API mutations.
+Text output reports paths; JSON/YAML includes `execution.generated_files`.
+Only those private files contain secret values. They also identify the parent,
+client ID, local ref and namespace. Store the value in the consuming
+application's secret store. Updates and no-op runs need no output directory.
+Output paths and credential values are absent from plans and manifests.
+
+Clients require explicit `ref`, API `name`, `grant_types`, and
+`response_types`; use `[]` for an empty required array. Client names are
+unique within a server. Allowed scopes accept UUIDs or `!ref scope-ref#id`,
+including scopes created in the same plan, and must belong to that server.
+The example uses the verified `client_credentials` grant. Authorization-code
+and refresh-token grants remain outside this public preview's enum; the
+current deployment also rejects authorization-code creation (Q17).
+
+Optional settings preserve their current value when omitted. Explicit empty
+grant, response, redirect and allowed-scope arrays clear their lists.
+`labels: {}` clears public labels while retaining ownership. Token durations
+are seconds, between 60 and 2592000. Redirect and nonempty login URIs require
+HTTPS; an empty login URI clears it. Ordinary PATCH updates do not write
+`client_secret`. When the authentication method is omitted, every update
+explicitly preserves its fresh existing value to work around API question Q15.
+
+Clients store independent namespace/protection in labels. They can use a
+namespace different from their server and can be nested under a declared
+external server. Grouped `identity.clients` declarations require
+`auth_server: server-ref`. An explicit `clients: []` scopes sync to the source
+namespace; omission retains the collection. Sync never prunes other client
+namespaces merely because they share a server. Protected clients require a
+separate metadata-only unprotection before public changes or deletion.
+
+Adopt an existing client before declaring it, selecting an opaque ID or exact
+name under an explicit server:
+
+```sh
+kongctl adopt identity auth-server-client --client-name my-service \
+  --auth-server-name my-issuer --namespace identity-client-example
+```
+
+Existing ownership requires `--overwrite-namespace`. Adoption preserves
+configuration, protection, authentication method and credential material.
+Dump includes safe client configuration and scope references:
+
+```sh
+kongctl dump declarative --resources identity.auth_servers \
+  --filter-name my-issuer --include-child-resources > identity.yaml
+```
+
+## Inspect clients and secret metadata
 
 Select the parent server explicitly. Client IDs are opaque strings, so a
 positional argument always means an ID. Use `--client-name` for an exact,
@@ -40,7 +98,7 @@ only at creation; an existing secret cannot be recovered with a read.
 No credential is created, rotated, enabled, disabled or deleted by these
 commands.
 
-Clients have labels available for future namespace/protection storage.
+Clients use labels for namespace/protection storage.
 Secret records have no labels, `managed_by`, or name, so there is no
 independent declarative secret-slot identity. Explicit rotation operations
 capture newly issued material in a new private file. The current API

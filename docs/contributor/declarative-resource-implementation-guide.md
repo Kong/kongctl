@@ -98,6 +98,11 @@ Registering a declaration does not complete those steps automatically.
   all client/claim references, orders proven detachments first, and rechecks
   after those writes. Claim pagination uses terminal pages under API question
   Q13. See the [metadata ledger](kong-identity-metadata-storage.md).
+  OAuth clients use independent label ownership, enrolled through
+  `WithIndependentChildLabelOwnership`, rather than `managed_by`. Client
+  namespaces and auth-server pruning namespaces are captured separately.
+  Initial generated secrets require execution-only `--secret-output-dir`
+  capture; plans and dumps contain no secret material or output paths.
   Model namespace scope is captured per source, separately from gateway scope;
   parent linkage never authorizes model mutation. See
   [model ownership](../ai-gateway-model-ownership.md) for migration and API

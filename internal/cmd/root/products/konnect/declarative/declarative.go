@@ -81,6 +81,7 @@ const (
 	// maxConcurrencyConfigPath is the config path backing the max concurrency flag
 	maxConcurrencyConfigPath = "konnect.declarative." + maxConcurrencyFlagName
 	writeSecretFlagName      = "write-secret"
+	secretOutputDirFlagName  = "secret-output-dir"
 	writeSecretsFlagName     = "write-secrets"
 
 	defaultRemoteFileAuthHost = "cloud.konghq.com"
@@ -1787,6 +1788,8 @@ Konnect is the default target for this command, so "kongctl sync" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	cmd.Flags().
+		String(secretOutputDirFlagName, "", "Directory for private initial credentials when creating OAuth clients")
 	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
@@ -2099,7 +2102,12 @@ func runExecution(command *cobra.Command, args []string, verb verbs.VerbValue, p
 		return err
 	}
 
+	secretOutputDir, err := command.Flags().GetString(secretOutputDirFlagName)
+	if err != nil {
+		return err
+	}
 	exec := executor.NewWithOptions(stateClient, reporter, dryRun, executor.Options{
+		SecretOutputDir:    secretOutputDir,
 		KonnectToken:       token,
 		KonnectTokenSource: tokenSource,
 		KonnectBaseURL:     baseURL,
@@ -2265,6 +2273,11 @@ func outputExecutionResult(command *cobra.Command,
 ) error {
 	// Human-readable output already handled by progress reporter
 	if format == "text" {
+		for _, path := range result.GeneratedFiles {
+			if _, err := fmt.Fprintf(command.ErrOrStderr(), "Generated credential file: %s\n", path); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -2280,6 +2293,9 @@ func outputExecutionResult(command *cobra.Command,
 	// Build the execution section
 	execution := map[string]any{
 		"dry_run": result.DryRun,
+	}
+	if len(result.GeneratedFiles) > 0 {
+		execution["generated_files"] = result.GeneratedFiles
 	}
 
 	// Add appropriate execution details based on mode
@@ -2441,6 +2457,8 @@ Konnect is the default target for this command, so "kongctl apply" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
+	cmd.Flags().
+		String(secretOutputDirFlagName, "", "Directory for private initial credentials when creating OAuth clients")
 	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
@@ -2749,6 +2767,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		IdentityAuthServerScopesAPI:       kkClient.GetIdentityAuthServerScopesAPI(),
 		IdentityAuthServerClaimsAPI:       kkClient.GetIdentityAuthServerClaimsAPI(),
 		IdentityAuthServerClientsAPI:      kkClient.GetIdentityAuthServerClientsReader(),
+		IdentityAuthServerClientAPI:       kkClient.GetIdentityAuthServerClientsAPI(),
 		IdentityPrincipalsAPI:             kkClient.GetIdentityPrincipalsAPI(),
 		DCRProviderAPI:                    kkClient.GetDCRProvidersAPI(),
 		ControlPlaneAPI:                   kkClient.GetControlPlaneAPI(),

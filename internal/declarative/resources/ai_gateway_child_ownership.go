@@ -93,6 +93,23 @@ func HasIndependentChildOwnership(kind ResourceType) bool {
 	return registry[kind].captureOwnedChildScope != nil
 }
 
+// WithIndependentChildLabelOwnership enrolls a child that persists lifecycle
+// metadata in labels rather than managed_by. Source scope remains explicit.
+func WithIndependentChildLabelOwnership[R any](capture func(*ResourceSet, string),
+	metadata func(*R) *KongctlMeta,
+) ResourceRegistrationOption {
+	return func(ops *resourceOps) error {
+		if ops.managedBy != nil {
+			return fmt.Errorf("independent label ownership cannot also use managed_by")
+		}
+		if err := WithIndependentChildOwnership(capture, metadata)(ops); err != nil {
+			return err
+		}
+		ops.independentChildLabels = true
+		return nil
+	}
+}
+
 // CaptureOwnedChildCollection applies source defaults only to explicitly empty
 // collections. Nonempty collections contribute each child's own namespace.
 func CaptureOwnedChildCollection(scope *SyncScope,

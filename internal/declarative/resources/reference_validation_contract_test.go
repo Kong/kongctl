@@ -29,6 +29,7 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeIdentityPrincipal, ""},
 		{ResourceTypeIdentityAuthServerScope, ""},
 		{ResourceTypeIdentityAuthServerClaim, ""},
+		{ResourceTypeIdentityAuthServerClient, ""},
 	}, got)
 
 	// These mapping implementations were not enrolled in the loader's reference
