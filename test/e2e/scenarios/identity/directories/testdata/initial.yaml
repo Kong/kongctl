@@ -1,0 +1,19 @@
+_defaults:
+  kongctl:
+    namespace: "identity-directory-e2e"
+control_planes:
+  - ref: identity-gateway
+    name: "Identity Directory E2E Gateway"
+identity:
+  directories:
+    - ref: people
+      name: "e2e-identity-directory"
+      description: Initial directory
+      allow_all_control_planes: true
+      allowed_control_planes:
+        - !ref identity-gateway#id
+      ttl_secs: 900
+      negative_ttl_secs: 450
+      vault_enabled: false
+      labels:
+        team: identity

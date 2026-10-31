@@ -1,0 +1,16 @@
+# This requires an organization that allows restricted directory access.
+_defaults:
+  kongctl:
+    namespace: identity-team
+
+control_planes:
+  - ref: gateway
+    name: Identity Gateway
+
+identity:
+  directories:
+    - ref: people
+      name: people
+      allow_all_control_planes: false
+      allowed_control_planes:
+        - !ref gateway#id

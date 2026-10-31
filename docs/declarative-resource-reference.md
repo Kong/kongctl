@@ -301,6 +301,29 @@ application_auth_strategies:
      key: value
 ```
 
+## Kong Identity directories
+
+Directory declarations use the `identity.directories` collection. Each managed
+entry requires `ref` and an explicit unique API `name`. Optional settings are
+`description`, `allowed_control_planes`, `allow_all_control_planes`, `ttl_secs`,
+`negative_ttl_secs`, `vault_enabled`, `labels`, and `kongctl` metadata.
+
+KongCTL stores namespace, protection, tool, and version in `managed_by` and
+performs local filtering after listing all pages. Public labels remain
+independent. Omitted fields are preserved on update. Explicit empty maps,
+lists, and descriptions clear their respective settings. TTLs must be between
+300 and 86400 seconds. Control plane entries accept UUIDs and `!ref ref#id`.
+
+Use `_external.id` or `_external.selector.matchFields.name` to reference an
+existing directory, including one named `default`, without taking ownership.
+Explicitly adopt an existing directory before managing it. Protected updates
+require a separate unprotect operation. Deletion never requests a cascade.
+
+See the [directory examples](examples/declarative/identity/README.md) for
+configuration, adoption, quota constraints, and sync behavior. Auth-server
+administration and runtime authentication/lookup are separate API surfaces;
+this implementation covers directory configuration only.
+
 ## DCR Providers
 
 [API Specification](https://developer.konghq.com/api/konnect/application-auth-strategies/v2/#/operations/create-dcr-provider)

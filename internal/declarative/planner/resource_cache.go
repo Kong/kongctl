@@ -11,6 +11,7 @@ import (
 )
 
 type planningResourceCache struct {
+	identityDirectories            observationCache[state.IdentityDirectory]
 	ownedChildrenPlanned           map[string]bool
 	aiGatewaySNIs                  map[string][]state.AIGatewaySNI
 	aiGatewayCACertificates        map[string][]state.AIGatewayCACertificate
@@ -50,6 +51,7 @@ type planningResourceCache struct {
 
 func newPlanningResourceCache() *planningResourceCache {
 	return &planningResourceCache{
+		identityDirectories:            newObservationCache[state.IdentityDirectory](),
 		ownedChildrenPlanned:           make(map[string]bool),
 		aiGatewaySNIs:                  make(map[string][]state.AIGatewaySNI),
 		aiGatewayCACertificates:        make(map[string][]state.AIGatewayCACertificate),
@@ -85,6 +87,18 @@ func newPlanningResourceCache() *planningResourceCache {
 		portalIdentityProvidersByPortalID: make(map[string][]state.PortalIdentityProvider),
 		portalTeamGroupMappingsByPortalID: make(map[string][]state.PortalTeamGroupMapping),
 	}
+}
+
+func (p *Planner) listIdentityDirectories(ctx context.Context) ([]state.IdentityDirectory, error) {
+	var cache *observationCache[state.IdentityDirectory]
+	if p.resourceCache != nil {
+		cache = &p.resourceCache.identityDirectories
+	}
+	return cache.list(ctx, []string{"*"}, false,
+		func(ctx context.Context, _ []string) ([]state.IdentityDirectory, error) {
+			return p.client.ListIdentityDirectories(ctx)
+		},
+		func(d state.IdentityDirectory) string { return d.NormalizedLabels[labels.NamespaceKey] })
 }
 
 func (p *Planner) listManagedControlPlanes(ctx context.Context, namespaces []string) ([]state.ControlPlane, error) {
