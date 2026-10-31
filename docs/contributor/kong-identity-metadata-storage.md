@@ -31,6 +31,8 @@ Directory ownership uses `tool`, `version`, `kongctl-namespace`, and
 fifth entry.
 Client-side filtering and duplicate checks use the complete remote collection.
 Public labels and principal runtime metadata retain their API meanings.
+Runtime `metadata` is not an ownership store. Its integer values have a
+verified API precision limit (Q31); exact numeric identifiers should be strings.
 
 Auth-server label ownership follows the existing `KONGCTL-namespace` and
 `KONGCTL-protected` convention. It does not gain a `managed_by` field through
@@ -43,10 +45,10 @@ These rows describe available API fields, not completed implementations.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
-| Principal Groups, including team subtype | `labels`, `managed_by` | Prefer the principal ownership pattern after live checks. Import-owned teams require separate treatment. #2657. |
+| Principal Groups, including team subtype | `labels`, `managed_by`, runtime `metadata` | Direct POST/GET/list/full PUT retain all four directory-style ownership entries; names are unique per directory. Partial PUT clears omitted maps. Group implementation is in progress, with no product writes yet. Import-owned teams require separate treatment (Q32). #2657. |
 | Generated principal API keys | `managed_by`; no labels | Direct create retains all five ref/ownership entries. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. Inspection is implemented under #1417, which remains open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
-| Group API keys, generated/imported | Same schema metadata fields as principal keys | Separate live retention, parent and credential checks remain required. Do not assume principal-key observations establish group behavior. #2659. |
+| Group API keys, generated/imported | Same schema metadata fields as principal keys | Direct GET/POST return 501 (Q33). Metadata retention and credential lifecycle are unverified; no product writes or ownership stamping are exposed. #2659. |
 | Basic-auth username records | `managed_by`; no labels | Possible persisted ref/ownership after live contract checks. Passwords have their own metadata. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Possible persisted ref/ownership. Write-only secret handling and password-slot limits also govern support. #1418. |
 
@@ -72,7 +74,7 @@ or protection metadata on them.
 | Auth-server scopes | Unique name within auth server | Inherit managed parent namespace and update/delete protection. Explicit collection defines sync authority; fresh references guard deletion. #1402. |
 | Auth-server claims | Name filter and generated ID; duplicate names accepted | Same parent/collection authority; duplicate matching fails, including dump. Scope links stay within the parent. Q12–Q14, #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
-| Group memberships | Member type/ID under group | Relationship authority comes from an explicit collection contract. Import-managed memberships remain distinct. #2658. |
+| Group memberships | Generated entry ID; member type/ID under group | No independent ownership fields. Manual membership creation, duplicate rejection and scoped reads work; manual team-user removal also works. Group-to-group creation is rejected (Q32). Import-managed authority needs clarification. #2658. |
 | Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
 | Token Vault Credential Providers | Unique name per directory | Matching is possible, but no independent tool/namespace/protection stamp exists. Q6, #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
@@ -91,6 +93,16 @@ authority for another resource family.
 
 ## Change log
 
+- October 31 UTC, group contract probes: unique names and full replacement
+  retain `managed_by` ownership values, including protection changes. No group
+  resource implementation is exposed yet. Memberships have no ownership
+  field; deleting a group removes its relationships but retains member
+  principals. Q32 records member-type and importer boundaries. Group key
+  GET/POST return 501 (Q33), so ownership writes cannot be verified there.
+- October 31 UTC, numeric metadata probes: runtime principal/group metadata
+  can round large integer digits. This does not change ownership storage in
+  `managed_by`, whose values are strings. Q31 tracks API precision; principal
+  input and write-result guards prevent silently accepting changed digits.
 - Initial directory/principal implementation: metadata persisted in
   `managed_by`; committed through `c1e3cba3` on `ki-triage`.
 - Auth-server contract probe: conventional ownership labels retained on create

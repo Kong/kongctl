@@ -18,7 +18,7 @@ func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAP
 		ID: "principal-id", DisplayName: new("Current name"), Description: "Fresh description",
 		Type: new(kkComps.KongPrincipalTypeUser), Labels: map[string]string{"owner": "team"},
 		Metadata: map[string]kkComps.KongIdentityMetadata{
-			"large": kkComps.CreateKongIdentityMetadataInteger(9007199254740993),
+			"large": kkComps.CreateKongIdentityMetadataInteger(9007199254740994),
 		},
 		ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
 	}}}}
@@ -53,7 +53,7 @@ func TestPrincipalSavedPutPreservesFreshOmittedFields(t *testing.T) {
 	require.Equal(t, kkComps.KongPrincipalTypeUser, *api.Writes[0].Type)
 	require.Equal(t, map[string]string{"owner": "team"}, api.Writes[0].Labels)
 	require.Nil(t, api.Writes[0].Active, "Q10: never synthesize false")
-	require.Equal(t, int64(9007199254740993), *api.Writes[0].Metadata["large"].Integer)
+	require.Equal(t, int64(9007199254740994), *api.Writes[0].Metadata["large"].Integer)
 	require.Equal(t, "alice", api.Writes[0].ManagedBy[resources.ManagedByRefKey])
 	for _, field := range []string{planner.FieldLabels, planner.FieldMetadata} {
 		a, api, execCtx := principalExecutorFixture()
@@ -124,7 +124,7 @@ func TestPrincipalRejectsChangedOwnershipTypeAndProtection(t *testing.T) {
 func TestPrincipalSavedCreateRetainsIntegerMetadata(t *testing.T) {
 	change := planner.PlannedChange{
 		ResourceType: planner.ResourceTypeIdentityPrincipal,
-		Fields:       map[string]any{planner.FieldMetadata: map[string]any{"large": int64(9007199254740993)}},
+		Fields:       map[string]any{planner.FieldMetadata: map[string]any{"large": int64(9007199254740994)}},
 	}
 	encoded, err := json.Marshal(change)
 	require.NoError(t, err)
@@ -135,7 +135,26 @@ func TestPrincipalSavedCreateRetainsIntegerMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, (&Executor{}).resolveDeferredEnvPlaceholders(execution))
 	require.NoError(t, mapIdentityPrincipalFields(execution.Fields, &request))
-	require.Equal(t, int64(9007199254740993), *request.Metadata["large"].Integer)
+	require.Equal(t, int64(9007199254740994), *request.Metadata["large"].Integer)
+}
+
+func TestPrincipalSavedWritesRejectMetadataRoundingBeforeSDKMapping(t *testing.T) {
+	for _, number := range []string{"9007199254740993", "-9007199254740993", "1152921504606846976"} {
+		change := planner.PlannedChange{
+			ResourceType: planner.ResourceTypeIdentityPrincipal,
+			Fields:       map[string]any{planner.FieldMetadata: map[string]any{"identifier": json.Number(number)}},
+		}
+		encoded, err := json.Marshal(change)
+		require.NoError(t, err)
+		var saved planner.PlannedChange
+		require.NoError(t, json.Unmarshal(encoded, &saved))
+		execution, err := cloneChangeForExecution(&saved)
+		require.NoError(t, err)
+		var create kkComps.CreatePrincipalBody
+		require.ErrorContains(t, mapIdentityPrincipalFields(execution.Fields, &create), "Q31")
+		var update kkComps.ReplacePrincipalBody
+		require.ErrorContains(t, mapIdentityPrincipalFields(execution.Fields, &update), "Q31")
+	}
 }
 
 func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {

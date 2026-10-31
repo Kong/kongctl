@@ -48,6 +48,13 @@ management metadata. These contracts defer declarative key writes/adoption;
 scoped get/list exposes public metadata with complete pagination and no secret
 material. Q27–Q30 record the API-only follow-up, and Section 27 records evidence.
 
+Group/team contract investigation is in progress under #2657. Unique names
+and `managed_by` retention work; group keys currently return 501. Membership
+types and importer authority need clarification (Q32–Q33). Direct group tests
+also exposed numeric precision loss in principal/group runtime metadata
+(Q31). Principal validation and write-result checks now guard that behavior;
+use strings for exact numeric identifiers. Section 28 records the findings.
+
 Keep these two running logs alongside this report:
 
 - [API questions for engineering](kong-identity-api-questions.md), phrased in
@@ -1065,7 +1072,9 @@ updates/deletes repeat complete duplicate and fresh ownership checks.
 Implemented behavior includes plan/apply/sync/delete, saved plans, adoption,
 dump with directory children, explain/scaffold, and get/list. PUT hydrates
 omitted fields from a fresh response before overlaying saved changes. Metadata
-and labels can be cleared explicitly; integer metadata retains its precision.
+and labels can be cleared explicitly; client serialization retains integer
+precision. Later direct API tests found server-side rounding of some large
+integers; see Q31 and Section 28 for the additional validation.
 Protection requires a separate unprotect operation. Adoption requires a UUID,
 explicit directory, namespace, and ref, and rejects an existing conflicting
 tuple.
@@ -1762,3 +1771,64 @@ API-key descendant checks are still pending key lifecycle enrollment and a
 verified user-type applicability contract. Fixture cleanup checks are separate
 test authority. Further feasible work includes groups/memberships after live
 verification and other credentials where their contracts support safe writes.
+
+## 28. Group contracts and integer metadata retention
+
+Group work has started under #2657, which remains In Progress. Direct US `.com`
+tests verified ordinary groups and the team subtype, unique alphanumeric names
+within a directory, four-page cursor traversal, full replacement, immutable
+type and retention of the four directory-style `managed_by` ownership values.
+Omitting public maps from PUT clears them, so future declarative updates need
+fresh hydration. No group resource implementation is exposed yet.
+
+Ordinary groups accept user, agent and unclassified principal memberships;
+duplicate members return 409. Group-to-group membership returns 400 despite
+the inspected schema. Manually created teams accept user memberships, and
+those manual relationships can be removed. No importer fixture was involved.
+Q32 asks for the intended member-type and importer authority contract. Group
+deletion removes membership relationships while member principals remain.
+Group API-key GET and POST return 501 (Q33); credential lifecycle and ownership
+retention cannot be inferred from the shared principal-key schema. Disposable
+probe groups, memberships, principals and directories were removed.
+
+These probes also exposed a precision bug in the deployed metadata API.
+Principal PUT and group POST/PUT accept `9007199254740993` but return
+`9007199254740992`; fresh GET confirms the changed digits. Arrays and negative
+values are affected. `1152921504606846976` returns as `1152921504606847000`,
+while `9007199254740994` and the returned large decimal remain stable. Exact
+Python integer decoding established these differences. Q31 asks for the
+supported numeric contract and data-plane behavior; the binary64 conversion
+model is an inference from observations.
+
+Principal manifest validation and saved-plan execution now reject integer
+digits that change through that observed conversion. Stable integers and
+strings retain their API types. Create readback and PUT responses are checked
+against requested metadata; mismatches fail explicitly after the remote write,
+without retry or rollback. Existing metadata omitted from a manifest is still
+preserved through fresh hydration. This concerns runtime `metadata`, not the
+string ownership map in `managed_by`. Exact numeric identifiers should use
+strings. The compatibility tracker records when these guards can be relaxed.
+
+The new `identity/metadata-integers` live scenario passes at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-integer-live/20261031-065350`.
+It rejects affected scalar/array values before writes, applies a saved plan
+with stable large integers and an exact string identifier, compares raw JSON
+digits after create and omission-preserving update, verifies no-op planning
+and dump/replan, and deletes the two managed resources. Numeric equality does
+not use floating-point assertion decoding. Existing client-only large-integer
+fixtures now use a server-stable value; local precision tests alone did not
+prove the deployed API preserved arbitrary integer digits.
+
+Modernization, clean formatting, CGO-disabled build, zero-issue lint, unit race
+tests, integration tests, harness race tests, weighted inventory, SDK patch,
+installer, replay and metrics checks pass. All eleven live Identity scenarios
+pass together at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-integer-all-regression/20261031-065506`.
+Stopping the new scenario immediately after saved-plan creation/apply also
+passes fixture cleanup at
+`/home/rspurgeon/.cache/kong-identity-public-sdk/identity-integer-stopped/20261031-065803`.
+The complete run's five generated capture paths and five private directories
+no longer exist. Fresh directory/auth-server/control-plane inventories are
+empty. Replay eligibility and cassettes are unchanged. SDK pin remains
+`70a2818dde13`; this increment changes KongCTL validation and verification,
+not the API schema or SDK model.

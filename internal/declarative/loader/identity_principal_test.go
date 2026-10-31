@@ -24,7 +24,7 @@ identity:
             department: engineering
             enabled: true
             count: 3
-            large: 9007199254740993
+            large: 9007199254740994
             strings: [a, b]
             numbers: [1, 2]
           kongctl: {protected: true}
@@ -41,7 +41,7 @@ identity:
 	require.Len(t, rs.Identity.Principals, 3)
 	encoded, err := json.Marshal(rs)
 	require.NoError(t, err)
-	require.Contains(t, string(encoded), `"large":9007199254740993`)
+	require.Contains(t, string(encoded), `"large":9007199254740994`)
 	for _, p := range rs.Identity.Principals {
 		require.Equal(t, "people", p.Directory)
 		require.Equal(t, "principal-team", resources.GetNamespace(p.Kongctl))
@@ -53,6 +53,8 @@ identity:
 		"principal-team",
 	)
 	for _, replacement := range []struct{ old, next, message string }{
+		{"large: 9007199254740994", "large: 9007199254740993", "Q31"},
+		{"numbers: [1, 2]", "numbers: [1, 9007199254740993]", "Q31"},
 		{"type: user", "type: group", "type must be"},
 		{"type: user", "active: false", "Q10"},
 		{"type: user", "managed_by: {tool: other}", "managed_by"},
