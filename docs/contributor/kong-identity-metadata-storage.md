@@ -22,7 +22,7 @@ ledger current as each resource is implemented.
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
 | Basic-auth username record | `managed_by`; no labels | Four-entry `managed_by`; unique username matching | Declarative lifecycle, adoption, protection, scoped sync/delete, dump and external UUID/username lookup are implemented. Ref stays local. Full PUT never sends password values; deletion requires empty passwords. #1418. |
-| Basic-auth password inspection | `managed_by`; no labels | Read-only in KongCTL | Public-only scoped get/list and complete pagination. No declarative password ownership/adoption or rotation is exposed. Q35 and the SDK expiration request-model gap govern further enrollment. #1418. |
+| Basic-auth password inspection | `managed_by`; no labels | Read-only in KongCTL | Public-only scoped get/list and complete pagination. No declarative password ownership/adoption or rotation is exposed. Q35 governs metadata writes; SDK expiration is corrected in `79bc3dbbb928` (Q36). #1418. |
 | Ordinary Principal Groups | `labels`, `managed_by`, runtime `metadata` | Four-entry `managed_by`; unique directory/name matching | Declarative lifecycle, PUT hydration, adoption, protection and dump are implemented. Group metadata stays independent of directory ownership. Members/keys must be removed before deletion. #2657. |
 | Teams/imported group inspection | Same fields as groups | Read-only in KongCTL | Returned provisioning/team-manager presence is retained. Team/importer writes/adoption are deferred (Q32). |
 | Direct principal group membership | None | Inherits managed ordinary-group authority | No independent stamp or adoption. Match parent/type/member ID, route by entry ID. Explicit collection sync, group protection/adoption, saved references and dump are implemented; team/importer/nested writes remain deferred. #2658, Q32. |
@@ -108,13 +108,19 @@ authority for another resource family.
 
 ## Change log
 
+- October 31 UTC, credential expiration SDK correction: preview
+  `79bc3dbbb928` restores omitted/date/null request support without changing
+  ownership storage. No principal/group key or password product writes are
+  enabled. Imported-key ownership and mutable key/password management maps
+  still need verified backend contracts (Q4/Q28/Q35).
+
 - October 31 UTC, declarative basic-auth username records: exact username
   identity uses four canonical managed_by entries, independently of the
   principal/directory. Refs stay local. Full PUT/adoption never sends password
   values, and dump excludes passwords. Principal deletion now observes
   username records and API keys; username deletion requires empty passwords.
   Final plans order authorized child deletes first. Password ownership writes
-  remain outside this declaration under Q35 and the SDK request-model gap.
+  remain outside this declaration under Q35 and explicit secret-write policy.
 
 - October 31 UTC, basic-auth inspection: username and password get/list now
   expose public management metadata without writing ownership or displaying
