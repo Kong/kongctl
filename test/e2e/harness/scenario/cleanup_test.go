@@ -127,6 +127,48 @@ func TestResourceCleanupPreservesUnmarkedPrincipalInTestDirectory(t *testing.T) 
 	require.True(t, os.IsNotExist(err), "neither foreign descendants nor the directory may be deleted")
 }
 
+func TestAuthServerCleanupChecksAllChildrenBeforeDeleting(t *testing.T) {
+	for _, fault := range []string{"", "scope", "claim", "client"} {
+		t.Run(fault, func(t *testing.T) {
+			cli, dir := cleanupFixtureCLI(t)
+			server := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb1"
+			scopeID := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb2"
+			claimID := "c0b37b67-06c8-49fb-b51b-2c8f49b20fb3"
+			prefix := "kongctl-e2e-" + server + "-"
+			values := []map[string]any{
+				{"id": server, "name": "generated-server"},
+				{"id": scopeID, "name": prefix + "scope", "kind": "scope", "server_id": server},
+				{"id": claimID, "name": prefix + "claim", "kind": "claim", "server_id": server},
+			}
+			switch fault {
+			case "scope":
+				values[1]["name"] = "foreign-scope"
+			case "claim":
+				values[2]["name"] = "foreign-claim"
+			case "client":
+				values = append(values, map[string]any{"id": "opaque-client", "kind": "client"})
+			}
+			data, err := json.Marshal(values)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "resources.json"), data, 0o600))
+			err = cleanupResource(t.Context(), cli,
+				cleanupTarget{kind: resources.ResourceTypeIdentityAuthServer, name: "generated-server"})
+			if fault != "" {
+				require.Error(t, err)
+				_, err = os.Stat(filepath.Join(dir, "deleted"))
+				require.True(t, os.IsNotExist(err), "foreign children must prevent all fixture deletion")
+				return
+			}
+			require.NoError(t, err)
+			deleted, err := os.ReadFile(filepath.Join(dir, "deleted"))
+			require.NoError(t, err)
+			require.Equal(t, "/v1/auth-servers/"+server+"/claims/"+claimID+"\n"+
+				"/v1/auth-servers/"+server+"/scopes/"+scopeID+"\n"+
+				"/v1/auth-servers/"+server+"?force=false\n", string(deleted))
+		})
+	}
+}
+
 const cleanupFixture = `#!/usr/bin/env python3
 import json,os,sys
 from pathlib import Path
@@ -146,9 +188,16 @@ if args[0]=='get':
     if args[:3]==['get','identity','principals']:
         directory=args[args.index('--directory-id')+1]
         values=[v for v in values if v.get('kind')=='principal' and v.get('directory_id')==directory]
+    elif args[2] in ['auth-server-claims','auth-server-scopes']:
+        server=args[args.index('--auth-server-id')+1]
+        kind='claim' if args[2]=='auth-server-claims' else 'scope'
+        values=[v for v in values if v.get('kind')==kind and v.get('server_id')==server]
     else:
-        values=[v for v in values if v.get('kind')!='principal']
+        values=[v for v in values if v.get('kind') not in ['principal','scope','claim','client']]
     print(json.dumps(values))
+elif args[:2]==['api','get'] and '/clients?' in args[2]:
+    values=[v for v in values if v.get('kind')=='client']
+    print(json.dumps({'data':values[:1],'meta':{'page':{'total':len(values)}}}))
 elif args[:2]==['api','delete']:
     endpoint=args[2]
     ident=endpoint.rsplit('/',1)[1].split('?')[0]

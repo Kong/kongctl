@@ -309,7 +309,15 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 	"dcr-provider":         {Method: http.MethodPost, Path: "/v2/dcr-providers"},
 	"dcr_provider":         {Method: http.MethodPost, Path: "/v2/dcr-providers"},
 	"identity_auth_server": {Method: http.MethodPost, Path: "/v1/auth-servers"},
-	"identity_directory":   {Method: http.MethodPost, Path: "/v2/directories"},
+	"identity_auth_server_scope": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/scopes",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_auth_server_claim": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/claims",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_directory": {Method: http.MethodPost, Path: "/v2/directories"},
 	"identity_principal": {
 		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/principals",
 		ParamKeys: []string{"directoryId"},

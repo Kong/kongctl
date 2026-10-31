@@ -167,6 +167,40 @@ Content-Type: application/json
 The response and subsequent reads retained `probe-put`. PUT changing the
 complete management metadata map did retain the requested values.
 
+## Authorization-server child questions
+
+### Q12 Duplicate claim names
+
+**Question:** Are duplicate case-sensitive claim names within an authorization
+server intentional? If multiple enabled claims with the same name apply to a
+token or userinfo response, how is the resulting value selected?
+
+**Observed:** Two POST requests to
+`/v1/auth-servers/{authServerId}/claims` with `name: department` and different
+values both returned 201 and different IDs. Scope creation, in contrast,
+rejects a duplicate name with 409. Observed on October 31, 2026 UTC in US
+`.com`; temporary records were removed.
+
+### Q13 Claim pagination total exceeds result count
+
+**Question:** Should claim-list `meta.page.total` count claims, rather than
+their scope associations? Can the total be corrected so it agrees with the
+items returned across all pages?
+
+**Observed:** An authorization server with two claims, each linked to three
+scopes, returned two items with `page[size]=100` but reported total 6. With
+`page[size]=1`, pages 1 and 2 returned one claim each; pages 3 through 7 were
+empty and still reported total 6. Detail responses retained all three scope
+IDs. A separate probe with three claims reported total 4. These results are
+consistent with counting joined claim/scope rows; that explanation is an
+inference, not a confirmed implementation detail.
+
+**Reproduction:** Create three scopes and two claims, set each claim's
+`include_in_scopes` to those three IDs, then GET
+`/v1/auth-servers/{authServerId}/claims?page[size]=1&page[number]=1` and
+increment the page number. Observed on October 31, 2026 UTC in US `.com`;
+temporary records were removed.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

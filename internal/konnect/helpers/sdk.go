@@ -19,6 +19,8 @@ const (
 // allowing for easier testing and mocking
 type SDKAPI interface {
 	GetIdentityAuthServersAPI() IdentityAuthServersAPI
+	GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI
+	GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetControlPlaneAPI() ControlPlaneAPI
@@ -798,4 +800,18 @@ func (k *KonnectSDK) GetIdentityAuthServersAPI() IdentityAuthServersAPI {
 		return nil
 	}
 	return k.SDK.AuthServer
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerScopesAPI() IdentityAuthServerScopesAPI {
+	if k.SDK == nil || k.SDK.AuthServerScopes == nil {
+		return nil
+	}
+	return k.SDK.AuthServerScopes
+}
+
+func (k *KonnectSDK) GetIdentityAuthServerClaimsAPI() IdentityAuthServerClaimsAPI {
+	if k.SDK == nil || k.SDK.AuthServerClaims == nil {
+		return nil
+	}
+	return k.SDK.AuthServerClaims
 }

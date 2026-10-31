@@ -1,0 +1,290 @@
+steps:
+- commands:
+  - create:
+      payload:
+        inline:
+          audience: https://api.example.test
+          labels:
+            KONGCTL-namespace: identity-auth-child-e2e
+          name: '{{ .vars.server_name }}'
+      recordVar:
+        name: server_id
+        responsePath: id
+      resource: identity_auth_server
+    name: create-server
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          default: true
+          description: Scope description
+          enabled: true
+          include_in_metadata: true
+          name: kongctl-e2e-{{ .vars.server_id }}-scope-0
+      recordVar:
+        name: scope_0
+        responsePath: id
+      resource: identity_auth_server_scope
+    name: create-scope-0
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          default: false
+          description: Scope description
+          enabled: false
+          include_in_metadata: false
+          name: kongctl-e2e-{{ .vars.server_id }}-scope-1
+      recordVar:
+        name: scope_1
+        responsePath: id
+      resource: identity_auth_server_scope
+    name: create-scope-1
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          enabled: true
+          include_in_all_scopes: false
+          include_in_scopes:
+          - '{{ .vars.scope_0 }}'
+          - '{{ .vars.scope_1 }}'
+          include_in_token: false
+          name: kongctl-e2e-{{ .vars.server_id }}-department
+          value: '{"team":"platform"}'
+      recordVar:
+        name: claim_0
+        responsePath: id
+      resource: identity_auth_server_claim
+    name: create-claim-0
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          enabled: true
+          include_in_all_scopes: false
+          include_in_scopes:
+          - '{{ .vars.scope_0 }}'
+          - '{{ .vars.scope_1 }}'
+          include_in_token: true
+          name: kongctl-e2e-{{ .vars.server_id }}-request-id
+          value: ${ uuidv4 }
+      recordVar:
+        name: claim_1
+        responsePath: id
+      resource: identity_auth_server_claim
+    name: create-claim-1
+    retry:
+      attempts: 1
+  - create:
+      endpointParams:
+        authServerId: '{{ .vars.server_id }}'
+      payload:
+        inline:
+          enabled: false
+          include_in_all_scopes: false
+          include_in_scopes:
+          - '{{ .vars.scope_0 }}'
+          - '{{ .vars.scope_1 }}'
+          include_in_token: false
+          name: kongctl-e2e-{{ .vars.server_id }}-department
+          value: '{"team":"platform"}'
+      recordVar:
+        name: claim_2
+        responsePath: id
+      resource: identity_auth_server_claim
+    name: create-claim-2
+    retry:
+      attempts: 1
+  - assertions:
+    - expect:
+        fields:
+          length(@): 2
+      select: '@'
+    name: list-scopes-by-parent-name
+    run:
+    - get
+    - identity
+    - auth-server-scopes
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+    - --page-size
+    - "1"
+  - assertions:
+    - expect:
+        fields:
+          default: true
+          description: Scope description
+          enabled: true
+          include_in_metadata: true
+      select: '@'
+    name: get-scope-by-name
+    run:
+    - get
+    - identity
+    - auth-server-scope
+    - kongctl-e2e-{{ .vars.server_id }}-scope-0
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+  - assertions:
+    - expect:
+        fields:
+          default: false
+          enabled: false
+          include_in_metadata: false
+      select: '@'
+    name: get-scope-by-id
+    run:
+    - get
+    - identity
+    - auth-server-scope
+    - '{{ .vars.scope_1 }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+  - assertions:
+    - expect:
+        fields:
+          length(@): 3
+      select: '@'
+    name: list-claims-inflated-total
+    run:
+    - get
+    - identity
+    - auth-server-claims
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --page-size
+    - "1"
+  - assertions:
+    - expect:
+        fields:
+          enabled: true
+          include_in_all_scopes: false
+          include_in_token: true
+          length(include_in_scopes): 2
+          value: ${ uuidv4 }
+      select: '@'
+    name: get-claim-by-name
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - kongctl-e2e-{{ .vars.server_id }}-request-id
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+    - --page-size
+    - "1"
+  - expectFailure:
+      contains: multiple
+      exitCode: 1
+    name: reject-duplicate-claim-name
+    outputFormat: disable
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - kongctl-e2e-{{ .vars.server_id }}-department
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+  - assertions:
+    - expect:
+        fields:
+          enabled: false
+          include_in_token: false
+          value: '{"team":"platform"}'
+      select: '@'
+    name: get-duplicate-claim-by-id
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - '{{ .vars.claim_2 }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+  - assertions:
+    - expect:
+        fields:
+          length(@): 2
+      select: '@'
+    name: list-scopes-yaml
+    parseAs: yaml
+    run:
+    - list
+    - identity
+    - auth-server-scopes
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - -o
+    - yaml
+  - assertions:
+    - expect:
+        fields:
+          contains(stdout, 'ENABLED'): true
+      select: '@'
+    name: list-claims-text
+    parseAs: raw
+    run:
+    - list
+    - identity
+    - auth-server-claims
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - -o
+    - text
+  - assertions:
+    - expect:
+        fields:
+          contains(stdout, '${ uuidv4 }'): true
+      select: '@'
+    name: get-claim-text
+    parseAs: raw
+    run:
+    - get
+    - identity
+    - auth-server-claim
+    - '{{ .vars.claim_1 }}'
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - -o
+    - text
+  - expectFailure:
+      contains: auth-server-id
+      exitCode: 1
+    name: reject-missing-parent
+    outputFormat: disable
+    run:
+    - get
+    - identity
+    - auth-server-scopes
+  - expectFailure:
+      contains: auth-server-id
+      exitCode: 1
+    name: reject-two-parents
+    outputFormat: disable
+    run:
+    - get
+    - identity
+    - auth-server-scopes
+    - --auth-server-id
+    - '{{ .vars.server_id }}'
+    - --auth-server-name
+    - '{{ .vars.server_name }}'
+  name: 001-inspection
+  skipInputs: true
+test:
+  cleanupResources:
+  - nameEnv: KONGCTL_E2E_AUTH_CHILD_SERVER_NAME
+    nameVar: server_name
+    resource: identity_auth_server

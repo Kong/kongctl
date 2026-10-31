@@ -55,8 +55,8 @@ or protection metadata on them.
 
 | Resource | Identity or parent | Implementation boundary |
 | --- | --- | --- |
-| Auth-server scopes | Unique name within auth server | Establish inherited server/collection authority and observed-reference deletion checks. #1402. |
-| Auth-server claims | Name filter and generated ID | Reject duplicate name matches; establish parent authority and typed scope dependencies. #1403. |
+| Auth-server scopes | Unique name within auth server | Direct create/GET/PATCH verified; get/list implemented. Declarative parent authority and reference deletion guards remain work. #1402. |
+| Auth-server claims | Name filter and generated ID; duplicate names accepted | Direct create/GET/PATCH verified; get/list rejects ambiguous names and handles Q13 totals. Parent authority and scope dependencies remain work. #1403. |
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle and secure capture; no invented declarative secret-slot name. #1404. |
 | Group memberships | Member type/ID under group | Relationship authority comes from an explicit collection contract. Import-managed memberships remain distinct. #2658. |
 | Token Vault public keys | Directory; generated `kid` fingerprint | Name is present, but team guidance establishes uniqueness for `kid`. Ownership and protection require an explicit contract. Q6, #2661. |
@@ -81,8 +81,13 @@ destructive operations.
   and PATCH, with null-based individual label removal. Probe resources were
   deleted with `force=false`. Declarative lifecycle, read commands, adoption,
   example and full live scenario are implemented under #1400 on `ki-triage`.
-- Remaining rows reflect inspected request/response schemas and existing API
-  questions; live retention is pending for those families.
+- Rows without verification reflect inspected request/response schemas and
+  existing API questions; live retention is pending for those families.
+- Auth-server child probes, October 31 UTC: scopes and claims expose no
+  ownership fields. Scope names reject duplicates; claim names allow them.
+  Deleting a scope silently detaches client and claim associations. Get/list
+  commands now inspect both families, including duplicate-safe UUID lookup.
+  Declarative child lifecycle and adoption policy remain in progress.
 
 See the [API-only question log](../kong-identity-api-questions.md) for team
 follow-up and the [compatibility tracker](kong-identity-compatibility.md) for

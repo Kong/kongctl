@@ -30,7 +30,8 @@ func registerResourceCleanup(t *testing.T, cli *harness.CLI, specs []CleanupReso
 		// Only families with complete list commands and safe raw deletion participate.
 		//nolint:exhaustive
 		switch resources.ResourceType(spec.Resource) {
-		case resources.ResourceTypeIdentityDirectory, resources.ResourceTypeControlPlane, resources.ResourceTypeIdentityAuthServer:
+		case resources.ResourceTypeIdentityDirectory, resources.ResourceTypeControlPlane,
+			resources.ResourceTypeIdentityAuthServer:
 		default:
 			return fmt.Errorf("unsupported cleanup resource %q", spec.Resource)
 		}
@@ -121,6 +122,9 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 		}
 		endpoint += id + "?force=false"
 	} else if target.kind == resources.ResourceTypeIdentityAuthServer {
+		if err := cleanupAuthServerFixtures(ctx, cli, id); err != nil {
+			return err
+		}
 		endpoint += id + "?force=false"
 	} else {
 		endpoint += id
@@ -128,6 +132,63 @@ func cleanupResource(ctx context.Context, cli *harness.CLI, target cleanupTarget
 	cli.OverrideNextOutput("json")
 	_, err := cli.Run(ctx, "api", "delete", endpoint)
 	return err
+}
+
+// These APIs have no fixture labels. Only names carrying this generated
+// server's UUID are cleanup candidates, and every collection is checked first.
+func cleanupAuthServerFixtures(ctx context.Context, cli *harness.CLI, serverID string) error {
+	type fixture struct{ ID, Name string }
+	var claims, scopes []fixture
+	for _, collection := range []struct {
+		command string
+		values  *[]fixture
+	}{{"auth-server-claims", &claims}, {"auth-server-scopes", &scopes}} {
+		cli.OverrideNextOutput("json")
+		if _, err := cli.RunJSON(
+			ctx, collection.values,
+			"get", "identity", collection.command, "--auth-server-id", serverID,
+		); err != nil {
+			return err
+		}
+		for _, value := range *collection.values {
+			if !strings.HasPrefix(value.Name, "kongctl-e2e-"+serverID+"-") || !util.IsValidUUID(value.ID) {
+				return fmt.Errorf("auth server contains an unmarked child; refusing fixture cleanup")
+			}
+		}
+	}
+	var clients struct {
+		Data []any `json:"data"`
+		Meta struct {
+			Page struct {
+				Total *int64 `json:"total"`
+			} `json:"page"`
+		} `json:"meta"`
+	}
+	cli.OverrideNextOutput("json")
+	if _, err := cli.RunJSON(
+		ctx, &clients,
+		"api", "get", "/v1/auth-servers/"+serverID+"/clients?page[size]=1&page[number]=1",
+	); err != nil {
+		return err
+	}
+	if clients.Data == nil || clients.Meta.Page.Total == nil || *clients.Meta.Page.Total != 0 || len(clients.Data) != 0 {
+		return fmt.Errorf("auth-server clients must be absent before fixture cleanup")
+	}
+	for _, collection := range []struct {
+		path   string
+		values []fixture
+	}{{"claims", claims}, {"scopes", scopes}} {
+		for _, value := range collection.values {
+			cli.OverrideNextOutput("json")
+			if _, err := cli.Run(
+				ctx,
+				"api", "delete", "/v1/auth-servers/"+serverID+"/"+collection.path+"/"+value.ID,
+			); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Only principals explicitly marked with this test directory's ID are removed.
