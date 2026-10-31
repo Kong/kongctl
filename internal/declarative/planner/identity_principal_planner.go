@@ -195,6 +195,20 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		for i := start; i < len(plan.Changes); i++ {
 			change := &plan.Changes[i]
 			change.Parent = &ParentInfo{Ref: parent.ref, ID: parent.id}
+			if change.Action == ActionDelete {
+				identities, err := p.planner.client.ListIdentityPrincipalIdentities(ctx, parent.id, change.ResourceID)
+				if err != nil {
+					return fmt.Errorf(
+						"cannot verify identities before deleting principal %q: %w",
+						change.ResourceRef,
+						err,
+					)
+				}
+				if len(identities) != 0 {
+					return fmt.Errorf("principal %q still has %d identities; remove them explicitly before deleting it",
+						change.ResourceRef, len(identities))
+				}
+			}
 			for j := range plan.Changes[:start] {
 				directoryChange := &plan.Changes[j]
 				if directoryChange.ResourceType != ResourceTypeIdentityDirectory {
@@ -310,7 +324,8 @@ func adjustIdentityDirectoryDeleteDependencies(changes []PlannedChange) {
 			continue
 		}
 		for _, child := range changes {
-			if child.ResourceType == ResourceTypeIdentityPrincipal && child.Action == ActionDelete && child.Parent != nil &&
+			if child.ResourceType == ResourceTypeIdentityPrincipal && child.Action == ActionDelete &&
+				child.Parent != nil &&
 				(child.Parent.ID == parent.ResourceID || child.Parent.Ref == parent.ResourceRef) &&
 				!contains(parent.DependsOn, child.ID) {
 				parent.DependsOn = append(parent.DependsOn, child.ID)

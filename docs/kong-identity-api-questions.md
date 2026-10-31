@@ -285,8 +285,9 @@ be removed?
 
 **Observed (October 31, 2026 UTC):** The canonical Sliver schema lists
 `client_secret_basic` both in `enum` and `x-enum-dev`. US `.com` accepts it on
-client create and PATCH. A client-credentials token request using HTTP Basic succeeds with the initial
-issued secret, including after public configuration and label updates that
+client create and PATCH. A client-credentials token request using HTTP Basic
+succeeds with the initial issued secret, including after public configuration
+and label updates that
 explicitly preserve this method. Public specification filtering removes the
 enum value despite that deployed behavior.
 
@@ -321,8 +322,8 @@ the detail/delete behavior will be aligned with the collection route.
 **Question:** Should the shared `CursorPageQuery` parameter explicitly declare
 `style: deepObject` and `explode: true` to match the deployed query contract?
 
-**Observed (October 31, 2026 UTC, US `.com`):** The shared parameter is an object
-named `page` without a declared style. Standard form/explode serialization
+**Observed (October 31, 2026 UTC, US `.com`):** The shared parameter is an
+object named `page` without a declared style. Standard form/explode serialization
 produces `?size=1&after=...`. The deployed directory, principal and identity
 list endpoints ignore these flat keys: responses report the default size 20.
 `?page[size]=1` returns size 1. Following identity list links with the
@@ -343,6 +344,27 @@ been created under one isolated principal, another POST returned 403 with
 `Maximum number of [identities] exceeded. Max allowed: [10]`. The response
 does not identify the quota's scope. The inspected identity operation does
 not expose quota discovery. All probe resources were removed afterward.
+
+### Q24 Principal deletion with attached resources
+
+**Question:** What happens to identities, credentials and group memberships
+when a principal is deleted? Is there a conditional-delete option that
+atomically rejects a principal with attached resources, or an equivalent
+precondition that prevents resources added after a client checks for them
+from being removed?
+
+**Observed (October 31, 2026 UTC, US `.com`):** DELETE on an isolated principal
+with OAuth-client and Gateway-consumer identities returns 204. A fresh
+principal GET and identity collection GET both return 404. A second probe
+also included an AI Gateway consumer identity and had the same result.
+No force flag or nonempty-collection precondition is documented on the
+inspected principal-delete operation. These observations establish that the
+principal and its child collection become inaccessible; they do not establish
+the physical deletion or retention policy for every descendant family.
+
+Confirm which associated resources are deleted, detached or retained, and
+whether independently managed associations can prevent parent deletion.
+All probe resources were disposable and were removed afterward.
 
 ## Recorded answers
 

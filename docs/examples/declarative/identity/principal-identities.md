@@ -61,8 +61,13 @@ also rejected. Those checks do not establish uniqueness across directories.
 Future reconciliation will use persisted refs and complete duplicate checks.
 
 PUT retained management metadata for all four variants and updated the
-tested custom/OIDC association fields. Retargeting OAuth-client/consumer
-associations still needs verification before declarative updates. PATCH
+tested custom/OIDC association fields. Direct probes also verified retargeting
+an OAuth-client identity to a different server/client and an API Gateway
+consumer identity to a different control plane/consumer. An AI Gateway OAuth
+consumer can be linked through the same `control_plane_consumer` shape;
+the response reports `control_plane_type: ai_gateway`, and metadata-only PUT
+retains that association. Retargeting between Gateway types was not tested.
+PATCH
 accepts type-specific field updates but rejects the probed labels/managed_by
 request; its schema does not offer those metadata fields. Safe declarative
 updates will need a fresh full public payload for PUT, including preservation
@@ -73,6 +78,13 @@ The test organization rejected its eleventh identity with a quota of ten
 a new hard-coded configuration limit. Q22 records the shared cursor-query
 serialization mismatch; the preview SDK corrects the three implemented list
 request types.
+
+Principal deletion currently succeeds even with identities still attached
+(Q24). Declarative delete and sync therefore require an empty identity
+collection at planning and again at execution. A saved deletion plan fails
+if identities have appeared since it was generated. This check covers
+identities; it does not establish deletion behavior for credentials or group
+memberships. API-only engineering questions track that wider contract.
 
 Next work in #1416 is declarative nested/grouped loading, persisted-ref
 matching, typed and external references, ownership/protection, saved plans,

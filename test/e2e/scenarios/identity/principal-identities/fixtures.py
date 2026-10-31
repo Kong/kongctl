@@ -25,6 +25,15 @@ def main():
                 }],
             }]},
         })
+    elif action == "parent-delete":
+        directory = sys.argv[3]
+        for name, principals in [("parent-delete", [{"ref": "owner"}]), ("parent-empty", [])]:
+            write(Path(workdir, name + ".yaml"), {
+                "_defaults": {"kongctl": {"namespace": "identity-id-e2e"}},
+                "identity": {"directories": [{
+                    "ref": "directory", "_external": {"id": directory}, "principals": principals,
+                }]},
+            })
     elif action == "identities":
         directory, principal, server, client, control_plane, consumer = sys.argv[3:9]
         metadata = {"tool": "kongctl", "version": "e2e", "kongctl-namespace": "identity-id-e2e", "kongctl-protected": "false"}

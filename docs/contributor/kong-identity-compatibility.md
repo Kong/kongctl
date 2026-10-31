@@ -289,6 +289,48 @@ changing the actual owner's identity. Preserve saved-plan identity/ownership
 checks independently of the service fix. Parent linkage alone never confers
 ownership over an identity.
 
+### Principal deletion while identities remain
+
+Direct probes show principal DELETE returns 204 with OAuth-client and Gateway
+consumer identities still attached, including an AI Gateway consumer link.
+The principal and its identity collection then return 404. The schema does
+not document descendant retention/deletion or an atomic nonempty-child
+precondition; Q24 asks for that API contract.
+
+Declarative principal delete and sync pruning require a complete empty
+identity collection. Planning rejects known remaining identities, including
+unowned, protected or foreign-namespace associations. Execution repeats that
+observation so a saved plan cannot silently cascade through later identities.
+Missing/failed/incomplete observations fail closed. These are client checks;
+without a server-side precondition a concurrent creation between observation
+and deletion remains possible. Credentials and group memberships require
+their own verified contracts as those families are enrolled.
+
+When identity deletion is implemented, final plans must order explicitly
+authorized identity deletions before their principal. Keep the fresh empty
+collection check for unplanned or late children. Prefer an atomic API
+precondition if engineering supplies and verifies one; do not remove these
+checks merely because the cascading behavior is documented.
+
+### Principal-identity write foundations
+
+Shared helpers project all four observed variants into full PUT bodies,
+preserving public labels, management metadata and workspace presence while
+omitting IDs, timestamps and read-only `control_plane_type`. Create disables
+SDK and transport POST retries, checks retained type/metadata and reads the
+new identity back through the selected parent. PUT and DELETE repeat complete
+fresh membership proof before mutation (Q21); PUT rejects type changes and
+checks retained metadata/ID in its response. These helpers do not establish
+ownership, adopt resources or synthesize a metadata stamp. Declarative callers
+still need independently scoped ownership/protection, collision checks,
+fresh omitted-field hydration, persisted refs and final dependencies under
+#1416. No new imperative mutation command is exposed by these foundations.
+
+OAuth-client and API Gateway consumer associations can be retargeted through
+PUT while retaining metadata. AI Gateway OAuth consumers also work with
+`control_plane_consumer`, returning `control_plane_type: ai_gateway` and
+retaining metadata on PUT. Cross-Gateway-type retargeting remains untested.
+
 ## Directory cursor request serialization
 
 The shared CursorPageQuery parameter omits an explicit serialization style.

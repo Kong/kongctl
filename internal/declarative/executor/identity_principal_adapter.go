@@ -229,6 +229,18 @@ func (a *IdentityPrincipalAdapter) Delete(ctx context.Context, id string, execCt
 	if resources.IsChildProtected(current.ManagedBy) {
 		return fmt.Errorf("principal is protected")
 	}
+	// The API deletes a principal even while identities remain attached. Parent
+	// ownership does not authorize deleting independently owned associations.
+	identities, err := a.client.ListIdentityPrincipalIdentities(ctx, directoryID, id)
+	if err != nil {
+		return fmt.Errorf("cannot verify principal identities before deletion: %w", err)
+	}
+	if len(identities) != 0 {
+		return fmt.Errorf(
+			"principal still has %d identities; remove them explicitly before deleting it",
+			len(identities),
+		)
+	}
 	return a.client.DeleteIdentityPrincipal(ctx, directoryID, id)
 }
 

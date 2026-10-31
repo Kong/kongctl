@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -13,8 +14,13 @@ import (
 
 func principalPlan(t *testing.T, api *fixture.PrincipalAPI, desired []resources.IdentityPrincipalResource,
 	mode PlanMode, scoped bool,
+	identities ...*fixture.PrincipalIdentitiesAPI,
 ) (*Plan, error) {
 	t.Helper()
+	identityAPI := &fixture.PrincipalIdentitiesAPI{}
+	if len(identities) != 0 {
+		identityAPI = identities[0]
+	}
 	directory := fixture.Directory("people", "directory-team", false)
 	rs := &resources.ResourceSet{DefaultNamespace: "principal-team", Identity: &resources.IdentityResource{
 		Directories: []resources.IdentityDirectoryResource{
@@ -29,8 +35,9 @@ func principalPlan(t *testing.T, api *fixture.PrincipalAPI, desired []resources.
 	return NewPlanner(
 		state.NewClient(
 			state.ClientConfig{
-				IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
-				IdentityPrincipalsAPI:  api,
+				IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+				IdentityPrincipalsAPI:          api,
+				IdentityPrincipalIdentitiesAPI: identityAPI,
 			},
 		),
 		slog.Default(),
@@ -173,11 +180,61 @@ func TestPrincipalEmptyScopeSelectsNamespaceWithoutPruningDirectories(t *testing
 		directory.ID: {principalObserved("alice", "principal-team")},
 	}}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory, other}},
-		IdentityPrincipalsAPI:  api,
+		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory, other}},
+		IdentityPrincipalsAPI:          api,
+		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeSync})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 1)
 	require.Equal(t, ResourceTypeIdentityPrincipal, plan.Changes[0].ResourceType)
 	require.Equal(t, ActionDelete, plan.Changes[0].Action)
+}
+
+func TestPrincipalDeletionRequiresEmptyIdentityCollection(t *testing.T) {
+	for _, mode := range []string{"empty", "owned", "foreign", "unowned", "failed"} {
+		t.Run(mode, func(t *testing.T) {
+			directory := fixture.Directory("people", "directory-team", false)
+			principal := principalObserved("alice", "principal-team")
+			api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}}}
+			identities := &fixture.PrincipalIdentitiesAPI{}
+			if mode == "failed" {
+				identities.Error = fmt.Errorf("identity observation failed")
+			} else if mode != "empty" {
+				metadata := resources.BuildPrincipalManagedBy("principal-team", "employee", true, "test")
+				switch mode {
+				case "foreign":
+					metadata[resources.ChildNamespaceKey] = "different-team"
+				case "unowned":
+					metadata = nil
+				}
+				identities.Data = []kkComps.KongPrincipalIdentity{
+					kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+						ID: "1248f559-063b-4f10-9098-9e6553b21d9c", Key: "employee", Value: "123", ManagedBy: metadata,
+					}),
+				}
+			}
+			for _, planMode := range []PlanMode{PlanModeSync, PlanModeDelete} {
+				var desired []resources.IdentityPrincipalResource
+				// Sync must omit the principal to request pruning.
+				if planMode == PlanModeDelete {
+					desired = []resources.IdentityPrincipalResource{principalDesired()}
+				}
+				plan, err := principalPlan(t, api, desired, planMode, true, identities)
+				switch mode {
+				case "empty":
+					require.NoError(t, err)
+					require.Len(t, plan.Changes, 1)
+				case "failed":
+					require.ErrorContains(t, err, "identity observation failed")
+				default:
+					require.ErrorContains(t, err, "still has 1 identities")
+				}
+			}
+			for _, request := range identities.Requests {
+				require.Equal(t, directory.ID, request.DirectoryID)
+				require.Equal(t, principal.ID, request.PrincipalID)
+			}
+			require.Zero(t, api.Deletes)
+		})
+	}
 }

@@ -2,6 +2,7 @@ package executor
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -135,4 +136,62 @@ func TestPrincipalSavedCreateRetainsIntegerMetadata(t *testing.T) {
 	require.NoError(t, (&Executor{}).resolveDeferredEnvPlaceholders(execution))
 	require.NoError(t, mapIdentityPrincipalFields(execution.Fields, &request))
 	require.Equal(t, int64(9007199254740993), *request.Metadata["large"].Integer)
+}
+
+func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
+	for _, mode := range []string{"empty", "unowned", "owned-protected", "foreign", "failed", "unconfigured"} {
+		t.Run(mode, func(t *testing.T) {
+			const directoryID = "731559d3-39bd-48c7-b33c-eb192847eb20"
+			const principalID = "731559d3-39bd-48c7-b33c-eb192847eb21"
+			a, api, execCtx := principalExecutorFixture()
+			current := api.Directories["directory-id"][0]
+			current.ID = principalID
+			api.Directories = map[string][]kkComps.KongPrincipal{directoryID: {current}}
+			execCtx.PlannedChange.Action = planner.ActionDelete
+			execCtx.PlannedChange.ResourceID = principalID
+			execCtx.PlannedChange.Parent.ID = directoryID
+			identities := &fixture.PrincipalIdentitiesAPI{}
+			if mode == "failed" {
+				identities.Error = fmt.Errorf("incomplete identity observation")
+			} else if mode != "empty" && mode != "unconfigured" {
+				var metadata map[string]string
+				if mode != "unowned" {
+					metadata = resources.BuildPrincipalManagedBy("principal-team", "employee", true, "test")
+				}
+				if mode == "foreign" {
+					metadata[resources.ChildNamespaceKey] = "other-team"
+				}
+				identities.Data = []kkComps.KongPrincipalIdentity{
+					kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+						ID: "731559d3-39bd-48c7-b33c-eb192847eb22", Key: "employee", Value: "123", ManagedBy: metadata,
+					}),
+				}
+			}
+			config := state.ClientConfig{IdentityPrincipalsAPI: api}
+			if mode != "unconfigured" {
+				config.IdentityPrincipalIdentitiesAPI = identities
+			}
+			a.client = state.NewClient(config)
+			// This represents a child added after a saved deletion plan. Only a
+			// fresh empty collection permits the final parent mutation.
+			err := a.Delete(t.Context(), principalID, execCtx)
+			if mode == "empty" {
+				require.NoError(t, err)
+				require.Equal(t, 1, api.Deletes)
+			} else {
+				require.Error(t, err)
+				require.Zero(t, api.Deletes)
+				if mode == "failed" || mode == "unconfigured" {
+					require.ErrorContains(t, err, "cannot verify principal identities")
+				} else {
+					require.ErrorContains(t, err, "still has 1 identities")
+				}
+			}
+			if mode != "unconfigured" {
+				require.Len(t, identities.Requests, 1)
+				require.Equal(t, directoryID, identities.Requests[0].DirectoryID)
+				require.Equal(t, principalID, identities.Requests[0].PrincipalID)
+			}
+		})
+	}
 }
