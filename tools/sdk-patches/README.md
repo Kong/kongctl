@@ -14,6 +14,10 @@ use flexible auth configs that preserve these arrays in additional properties;
 the legacy config-file patch is skipped when that file is absent. The wire
 regression tests run against both config shapes.
 
+Auth-server PATCH preserves explicit empty `trusted_origins` arrays with
+`omitzero`, while nil arrays remain omitted. The patch skips SDK versions
+without auth-server management and checks actual wire presence when available.
+
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must
 not become `all` in a PATCH request.
