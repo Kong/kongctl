@@ -317,6 +317,14 @@ var createResourceEndpoints = map[string]resourceEndpoint{
 		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/claims",
 		ParamKeys: []string{"authServerId"},
 	},
+	"identity_auth_server_client": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/clients",
+		ParamKeys: []string{"authServerId"},
+	},
+	"identity_auth_server_client_secret": {
+		Method: http.MethodPost, Path: "/v1/auth-servers/{authServerId}/clients/{clientId}/secrets",
+		ParamKeys: []string{"authServerId", "clientId"},
+	},
 	"identity_directory": {Method: http.MethodPost, Path: "/v2/directories"},
 	"identity_principal": {
 		Method: http.MethodPost, Path: "/v2/directories/{directoryId}/principals",

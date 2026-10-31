@@ -214,6 +214,56 @@ inspected create operations. Principal display names are likewise non-unique,
 and `managed_by` values have no documented uniqueness constraint. No failure
 was injected into the live service.
 
+### Q15 Client PATCH resets omitted authentication method
+
+**Question:** Should PATCH preserve `token_endpoint_auth_method` when the
+field is omitted? Currently an unrelated update changes the authentication
+method to `client_secret_post`. Is this defaulting intentional?
+
+**Observed:** Create a client with
+`token_endpoint_auth_method: client_secret_basic`, then PATCH its URL with
+`{"labels":{"team":"platform"}}`. Both the PATCH response and subsequent
+GET return `client_secret_post`. The same reset occurs from `none`.
+Including the existing method explicitly in the PATCH preserves it.
+These were direct HTTP requests, observed October 31, 2026 UTC in US `.com`.
+Temporary records were removed.
+
+### Q16 Client secret limit counts disabled records
+
+**Question:** Is the client-secret limit two records in total, including
+disabled secrets, rather than two active secrets? What is the supported
+rotation sequence when both slots already exist?
+
+**Observed:** A client starts with one enabled secret. Creating a second,
+disabled secret succeeds with 201. Creating a third disabled secret returns
+403, even after disabling the first secret so that neither record is active.
+Deleting the second record permits another creation. Creating a third enabled
+secret also returns 403. Observed October 31, 2026 UTC in US `.com`;
+temporary records were removed.
+
+### Q17 Authorization-code grants unavailable
+
+**Question:** When are `authorization_code` and `refresh_token` grants
+available for ordinary authorization-server clients? Are they gated by
+environment, entitlement, or another setting?
+
+**Observed:** PATCH of a test client with
+`{"grant_types":["authorization_code","refresh_token"]}` returns 400 with
+`grant_types: authorization code grant type is not allowed`. The inspected
+schema enumerates both values. `client_credentials` creation succeeds.
+Observed October 31, 2026 UTC in US `.com`; temporary records were removed.
+
+### Q18 Client pagination total exceeds result count
+
+**Question:** Should client-list `meta.page.total` count clients rather than
+allowed-scope associations? Can it agree with the items across all pages?
+
+**Observed:** Two clients, each with two `allow_scopes` IDs, report total 4.
+At page size one, pages 1 and 2 contain one client each; later pages are
+empty with total 4. This resembles the claim-list behavior in Q13; counting
+joined associations is an inference. Observed October 31, 2026 UTC in US
+`.com` using direct HTTP requests against disposable test fixtures.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

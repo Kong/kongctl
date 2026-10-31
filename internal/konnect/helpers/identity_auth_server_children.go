@@ -36,7 +36,8 @@ func ListIdentityAuthServerClients(ctx context.Context, api IdentityAuthServerCl
 	if api == nil {
 		return nil, fmt.Errorf("identity auth-server clients API is not configured")
 	}
-	return listAuthServerChildren(ctx, "clients", pageSize, true,
+	// Q18: deployed totals exceed client counts when clients have scope links.
+	return listAuthServerChildren(ctx, "clients", pageSize, false,
 		func(ctx context.Context, number, size int64) ([]kkComps.AuthServerClient, *kkComps.PageMeta, error) {
 			response, err := api.ListAuthServerClients(ctx, kkOps.ListAuthServerClientsRequest{
 				AuthServerID: serverID, PageNumber: &number, PageSize: &size,
