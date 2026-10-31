@@ -35,6 +35,26 @@ func TestIdentityAuthServerCommands(t *testing.T) {
 	}
 }
 
+func TestIdentityAuthServerChildCommands(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List} {
+		command, err := NewIdentityCmd(verb, nil, nil)
+		require.NoError(t, err)
+		for _, alias := range []string{"auth-server-scopes", "auth-server-claims"} {
+			child, _, err := command.Find([]string{alias})
+			require.NoError(t, err)
+			require.NotNil(t, child.RunE)
+			require.NotNil(t, child.Flags().Lookup("auth-server-id"))
+			require.NotNil(t, child.Flags().Lookup("auth-server-name"))
+			require.Error(t, child.Args(child, []string{"one", "two"}))
+			_, err = authServerIDFromFlags(t.Context(), child, nil, 100)
+			require.ErrorContains(t, err, "exactly one")
+			require.NoError(t, child.Flags().Set("auth-server-id", "invalid"))
+			_, err = authServerIDFromFlags(t.Context(), child, nil, 100)
+			require.ErrorContains(t, err, "UUID")
+		}
+	}
+}
+
 func TestPrincipalDisplayDoesNotInventActiveState(t *testing.T) {
 	require.Equal(t, "unknown", principalDisplay(helpers.IdentityPrincipal{}).Active)
 	require.Equal(t, "false", principalDisplay(helpers.IdentityPrincipal{Active: new(false)}).Active)
