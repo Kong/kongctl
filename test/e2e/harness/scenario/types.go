@@ -20,6 +20,7 @@ type Defaults struct {
 }
 
 type ScenarioTest struct {
+	PrivateTempDirVar   string            `yaml:"privateTempDirVar"`
 	CleanupResources    []CleanupResource `yaml:"cleanupResources"`
 	MeshControlPlanes   []string          `yaml:"meshControlPlanes"`
 	Enabled             *bool             `yaml:"enabled"`
