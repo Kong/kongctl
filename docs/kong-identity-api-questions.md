@@ -489,6 +489,13 @@ bracketed parameters traverse three IdPs and two associated principals with
 page size one, while their generated SDK requests originally encoded flat
 keys. These are two more users of the same shared parameter annotation.
 
+US `.tech` Vault keys, providers and credential-provider templates follow the
+same contract. Direct bracketed requests traverse five keys, five providers
+and eight templates at page size one. Flat `size=1` returns the default size
+20 for keys/providers. Their three generated request Page tags use form
+encoding as well. The wire regression fails exactly those three new methods
+before applying targeted request-tag corrections.
+
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
 Confirm the intended wire names and whether the shared definition should be
@@ -852,10 +859,21 @@ inspected through the public routes before deletion. Re-enabling restores
 visibility when the directory has not been deleted. Separate disposable
 records verified both deletion cases; the default directory was restored.
 
+Additional US `.tech` direct tests establish the same deletion behavior for
+Vault public keys and credential providers. A directory with one key, or one
+provider with an empty credential collection, is deleted with 204 using
+`force=false`, with Vault either enabled or disabled. The former child route
+then returns 404. These are four independent disposable directory fixtures;
+the unmanaged default is recreated with its saved public settings afterward.
+Disabling Vault with keys/providers also succeeds and makes their list/detail
+routes return 403. No runtime credential revocation or encryption-retention
+claim follows from those administration responses.
+
 **Question:** Which dependent resource types must be absent for
 `force=false` to reject directory deletion? Should an attached Trusted IdP
 prevent deletion in both Vault states? Is there a non-mutating way to inspect
-all dependent records while Vault is disabled?
+all dependent records while Vault is disabled? Should attached Vault keys and
+credential providers also block a non-forced directory deletion?
 
 The directory deletion summary describes optional cascading controlled by
 `force`. Its parameter description instead refers to auth-server clients,
@@ -885,6 +903,59 @@ display name/JIT mapping and restores the documented boolean defaults.
 restore issuer discovery, or is PUT the required clearing operation? The
 PATCH field is nullable in the inspected specification; unsupported clearing
 should not return success while retaining the previous override.
+
+### Q39 Replacing a custom OAuth DCR provider
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** A custom-oauth
+provider can be created with `dcr_enabled: true`, explicit authorization/token/
+registration endpoints, scopes and PKCE. GET returns those effective endpoints
+and `dcr_enabled: true`. PUT with the same name and template returns 400:
+"cannot move a DCR-registered provider to a template without a registration
+endpoint". Supplying the same creation-time endpoint/DCR fields in the PUT
+also returns 400; a fresh GET preserves the original record.
+
+```http
+PUT /v2/directories/{directoryId}/vault/providers/{providerId}
+Content-Type: application/json
+
+{"name":"custom-provider","template_name":"custom-oauth","dcr_enabled":true,"registration_endpoint":"https://issuer.example.test/register","authorization_endpoint":"https://issuer.example.test/authorize","token_endpoint":"https://issuer.example.test/token","pkce_enabled":true,"scopes":["read"]}
+```
+
+CreateVaultProviderBody exposes registration_endpoint and dcr_enabled, while
+ReplaceVaultProviderBody exposes neither. The response contains effective
+endpoints rather than stored override fields. PATCH supports some mutable
+fields, but rejects scopes: [] with 400; clearing that collection therefore
+cannot use the verified PATCH route.
+
+**Question:** How can an existing custom-oauth DCR provider be replaced while
+preserving its registration configuration? Are those properties intentionally
+create-only, and should PUT preserve them or expose writable counterparts?
+Which supported operation clears scopes on such a provider?
+
+### Q40 Provider initial enabled state and PUT omission
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** POST of a static_secret
+provider with shared credentials returns enabled: true, including when the
+body explicitly contains enabled: false. The inspected create schema has no
+enabled property. PATCH enabled: false works. A following PUT omitting enabled
+retains false, while an explicit PUT enabled: true sets true. In the same PUT,
+omitting refresh_buffer_seconds resets its previous value to 0. The PUT
+description says all omitted fields reset to defaults, but these fields have
+different omission behavior.
+
+```http
+POST /v2/directories/{directoryId}/vault/providers
+Content-Type: application/json
+
+{"name":"disabled-provider","template_name":"static_secret","credential_type":"shared","enabled":false}
+```
+
+**Question:** Is creating a provider disabled supported? If it requires a
+second PATCH, can that be documented? Which fields does provider PUT preserve
+when omitted, and which does it reset?
+
+No secret was supplied in these probes. They do not establish preservation
+of a stored OAuth client secret or the behavior of an enrolled credential.
 
 ## Recorded answers
 
