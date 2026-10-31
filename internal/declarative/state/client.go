@@ -25,6 +25,7 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
+	IdentityDirectoriesAPI helpers.IdentityDirectoriesAPI
 	// Core APIs
 	PortalAPI                         helpers.PortalAPI
 	APIAPI                            helpers.APIAPI
@@ -105,6 +106,7 @@ type ClientConfig struct {
 
 // Client wraps Konnect SDK for state management
 type Client struct {
+	identityDirectoriesAPI helpers.IdentityDirectoriesAPI
 	// Core APIs
 	portalAPI                         helpers.PortalAPI
 	apiAPI                            helpers.APIAPI
@@ -186,6 +188,7 @@ type Client struct {
 // NewClient creates a new state client with the provided configuration
 func NewClient(config ClientConfig) *Client {
 	return &Client{
+		identityDirectoriesAPI: config.IdentityDirectoriesAPI,
 		// Core APIs
 		portalAPI:                         config.PortalAPI,
 		apiAPI:                            config.APIAPI,

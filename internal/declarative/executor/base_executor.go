@@ -325,7 +325,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 
 	// Verify it's a managed resource (child resources rely on parent linkage instead of labels)
 	isManaged := labels.IsManagedResource(resource.GetNormalizedLabels())
-	if !isManaged && !resources.HasIndependentChildOwnership(resources.ResourceType(b.ops.ResourceType())) &&
+	if !isManaged && !resources.UsesManagedByOwnership(resources.ResourceType(b.ops.ResourceType())) &&
 		(change.Parent != nil || strings.TrimSpace(change.Namespace) != "") {
 		isManaged = true
 	}
@@ -356,7 +356,7 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	ctx context.Context, resourceName string, change planner.PlannedChange,
 ) (ResourceInfo, error) {
-	if resources.HasIndependentChildOwnership(resources.ResourceType(b.ops.ResourceType())) {
+	if resources.UsesManagedByOwnership(resources.ResourceType(b.ops.ResourceType())) {
 		return b.ops.GetByID(ctx, change.ResourceID, NewExecutionContext(&change))
 	}
 	logger := ctx.Value(log.LoggerKey).(*slog.Logger)

@@ -11,6 +11,7 @@ type ResourceType string
 
 // Resource type constants
 const (
+	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypePortal                                  ResourceType = "portal"
 	ResourceTypeApplicationAuthStrategy                 ResourceType = "application_auth_strategy"
 	ResourceTypeDCRProvider                             ResourceType = "dcr_provider"
@@ -141,7 +142,8 @@ func NormalizeResourceRef(value string) string {
 
 // ResourceSet contains all declarative resources from configuration files
 type ResourceSet struct {
-	Portals []PortalResource `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
+	Identity *IdentityResource `yaml:"identity,omitempty" json:"identity,omitempty"`
+	Portals  []PortalResource  `yaml:"portals,omitempty"                                        json:"portals,omitempty"`
 	// AuditLogs contains organization-scoped audit-log resources.
 	AuditLogs *AuditLogsResource `yaml:"audit-logs,omitempty"                                     json:"audit-logs,omitempty"` //nolint:lll
 	// ApplicationAuthStrategies contains auth strategy configurations

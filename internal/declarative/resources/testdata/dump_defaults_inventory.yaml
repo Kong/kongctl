@@ -2081,6 +2081,22 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_directory
+    defaults:
+      - path: allow_all_control_planes
+        type: boolean
+        value: false
+        source: sdk
+      - path: negative_ttl_secs
+        type: integer
+        value: 600
+        source: sdk
+      - path: ttl_secs
+        type: integer
+        value: 600
+        source: sdk
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []

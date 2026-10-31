@@ -56,6 +56,7 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		cache:   make(map[string]externalLookupCacheEntry),
 	}
 	r.adapters = map[resources.ResourceType]externalLookupAdapter{
+		resources.ResourceTypeIdentityDirectory:          r.lookupIdentityDirectory,
 		resources.ResourceTypeAPI:                        r.lookupAPI,
 		resources.ResourceTypeApplicationAuthStrategy:    r.lookupApplicationAuthStrategy,
 		resources.ResourceTypePortal:                     r.lookupPortal,
@@ -68,6 +69,29 @@ func newExternalLookupResolver(planner *Planner) *externalLookupResolver {
 		resources.ResourceTypeEventGatewayVirtualCluster: r.lookupEventGatewayVirtualCluster,
 	}
 	return r
+}
+
+func (r *externalLookupResolver) lookupIdentityDirectory(ctx context.Context,
+	req externalLookupRequest,
+) (string, error) {
+	values, err := r.planner.listIdentityDirectories(ctx)
+	if err != nil {
+		return "", err
+	}
+	var id string
+	for _, value := range values {
+		if value.Name != req.MatchFields[FieldName] {
+			continue
+		}
+		if id != "" {
+			return "", fmt.Errorf("multiple Kong Identity directories match the selector")
+		}
+		id = value.ID
+	}
+	if id == "" {
+		return "", fmt.Errorf("identity directory not found for selector")
+	}
+	return id, nil
 }
 
 func (r *externalLookupResolver) validateRegistry() error {

@@ -1,0 +1,10 @@
+_defaults:
+  kongctl:
+    namespace: "identity-directory-e2e"
+identity:
+  directories:
+    - ref: external-directory
+      _external:
+        selector:
+          matchFields:
+            name: "e2e-identity-directory"

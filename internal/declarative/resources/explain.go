@@ -324,6 +324,18 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 	}
 
 	segments := strings.Split(path, ".")
+	if strings.TrimSpace(segments[0]) == "identity" {
+		if len(segments) < 2 || (segments[1] != "directory" && segments[1] != "directories") {
+			return nil, fmt.Errorf("unsupported resource path %q", path)
+		}
+		canonical := append([]string{string(ResourceTypeIdentityDirectory)}, segments[2:]...)
+		subject, err := ResolveExplainSubject(strings.Join(canonical, "."))
+		if err != nil {
+			return nil, err
+		}
+		subject.DisplayPath = path
+		return subject, nil
+	}
 	if strings.TrimSpace(segments[0]) == SchemaFieldOrganization {
 		return resolveOrganizationExplainSubject(path, segments)
 	}
@@ -355,6 +367,17 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Step: ExplainScaffoldStep{Name: doc.RootKey, Array: true},
 			Node: doc.Schema.clone(),
 		}}
+	}
+	if doc.ResourceType == ResourceTypeIdentityDirectory {
+		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
+		if err != nil {
+			return nil, err
+		}
+		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: "directories", Array: true}}
+		subject.ScaffoldTrail = []ExplainScaffoldNode{
+			{Step: subject.ScaffoldSteps[0], Node: groupNode},
+			{Step: subject.ScaffoldSteps[1], Node: doc.Schema.clone()},
+		}
 	}
 
 	if len(segments) == 1 {
@@ -839,6 +862,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "organization.system-accounts." + SchemaFieldRoles
 	case ResourceTypeDashboard:
 		return "analytics.dashboards"
+	case ResourceTypeIdentityDirectory:
+		return "identity.directories"
 	}
 
 	if _, ok := visiting[doc.ResourceType]; ok {
@@ -916,6 +941,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	applyManagedByInputPolicy(node, rt)
 
 	rootKey := resourceSetRootKey(reg.typ)
+	if rt == ResourceTypeIdentityDirectory {
+		rootKey = "identity.directories"
+	}
 	aliases := []string{string(rt)}
 	if hyphenAlias := strings.ReplaceAll(string(rt), "_", "-"); hyphenAlias != string(rt) {
 		aliases = append(aliases, hyphenAlias)

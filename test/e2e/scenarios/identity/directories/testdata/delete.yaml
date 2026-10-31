@@ -1,0 +1,7 @@
+_defaults:
+  kongctl:
+    namespace: "identity-directory-e2e"
+identity:
+  directories:
+    - ref: people
+      name: "e2e-identity-directory"

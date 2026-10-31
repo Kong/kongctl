@@ -4,6 +4,7 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityDirectoriesFactory            func() IdentityDirectoriesAPI
 	Token                                 string
 	T                                     *testing.T
 	CPAPIFactory                          func() ControlPlaneAPI
@@ -82,6 +83,13 @@ type MockKonnectSDK struct {
 	EventGatewaySchemaRegistryFactory       func() EventGatewaySchemaRegistryAPI
 	EventGatewayStaticKeyFactory            func() EventGatewayStaticKeyAPI
 	EventGatewayTLSTrustBundleFactory       func() EventGatewayTLSTrustBundleAPI
+}
+
+func (m *MockKonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
+	if m.IdentityDirectoriesFactory == nil {
+		return nil
+	}
+	return m.IdentityDirectoriesFactory()
 }
 
 // Returns a mock instance of the ControlPlaneAPI

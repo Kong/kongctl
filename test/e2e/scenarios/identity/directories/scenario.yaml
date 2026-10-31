@@ -1,0 +1,496 @@
+baseInputsPath: testdata
+defaults:
+  mask:
+    dropKeys:
+      - id
+      - created_at
+      - updated_at
+      - resource_id
+      - change_id
+      - generated_at
+env:
+  KONGCTL_LOG_LEVEL: info
+steps:
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                type: object
+            select: '@'
+        name: explain
+        run:
+          - explain
+          - identity.directory
+          - -o
+          - json
+      - assertions:
+          - expect:
+              fields:
+                contains(stdout, 'directories:'): true
+                contains(stdout, 'identity:'): true
+            select: '@'
+        name: scaffold
+        outputFormat: disable
+        parseAs: raw
+        run:
+          - scaffold
+          - identity.directory
+    name: 001-schema
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 2
+            select: summary
+        name: plan-create
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        stdoutFile: '{{ .workdir }}/create.json'
+      - assertions:
+          - expect:
+              fields:
+                applied: 2
+                failed: 0
+            select: summary
+        name: apply-saved-plan
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/create.json'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                allow_all_control_planes: true
+                description: Initial directory
+                labels.team: identity
+                length(allowed_control_planes): 1
+                managed_by."kongctl-namespace": '{{ .vars.namespace }}'
+                managed_by."kongctl-protected": "false"
+                managed_by.tool: kongctl
+                name: '{{ .vars.directory_name }}'
+                negative_ttl_secs: 450
+                ttl_secs: 900
+                vault_enabled: false
+            select: '@'
+        name: verify-directory
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+      - assertions:
+          - expect:
+              fields:
+                name: '{{ .vars.directory_name }}'
+            select: '[?name==''{{ .vars.directory_name }}''] | [0]'
+        name: list
+        run:
+          - list
+          - identity
+          - directories
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+    name: 002-create
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                failed: 0
+                status: success
+            select: summary
+        name: update-all-fields
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/update.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                description: Updated directory
+                length(allowed_control_planes): 0
+                length(labels): 0
+                negative_ttl_secs: 600
+                ttl_secs: 1200
+                vault_enabled: false
+            select: '@'
+        name: verify-updated
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+      - assertions:
+          - expect:
+              fields:
+                failed: 0
+                status: success
+            select: summary
+        name: partial-update
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/partial.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                allow_all_control_planes: true
+                description: Partial update
+                length(allowed_control_planes): 0
+                length(labels): 0
+                negative_ttl_secs: 600
+                ttl_secs: 1200
+                vault_enabled: false
+            select: '@'
+        name: verify-preserved
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: no-op-partial
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/partial.yaml'
+          - --mode
+          - apply
+    name: 003-update-and-preserve
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                description: Partial update
+                managed_by: null
+                name: '{{ .vars.directory_name }}'
+                ttl_secs: 1200
+                vault_enabled: false
+            select: identity.directories[0]
+        name: dump
+        outputFormat: none
+        parseAs: yaml
+        run:
+          - dump
+          - declarative
+          - --resources
+          - identity.directories
+          - --default-namespace
+          - '{{ .vars.namespace }}'
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: dump-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+      - assertions:
+          - expect:
+              fields:
+                applied: 0
+                failed: 0
+            select: summary
+        name: dump-apply
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --auto-approve
+    name: 004-dump-round-trip
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: external-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/external.yaml'
+          - --mode
+          - sync
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: omitted-leaves-directory
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --mode
+          - sync
+      - assertions:
+          - expect:
+              fields:
+                name: '{{ .vars.directory_name }}'
+            select: '@'
+        name: verify-retained
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+    name: 005-external-and-scope
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                failed: 0
+                status: success
+            select: summary
+        name: protect
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/protected.yaml'
+          - --auto-approve
+      - expectFailure:
+          contains: protected
+          exitCode: 1
+        name: protected-update-blocked
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/blocked.yaml'
+          - --auto-approve
+      - expectFailure:
+          contains: protected
+          exitCode: 1
+        name: protected-sync-blocked
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 1
+            select: summary
+        name: plan-unprotect
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/unprotect.yaml'
+          - --mode
+          - apply
+        stdoutFile: '{{ .workdir }}/unprotect.json'
+      - assertions:
+          - expect:
+              fields:
+                failed: 0
+            select: summary
+        name: apply-unprotect
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/unprotect.json'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                description: Partial update
+                managed_by."kongctl-protected": "false"
+                vault_enabled: false
+            select: '@'
+        name: verify-unprotected
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+    name: 006-protection
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                applied: 1
+                failed: 0
+            select: summary
+        name: sync-explicit-empty
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                '@': 0
+            select: length([?name=='{{ .vars.directory_name }}'])
+        name: verify-gone
+        run:
+          - get
+          - identity
+          - directories
+    name: 007-sync-delete
+  - commands:
+      - create:
+          expectStatus: 201
+          payload:
+            inline:
+              allow_all_control_planes: true
+              description: Unmanaged directory
+              labels:
+                team: identity
+              name: '{{ .vars.directory_name }}'
+              negative_ttl_secs: 450
+              ttl_secs: 900
+              vault_enabled: false
+          resource: identity_directory
+        name: create-unmanaged
+      - expectFailure:
+          contains: explicitly adopt
+          exitCode: 1
+        name: refuse-implicit-adoption
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/delete.yaml'
+      - assertions:
+          - expect:
+              fields:
+                namespace: '{{ .vars.namespace }}'
+            select: '@'
+        name: adopt
+        run:
+          - adopt
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+          - --namespace
+          - '{{ .vars.namespace }}'
+      - assertions:
+          - expect:
+              fields:
+                description: Unmanaged directory
+                labels.team: identity
+                managed_by."kongctl-namespace": '{{ .vars.namespace }}'
+                managed_by.tool: kongctl
+                negative_ttl_secs: 450
+                ttl_secs: 900
+                vault_enabled: false
+            select: '@'
+        name: verify-adopted-settings
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+      - assertions:
+          - expect:
+              fields:
+                total_changes: 0
+            select: summary
+        name: adopted-no-op
+        outputFormat: disable
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/delete.yaml'
+          - --mode
+          - apply
+      - expectFailure:
+          contains: --overwrite-namespace
+          exitCode: 1
+        name: require-explicit-takeover
+        run:
+          - adopt
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+          - --namespace
+          - '{{ .vars.namespace }}'
+      - assertions:
+          - expect:
+              fields:
+                namespace: '{{ .vars.namespace }}'
+            select: '@'
+        name: explicit-adopt-overwrite
+        run:
+          - adopt
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+          - --namespace
+          - '{{ .vars.namespace }}'
+          - --overwrite-namespace
+    name: 008-adopt-unmanaged
+  - commands:
+      - assertions:
+          - expect:
+              fields:
+                applied: 1
+                failed: 0
+            select: summary
+        name: delete-directory
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/delete.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                applied: 1
+                failed: 0
+            select: summary
+        name: delete-gateway
+        run:
+          - delete
+          - -f
+          - '{{ .workdir }}/gateway.yaml'
+          - --auto-approve
+      - assertions:
+          - expect:
+              fields:
+                '@': 0
+            select: length([?name=='{{ .vars.directory_name }}'])
+        name: verify-gone
+        run:
+          - get
+          - identity
+          - directories
+    name: 009-explicit-delete
+test:
+  info: Requires directory-admin access and capacity for one temporary directory; supports a one-directory quota. Deletes only resources created by this scenario.
+vars:
+  directory_name: e2e-identity-directory
+  gateway_name: Identity Directory E2E Gateway
+  namespace: identity-directory-e2e

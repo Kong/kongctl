@@ -805,6 +805,18 @@ existing webhook while retaining the portal, declare `audit_log_webhook: {}`.
 `audit_log_webhook: null` is rejected because null is not a reset or delete
 signal.
 
+## Kong Identity directories
+
+The preview `identity.directories` collection manages directory settings using
+`managed_by` for namespace and protection metadata. Existing directories,
+including a directory named `default`, can be referenced by an external name
+selector or ID. Explicit adoption is required before managing an unowned
+directory. Auth-server administration and runtime authentication/lookup remain
+separate from this first directory configuration implementation.
+
+See the [directory examples](examples/declarative/identity/README.md) for
+manifests, adoption, protection, sync scope, and current platform limitations.
+
 ## AI Gateway MCP server replacements
 
 MCP server names are immutable: a name change in `sync` creates a new server

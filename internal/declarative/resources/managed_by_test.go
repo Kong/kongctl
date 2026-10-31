@@ -52,3 +52,16 @@ func TestManagedByRegistrationRejectsInvalidOrDuplicateCapabilities(t *testing.T
 	require.NoError(t, WithManagedBy(ManagedByPolicy{MaxEntries: 5})(&ops))
 	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{MaxEntries: 7})(&ops), "already registered")
 }
+
+func TestManagedByDirectoryRootOwnsLifecycleWithoutChildScope(t *testing.T) {
+	require.True(t, UsesManagedByOwnership(ResourceTypeIdentityDirectory))
+	require.False(t, HasIndependentChildOwnership(ResourceTypeIdentityDirectory))
+	metadata := BuildChildManagedBy("identity-team", true, "old")
+	metadata["outside"] = "discarded"
+	prepared, err := PrepareManagedBy(ResourceTypeIdentityDirectory, metadata, "current")
+	require.NoError(t, err)
+	require.Equal(t, BuildChildManagedBy("identity-team", true, "current"), prepared)
+	var ops resourceOps
+	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{MaxEntries: 5, OwnsLifecycle: true})(&ops),
+		"namespace participation")
+}

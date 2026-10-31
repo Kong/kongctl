@@ -8,6 +8,11 @@ import (
 // Field names used for communication between planner and executor. Internal
 // fields are prefixed with underscore to avoid confusion with resource fields.
 const (
+	FieldAllowedControlPlanes  = "allowed_control_planes"
+	FieldAllowAllControlPlanes = "allow_all_control_planes"
+	FieldTTLSecs               = "ttl_secs"
+	FieldNegativeTTLSecs       = "negative_ttl_secs"
+	FieldVaultEnabled          = "vault_enabled"
 	// FieldID contains a resource ID
 	FieldID = "id"
 
@@ -243,6 +248,7 @@ const (
 // the resources package. Keep these only for planner/executor compatibility.
 const (
 	ResourceTypePortal                           = string(resources.ResourceTypePortal)
+	ResourceTypeIdentityDirectory                = string(resources.ResourceTypeIdentityDirectory)
 	ResourceTypeApplicationAuthStrategy          = string(resources.ResourceTypeApplicationAuthStrategy)
 	ResourceTypeDCRProvider                      = string(resources.ResourceTypeDCRProvider)
 	ResourceTypeControlPlane                     = string(resources.ResourceTypeControlPlane)

@@ -30,6 +30,8 @@ func ManagedByWithProvenance(metadata map[string]string, version string) map[str
 // Writing tool/version is independent of namespace and ownership capabilities.
 type ManagedByPolicy struct {
 	MaxEntries int
+	// OwnsLifecycle uses managed_by for namespace/protection on a managed root.
+	OwnsLifecycle bool
 }
 
 // WithManagedBy opts a resource into shared tool/version writing. Existing
@@ -38,6 +40,9 @@ func WithManagedBy(policy ManagedByPolicy) ResourceRegistrationOption {
 	return func(ops *resourceOps) error {
 		if policy.MaxEntries < 2 {
 			return fmt.Errorf("managed_by entry limit must accommodate tool and version")
+		}
+		if policy.OwnsLifecycle && (ops.namespace == nil || policy.MaxEntries < 4) {
+			return fmt.Errorf("managed_by lifecycle ownership requires namespace participation and capacity for four keys")
 		}
 		if ops.managedBy != nil {
 			return fmt.Errorf("managed_by capability already registered")
@@ -59,7 +64,7 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 	if policy == nil {
 		return metadata, nil
 	}
-	if !HasIndependentChildOwnership(kind) {
+	if !UsesManagedByOwnership(kind) {
 		metadata = nil
 	}
 	result := ManagedByWithProvenance(metadata, version)
@@ -67,6 +72,12 @@ func PrepareManagedBy(kind ResourceType, metadata map[string]string, version str
 		return nil, err
 	}
 	return result, nil
+}
+
+// UsesManagedByOwnership distinguishes metadata ownership from legacy label ownership.
+func UsesManagedByOwnership(kind ResourceType) bool {
+	policy := registry[kind].managedBy
+	return HasIndependentChildOwnership(kind) || policy != nil && policy.OwnsLifecycle
 }
 
 // ValidateManagedBy validates Konnect metadata keys and a resource-specific limit.

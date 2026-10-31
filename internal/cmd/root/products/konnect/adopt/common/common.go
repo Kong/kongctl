@@ -41,11 +41,11 @@ type AdoptRunSetup struct {
 }
 
 func AddAdoptFlags(cmd *cobra.Command) error {
-	cmd.PersistentFlags().String(NamespaceFlagName, "", "Namespace label to apply to the resource (required)")
+	cmd.PersistentFlags().String(NamespaceFlagName, "", "Namespace ownership metadata to apply to the resource (required)")
 	cmd.PersistentFlags().Bool(
 		OverwriteNamespaceFlagName,
 		false,
-		"Overwrite an existing namespace label on the resource",
+		"Overwrite existing namespace ownership metadata on the resource",
 	)
 
 	return nil

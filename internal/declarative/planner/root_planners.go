@@ -79,6 +79,11 @@ func (p *Planner) rootPlanners() []rootPlanner {
 			// Organization assignments can be in scope without a team root.
 			inScope: p.shouldPlanOrganization,
 		},
+		{
+			resourceType: resources.ResourceTypeIdentityDirectory,
+			displayName:  "Kong Identity directory",
+			planner:      &identityDirectoryPlanner{BasePlanner: base},
+		},
 	}
 	kinds := make([]resources.ResourceType, 0, len(roots))
 	for _, root := range roots {

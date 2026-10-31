@@ -20,6 +20,7 @@ import (
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/declarative"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/eventgateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/gateway"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/identity"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/me"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/mesh"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/organization"
@@ -340,6 +341,11 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 
 	// Handle Adopt verb with specific subcommands
 	if verb == verbs.Adopt {
+		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(identityCmd)
 		portalCmd, err := adopt.NewPortalCmd(verb, &cobra.Command{}, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -399,6 +405,13 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	// For all other verbs, build the standard command tree
+	if verb == verbs.Get || verb == verbs.List {
+		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(identityCmd)
+	}
 
 	c, e := gateway.NewGatewayCmd(verb, addFlags, preRunE)
 	if e != nil {

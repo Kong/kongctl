@@ -18,6 +18,7 @@ const (
 // "github.com/Kong/sdk-konnect-go" SDK struct
 // allowing for easier testing and mocking
 type SDKAPI interface {
+	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
 	GetPortalAPI() PortalAPI
@@ -103,6 +104,13 @@ type KonnectSDK struct {
 	TokenSource apiutil.TokenSource
 	HTTPClient  kkSDK.HTTPClient
 	portalImpl  *PortalAPIImpl
+}
+
+func (k *KonnectSDK) GetIdentityDirectoriesAPI() IdentityDirectoriesAPI {
+	if k.SDK == nil || k.SDK.KongIdentityDirectories == nil {
+		return nil
+	}
+	return k.SDK.KongIdentityDirectories
 }
 
 // Returns the real implementation of the GetControlPlaneAPI

@@ -35,6 +35,12 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeIdentityDirectory: {
+		{
+			FieldPath: "allowed_control_planes", TargetType: ResourceTypeControlPlane,
+			Kind: RelationshipKindAPIForeignKey, Cardinality: RelationshipCardinalityList,
+		},
+	},
 	ResourceTypeAPIVersion: {
 		{
 			FieldPath:  "api",
