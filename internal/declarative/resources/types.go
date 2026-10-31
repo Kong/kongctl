@@ -17,6 +17,7 @@ const (
 	ResourceTypeIdentityAuthServerClient                ResourceType = "identity_auth_server_client"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
+	ResourceTypeIdentityPrincipalIdentity               ResourceType = "identity_principal_identity"
 	ResourceTypePortal                                  ResourceType = "portal"
 	ResourceTypeApplicationAuthStrategy                 ResourceType = "application_auth_strategy"
 	ResourceTypeDCRProvider                             ResourceType = "dcr_provider"

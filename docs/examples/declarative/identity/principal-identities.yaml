@@ -1,0 +1,56 @@
+_defaults:
+  kongctl:
+    namespace: identity-example
+
+control_planes:
+  - ref: existing-gateway
+    _external:
+      id: !env KONGCTL_IDENTITY_CONTROL_PLANE_ID
+
+identity:
+  auth_servers:
+    - ref: issuer
+      name: identity-example-issuer
+      audience: https://api.example.test
+      clients:
+        - ref: worker
+          name: identity-example-worker
+          grant_types: [client_credentials]
+          response_types: []
+          token_endpoint_auth_method: client_secret_post
+
+  directories:
+    - ref: people
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: partner-user
+          display_name: Partner user
+          type: user
+          identities:
+            - ref: employee-number
+              type: custom
+              key: employee_id
+              value: example-123
+              labels:
+                department: engineering
+            - ref: partner-login
+              type: oidc
+              issuer: https://issuer.example.test
+              claim:
+                name: sub
+                value: example-123
+
+  identities:
+    - ref: oauth-worker
+      principal: partner-user
+      type: auth_server_client
+      auth_server_id: !ref issuer#id
+      client_id: !ref worker#id
+    - ref: gateway-user
+      principal: partner-user
+      type: control_plane_consumer
+      control_plane_id: !ref existing-gateway#id
+      consumer_id: !env KONGCTL_IDENTITY_CONSUMER_ID

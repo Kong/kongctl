@@ -3,6 +3,7 @@ package konnect
 
 import (
 	"context"
+	"maps"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
@@ -10,6 +11,7 @@ import (
 )
 
 type DirectoryAPI struct {
+	Lifecycle bool
 	helpers.IdentityDirectoriesAPI
 	Directories                             []kkComps.KongDirectory
 	Current                                 kkComps.KongDirectory
@@ -60,6 +62,12 @@ func (a *DirectoryAPI) CreateDirectory(_ context.Context, request kkComps.Create
 ) (*kkOps.CreateDirectoryResponse, error) {
 	a.Creates++
 	a.Created = request
+	if a.Lifecycle {
+		a.Current.Name = request.Name
+		a.Current.ManagedBy = maps.Clone(request.ManagedBy)
+		a.Current.Labels = maps.Clone(request.Labels)
+		a.Directories = append(a.Directories, a.Current)
+	}
 	return &kkOps.CreateDirectoryResponse{KongDirectory: &a.Current}, nil
 }
 
@@ -76,5 +84,8 @@ func (a *DirectoryAPI) DeleteDirectory(_ context.Context, _ string, force *kkOps
 ) (*kkOps.DeleteDirectoryResponse, error) {
 	a.Deletes++
 	a.Force = force
+	if a.Lifecycle {
+		a.Directories = nil
+	}
 	return &kkOps.DeleteDirectoryResponse{}, nil
 }

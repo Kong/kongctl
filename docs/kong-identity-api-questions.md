@@ -366,6 +366,41 @@ Confirm which associated resources are deleted, detached or retained, and
 whether independently managed associations can prevent parent deletion.
 All probe resources were disposable and were removed afterward.
 
+### Q25 Consumer identity workspace configuration
+
+**Question:** When is `workspace_id` required or supported on a
+`control_plane_consumer` identity? What is its format and scope, where can a
+valid value be obtained, and does support differ between API Gateway and AI
+Gateway consumers? Can you provide a working create/PUT example and describe
+omission/clearing behavior?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Both consumer families work
+when this field is omitted. Adding `workspace_id` to an otherwise working PUT
+returns 500 for both a text value and a syntactically valid UUID; fresh GETs
+retain the original association without the field. No actual workspace was
+provisioned for these probes, so they do not establish that a valid workspace
+is unsupported. The inspected schema defines only `type: string`, with no
+description, format or availability constraint. Confirm the supported values
+and whether invalid values should produce a validation error instead of 500.
+
+### Q26 Identity behavior after deleting an associated client or consumer
+
+**Question:** Which identity deletion or retention rules are guaranteed when
+an associated OAuth client, Gateway consumer or control plane is deleted?
+Should the API reject referenced-target deletion, remove the identity or
+retain it, and are these rules consistent across API and AI Gateway consumers?
+
+**Observed (October 31, 2026 UTC, US `.com`):** Deleting an associated OAuth
+client returns 204; its identity subsequently returns 404 and disappears
+from the principal's identity collection. Deleting an associated API Gateway
+consumer returns 204 while its identity remains readable. Deleting that
+control plane also returns 204 and leaves the same identity in both GET and
+list, with its original IDs. No AI consumer/control-plane deletion policy was
+established by these observations. All fixtures were removed afterward.
+
+Confirm the intended lifecycle, including whether retained associations can
+be distinguished from associations whose targets still exist.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

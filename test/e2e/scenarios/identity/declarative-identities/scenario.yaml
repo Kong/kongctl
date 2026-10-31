@@ -1,0 +1,544 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  privateTempDirVar: secret_dir
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_DECL_IDENTITY_DIRECTORY_NAME
+    - resource: identity_auth_server
+      nameVar: server_name
+      nameEnv: KONGCTL_E2E_DECL_IDENTITY_SERVER_NAME
+    - resource: control_plane
+      nameVar: control_plane_name
+      nameEnv: KONGCTL_E2E_DECL_IDENTITY_CP_NAME
+  info: Manage all four principal identity variants across independently owned namespaces, including same-plan references, protected parents, saved plans, diff, dump, adoption and scoped sync/delete.
+steps:
+  - name: 001-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-gateway
+        create:
+          resource: control_plane
+          payload:
+            inline:
+              name: '{{ .vars.control_plane_name }}'
+              cluster_type: CLUSTER_TYPE_CONTROL_PLANE
+          recordVar:
+            name: control_plane_id
+            responsePath: id
+      - name: create-primary-consumer
+        run:
+          - api
+          - post
+          - /v2/control-planes/{{ .vars.control_plane_id }}/core-entities/consumers
+          - username=primary-{{ .vars.control_plane_id }}
+        recordVar:
+          name: primary_consumer_id
+          responsePath: id
+      - name: create-secondary-consumer
+        run:
+          - api
+          - post
+          - /v2/control-planes/{{ .vars.control_plane_id }}/core-entities/consumers
+          - username=secondary-{{ .vars.control_plane_id }}
+        recordVar:
+          name: secondary_consumer_id
+          responsePath: id
+      - name: prepare-initial
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - initial
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_name }}'
+          - '{{ .vars.server_name }}'
+          - '{{ .vars.control_plane_id }}'
+          - '{{ .vars.primary_consumer_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: explain-identities
+        run:
+          - explain
+          - identity.identities
+          - -o
+          - json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(oneOf): 5
+                '"x-kongctl-resource"': identity_principal_identity
+      - name: scaffold-identities
+        run:
+          - scaffold
+          - identity.identities
+        outputFormat: disable
+        parseAs: raw
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                contains(stdout, 'identities:'): true
+                'contains(stdout, ''type: custom'')': true
+                contains(stdout, 'key:'): true
+                contains(stdout, 'value:'): true
+      - name: plan-initial
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 9
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/initial-plan.json'
+      - name: apply-saved-initial
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/initial-plan.json'
+          - --auto-approve
+          - --secret-output-dir
+          - '{{ .vars.secret_dir }}'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 9
+                failed: 0
+      - name: get-directory
+        run:
+          - get
+          - identity
+          - directory
+          - '{{ .vars.directory_name }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                managed_by."kongctl-namespace": identity-directory-e2e
+        recordVar:
+          name: directory_id
+          responsePath: id
+      - name: get-principal
+        run:
+          - get
+          - identity
+          - principals
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 1
+                '[0].managed_by."kongctl-protected"': "true"
+                '[0].managed_by."kongctl-namespace"': identity-principal-e2e
+        recordVar:
+          name: principal_id
+          responsePath: '[0].id'
+      - name: get-all-four-identities
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 4
+                length([?managed_by."kongctl-namespace" == 'identity-association-e2e']): 4
+                length([?managed_by.tool == 'kongctl']): 4
+                length([?type == 'control_plane_consumer' && control_plane_type == 'api_gateway']): 1
+        recordVars:
+          - name: employee_id
+            responsePath: '[?managed_by."kongctl-ref" == ''employee''] | [0].id'
+      - name: initial-no-op
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/initial.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: get-auth-server
+        run:
+          - get
+          - identity
+          - auth-server
+          - '{{ .vars.server_name }}'
+        recordVar:
+          name: server_id
+          responsePath: id
+      - name: get-replacement-client
+        run:
+          - get
+          - identity
+          - auth-server-client
+          - --auth-server-id
+          - '{{ .vars.server_id }}'
+          - --client-name
+          - '{{ .vars.server_name }}-replacement'
+        recordVar:
+          name: replacement_client_id
+          responsePath: id
+      - name: prepare-update
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - update
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.principal_id }}'
+          - '{{ .vars.secondary_consumer_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: plan-update
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/update.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/update-plan.json'
+      - name: diff-update
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/update.yaml'
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+      - name: apply-saved-update
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/update-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: verify-updated-identities
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 4
+                '[?type == ''custom''] | [0].key': employee_number
+                '[?type == ''custom''] | [0].value': '{{ .vars.directory_id }}-updated'
+                '[?type == ''oidc''] | [0].issuer': https://updated.example.test
+                '[?type == ''oidc''] | [0].claim.name': email
+                '[?type == ''oidc''] | [0].claim.value': updated@example.test
+                '[?type == ''auth_server_client''] | [0].client_id': '{{ .vars.replacement_client_id }}'
+                '[?type == ''control_plane_consumer''] | [0].consumer_id': '{{ .vars.secondary_consumer_id }}'
+                length([?labels.team != `null`]): 0
+      - name: update-no-op
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/update.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: dump
+        run:
+          - dump
+          - declarative
+          - --resources
+          - identity.directories
+          - --include-child-resources
+          - --default-namespace
+          - identity-association-e2e
+        outputFormat: none
+        parseAs: yaml
+        stdoutFile: '{{ .workdir }}/dump.yaml'
+        assertions:
+          - select: identity.directories[0]
+            expect:
+              fields:
+                length(principals): 1
+                length(principals[0].identities): 4
+      - name: dump-no-op
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/dump.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: prepare-scopes
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inputs.py'
+          - scopes
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.principal_id }}'
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                prepared: true
+      - name: create-unowned-identity
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/unowned.json'
+        recordVar:
+          name: unowned_identity_id
+          responsePath: id
+      - name: create-foreign-identity
+        run:
+          - api
+          - post
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities
+          - --body-file
+          - '{{ .workdir }}/foreign.json'
+        recordVar:
+          name: foreign_identity_id
+          responsePath: id
+      - name: omission-preserves-identities
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/omitted.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: plan-scoped-prune
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --mode
+          - sync
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 4
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/sync-plan.json'
+      - name: sync-saved-scope
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/sync-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 4
+                failed: 0
+      - name: verify-unowned-and-foreign-remain
+        run:
+          - get
+          - identity
+          - principal-identities
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --page-size
+          - "1"
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                length(@): 2
+                length([?managed_by."kongctl-namespace" == 'other-identity-team']): 1
+                length([?managed_by.tool == `null`]): 1
+      - name: adopt-identity
+        run:
+          - adopt
+          - identity
+          - principal-identity
+          - '{{ .vars.unowned_identity_id }}'
+          - --directory-id
+          - '{{ .vars.directory_id }}'
+          - --principal-id
+          - '{{ .vars.principal_id }}'
+          - --ref
+          - adopted
+          - --namespace
+          - identity-association-e2e
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                namespace: identity-association-e2e
+                resource_type: identity_principal_identity
+                id: '{{ .vars.unowned_identity_id }}'
+      - name: adopted-no-op
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/adopted.yaml'
+          - --mode
+          - apply
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+      - name: protect-adopted
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/protected.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: protected-prune-refusal
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --mode
+          - sync
+        expectFailure:
+          exitCode: 1
+          contains: protected
+      - name: unprotect-adopted
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/adopted.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: sync-adopted
+        run:
+          - sync
+          - -f
+          - '{{ .workdir }}/empty.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: unprotect-parent
+        run:
+          - apply
+          - -f
+          - '{{ .workdir }}/teardown.yaml'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: foreign-identity-blocks-parent-delete
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/teardown.yaml'
+          - --mode
+          - delete
+        expectFailure:
+          exitCode: 1
+          contains: still has 1 identities
+      - name: remove-explicit-foreign-fixture
+        run:
+          - api
+          - delete
+          - /v2/directories/{{ .vars.directory_id }}/principals/{{ .vars.principal_id }}/identities/{{ .vars.foreign_identity_id }}
+      - name: plan-delete
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/teardown.yaml'
+          - --mode
+          - delete
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 5
+        outputFormat: disable
+        stdoutFile: '{{ .workdir }}/delete-plan.json'
+      - name: delete-saved
+        run:
+          - delete
+          - --plan
+          - '{{ .workdir }}/delete-plan.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 5
+                failed: 0

@@ -35,6 +35,10 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeIdentityPrincipalIdentity: {{
+		FieldPath: "principal", TargetType: ResourceTypeIdentityPrincipal,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
 	ResourceTypeIdentityAuthServerClient: {
 		{
 			FieldPath: "auth_server", TargetType: ResourceTypeIdentityAuthServer,

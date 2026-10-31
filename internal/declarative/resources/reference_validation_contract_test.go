@@ -27,6 +27,7 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeAIGatewayDatastore, ""},
 		{ResourceTypeIdentityDirectory, ""},
 		{ResourceTypeIdentityPrincipal, ""},
+		{ResourceTypeIdentityPrincipalIdentity, ""},
 		{ResourceTypeIdentityAuthServerScope, ""},
 		{ResourceTypeIdentityAuthServerClaim, ""},
 		{ResourceTypeIdentityAuthServerClient, ""},

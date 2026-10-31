@@ -61,8 +61,9 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 		},
 	}}}
 	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
-		IdentityPrincipalsAPI:  api,
+		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI:          api,
+		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 	})}
 	rs := &resources.ResourceSet{}
 	require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
@@ -82,4 +83,61 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 	require.Equal(t, "principal-team", resources.GetNamespace(loaded.Identity.Principals[0].Kongctl))
 	require.True(t, loaded.Identity.Principals[1].TypeDeclared())
 	require.Nil(t, loaded.Identity.Principals[1].Type)
+}
+
+func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) {
+	directory := fixture.Directory("people", "directory-team", false)
+	const principalID = "1248f559-063b-4f10-9098-9e6553b21d9b"
+	const ownedID = "2248f559-063b-4f10-9098-9e6553b21d9b"
+	const unownedID = "3248f559-063b-4f10-9098-9e6553b21d9b"
+	const workspaceID = "4248f559-063b-4f10-9098-9e6553b21d9b"
+	identities := []kkComps.KongPrincipalIdentity{
+		kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+			ID: ownedID, Key: "employee", Value: "123",
+			ManagedBy: resources.BuildPrincipalManagedBy("identity-team", "employee", true, "old"),
+		}),
+		kkComps.CreateKongPrincipalIdentityCustom(kkComps.KongPrincipalIdentityCustomResponse{
+			ID: unownedID, Key: "external", Value: "456",
+		}),
+		kkComps.CreateKongPrincipalIdentityControlPlaneConsumer(kkComps.KongPrincipalIdentityCPConsumerResponse{
+			ID: workspaceID, ControlPlaneID: directory.ID, ConsumerID: unownedID, WorkspaceID: new("inspected-workspace"),
+			ManagedBy: resources.BuildPrincipalManagedBy("identity-team", "workspace-link", false, "old"),
+		}),
+	}
+	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI: &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {
+			{ID: principalID, Type: new(kkComps.KongPrincipalTypeUser)},
+		}}},
+		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{
+			Parents: map[string][]kkComps.KongPrincipalIdentity{directory.ID + "/" + principalID: identities},
+		},
+	})}
+	rs := &resources.ResourceSet{}
+	require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
+	p := rs.Identity.Directories[0].Principals[0]
+	require.Equal(t, principalID, p.External.ID)
+	require.Nil(t, p.Kongctl)
+	require.Len(t, p.Identities, 3)
+	byRef := make(map[string]resources.IdentityPrincipalIdentityResource)
+	for _, identity := range p.Identities {
+		byRef[identity.Ref] = identity
+	}
+	require.Nil(t, byRef["employee"].External)
+	require.True(t, byRef["employee"].Protected())
+	require.Equal(t, "identity-team", resources.GetNamespace(byRef["employee"].Kongctl))
+	require.Equal(t, unownedID, byRef[unownedID].External.ID)
+	require.Nil(t, byRef[unownedID].Kongctl)
+	require.Equal(t, workspaceID, byRef["workspace-link"].External.ID)
+	require.Nil(t, byRef["workspace-link"].Kongctl)
+	require.Equal(t, "inspected-workspace", *byRef["workspace-link"].WorkspaceID)
+	encoded, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "managed_by:")
+	path := filepath.Join(t.TempDir(), "identities.yaml")
+	require.NoError(t, os.WriteFile(path, encoded, 0o600))
+	loaded, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	require.True(t, loaded.Identity.Principals[0].IsExternal())
+	require.Len(t, loaded.Identity.Identities, 3)
 }
