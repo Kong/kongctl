@@ -810,6 +810,60 @@ The principal/group generated/imported key-create and key/password PATCH
 bodies also reference the writable schema. Backend expiration omission and
 management-map behavior are separate observations in Q28/Q35.
 
+### Q37 Directory deletion with Trusted IdPs and disabled Vault visibility
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** A directory containing
+one Trusted IdP and no principals, groups, providers or vault keys is deleted
+with 204 by the following request:
+
+```http
+DELETE /v2/directories/{directoryId}?force=false
+```
+
+This occurs with `vault_enabled: true` and with `vault_enabled: false`.
+In separate tests, one attached principal or one attached group instead makes
+the same directory DELETE return 409, and the child remains readable. The
+`force=false` behavior therefore differs by dependent resource family.
+Disabling Vault while IdPs exist succeeds. While disabled, IdP list/detail
+return 403 because Token Vault is disabled, so those records cannot be
+inspected through the public routes before deletion. Re-enabling restores
+visibility when the directory has not been deleted. Separate disposable
+records verified both deletion cases; the default directory was restored.
+
+**Question:** Which dependent resource types must be absent for
+`force=false` to reject directory deletion? Should an attached Trusted IdP
+prevent deletion in both Vault states? Is there a non-mutating way to inspect
+all dependent records while Vault is disabled?
+
+The directory deletion summary describes optional cascading controlled by
+`force`. Its parameter description instead refers to auth-server clients,
+scopes and claims, so the directory-specific dependency contract also needs
+clarification. Administrative 404 after parent deletion does not establish
+runtime revocation or physical removal of all associated data.
+
+### Q38 Trusted IdP JWKS override clearing through PATCH
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** Creating an IdP
+with a reachable issuer and no JWKS override returns `jwks_uri: null`.
+Setting an explicit override works. The following PATCH then returns 200,
+but its response and a fresh GET retain the previous URI:
+
+```http
+PATCH /v2/directories/{directoryId}/trusted-idps/{trustedIdpId}
+Content-Type: application/json
+
+{"jwks_uri":null}
+```
+
+A full PUT omitting `jwks_uri` clears the override and returns null.
+PATCH with `display_name: null` does clear that field. Full PUT resets omitted
+display name/JIT mapping and restores the documented boolean defaults.
+
+**Question:** Should explicit null clear the JWKS override through PATCH and
+restore issuer discovery, or is PUT the required clearing operation? The
+PATCH field is nullable in the inspected specification; unsupported clearing
+should not return success while retaining the previous override.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

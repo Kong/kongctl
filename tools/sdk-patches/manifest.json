@@ -246,6 +246,18 @@
       "before": "[*time.Time](https://pkg.go.dev/time#Time)",
       "after": "`optionalnullable.OptionalNullable[time.Time]`",
       "optional_file": true
+    },
+    {
+      "file": "models/operations/listtrustedidps.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/operations/listtrustedidpprincipals.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
     }
   ],
   "tests": {
