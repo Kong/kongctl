@@ -17,6 +17,8 @@ regression tests run against both config shapes.
 Auth-server PATCH preserves explicit empty `trusted_origins` arrays with
 `omitzero`, while nil arrays remain omitted. The patch skips SDK versions
 without auth-server management and checks actual wire presence when available.
+The same rule preserves explicit empty claim `include_in_scopes` arrays in
+PATCH requests. Both patches are optional on SDKs without those APIs.
 
 Portal customization patches preserve omitted theme names and Try It UI
 audiences. Explicit audience values remain supported; an unset audience must

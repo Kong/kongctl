@@ -48,6 +48,12 @@
       "before": "TrustedOrigins []string `json:\"trusted_origins,omitempty\"`",
       "after": "TrustedOrigins []string `json:\"trusted_origins,omitzero\"`",
       "optional_file": true
+    },
+    {
+      "file": "models/components/updateclaim.go",
+      "before": "IncludeInScopes []string `json:\"include_in_scopes,omitempty\"`",
+      "after": "IncludeInScopes []string `json:\"include_in_scopes,omitzero\"`",
+      "optional_file": true
     }
   ],
   "tests": {
@@ -56,6 +62,7 @@
     "tests/portalteam_defaults_test.go.txt": "models/components/portalteam_defaults_test.go",
     "tests/identity_realms_test.go.txt": "identity_realms_kongctl_test.go",
     "tests/internal_spec_format_test.go.txt": "models/operations/internal_spec_format_test.go",
-    "tests/auth_server_arrays_test.go.txt": "auth_server_arrays_kongctl_test.go"
+    "tests/auth_server_arrays_test.go.txt": "auth_server_arrays_kongctl_test.go",
+    "tests/auth_server_claim_arrays_test.go.txt": "auth_server_claim_arrays_kongctl_test.go"
   }
 }
