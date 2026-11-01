@@ -111,6 +111,7 @@ or protection metadata on them.
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | Explicit preview/execution stamps no KongCTL metadata. New users/teams have empty maps; adopted users can retain old managed_by while becoming imported. Principal management rejects that state and dump uses external UUIDs. Private report context carries directory ID, dry-run mode and an input hash; it is not remote ownership. Q48–Q51, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
+| Principal group inspection | Group ID plus direct/inherited status and nullable membership-entry ID | Native contract verified; dedicated reader is being implemented under #2658. This projection has no ownership fields and grants no authority to mutate inherited/imported relationships. |
 
 Token Vault public keys now inherit ownership from an explicitly managed
 directory. Matching uses the verified RFC 7638 fingerprint, never nonunique

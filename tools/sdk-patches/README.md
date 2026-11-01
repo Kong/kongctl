@@ -29,14 +29,15 @@ Writers must still preserve the fresh current method explicitly until that
 API behavior is resolved. Actual SDK wire tests cover empty, omitted and
 populated fields. These patches skip SDKs without auth-server clients.
 
-Directory, principal, principal-identity, principal API-key, basic-auth,
-password, group, group key, group membership, Trusted IdP, associated-principal,
-Vault key, Vault provider, provider credential, principal Vault credential and
+Directory, principal, principal-group, principal-identity, principal API-key,
+basic-auth, password, group, group key, group membership, Trusted IdP,
+associated-principal, Vault key, Vault provider, provider credential,
+principal Vault credential and
 credential-provider template lists use bracketed
 `page[size]` and `page[after]` query names. The shared API parameter omits
 `style: deepObject`, so generated form/explode encoding sends flat keys that
 the deployed API ignores (Q22). Targeted request-tag replacements correct
-these sixteen operations without changing unrelated SDK resources. Provider
+these seventeen operations without changing unrelated SDK resources. Provider
 credential, principal Vault-credential and group-key lists use the same
 correction; an unfiltered empty-dependency guard does not require page arguments.
 A wire regression verifies the bracketed names and cursor encoding; it fails

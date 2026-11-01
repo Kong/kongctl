@@ -23,6 +23,11 @@ scenarios, corrected repository gates and all twenty existing replay scenarios
 pass. Independent privacy/cleanup checks pass and default settings are restored.
 No SDK change is required beyond preview `90596b498bcb`.
 
+The acceptance audit also identifies a dedicated principal-group inspection
+gap under #2658. Native direct/inherited contracts are verified; section 66
+records the additional SDK cursor patch preparation. The reader and consumer
+pin update are in progress, with no new membership mutation authority.
+
 The main unfinished implementation is populated principal Vault authorization
 revocation (#2663), which needs Q30's supported runtime enrollment fixture.
 Compatibility restrictions remain tied to their API questions; successful
@@ -4606,3 +4611,47 @@ The example/tutorial are principal-csv.yaml, principals.csv and principal-csv.md
 under docs/examples/declarative/identity. The metadata ledger and compatibility
 tracker record client-only intent and removal criteria. SDK remains
 90596b498bcb; no SDK change, release or PR.
+
+## 66. Principal group inspection contracts and SDK cursor preparation
+
+The remaining-requirements audit finds a specific #2658 gap: principal detail
+shows group IDs, but the dedicated principal-group collection has no CLI reader.
+That collection also exposes direct/inherited status, nullable membership-entry
+ID, group type, provisioning and team manager. It is a read projection, not a
+new desired-state membership type or an ownership store.
+
+Native US .tech HTTP probes verify two ordinary direct groups, disjoint
+page-size-one reads, empty results for an unrelated principal and 404 for a
+missing principal. An actual imported root/manager/worker hierarchy returns one
+direct and one inherited team for the worker. Both retain imported provisioning
+and manager data; only the direct membership has a membership-entry ID. No team
+membership mutation authority is inferred. Fixture cleanup removes imported
+teams through the known complete-file workflow, then retires only the known
+test principals and preserves the entire original unmanaged default directory.
+CSV rows and import reports stay in memory and are not saved in evidence.
+
+Pagination metadata contains a next-page URL. The existing CursorTracker
+extracts its page[after] value and keeps requests on the originally selected
+SDK route. The probe initially submitted the complete URL as an opaque cursor;
+the resulting 400 is a probe error, not an API defect. Correct extraction
+produces two disjoint pages and a terminal null cursor. Flat size=1 is ignored,
+confirming Q22 applies to this operation too.
+
+The canonical SDK patch manifest now corrects ListPrincipalGroups to the same
+bracketed query encoding as the other sixteen Identity lists. The expanded
+actual-SDK wire regression fails only this new operation before the correction
+and passes all seventeen afterward. The local generated delta is exactly one
+request-tag change plus the new regression case; no public component fields or
+unrelated resource APIs change. Nine patch-tool tests, all actual-SDK
+package/model/internal/pkg tests and the seventeen-case wire check pass without
+skips. Modernization, stable formatting, CGO-disabled consumer build and full
+make test-all pass, including zero lint issues and unit/integration/harness
+race checks. Existing live/replay evidence remains the 5f65cd87 checkpoint;
+this preparation does not yet expose a new command.
+
+Evidence: principal-group-native-contracts.json and principal-groups-sdk-wire.log
+in the local cache. The source bundle must be committed before SDK snapshot
+preparation so provenance identifies an exact source revision. Pushing that
+preview update, consuming its pin and completing the reader/examples/live E2E
+are subsequent work. The current consumer remains on SDK 90596b498bcb; #2658
+is open/In Progress and no implementation PR or SDK release is opened.
