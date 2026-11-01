@@ -35,6 +35,7 @@ open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
 | Credential expiration schema (Q36) | Native timestamp/null writes work; combined SDK spec selects a read-only component for writable requests. | Correct the component-name collision in specification composition; this is separate from backend PATCH behavior. |
 | Trusted IdPs (Q37–Q38) | Directory force=false removes attached IdPs; disabled Vault hides them. PATCH jwks_uri null retains an override, while PUT omission clears it. | Clarify deletion dependencies, disabled-Vault inspection and nullable PATCH clearing. |
 | Vault keys/providers (Q37, Q39–Q40) | Directory force=false also removes attached keys/providers in either Vault state. Custom DCR provider PUT fails; POST enabled:false is ignored. | Clarify deletion dependencies, preserving DCR replacement, initial disabling and PUT omission. |
+| Provider follow-up | See Q41/Q42. | Dependency deletion and clearing. |
 
 Sanitized request/response evidence is saved locally under
 `/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
@@ -649,7 +650,7 @@ still omits it. No uniqueness rule was inferred.
 
 ### Q30 Runtime authentication prerequisites
 
-**US .tech retest (October 31, 2026):** A direct request to
+**US .tech observation (October 31, 2026):** A direct request to
 us.identity.konghq.tech/default/v2/authenticate with a valid imported probe key
 and an administrative bearer token still returns 400, mTLS headers missing. No
 context headers were fabricated. A supported runtime integration setup remains
@@ -659,6 +660,15 @@ necessary.
 `/{directoryName}/v2/authenticate` endpoint from an administrative integration
 test? Which client certificate, control-plane association and organization
 context are required? Can you provide a working request example?
+
+An administrative shared OAuth credential creation returns an enrollment URL.
+POST `/{directoryName}/v2/vault/enrollment/resolve` using its signed token and
+an administrative bearer also returns 400 with missing mTLS context. The
+documented `enrollment/resolve-state` response can expose the stored OAuth
+client secret to the authenticated gateway, but this flow requires that runtime
+context. Stored client-secret preservation across configuration PATCH is
+unverified; public provider GET cannot establish it. What is the supported
+certificate/control-plane setup for these enrollment endpoints?
 
 **Observed (October 31, 2026 UTC, US `.com`):** Generated and imported keys can
 be created and inspected through administration endpoints. Requests to
@@ -973,6 +983,53 @@ when omitted, and which does it reset?
 
 No secret was supplied in these probes. They do not establish preservation
 of a stored OAuth client secret or the behavior of an enrolled credential.
+
+### Q41 Provider deletion with an attached shared credential
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** Creating a
+`static_secret` provider and an active shared credential succeeds. A public
+provider PATCH preserves the credential's visible ID/status. Deleting the
+provider returns 204 while that credential exists; a subsequent credential GET
+returns 404. The tested credential contains only a disposable generated test
+value. User-enrolled credential deletion behavior was not tested.
+
+```http
+DELETE /v2/directories/{directoryId}/vault/providers/{providerId}
+```
+
+**Question:** Is deletion intended to remove all attached shared and user
+credentials? Can the API provide a conditional deletion operation that rejects
+the request when any credential remains, including concurrent attachments?
+What is the supported non-mutating way to inspect every dependency first?
+
+### Q42 Clearing provider scopes and endpoint overrides
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** Creating a GitHub
+provider with `scopes: []` returns the full template default scope list.
+PATCH with `scopes: []` returns 400. Setting token/authorization endpoint
+overrides to nonempty URLs succeeds. PATCH with null for those fields returns
+400. PATCH with empty strings returns 200 and both effective endpoints become
+empty strings; a fresh GET confirms that result instead of template defaults.
+
+```http
+PATCH /v2/directories/{directoryId}/vault/providers/{providerId}
+Content-Type: application/json
+
+{"token_endpoint":"","authorization_endpoint":""}
+```
+
+**Question:** Which operation removes an endpoint override so the provider
+inherits its template again? Is accepting an empty effective OAuth endpoint
+intentional? Can an OAuth provider have an explicitly empty scope list, and how
+is that distinguished from requesting the template defaults? Q39 describes the
+additional custom DCR replacement constraint.
+
+Sanitized evidence for Q30/Q41/Q42 is `provider-preservation-contracts.json`
+and `provider-preservation-summary.json` in the local evidence cache. Issued
+enrollment/state capabilities and supplied secret values were kept in memory;
+the evidence contains only selected public configuration, statuses and outcome
+booleans. All probe fixtures were removed and default directory settings
+restored.
 
 ## Recorded answers
 

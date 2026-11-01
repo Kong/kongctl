@@ -1,5 +1,8 @@
 # Kong Identity administration
 
+[Credential Provider and template inspection](vault-providers.md) explains the
+upstream service model, public configuration reads and current API boundaries.
+
 [Token Vault public encryption keys](vault-keys.md) covers explicit ownership
 of the default directory, public-key registration, fingerprint matching,
 rotation, scoped sync, export and guarded deletion.
