@@ -243,6 +243,10 @@ func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
 		"/v2/directories/directory/vault/providers/provider/credentials/id",
 		"/v2/directories/directory/org-chart/import",
 		"/v2/directories/directory/org-chart/import/",
+		"/v2/directories/directory/principals/principal/api-keys",
+		"/v2/directories/directory/principals/principal/api-keys/key",
+		"/v2/directories/directory/groups/group/api-keys",
+		"/v2/directories/directory/groups/group/api-keys/key",
 	} {
 		parsedURL, err := url.Parse("https://example.test" + path)
 		require.NoError(t, err)
@@ -271,6 +275,26 @@ func TestOrgChartImportBodyReadAndTransportDiagnosticsArePrivate(t *testing.T) {
 	publicURL, err := url.Parse("https://example.test/v2/directories/d")
 	require.NoError(t, err)
 	require.Equal(t, diagnostic.Error(), redactHTTPDiagnostic(diagnostic, publicURL))
+}
+
+func TestIdentityAPIKeyReadAndTransportDiagnosticsArePrivate(t *testing.T) {
+	for _, path := range []string{
+		"/v2/directories/d/principals/p/api-keys",
+		"/v2/directories/d/groups/g/api-keys/id",
+	} {
+		var output bytes.Buffer
+		logger := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: log.LevelTrace}))
+		client := NewLoggingHTTPClientWithClient(&http.Client{}, logger)
+		request, err := http.NewRequest(http.MethodPost, "https://example.test"+path, nil)
+		require.NoError(t, err)
+		diagnostic := errors.New("private-key-value")
+		client.logRequest(t.Context(), request, "request", true, nil, diagnostic)
+		client.logRequestError(t.Context(), request, "request", 0, diagnostic)
+		client.logResponse(t.Context(), &http.Response{Request: request, Header: http.Header{}, StatusCode: 400},
+			"request", 0, true, nil, diagnostic)
+		require.NotContains(t, output.String(), "private-key-value")
+		require.Contains(t, output.String(), redactedValue)
+	}
 }
 
 func TestRedactBodyForURLScopesConfigStoreSecretValue(t *testing.T) {

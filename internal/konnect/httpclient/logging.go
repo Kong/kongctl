@@ -560,7 +560,7 @@ func redactBody(body []byte, contentType string) string {
 }
 
 func redactHTTPDiagnostic(err error, parsedURL *url.URL) string {
-	if isIdentityOrgChartImportRoute(routeFromURL(parsedURL)) {
+	if isIdentityOrgChartImportRoute(routeFromURL(parsedURL)) || isIdentityAPIKeyRoute(routeFromURL(parsedURL)) {
 		return redactedValue
 	}
 	return err.Error()
@@ -571,7 +571,8 @@ func redactBodyForURL(body []byte, contentType string, parsedURL *url.URL) strin
 	route := routeFromURL(parsedURL)
 	if len(body) > 0 && (isMeshCredentialRoute(route) || isAIGatewayDatastoreRoute(route) ||
 		isIdentityClientSecretRoute(route) || isIdentityPasswordRoute(route) ||
-		isIdentityVaultProviderCredentialRoute(route) || isIdentityOrgChartImportRoute(route)) {
+		isIdentityVaultProviderCredentialRoute(route) || isIdentityOrgChartImportRoute(route) ||
+		isIdentityAPIKeyRoute(route)) {
 		return redactedValue
 	}
 	if isConfigStoreSecretRoute(route) {
@@ -593,6 +594,12 @@ func isIdentityPasswordRoute(route string) bool {
 	return (len(parts) == 8 || len(parts) == 9) && parts[0] == "v2" && parts[1] == "directories" &&
 		parts[2] != "" && parts[3] == "principals" && parts[4] != "" && parts[5] == "basic-auths" &&
 		parts[6] != "" && parts[7] == "passwords"
+}
+
+func isIdentityAPIKeyRoute(route string) bool {
+	parts := strings.Split(strings.Trim(route, "/"), "/")
+	return (len(parts) == 6 || len(parts) == 7) && parts[0] == "v2" && parts[1] == "directories" &&
+		parts[2] != "" && (parts[3] == "principals" || parts[3] == "groups") && parts[4] != "" && parts[5] == "api-keys"
 }
 
 func isIdentityVaultProviderCredentialRoute(route string) bool {

@@ -120,6 +120,13 @@ func NewIdentityCmd(verb verbs.VerbValue,
 			}
 		}
 		if verb == verbs.Create || verb == verbs.Patch || verb == verbs.Delete {
+			for _, groupKeys := range []bool{false, true} {
+				keys, err := newIdentityAPIKeyCommand(verb, groupKeys, addParentFlags, parentPreRun)
+				if err != nil {
+					return nil, err
+				}
+				group.AddCommand(keys)
+			}
 			group.AddCommand(newAuthServerSecretMutationCommand(verb, addParentFlags, parentPreRun))
 			password, err := newPasswordMutationCommand(verb, addParentFlags, parentPreRun)
 			if err != nil {
@@ -214,11 +221,13 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return nil, err
 	}
 	group.AddCommand(principalIdentity)
-	principalKey, err := newPrincipalAPIKeyCommand(verb, addParentFlags, parentPreRun)
-	if err != nil {
-		return nil, err
+	for _, groupKeys := range []bool{false, true} {
+		keys, err := newIdentityAPIKeyCommand(verb, groupKeys, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(keys)
 	}
-	group.AddCommand(principalKey)
 	for _, passwords := range []bool{false, true} {
 		basicAuth, err := newBasicAuthReadCommand(verb, passwords, addParentFlags, parentPreRun)
 		if err != nil {

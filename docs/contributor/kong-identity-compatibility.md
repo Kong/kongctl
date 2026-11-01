@@ -485,13 +485,47 @@ actual cursor traversal. A larger initial fixture hit a maximum-ten quota
 
 ## Principal API-key inspection and write boundaries
 
-The initial #1417 implementation is scoped get/list only. A dedicated public
-projection excludes material even if an unexpected read response includes a
+The initial #1417 implementation supplied scoped get/list; explicit principal
+and group credential mutations are now implemented under #1417/#2659.
+A dedicated public projection excludes material even if a read response includes a
 credential field. Errors from the credential API are reduced to status/context
 without response bodies. All pages are observed; repeated IDs/cursors, invalid
 IDs, missing collections and page errors fail the entire observation.
 The verified key detail route rejects a wrong existing principal with 404;
 the identity-specific Q21 workaround is not copied without that discrepancy.
+
+November 1 US `.tech` native checks cover user, agent and unclassified
+principals plus two ordinary groups. Generated/imported create, expiration
+changes and retirement work. Complete map replacement/null removal are ignored;
+imported create rejects managed_by. Principal scalar names work, but null does
+not clear them. Generated group creation retains names; imported group naming
+and all group name PATCH changes are ignored. Q28/Q29 track those contracts.
+
+Explicit create reserves a new 0600 capture before issuing one POST, with both
+retry layers disabled. Material is saved before public receipt/read-back
+validation; uncertain outcomes never cause automatic reissue or deletion.
+Captures include directory, principal/group and known key UUIDs. Imported
+sources use the existing secret-env/file resolver. Normal output is a public
+projection. Whole credential bodies and body-read/transport diagnostics are
+redacted on principal/group key routes, including arbitrary error bodies.
+
+PATCH sends only supported public fields and no managed_by changes. A fresh
+strict observation supplies omitted expiration, which is explicitly sent to
+avoid the API's clearing behavior. Returned fields and fresh read-back must
+retain management metadata, creation identity, name and requested expiration.
+Group name changes and imported group naming fail before issuing a mutation.
+Null name clearing is not exposed. Mutations are single-attempt operations.
+Lift group naming restrictions only after create/PATCH and fresh reads retain
+the requested values. Null clearing also needs a request model that distinguishes
+omission from null; the current SDK name pointer cannot express that distinction.
+
+Explicit deletion confirms user intent, checks fresh detail and complete parent
+collection membership, sends one DELETE and verifies absence. These commands
+do not stamp ownership or enforce declarative namespace/protection, matching
+the explicit password/secret operations. Administrative reads do not establish
+runtime continuity or revocation; Q30 still needs supported integration context.
+SDK preview `90596b498bcb` already includes writable nullable expiration and
+all affected cursor corrections. No new SDK revision is required.
 
 API-only Q27–Q30 and Q4 govern enrollment of mutations:
 
@@ -507,8 +541,8 @@ expiration-omission restrictions are still reproduced there.
   partial management-map PATCH changes. PUT returns 405. Adoption, namespace
   movement and protection updates therefore remain unavailable.
 - Expiration PATCH works, including explicit null, but omission clears it.
-  A future metadata writer must hydrate expiration from a fresh read, then
-  verify actual credential continuity and metadata retention.
+  The explicit writer now hydrates expiration from a fresh read and verifies
+  public metadata retention. Runtime continuity is not established.
 - Name-bearing create returns 400, while name-bearing PATCH returns success
   without making name observable. Missing/null names are omitted from the read
   projection. No name identity or uniqueness rule is inferred.
@@ -516,11 +550,12 @@ expiration-omission restrictions are still reproduced there.
   Generated/imported authentication returned "mTLS headers missing"; this
   establishes no credential continuity or revocation guarantee.
 
-Before declarative writes/adoption, verify metadata changes and removal,
-duplicate/ref matching, preserved material/expiration, type applicability,
-atomic imported creation and uncertainty recovery. Add corresponding lifecycle
-and runtime tests. Declarative lifecycle and adoption remain pending those
-verified ownership contracts.
+Generated declarative enrollment still needs duplicate/ref matching, immutable
+ownership/protection handling, capture integration, saved plans, dump and
+explicit child-before-parent retirement authority. Imported ownership/adoption
+has no verified atomic creation or metadata-transfer path. Do not match by
+name or material, and do not claim generated/imported creation method from a
+metadata GET. No API-key declaration or adoption command is exposed yet.
 
 Principal declarative delete/sync now observes basic-auth and API-key
 descendants as well as identity associations. Any API key blocks deletion;
