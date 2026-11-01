@@ -30,15 +30,18 @@ API behavior is resolved. Actual SDK wire tests cover empty, omitted and
 populated fields. These patches skip SDKs without auth-server clients.
 
 Directory, principal, principal-identity, principal API-key, basic-auth,
-password, group, group membership, Trusted IdP, associated-principal, Vault key,
-Vault provider and credential-provider template lists use bracketed
+password, group, group key, group membership, Trusted IdP, associated-principal,
+Vault key, Vault provider, provider credential, principal Vault credential and
+credential-provider template lists use bracketed
 `page[size]` and `page[after]` query names. The shared API parameter omits
 `style: deepObject`, so generated form/explode encoding sends flat keys that
 the deployed API ignores (Q22). Targeted request-tag replacements correct
-these thirteen operations without changing unrelated SDK resources. A wire
-regression verifies the bracketed names and cursor encoding; it fails before
-the patches. Skip SDKs without these operations. Remove the replacements when
-upstream generation preserves the documented/deployed cursor shape.
+these sixteen operations without changing unrelated SDK resources. Provider
+credential, principal Vault-credential and group-key lists use the same
+correction; an unfiltered empty-dependency guard does not require page arguments.
+A wire regression verifies the bracketed names and cursor encoding; it fails
+before the patches. Skip SDKs without these operations. Remove replacements
+when upstream generation preserves the documented/deployed cursor shape.
 
 Identity credential expiration requires a separate preview-spec correction:
 the combined specification merges a writable credential `ExpiresAt` definition
