@@ -1265,3 +1265,34 @@ shared-oauth-enrollment-contracts.json. Q47 requests URL lifetime, reuse and
 invalidation rules; Q30 still requires a supported runtime integration for
 actual consent, authorization continuity and user revocation. Existing SDK
 90596b498bcb already exposes all operations, so no SDK revision is required.
+
+## Importer adoption versus retained principal ownership
+
+Native org-chart import can adopt an existing user through its reserved email
+identity. It retains UUID, managed_by and unrelated metadata while changing
+display name and provisioned_by to imported. Ordinary principal PUT/DELETE
+then return 409. Retained KongCTL metadata therefore does not establish that
+the principal is still writable through the normal declarative lifecycle.
+
+Explicit managed declarations, scoped pruning and adoption now reject that
+provisioning state, including matching records whose fields otherwise need no
+change. Saved update/delete execution repeats the fresh check. Omission without
+collection authority leaves such records alone; ordinary unowned imported
+records remain outside reconciliation. Dump emits imported principals as
+external UUID references even when old ownership metadata survives. Their
+independently owned child resources retain their existing scope rules.
+
+This restriction is specific to the observed imported state, not an inferred
+policy for all provisioning types. Native explicit deactivation transitions an
+imported principal to konnect_user and permits deletion; the fixture verifies
+that operational release path without silently applying it in declarative
+management. Q48/Q49 request canonical import/matching/release contracts. Q50
+records the public enum/adoption-count schema gaps. The Go SDK's open string
+enum preserves imported observations, so no SDK compatibility change is
+required for this guard.
+
+Revisit the restriction only with a documented, verified administrative
+ownership-transfer contract. Do not turn rejection into an automatic active
+change or treat retained managed_by as permission to release imported users.
+This foundation does not expose an import command, define an import declaration
+or complete the broader arbitrary-principal CSV request #1419.

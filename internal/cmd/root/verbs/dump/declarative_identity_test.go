@@ -129,6 +129,35 @@ func TestIdentityPrincipalDumpPreservesRefsTypesAndIntegerMetadata(t *testing.T)
 	require.Nil(t, loaded.Identity.Principals[1].Type)
 }
 
+func TestIdentityDumpKeepsImporterAdoptedPrincipalExternal(t *testing.T) {
+	directory := fixture.Directory("people", "directory-team", false)
+	const id = "1248f559-063b-4f10-9098-9e6553b21d9b"
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directory.ID: {{
+		ID: id, ProvisionedBy: new(kkComps.ProvisionedBy("imported")),
+		ManagedBy: resources.BuildPrincipalManagedBy("old-team", "former-ref", true, "dev"),
+	}}}}
+	d := &declarativeDumpContext{includeChildren: true, stateClient: state.NewClient(state.ClientConfig{
+		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalsAPI:          api,
+		IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:              &fixture.GroupAPI{},
+		IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
+	})}
+	rs := &resources.ResourceSet{}
+	require.NoError(t, identityDirectoryCollector().collect(t.Context(), d, rs))
+	principal := rs.Identity.Directories[0].Principals[0]
+	require.Equal(t, id, principal.Ref)
+	require.Equal(t, id, principal.External.ID)
+	require.Nil(t, principal.Kongctl)
+	encoded, err := yaml.Marshal(rs)
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "imported.yaml")
+	require.NoError(t, os.WriteFile(path, encoded, 0o600))
+	loaded, err := loader.New().LoadFile(path)
+	require.NoError(t, err)
+	require.True(t, loaded.Identity.Principals[0].IsExternal())
+}
+
 func TestIdentityDumpKeepsUnownedAndWorkspaceAssociationsExternal(t *testing.T) {
 	directory := fixture.Directory("people", "directory-team", false)
 	const principalID = "1248f559-063b-4f10-9098-9e6553b21d9b"

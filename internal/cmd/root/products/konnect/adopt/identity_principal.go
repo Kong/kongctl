@@ -96,6 +96,9 @@ func adoptIdentityPrincipal(
 	if err != nil {
 		return nil, err
 	}
+	if err := helpers.ValidateIdentityPrincipalManagement(*current); err != nil {
+		return nil, err
+	}
 	if owner := current.ManagedBy[resources.ChildNamespaceKey]; owner != "" && !overwrite {
 		return nil, fmt.Errorf("principal already has namespace %q; use --overwrite-namespace to adopt it", owner)
 	}

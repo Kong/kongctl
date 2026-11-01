@@ -4049,3 +4049,106 @@ public settings are restored and principal/group/IdP/provider/key/auth-server
 inventories are empty. #2662 stays open/In Progress until main merge; actual
 user enrollment/revocation and active authorization continuity remain separate
 unfinished work.
+
+## 60. Organization-chart contracts and principal ownership boundary
+
+Started #2665 on ki-triage and marked it In Progress in project 79 before the
+evaluation. Direct US .tech multipart dry-run probes establish five required
+CSV headers: external_id, email, given_name, family_name and
+manager_external_id. A blank manager identifies the tested root. Dry-run
+reports user/team/membership counts without changing the directory. The
+specification currently calls the CSV canonical without listing these columns.
+
+A completed 65-request native lifecycle creates three users, two teams and
+three memberships, preserves IDs on identical re-import and reports unchanged
+users. A manager change updates memberships and removes the emptied team.
+Omitted cost_center preserves its metadata value; a blank cell removes it.
+Absent imported users become inactive while an unrelated manual user remains
+unchanged. A duplicate email/external-ID file returns HTTP 200 with row errors
+and zero counts; the full inventory remains unchanged. Header-only input gets
+400 with a 1–50000-principal requirement. Q48 asks for the canonical format,
+normalization and whole-file/source-scope contracts.
+
+Import also adopts an existing user by reserved email identity. It retains
+UUID, managed_by, protection markers and unrelated metadata, changes display
+name and sets provisioned_by to imported. Ordinary principal PUT and DELETE
+return 409; importer-reserved identity deletion returns 400. Explicit native
+active:false PATCH changes provisioning to konnect_user, after which individual
+deletion works. The completed probe removes every fixture through import
+reconciliation/deactivation and individual retirement, leaving directory
+settings and timestamp unchanged. Q49 asks for adoption precedence and the
+supported release/re-import lifecycle. Opaque map entries are not assumed to
+be a backend-enforced protection policy.
+
+An earlier probe expected row validation to use HTTP 400 and stopped at the
+valid HTTP 200/error-report response. Its cleanup did not yet know the
+deactivation release path. After confirming that process was terminal and all
+remaining users had the synthetic probe identities, guarded native recovery
+removed its three users through an explicitly authorized directory cascade and
+restored the original unmanaged default settings. The corrected complete probe
+uses no directory cascade. No permanent product force-delete path was added.
+
+Principal declaration planning, scoped pruning, adoption and saved mutation
+execution now reject imported provisioning even when old ownership markers
+survive. Omission without collection authority leaves those records alone;
+ordinary unowned imported state is still excluded by ownership filtering.
+Directory dump emits imported users as external UUIDs instead of recreatable
+managed declarations. Independently owned children keep their own authority.
+This guard does not deactivate, release or transfer a user automatically.
+
+Q50 records two public-schema differences: imported remains under x-enum-dev
+despite being returned by the public import operation, and counts.users.adopted
+is returned without an inspected schema field. The generated Go string enum
+preserves unknown values; native CLI inspection verifies that behavior. No SDK
+revision is needed for this guard; typed import reporting must account for the
+missing adoption count. The native description's hris_import wording differs
+from returned imported. No public org-root read is promoted by this work.
+
+Focused planner/executor/adoption/dump tests pass. The first live boundary
+scenario failed because its JSON-formatted declarations used a .json extension;
+the loader requires .yaml/.yml. After correcting filenames, it passes in
+11.657s. It verifies native adoption, fresh apply/delete/scoped-sync/no-op
+rejection, saved update/delete rejection, adoption refusal, user/team reads,
+external dump/replan and complete unchanged public state across rejected
+operations. HR rows, command results and traces remain in a private temporary
+workspace that is removed; only boolean assertions and a path/removal receipt
+are published.
+
+Final full regression passes all twenty-seven Identity live scenarios together
+in US .tech (512.554s), including the new boundary in 12.13s. The final isolated
+scenario passes in 12.734s after matching every desired public principal field
+to the imported record; even that otherwise no-op declaration is rejected.
+The published example CSV is actually uploaded with dry_run=true and produces
+three-user/two-team counts without changing inventories. Independent artifact
+checks confirm all twenty-seven outcomes, eight old private capture
+directories and two Vault workspaces removed, a separately verified absent HR
+workspace, no copied HR files, and no administrative token or synthetic HR
+values in public boundary artifacts. The isolated final run independently
+checks the same privacy/removal properties.
+
+Ordered modernization, stable formatting, CGO-disabled build and full
+make test-all pass: zero-issue lint, full race unit/integration/harness checks,
+nine SDK patch tests, 140 metrics tests and installer checks. The default replay
+check passes for control-plane/get; no replay membership/cassette is changed.
+The new scenario is live-only. Final evidence includes
+org-chart-boundary-all/20261031-233546,
+org-chart-boundary-final/20261031-234436, org-chart-boundary-gates.log and
+org-chart-boundary-artifact-verification.json in the local cache.
+Early stop immediately after directory creation passes guarded cleanup in
+2.268s; org-chart-boundary-stopped.log records that check. The final isolated
+privacy evidence is org-chart-boundary-final-artifact-verification.json.
+Independent final inventory in org-chart-boundary-final-inventory.json confirms
+the unmanaged default's original public settings are restored and
+principal/group/IdP/provider/key/auth-server inventories are empty.
+
+The synthetic org-chart.csv example and org-chart.md explain native import
+versus ordinary declarative configuration. Metadata and compatibility ledgers
+record the provisioning override. This foundation does not expose an import
+command, claim chart CRUD or complete arbitrary principal CSV import #1419.
+Explicit import upload/reporting remains the next #2665 integration, including
+single-attempt uploads, private diagnostic handling and full-file intent.
+
+Evidence in the local cache: org-chart-dry-run-contracts.jsonl,
+org-chart-lifecycle-contracts.json, org-chart-probe-recovery.json and
+org-chart-boundary-second/20261031-233508. Keep issues open/In Progress until
+main merge. No SDK release or PR.
