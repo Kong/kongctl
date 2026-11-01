@@ -278,6 +278,24 @@
       "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
       "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
       "optional_file": true
+    },
+    {
+      "file": "models/operations/listvaultprovidercredentials.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/operations/listvaultcredentials.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
+    },
+    {
+      "file": "models/operations/listgroupkeys.go",
+      "before": "Page *components.CursorPageParameters `queryParam:\"style=form,explode=true,name=page\"`",
+      "after": "Page *components.CursorPageParameters `queryParam:\"style=deepObject,explode=true,name=page\"`",
+      "optional_file": true
     }
   ],
   "tests": {

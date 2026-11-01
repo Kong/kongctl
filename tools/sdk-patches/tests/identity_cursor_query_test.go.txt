@@ -34,11 +34,14 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 		{"KongPrincipalCredential", "ListPrincipalBasicAuths", false, false},
 		{"KongPrincipalCredential", "ListPasswords", false, false},
 		{"PrincipalGroup", "ListGroups", false, false},
+		{"PrincipalGroup", "ListGroupKeys", false, false},
 		{"PrincipalGroup", "ListGroupMembership", false, false},
 		{"TrustedIDPs", "ListTrustedIdps", false, true},
 		{"TrustedIDPs", "ListTrustedIdpPrincipals", false, false},
 		{"TokenVaultKeys", "ListVaultKeys", false, false},
 		{"TokenVaultProviders", "ListVaultProviders", false, false},
+		{"TokenVaultProviders", "ListVaultProviderCredentials", false, false},
+		{"TokenVaultCredentials", "ListVaultCredentials", false, false},
 		{"TokenVaultProviders", "ListCredentialProviderTemplates", true, false},
 	} {
 		t.Run(tc.method, func(t *testing.T) {
@@ -63,7 +66,7 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 				page = reflect.New(pageField.Type().Elem())
 				pageField.Set(page)
 				argument.Elem().FieldByName("DirectoryID").SetString("731559d3-39bd-48c7-b33c-eb192847eb20")
-				for _, parent := range []string{"PrincipalID", "GroupID", "BasicAuthID", "TrustedIdpID"} {
+				for _, parent := range []string{"PrincipalID", "GroupID", "BasicAuthID", "TrustedIdpID", "ProviderID"} {
 					if field := argument.Elem().FieldByName(parent); field.IsValid() {
 						field.SetString("731559d3-39bd-48c7-b33c-eb192847eb21")
 					}
