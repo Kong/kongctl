@@ -18,6 +18,10 @@ type identityDirectoryPlanner struct{ *BasePlanner }
 func (p *identityDirectoryPlanner) PlannerComponent() string { return ResourceTypeIdentityDirectory }
 
 func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Config, plan *Plan) error {
+	if plan.Metadata.Mode != PlanModeSync &&
+		(p.planner.resources.Identity == nil || len(p.planner.resources.Identity.Directories) == 0) {
+		return nil
+	}
 	desired := resources.GetResourcesByNamespace[resources.IdentityDirectoryResource](
 		p.planner.resources, config.Namespace,
 	)

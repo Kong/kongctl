@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"strings"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 
@@ -123,13 +124,30 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 			}
 			currentByRef[ref] = value
 		}
+		metadataTargets := make(map[string]map[string]any)
 		var desired []managedRoot[resources.IdentityPrincipalResource]
 		for _, value := range parent.desired {
+			if value.ID != "" {
+				current, found := currentByRef[value.Ref]
+				if !found || !strings.EqualFold(current.ID, value.ID) {
+					return fmt.Errorf(
+						"principal %q id assertion requires its namespace/ref match; explicitly adopt or correct the config",
+						value.Ref,
+					)
+				}
+			}
 			if current, found := currentByRef[value.Ref]; found {
 				if err := helpers.ValidateIdentityPrincipalManagement(current.IdentityPrincipal); err != nil {
 					return fmt.Errorf("principal %q: %w", value.Ref, err)
 				}
 				if plan.Metadata.Mode != PlanModeDelete {
+					if value.MetadataMode == resources.IdentityMetadataModeMerge {
+						target, err := resources.MergeIdentityMetadata(current.Metadata, value.Metadata)
+						if err != nil {
+							return fmt.Errorf("principal %q metadata merge: %w", value.Ref, err)
+						}
+						metadataTargets[value.Ref] = target
+					}
 					if err := helpers.ValidatePrincipalActiveUpdate(current.IdentityPrincipal, value.Active); err != nil {
 						return fmt.Errorf("principal %q: %w", value.Ref, err)
 					}
@@ -180,7 +198,20 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		}
 		err := reconcileManagedRoots(p.BasePlanner, ResourceTypeIdentityPrincipal, desired, current,
 			managedRootOperations[resources.IdentityPrincipalResource, state.IdentityPrincipal]{
-				diff: diffIdentityPrincipal,
+				diff: func(c state.IdentityPrincipal, d resources.IdentityPrincipalResource) (
+					bool, map[string]any, map[string]FieldChange,
+				) {
+					target := d
+					if d.MetadataMode == resources.IdentityMetadataModeMerge {
+						target.Metadata = metadataTargets[d.Ref]
+					}
+					different, fields, changed := diffIdentityPrincipal(c, target)
+					if _, present := fields[FieldMetadata]; present &&
+						d.MetadataMode == resources.IdentityMetadataModeMerge {
+						fields[FieldMetadata] = d.Metadata
+					}
+					return different, fields, changed
+				},
 				create: func(d resources.IdentityPrincipalResource, plan *Plan) string {
 					change := p.principalChange(
 						ActionCreate,
@@ -198,6 +229,8 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 					fields map[string]any, changed map[string]FieldChange, plan *Plan,
 				) {
 					change := p.principalChange(ActionUpdate, d.Ref, c.ID, fields, changed, config.Namespace)
+					_, hasMetadata := fields[FieldMetadata]
+					change.MetadataMerge = hasMetadata && d.MetadataMode == resources.IdentityMetadataModeMerge
 					change.Protection = d.Protected()
 					plan.AddChange(change)
 				},
@@ -209,6 +242,8 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 					fields[FieldManagedBy] = resources.BuildPrincipalManagedBy(config.Namespace, d.Ref, next, "")
 					changed[FieldManagedBy] = FieldChange{Old: c.ManagedBy, New: fields[FieldManagedBy]}
 					change := p.principalChange(ActionUpdate, d.Ref, c.ID, fields, changed, config.Namespace)
+					_, hasMetadata := fields[FieldMetadata]
+					change.MetadataMerge = hasMetadata && d.MetadataMode == resources.IdentityMetadataModeMerge
 					change.Protection = ProtectionChange{Old: old, New: next}
 					plan.AddChange(change)
 				},

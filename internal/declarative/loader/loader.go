@@ -269,9 +269,18 @@ func (l *Loader) prepareYAML(rawContent []byte, sourcePath string, rootDir strin
 	// runs against this representation so resolved environment values cannot be
 	// included in validation errors.
 	fileResolver := tags.NewFileTagResolver(baseDir, tagRootDir)
+	var csvParents map[principalCSVLocation]string
+	if strings.Contains(string(rawContent), tags.TagCSV) {
+		var err error
+		csvParents, err = principalCSVLocations(rawContent)
+		if err != nil {
+			return nil, fmt.Errorf("invalid principal CSV source in %s: %w", sourcePath, err)
+		}
+	}
 	refResolver := tags.NewRefTagResolver(baseDir)
 	placeholderRegistry := tags.NewResolverRegistry()
 	placeholderRegistry.Register(fileResolver)
+	placeholderRegistry.Register(&principalCSVResolver{files: fileResolver, parents: csvParents})
 	placeholderRegistry.Register(refResolver)
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagExternal))
 	placeholderRegistry.Register(tags.NewExternalTagResolver(tags.TagLookup))

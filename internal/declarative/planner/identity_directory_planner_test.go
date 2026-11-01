@@ -22,6 +22,21 @@ func directoryResource() resources.IdentityDirectoryResource {
 	}, Name: "people"}
 }
 
+func TestIdentityDirectoryPlanningDoesNotReadUnrelatedCollections(t *testing.T) {
+	identities := []*resources.IdentityResource{nil, {}, {AuthServers: []resources.IdentityAuthServerResource{{}}}}
+	for _, identity := range identities {
+		api := &fixture.DirectoryAPI{}
+		p := NewPlanner(state.NewClient(state.ClientConfig{IdentityDirectoriesAPI: api}), slog.Default())
+		p.resources = &resources.ResourceSet{Identity: identity}
+		directoryPlanner := &identityDirectoryPlanner{BasePlanner: NewBasePlanner(p)}
+		for _, mode := range []PlanMode{PlanModeApply, PlanModeDelete} {
+			err := directoryPlanner.PlanChanges(t.Context(), NewConfig("default"), NewPlan(CurrentPlanVersion, "test", mode))
+			require.NoError(t, err)
+			require.Zero(t, api.Lists, "unrelated manifests must not require directory API access")
+		}
+	}
+}
+
 func TestIdentityDirectoryControlPlaneReferencesAndScope(t *testing.T) {
 	for _, existingID := range []string{"", "4078f559-063b-4f10-9098-9e6553b21d9b"} {
 		cpAPI := helpers.NewMockControlPlaneAPI(t)

@@ -7,9 +7,10 @@ import (
 	"github.com/kong/kongctl/internal/declarative/resources"
 )
 
-// CurrentPlanVersion adds explicit payload reference bindings. Version 1.0 plans
-// remain readable; older executors reject 1.1 rather than ignore its bindings.
-const CurrentPlanVersion = "1.1"
+// CurrentPlanVersion adds explicit principal metadata merge intent. Older
+// executors must reject it rather than replace a map with a partial patch.
+// Version 1.0 and 1.1 plans retain their original replacement semantics.
+const CurrentPlanVersion = "1.2"
 
 // ValidatePlanCompatibility validates the portion of the serialized plan
 // contract that is independent of executor SDK request types.
@@ -20,7 +21,7 @@ func ValidatePlanCompatibility(plan *Plan) error {
 	if plan.Metadata.Version == "" {
 		return fmt.Errorf("invalid plan: missing version")
 	}
-	if plan.Metadata.Version != CurrentPlanVersion && plan.Metadata.Version != "1.0" {
+	if plan.Metadata.Version != CurrentPlanVersion && plan.Metadata.Version != "1.1" && plan.Metadata.Version != "1.0" {
 		return fmt.Errorf(
 			"plan version %q is not supported by this kongctl version; regenerate the plan",
 			plan.Metadata.Version,
@@ -31,6 +32,12 @@ func ValidatePlanCompatibility(plan *Plan) error {
 	}
 
 	for i := range plan.Changes {
+		if plan.Changes[i].MetadataMerge && plan.Metadata.Version != CurrentPlanVersion {
+			return fmt.Errorf(
+				"principal metadata merge requires plan version %s; regenerate the plan",
+				CurrentPlanVersion,
+			)
+		}
 		if err := validateChangeCompatibility(&plan.Changes[i]); err != nil {
 			return fmt.Errorf("incompatible plan change %d (%q): %w; regenerate the plan", i, plan.Changes[i].ID, err)
 		}
@@ -58,6 +65,14 @@ func validateChangeCompatibility(change *PlannedChange) error {
 	}
 	if strings.TrimSpace(change.ResourceType) == "" {
 		return fmt.Errorf("missing resource type")
+	}
+	if change.MetadataMerge {
+		if change.ResourceType != ResourceTypeIdentityPrincipal || change.Action != ActionUpdate {
+			return fmt.Errorf("metadata_merge is supported only for principal updates")
+		}
+		if change.Fields[FieldMetadata] == nil {
+			return fmt.Errorf("metadata_merge requires an explicit metadata patch")
+		}
 	}
 	switch change.Action {
 	case ActionCreate, ActionUpdate, ActionDelete:
