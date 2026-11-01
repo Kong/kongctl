@@ -9,6 +9,17 @@ KongCTL commit inspected: `2beef7be`
 
 Latest verification: October 31, 2026 (US Central).
 
+Provider and principal Vault credential metadata now have scoped get/list
+commands, public projections and a live `.tech` scenario. Provider reads avoid
+the detail GET that issues OAuth enrollment capabilities. Native probes find
+multiple shared credentials, unique routing priorities/default slots and PUT
+material/omission constraints (Q45/Q46). Section 56 records those contracts,
+the read boundary and the next declarative work. SDK preview `90596b498bcb`
+adds only three generated cursor-query tag fixes, without component-model
+changes. All twenty-four Identity live scenarios, repository gates, artifact
+verification and early-stop cleanup pass. Default settings are restored and
+the inspected resource inventories are empty.
+
 Directory Trusted IdPs now have nested/grouped declarative lifecycle, public
 hydrated PUT, nullable override/empty mapping clears, scoped sync/delete and
 dump/reload. They inherit explicit managed-directory authority without owning
@@ -16,7 +27,8 @@ associated principals. Proven independent OIDC detachments can precede trust
 retirement. All twenty-three Identity live scenarios pass in US `.tech`;
 the final trust lifecycle, early-stop cleanup and repository gates also pass.
 Section 55 records the contract and evidence. #2664 stays In Progress until
-main merge; SDK remains `2597fe249e26`.
+main merge. Its original SDK checkpoint was `2597fe249e26`; the current preview
+revision is described above.
 
 Credential Providers now have nested/grouped declarative lifecycle under
 explicitly managed directories: create/PATCH, selected deferred secret writes,
@@ -3699,3 +3711,99 @@ SDK remains 2597fe249e26. No SDK generation/revision, release or PR is required
 for this resource. Shared/user provider credentials and importer/team work
 remain separate implementations. Ownership tracking #2656 and directory epic
 #1132 stay open/In Progress, as does #2664.
+
+## 56. Credential identity, SDK cursors and public observation
+
+The shared provider-credential API accepts multiple credentials for static
+secrets and shared OAuth, contradicting the inspected POST description's
+single-static-credential wording. A 71-request direct US .tech probe and a
+separate 93-request routing matrix establish a unique routing-priority slot
+plus one default slot per tested provider. Selectors can repeat at different
+priorities. POST/PUT collisions return 409; moving a default to a priority
+frees the default slot. Wrong-provider GET/PUT/DELETE return 404 and preserve
+the original credential. Q45 asks for the formal cardinality/uniqueness
+contract.
+
+Static PUT requires secret material. Selector/priority-only or empty PUT
+returns 400. With a secret, routing can change; omission resets both fields
+to the default slot, while explicit null is rejected. Shared OAuth PUT accepts
+public routing changes but issues another enrollment URL, as does detail GET.
+The tested OAuth records stay pending. Q46 asks for material-preserving update
+operations and explicit omission/enrollment documentation. No active enrollment
+or stored-material continuity is inferred from public state. Supplied secrets
+and issued capabilities stayed in memory and were excluded from evidence.
+
+Native provider credential pagination traverses five records at size one.
+Group-key pagination traverses three records. Flat size=1 queries report the
+default 20. An empty principal Vault-credential inventory honors bracketed
+size one; populated user pagination still needs Q30's runtime fixture. A
+separate 32-request probe verifies the latter two collection contracts. Its
+first fixture omitted the required generated-key type and was corrected; this
+was a test setup error, not an API defect. Every probe removes its fixture
+records and restores the original default directory settings.
+
+SDK patch source c775a9c4 extends the existing Q22 query fix to
+ListVaultProviderCredentials, ListVaultCredentials and ListGroupKeys. Before
+patching, the expanded wire regression fails exactly those three methods;
+afterward all sixteen methods pass without skips. The public preview SDK
+branch is pushed at 90596b498bcb, consumed as
+v0.79.1-0.20261101022339-90596b498bcb. Its generated-code delta from
+2597fe249e26 is exactly three Page query tags; no component models or unrelated
+APIs change.
+Patch snapshot/provenance hashes, Go SDK package tests and internal race tests
+pass, and post-generation application is idempotent. No release or PR is made.
+
+KongCTL now exposes provider-scoped vault-provider-credential(s) and
+principal-scoped principal-vault-credential(s) under get/list. UUID selection
+uses a complete scoped collection. The provider reader's interface excludes
+detail GET, preventing an ordinary metadata lookup from minting a capability.
+Provider selection supports explicit UUID or exact name; directory/principal
+selectors follow existing conventions. JSON/YAML preserve the shared/user
+public variants, including routing priority zero and nullable defaults/expiry;
+text uses summary tables. Unknown, malformed, repeated or failed observations
+yield no partial inventory. Public types contain no secrets or enrollment URL.
+Whole credential-route trace bodies are redacted, including error plaintext.
+
+Examples explain default-directory preparation, provider/credential/principal
+concepts, selectors, paging and enrollment boundaries. The initial live
+scenario passes in 11.52s: three active static slots, two pending shared OAuth
+slots, real pagination, ID/name scope, all output formats, empty principal
+authorization inventory, unchanged public records and absence of secret or
+capability artifacts. Request traces confirm no credential detail GET. Unit
+tests also cover populated user/principal projections, malformed pagination,
+unknown variants, duplicate IDs/cursors, public formatting and trace redaction.
+Populated user enrollment/revocation is not live verified; Q30 still requires
+a supported runtime integration.
+
+This is a read/SDK foundation for #2662/#2663, not complete credential CRUD or
+declarative ownership. No metadata is stamped or user authorization pruned.
+The next feasible declaration candidate is static shared credentials, using
+the observed default/priority slot and explicit managed-parent authority,
+with selected deferred secret writes for replacements. The routing key and
+material requirements must be explicit; no whole-provider singleton or secret
+comparison assumption is valid. OAuth enrollment needs a deliberate private
+capability flow, and user revocation needs an actual enrolled runtime fixture.
+
+Evidence is provider-credential-contracts.json,
+provider-credential-routing-contracts.json,
+credential-other-cursor-contracts.json,
+credential-cursor-sdk-delta.json, credential-cursor-wire-verification.log,
+credential-cursor-sdk-tests.log, credential-cursor-sdk-race-tests.log and
+credential-inspection-final-gates.log under the local evidence cache. The
+twenty-four-scenario Identity regression passes in 449.164s, with the expanded
+credential scenario passing in 13.49s. Early stop after directory creation
+passes cleanup in 2.06s. Artifact verification confirms twenty-four outcomes,
+removal of eight private capture directories, actual default bootstrap and no
+administrative token in artifacts. Final independent inventory confirms one
+unmanaged default, original settings restored and empty principal/group/IdP/
+provider/key/auth-server inventories.
+
+Final modernization, stable formatting, CGO-disabled build and make test-all
+pass: zero-issue lint, full race unit/integration and harness checks, nine SDK
+patch tests, 140 metrics tests and installer checks. The default cassette
+check passes; no existing replay membership or cassette changes. The new
+scenario is live-only. Evidence also includes credential-inspection-all/
+20261031-213556, credential-inspection-artifact-verification.json,
+credential-inspection-stopped.log, credential-inspection-replay-check.log and
+credential-inspection-final-inventory.json. #2662/#2663 stay open/In Progress
+until main merge; declarations/enrollment/revocation are subsequent work.

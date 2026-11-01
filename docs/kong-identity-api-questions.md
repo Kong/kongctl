@@ -166,9 +166,17 @@ identify their creator or managing system.
 
 ### Q7 Shared provider credential matching and updates
 
-**Question:** Can one provider have multiple credentials created by an
-administrator? What uniqueness constraints apply, and which fields besides
-the generated ID identify a credential within its provider?
+**Observed (October 31, 2026, US `.tech`):** Multiple shared credentials are
+accepted for both static-secret and OAuth providers. Duplicate routing
+priorities and duplicate default slots return 409; selectors can repeat at
+different priorities. Static PUT requires secret material and omitted routing
+fields select the default slot. Q45/Q46 record the detailed observations and
+documentation/update questions.
+
+**Question:** Which constraints identify a shared credential within its
+provider: default slot, routing priority, selector or generated ID? Can the
+cardinality and update contracts in Q45/Q46 be documented consistently for
+static-secret and shared OAuth credentials?
 
 Do updates preserve omitted secret material? Are selectors and priority
 mutable, and how are omitted or empty values handled? Do these rules differ
@@ -501,8 +509,20 @@ before applying targeted request-tag corrections.
 The missing annotation is in
 `src/common/definitions/metadatas.yaml#/components/parameters/CursorPageQuery`.
 Confirm the intended wire names and whether the shared definition should be
-corrected for all operations referencing it. The group API-key list also
-uses this parameter shape; does the same bracketed contract apply there?
+corrected for all operations referencing it.
+
+**Additional US `.tech` verification (October 31, 2026, US Central):** Provider
+credential lists traverse five distinct records at page size one. Group-key
+lists traverse three records at page size one. Their flat queries report the
+default size 20. An empty principal Vault-credential collection reports size
+one for bracketed queries and 20 for flat queries; populated principal
+authorization pagination was not exercised because enrollment needs Q30's
+runtime context. The three corresponding SDK request types have the same form
+encoding defect. A sixteen-operation wire regression fails those three before
+targeted correction and passes afterward. Evidence is
+provider-credential-routing-contracts.json and
+credential-other-cursor-contracts.json in the local evidence cache. All
+fixtures were removed and default settings restored.
 
 ### Q23 Principal identity quotas
 
@@ -1095,6 +1115,60 @@ The 47-request public contract probe is recorded in
 trusted-idp-lifecycle-contracts.json and trusted-idp-lifecycle-summary.json in
 the local evidence cache. All disposable IdPs, principals, identities and
 signing fixtures were removed and the original default settings restored.
+
+### Q45 Shared credential cardinality and routing uniqueness
+
+**Observed (October 31, 2026, US Central, direct US `.tech` HTTP):** A provider
+can have multiple shared credentials for either static-secret or shared OAuth
+configuration. The same CEL selector is accepted at different priorities.
+POST and PUT return 409 when another record already occupies that priority,
+including when its selector differs. At most one default record (both routing
+fields omitted) is accepted. Moving that record to a priority frees the default
+slot for another create. Colliding updates leave the existing public state
+unchanged. The inspected POST description instead says static-secret providers
+hold at most one credential.
+
+```http
+POST /v2/directories/{directoryId}/vault/providers/{providerId}/credentials
+Content-Type: application/json
+
+{"secret":"[redacted]","selector":"true","priority":0}
+```
+
+**Question:** Is routing priority unique per provider for shared credentials,
+with a separate single default slot? Does that contract apply to static and
+OAuth credentials, and can the cardinality/uniqueness constraints be documented?
+
+### Q46 Credential PUT routing and material-preservation behavior
+
+**Observed (October 31, 2026, US Central, direct US `.tech` HTTP):** Static
+credential PUT with only selector/priority or an empty object returns 400.
+Supplying secret material permits routing changes. Omitting selector/priority
+resets both to null/default; explicit null is rejected with 400. A selector
+requires a nonnegative priority, and priority without a selector is rejected.
+Invalid CEL is rejected. Shared OAuth PUT can change routing without a secret,
+but returns a fresh enrollment URL; detail GET also issues an enrollment URL.
+The tested OAuth records stay pending. No runtime enrollment or stored-material
+continuity was inferred from public metadata.
+
+```http
+PUT /v2/directories/D/vault/providers/P/credentials/C
+Content-Type: application/json
+
+{"selector":"true","priority":0}
+```
+
+**Question:** Which operation can update routing metadata while preserving
+existing static secret material or an active OAuth authorization? Can PUT's
+omission/default behavior and OAuth re-enrollment side effects be documented?
+
+Q45/Q46 evidence consists of a 71-request contract probe and a separate
+93-request routing matrix in provider-credential-contracts.json and
+provider-credential-routing-contracts.json under the local evidence cache.
+Request/response evidence excludes supplied secrets and enrollment capabilities.
+All disposable credentials/providers/public keys were removed, and original
+default directory settings restored. Wrong-provider GET/PUT/DELETE returned
+404 without changing the original credential in these probes.
 
 ## Recorded answers
 

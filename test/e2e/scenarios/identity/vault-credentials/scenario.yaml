@@ -1,0 +1,50 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_VAULT_CREDENTIAL_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Inspect public shared credential metadata without issuing OAuth enrollment capabilities. Verify three active static routing slots, two pending shared OAuth slots, actual cursor traversal, scoped ID/name selection, JSON/YAML/text, unchanged records and public-only artifacts. Principal Vault credential inspection uses an empty directly provisioned principal; actual user enrollment/revocation still requires the runtime integration in API question Q30.
+steps:
+  - name: 001-vault-credential-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-credential-inspection
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inspection.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                static_credentials: 3
+                pending_oauth_credentials: 2
+                real_credential_pagination: true
+                metadata_reads_do_not_mint_enrollment: true
+                parent_scope_and_output_formats: true
+                principal_empty_inspection: true
+                inspection_preserves_records: true
+                secrets_and_capabilities_excluded: true
+                fixtures_removed: true

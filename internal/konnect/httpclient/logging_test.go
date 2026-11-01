@@ -239,6 +239,8 @@ func TestIdentitySecretBodiesRedactEvenErrorDetailsOrPlaintext(t *testing.T) {
 		"/v1/auth-servers/server/clients/client/secrets/id",
 		"/v2/directories/directory/principals/principal/basic-auths/basic/passwords",
 		"/v2/directories/directory/principals/principal/basic-auths/basic/passwords/id",
+		"/v2/directories/directory/vault/providers/provider/credentials",
+		"/v2/directories/directory/vault/providers/provider/credentials/id",
 	} {
 		parsedURL, err := url.Parse("https://example.test" + path)
 		require.NoError(t, err)
