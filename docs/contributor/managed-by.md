@@ -47,8 +47,9 @@ clones the SDK request, writes `tool: kongctl` and the executing binary's
 An unenrolled type is unchanged. An incompatible SDK request fails before an
 HTTP write. SDK serialization errors are sanitized to avoid exposing secrets.
 
-Use this path for every create/update, including replacements, saved plans,
-direct state calls, and secret-only updates. Plan previews show the planning
+For mutable policies, use this path for every create/update, including
+replacements, saved plans, direct state calls and secret-only updates. Plan
+previews show the planning
 binary version; execution records the executing binary version. Local builds
 without release information record `dev`.
 
@@ -86,18 +87,48 @@ Before enrolling a resource, cover:
 - Credential and other write-only field preservation using behavioral or
   equivalent backend evidence, beyond a redacted GET response alone.
 
-Current enrollment covers the 14 previously supported AI Gateway child
-families, including consumer credentials. Config stores, their secrets, data
-plane certificates, and non-AI Gateway resources are not enrolled by this PR.
-This is the initial adoption of a reusable facility, not a blanket migration.
+The initial adoption covered 14 AI Gateway child families, including consumer
+credentials. Current registrations also include Kong Identity families; the
+registry is authoritative for enrollment. Adding this capability never opts
+other resource families into a blanket migration.
+
+## Create-only provenance with inherited lifecycle
+
+Some credential APIs retain management metadata at creation but ignore later
+map changes. `ManagedByPolicy.CreateOnly` allows explicit enrollment without
+requesting a metadata update during a later plan. Existing mutable policies
+keep normal create/update stamping. This option does not authorize adoption,
+metadata replacement or independent child protection.
+
+`PersistsRef` also supports resources registered with `WithNamespaceFrom`.
+For those children, the ref is retained alongside tool/version without copying
+parent namespace/protection into the child's map. `CreationValues` can add fixed
+markers for creation intent that public fields cannot otherwise reveal.
+Capacity checks include every generated entry. Fixed markers cannot override
+tool, version, ref, namespace or protection, and registration clones their map.
+
+Create requests still stamp the executing version. Update adapters for such an
+API must not call `stampManagedByRequest` or send a management map: the generic
+request helper does not infer the operation from an SDK struct. The stored
+version records issuance rather than later public-field changes. A fresh
+observation must verify unchanged metadata after each supported update.
+
+Parent-derived lifecycle authority needs full resource integration: declared
+managed parents, current provisioning/namespace/protection checks, exact key
+identity, duplicate and incompatible-marker handling, explicit sync scopes,
+saved-plan validation and authorized child-before-parent retirement. A tool/ref
+marker alone does not authorize a mutation. Imported or legacy ownership shapes
+must not be silently adopted. The Kong Identity generated-key preparation uses
+this contract; no key declaration is exposed until its integration is complete.
 
 ## Stage two: migrate lifecycle authority
 
 Make ownership migration a separate, resource-specific change. Define the
 namespace and protection fields, their reserved-key and capacity rules, and
 the transition from existing labels before changing lifecycle decisions.
-Do not infer ownership from `managed_by.tool`, version, source defaults, or a
-parent resource.
+Do not infer independent ownership from `managed_by.tool`, version, source
+defaults or a parent alone. An inherited-lifecycle family must enforce its
+explicit managed-parent and resource-identity contract.
 
 Specify explicit adoption and transfer procedures, handling for conflicting
 label/metadata ownership, and compatibility with old binaries and saved plans.

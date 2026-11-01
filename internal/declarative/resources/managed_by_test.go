@@ -80,3 +80,69 @@ func TestManagedByPersistsRefOnlyForEnrolledPrincipal(t *testing.T) {
 	_, err = PrepareManagedBy(ResourceTypeIdentityPrincipal, metadata, "current")
 	require.ErrorContains(t, err, "persisted")
 }
+
+func TestCreateOnlyManagedByIdentityInheritsLifecycleFromParent(t *testing.T) {
+	// Simulate a child using its parent's namespace selection. No live resource
+	// is enrolled until its planner, executor and dump integration are complete.
+	original := registry[ResourceTypePortal]
+	t.Cleanup(func() { registry[ResourceTypePortal] = original })
+	ops := original
+	ops.namespace = nil
+	ops.namespaceOwner = ResourceTypeIdentityPrincipal
+	values := map[string]string{"kongctl-create-type": "v1"}
+	require.NoError(t, WithManagedBy(ManagedByPolicy{
+		MaxEntries: 4, PersistsRef: true, CreateOnly: true, CreationValues: values,
+	})(&ops))
+	registry[ResourceTypePortal] = ops
+	values["kongctl-create-type"] = "caller-mutated"
+	require.True(t, SupportsManagedBy(ResourceTypePortal))
+	require.False(t, UpdatesManagedBy(ResourceTypePortal))
+	require.False(t, UsesManagedByOwnership(ResourceTypePortal))
+	require.Equal(t, ResourceTypeIdentityPrincipal, registry[ResourceTypePortal].namespaceOwner)
+	metadata := map[string]string{
+		ManagedByRefKey: "primary", ChildNamespaceKey: "discarded", ChildProtectedKey: "true",
+		"kongctl-create-type": "imported", "outside": "discarded",
+	}
+	prepared, err := PrepareManagedBy(ResourceTypePortal, metadata, "creator-version")
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{
+		ManagedByToolKey: ManagedByTool, ManagedByVersionKey: "creator-version",
+		ManagedByRefKey: "primary", "kongctl-create-type": "v1",
+	}, prepared)
+	require.Equal(t, "true", metadata[ChildProtectedKey], "preparation must not modify caller data")
+	require.Equal(t, "imported", metadata["kongctl-create-type"])
+	delete(metadata, ManagedByRefKey)
+	_, err = PrepareManagedBy(ResourceTypePortal, metadata, "creator-version")
+	require.ErrorContains(t, err, "persisted")
+	require.True(t, UpdatesManagedBy(ResourceTypeIdentityPrincipal), "mutable existing resources keep their policy")
+	require.False(t, UpdatesManagedBy(ResourceTypePortalPage), "unenrolled resources do not gain metadata writes")
+}
+
+func TestCreateOnlyIdentityRegistrationValidatesCapacityAndReservedKeys(t *testing.T) {
+	for _, values := range []map[string]string{
+		{ManagedByToolKey: "other"},
+		{ManagedByVersionKey: "other"},
+		{ManagedByRefKey: "other"},
+		{ChildNamespaceKey: "other"},
+		{ChildProtectedKey: "true"},
+	} {
+		var ops resourceOps
+		require.ErrorContains(t, WithManagedBy(ManagedByPolicy{MaxEntries: 5, CreationValues: values})(&ops),
+			"reserved management keys")
+		require.Nil(t, ops.managedBy)
+	}
+	ops := resourceOps{namespaceOwner: ResourceTypeIdentityPrincipal}
+	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{
+		MaxEntries: 3, PersistsRef: true, CreateOnly: true,
+		CreationValues: map[string]string{"kongctl-create-type": "v1"},
+	})(&ops), "cannot accommodate")
+	require.Nil(t, ops.managedBy)
+	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{
+		MaxEntries: 4, CreationValues: map[string]string{" invalid": "v1"},
+	})(&ops), "invalid managed_by key")
+	require.Nil(t, ops.managedBy)
+	var ownerless resourceOps
+	require.ErrorContains(t, WithManagedBy(ManagedByPolicy{
+		MaxEntries: 4, PersistsRef: true, CreateOnly: true,
+	})(&ownerless), "namespace participation or a namespace owner")
+}

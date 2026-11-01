@@ -44,6 +44,14 @@ type File struct {
 	kind string
 }
 
+// Path identifies the reserved file without reading captured material.
+func (f *File) Path() string {
+	if f == nil {
+		return ""
+	}
+	return f.path
+}
+
 // Reserve refuses existing files and symlinks. The initial record allows a user
 // to identify the parent if a remote request has an uncertain outcome.
 func Reserve(path string, metadata Metadata) (*File, error) {

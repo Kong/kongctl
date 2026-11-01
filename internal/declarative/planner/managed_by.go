@@ -16,6 +16,9 @@ func stampPlanManagedBy(ctx context.Context, plan *Plan) error {
 		if change.Action == ActionDelete || !resources.SupportsManagedBy(resources.ResourceType(change.ResourceType)) {
 			continue
 		}
+		if change.Action == ActionUpdate && !resources.UpdatesManagedBy(resources.ResourceType(change.ResourceType)) {
+			continue
+		}
 		metadata := make(map[string]string)
 		switch raw := change.Fields[FieldManagedBy].(type) {
 		case map[string]string:
@@ -54,8 +57,9 @@ func stampPlanManagedBy(ctx context.Context, plan *Plan) error {
 	return nil
 }
 
-// Version records the last actual write. Other metadata differences, including
-// foreign keys and missing or incorrect tool values, require reconciliation.
+// Mutable version metadata records the last actual write; create-only maps
+// retain the creator version. Other metadata differences, including foreign
+// keys and missing or incorrect tool values, require reconciliation.
 func managedByValuesEqual(current, desired any) bool {
 	comparableMetadata := func(value any) map[string]any {
 		result := make(map[string]any)
