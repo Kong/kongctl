@@ -73,3 +73,9 @@ Trusted IdPs have no labels or `managed_by` store. The API also deletes them
 with their directory even when `force=false`; it cannot expose those records
 while Vault is disabled. Those contracts and JWKS PATCH clearing are recorded
 in [Q37/Q38](../../../kong-identity-api-questions.md).
+
+Write helpers are now verified in `.tech`, including preserving public
+settings with full PUT and requiring explicit association detachment before
+deletion. Full trust declarations and their lifecycle examples are still in
+progress. Native trust deletion leaves associated principals and OIDC
+identities readable; see Q44 in the same question report.
