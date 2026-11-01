@@ -38,6 +38,9 @@ the remaining runtime boundary.
 
 The main unfinished implementation is populated principal Vault authorization
 revocation (#2663), which needs Q30's supported runtime enrollment fixture.
+Generated-only password declarations also warrant reassessment against the
+newer immutable API-key ownership convention (#1418, section 70). They are not
+implemented; Q35's adoption limitation alone does not rule out that subset.
 The acceptance audit also found the Registry Agent incoming-reference
 requirement in #1414/#1415/#2419. A native principal deletion leaves its Registry
 association present (Q53). Read-only SDK support and retirement guards are
@@ -4848,3 +4851,40 @@ ledgers record its boundary. #2663 remains unverified pending Q30's runtime
 fixture. This checkpoint is a stopping point for manual review, not completion
 of unverified runtime behavior. Issues stay open/In Progress until main merge;
 no PR or SDK release is opened and no next feature is started.
+
+## 70. Acceptance-boundary audit after the tested checkpoint
+
+The implementation checkpoint remains 250e65e1, with SDK 2f51ede0670e and all
+33 Identity scenarios passing. This audit changes no code or live resources.
+It distinguishes an external prerequisite from a client design that has not
+yet been implemented; it is not a claim that every epic requirement is done.
+
+Principal Vault revocation (#2663) still lacks a populated runtime enrollment
+fixture. The SDK DELETE exists, but empty administrative collections cannot
+prove positive authorization lookup, revocation or token continuity. Q30 asks
+for the supported certificate/control-plane/organization setup. No internal
+context headers or fabricated authorization records should substitute for it.
+
+The earlier password boundary (#1418) predates generated API-key declarations.
+Q35 proves that password metadata-only adoption cannot preserve existing
+material through the tested PATCH/PUT behavior. It does not prove all new
+declarative password enrollment impossible: generated/imported create retain
+supplied managed_by, and explicit expiration updates work. The generated-key
+implementation now uses immutable creation markers with current managed-parent
+authority rather than mutable per-key namespace/protection.
+
+A generated-only password subset could follow that convention under a managed
+username. This is an inference from verified administrative behavior and
+existing code, not a supported resource or a verified new password workflow.
+It needs explicit generated intent, duplicate/ref matching, current username
+authority/protection, complete third-level scope checks, two-slot capacity,
+uncertain-create/private-capture handling, saved plans, dump/no-op/sync/delete
+and CSV disposition. Existing/imported adoption, material drift and automatic
+rotation are separate concerns and must not be inferred. Runtime password
+authentication remains unverified under Q30 independently of administrative
+lifecycle support, just as with the current administrative API-key workflows.
+
+The password guide, metadata ledger, compatibility tracker and #1418 record
+this distinction. No new engineering question is needed for an unimplemented
+client design; Q35's API-only question remains accurate. No next feature is
+started while the manual-testing pause preference is pending.
