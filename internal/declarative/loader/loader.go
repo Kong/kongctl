@@ -698,6 +698,9 @@ func (l *Loader) extractNestedResources(rs *resources.ResourceSet) {
 		for i := range rs.Identity.Groups {
 			rs.ExtractRegisteredChildren(&rs.Identity.Groups[i])
 		}
+		for i := range rs.Identity.VaultProviders {
+			rs.ExtractRegisteredChildren(&rs.Identity.VaultProviders[i])
+		}
 		for i := range rs.Identity.AuthServers {
 			rs.ExtractRegisteredChildren(&rs.Identity.AuthServers[i])
 		}

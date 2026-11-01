@@ -11,6 +11,8 @@ import (
 // IdentityVaultProviderResource inherits ownership from an explicitly managed
 // directory. The API stores no independent namespace, ref or protection.
 type IdentityVaultProviderResource struct {
+	SharedCredentials []IdentityVaultProviderCredentialResource `yaml:"shared_credentials,omitempty" json:"shared_credentials,omitempty"` //nolint:lll
+
 	Ref                   string   `yaml:"ref"                              json:"ref"`
 	Directory             string   `yaml:"directory,omitempty"              json:"directory,omitempty"`
 	Name                  string   `yaml:"name"                             json:"name"`

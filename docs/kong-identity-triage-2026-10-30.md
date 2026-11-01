@@ -3868,3 +3868,104 @@ static-vault-write-foundation-gates.log. No existing E2E scenario or replay
 membership/cassette is changed. The actual-helper lifecycle above verifies the
 new writes; the previous twenty-four CLI scenarios are not rerun for this
 internal-only foundation.
+
+## 58. Static shared Vault credential declarations
+
+Static shared credentials now integrate through registration/schema, grouped
+and nested loading, inherited namespace/collection scope, planning, saved
+execution and public dump. Grouped identity.vault_provider_credentials entries
+select a declared provider; nested shared_credentials sit under that provider.
+Only static_secret/shared providers beneath explicitly managed directories are
+accepted. External directories do not grant mutation authority. There is no
+child labels/managed_by field, and none is invented. Ref remains local.
+
+Matching uses the observed default or nonnegative priority slot per provider.
+Selectors can repeat and are not monikers. Every observed collection must be
+complete and unambiguous; unexpected user/pending variants stop static writes.
+Changing ref preserves a matched record. Changing priority creates another
+record; scoped sync creates replacement slots before retiring omitted slots.
+Changing a selector at its existing priority is an update requiring explicit
+secret selection, because the native PUT requires material. Secret-only writes
+preserve routing and carry the same ownership/protection context as ordinary
+changes. Saved routing integers retain exact client-side precision.
+
+Create requires a deferred !secret source. Ordinary reapplication does not
+compare or rewrite material. Selected replacement uses the established secret
+intent/preflight pipeline, with no value in plans, diffs, dump or artifacts.
+Fresh execution verifies directory UUID/name/namespace/owner/protection and
+Vault enablement, provider UUID/name/static mode, target UUID/routing and actual
+encryption-key availability. Missing sources fail before mutation. All writes
+make one attempt and verify public receipts/readback; runtime material recovery
+is not inferred from metadata.
+
+Directory, provider and encryption-key creates precede credential writes.
+Planning requires a registered or planned retained key. Key retirements follow
+credential writes so a plan cannot discard its own encryption prerequisite.
+Explicit credential deletions may precede provider retirement, whose saved
+execution still requires actual emptiness. A directory/provider declaration
+alone grants no credential retirement authority. Late undeclared attachments
+block the parent. Client checks cannot close the final native attachment/delete
+race documented in Q41.
+
+Dump traverses static credentials only under enabled managed directories and
+exports public routing without secret values/source bindings. Reload matches
+existing slots with no source; recreation requires adding one. OAuth/user
+authorizations are not adopted or pruned. The default-directory example and
+tutorial cover preparation/adoption, missing-directory bootstrap, deferred
+environment/file sources, explicit replacement, scoped sync, public inspection,
+dump and retirement. The metadata ledger and implementation guide are updated.
+
+The first complete US .tech CLI lifecycle passes in 31.09s. The expanded final
+isolated run adds local-ref identity and late-credential parent guards. It
+also verifies all public routing fields, saved plans, missing-source preflight,
+namespace/protection/routing/key changes, selector writes, priority replacement
+ordering, omission, grouped declarations, dump/reload, scoped pruning, ordered
+deletion and creation from no directory. Test source directories are removed;
+commands/traces/artifacts exclude material and enrollment URLs.
+
+Initial scenario attempts corrected explicit explain discovery, the test's
+working directory for deferred file boundaries, and executing sync/delete plans
+through their matching verbs. The repository lint pass also exposed a model
+dependency causing a test-only import cycle; model validation now stays local.
+These were implementation/test issues, not new API defects. Q30/Q45/Q46 remain
+the API-only runtime and formal contract questions. Compatibility notes include
+the conditions for revisiting explicit selector-write material and ownership.
+
+SDK remains 90596b498bcb. Existing methods cover this slice; no SDK revision,
+release or PR is required. #2662 remains open/In Progress pending main merge;
+shared OAuth enrollment and user revocation remain separate work.
+
+Final Identity regression passes all twenty-five live scenarios together in
+493.526s, including the new credential lifecycle in 27.19s. After moving its
+private file source/workspace outside artifact inputs, the final isolated
+scenario passes in 27.78s. An earlier isolated attempt exceeded the harness's
+one-minute subprocess default and was killed before cleanup; the harness
+correctly refused to delete its nonempty directory. Process inspection confirmed
+no remaining fixture process, then scoped recovery removed three credentials,
+one provider and one key, restored the original default and removed its private
+workspace. The scenario now has a four-minute command budget. No new API defect
+was inferred from this timeout.
+
+Early stop after directory creation passes cleanup in 2.18s. Independent artifact
+verification confirms twenty-five successful outcomes, removal of eight existing
+private capture directories, final private-source workspace removal, actual
+default bootstrap and absence of the administrative token in artifacts. The
+scenario checks its material values and their base64 forms before copying only
+public files into artifacts. Final inventory confirms an unmanaged default with
+original settings restored and empty principal/group/IdP/provider/key/auth-server
+inventories.
+
+Modernization, stable formatting, CGO-disabled build and full make test-all pass:
+zero-issue lint, race unit/integration and harness checks, nine SDK patch tests,
+140 metrics tests and installer checks. Precision regression covers saved
+routing integers above the exact float64 range. The default cassette check
+passes for control-plane/get; no existing replay membership/cassette changes.
+The new scenario remains live-only.
+
+Evidence under the local cache is static-vault-credentials-all/
+20261031-222311, static-vault-credentials-private-v2/20261031-223633,
+static-vault-credentials-final-gates.log,
+static-vault-credentials-artifact-verification.json,
+static-vault-credentials-stopped.log,
+static-vault-credentials-timeout-recovery.json and
+static-vault-credentials-final-inventory.json.

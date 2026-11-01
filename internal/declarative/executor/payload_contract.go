@@ -54,6 +54,16 @@ type payloadContractKey struct {
 // outside the same JSON path in the SDK request. Entries are action-specific so
 // adding a planner field still requires an explicit decision about its execution.
 var translatedPayloadFields = map[payloadContractKey][]string{
+	{planner.ResourceTypeIdentityVaultProviderCredential, planner.ActionCreate}: {
+		planner.FieldProviderName,
+		planner.FieldDirectoryID,
+	},
+	{planner.ResourceTypeIdentityVaultProviderCredential, planner.ActionUpdate}: {
+		planner.FieldProviderName,
+		planner.FieldExpectedSelector,
+		planner.FieldExpectedPriority,
+		planner.FieldDirectoryID,
+	},
 	{planner.ResourceTypeIdentityVaultProvider, planner.ActionCreate}: {planner.FieldEnabled},
 	{planner.ResourceTypeIdentityVaultProvider, planner.ActionUpdate}: {
 		planner.FieldTemplateName, planner.FieldClientID, planner.FieldCredentialType,

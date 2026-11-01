@@ -305,6 +305,7 @@ func identityDirectoryCollector() declarativeCollector {
 		resources.ResourceTypeIdentityBasicAuth,
 		resources.ResourceTypeIdentityVaultKey,
 		resources.ResourceTypeIdentityVaultProvider,
+		resources.ResourceTypeIdentityVaultProviderCredential,
 		resources.ResourceTypeIdentityTrustedIDP,
 	)
 }

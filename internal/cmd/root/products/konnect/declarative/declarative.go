@@ -2766,6 +2766,7 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		IdentityDirectoryDependenciesAPI:  kkClient.GetIdentityDirectoryDependenciesAPI(),
 		IdentityVaultKeysAPI:              kkClient.GetIdentityVaultKeysAPI(),
 		IdentityVaultProvidersAPI:         kkClient.GetIdentityVaultProvidersAPI(),
+		IdentityStaticVaultCredentialsAPI: kkClient.GetIdentityStaticVaultCredentialsAPI(),
 		IdentityTrustedIDPsAPI:            kkClient.GetIdentityTrustedIDPsAPI(),
 		IdentityAuthServersAPI:            kkClient.GetIdentityAuthServersAPI(),
 		IdentityAuthServerScopesAPI:       kkClient.GetIdentityAuthServerScopesAPI(),

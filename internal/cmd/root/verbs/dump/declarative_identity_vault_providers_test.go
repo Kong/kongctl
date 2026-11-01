@@ -31,7 +31,8 @@ func TestVaultProviderDumpReloadAndUnmanagedDirectoryBoundary(t *testing.T) {
 					Current:     root,
 					Directories: []kkComps.KongDirectory{root},
 				},
-				IdentityVaultProvidersAPI: providers, IdentityVaultKeysAPI: &fixture.VaultKeysAPI{},
+				IdentityVaultProvidersAPI: providers, IdentityStaticVaultCredentialsAPI: providers,
+				IdentityVaultKeysAPI:  &fixture.VaultKeysAPI{},
 				IdentityPrincipalsAPI: &fixture.PrincipalAPI{}, IdentityGroupsAPI: &fixture.GroupAPI{},
 			})
 			_, err := client.CreateIdentityVaultProvider(t.Context(), root.ID, kkComps.CreateVaultProviderBody{

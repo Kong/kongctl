@@ -132,6 +132,15 @@ Registering a declaration does not complete those steps automatically.
   principals retain independent ownership. Final plans may order proven OIDC
   identity retargeting/deletion or independently authorized principal deletion
   before trust retirement; execution still requires actual empty associations.
+  Static shared Vault credentials inherit managed-directory authority through
+  a declared static/shared provider. Default/priority slots determine identity;
+  refs stay local. Create requires deferred material, and every update requires
+  explicit secret-write selection. Key/provider/directory dependencies and fresh
+  routing/authority guards apply even to secret-only saved changes. Provider
+  retirement orders exact explicitly authorized credential deletions before
+  actual-empty checks; a parent declaration alone grants no child retirement.
+  Dump exports public routing without material/source bindings. OAuth/user
+  authorization flows remain separate; see the same compatibility tracker.
   OAuth clients use independent label ownership, enrolled through
   `WithIndependentChildLabelOwnership`, rather than `managed_by`. Client
   namespaces and auth-server pruning namespaces are captured separately.

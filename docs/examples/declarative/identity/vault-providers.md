@@ -15,8 +15,9 @@ separate values.
 The [provider declarations](vault-providers.yaml) cover static-secret, static
 OAuth application and dynamic registration configurations. These declare
 provider settings; credential enrollment and runtime token retrieval are
-separate operations. See the [public-key example](vault-keys.md) for encryption
-key registration.
+separate operations. [Static shared credentials](vault-shared-credentials.md)
+add deferred material and explicit replacement. See the
+[public-key example](vault-keys.md) for encryption key registration.
 
 ## Prepare the default directory
 
@@ -94,8 +95,10 @@ Omitting `vault_providers` preserves existing providers. Declaring the
 collection authorizes sync to prune providers omitted from it. An explicit
 empty list selects all providers for retirement under that managed directory.
 Provider updates/deletion inherit directory protection. A provider with any
-attached credential cannot be deleted, including when a credential appears
-after a plan was saved. Unknown or incomplete observations also block deletion.
+attached credential requires exact explicitly authorized static credential
+retirements first. Saved execution still requires its actual empty collection;
+a newly attached or undeclared credential blocks deletion. Unknown or incomplete
+observations also block deletion.
 
 ```sh
 kongctl diff -f docs/examples/declarative/identity/vault-providers.yaml
