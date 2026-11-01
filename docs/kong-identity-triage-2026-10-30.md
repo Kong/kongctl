@@ -34,6 +34,10 @@ evidence, unused alternatives/follow-ons and the remaining runtime boundary.
 
 The main unfinished implementation is populated principal Vault authorization
 revocation (#2663), which needs Q30's supported runtime enrollment fixture.
+The acceptance audit also found the Registry Agent incoming-reference
+requirement in #1414/#1415/#2419. A native principal deletion leaves its Registry
+association present (Q53). Read-only SDK support and retirement guards are being
+prepared; the existing child guards do not cover these cross-service links.
 Compatibility restrictions remain tied to their API questions; successful
 administrative writes do not establish runtime authentication or revocation.
 Q52 records one identity POST/list visibility discrepancy, with twenty native
@@ -4736,3 +4740,38 @@ fixture (Q30) before populated user authorization/revocation can be verified.
 No principal revocation command, secret enrollment or runtime authentication
 claim is added. Issues stay open/In Progress until main merge; no PR or SDK
 release is opened.
+
+## 68. Registry Agent incoming-reference audit finding
+
+The issue-by-issue audit finds an explicit #1414/#1415 requirement for Registry
+Agent principal links tracked in #2419. This is a separate Agent Registry
+surface, not AI Gateway agents. The chosen SDK has no Registry operations and
+the existing directory/principal deletion checks do not inventory those links.
+An empty incoming-reference observation cannot be inferred from absent SDK
+coverage.
+
+Native US .tech GET /v1/agents succeeds. A disposable logical agent and
+Identity principal can be linked through POST /v1/agents/{agentId}/principals.
+Native principal DELETE then returns 204; fresh GET is 404 while the agent's
+principal collection still retains the original directory/principal tuple.
+The association, agent and remaining test principal state are explicitly
+cleaned, preserving the entire original default directory object. Evidence:
+registry-agent-read-availability.json and
+registry-principal-delete-contract.json in the local cache. No resource values
+or credentials are saved. Q53 records the direct API behavior; directory
+deletion has not been probed and is not claimed as a reproduced defect.
+
+This is meaningful incomplete work, not a documentation-only caveat. The next
+slice will add only typed SDK list-agents/list-agent-principals operations and
+fresh fail-closed incoming-reference checks before principal/directory
+retirement, including saved plans and references outside selected sync scope.
+No Registry CRUD, automatic unlinking or association adoption is implied.
+Broader Registry feature prerequisites remain #2412/#2413/#2420; the limited
+read surface is needed by this explicit Identity safety requirement.
+
+SDK experimentation is isolated in
+/home/rspurgeon/dev/kong/ki-public-sdk-build/sdk-konnect-go-registry-guard on
+local branch kongctl/identity-registry-guard-sdk, based on the clean verified
+37580cf8cdf5 preview. Existing public SDK shapes must stay unchanged. The
+consumer still uses the verified 37580cf8cdf5 pin while this guard work is
+prepared. No PR or SDK release is opened.
