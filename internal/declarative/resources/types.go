@@ -20,6 +20,7 @@ const (
 	ResourceTypeIdentityBasicAuth                       ResourceType = "identity_basic_auth"
 	ResourceTypeIdentityDirectory                       ResourceType = "identity_directory"
 	ResourceTypeIdentityVaultKey                        ResourceType = "identity_vault_key"
+	ResourceTypeIdentityVaultProvider                   ResourceType = "identity_vault_provider"
 	ResourceTypeIdentityPrincipal                       ResourceType = "identity_principal"
 	ResourceTypeIdentityPrincipalIdentity               ResourceType = "identity_principal_identity"
 	ResourceTypePortal                                  ResourceType = "portal"
@@ -101,6 +102,7 @@ const (
 )
 
 const (
+	SchemaFieldDirectory            = "directory"
 	SchemaFieldRef                  = "ref"
 	SchemaFieldName                 = "name"
 	SchemaFieldUsername             = "username"

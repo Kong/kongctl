@@ -128,6 +128,23 @@ func (p *Planner) applySecretWriteIntents(
 			return fmt.Errorf("resource %s %q: %w", resource.GetType(), resourceRef, err)
 		}
 		change.SecretWrites = append(change.SecretWrites, selected...)
+		if resource.GetType() == resources.ResourceTypeIdentityVaultProvider {
+			parent := change.Parent
+			if parent == nil || parent.Ref == "" {
+				return fmt.Errorf("vault provider secret write requires a managed directory")
+			}
+			state, err := p.getInheritedProtectionState(ctx, make(map[string]*inheritedProtectionState), parent.Ref)
+			if err != nil {
+				return err
+			}
+			if state == nil {
+				return fmt.Errorf("vault provider secret write has no protecting directory")
+			}
+			if state.protected && change.Action != ActionCreate {
+				return fmt.Errorf("vault provider directory is protected")
+			}
+			change.ProtectingParent = &state.info
+		}
 	}
 
 	plan.UpdateSummary()
@@ -686,6 +703,8 @@ func secretResourceNamespace(rs *resources.ResourceSet, resource resources.Resou
 		return resources.GetNamespace(metadata)
 	}
 	switch typed := resource.(type) {
+	case *resources.IdentityDirectoryResource:
+		return resources.GetNamespace(typed.Kongctl)
 	case *resources.DCRProviderResource:
 		return resources.GetNamespace(typed.Kongctl)
 	case *resources.PortalResource:

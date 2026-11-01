@@ -79,6 +79,14 @@ func RequireEmptyIdentityDirectoryVault(ctx context.Context, api IdentityDirecto
 func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityDirectoryDependenciesAPI,
 	directory string, vaultEnabled *bool, keysToRemove map[string]string,
 ) error {
+	return RequireIdentityDirectoryVaultResourceRetirements(ctx, api, directory, vaultEnabled, keysToRemove, nil)
+}
+
+// RequireIdentityDirectoryVaultResourceRetirements permits exact authorized
+// planned child deletions. Final directory execution still requires emptiness.
+func RequireIdentityDirectoryVaultResourceRetirements(ctx context.Context, api IdentityDirectoryDependenciesAPI,
+	directory string, vaultEnabled *bool, keysToRemove, providersToRemove map[string]string,
+) error {
 	if !util.IsValidUUID(directory) {
 		return fmt.Errorf("directory ID must be a UUID")
 	}
@@ -111,15 +119,27 @@ func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityD
 			return err
 		}
 	}
-	providers, err := api.ListVaultProviders(ctx, kkOps.ListVaultProvidersRequest{DirectoryID: directory})
-	if err != nil {
-		return identitySecretAPIError("observe directory Vault providers before deletion", err)
-	}
-	if providers == nil {
-		return fmt.Errorf("missing directory Vault provider collection response; deletion is blocked")
-	}
-	if err := requireEmptyIdentityCollection(providers.RawResponse, "directory", "Vault providers"); err != nil {
-		return err
+	if len(providersToRemove) > 0 {
+		providers, err := ListIdentityVaultProviders(ctx, api, directory, 100)
+		if err != nil {
+			return err
+		}
+		for _, provider := range providers {
+			if providersToRemove[provider.ID] != provider.Name {
+				return fmt.Errorf("directory has attached Vault providers without explicit planned deletion")
+			}
+		}
+	} else {
+		providers, err := api.ListVaultProviders(ctx, kkOps.ListVaultProvidersRequest{DirectoryID: directory})
+		if err != nil {
+			return identitySecretAPIError("observe directory Vault providers before deletion", err)
+		}
+		if providers == nil {
+			return fmt.Errorf("missing directory Vault provider collection response; deletion is blocked")
+		}
+		if err := requireEmptyIdentityCollection(providers.RawResponse, "directory", "Vault providers"); err != nil {
+			return err
+		}
 	}
 	idps, err := api.ListTrustedIdps(ctx, directory, nil)
 	if err != nil {

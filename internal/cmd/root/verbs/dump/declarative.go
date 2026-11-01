@@ -207,6 +207,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			AppAuthAPI:                          sdk.GetAppAuthStrategiesAPI(),
 			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
 			IdentityVaultKeysAPI:                sdk.GetIdentityVaultKeysAPI(),
+			IdentityVaultProvidersAPI:           sdk.GetIdentityVaultProvidersAPI(),
 			IdentityAuthServersAPI:              sdk.GetIdentityAuthServersAPI(),
 			IdentityAuthServerScopesAPI:         sdk.GetIdentityAuthServerScopesAPI(),
 			IdentityAuthServerClaimsAPI:         sdk.GetIdentityAuthServerClaimsAPI(),
@@ -287,6 +288,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			declstate.ClientConfig{
 				IdentityDirectoriesAPI:         sdk.GetIdentityDirectoriesAPI(),
 				IdentityVaultKeysAPI:           sdk.GetIdentityVaultKeysAPI(),
+				IdentityVaultProvidersAPI:      sdk.GetIdentityVaultProvidersAPI(),
 				IdentityAuthServersAPI:         sdk.GetIdentityAuthServersAPI(),
 				IdentityAuthServerScopesAPI:    sdk.GetIdentityAuthServerScopesAPI(),
 				IdentityAuthServerClaimsAPI:    sdk.GetIdentityAuthServerClaimsAPI(),
