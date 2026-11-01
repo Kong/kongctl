@@ -1376,6 +1376,34 @@ original occurrence. No creation request was replayed. Evidence:
 principal-csv-all/20261101-020629 and identity-read-visibility-native.json in
 the local cache; the latter records counts/timing without credential values.
 
+### Q53 Principal deletion leaves a Registry Agent association
+
+**Observed (November 1, 2026, direct US `.tech` HTTP):** A Registry Agent
+association was created for an existing Identity principal. Deleting the
+principal returned 204 and a fresh principal GET returned 404. The agent's
+principal collection still returned the association with the deleted
+principal's directory/principal IDs.
+
+```http
+POST /v1/agents/{agentId}/principals
+DELETE /v2/directories/{directoryId}/principals/{principalId}
+GET /v2/directories/{directoryId}/principals/{principalId}
+GET /v1/agents/{agentId}/principals
+```
+
+**Question:** Is the association intentionally retained when its Identity
+principal is deleted? What referential-integrity contract applies to
+principal and directory deletion: reject while linked, remove associations,
+or retain references that no longer resolve? Is there a supported atomic
+precondition for retiring a linked principal/directory?
+
+The directory-delete variant has not been tested; it is an unverified part
+of the contract, not a reproduced failure. The observed association and
+agent were explicitly removed, all test principals were removed, and the
+entire original default directory object was unchanged. Evidence:
+registry-principal-delete-contract.json in the local cache. Only statuses,
+counts and target-tuple checks are saved; no resource values or credentials.
+
 ## Recorded answers
 
 No team answers have been recorded yet.
