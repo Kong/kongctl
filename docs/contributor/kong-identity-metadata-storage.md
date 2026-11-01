@@ -17,7 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
-| Vault providers | None | Read-only | Public configuration/catalog reads. |
+| Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
 | Token Vault keys | None | Managed directory | Verified live lifecycle. |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Declarative deletion requires enabled Vault and fresh empty key/provider/Trusted IdP inventories; it never grants child ownership or retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
@@ -138,6 +138,12 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 UTC, Trusted IdP write foundations: create, hydrated public PUT
+  and guarded delete are verified in `.tech`. No metadata is stamped and no
+  principal ownership is implied. Full declarative integration is in progress
+  under #2664, using explicit managed-directory authority. Q44 records native
+  deletion leaving associated principals and identities readable.
 
 - October 31, Credential Provider declarations: directory-inherited namespace,
   protection and adoption, explicit collection sync, public dump, saved writes

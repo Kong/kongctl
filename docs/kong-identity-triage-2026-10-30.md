@@ -3581,3 +3581,39 @@ full credential pagination; the deletion guard uses no page/sort arguments.
 #2660, ownership contract #2656 and directory epic #1132 remain open/In Progress
 until main merge. Shared/user provider credentials, Trusted IdP declarations
 and importer/team work remain separate feasible investigations/implementations.
+
+## 54. Trusted IdP write foundations
+
+The next active resource is Trusted IdP configuration (#2664). Full PUT has
+been verified to preserve hydrated public configuration, clear nullable
+display/JWKS overrides and normalize empty JIT mappings. The helper checks
+fresh directory membership and exact issuer, makes one mutation attempt and
+verifies the receipt plus fresh readback. It does not establish ownership.
+
+An associated-principal observation includes inactive principals. Explicit
+OIDC identity retargeting/deletion removes those associations. Native trust
+deletion accepts existing associations and leaves their principals/identities
+readable, so the guarded helper requires terminal empty associations first.
+Q44 records API-only questions about runtime trust removal and a conditional
+deletion contract; the client cannot close the observation/DELETE race.
+
+A 47-request native `.tech` probe and a separate 36-request SDK-helper probe
+pass. Their public evidence is trusted-idp-lifecycle-contracts.json,
+trusted-idp-lifecycle-summary.json and trusted-idp-sdk-write-summary.json in
+the local evidence cache. All fixtures were removed and original default
+settings restored. No SDK revision beyond 2597fe249e26 is needed.
+
+Full declarative loading, planning, saved execution, scoped sync, dump,
+examples and lifecycle E2E are still to be integrated. The helpers are a
+foundation for those features, not completion of #2664. Ownership will follow
+the explicit managed-directory policy used by Vault keys and providers;
+principals and identities retain independent authority.
+
+Verification passes: Go modernization, formatting, CGO-disabled build and
+make test-all, including zero-issue lint, race unit/integration and harness
+checks, nine SDK patch tests, 140 metrics tests and installer checks. The log
+is trusted-idp-write-foundation-gates.log. Final independent inventory is
+trusted-idp-write-foundation-final-inventory.json: one unmanaged default with
+original settings restored and empty principal/group/IdP/provider/key/
+auth-server inventories. No E2E scenario or replay membership changed in this
+foundation slice; the native and actual-helper probes verify its write paths.
