@@ -98,6 +98,20 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {
+		if verb == verbs.Create || verb == verbs.Delete {
+			credential, err := newVaultCredentialMutationCommand(verb, false, addParentFlags, parentPreRun)
+			if err != nil {
+				return nil, err
+			}
+			group.AddCommand(credential)
+			if verb == verbs.Create {
+				enrollment, err := newVaultCredentialMutationCommand(verb, true, addParentFlags, parentPreRun)
+				if err != nil {
+					return nil, err
+				}
+				group.AddCommand(enrollment)
+			}
+		}
 		if verb == verbs.Create || verb == verbs.Patch || verb == verbs.Delete {
 			group.AddCommand(newAuthServerSecretMutationCommand(verb, addParentFlags, parentPreRun))
 			password, err := newPasswordMutationCommand(verb, addParentFlags, parentPreRun)

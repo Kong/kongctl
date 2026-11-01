@@ -1,4 +1,4 @@
-// Package secretoutput captures newly issued credentials in private local files.
+// Package secretoutput captures issued credentials and capabilities in private files.
 package secretoutput
 
 import (
@@ -20,12 +20,15 @@ type Metadata struct {
 	PrincipalID  string `json:"principal_id,omitempty"`
 	BasicAuthID  string `json:"basic_auth_id,omitempty"`
 	PasswordID   string `json:"password_id,omitempty"`
+	ProviderID   string `json:"provider_id,omitempty"`
+	CredentialID string `json:"credential_id,omitempty"`
 }
 
 type record struct {
 	Metadata
-	Status string `json:"status"`
-	Secret string `json:"secret,omitempty"`
+	Status        string `json:"status"`
+	Secret        string `json:"secret,omitempty"`
+	EnrollmentURL string `json:"enrollment_url,omitempty"`
 }
 
 // File reserves a new output path before a remote create can issue a secret.
@@ -71,6 +74,25 @@ func (f *File) Capture(metadata Metadata, value string) error {
 	}
 	if value == "" {
 		return fmt.Errorf("creation response contained no secret value")
+	}
+	return nil
+}
+
+// CaptureEnrollmentURL persists an issued OAuth capability exclusively in the
+// reserved private file. Captured means the URL was saved, not consent completed.
+func (f *File) CaptureEnrollmentURL(metadata Metadata, value string) error {
+	status := "captured"
+	if value == "" {
+		status = "enrollment_url_missing"
+	}
+	if err := f.write(record{Metadata: metadata, Status: status, EnrollmentURL: value}); err != nil {
+		return fmt.Errorf("persist enrollment output: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close enrollment output: %w", err)
+	}
+	if value == "" {
+		return fmt.Errorf("enrollment response contained no URL")
 	}
 	return nil
 }

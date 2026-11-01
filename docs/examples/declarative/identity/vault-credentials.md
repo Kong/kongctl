@@ -60,7 +60,11 @@ needs OAuth consent; inspection does not complete that flow.
 
 [Static shared credential declarations](vault-shared-credentials.md) support
 explicit material replacement and scoped retirement. OAuth enrollment and user
-revocation are separate implementation work. Static PUT requires material again;
+revocation are separate workflows.
+[Shared OAuth enrollment](vault-oauth-enrollment.md)
+provides explicit private URL capture/reissuance and shared retirement; user
+enrollment/revocation still needs a supported runtime fixture. Static PUT
+requires material again;
 omitting its routing fields selects the default slot. OAuth PUT issues a fresh
 enrollment URL. Ordinary configuration changes therefore cannot assume secret
 preservation. See [API questions](../../../kong-identity-api-questions.md),

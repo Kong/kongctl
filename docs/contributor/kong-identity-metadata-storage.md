@@ -17,6 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
+| Shared OAuth credential/enrollment commands | None | No ownership stamp; private local capture context only | Explicit pending create, enrollment-URL issuance and shared retirement verify provider membership without adopting authorizations. Capture files identify directory/provider/credential; URLs stay outside public output and declarations. #2662. |
 | Static shared provider credentials | None | Managed directory through declared provider | Declarative default/priority-slot create, explicitly selected PUT, scoped sync/delete and public dump. Ref stays local; no child metadata is stamped. Fresh directory protection, provider mode, routing and encryption-key guards apply. #2662. |
 | Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
 | Provider credential inspection | None | None; read-only | Scoped get/list projects shared routing/status and user principal metadata. Reads select through complete lists and never invoke enrollment-producing detail GET. No metadata is stamped. #2662/#2663. |
@@ -97,7 +98,7 @@ or protection metadata on them.
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
 | Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
-| Shared provider credentials | Generated ID; default/routing-priority slot under provider | Static shared declarations inherit explicitly managed directory authority through a declared provider. Ref stays local. Deferred material is required for create; updates require explicit selection. OAuth enrollment is separate. Q45/Q46, #2662. |
+| Shared provider credentials | Generated ID; default/routing-priority slot under provider | Static declarations inherit managed-directory authority; refs stay local and material replacement is explicit. Shared OAuth uses explicit private capture/reissuance and retirement without metadata stamping. OAuth routing PUT and actual consent remain outside this verification. Q30/Q45–Q47, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Public provider/principal inspection is implemented without adopting authorizations. Actual enrollment/revocation needs supported runtime context; it is not established by empty lists. Q30, #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
@@ -144,6 +145,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 US Central, shared OAuth enrollment: explicit commands create
+  pending records, capture/reissue URLs in exclusive private files, and retire
+  shared static/OAuth records. They neither stamp ownership nor enforce
+  declarative namespace/protection, following other explicit secret commands.
+  Private capture IDs are local recovery context, not remote management data.
+  Ordinary reads still use only collections. User authorization adoption and
+  revocation remain outside this administrative slice.
 
 - October 31 US Central, static shared declarations: namespace/protection and
   adoption derive from the explicitly managed directory, via its declared
