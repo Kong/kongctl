@@ -10,6 +10,10 @@ separate from static configuration.
 default/priority matching, deferred material and explicit replacement, managed
 directory authority, encryption-key dependencies and scoped retirement.
 
+[Shared OAuth enrollment](vault-oauth-enrollment.md) pairs declarative provider
+configuration with explicit private enrollment-URL capture/reissuance and
+shared record retirement. A pending record is not completed consent.
+
 [Credential Provider declarations and template inspection](vault-providers.md)
 explains upstream services, three provider modes, directory-inherited authority,
 deferred client-secret writes, scoped sync/dump/delete and API boundaries.

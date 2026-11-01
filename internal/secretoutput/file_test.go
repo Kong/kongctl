@@ -86,3 +86,40 @@ func TestOutputRefusesSymlinksAndRetainsFailureEvidence(t *testing.T) {
 		})
 	}
 }
+
+func TestEnrollmentCaptureRetainsCapabilityOnlyInExclusivePrivateRecord(t *testing.T) {
+	for _, empty := range []bool{false, true} {
+		path := filepath.Join(t.TempDir(), "enrollment.json")
+		metadata := Metadata{DirectoryID: "directory", ProviderID: "provider", CredentialID: "credential"}
+		output, err := Reserve(path, metadata)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = output.Close() })
+		value := "https://enrollment.example.test/consent?token=private-capability"
+		if empty {
+			value = ""
+		}
+		err = output.CaptureEnrollmentURL(metadata, value)
+		if empty {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		var captured record
+		require.NoError(t, json.Unmarshal(data, &captured))
+		require.Equal(t, metadata, captured.Metadata)
+		require.Equal(t, value, captured.EnrollmentURL)
+		require.Empty(t, captured.Secret)
+		if empty {
+			require.Equal(t, "enrollment_url_missing", captured.Status)
+		} else {
+			require.Equal(t, "captured", captured.Status)
+		}
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		require.Zero(t, info.Mode().Perm()&0o077)
+		_, err = Reserve(path, metadata)
+		require.Error(t, err)
+	}
+}

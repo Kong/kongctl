@@ -37,6 +37,7 @@ type SDKAPI interface {
 	GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI
 	GetIdentityVaultProviderCredentialsReader() IdentityVaultProviderCredentialsReader
 	GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI
+	GetIdentityVaultEnrollmentAPI() IdentityVaultEnrollmentAPI
 	GetIdentityPrincipalVaultCredentialsReader() IdentityPrincipalVaultCredentialsReader
 	GetIdentityGroupsReader() IdentityGroupsReader
 	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
@@ -218,6 +219,13 @@ func (k *KonnectSDK) GetIdentityPrincipalVaultCredentialsReader() IdentityPrinci
 }
 
 func (k *KonnectSDK) GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI {
+	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityVaultEnrollmentAPI() IdentityVaultEnrollmentAPI {
 	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
 		return nil
 	}
