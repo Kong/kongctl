@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"regexp"
 	"slices"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/Kong/sdk-konnect-go/retry"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/konnect/identityproviders"
 	"github.com/kong/kongctl/internal/util"
 )
 
@@ -32,8 +32,6 @@ type IdentityVaultProvidersAPI interface {
 	DeleteVaultProvider(context.Context, string, string, ...kkOps.Option) (*kkOps.DeleteVaultProviderResponse, error)
 }
 
-var identityVaultProviderName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-
 func validateIdentityVaultProviderScope(api IdentityVaultProvidersReader, directory string) error {
 	if api == nil {
 		return fmt.Errorf("identity Vault provider API is not configured")
@@ -44,65 +42,6 @@ func validateIdentityVaultProviderScope(api IdentityVaultProvidersReader, direct
 	return nil
 }
 
-// ValidateIdentityVaultProviderName follows the API pattern without borrowing
-// the unrelated Vault key name length limit.
-func ValidateIdentityVaultProviderName(name string) error {
-	if !identityVaultProviderName.MatchString(name) {
-		return fmt.Errorf("vault provider name must contain only ASCII letters, digits, underscores or hyphens")
-	}
-	return nil
-}
-
-func validateIdentityVaultProviderFields(scopes []string, refresh *int64, endpoints ...*string) error {
-	if scopes != nil && len(scopes) == 0 {
-		return fmt.Errorf("empty provider scopes are not supported: create selects defaults and PATCH rejects clearing")
-	}
-	for _, scope := range scopes {
-		if scope == "" {
-			return fmt.Errorf("provider scopes must be nonempty RFC 6749 scope-tokens")
-		}
-		for _, char := range scope {
-			if char < 0x21 || char > 0x7e || char == '"' || char == '\\' {
-				return fmt.Errorf("provider scopes must be nonempty RFC 6749 scope-tokens")
-			}
-		}
-	}
-	if refresh != nil && *refresh < 0 {
-		return fmt.Errorf("provider refresh_buffer_seconds must be nonnegative")
-	}
-	for _, endpoint := range endpoints {
-		if endpoint != nil && *endpoint == "" {
-			return fmt.Errorf("empty provider endpoints do not restore template defaults and are not supported")
-		}
-	}
-	return nil
-}
-
-func validateIdentityVaultProviderCreate(request kkComps.CreateVaultProviderBody) error {
-	if err := ValidateIdentityVaultProviderName(request.Name); err != nil {
-		return err
-	}
-	if request.TemplateName == "" {
-		return fmt.Errorf("vault provider template_name is required")
-	}
-	if request.CredentialType != nil && *request.CredentialType != "user" && *request.CredentialType != "shared" {
-		return fmt.Errorf("vault provider credential_type must be user or shared")
-	}
-	if request.TemplateName == kkComps.ProviderTemplateNameStaticSecret {
-		if request.CredentialType == nil || *request.CredentialType != "shared" {
-			return fmt.Errorf("static_secret providers require explicit credential_type: shared")
-		}
-		if request.ClientID != nil || request.ClientSecret != nil || request.DcrEnabled != nil && *request.DcrEnabled {
-			return fmt.Errorf("static_secret providers cannot configure OAuth clients or enable DCR")
-		}
-	}
-	if request.DcrEnabled != nil && *request.DcrEnabled && request.ClientID != nil {
-		return fmt.Errorf("DCR providers must omit client_id")
-	}
-	return validateIdentityVaultProviderFields(request.Scopes, request.RefreshBufferSeconds,
-		request.TokenEndpoint, request.AuthorizationEndpoint, request.RegistrationEndpoint)
-}
-
 // CreateIdentityVaultProvider makes one create attempt and returns public
 // configuration only. enabled is absent from the API create schema.
 func CreateIdentityVaultProvider(ctx context.Context, api IdentityVaultProvidersAPI, directory string,
@@ -111,7 +50,7 @@ func CreateIdentityVaultProvider(ctx context.Context, api IdentityVaultProviders
 	if err := validateIdentityVaultProviderScope(api, directory); err != nil {
 		return nil, err
 	}
-	if err := validateIdentityVaultProviderCreate(request); err != nil {
+	if err := identityproviders.ValidateCreate(request); err != nil {
 		return nil, err
 	}
 	response, err := api.CreateVaultProvider(httpclient.WithoutRetries(ctx), directory, request,
@@ -160,15 +99,15 @@ func providerNullableEqual[T comparable](a, b *T) bool {
 func UpdateIdentityVaultProvider(ctx context.Context, api IdentityVaultProvidersAPI, directory, id, expectedName string,
 	request kkComps.PatchVaultProviderBody,
 ) (*IdentityVaultProvider, error) {
-	if err := ValidateIdentityVaultProviderName(expectedName); err != nil {
+	if err := identityproviders.ValidateName(expectedName); err != nil {
 		return nil, err
 	}
 	if request.Name != nil {
-		if err := ValidateIdentityVaultProviderName(*request.Name); err != nil {
+		if err := identityproviders.ValidateName(*request.Name); err != nil {
 			return nil, err
 		}
 	}
-	if err := validateIdentityVaultProviderFields(request.Scopes, request.RefreshBufferSeconds,
+	if err := identityproviders.ValidateFields(request.Scopes, request.RefreshBufferSeconds,
 		request.TokenEndpoint, request.AuthorizationEndpoint); err != nil {
 		return nil, err
 	}
@@ -286,7 +225,7 @@ func RequireEmptyIdentityVaultProviderCredentials(ctx context.Context, api Ident
 // checks cannot prevent a concurrent credential attachment before API DELETE.
 func DeleteIdentityVaultProvider(ctx context.Context, api IdentityVaultProvidersAPI, directory, id, expectedName string,
 ) error {
-	if err := ValidateIdentityVaultProviderName(expectedName); err != nil {
+	if err := identityproviders.ValidateName(expectedName); err != nil {
 		return err
 	}
 	value, err := GetIdentityVaultProvider(ctx, api, directory, id)

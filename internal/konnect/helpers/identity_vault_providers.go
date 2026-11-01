@@ -16,10 +16,14 @@ import (
 	"github.com/kong/kongctl/internal/util/pagination"
 )
 
-type IdentityVaultProvidersReader interface {
+type IdentityVaultProvidersLister interface {
 	ListVaultProviders(context.Context, kkOps.ListVaultProvidersRequest, ...kkOps.Option) (
 		*kkOps.ListVaultProvidersResponse, error,
 	)
+}
+
+type IdentityVaultProvidersReader interface {
+	IdentityVaultProvidersLister
 	GetVaultProvider(context.Context, string, string, ...kkOps.Option) (*kkOps.GetVaultProviderResponse, error)
 	ListCredentialProviderTemplates(context.Context, *kkComps.CursorPageParameters, ...kkOps.Option) (
 		*kkOps.ListCredentialProviderTemplatesResponse, error,
@@ -164,7 +168,7 @@ func listIdentityVaultPublicCollection[T any](pageSize int64, resource string,
 	}
 }
 
-func ListIdentityVaultProviders(ctx context.Context, api IdentityVaultProvidersReader, directory string,
+func ListIdentityVaultProviders(ctx context.Context, api IdentityVaultProvidersLister, directory string,
 	pageSize int64,
 ) ([]IdentityVaultProvider, error) {
 	if api == nil {

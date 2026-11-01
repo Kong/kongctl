@@ -249,7 +249,7 @@ func TestVaultProviderPatchChecksFreshPersistenceAndOmittedFields(t *testing.T) 
 
 func TestVaultProviderDeletionRequiresFreshTerminalEmptyCredentials(t *testing.T) {
 	for _, mode := range []string{
-		"empty", "attached", "nonterminal", "missing-data", "missing-next", "missing-size",
+		"empty", "attached", "attached-user", "nonterminal", "missing-data", "missing-next", "missing-size",
 		"fractional-size", "zero-size", "null-data", "invalid-json", "error", "stale-name", "delete-error",
 	} {
 		t.Run(mode, func(t *testing.T) {
@@ -278,12 +278,18 @@ func TestVaultProviderDeletionRequiresFreshTerminalEmptyCredentials(t *testing.T
 					body := `{"data":[],"meta":{"page":{"size":20,"next":null}}}`
 					status := 200
 					switch mode {
-					case "attached":
+					case "attached", "attached-user":
+						credential := map[string]any{
+							"id": writeFixturePrincipal, "credential_type": "shared", "status": "active",
+							"created_at": "2026-10-31T00:00:00Z", "updated_at": "2026-10-31T00:00:00Z",
+						}
+						if mode == "attached-user" {
+							credential["credential_type"] = "user"
+							credential["principal"] = map[string]any{"id": writeFixtureBasicAuth, "display_name": "Fixture user"}
+							credential["expires_at"] = nil
+						}
 						return providerWriteResponse(t, request, 200, map[string]any{
-							"data": []any{map[string]any{
-								"id": writeFixturePrincipal, "credential_type": "shared", "status": "active",
-								"created_at": "2026-10-31T00:00:00Z", "updated_at": "2026-10-31T00:00:00Z",
-							}}, "meta": map[string]any{"page": map[string]any{"size": 20, "next": nil}},
+							"data": []any{credential}, "meta": map[string]any{"page": map[string]any{"size": 20, "next": nil}},
 						}), nil
 					case "nonterminal":
 						body = `{"data":[],"meta":{"page":{"size":20,"next":"cursor"}}}`

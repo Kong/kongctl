@@ -6,7 +6,6 @@ import (
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	"github.com/kong/kongctl/internal/declarative/planner"
-	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/declarative/state"
 	"github.com/kong/kongctl/internal/konnect/identitykeys"
 	"github.com/kong/kongctl/internal/util"
@@ -91,35 +90,7 @@ func (a *identityVaultKeyAdapter) GetByID(
 }
 
 func (a *identityVaultKeyAdapter) writeParent(ctx context.Context, execCtx *ExecutionContext) (string, error) {
-	id, err := vaultKeyDirectoryID(execCtx)
-	if err != nil {
-		return "", err
-	}
-	parent, err := a.client.GetIdentityDirectoryByID(ctx, id)
-	if err != nil {
-		return "", err
-	}
-	if parent == nil || parent.ID != id {
-		return "", fmt.Errorf("vault key directory no longer exists")
-	}
-	if err := resources.ValidateChildOwnership("Vault key directory", parent.ManagedBy, execCtx.Namespace); err != nil {
-		return "", err
-	}
-	if parent.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
-		return "", fmt.Errorf("vault keys require an explicitly managed directory")
-	}
-	protecting := execCtx.PlannedChange.ProtectingParent
-	if protecting == nil || protecting.ResourceType != planner.ResourceTypeIdentityDirectory ||
-		protecting.ResourceName != parent.Name || protecting.ResourceID != "" && protecting.ResourceID != id {
-		return "", fmt.Errorf("vault key directory identity changed; regenerate the plan")
-	}
-	if execCtx.PlannedChange.Action != planner.ActionCreate && resources.IsChildProtected(parent.ManagedBy) {
-		return "", fmt.Errorf("directory %q is protected", parent.Name)
-	}
-	if parent.VaultEnabled == nil || !*parent.VaultEnabled {
-		return "", fmt.Errorf("vault key directory Vault is disabled or unknown")
-	}
-	return id, nil
+	return identityVaultWriteDirectory(ctx, a.client, execCtx, "vault key")
 }
 
 func (a *identityVaultKeyAdapter) checkIdentity(ctx context.Context, parent, id, kid string) error {

@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_VAULT_PROVIDERS_DECLARATIVE_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Requires Token Vault availability and temporary directory capacity. Verify directory-inherited provider authority, explicit adoption, all public fields, initial disablement, saved plans and late ownership/dependency changes, scoped sync/delete, dump/reload, and deferred client-secret create/explicit update without secret artifacts. Runtime OAuth enrollment and stored-secret continuity are not inferred from public configuration.
+steps:
+  - name: 001-provider-declarative-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-provider-declarative-lifecycle
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                provider_modes: 3
+                all_public_fields: true
+                explicit_parent_adoption: true
+                initial_disabled_state: true
+                deferred_and_selected_secrets: true
+                saved_authority_and_credential_guards: true
+                scoped_sync_and_delete: true
+                name_replacement_ordered: true
+                dump_reload: true
+                bootstrap_parent_and_provider: true
+                fixtures_removed: true

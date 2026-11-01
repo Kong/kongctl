@@ -50,17 +50,18 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
-	VaultKeys   []IdentityVaultKeyResource          `yaml:"vault_keys,omitempty"   json:"vault_keys,omitempty"`
-	BasicAuths  []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"  json:"basic_auths,omitempty"`
-	Memberships []IdentityGroupMembershipResource   `yaml:"memberships,omitempty"  json:"memberships,omitempty"`
-	Groups      []IdentityGroupResource             `yaml:"groups,omitempty"       json:"groups,omitempty"`
-	Identities  []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"   json:"identities,omitempty"`
-	Clients     []IdentityAuthServerClientResource  `yaml:"clients,omitempty"      json:"clients,omitempty"`
-	Scopes      []IdentityAuthServerScopeResource   `yaml:"scopes,omitempty"       json:"scopes,omitempty"`
-	Claims      []IdentityAuthServerClaimResource   `yaml:"claims,omitempty"       json:"claims,omitempty"`
-	AuthServers []IdentityAuthServerResource        `yaml:"auth_servers,omitempty" json:"auth_servers,omitempty"`
-	Principals  []IdentityPrincipalResource         `yaml:"principals,omitempty"   json:"principals,omitempty"`
-	Directories []IdentityDirectoryResource         `yaml:"directories,omitempty"  json:"directories,omitempty"`
+	VaultProviders []IdentityVaultProviderResource     `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"`
+	VaultKeys      []IdentityVaultKeyResource          `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
+	BasicAuths     []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"     json:"basic_auths,omitempty"`
+	Memberships    []IdentityGroupMembershipResource   `yaml:"memberships,omitempty"     json:"memberships,omitempty"`
+	Groups         []IdentityGroupResource             `yaml:"groups,omitempty" json:"groups,omitempty"`
+	Identities     []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"      json:"identities,omitempty"`
+	Clients        []IdentityAuthServerClientResource  `yaml:"clients,omitempty"         json:"clients,omitempty"`
+	Scopes         []IdentityAuthServerScopeResource   `yaml:"scopes,omitempty"          json:"scopes,omitempty"`
+	Claims         []IdentityAuthServerClaimResource   `yaml:"claims,omitempty"          json:"claims,omitempty"`
+	AuthServers    []IdentityAuthServerResource        `yaml:"auth_servers,omitempty"    json:"auth_servers,omitempty"`
+	Principals     []IdentityPrincipalResource         `yaml:"principals,omitempty"      json:"principals,omitempty"`
+	Directories    []IdentityDirectoryResource         `yaml:"directories,omitempty"     json:"directories,omitempty"`
 }
 
 func identityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource {
@@ -79,9 +80,10 @@ func ensureIdentityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource 
 
 // IdentityDirectoryResource declares one regional Kong Identity directory.
 type IdentityDirectoryResource struct {
-	VaultKeys             []IdentityVaultKeyResource `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
-	Groups                []IdentityGroupResource    `yaml:"groups,omitempty"                   json:"groups,omitempty"`
-	BaseResource          `                            yaml:",inline"                            json:",inline"`
+	VaultProviders        []IdentityVaultProviderResource `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"` //nolint:lll
+	VaultKeys             []IdentityVaultKeyResource      `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
+	Groups                []IdentityGroupResource         `yaml:"groups,omitempty" json:"groups,omitempty"`
+	BaseResource          `                                yaml:",inline"                            json:",inline"`
 	Principals            []IdentityPrincipalResource `yaml:"principals,omitempty"               json:"principals,omitempty"` //nolint:lll
 	Name                  string                      `yaml:"name"                               json:"name"`
 	Description           *string                     `yaml:"description,omitempty"              json:"description,omitempty"`                              //nolint:lll
