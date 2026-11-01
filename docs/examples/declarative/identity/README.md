@@ -1,5 +1,10 @@
 # Kong Identity administration
 
+[Principal group inspection](principal-groups.md) explains direct versus
+inherited memberships, group versus relationship-entry IDs, imported teams
+and manager/provisioning fields. It complements ordinary membership
+declarations and the separate organization-chart importer.
+
 [General principal CSV import](principal-csv.md) uses a YAML CSV reference with
 the standard declarative lifecycle, explicit metadata merge/replacement,
 optional UUID assertions and supported nested identities/credentials. Local

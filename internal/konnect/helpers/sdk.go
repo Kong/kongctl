@@ -43,6 +43,7 @@ type SDKAPI interface {
 	GetIdentityOrgChartImportAPI() IdentityOrgChartImportAPI
 	GetIdentityPrincipalVaultCredentialsReader() IdentityPrincipalVaultCredentialsReader
 	GetIdentityGroupsReader() IdentityGroupsReader
+	GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader
 	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
 	GetControlPlaneAPI() ControlPlaneAPI
 	GetControlPlaneGroupsAPI() ControlPlaneGroupsAPI
@@ -268,6 +269,13 @@ func (k *KonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {
 		return nil
 	}
 	return k.SDK.PrincipalGroup
+}
+
+func (k *KonnectSDK) GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader {
+	if k == nil || k.SDK == nil || k.SDK.KongPrincipal == nil {
+		return nil
+	}
+	return k.SDK.KongPrincipal
 }
 
 func (k *KonnectSDK) GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader {

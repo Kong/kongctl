@@ -16,17 +16,21 @@ auth-server and directory administrative families have examples and broad
 declarative lifecycle support; explicit operations handle secret lifecycle,
 shared OAuth enrollment and complete-file organization-chart import.
 
-The current increment adds general principal CSV declarations,
-offline inspection, optional UUID assertions and public metadata merge/sync
-policies (#1419). Section 65 records the contract. All thirty-one Identity live
-scenarios, corrected repository gates and all twenty existing replay scenarios
-pass. Independent privacy/cleanup checks pass and default settings are restored.
-No SDK change is required beyond preview `90596b498bcb`.
+General principal CSV declarations, offline inspection, optional UUID
+assertions and public metadata merge/sync policies are delivered under #1419
+(section 65). The latest increment completes principal-group inspection under
+#2658: ordinary direct and imported direct/inherited groups, nullable entry IDs
+and manager/provisioning fields (section 67). All thirty-two Identity live
+scenarios and current repository gates pass. Privacy/cleanup checks pass and
+default settings are restored. Replay membership/cassettes are unchanged;
+all twenty enabled replays passed at the preceding CSV checkpoint.
 
-The acceptance audit also identifies a dedicated principal-group inspection
-gap under #2658. Native direct/inherited contracts are verified; section 66
-records the additional SDK cursor patch preparation. The reader and consumer
-pin update are in progress, with no new membership mutation authority.
+The public SDK preview is now 37580cf8cdf5, from patch source 5680da0f. The
+generated delta is one principal-group cursor query tag, with no component or
+unrelated API changes. All seventeen cursor-wire methods pass without skips.
+The new [per-operation coverage matrix](contributor/kong-identity-api-sdk-coverage.md)
+records 112 generated operations, 97 consumer methods with positive deployed
+evidence, unused alternatives/follow-ons and the remaining runtime boundary.
 
 The main unfinished implementation is populated principal Vault authorization
 revocation (#2663), which needs Q30's supported runtime enrollment fixture.
@@ -4655,3 +4659,80 @@ preparation so provenance identifies an exact source revision. Pushing that
 preview update, consuming its pin and completing the reader/examples/live E2E
 are subsequent work. The current consumer remains on SDK 90596b498bcb; #2658
 is open/In Progress and no implementation PR or SDK release is opened.
+
+## 67. Principal group inspection and per-operation coverage
+
+The #2658 acceptance gap is closed on the working branch. Get/list identity
+principal-group(s) accepts an explicit directory ID/name and principal UUID.
+It reads the principal's complete group projection; optional selection uses
+group UUID or exact name. Entry IDs do not select groups, ambiguous names fail
+and an unrelated directory-level group cannot satisfy a missing association.
+There is no invented association detail endpoint or global lookup fallback.
+
+Public output retains group type, direct status, nullable membership-entry ID,
+provisioning and manager ID/display-name/email. Missing optional provisioning
+fields do not acquire SDK defaults. A missing direct field, inconsistent entry
+ID/status, duplicate group/cursor, malformed page or failed later page returns
+an error without partial output. Next-link cursors keep requests on the selected
+API host and directory/principal route. JSON/YAML and text summary/detail are
+implemented; text detail includes manager fields without falling back to JSON.
+
+This projection has no labels or managed_by. Inspection stamps no ownership
+metadata and grants no authority over direct importer-managed links or inherited
+memberships. Ordinary direct declarations and complete-file organization-chart
+import retain their existing separate write boundaries. The example/tutorial is
+principal-groups.md alongside groups.md and memberships.md; no new declarative
+resource type or membership adoption path is introduced.
+
+Public SDK preview 37580cf8cdf591506b2e9fd55d28e917b1dcac35 is pushed and consumed
+as v0.79.1-0.20261101084607-37580cf8cdf5. Its snapshot identifies patch source
+5680da0f5da0a6a26a0a6e8f758da5d888a64553 and verifies all 23 bundle hashes.
+The generated-code delta from 90596b498bcb is exactly one query-tag line in
+models/operations/listprincipalgroups.go, with no component-model changes.
+The remaining five changed files are tests or patch snapshot/provenance.
+Post-generation application is idempotent. All seventeen cursor-wire methods
+pass without skips; the previous preview fails only the new method. SDK
+package/model/internal/pkg tests and root/internal race tests pass. Q22 records
+the additional route using the same shared query-annotation issue; there is no
+new API defect or unrelated internal/public SDK compatibility change.
+
+The contributor API/SDK coverage matrix now inventories all 112 operations in
+the selected preview's auth-server/directory/template surfaces. Every generated
+operation ID maps to an actual SDK service method. Ninety-seven production
+methods have positive deployed evidence: captured HTTP success or six named
+live scenario assertion sets. Fifteen SDK-only operations are explicitly
+dispositioned as alternate methods, optional batch/follow-on work or the pending
+principal Vault revocation. Symbol availability is not presented as lifecycle
+support. The matrix keeps still-gated/runtime surfaces distinct and supplies
+the minimum verified current dependency for #1399/#1413.
+
+The focused new live scenario passes in 11.70s. All thirty-two Identity live
+scenarios then pass together in 616.372s; principal-group inspection takes
+11.57s with eleven assertions covering all three output formats. Two ordinary
+direct memberships and a real imported hierarchy each traverse two SDK pages.
+Checks cover group versus entry IDs, parent isolation, empty/missing cases,
+manager/provisioning fields and unchanged native state/ownership after reads.
+
+HR rows/reports stay in memory. Employee-bearing CLI outputs/traces remain in
+a private temporary workspace and are destroyed before artifacts are written.
+Only counts, safe page-request summaries and a removed-workspace receipt are
+published. Independent inspection verifies exactly those public inputs, eleven
+outcomes, two-page query shape/host/method checks, eight removed capture
+directories and eight removed workspaces, with no copied CSV/key/HR outputs or
+administrative token/base64. Default public settings are restored unmanaged;
+principal/group/IdP/provider/Vault-key/auth-server inventories are empty.
+
+Modernization, stable formatting, CGO-disabled build and full make test-all
+pass, including zero-issue lint, unit/integration/harness race checks, nine
+patch-tool tests, 140 metrics tests and installer checks. No enabled replay
+scenario, cassette or policy membership is changed. Evidence is under
+principal-groups-first, principal-groups-all/20261101-025558,
+principal-groups-final-gates.json/.log and the final inventory in the local
+cache, with artifact/declarative-key/CSV/projection verification receipts.
+
+Questions stay API-focused. No new question beyond Q22's added affected route
+is required by this read slice. #2663 still needs a supported runtime enrollment
+fixture (Q30) before populated user authorization/revocation can be verified.
+No principal revocation command, secret enrollment or runtime authentication
+claim is added. Issues stay open/In Progress until main merge; no PR or SDK
+release is opened.

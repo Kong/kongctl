@@ -224,6 +224,11 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	}
 	group.AddCommand(newGroupReadCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newGroupReadCommand(verb, true, addParentFlags, parentPreRun))
+	principalGroup, err := newPrincipalGroupReadCommand(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return nil, err
+	}
+	group.AddCommand(principalGroup)
 	principalIdentity, err := newPrincipalIdentityCommand(verb, addParentFlags, parentPreRun)
 	if err != nil {
 		return nil, err
