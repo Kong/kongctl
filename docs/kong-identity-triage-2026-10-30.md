@@ -55,8 +55,9 @@ follow-up trials unable to reproduce it. No POST replay workaround was added.
 The [API questions](kong-identity-api-questions.md),
 [compatibility tracker](contributor/kong-identity-compatibility.md) and
 [metadata ledger](contributor/kong-identity-metadata-storage.md) are current
-handoff documents. Issues stay open/In Progress until main merge. No
-implementation PR or SDK release is authorized. The implied default-directory
+handoff documents. Issues stay open/In Progress until main merge. Implementation
+is paused for review; the maintainer has requested a draft PR. The preview SDK
+remains a branch dependency without a release. The implied default-directory
 imperative flag remains a later-iteration TODO.
 
 ## Historical branch checkpoints
