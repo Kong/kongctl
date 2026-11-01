@@ -1120,3 +1120,33 @@ including explicit nullable overrides and empty mappings. Examples cover
 default-directory adoption/enablement and missing-default bootstrap. Runtime
 JIT provisioning, token exchange and principal/group ownership remain separate
 from administrative trust configuration. SDK remains `2597fe249e26`.
+
+## Provider and principal Vault credential observation
+
+Public get/list now covers provider credential inventories and a principal's
+Vault authorizations. Provider reads use collection selection even for a UUID:
+the API's shared OAuth credential detail GET issues an enrollment capability.
+Narrow reader interfaces expose only list methods. Public projections retain
+shared selector/priority/status or user principal/expiry metadata and exclude
+secrets/capabilities. JSON/YAML and text are explicit; malformed, failed,
+repeated or incomplete inventories yield no partial result.
+
+Provider credential routes redact whole trace bodies, including errors or
+unexpected capability fields. This follows existing secret/password route
+handling. Principal Vault reads project provider/template/status/expiry fields;
+they do not authorize adoption, sync or revocation.
+
+Native `.tech` probes establish multiple shared credentials for static and
+OAuth providers. Priorities/default slots are unique in the tested matrix;
+selectors can repeat. Static PUT requires a secret, and omitted routing resets
+to default. OAuth GET/PUT issue enrollment URLs. Q45/Q46 ask for the formal
+cardinality and material-preserving update contracts. Actual user enrollment,
+active OAuth continuity and revocation still need Q30's runtime setup.
+
+SDK `90596b498bcb` extends the Q22 cursor fix to provider credentials, principal
+Vault credentials and group keys. All sixteen wire methods pass with no skips;
+the preceding SDK fails exactly these three methods. Generated-code changes
+are limited to their three Page query tags. Snapshot/provenance and tests are
+updated from KongCTL patch source `c775a9c4`. Native provider/group inventories
+traverse five/three records at page size one. Empty principal Vault queries
+honor size one; populated user pagination has not been live exercised.
