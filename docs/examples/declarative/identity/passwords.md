@@ -130,4 +130,8 @@ Adding or changing passwords leaves the username's declarative plan unchanged.
 Deleting a username or principal refuses attached passwords. Remove them
 explicitly before declarative teardown; the external directory is retained.
 Metadata-only password ownership updates have no verified preserving API
-request (Q35), so no declarative password lifecycle is claimed.
+request (Q35). Current password support is limited to these explicit commands;
+no declarative password lifecycle is implemented. A generated-only subset
+using immutable creation metadata would need separate implementation and
+verification. It would not imply adoption of existing passwords or automatic
+rotation of unreadable material.
