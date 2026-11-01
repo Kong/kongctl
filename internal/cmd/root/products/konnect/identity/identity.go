@@ -179,6 +179,13 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	group.AddCommand(newVaultKeyReadCommand(verb, addParentFlags, parentPreRun))
 	group.AddCommand(newVaultProviderReadCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newVaultProviderReadCommand(verb, true, addParentFlags, parentPreRun))
+	for _, principal := range []bool{false, true} {
+		credential, err := newVaultCredentialReadCommand(verb, principal, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(credential)
+	}
 	group.AddCommand(newGroupReadCommand(verb, false, addParentFlags, parentPreRun))
 	group.AddCommand(newGroupReadCommand(verb, true, addParentFlags, parentPreRun))
 	principalIdentity, err := newPrincipalIdentityCommand(verb, addParentFlags, parentPreRun)

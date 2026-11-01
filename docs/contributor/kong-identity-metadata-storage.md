@@ -6,7 +6,7 @@ API storage capabilities and implemented KongCTL behavior are recorded
 separately. A name, UUID, issuer, or key fingerprint identifies a resource;
 it does not establish which tool or namespace owns it.
 
-The current source is the public preview SDK at `2597fe249e26`, generated
+The current source is the public preview SDK at `90596b498bcb`, generated
 from the [directory][directory-spec] and [auth-server][auth-spec]
 specifications.
 Initial live observations are from US `.com`; the October 31 `.tech`
@@ -18,6 +18,8 @@ ledger current as each resource is implemented.
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
 | Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
+| Provider credential inspection | None | None; read-only | Scoped get/list projects shared routing/status and user principal metadata. Reads select through complete lists and never invoke enrollment-producing detail GET. No metadata is stamped. #2662/#2663. |
+| Principal Vault credential inspection | None | None; read-only | Provider/template/status/expiry metadata is projected without tokens. Empty collection is live verified; populated user enrollment/revocation still needs Q30's runtime setup. #2663. |
 | Token Vault keys | None | Managed directory | Verified live lifecycle. |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Deletion requires enabled Vault, exact explicitly authorized child retirements and then fresh empty key/provider/Trusted IdP inventories. A directory-only declaration grants no child retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
@@ -94,8 +96,8 @@ or protection metadata on them.
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
 | Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
-| Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
-| User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
+| Shared provider credentials | Generated ID; observed default/routing-priority slot under provider | Public inspection is implemented. Multiple static/OAuth shared credentials exist; selectors can repeat but duplicate priorities/defaults return 409. Candidate declaration matching must preserve the Q45/Q46 cardinality/material boundaries. No ownership stamping or declarative writes yet. #2662. |
+| User-enrolled provider credentials | Principal/provider association | Public provider/principal inspection is implemented without adopting authorizations. Actual enrollment/revocation needs supported runtime context; it is not established by empty lists. Q30, #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
@@ -138,6 +140,19 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 US Central, credential observation: provider/principal get/list
+  expose public metadata only, without enrollment-producing detail GET or
+  ownership stamping. Q45/Q46 record priority/default-slot identity and PUT
+  material/omission behavior. SDK `90596b498bcb` adds three cursor-tag fixes
+  from patch source `c775a9c4`; all sixteen wire methods pass. Static shared
+  declarations and explicit enrollment/rotation remain subsequent work.
+
+  All twenty-four Identity live scenarios pass with the new SDK, including
+  real provider credential paging and public-only artifacts. Repository gates,
+  early-stop cleanup and final empty inventory checks pass. Populated user
+  credential shapes have unit coverage; live user enrollment/revocation is
+  still outside this verification.
 
 - October 31 US Central, Trusted IdP declarations: inherited directory ownership,
   exact issuer matching, public hydrated PUT, scoped sync/delete, saved guards

@@ -1,5 +1,10 @@
 # Kong Identity administration
 
+[Token Vault credential inspection](vault-credentials.md) explains shared
+static/OAuth routing slots and principal authorizations. Public metadata reads
+do not issue enrollment capabilities or grant credential ownership. Credential
+declarations and rotation/enrollment remain subsequent work.
+
 [Credential Provider declarations and template inspection](vault-providers.md)
 explains upstream services, three provider modes, directory-inherited authority,
 deferred client-secret writes, scoped sync/dump/delete and API boundaries.
