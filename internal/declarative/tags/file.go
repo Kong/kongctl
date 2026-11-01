@@ -58,6 +58,41 @@ func (f *FileTagResolver) Tag() string {
 	return TagFile
 }
 
+// ReadLocalFile reads a regular local source within the same boundary as !file,
+// without parsing its contents or silently truncating a growing file.
+func (f *FileTagResolver) ReadLocalFile(path string) ([]byte, error) {
+	if err := f.validatePath(path); err != nil {
+		return nil, err
+	}
+	fullPath := f.resolvePath(path)
+	if err := f.validateResolvedPath(path, fullPath); err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("stat local input: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("local input must be a regular file")
+	}
+	if info.Size() > MaxFileSize {
+		return nil, fmt.Errorf("local input exceeds the %d-byte limit", MaxFileSize)
+	}
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("open local input: %w", err)
+	}
+	defer file.Close()
+	contents, err := io.ReadAll(io.LimitReader(file, MaxFileSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("read local input: %w", err)
+	}
+	if len(contents) > MaxFileSize {
+		return nil, fmt.Errorf("local input exceeds the %d-byte limit", MaxFileSize)
+	}
+	return contents, nil
+}
+
 // Resolve processes a YAML node with the !file tag
 func (f *FileTagResolver) Resolve(node *yaml.Node) (any, error) {
 	// Handle three formats:

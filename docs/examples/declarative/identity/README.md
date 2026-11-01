@@ -1,5 +1,10 @@
 # Kong Identity administration
 
+[General principal CSV import](principal-csv.md) uses a YAML CSV reference with
+the standard declarative lifecycle, explicit metadata merge/replacement,
+optional UUID assertions and supported nested identities/credentials. Local
+inspection validates structure without API calls or printing row values.
+
 [Generated principal and group API keys](generated-api-keys.md) demonstrates
 declarative issuance, private capture, inherited parent authority, expiration
 updates and scoped retirement using the existing default directory.

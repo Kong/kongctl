@@ -1,8 +1,7 @@
 # Kong Identity compatibility tracking
 
 Track temporary implementation restrictions here and in the resource issues.
-API questions
-for engineering stay in the separate
+API questions for engineering stay in the separate
 [question log](../kong-identity-api-questions.md), without client-specific
 implementation requirements.
 
@@ -11,6 +10,62 @@ not establish equivalent prerelease `.tech` limitations. Revalidate the
 native API in `.tech` before deciding which restrictions remain necessary.
 The October 31 native revalidation is recorded below and in the engineering
 question matrix. No CLI behavior was changed during that validation pass.
+
+## Principal CSV input, public metadata policy and UUID assertions
+
+Principal CSV is a client frontend to normal declarative resources, separate
+from the native organization-chart importer. CSV rows require local refs;
+optional UUID assertions require an existing matching managed principal.
+They cannot create a resource with that ID, silently adopt an unowned record
+or override importer provisioning. Display names supply no matching authority.
+Nested identities, generated keys and basic-auth usernames reuse their existing
+metadata/ownership, capture and deletion contracts. Imported key/password
+material remains outside declarative enrollment under Q28/Q35.
+
+Explicit metadata_mode:merge retains unmentioned public keys; sync replaces
+the complete map. Omitted metadata preserves it in either mode. Existing YAML
+without the field retains replacement behavior. Planning compares the merged
+target but stores only the declared patch with metadata_merge intent.
+Execution re-reads public metadata and preserves keys added after planning;
+it validates the complete hydrated map and the Q31 precision boundary before
+PUT. Arrays replace a key's value. Empty merge is a no-op; empty sync clears.
+No instruction is sent as an API property or ownership marker.
+
+Plan format 1.2 prevents older executors from mistaking a patch for a complete
+replacement. This binary still reads 1.0/1.1 plans, but rejects merge intent
+on those versions, other resource types, creates/deletes or missing patches.
+The US .tech CSV lifecycle verifies fresh late-key retention, explicit
+replacement/clearing and ordinary 1.1 replacement execution through direct
+public GET checks. The SDK revision does not change.
+
+CSV parsing rejects duplicate headers/refs/asserted UUIDs/JSON keys, unsupported
+fields, conflicting parent selectors, invalid typed values, embedded template
+controls and deferred environment/secret encodings. Reference-looking strings
+remain literal. Paths reuse the !file boundary and symlink checks; oversized
+or nonregular inputs are rejected instead of truncated. Offline inspection
+returns structural counts only. Remote authority is still checked by planning
+and execution, including saved plans. See the CSV example/tutorial.
+
+## Unrelated resource planning
+
+Directory planning returns early for apply/delete when no directory is
+declared. Children still require their declared directory, including external
+parents. Explicit directory sync scope retains its existing behavior.
+Without the guard, unrelated control-plane/portal/API workflows issue an
+unnecessary directory list and acquire a new API availability dependency.
+The focused planner regression verifies zero directory reads for absent,
+empty and auth-server-only Identity declarations. All twenty enabled replay
+scenarios pass unchanged; adding unrelated HTTP exchanges is not the remedy.
+
+## Principal-identity read-after-create observation
+
+Related API question: Q52. One US .tech trace returned 201 for OIDC identity
+creation, followed immediately by an empty parent-scoped list. Twenty direct
+HTTP trials with active/inactive users did not reproduce it. The current
+creation helper still reports the issued UUID and verification failure;
+it does not replay POST or bypass scoped membership proof using detail GET,
+whose parent-scoping issue is tracked by Q21. No new retry workaround or
+strong-consistency guarantee is inferred from the successful trials.
 
 ## Principal type changes
 

@@ -86,6 +86,9 @@ type PlannedChange struct {
 	SecretWrites            []SecretWriteIntent      `json:"secret_writes,omitempty"`
 	ForceDelete             bool                     `json:"force_delete,omitempty"`
 	IdentityReferenceScopes []IdentityReferenceScope `json:"identity_reference_scopes,omitempty"`
+	// MetadataMerge makes principal metadata a patch against fresh execution state.
+	// It is client intent and must never be included in an API request body.
+	MetadataMerge bool `json:"metadata_merge,omitempty"`
 }
 
 // IdentityReferenceScope retains the explicitly observed collections whose

@@ -1,11 +1,41 @@
 package resources
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 )
+
+const (
+	IdentityMetadataModeMerge = "merge"
+	IdentityMetadataModeSync  = "sync"
+)
+
+// MergeIdentityMetadata retains unmentioned public keys, preserving integer
+// precision when converting an SDK observation to declarative values.
+func MergeIdentityMetadata(current any, updates map[string]any) (map[string]any, error) {
+	data, err := json.Marshal(current)
+	if err != nil {
+		return nil, fmt.Errorf("invalid current principal metadata")
+	}
+	var merged map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&merged); err != nil {
+		return nil, fmt.Errorf("invalid current principal metadata")
+	}
+	if merged == nil {
+		merged = make(map[string]any)
+	}
+	maps.Copy(merged, updates)
+	if err := ValidateIdentityMetadata(merged); err != nil {
+		return nil, err
+	}
+	return merged, nil
+}
 
 // ValidateIdentityMetadata checks the shared public value shapes and the
 // decimal/binary64 model of the observed API round trip (Q31).

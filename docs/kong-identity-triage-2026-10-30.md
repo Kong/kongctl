@@ -7,6 +7,38 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Latest update: November 1, 2026 (US Central).
+
+The preceding checkpoint is `94556ccb`: generated principal/group API-key
+declarations, private capture, saved authority checks and scoped retirement.
+Thirty Identity live scenarios passed together at that checkpoint. The
+auth-server and directory administrative families have examples and broad
+declarative lifecycle support; explicit operations handle secret lifecycle,
+shared OAuth enrollment and complete-file organization-chart import.
+
+The current increment adds general principal CSV declarations,
+offline inspection, optional UUID assertions and public metadata merge/sync
+policies (#1419). Section 65 records the contract. All thirty-one Identity live
+scenarios, corrected repository gates and all twenty existing replay scenarios
+pass. Independent privacy/cleanup checks pass and default settings are restored.
+No SDK change is required beyond preview `90596b498bcb`.
+
+The main unfinished implementation is populated principal Vault authorization
+revocation (#2663), which needs Q30's supported runtime enrollment fixture.
+Compatibility restrictions remain tied to their API questions; successful
+administrative writes do not establish runtime authentication or revocation.
+Q52 records one identity POST/list visibility discrepancy, with twenty native
+follow-up trials unable to reproduce it. No POST replay workaround was added.
+
+The [API questions](kong-identity-api-questions.md),
+[compatibility tracker](contributor/kong-identity-compatibility.md) and
+[metadata ledger](contributor/kong-identity-metadata-storage.md) are current
+handoff documents. Issues stay open/In Progress until main merge. No
+implementation PR or SDK release is authorized. The implied default-directory
+imperative flag remains a later-iteration TODO.
+
+## Historical branch checkpoints
+
 Latest verification: October 31, 2026 (US Central).
 
 Provider and principal Vault credential metadata now have scoped get/list
@@ -4485,3 +4517,92 @@ are API behavior questions in docs/kong-identity-api-questions.md; this slice
 does not claim runtime authentication/revocation proof. #1417/#2659 stay open
 and In Progress until main merge. General CSV import #1419 and populated
 principal Vault authorization/revocation #2663 remain separate work.
+
+## 65. General principal CSV declarations and public metadata modes
+
+Issue #1419 has a YAML collection frontend rather than a separate mutating
+bulk importer. A principal collection can use !csv with a relative path and
+explicit metadata_mode:merge or sync. Each record represents one principal;
+public maps and nested identity/generated-key/basic-auth arrays use JSON
+cells. The example uses an external directory named default. The separate
+native org-chart importer retains its own CSV format and provisioning scope.
+
+The offline inspect identity principal-csv command validates a bounded local
+file and prints structural counts in text/JSON/YAML, with
+remote_state_checked:false. Normal plan/diff/apply/sync/delete then use the
+existing resource planners, ownership rules, capture preflight and retirement
+guards. There is no second API write engine or new remote metadata convention.
+
+CSV requires unique local refs and supports optional UUID assertions. An
+assertion must match the principal already selected by directory, namespace
+and persisted ref; it cannot create, adopt or retarget a resource. Duplicate
+UUIDs are checked case-insensitively. Duplicate headers/refs/JSON keys,
+unsupported fields, parent conflicts, malformed values and excessive JSON
+nesting are rejected before API mutation, with row/column errors that withhold
+cell values. Regular local UTF-8 inputs use the existing !file path/symlink
+boundary and size limit. CSV does not resolve embedded templates, environment
+or secret encodings; reference-looking strings stay literal.
+
+Blank cells omit a property. Explicit empty child arrays scope ordinary sync
+retirement; an empty/header-only CSV supplies an explicit empty principal
+collection. Unknown, imported and foreign resources retain the ordinary
+preservation rules. Generated API-key creation requires private capture before
+any planned writes. Imported key material/passwords remain in explicit
+workflows under Q28/Q35, rather than being silently granted ownership through
+CSV. Cross-resource references and deferred secret configuration can accompany
+the CSV in ordinary YAML declarations.
+
+Public metadata merge adds/replaces supplied keys and preserves unmentioned
+keys; arrays replace their complete value. Planning previews the effective
+map but saves only the patch with explicit merge intent. Execution merges it
+against fresh current state, validates the complete map and preserves integer
+precision and unrelated public fields before PUT. Sync replaces the map;
+explicit empty sync clears it, and empty merge is a no-op. Existing YAML
+without metadata_mode retains replacement behavior. These public-field modes
+are separate from collection deletion through the sync command.
+
+New saved plans use format 1.2 so an older executor rejects merge intent rather
+than treating its patch as a replacement map. This binary still reads ordinary
+1.0/1.1 plans. Merge intent is rejected on those versions, unsupported resource
+types/actions or absent/null patches. Dump emits ordinary configuration without
+CSV bindings, metadata_mode, private captures or raw management maps. Reload
+replans to zero changes.
+
+The first full live run passes the new CSV lifecycle and thirty of thirty-one
+Identity scenarios. Its one failure is an existing Trusted IdP sequence:
+identity POST returns 201 and the immediate parent-scoped list returns empty.
+Creation is not replayed. All fixtures are cleaned and default settings are
+restored. Twenty subsequent native active/inactive-user trials have no
+immediate list miss and preserve the entire original default directory. Q52
+records the observation and remaining uncertainty without claiming the full
+surrounding trust-replacement sequence was reproduced.
+
+Broader replay verification finds an independent planner integration bug:
+apply/delete with no declared directory reads the directory collection. A
+focused zero-read regression fails before the guard and passes after it.
+The guard preserves declared external parents, child planning and existing
+explicit sync scope. All twenty enabled replay scenarios then pass without
+changing any cassette or registry membership. No SDK/API correction is needed.
+
+Modernization, stable formatting, CGO-disabled build and corrected full
+make test-all pass, including zero-issue lint, unit/integration/harness race
+checks, nine SDK patch tests, 140 metrics tests and installer checks. All
+thirty-one Identity live scenarios pass together in 598.552s; the new CSV
+lifecycle passes in 19.79s with twelve assertions. Independent artifact checks
+verify saved merge/legacy replacement, UUID errors, dump no-op, eight removed
+private capture directories, seven removed workspaces and no copied CSV/key
+sources/captures or administrative token/base64. Default public settings are
+restored unmanaged, and principal/group/IdP/provider/Vault-key/auth-server
+inventories are empty. The successful trust sequence adds no identity POST
+retry or scoped-proof bypass; Q52 still records the earlier occurrence.
+
+Evidence is in the local cache under principal-csv-all,
+identity-read-visibility-native.json,
+principal-csv-replay-corrected-results.json,
+principal-csv-corrected-final-gates.json/.log and
+principal-csv-corrected-all/20261101-021808, with independent
+artifact/declarative-key/CSV verification receipts and the final inventory.
+The example/tutorial are principal-csv.yaml, principals.csv and principal-csv.md
+under docs/examples/declarative/identity. The metadata ledger and compatibility
+tracker record client-only intent and removal criteria. SDK remains
+90596b498bcb; no SDK change, release or PR.

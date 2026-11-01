@@ -11,6 +11,8 @@ const (
 	TagExternal = "!external"
 	// TagFile identifies file-backed values.
 	TagFile = "!file"
+	// TagCSV identifies a principal collection loaded from a bounded local CSV.
+	TagCSV = "!csv"
 	// TagLookup identifies the alias for planner-time external lookups.
 	TagLookup = "!lookup"
 	// TagRef identifies declarative resource references.

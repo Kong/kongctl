@@ -203,6 +203,17 @@ func (a *IdentityPrincipalAdapter) Update(ctx context.Context, id string, reques
 			after[field] = raw
 		}
 	}
+	if execCtx.PlannedChange.MetadataMerge {
+		patch, ok := mapped[planner.FieldMetadata].(map[string]any)
+		if !ok {
+			return "", fmt.Errorf("principal metadata merge requires an object patch")
+		}
+		merged, err := resources.MergeIdentityMetadata(current.Metadata, patch)
+		if err != nil {
+			return "", err
+		}
+		after[planner.FieldMetadata] = merged
+	}
 	if resources.IsChildProtected(current.ManagedBy) {
 		oldPublic, nextPublic := maps.Clone(before), maps.Clone(after)
 		delete(oldPublic, planner.FieldManagedBy)

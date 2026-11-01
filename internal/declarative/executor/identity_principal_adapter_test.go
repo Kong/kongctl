@@ -14,6 +14,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPrincipalSavedMetadataMergeRetainsFreshKeys(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	change := execCtx.PlannedChange
+	change.Fields[planner.FieldMetadata] = map[string]any{"team": "fulfillment"}
+	change.MetadataMerge = true
+	encoded, err := json.Marshal(change)
+	require.NoError(t, err)
+	var saved planner.PlannedChange
+	require.NoError(t, json.Unmarshal(encoded, &saved))
+	execCtx = NewExecutionContext(&saved)
+	// Added after planning: a merge must retain it, as well as omitted public fields.
+	api.Directories["directory-id"][0].Metadata["late"] = kkComps.CreateKongIdentityMetadataBoolean(true)
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, saved.Fields, &request, nil))
+	_, err = a.Update(t.Context(), saved.ResourceID, request, saved.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Len(t, api.Writes, 1)
+	data, err := json.Marshal(api.Writes[0])
+	require.NoError(t, err)
+	var body map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &body))
+	require.JSONEq(t, `{"large":9007199254740994,"late":true,"team":"fulfillment"}`, string(body["metadata"]))
+	require.NotContains(t, string(data), "metadata_merge")
+	require.Equal(t, "Fresh description", *api.Writes[0].Description)
+}
+
+func TestPrincipalSavedMetadataReplacementRemovesUnmentionedKeys(t *testing.T) {
+	a, api, execCtx := principalExecutorFixture()
+	execCtx.PlannedChange.Fields[planner.FieldMetadata] = map[string]any{}
+	var request kkComps.ReplacePrincipalBody
+	require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+	_, err := a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+	require.NoError(t, err)
+	require.Len(t, api.Writes, 1)
+	require.Empty(t, api.Writes[0].Metadata)
+	require.Empty(t, api.Directories["directory-id"][0].Metadata)
+}
+
 func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAPI, *ExecutionContext) {
 	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{"directory-id": {{
 		ID: "principal-id", DisplayName: new("Current name"), Description: "Fresh description",

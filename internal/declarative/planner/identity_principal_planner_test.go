@@ -1,8 +1,10 @@
 package planner
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -11,6 +13,89 @@ import (
 	fixture "github.com/kong/kongctl/test/konnect"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPrincipalMetadataMergePlansPatchIntentAndFullPreview(t *testing.T) {
+	id := fixture.Directory("people", "directory-team", false).ID
+	current := principalObserved("alice", "principal-team")
+	current.Metadata = map[string]kkComps.KongIdentityMetadata{
+		"keep": kkComps.CreateKongIdentityMetadataStr("retained"),
+		"team": kkComps.CreateKongIdentityMetadataStr("old"),
+	}
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{id: {current}}}
+	d := principalDesired()
+	d.MetadataMode = resources.IdentityMetadataModeMerge
+	d.Metadata = map[string]any{"team": "new"}
+	plan, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	change := plan.Changes[0]
+	require.True(t, change.MetadataMerge)
+	require.Equal(t, map[string]any{"team": "new"}, change.Fields[FieldMetadata])
+	require.Equal(t, map[string]any{"keep": "retained", "team": "new"}, change.ChangedFields[FieldMetadata].New)
+	data, err := json.Marshal(plan)
+	require.NoError(t, err)
+	var saved Plan
+	require.NoError(t, json.Unmarshal(data, &saved))
+	require.True(t, saved.Changes[0].MetadataMerge)
+	require.NoError(t, ValidatePlanCompatibility(&saved))
+	for _, legacyVersion := range []string{"1.0", "1.1"} {
+		saved.Metadata.Version = legacyVersion
+		require.ErrorContains(t, ValidatePlanCompatibility(&saved), "metadata merge requires plan version")
+	}
+	api.Directories[id][0].Metadata["team"] = kkComps.CreateKongIdentityMetadataStr("new")
+	plan, err = principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes)
+	for _, mode := range []string{"", resources.IdentityMetadataModeSync} {
+		d.MetadataMode = mode
+		plan, err = principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+		require.NoError(t, err)
+		require.Len(t, plan.Changes, 1)
+		require.False(t, plan.Changes[0].MetadataMerge)
+		require.Equal(t, map[string]any{"team": "new"}, plan.Changes[0].Fields[FieldMetadata])
+	}
+}
+
+func TestPrincipalUUIDAssertionsNeverAuthorizeCreationOrAdoption(t *testing.T) {
+	id := fixture.Directory("people", "directory-team", false).ID
+	current := principalObserved("alice", "principal-team")
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{id: {current}}}
+	d := principalDesired()
+	d.ID = current.ID
+	d.DisplayName = new("Updated")
+	plan, err := principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.NoError(t, err)
+	require.Len(t, plan.Changes, 1)
+	require.Equal(t, current.ID, plan.Changes[0].ResourceID)
+	require.NotContains(t, plan.Changes[0].Fields, FieldID)
+	d.ID = strings.ToUpper(current.ID)
+	_, err = principalPlan(t, api, []resources.IdentityPrincipalResource{d}, PlanModeApply, true)
+	require.NoError(t, err)
+	for _, fault := range []string{"wrong-id", "missing", "unowned", "foreign", "different-ref"} {
+		t.Run(fault, func(t *testing.T) {
+			observed := principalObserved("alice", "principal-team")
+			desired := d
+			switch fault {
+			case "wrong-id":
+				desired.ID = "5078f559-063b-4f10-9098-9e6553b21d9b"
+			case "missing":
+				observed.ID = ""
+			case "unowned":
+				observed.ManagedBy = nil
+			case "foreign":
+				observed.ManagedBy[resources.ChildNamespaceKey] = "other"
+			case "different-ref":
+				observed.ManagedBy[resources.ManagedByRefKey] = "other"
+			}
+			api.Directories[id] = []kkComps.KongPrincipal{observed}
+			if fault == "missing" {
+				api.Directories[id] = nil
+			}
+			_, err := principalPlan(t, api, []resources.IdentityPrincipalResource{desired}, PlanModeApply, true)
+			require.ErrorContains(t, err, "id assertion")
+		})
+	}
+}
 
 func principalPlan(t *testing.T, api *fixture.PrincipalAPI, desired []resources.IdentityPrincipalResource,
 	mode PlanMode, scoped bool,

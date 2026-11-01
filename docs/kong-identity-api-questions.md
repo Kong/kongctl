@@ -1334,6 +1334,31 @@ behavior without automatically changing active state. The local evidence is
 org-chart-lifecycle-contracts.json; returned-row values are omitted from saved
 diagnostic text, and all fixtures are removed.
 
+### Q52 Principal-identity read-after-create visibility
+
+**Observed (November 1, 2026, US `.tech` HTTP trace):** Creating an OIDC
+identity for an inactive user returned `201` with an identity UUID and the
+submitted fields. The next parent-scoped list returned `200` with an empty
+`data` array and no next page. The list request began approximately 1 ms
+after the POST response and completed approximately 41 ms later.
+
+```http
+POST /v2/directories/{directoryId}/principals/{principalId}/identities
+GET /v2/directories/{directoryId}/principals/{principalId}/identities
+```
+
+**Question:** Does a successful identity creation guarantee immediate
+visibility in its principal's collection? If visibility can lag, what
+read-after-write guarantee and recommended verification interval apply?
+
+This was one captured occurrence, not a consistently reproduced failure.
+Twenty subsequent direct HTTP trials, split between active and inactive
+users, all returned the new identity in the first list. Those trials did
+not reproduce the complete Trusted IdP replacement sequence surrounding the
+original occurrence. No creation request was replayed. Evidence:
+principal-csv-all/20261101-020629 and identity-read-visibility-native.json in
+the local cache; the latter records counts/timing without credential values.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

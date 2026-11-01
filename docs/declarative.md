@@ -825,6 +825,22 @@ omitted fields. Type is create-only; optional `active` reconciliation requires
 the API to expose the current state. The `.tech` deployment supports it for
 directly provisioned principals.
 
+Principal metadata accepts explicit `metadata_mode: merge` or `sync` alongside
+`metadata`. Merge retains unmentioned keys using fresh execution-time state;
+sync replaces the map, and `{}` clears it. Existing YAML without a mode keeps
+replacement behavior. New plans use format `1.2` so older executors reject
+merge intent rather than applying a patch as a complete map. Ordinary `1.0`
+and `1.1` plans retain their original semantics when read by this binary.
+
+An optional principal `id` asserts that the namespace/ref match already exists
+with that UUID. It never authorizes creation or adoption. The
+[principal CSV tutorial](examples/declarative/identity/principal-csv.md) uses
+the same rules through `principals: !csv {path: principals.csv,
+metadata_mode: merge}`, with supported nested identities, generated keys and
+basic-auth records. `kongctl inspect identity principal-csv` validates CSV
+structure locally without contacting Konnect. This workflow is separate from
+the platform's organization-chart uploader.
+
 Token Vault public keys can be declared under a managed directory's
 `vault_keys`, or in grouped `identity.vault_keys`. They have no ownership
 metadata, so they inherit the explicitly managed directory's authority.
@@ -1228,7 +1244,7 @@ file-local. `_extends` is not interpreted inside `_defaults`.
 ### Patching tagged configuration
 
 `kongctl patch file` preserves custom tags in the input when writing YAML,
-including `!ref`, `!file`, `!env`, `!secret`, `!lookup`, and `!external`.
+including `!ref`, `!file`, `!csv`, `!env`, `!secret`, `!lookup`, and `!external`.
 Patching does not resolve references, read tagged files, evaluate environment
 variables, or fetch secrets. Tags survive even when no selector matches or
 the patch makes no changes.
@@ -1313,6 +1329,17 @@ planner performs the remote lookup. Diagnostics redact that selector value.
 After a match is found, only the resolved resource ID is written to the plan.
 Saved-plan execution does not read the environment variable again or repeat
 the lookup, even if the environment later changes.
+
+### Loading Principal Collections from CSV
+
+Use `!csv` on `identity.principals` or a directory's nested `principals`.
+Its mapping requires `path` and explicit `metadata_mode: merge` or `sync`.
+Paths follow the same source/root boundary as `!file`, and the input must be
+a bounded regular local file. Blank cells preserve fields; `{}` and `[]`
+express empty maps and child collections. CSV does not execute YAML tags,
+templates or deferred sources embedded in cells. See the
+[CSV tutorial](examples/declarative/identity/principal-csv.md) for headers,
+JSON cell encoding, UUID assertions, supported credentials and sync authority.
 
 ### Loading File Content to YAML Fields
 

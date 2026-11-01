@@ -18,6 +18,17 @@ func init() {
 		AutoExplain[IdentityPrincipalResource](
 			WithExplainAliases("identity.principals", "principal", "principals"),
 			WithExplainRecommendedFields("ref", "directory", "display_name"),
+			WithExplainFieldHint("id", ExplainFieldHint{Notes: []string{
+				"Optional assertion against an existing managed principal's UUID. " +
+					"The namespace/ref match must already exist; no creation or adoption is authorized by this field.",
+			}}),
+			WithExplainFieldHint("metadata_mode", ExplainFieldHint{
+				Enum: []any{IdentityMetadataModeMerge, IdentityMetadataModeSync},
+				Notes: []string{
+					"merge preserves unmentioned keys using fresh state; sync replaces the complete metadata map. " +
+						"Omission retains established replacement behavior. Requires explicit metadata.",
+				},
+			}),
 			WithExplainFieldHint(
 				"active",
 				ExplainFieldHint{Notes: []string{
@@ -90,10 +101,12 @@ type IdentityPrincipalResource struct {
 	External     *ExternalBlock                      `yaml:"_external,omitempty"    json:"_external,omitempty"`
 	BaseResource `                                    yaml:",inline"                json:",inline"`
 	Directory    string            `yaml:"directory,omitempty"    json:"directory,omitempty"`
+	ID           string            `yaml:"id,omitempty"           json:"id,omitempty"`
 	DisplayName  *string           `yaml:"display_name,omitempty" json:"display_name,omitempty"`
 	Description  *string           `yaml:"description,omitempty"  json:"description,omitempty"`
 	Type         *string           `yaml:"type,omitempty"         json:"type,omitempty"`
 	Metadata     map[string]any    `yaml:"metadata,omitempty"     json:"metadata,omitempty"`
+	MetadataMode string            `yaml:"metadata_mode,omitempty" json:"metadata_mode,omitempty"`
 	Labels       map[string]string `yaml:"labels,omitempty"       json:"labels,omitempty"`
 	Active       *bool             `yaml:"active,omitempty"       json:"active,omitempty"`
 	typeDeclared bool
@@ -114,6 +127,12 @@ func (p *IdentityPrincipalResource) UnmarshalJSON(data []byte) error {
 	if raw, present := fields["active"]; present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return fmt.Errorf("principal active must be a boolean")
 	}
+	if _, present := fields["metadata_mode"]; present && value.MetadataMode == "" {
+		return fmt.Errorf("principal metadata_mode must be merge or sync")
+	}
+	if raw, present := fields["id"]; present && bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return fmt.Errorf("principal id assertion must be a UUID")
+	}
 	*p = IdentityPrincipalResource(value)
 	_, p.typeDeclared = fields["type"]
 	return nil
@@ -125,18 +144,27 @@ func (p IdentityPrincipalResource) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.TypeDeclared() {
+	if !p.TypeDeclared() && p.Metadata == nil {
 		return data, nil
 	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil {
 		return nil, err
 	}
-	typeData, err := json.Marshal(p.Type)
-	if err != nil {
-		return nil, err
+	if p.TypeDeclared() {
+		typeData, err := json.Marshal(p.Type)
+		if err != nil {
+			return nil, err
+		}
+		fields["type"] = typeData
 	}
-	fields["type"] = typeData
+	if p.Metadata != nil {
+		metadata, err := json.Marshal(p.Metadata)
+		if err != nil {
+			return nil, err
+		}
+		fields["metadata"] = metadata
+	}
 	return json.Marshal(fields)
 }
 
@@ -193,6 +221,9 @@ func (p IdentityPrincipalResource) Validate() error {
 		return err
 	}
 	if p.IsExternal() {
+		if p.MetadataMode != "" || p.ID != "" {
+			return fmt.Errorf("external principals cannot request managed UUID assertions or metadata mutation modes")
+		}
 		if err := p.External.Validate(); err != nil {
 			return err
 		}
@@ -202,6 +233,17 @@ func (p IdentityPrincipalResource) Validate() error {
 			)
 		}
 		return nil
+	}
+	if p.ID != "" && !util.IsValidUUID(p.ID) {
+		return fmt.Errorf("principal id assertion must be a UUID")
+	}
+	if p.MetadataMode != "" {
+		if p.MetadataMode != IdentityMetadataModeMerge && p.MetadataMode != IdentityMetadataModeSync {
+			return fmt.Errorf("principal metadata_mode must be merge or sync")
+		}
+		if p.Metadata == nil {
+			return fmt.Errorf("principal metadata_mode requires explicit metadata")
+		}
 	}
 	if p.Type != nil && *p.Type != "user" && *p.Type != "agent" {
 		return fmt.Errorf("type must be user, agent, or null")
