@@ -1071,6 +1071,31 @@ The 49-request public-setting probe is recorded in
 contains no supplied secrets or enrollment capabilities. All fixtures were
 removed and the original default directory settings restored.
 
+### Q44 Trusted IdP deletion and existing principal associations
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** A trusted IdP's
+associated-principal collection includes ordinary principals with matching
+OIDC identities, including an inactive principal. Updating an identity to a
+different issuer removes that principal from the old IdP's collection; deleting
+the last matching identity also removes the association. Deleting an IdP while
+an association exists returns 204. The principal and its matching OIDC identity
+are readable afterward, with the old issuer value unchanged. Runtime access
+after trust removal was not tested.
+
+```http
+DELETE /v2/directories/{directoryId}/trusted-idps/{trustedIdpId}
+```
+
+**Question:** Which runtime operations continue to accept an existing
+principal's OIDC identity after its trusted IdP configuration is deleted? Is
+leaving that identity configured intentional? Is a conditional deletion option
+available that rejects associated records, including concurrent associations?
+
+The 47-request public contract probe is recorded in
+trusted-idp-lifecycle-contracts.json and trusted-idp-lifecycle-summary.json in
+the local evidence cache. All disposable IdPs, principals, identities and
+signing fixtures were removed and the original default settings restored.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

@@ -1064,3 +1064,29 @@ dump/reload, dependency guards and parent bootstrap/retirement. Public-state
 and request tests do not prove stored-secret continuity, OAuth consent or
 runtime dynamic registration; Q30/Q39–Q43 retain those API boundaries. SDK
 version remains `2597fe249e26`.
+
+## Trusted IdP write foundations
+
+Public create, hydrated full PUT and guarded delete helpers are verified
+against US `.tech`. PUT preserves every supplied public field, supports
+clearing nullable display/JWKS overrides, and normalizes an empty JIT mapping
+to no mapping. Omitted declaration fields must be hydrated from fresh state;
+the PUT defaults must not reset omitted booleans. No secret hydration is needed.
+
+Directory-scoped collection membership and the exact issuer are checked before
+updates/deletion because detail responses have no directory ID. Deletion also
+requires an explicitly terminal empty associated-principal observation. An
+inactive principal still blocks deletion. Explicit identity retargeting or
+deletion detaches the association. Trust deletion never authorizes mutation
+of independently owned principals or identities.
+
+Native deletion accepts associated records and leaves principals/identities
+readable; Q44 asks about runtime behavior and conditional deletion. The client
+cannot eliminate the race between a fresh empty observation and DELETE.
+Write helpers make one mutation attempt and check public receipts/readback.
+They establish no independent ownership metadata or declarative authority.
+
+Evidence consists of 47 native requests and a separate 36-request probe using
+the actual SDK-backed helpers. Fixtures were removed and the original default
+directory settings restored. SDK version remains `2597fe249e26`; full trust
+declarations, examples and lifecycle E2E remain the next integration work.
