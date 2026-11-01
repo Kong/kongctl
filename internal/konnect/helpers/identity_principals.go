@@ -163,6 +163,22 @@ func IdentityPrincipalReplacement(value IdentityPrincipal) kkComps.ReplacePrinci
 	}
 }
 
+// The public preview omits this development enum member, but its string-backed
+// SDK type preserves the native value. Do not infer ownership from managed_by
+// after the importer has adopted a previously API-managed principal.
+func IsImportedIdentityPrincipal(value IdentityPrincipal) bool {
+	return value.ProvisionedBy != nil && string(*value.ProvisionedBy) == "imported"
+}
+
+func ValidateIdentityPrincipalManagement(value IdentityPrincipal) error {
+	if IsImportedIdentityPrincipal(value) {
+		return fmt.Errorf(
+			"principal is managed by the organization-chart importer; use an external reference (Q49)",
+		)
+	}
+	return nil
+}
+
 // ValidatePrincipalActiveUpdate requires observable state for explicit writes.
 func ValidatePrincipalActiveUpdate(value IdentityPrincipal, desired *bool) error {
 	if desired == nil {

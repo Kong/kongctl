@@ -101,7 +101,7 @@ or protection metadata on them.
 | Shared provider credentials | Generated ID; default/routing-priority slot under provider | Static declarations inherit managed-directory authority; refs stay local and material replacement is explicit. Shared OAuth uses explicit private capture/reissuance and retirement without metadata stamping. OAuth routing PUT and actual consent remain outside this verification. Q30/Q45–Q47, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Public provider/principal inspection is implemented without adopting authorizations. Actual enrollment/revocation needs supported runtime context; it is not established by empty lists. Q30, #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
-| Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
+| Org-chart import operation | Directory plus CSV import contract | Import stamps no KongCTL metadata. New users/teams have empty maps; adopted users can retain old managed_by while becoming imported. Principal management rejects that provisioning state and dump uses external UUIDs. Explicit import upload/reporting is still pending. Q48–Q50, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 
 Token Vault public keys now inherit ownership from an explicitly managed
@@ -145,6 +145,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 US Central, org-chart ownership: native import retains an adopted
+  user's UUID and existing managed_by while changing provisioned_by to imported.
+  It creates new users/teams with empty maps. Retained markers do not authorize
+  ordinary principal management: declarative writes/pruning/adoption reject
+  imported state, saved writes recheck it, and dump uses external UUIDs.
+  Native import stamps no KongCTL ownership. Explicit deactivation/release is
+  separate from declarative configuration. Q48–Q50 capture API contracts.
 
 - October 31 US Central, shared OAuth enrollment: explicit commands create
   pending records, capture/reissue URLs in exclusive private files, and retire

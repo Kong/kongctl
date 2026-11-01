@@ -39,3 +39,18 @@ func TestAdoptPrincipalPreservesFieldsAndRejectsConflicts(t *testing.T) {
 	require.ErrorContains(t, err, "another principal")
 	require.Len(t, api.Writes, 1)
 }
+
+func TestAdoptPrincipalRejectsImportedProvisioningEvenWithRetainedMetadata(t *testing.T) {
+	const directoryID = "7a5e1b58-48a4-4586-b02d-0d91eccca152"
+	const id = "1248f559-063b-4f10-9098-9e6553b21d9b"
+	for _, retained := range []bool{false, true} {
+		current := kkComps.KongPrincipal{ID: id, ProvisionedBy: new(kkComps.ProvisionedBy("imported"))}
+		if retained {
+			current.ManagedBy = resources.BuildPrincipalManagedBy("old-team", "employee", false, "dev")
+		}
+		api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{directoryID: {current}}}
+		_, err := adoptIdentityPrincipal(t.Context(), api, directoryID, id, "employee", "new-team", true)
+		require.ErrorContains(t, err, "organization-chart importer")
+		require.Empty(t, api.Writes)
+	}
+}

@@ -1,5 +1,9 @@
 # Kong Identity administration
 
+[Organization-chart imports and ownership](org-chart.md) explains the native
+CSV format, imported users/teams, retained metadata and ordinary declarative
+boundaries. The example CSV is distinct from an implemented import command.
+
 [Token Vault credential inspection](vault-credentials.md) explains shared
 static/OAuth routing slots and principal authorizations. Public metadata reads
 do not issue enrollment capabilities or grant credential ownership. Credential

@@ -103,7 +103,9 @@ func identityDirectoryCollector() declarativeCollector {
 				principalRefs := make(map[string]string, len(principals))
 				for _, current := range principals {
 					ref := current.ID
-					if current.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool {
+					managed := current.ManagedBy[resources.ManagedByToolKey] == resources.ManagedByTool &&
+						!helpers.IsImportedIdentityPrincipal(current.IdentityPrincipal)
+					if managed {
 						if err := resources.ValidateRef(current.GetName()); err != nil {
 							return fmt.Errorf(
 								"principal %s has invalid persisted ref; explicitly adopt it before dumping",
@@ -138,7 +140,7 @@ func identityDirectoryCollector() declarativeCollector {
 						DisplayName: current.DisplayName, Description: &current.Description, Metadata: metadata, Labels: current.Labels,
 						Active: current.Active,
 					}
-					if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
+					if !managed {
 						principal.External = &resources.ExternalBlock{ID: current.ID}
 						principal.Kongctl = nil
 					}

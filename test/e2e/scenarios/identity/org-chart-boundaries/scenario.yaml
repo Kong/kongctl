@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_ORG_CHART_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Verify importer adoption boundaries against retained management metadata, fresh and saved declarative writes, adoption, public inspection and external dump/replan. The native CSV endpoint supplies the fixture; this scenario does not claim an implemented import command or ordinary chart CRUD.
+steps:
+  - name: 001-importer-ownership-boundary
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-importer-boundary
+        timeout: 4m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/boundaries.py'
+          - '{{ .bin }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+          - '{{ .workdir }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                native_adoption_retains_metadata: true
+                imported_provisioning_observed: true
+                fresh_management_blocked: true
+                saved_writes_blocked: true
+                ordinary_adoption_blocked: true
+                metadata_reads_work: true
+                dump_replans_external: true
+                blocked_operations_preserve_state: true
+                private_workspace_removed: true
+                fixtures_removed: true
