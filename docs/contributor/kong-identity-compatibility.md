@@ -511,6 +511,13 @@ explicit field limitation rather than a guessed workspace contract.
 
 ## Directory cursor request serialization
 
+The principal-group collection is the seventeenth operation in the canonical
+cursor patch. Native page-size-one reads verify disjoint pages and next-link
+cursor extraction; flat size is ignored. The expanded actual-SDK regression
+fails only ListPrincipalGroups against the previous preview, then passes all
+seventeen methods after correction. Its dedicated CLI reader and consumer pin
+are being implemented under #2658. Response models do not change.
+
 The principal API-key reader is now included in the cursor correction under
 Q22, in preview SDK `70a2818dde13` from patch bundle `0103edc5`. Actual SDK wire
 tests fail before its request-tag correction and pass afterward. A live

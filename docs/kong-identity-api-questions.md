@@ -527,6 +527,23 @@ provider-credential-routing-contracts.json and
 credential-other-cursor-contracts.json in the local evidence cache. All
 fixtures were removed and default settings restored.
 
+**Additional US `.tech` verification (November 1, 2026, US Central):**
+The principal-group projection follows the same bracketed query contract:
+
+```http
+GET /v2/directories/{directoryId}/principals/{principalId}/groups
+```
+
+Two direct group memberships traverse disjoint pages with page[size]=1 and
+the cursor extracted from the returned next-page URL. Flat size=1 returns
+both records. The corresponding generated request also has a form-style
+Page tag. An expanded seventeen-operation wire regression fails only the
+new principal-group case against the previous preview, then passes after
+the targeted tag correction. This is another use of the shared annotation,
+not a separate pagination API defect. Evidence:
+principal-group-native-contracts.json in the local cache. The original
+default directory is unchanged and all fixtures are removed.
+
 ### Q23 Principal identity quotas
 
 **Question:** Are identity-count limits scoped per principal, directory or
