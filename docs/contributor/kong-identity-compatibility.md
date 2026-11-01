@@ -1034,8 +1034,15 @@ PUT, arbitrary management maps, wrong parent scopes, two-slot limits, all
 output formats, selected/all deletion and unchanged username plans. Username
 declarative deletion refuses attached passwords. Runtime authentication needs
 Q30's integration context; metadata-only password adoption needs Q35's API
-contract. Correcting those contracts is necessary before considering a
-declarative password resource; these commands do not claim that support.
+contract. These are separate from a possible generated-only declaration that
+records immutable creation markers and inherits current managed-username
+authority, following the newer generated API-key convention. Q35 alone does
+not establish that such enrollment is impossible: password create already
+retains supplied management metadata. That subset needs its own design,
+implementation and lifecycle/capture verification, including the two-slot
+limit and uncertain issuance. It is not implemented or claimed by the current
+password commands. Existing/imported password adoption and implicit material
+rotation are not inferred from this candidate.
 
 ## Token Vault contracts and list cursor SDK correction
 
