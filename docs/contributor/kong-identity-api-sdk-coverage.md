@@ -10,13 +10,14 @@ current consumer and 15 deliberately unused methods.** The latter include one
 unfinished principal Vault revocation workflow, alternate write routes and
 explicitly separate follow-ons. A method reference alone proves no lifecycle.
 
-Use public SDK preview `37580cf8cdf591506b2e9fd55d28e917b1dcac35`, consumed as
-`v0.79.1-0.20261101084607-37580cf8cdf5`. This is the first verified preview
-checkpoint with all seventeen Identity cursor corrections. It is a branch
-dependency, not an SDK release or a guarantee about unverified future versions.
-The immediately preceding preview already has these operation symbols; the
-generated-code delta is one principal-group request query tag, with no
-component-model or unrelated API changes. Patch provenance is KongCTL
+Use public SDK preview `2f51ede0670e1e6a27b130e8d6e659f73f7f4bf0`, consumed as
+`v0.79.1-0.20261101101317-2f51ede0670e`. It preserves the Identity operation
+surface and all seventeen cursor corrections from 37580cf8cdf5. Two additional
+Registry GETs supply the cross-service retirement dependency below; they are
+outside the 112-operation Identity count. An AST comparison preserves all
+61,406 pre-existing public declarations, signatures and struct wire tags.
+This is a branch dependency, not an SDK release or a guarantee about future
+versions. Canonical KongCTL patch provenance remains
 `5680da0f5da0a6a26a0a6e8f758da5d888a64553`.
 
 Sources: [pinned public SDK][sdk], [canonical SDK patches][patches],
@@ -32,6 +33,7 @@ The per-family issue scopes are #1399/#1400–#1404 and
 | Auth-server administration, Sliver `/v1/auth-servers` | Server/client/scope/claim configuration and explicit secret lifecycle. OAuth client-credentials issuance/rotation also has runtime tests. |
 | Directory administration, `/v2/directories`, plus template catalog | Configuration, ownership, direct memberships, public credential observation and explicit enrollment/import workflows within their documented boundaries. |
 | Identity runtime authentication and lookup | Not desired-state resources. Supported runtime mTLS context is missing (Q30); administrative reads do not prove credential authentication, enrollment or revocation. This is separate from working auth-server client-credentials tests. |
+| Registry Agent incoming references, `/v1/agents` | Two read-only inventory methods guard Identity principal/directory retirement. No Registry declarations, ownership stamping or mutation authority are added. |
 
 Still-gated realm/configuration, directory-key/quota/org-chart-root operations,
 JWK/Connected-App follow-ons and runtime authentication/lookup are outside this
@@ -63,6 +65,32 @@ It does not establish token continuity for user-enrolled credentials or any
 Q30-dependent runtime behavior. Shared OAuth pending creation is not consent.
 
 ## Per-operation matrix
+
+### Registry incoming-reference dependency
+
+These two operations extend the selected preview to 114 tracked operations:
+99 consumer methods and 15 deliberately unused Identity methods. Their source
+is the Agent Registry v1 specification at platform-api 79a35a9a281b. Only the
+two reads and their transitive component dependencies have gating removed.
+The bundled inputs, transform tests and provenance live under the SDK's
+identity-preview directory. Existing paths/components remain unchanged.
+
+| HTTP method and route | SDK method | Consumer | Live evidence |
+| --- | --- | --- | --- |
+| `GET /v1/agents` | `RegistryAgentReferences.ListAgents` | used | 200, native three-Agent pagination and Registry guard scenario |
+| `GET /v1/agents/{agentId}/principals` | `RegistryAgentReferences.ListAgentPrincipals` | used | 200, native linked/empty/terminal pages and Registry guard scenario |
+
+The focused US .tech scenario passes with 13 CLI invocations, 45 Registry GETs
+and ten outcomes. It verifies late saved-plan links, scoped sync, dangling
+directory targets, explicit unlinking, preserved updates and configured hosts.
+CLI logs remain in a removed private workspace; only count/host/method receipts
+are saved. Source-defined operation servers require an explicit per-operation
+URL override; the consumer supplies its configured regional origin for both
+reads. Missing permissions or unavailable Registry APIs block target retirement.
+All 33 Identity live scenarios subsequently pass together on this pin in
+633.61s, including the Registry scenario in 12.16s. Repository gates pass.
+Evidence is registry-guards-all/20261101-042019 and its verification receipts
+under the local cache; default settings are restored and inventories are empty.
 
 ### AuthServer
 
@@ -303,11 +331,11 @@ outputs and import reports are not part of this matrix or its evidence index.
 
 The remaining populated principal Vault lookup/revocation evidence is absent;
 do not count empty collections as that proof. API constraints, temporary client
-handling and removal triggers stay in the compatibility tracker and Q1–Q52.
+handling and removal triggers stay in the compatibility tracker and Q1–Q53.
 Issues remain open/In Progress until merge to main. No PR or SDK release is
 created by this report.
 
-[sdk]: https://github.com/Kong/sdk-konnect-go/tree/37580cf8cdf591506b2e9fd55d28e917b1dcac35
+[sdk]: https://github.com/Kong/sdk-konnect-go/tree/2f51ede0670e1e6a27b130e8d6e659f73f7f4bf0
 [patches]: ../../tools/sdk-patches/README.md
 [compatibility]: kong-identity-compatibility.md
 [metadata]: kong-identity-metadata-storage.md

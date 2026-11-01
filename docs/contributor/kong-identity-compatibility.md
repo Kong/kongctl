@@ -1481,3 +1481,32 @@ documented and verified API contract. Q48/Q49 still cover source isolation and
 ownership transfer; Q50 covers the public enum/adoption-count schema gaps.
 No SDK revision is needed: the existing multipart operation is wire-tested and
 the complete response is projected from raw JSON.
+
+## Registry Agent references before Identity retirement
+
+Q53 verifies that native principal DELETE succeeds while the Registry Agent's
+principal association retains the deleted principal's directory/principal IDs.
+This differs from the Identity principal's own child associations.
+
+Principal and directory deletion now require a complete, unfiltered inventory
+of Registry Agents and their principal associations. Matching uses the stored
+directory/principal tuple, not ownership labels or display names. A directory
+match blocks retirement even if the referenced principal no longer exists.
+No Registry association is automatically removed or adopted. These checks run
+on the final merged deletion plan and again against fresh execution state.
+Non-deleting Identity operations and unrelated resource retirement do not
+require this Registry inventory.
+
+HTTP errors, missing APIs and invalid, incomplete, repeated or changing page
+observations block retirement. The caller therefore needs Registry read
+permissions, and deployments without these endpoints cannot use declarative
+principal/directory deletion. This is a conservative reference-integrity
+boundary, not evidence that an unavailable endpoint has no stored references.
+
+The preview SDK adds only the two GET operations in version 2f51ede0670e;
+existing public SDK declarations and wire tags are preserved. The helper
+explicitly supplies the configured regional API origin because source-defined
+operation servers otherwise select the default US server. Q53's directory
+DELETE variant has not been directly probed and is not claimed as a native
+defect. Remove or narrow these guards only after the native integrity contract
+is documented and verified, including an atomic deletion precondition.

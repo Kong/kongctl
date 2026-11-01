@@ -72,10 +72,11 @@ func principalExecutorFixture() (*IdentityPrincipalAdapter, *fixture.PrincipalAP
 	return &IdentityPrincipalAdapter{
 			client: state.NewClient(
 				state.ClientConfig{
-					IdentityPrincipalsAPI:       api,
-					IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-					IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-					IdentityGroupsAPI:           &fixture.GroupAPI{},
+					RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+					IdentityPrincipalsAPI:         api,
+					IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
+					IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
+					IdentityGroupsAPI:             &fixture.GroupAPI{},
 				},
 			),
 		}, api, NewExecutionContext(
@@ -110,6 +111,7 @@ func TestPrincipalSavedDeleteRechecksIncomingGroupMemberships(t *testing.T) {
 				groups.Failure = "membership"
 			}
 			a.client = state.NewClient(state.ClientConfig{
+				RegistryAgentReferencesReader:  &fixture.RegistryReferencesAPI{},
 				IdentityPrincipalsAPI:          principals,
 				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 				IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
@@ -163,7 +165,8 @@ func TestPrincipalSavedDeleteRechecksCredentialChildren(t *testing.T) {
 				credentials.Failure = "keys"
 			}
 			config := state.ClientConfig{
-				IdentityPrincipalsAPI: principals, IdentityGroupsAPI: &fixture.GroupAPI{},
+				RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+				IdentityPrincipalsAPI:         principals, IdentityGroupsAPI: &fixture.GroupAPI{},
 				IdentityPrincipalIdentitiesAPI: &fixture.PrincipalIdentitiesAPI{},
 			}
 			if mode != "unconfigured-basic" {
@@ -354,10 +357,11 @@ func TestPrincipalSavedDeleteRechecksIdentityChildren(t *testing.T) {
 				}
 			}
 			config := state.ClientConfig{
-				IdentityPrincipalsAPI:       api,
-				IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-				IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-				IdentityGroupsAPI:           &fixture.GroupAPI{},
+				RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+				IdentityPrincipalsAPI:         api,
+				IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
+				IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
+				IdentityGroupsAPI:             &fixture.GroupAPI{},
 			}
 			if mode != "unconfigured" {
 				config.IdentityPrincipalIdentitiesAPI = identities
