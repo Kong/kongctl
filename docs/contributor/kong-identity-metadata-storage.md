@@ -17,6 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
+| Principal CSV declarations | No additional API field | Existing principal/identity/basic-auth/generated-key conventions | CSV is an input frontend to ordinary declarations. Public metadata merge/sync, UUID assertions and source bindings are client intent; no CSV-specific ownership map is stamped. Empty/omitted collections retain normal scope rules. #1419. |
 | Shared OAuth credential/enrollment commands | None | No ownership stamp; private local capture context only | Explicit pending create, enrollment-URL issuance and shared retirement verify provider membership without adopting authorizations. Capture files identify directory/provider/credential; URLs stay outside public output and declarations. #2662. |
 | Static shared provider credentials | None | Managed directory through declared provider | Declarative default/priority-slot create, explicitly selected PUT, scoped sync/delete and public dump. Ref stays local; no child metadata is stamped. Fresh directory protection, provider mode, routing and encryption-key guards apply. #2662. |
 | Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
@@ -152,6 +153,13 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- November 1, principal CSV: loader expansion and offline structural inspection
+  add no remote metadata store. Principals/identities/username records/generated
+  keys retain the existing conventions. Public metadata_mode and UUID
+  assertions are client-only; saved metadata_merge intent is versioned in plan
+  1.2 and execution preserves fresh unmentioned values for a merge. CSV sources,
+  private key material and generated output files are not exported by dump.
 
 - November 1, generated principal/group key declarations: immutable four-entry
   provenance/ref/creation-intent maps, parent-derived namespace/protection,

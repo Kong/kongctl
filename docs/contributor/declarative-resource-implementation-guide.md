@@ -90,6 +90,18 @@ Registering a declaration does not complete those steps automatically.
   unique. Their verified PUT path preserves omitted public fields. See
   [Identity compatibility](kong-identity-compatibility.md) for temporary API
   restrictions.
+
+  Principal public metadata has optional merge or sync semantics. Planning
+  previews the effective map but stores only the patch with explicit merge
+  intent; execution merges against fresh state before full PUT. This needs
+  plan format 1.2 so older executors cannot silently replace the map with a
+  patch. Optional declared principal UUIDs are assertions on an existing
+  namespace/ref match, never ownership or creation authority. The !csv
+  principal-collection frontend uses the same resources/planner/executor,
+  bounded local file rules and public-field validation. It must reject
+  embedded template controls, deferred environment/secret encodings, unknown
+  nested credential fields and conflicting parent selectors before planning.
+
   Ordinary Identity groups use independent four-entry managed_by ownership
   with directory/name matching and full-PUT hydration. They preserve foreign
   groups during scoped sync and require empty membership/key observations

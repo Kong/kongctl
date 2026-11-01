@@ -273,6 +273,11 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 	}
 
 	if verb == verbs.Inspect {
+		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
+		if err != nil {
+			return nil, err
+		}
+		cmd.AddCommand(identityCmd)
 		if err := addMeshCommand(cmd, verb, addFlags, preRunE); err != nil {
 			return nil, err
 		}

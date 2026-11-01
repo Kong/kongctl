@@ -1,0 +1,14 @@
+_defaults:
+  kongctl:
+    namespace: identity-csv-demo
+
+identity:
+  directories:
+    - ref: csv-default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals: !csv
+        path: principals.csv
+        metadata_mode: merge

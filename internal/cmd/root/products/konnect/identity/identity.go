@@ -63,6 +63,14 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	}); err != nil {
 		return nil, err
 	}
+	if verb == verbs.Inspect {
+		csv, err := newPrincipalCSVInspectCommand(addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(csv)
+		return group, nil
+	}
 	if verb == verbs.Adopt {
 		basicAuth, err := adopt.NewIdentityBasicAuthCmd(verb, addParentFlags, parentPreRun)
 		if err != nil {
