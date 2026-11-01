@@ -146,34 +146,70 @@ func sameIdentityKeyName(a, b *string) bool {
 	return a == nil && b == nil || a != nil && b != nil && *a == *b
 }
 
-// CreateAndCapture reserves private output before the single create attempt.
-// Failure after issuance never retries creation or automatically deletes a key.
-func (c *IdentityAPIKeyClient) CreateAndCapture(ctx context.Context,
-	options IdentityAPIKeyCreate, outputPath string,
-) (*IdentityAPIKey, error) {
+func (c *IdentityAPIKeyClient) validateCreate(options IdentityAPIKeyCreate) error {
 	if options.Secret != nil {
 		length := utf8.RuneCountInString(*options.Secret)
 		if !utf8.ValidString(*options.Secret) || length < 1 || length > 255 {
-			return nil, fmt.Errorf("API-key material must contain 1 to 255 UTF-8 characters")
+			return fmt.Errorf("API-key material must contain 1 to 255 UTF-8 characters")
 		}
 		if len(options.ManagedBy) != 0 {
-			return nil, fmt.Errorf("imported API keys cannot store management metadata at creation")
+			return fmt.Errorf("imported API keys cannot store management metadata at creation")
 		}
 		if c.group != nil && options.Name != nil {
-			return nil, fmt.Errorf("imported group API-key names are not supported by the deployed API")
+			return fmt.Errorf("imported group API-key names are not supported by the deployed API")
 		}
 	}
-	metadata := secretoutput.Metadata{DirectoryID: c.directoryID}
+	return nil
+}
+
+func (c *IdentityAPIKeyClient) captureMetadata(local secretoutput.Metadata) secretoutput.Metadata {
+	metadata := secretoutput.Metadata{
+		ResourceType: local.ResourceType, ResourceRef: local.ResourceRef,
+		Namespace: local.Namespace, ParentRef: local.ParentRef, DirectoryID: c.directoryID,
+	}
 	if c.group != nil {
 		metadata.GroupID = c.parentID
 	} else {
 		metadata.PrincipalID = c.parentID
 	}
+	return metadata
+}
+
+// CreateAndCapture reserves private output before the single create attempt.
+// Failure after issuance never retries creation or automatically deletes a key.
+func (c *IdentityAPIKeyClient) CreateAndCapture(ctx context.Context,
+	options IdentityAPIKeyCreate, outputPath string,
+) (*IdentityAPIKey, error) {
+	if err := c.validateCreate(options); err != nil {
+		return nil, err
+	}
+	metadata := c.captureMetadata(secretoutput.Metadata{})
 	output, err := secretoutput.Reserve(outputPath, metadata)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = output.Close() }()
+	return c.CreateWithReservedCapture(ctx, options, output, metadata)
+}
+
+// CreateWithReservedCapture accepts a file reserved during whole-plan preflight.
+// Parent IDs are bound from this client before issuance; local context never
+// changes the request scope. Unsupported input leaves the reservation unused.
+func (c *IdentityAPIKeyClient) CreateWithReservedCapture(ctx context.Context,
+	options IdentityAPIKeyCreate, output *secretoutput.File, local secretoutput.Metadata,
+) (*IdentityAPIKey, error) {
+	if err := c.validateCreate(options); err != nil {
+		return nil, err
+	}
+	if output == nil {
+		return nil, fmt.Errorf("API-key creation requires a reserved private capture")
+	}
+	metadata := c.captureMetadata(local)
+	if err := output.RecordPending(metadata); err != nil {
+		return nil, err
+	}
+	defer func() { _ = output.Close() }()
+	outputPath := output.Path()
 	body := kkComps.CreateCreatePrincipalKeyBodyV1(kkComps.CreatePrincipalKeyBodyv1{
 		Name: options.Name, ExpiresAt: options.ExpiresAt, ManagedBy: maps.Clone(options.ManagedBy),
 	})
@@ -184,6 +220,7 @@ func (c *IdentityAPIKeyClient) CreateAndCapture(ctx context.Context,
 	}
 	var issued *kkComps.KongPrincipalKeyWithSecret
 	var raw *http.Response
+	var err error
 	status := 0
 	ctx = httpclient.WithoutRetries(ctx)
 	if c.group != nil {

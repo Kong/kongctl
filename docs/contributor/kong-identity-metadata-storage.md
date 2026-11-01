@@ -65,6 +65,15 @@ contract for auth servers and OAuth clients, or `managed_by` is planned.
 
 These rows describe available API fields, not completed implementations.
 
+Generated-key declarations are being built around ordinary-parent authority.
+The planned key map stores `tool`, creator `version`, `kongctl-ref` and
+`kongctl-create-type: v1`; namespace/protection come from the current managed
+principal/group. A native US `.tech` probe verifies marker retention and parent
+transitions without key-map changes. These immutable markers are distinct from
+the five-entry independent principal/identity ownership maps. No key
+declaration is exposed yet; legacy/unrecognized management shapes must not be
+silently adopted through this policy.
+
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
 | Importer-managed teams | `labels`, `managed_by`, runtime `metadata` | Schema availability does not grant importer mutation authority. Ordinary group management is implemented; team/importer contracts remain deferred (Q32). #2657. |
@@ -145,6 +154,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- November 1, generated-key declarative preparation: create-only provenance
+  and inherited persisted refs are now supported by the metadata engine.
+  Fixed creation markers cannot override namespace/protection or tool/ref
+  fields; registration checks capacity and clones the configured marker map.
+  Key helpers accept pre-reserved captures for whole-plan preflight. Existing
+  commands keep their current ownership boundary. Full key resource enrollment
+  and its lifecycle checks remain in progress under #1417/#2659.
 
 - November 1, principal/group API-key commands: shared scoped write helpers
   reserve exclusive 0600 captures before a single POST, then verify creation
