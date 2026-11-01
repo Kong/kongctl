@@ -29,11 +29,7 @@ type IdentityStaticVaultCredentialsAPI interface {
 	)
 }
 
-type IdentityStaticVaultCredentialScope struct {
-	DirectoryID  string
-	ProviderID   string
-	ProviderName string
-}
+type IdentityStaticVaultCredentialScope = IdentityVaultCredentialScope
 
 // A nil pair denotes the default slot. A selector requires a nonnegative
 // priority; priorities, rather than selectors, identify nondefault slots.
@@ -126,7 +122,7 @@ func requireIdentityStaticVaultCredential(values []IdentityVaultProviderCredenti
 	return nil, fmt.Errorf("credential is absent from the selected provider; regenerate the plan")
 }
 
-func requireIdentityStaticVaultSlotAvailable(values []IdentityVaultProviderCredential,
+func requireIdentityVaultSlotAvailable(values []IdentityVaultProviderCredential,
 	routing IdentityVaultCredentialRouting, exceptID string,
 ) error {
 	for _, value := range values {
@@ -149,7 +145,7 @@ func CreateIdentityStaticVaultCredential(ctx context.Context, api IdentityStatic
 	if err != nil {
 		return nil, err
 	}
-	if err := requireIdentityStaticVaultSlotAvailable(values, routing, ""); err != nil {
+	if err := requireIdentityVaultSlotAvailable(values, routing, ""); err != nil {
 		return nil, err
 	}
 	response, err := api.CreateVaultProviderCredential(httpclient.WithoutRetries(ctx),
@@ -200,7 +196,7 @@ func ReplaceIdentityStaticVaultCredential(ctx context.Context, api IdentityStati
 	if routing != nil {
 		desired = *routing
 	}
-	if err := requireIdentityStaticVaultSlotAvailable(values, desired, id); err != nil {
+	if err := requireIdentityVaultSlotAvailable(values, desired, id); err != nil {
 		return nil, err
 	}
 	response, err := api.UpdateVaultProviderCredential(httpclient.WithoutRetries(ctx),

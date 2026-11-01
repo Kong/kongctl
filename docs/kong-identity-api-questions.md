@@ -1170,6 +1170,31 @@ All disposable credentials/providers/public keys were removed, and original
 default directory settings restored. Wrong-provider GET/PUT/DELETE returned
 404 without changing the original credential in these probes.
 
+### Q47 Shared OAuth enrollment URL lifetime and invalidation
+
+**Observed (October 31, 2026, US Central, direct US `.tech` HTTP):** Shared OAuth
+credential creation returns a pending record and an enrollment URL, including
+when no encryption key is registered. Repeated detail GET returns a URL each
+time while the pending record's complete public list metadata is unchanged.
+Deleting that credential returns 204; subsequent administrative detail GET is
+404. No issued URL was followed, and no consent or runtime token retrieval was
+performed. The inspected description says GET issues URLs for pending or active
+records but does not state their expiry/reuse/invalidation rules.
+
+```http
+GET /v2/directories/{directoryId}/vault/providers/{providerId}/credentials/{credentialId}
+```
+
+**Question:** How long are these enrollment URLs valid, can they be reused,
+and what invalidates them: another GET, completed consent, credential deletion
+or provider deletion? Can those rules and encryption-key prerequisites for
+completing consent be documented?
+
+Evidence is shared-oauth-enrollment-contracts.json in the local cache. Supplied
+material and seven issued capabilities were kept in memory and excluded from
+the evidence. Fixtures were removed and original default settings restored.
+Q30 separately requests a supported runtime integration fixture.
+
 ## Recorded answers
 
 No team answers have been recorded yet.

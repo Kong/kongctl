@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_VAULT_ENROLLMENT_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Verify explicit shared OAuth credential creation, private enrollment-URL capture and reissuance, metadata-only inspection, provider/type/routing/capture guards, and explicit shared retirement. This administrative scenario leaves credentials pending and does not complete consent, fabricate runtime mTLS context or claim upstream token invalidation.
+steps:
+  - name: 001-shared-enrollment-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-shared-enrollment-lifecycle
+        timeout: 4m
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                private_enrollment_capture: true
+                explicit_url_reissuance: true
+                pending_without_consent_claim: true
+                default_and_zero_priority: true
+                metadata_reads_exclude_capabilities: true
+                scope_type_and_file_guards: true
+                explicit_shared_retirement: true
+                management_metadata_unchanged: true
+                private_workspace_removed: true
+                fixtures_removed: true

@@ -3969,3 +3969,83 @@ static-vault-credentials-artifact-verification.json,
 static-vault-credentials-stopped.log,
 static-vault-credentials-timeout-recovery.json and
 static-vault-credentials-final-inventory.json.
+
+## 59. Explicit shared OAuth enrollment and credential retirement
+
+Shared OAuth providers now expose deliberate pending-credential creation,
+enrollment-URL issuance and shared-record retirement. Provider configuration
+and encryption keys retain their declarative lifecycle. Consent is an explicit
+external workflow; a captured URL never means completed authorization.
+
+The new create identity vault-provider-credential command accepts a shared
+authorization_code provider, optional paired selector/priority and a required
+new private capture file. Create identity vault-provider-enrollment takes an
+existing credential UUID and deliberately invokes the capability-producing
+detail GET. Both operations reserve an exclusive 0600 file before that request,
+make one attempt through both retry layers and save enrollment_url only in the
+private file. Normal JSON/YAML/text contains public metadata. Ordinary get/list
+continue to use collections, never that detail GET. Pending creation does not
+require a registered key in the tested API; successful consent/runtime use is
+not established by that administrative behavior.
+
+Fresh complete public observations establish provider UUID/name/shared mode,
+template kind, target membership and unambiguous default/priority slots before
+issuance. Create rejects occupied slots and static/user providers. Reissuance
+requires an existing shared OAuth record and a different filename. Response
+identity, routing and timestamps, then independent public collection readback,
+are checked. URLs are captured before metadata validation so an inconsistent
+receipt does not silently discard an issued capability. Uncertain requests or
+capture failures retain the reserved file and never delete a remote record
+automatically. Errors withhold capability-bearing API bodies.
+
+Delete identity vault-provider-credential selects one shared static or OAuth
+UUID, uses normal confirmation, rechecks provider membership and verifies its
+absence through the public collection. It never issues an enrollment URL or
+deletes user authorizations. Like other explicit secret commands, these
+operations use API authorization without stamping ownership or enforcing
+declarative namespace/protection. No OAuth credential is adopted, dumped as a
+declaration or pruned through static credential sync. Provider/directory
+retirement still requires actual empty credential inventories.
+
+Native US .tech probes verify pending creation without keys, default and
+priority-zero slots, repeated URL-producing detail GETs, identical complete
+public metadata across those GETs and 404 after record deletion. Seven returned
+capabilities stay in memory only; probe output excludes them, supplied material
+and the administration token. All fixtures are removed and original unmanaged
+default settings restored. Q47 asks API-only questions about URL lifetime,
+reuse, invalidation and consent prerequisites. Active OAuth authorization
+continuity, upstream invalidation and routing PUT remain unverified under
+Q30/Q46; no operation invents runtime mTLS context or follows a URL.
+
+The first live CLI scenario passes in 12.85s, covering private URL capture,
+pending metadata, routed creation, public pagination, type/slot/file guards,
+explicit reissuance and static/OAuth retirement. Its private files are outside
+artifact inputs and removed before checked public files are copied. The
+published default-directory example/tutorial, metadata ledger and compatibility
+tracker explain these boundaries. SDK remains 90596b498bcb; existing methods
+cover this slice, with no SDK release or PR.
+
+Final regression passes all twenty-six live Identity scenarios together in
+US .tech (500.380s), including the expanded enrollment lifecycle in 11.45s.
+It additionally checks wrong-parent issuance/deletion against another existing
+OAuth provider. Early stop immediately after directory creation passes cleanup
+in 2.15s. Independent verification confirms all twenty-six outcomes, removal
+of eight existing private capture directories and two new private workspaces,
+the enrollment scenario's ten public assertions, actual default bootstrap and
+absence of the administration token from artifacts. The lifecycle scans all
+generated public files for its material, enrollment URLs/query capabilities and
+their base64 forms before copying them into artifacts.
+
+Ordered modernization, stable formatting, CGO-disabled build and full
+make test-all pass: zero-issue lint, race unit/integration/harness coverage,
+nine SDK patch tests, 140 metrics tests and installer checks. The default replay
+check passes for control-plane/get; existing replay membership/cassettes are
+unchanged and the new scenario is live-only. Evidence in the local cache is
+shared-oauth-enrollment-contracts.json, vault-enrollment-all/20261031-230814,
+vault-enrollment-final-gates.log, vault-enrollment-artifact-verification.json
+and vault-enrollment-stopped.log. Final independent inventory in
+vault-enrollment-final-inventory.json confirms the unmanaged default's original
+public settings are restored and principal/group/IdP/provider/key/auth-server
+inventories are empty. #2662 stays open/In Progress until main merge; actual
+user enrollment/revocation and active authorization continuity remain separate
+unfinished work.

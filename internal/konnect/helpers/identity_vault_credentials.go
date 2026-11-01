@@ -17,6 +17,12 @@ import (
 type IdentityVaultProviderCredentialsReader interface {
 	IdentityVaultProviderCredentialsLister
 }
+
+type IdentityVaultCredentialScope struct {
+	DirectoryID  string
+	ProviderID   string
+	ProviderName string
+}
 type IdentityPrincipalVaultCredentialsReader interface {
 	ListVaultCredentials(
 		context.Context,

@@ -1233,3 +1233,35 @@ ordinary material replacement must still require explicit intent. Formal
 confirmation of Q45 can resolve the documented uniqueness caveat without
 changing duplicate detection. New ownership fields would require a separately
 reviewed migration, not automatic metadata stamping on existing authorizations.
+
+## Explicit shared OAuth enrollment and retirement
+
+Shared OAuth credential creation and deliberate URL reissuance now follow the
+existing private capture pattern: reserve a new 0600 file before the capability
+request, retain uncertainty evidence, never overwrite or automatically retire
+on capture failure, and return public metadata only. A separate narrow API
+exposes detail GET exclusively to deliberate enrollment issuance; normal reads
+still select through complete lists. Both POST and capability-producing GET
+disable SDK and transport retries. The private record uses enrollment_url,
+not secret, and carries directory/provider/credential IDs for recovery.
+
+Provider UUID/name/shared mode, authorization_code template, complete collection
+membership and routing uniqueness are checked first. Creation has no secret
+input and must return pending metadata. Capture means the URL was saved, not
+consent completed. Pending create/detail GET work without a registered key in
+US .tech; this does not prove consent/runtime retrieval works without one.
+Reissuance for active records is described by the API and unit-tested, but the
+live fixture remains pending. OAuth routing PUT stays deferred under Q30/Q46.
+
+Explicit shared record deletion supports static and OAuth providers, proves
+membership without detail GET, rejects user authorizations and verifies UUID
+absence. It does not prove upstream token invalidation. Like existing explicit
+password/client-secret commands, these operations do not enforce declarative
+namespace/protection or stamp ownership. Static declarations and their scoped
+sync remain separate; OAuth/user records are not implicitly adopted or pruned.
+
+Native pending-create/reissuance observations are recorded in
+shared-oauth-enrollment-contracts.json. Q47 requests URL lifetime, reuse and
+invalidation rules; Q30 still requires a supported runtime integration for
+actual consent, authorization continuity and user revocation. Existing SDK
+90596b498bcb already exposes all operations, so no SDK revision is required.
