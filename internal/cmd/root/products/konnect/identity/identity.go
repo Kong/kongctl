@@ -98,6 +98,13 @@ func NewIdentityCmd(verb verbs.VerbValue,
 		return group, nil
 	}
 	if verb != verbs.Get && verb != verbs.List {
+		if verb == verbs.Create {
+			chart, err := newOrgChartImportCommand(addParentFlags, parentPreRun)
+			if err != nil {
+				return nil, err
+			}
+			group.AddCommand(chart)
+		}
 		if verb == verbs.Create || verb == verbs.Delete {
 			credential, err := newVaultCredentialMutationCommand(verb, false, addParentFlags, parentPreRun)
 			if err != nil {
