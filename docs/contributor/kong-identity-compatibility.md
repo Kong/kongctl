@@ -1184,3 +1184,52 @@ selection, fresh inherited directory authority/protection, key dependencies,
 scoped sync/parent retirement ordering, dump and examples/live E2E. SDK
 `90596b498bcb` already supplies these mutation methods; no SDK change is needed.
 Q45/Q46 still ask for the formal routing and material-preserving API contracts.
+
+## Static shared Vault credential declarative lifecycle
+
+The write foundations above are now integrated as
+`identity.vault_provider_credentials` or nested provider `shared_credentials`.
+They accept only explicitly declared static_secret/shared providers beneath a
+managed directory. Matching uses the default or nonnegative priority slot;
+selectors may repeat and refs are local. Duplicate observed slots or unexpected
+user/pending variants fail before mutation. No ownership metadata is invented.
+
+Create requires deferred `!secret`. Existing material is never compared or
+implicitly rewritten. A changed selector at an existing priority requires
+explicit secret-write selection because native PUT requires material. Priority
+changes create another declared record, with scoped sync creating the new slot
+before deleting omitted slots. Secret-only saved changes retain complete fresh
+parent/routing context. Missing or stale authority, protection, provider mode,
+routing, source or encryption-key availability blocks execution. Large routing
+integers retain precision through saved-plan decoding.
+
+Directory, provider and encryption-key creates precede credential writes.
+Planning requires a registered or planned retained key; execution verifies an
+actual key exists. Provider retirement can depend on exact explicitly planned
+credential deletions; saved execution still requires actual emptiness. A newly
+attached credential blocks the parent. This cannot close the native final
+attachment/delete race (Q41). Omitted collections preserve credentials; explicit
+nested empties scope retirement. External lookups remain read-only for them.
+
+Dump exports public static routing under explicitly managed enabled directories
+and omits material/source bindings. Existing slots reconcile without a source;
+recreation requires adding one. OAuth/user authorizations are not enrolled or
+pruned by static declarations. Q30/Q45/Q46 still bound runtime and formal API
+contracts. SDK remains 90596b498bcb; no SDK revision is required.
+
+The live CLI lifecycle covers deferred file/environment sources, missing-source
+preflight, public/default/priority-zero settings, local-ref changes, grouped
+loading, explicit replacement, stale namespace/protection/routing/key guards,
+selector updates, priority replacement ordering, dump/reload, omission/scoped
+sync, late-credential parent guards, ordered delete and bootstrap from no
+directory. Public output/trace/artifacts exclude material and enrollment URLs.
+Early scenario failures corrected explain discovery and test execution context;
+no new API defect was inferred. See the dated report for final verification.
+
+If a verified metadata-only routing operation becomes available under Q46,
+reconsider selector-only updates requiring secret selection. Verify preservation
+against an actual supported runtime fixture before changing that contract;
+ordinary material replacement must still require explicit intent. Formal
+confirmation of Q45 can resolve the documented uniqueness caveat without
+changing duplicate detection. New ownership fields would require a separately
+reviewed migration, not automatic metadata stamping on existing authorizations.

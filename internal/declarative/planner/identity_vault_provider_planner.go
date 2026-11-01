@@ -123,11 +123,6 @@ func (p *identityDirectoryPlanner) planVaultProviders(ctx context.Context, confi
 			if protected && action != ActionCreate {
 				return fmt.Errorf("directory %q is protected", directory.Name)
 			}
-			if action == ActionDelete {
-				if err := p.planner.client.CheckIdentityVaultProviderCredentials(ctx, current.ID, id); err != nil {
-					return err
-				}
-			}
 			plan.AddChange(PlannedChange{
 				ID: p.NextChangeID(
 					action,

@@ -17,6 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
+| Static shared provider credentials | None | Managed directory through declared provider | Declarative default/priority-slot create, explicitly selected PUT, scoped sync/delete and public dump. Ref stays local; no child metadata is stamped. Fresh directory protection, provider mode, routing and encryption-key guards apply. #2662. |
 | Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
 | Provider credential inspection | None | None; read-only | Scoped get/list projects shared routing/status and user principal metadata. Reads select through complete lists and never invoke enrollment-producing detail GET. No metadata is stamped. #2662/#2663. |
 | Principal Vault credential inspection | None | None; read-only | Provider/template/status/expiry metadata is projected without tokens. Empty collection is live verified; populated user enrollment/revocation still needs Q30's runtime setup. #2663. |
@@ -96,7 +97,7 @@ or protection metadata on them.
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
 | Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
-| Shared provider credentials | Generated ID; observed default/routing-priority slot under provider | Public inspection and guarded internal static write helpers are implemented. Selectors can repeat but duplicate priorities/defaults return 409. Helpers stamp no metadata or authority; inherited directory protection and deferred secret selection still need declarative integration. No declarative writes yet. Q45/Q46, #2662. |
+| Shared provider credentials | Generated ID; default/routing-priority slot under provider | Static shared declarations inherit explicitly managed directory authority through a declared provider. Ref stays local. Deferred material is required for create; updates require explicit selection. OAuth enrollment is separate. Q45/Q46, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Public provider/principal inspection is implemented without adopting authorizations. Actual enrollment/revocation needs supported runtime context; it is not established by empty lists. Q30, #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
@@ -121,7 +122,10 @@ provider declarations. Neither children nor templates gain metadata fields.
 Provider updates/deletions inherit parent protection; creation remains allowed
 under a protected parent, matching other inherited children.
 
-Fresh empty credential observations guard deletion at planning and execution.
+Planning requires empty credentials or exact explicitly authorized static
+credential retirements. Provider execution still requires an actual empty
+collection after those deletions; a directory/provider declaration alone grants
+no credential retirement authority.
 Exact planned provider retirements may precede directory deletion, whose final
 guard still requires actual empty inventories. A late unplanned attachment
 cannot authorize a cascade. Q41 tracks the lack of an atomic conditional API
@@ -140,6 +144,14 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 US Central, static shared declarations: namespace/protection and
+  adoption derive from the explicitly managed directory, via its declared
+  static/shared provider. Default or priority identifies each record; ref stays
+  local and no metadata is stamped. Secret writes are deferred and explicitly
+  selected after creation. Public dump omits material and source bindings.
+  Scoped sync/retirement and saved routing/key/parent guards pass live `.tech`
+  CLI verification. OAuth/user authorization ownership remains separate.
 
 - October 31 US Central, static credential write foundations: fresh static/shared
   provider and complete routing inventories guard single-attempt create,

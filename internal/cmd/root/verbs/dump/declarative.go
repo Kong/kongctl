@@ -208,6 +208,7 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 			IdentityDirectoriesAPI:              sdk.GetIdentityDirectoriesAPI(),
 			IdentityVaultKeysAPI:                sdk.GetIdentityVaultKeysAPI(),
 			IdentityVaultProvidersAPI:           sdk.GetIdentityVaultProvidersAPI(),
+			IdentityStaticVaultCredentialsAPI:   sdk.GetIdentityStaticVaultCredentialsAPI(),
 			IdentityTrustedIDPsAPI:              sdk.GetIdentityTrustedIDPsAPI(),
 			IdentityAuthServersAPI:              sdk.GetIdentityAuthServersAPI(),
 			IdentityAuthServerScopesAPI:         sdk.GetIdentityAuthServerScopesAPI(),
@@ -288,6 +289,8 @@ func runDeclarativeDump(helper cmdpkg.Helper, opts declarativeOptions) error {
 	if stateClient == nil && needsIdentityClient {
 		stateClient = declstate.NewClient(
 			declstate.ClientConfig{
+				IdentityStaticVaultCredentialsAPI: sdk.GetIdentityStaticVaultCredentialsAPI(),
+
 				IdentityDirectoriesAPI:         sdk.GetIdentityDirectoriesAPI(),
 				IdentityVaultKeysAPI:           sdk.GetIdentityVaultKeysAPI(),
 				IdentityVaultProvidersAPI:      sdk.GetIdentityVaultProvidersAPI(),
