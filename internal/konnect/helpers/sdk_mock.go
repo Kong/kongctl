@@ -4,6 +4,8 @@ import "testing"
 
 // This is a mock implementation of the SDKAPI interface
 type MockKonnectSDK struct {
+	IdentityStaticVaultCredentialsFactory func() IdentityStaticVaultCredentialsAPI
+
 	IdentityVaultProviderCredentialsFactory  func() IdentityVaultProviderCredentialsReader
 	IdentityPrincipalVaultCredentialsFactory func() IdentityPrincipalVaultCredentialsReader
 
@@ -132,6 +134,13 @@ func (m *MockKonnectSDK) GetIdentityPrincipalVaultCredentialsReader() IdentityPr
 		return nil
 	}
 	return m.IdentityPrincipalVaultCredentialsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityStaticVaultCredentialsAPI() IdentityStaticVaultCredentialsAPI {
+	if m.IdentityStaticVaultCredentialsFactory == nil {
+		return nil
+	}
+	return m.IdentityStaticVaultCredentialsFactory()
 }
 
 func (m *MockKonnectSDK) GetIdentityVaultKeysAPI() IdentityVaultKeysAPI {
