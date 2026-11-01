@@ -141,6 +141,9 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 	if err := p.planVaultKeys(ctx, config, plan, byName); err != nil {
 		return err
 	}
+	if err := p.planVaultProviders(ctx, config, plan, byName); err != nil {
+		return err
+	}
 	if err := p.planPrincipals(ctx, config, plan, byName); err != nil {
 		return err
 	}

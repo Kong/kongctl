@@ -93,7 +93,7 @@ or protection metadata on them.
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
-| Vault providers | Directory + name | Public inspection; writes pending. |
+| Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
@@ -111,19 +111,23 @@ key/provider/IdP inventories at execution. Q6 asks about future API ownership
 fields; Q37's native cascade/visibility and atomicity limitations still apply.
 See [the key tutorial](../examples/declarative/identity/vault-keys.md), #2661.
 
-Credential Provider configuration and the global template catalog now support
-public get/list without ownership writes. Providers have no metadata store;
-templates are built-in definitions rather than writable resources. A provider
-name does not authorize deletion. Native provider DELETE removes an attached
-shared credential (Q41), so declarations need credential guards as well as
-explicit parent/collection authority. Secret preservation is unverified while
-runtime enrollment requires mTLS context (Q30); Q39/Q40/Q42 record replacement,
-enablement and clearing behavior. See #2660 and the provider inspection guide.
-Internal write helpers now provide validated create/PATCH and a fresh empty
-credential deletion guard, without stamping metadata or authorizing any
-directory/collection. Declarative enrollment must still establish that
-authority explicitly. Q43 distinguishes persisted static-secret settings from
-unverified runtime effects.
+Credential Providers now inherit explicit managed-directory authority for
+declarative create/PATCH, saved plans, scoped sync/delete and dump. Matching
+uses the directory's unique provider name; ref is local only. Adoption is
+through the directory, and external directory references are read-only for
+provider declarations. Neither children nor templates gain metadata fields.
+Provider updates/deletions inherit parent protection; creation remains allowed
+under a protected parent, matching other inherited children.
+
+Fresh empty credential observations guard deletion at planning and execution.
+Exact planned provider retirements may precede directory deletion, whose final
+guard still requires actual empty inventories. A late unplanned attachment
+cannot authorize a cascade. Q41 tracks the lack of an atomic conditional API
+deletion. Deferred client_secret sources use explicit write selection after
+creation and never become ownership metadata. Q30 bounds runtime verification;
+Q39/Q40/Q42 track replacement, initial enablement and clearing; Q43 separates
+static-secret setting persistence from unverified runtime effects. See #2660
+and the [provider guide](../examples/declarative/identity/vault-providers.md).
 
 Inherited ownership is not metadata persisted on a child. Scopes and claims
 require a declared managed server; its namespace and update/delete protection
@@ -134,6 +138,11 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31, Credential Provider declarations: directory-inherited namespace,
+  protection and adoption, explicit collection sync, public dump, saved writes
+  and credential-aware retirement are implemented without child metadata.
+  Secret-only updates carry verified parent ID/namespace/protection context.
 
 - October 31, Credential Provider write foundations: internal create/PATCH/
   guarded-delete helpers add no child metadata, adoption or declaration

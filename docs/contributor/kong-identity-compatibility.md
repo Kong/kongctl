@@ -980,9 +980,8 @@ Q42 records scope/endpoint clearing boundaries: create scopes:[] expands to
 template defaults, PATCH scopes:[] fails, endpoint null fails, and endpoint
 empty strings become actual empty effective endpoints. Do not interpret these
 values as a verified reset-to-template operation. Q39/Q40 retain replacement
-and initial-disable limits. Public provider declarations remain implementation
-work under #2660; no lifecycle writer or independent ownership is enabled by
-these commands.
+and initial-disable limits. Provider declarations use the separate inherited
+authority model described below; public get/list grants no ownership.
 
 ListVaultProviderCredentials still has flat SDK Page serialization. Its
 complete cursor traversal needs a targeted correction before product credential
@@ -1004,8 +1003,8 @@ terminal empty credential collection. Its request has no filters, page or sort
 arguments; missing, malformed, nonterminal or failed observations block the
 write. It never reads credential detail or issues enrollment capabilities.
 This is an observation guard, not an atomic guarantee against concurrent
-attachments (Q41). The future executor must separately enforce directory
-ownership, namespace, protection and collection authority.
+attachments (Q41). The declarative executor separately enforces directory
+ownership, namespace, protection and collection authority as described below.
 
 Direct SDK-backed `.tech` verification covers persisted DCR/public PATCH,
 explicit refresh zero, blocking deletion with an active shared credential and
@@ -1018,6 +1017,50 @@ OAuth enrollment or stored-secret continuity.
 Empty explicit scopes and endpoint strings are rejected rather than silently
 interpreted as inheritance or clearing. `enabled: false` at creation still
 needs a separately documented PATCH step; no atomic disabled create is
-claimed. Full provider declarations, write-only secret-source integration,
-collection pruning, dump, examples and lifecycle E2E coverage remain #2660
-implementation work. SDK version remains `2597fe249e26`.
+claimed. Provider declarations, write-only sources, collection pruning, dump,
+examples and lifecycle E2E are now integrated as described below. SDK version
+remains `2597fe249e26`.
+
+## Credential Provider declarative lifecycle
+
+The write foundation above now backs nested directory.vault_providers and
+grouped identity.vault_providers declarations. Providers inherit a declared
+managed directory's namespace and protection; external parent references do
+not authorize writes. A complete directory-scoped name inventory determines
+matching. Ref is local, names must be explicit, and no independent metadata is
+invented. A name change creates a different resource; apply preserves the old
+one and explicitly scoped sync may retire it after guards.
+
+Create supports every declared create field and configured deferred
+client_secret sources. An initial enabled:false is POST followed by PATCH,
+with fresh parent checks; it is not atomic. A failed second write leaves a
+created provider that must be inspected/replanned. Ordinary updates use PATCH
+and omit write-only fields unless selected through the shared secret-source
+framework. Secret-only updates retain directory ID, namespace and inherited
+protection context. Plan and saved execution reject unsupported create-field
+changes instead of silently dropping them: template, client ID, credential
+type, DCR mode and registration endpoint. This client boundary does not assert
+that those fields are immutable in every API operation.
+
+Deletion requires fresh complete provider identity and terminal empty
+credential observations during planning and execution. Directory deletion may
+order exact planned provider retirements first; its final dependency checks
+still require actual empty collections. Saved plans reject late namespace,
+protection, provider-context and credential changes. No credential is
+automatically deleted. The check cannot close Q41's concurrent-attachment
+window without API support.
+
+Dump emits public settings beneath enabled managed directories, omits secrets,
+and pins effective endpoint values because stored overrides are not exposed.
+Empty scopes are omitted only if the template also has no defaults; otherwise
+dump fails as unreproducible. Invalid empty endpoints also fail export. Explicit
+empty scopes/endpoints remain rejected in declarations under Q42.
+
+Examples cover the existing and missing default-directory cases, static-secret,
+static OAuth and custom DCR configurations, with deferred source syntax and
+replacement/clearing limits. The live provider scenario covers public fields,
+initial disablement, adoption, saved/secret-only updates, diff, scoped sync,
+dump/reload, dependency guards and parent bootstrap/retirement. Public-state
+and request tests do not prove stored-secret continuity, OAuth consent or
+runtime dynamic registration; Q30/Q39–Q43 retain those API boundaries. SDK
+version remains `2597fe249e26`.

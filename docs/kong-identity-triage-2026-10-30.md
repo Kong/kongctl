@@ -7,17 +7,19 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
-Credential Provider write foundations now provide validated create/PATCH and
-credential-aware deletion for the next declarative slice. Public PATCH
-persistence is verified by fresh GET, including omitted DCR registration
-settings. Section 52 records this prerequisite; loader/planner/executor/dump
-integration and provider lifecycle examples/E2E are still in progress under
-#2660. No declaration support is inferred from these internal helpers.
+Credential Providers now have nested/grouped declarative lifecycle under
+explicitly managed directories: create/PATCH, selected deferred secret writes,
+scoped sync/delete, adoption through the parent and public dump. The first live
+US `.tech` scenario passes, including saved authority/credential guards and
+missing-directory bootstrap. All twenty-two Identity live scenarios and final
+repository gates pass. Section 53 records its contract and evidence; #2660
+stays In Progress until main merge. Sections 51–52 record the read and write
+prerequisites.
 
 Credential Provider configuration and the built-in provider-template catalog
 now have public get/list support. Section 51 records the read surface and
-new direct API findings. Provider declarations remain in progress under #2660;
-inspection does not adopt resources or call credential/enrollment endpoints.
+new direct API findings. Inspection does not adopt resources or call
+credential/enrollment endpoints.
 
 Token Vault public keys now have declarative lifecycle and public get/list
 support under explicitly managed directories. Fingerprints identify keys,
@@ -3475,3 +3477,107 @@ provider declaration E2E coverage. Final inventory evidence is
 provider-write-foundation-final-inventory.json: one unmanaged default
 directory, original settings restored and empty principal/group/IdP/provider/
 key/auth-server inventories.
+
+## 53. Credential Provider declarative lifecycle
+
+Provider declarations are now integrated through resource/schema registration,
+nested and grouped loading, namespace selection, explicit collection scopes,
+planning/state access, saved execution, dependency ordering and public dump.
+`identity.directories[].vault_providers` and grouped
+`identity.vault_providers` use directory/name matching. Ref is local; no name
+is derived from it and no independent provider metadata is invented.
+
+Writes require a declared managed directory. Parent adoption grants that
+root's namespace/protection, and an explicit provider collection authorizes
+sync pruning. Omission preserves the collection. External directory references
+are read-only for declarations. Provider creation is permitted under parent
+protection, while update/delete require an unprotected parent, consistent with
+other inherited children. Keys/providers share the fresh directory authority
+policy at execution.
+
+Create supports the API configuration fields and optional deferred client
+secret sources. Initial enabled:false uses POST then PATCH with another fresh
+parent check; it is not atomic and a failed second step leaves a created
+provider to inspect/replan. Public updates use PATCH, including false and zero
+values. Template, static client ID, credential type, DCR mode and registration
+endpoint changes fail clearly because the verified PATCH schema lacks them;
+neither unsupported PUT hydration nor silent field dropping is used. A name
+change creates another record; apply preserves the old provider and explicit
+sync can retire it after guards.
+
+During sync, replacement creates precede provider retirements under the same
+directory, matching the Vault-key ordering policy. A failed registration does
+not authorize deleting the previous configuration. Live coverage verifies
+this ordering for a name change.
+
+`!secret {source: !env NAME}` follows the existing write-only framework.
+Creation includes the configured source once. Later updates need
+`--write-secret ref#client_secret` or `--write-secrets`; ordinary reconciliation
+does not read or rewrite it. Secret-only plans now retain the directory's
+resolved ID, namespace and protecting-parent context even with no public drift.
+Saved execution repeats ownership, protection and public create-context
+checks. Source values never enter plan, diff, public read or dump output.
+Public state cannot prove stored-secret continuity or successful enrollment.
+
+Provider deletion requires a full fresh directory-scoped identity observation
+and terminal empty credential observation, both during planning and saved
+execution. It never auto-deletes credentials or reads enrollment detail.
+Directory deletion can order exact authorized provider retirements alongside
+keys, then still requires actual empty inventories after those writes. A late
+unplanned provider blocks the parent; a late credential blocks its provider.
+Q41 retains the API race between final observation and DELETE.
+
+Dump exports public settings under enabled managed directories, omits secrets
+and pins effective endpoints. Empty scopes are reproducible only when the
+template also has no defaults; otherwise export fails. Invalid empty endpoints
+also fail instead of producing an invalid declaration. External/disabled
+parents do not gain an exported provider collection. Q39/Q40/Q42/Q43 retain
+replacement, initial enablement, clearing and static-setting runtime limits.
+
+The default-directory example groups static-secret, static OAuth application
+and custom DCR providers, including deferred credentials. The guide covers
+existing-directory adoption/enablement, missing-directory bootstrap, public
+inspection, explicit secret writes, scoped sync, dump and deletion boundaries.
+Loader coverage verifies the example without resolving its secret. Unit tests
+cover saved authority/context changes, all mutable fields, create-only errors,
+secret omission/selection, empty/omitted scopes, late dependencies and dump
+reproducibility. The reviewed default inventory adds only the new resource's
+empty default/override/exclusion entry.
+
+The new live scenario identity/declarative-vault-providers first passes in US
+`.tech` in 25.48s. It verifies all three modes and public fields, initial false,
+saved create, ordinary/secret-only updates, parent adoption/protection, diff,
+scoped sync, public dump/reload, late credential/provider guards, ordered
+deletion, repeat deletion and missing-directory bootstrap. It generates test
+secrets only in memory and checks artifacts for their raw/base64 values and
+the administrative PAT. Public settings do not prove runtime OAuth consent,
+dynamic registration or secret continuity. The final twenty-two-scenario
+Identity regression passes in 407.214s; its expanded provider scenario passes
+in 28.26s using a directory actually named default. Artifact verification
+confirms all twenty-two outcomes and removal of eight private capture
+directories. A guarded early stop after directory creation also passes and
+removes its fixture. The unmanaged default and original settings are restored;
+principal/group/IdP/provider/key/auth-server inventories are empty.
+
+Final modernization, stable formatting, CGO-disabled build and make test-all
+pass: zero-issue lint, full unit/integration and harness race checks, nine SDK
+patch tests, 140 metrics tests and installer checks. The default cassette check
+passes; no existing replay membership or cassette changes. The new scenario
+is live-only under the current replay policy. SDK wire coverage verifies the
+deletion guard blocks either shared or user credential response variants;
+actual user enrollment is outside the live scenario under Q30.
+
+Evidence under the local cache includes provider-declarative-final-gates-v2.log,
+provider-declarative-all-final/20261031-201328,
+provider-declarative-final-artifact-verification.json,
+provider-declarative-stopped.log, provider-declarative-replay-check.log and
+provider-declarative-final-inventory.json. The earlier twenty-two-scenario run
+and isolated key/default-provider runs are intermediate verification; the
+final run also covers replacement ordering.
+
+SDK version remains 2597fe249e26. No generated SDK change, release or PR is
+needed. The provider-credential cursor correction remains future work before
+full credential pagination; the deletion guard uses no page/sort arguments.
+#2660, ownership contract #2656 and directory epic #1132 remain open/In Progress
+until main merge. Shared/user provider credentials, Trusted IdP declarations
+and importer/team work remain separate feasible investigations/implementations.

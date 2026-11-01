@@ -331,6 +331,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		kind := ResourceTypeIdentityDirectory
 		switch segments[1] {
 		case "directory", "directories":
+		case "vault_provider", "vault_providers", "vault-provider", "vault-providers":
+			kind = ResourceTypeIdentityVaultProvider
 		case "vault_key", "vault_keys", "vault-key", "vault-keys":
 			kind = ResourceTypeIdentityVaultKey
 		case "membership", "memberships":
@@ -394,17 +396,24 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
-	if doc.ResourceType == ResourceTypeIdentityVaultKey || doc.ResourceType == ResourceTypeIdentityDirectory ||
+	if doc.ResourceType == ResourceTypeIdentityVaultProvider || doc.ResourceType == ResourceTypeIdentityVaultKey ||
+		doc.ResourceType == ResourceTypeIdentityDirectory ||
 		doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
-		doc.ResourceType == ResourceTypeIdentityGroupMembership || doc.ResourceType == ResourceTypeIdentityBasicAuth ||
-		doc.ResourceType == ResourceTypeIdentityAuthServer || doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
-		doc.ResourceType == ResourceTypeIdentityAuthServerClaim || doc.ResourceType == ResourceTypeIdentityAuthServerClient {
+		doc.ResourceType == ResourceTypeIdentityGroupMembership ||
+		doc.ResourceType == ResourceTypeIdentityBasicAuth ||
+		doc.ResourceType == ResourceTypeIdentityAuthServer ||
+		doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
+		doc.ResourceType == ResourceTypeIdentityAuthServerClaim ||
+		doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 		groupNode, err := autoExplainNode(reflect.TypeFor[IdentityResource](), nil, defaultExplainHints(""), nil)
 		if err != nil {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityVaultProvider {
+			collection = "vault_providers"
+		}
 		if doc.ResourceType == ResourceTypeIdentityVaultKey {
 			collection = "vault_keys"
 		}
@@ -934,6 +943,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.clients"
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
+	case ResourceTypeIdentityVaultProvider:
+		return "identity.vault_providers"
 	case ResourceTypeIdentityVaultKey:
 		return "identity.vault_keys"
 	case ResourceTypeIdentityGroupMembership:
@@ -1037,6 +1048,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityDirectory {
 		rootKey = "identity.directories"
+	}
+	if rt == ResourceTypeIdentityVaultProvider {
+		rootKey = "identity.vault_providers"
 	}
 	if rt == ResourceTypeIdentityVaultKey {
 		rootKey = "identity.vault_keys"

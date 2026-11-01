@@ -130,6 +130,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
 		resources.ResourceTypeIdentityBasicAuth,
 		resources.ResourceTypeIdentityVaultKey,
+		resources.ResourceTypeIdentityVaultProvider,
 		resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,
