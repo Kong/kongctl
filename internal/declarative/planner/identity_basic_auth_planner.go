@@ -214,7 +214,7 @@ func (p *Planner) resolvePrincipalCredentialDeletes(ctx context.Context, plan *P
 		if change.Parent == nil || change.Parent.ID == "" {
 			return fmt.Errorf("principal deletion requires its directory")
 		}
-		if err := p.client.VerifyPrincipalAPIKeysEmpty(ctx, change.Parent.ID, change.ResourceID); err != nil {
+		if err := p.verifyOrAuthorizeIdentityAPIKeys(ctx, plan, change); err != nil {
 			return err
 		}
 		all, err := p.listIdentityBasicAuths(ctx, change.Parent.ID, change.ResourceID)
@@ -223,7 +223,8 @@ func (p *Planner) resolvePrincipalCredentialDeletes(ctx context.Context, plan *P
 		}
 		for _, child := range all {
 			index := slices.IndexFunc(plan.Changes, func(c PlannedChange) bool {
-				return c.ResourceType == ResourceTypeIdentityBasicAuth && c.Action == ActionDelete && c.ResourceID == child.ID &&
+				return c.ResourceType == ResourceTypeIdentityBasicAuth && c.Action == ActionDelete &&
+					c.ResourceID == child.ID &&
 					c.Parent != nil &&
 					c.Parent.ID == change.ResourceID &&
 					c.References[FieldDirectoryID].ID == change.Parent.ID

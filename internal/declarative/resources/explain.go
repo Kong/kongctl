@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	capmaturity "github.com/kong/kongctl/internal/maturity"
 )
@@ -342,6 +343,10 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			kind = ResourceTypeIdentityVaultKey
 		case "membership", "memberships":
 			kind = ResourceTypeIdentityGroupMembership
+		case "principal_api_key", "principal_api_keys", "principal-api-key", "principal-api-keys":
+			kind = ResourceTypeIdentityPrincipalAPIKey
+		case "group_api_key", "group_api_keys", "group-api-key", "group-api-keys":
+			kind = ResourceTypeIdentityGroupAPIKey
 		case "basic_auth", "basic_auths", "basic-auth", "basic-auths":
 			kind = ResourceTypeIdentityBasicAuth
 		case "group", "groups":
@@ -408,6 +413,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
 		doc.ResourceType == ResourceTypeIdentityGroupMembership ||
+		doc.ResourceType == ResourceTypeIdentityPrincipalAPIKey || doc.ResourceType == ResourceTypeIdentityGroupAPIKey ||
 		doc.ResourceType == ResourceTypeIdentityBasicAuth ||
 		doc.ResourceType == ResourceTypeIdentityAuthServer ||
 		doc.ResourceType == ResourceTypeIdentityAuthServerScope ||
@@ -432,6 +438,12 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		if doc.ResourceType == ResourceTypeIdentityBasicAuth {
 			collection = "basic_auths"
+		}
+		if doc.ResourceType == ResourceTypeIdentityPrincipalAPIKey {
+			collection = "principal_api_keys"
+		}
+		if doc.ResourceType == ResourceTypeIdentityGroupAPIKey {
+			collection = "group_api_keys"
 		}
 		if doc.ResourceType == ResourceTypeIdentityGroupMembership {
 			collection = "memberships"
@@ -966,6 +978,10 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.vault_keys"
 	case ResourceTypeIdentityGroupMembership:
 		return "identity.memberships"
+	case ResourceTypeIdentityPrincipalAPIKey:
+		return "identity.principal_api_keys"
+	case ResourceTypeIdentityGroupAPIKey:
+		return "identity.group_api_keys"
 	case ResourceTypeIdentityBasicAuth:
 		return "identity.basic_auths"
 	case ResourceTypeIdentityGroup:
@@ -1080,6 +1096,12 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityGroupMembership {
 		rootKey = "identity.memberships"
+	}
+	if rt == ResourceTypeIdentityPrincipalAPIKey {
+		rootKey = "identity.principal_api_keys"
+	}
+	if rt == ResourceTypeIdentityGroupAPIKey {
+		rootKey = "identity.group_api_keys"
 	}
 	if rt == ResourceTypeIdentityBasicAuth {
 		rootKey = "identity.basic_auths"
@@ -1470,6 +1492,10 @@ func autoExplainValueNode(
 
 	switch typ.Kind() {
 	case reflect.Struct:
+		if typ == reflect.TypeFor[time.Time]() {
+			node.Kind = explainKindString
+			break
+		}
 		if union, ok, err := autoExplainSDKUnionNode(typ, path, hints, stack); err != nil {
 			return nil, err
 		} else if ok {
