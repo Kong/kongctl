@@ -359,15 +359,16 @@ func adjustIdentityDirectoryDeleteDependencies(changes []PlannedChange) {
 	}
 }
 
-// Preserve integer metadata when reloading a principal or group's saved plan. Other
-// resource payloads retain their existing JSON number representation.
+// Preserve principal/group metadata and Vault routing integers in saved plans.
+// Other resource payloads retain their existing JSON number representation.
 func (change *PlannedChange) UnmarshalJSON(data []byte) error {
 	type plain PlannedChange
 	var value plain
 	if err := json.Unmarshal(data, &value); err != nil {
 		return err
 	}
-	if value.ResourceType == ResourceTypeIdentityPrincipal || value.ResourceType == ResourceTypeIdentityGroup {
+	if value.ResourceType == ResourceTypeIdentityPrincipal || value.ResourceType == ResourceTypeIdentityGroup ||
+		value.ResourceType == ResourceTypeIdentityVaultProviderCredential {
 		decoder := json.NewDecoder(bytes.NewReader(data))
 		decoder.UseNumber()
 		value = plain{}

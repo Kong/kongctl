@@ -44,6 +44,41 @@ func collectIdentityVaultProviders(ctx context.Context, d *declarativeDumpContex
 		if err := provider.Validate(); err != nil {
 			return fmt.Errorf("cannot export Vault provider %q: %w", current.Name, err)
 		}
+		if current.TemplateName == "static_secret" && current.CredentialType == "shared" {
+			credentials, err := d.stateClient.ListIdentityVaultProviderCredentials(ctx, directory.Ref, current.ID)
+			if err != nil {
+				return err
+			}
+			seen := make(map[string]bool)
+			for _, credential := range credentials {
+				slot := resources.IdentityVaultCredentialSlot(credential.Priority)
+				if credential.CredentialType != "shared" || credential.Status != "active" || seen[slot] {
+					return fmt.Errorf("cannot export ambiguous or nonstatic provider credentials")
+				}
+				seen[slot] = true
+				provider.SharedCredentials = append(
+					provider.SharedCredentials,
+					resources.IdentityVaultProviderCredentialResource{
+						Ref: "vault-credential-" + credential.ID, Selector: credential.Selector, Priority: credential.Priority,
+					},
+				)
+			}
+			slices.SortFunc(
+				provider.SharedCredentials,
+				func(a, b resources.IdentityVaultProviderCredentialResource) int {
+					if a.Priority == nil {
+						if b.Priority == nil {
+							return 0
+						}
+						return -1
+					}
+					if b.Priority == nil {
+						return 1
+					}
+					return cmp.Compare(*a.Priority, *b.Priority)
+				},
+			)
+		}
 		directory.VaultProviders = append(directory.VaultProviders, provider)
 	}
 	slices.SortFunc(directory.VaultProviders, func(a, b resources.IdentityVaultProviderResource) int {

@@ -2077,6 +2077,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_vault_provider_credential
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: organization_system_account_role
     defaults: []
     overrides: []

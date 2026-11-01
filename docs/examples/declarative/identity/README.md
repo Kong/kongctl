@@ -3,7 +3,12 @@
 [Token Vault credential inspection](vault-credentials.md) explains shared
 static/OAuth routing slots and principal authorizations. Public metadata reads
 do not issue enrollment capabilities or grant credential ownership. Credential
-declarations and rotation/enrollment remain subsequent work.
+inspection includes user/OAuth records; their enrollment/revocation remains
+separate from static configuration.
+
+[Static shared credential declarations](vault-shared-credentials.md) cover
+default/priority matching, deferred material and explicit replacement, managed
+directory authority, encryption-key dependencies and scoped retirement.
 
 [Credential Provider declarations and template inspection](vault-providers.md)
 explains upstream services, three provider modes, directory-inherited authority,

@@ -25,6 +25,15 @@ func identityVaultWriteDirectory(ctx context.Context, client *state.Client, exec
 	if err != nil {
 		return "", err
 	}
+	return identityVaultWriteDirectoryByID(ctx, client, execCtx, resource, id)
+}
+
+func identityVaultWriteDirectoryByID(
+	ctx context.Context, client *state.Client, execCtx *ExecutionContext, resource, id string,
+) (string, error) {
+	if !util.IsValidUUID(id) {
+		return "", fmt.Errorf("vault resource requires a resolved directory UUID")
+	}
 	parent, err := client.GetIdentityDirectoryByID(ctx, id)
 	if err != nil {
 		return "", err

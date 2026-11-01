@@ -144,6 +144,9 @@ func (p *identityDirectoryPlanner) PlanChanges(ctx context.Context, config *Conf
 	if err := p.planVaultProviders(ctx, config, plan, byName); err != nil {
 		return err
 	}
+	if err := p.planVaultProviderCredentials(ctx, config, plan); err != nil {
+		return err
+	}
 	if err := p.planTrustedIDPs(ctx, config, plan, byName); err != nil {
 		return err
 	}

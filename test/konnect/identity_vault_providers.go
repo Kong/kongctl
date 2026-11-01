@@ -13,6 +13,8 @@ import (
 )
 
 type VaultProvidersAPI struct {
+	Credentials      map[string][]helpers.IdentityVaultProviderCredential
+	CredentialWrites int
 	DirectoryDependenciesAPI
 	Providers                                              []helpers.IdentityVaultProvider
 	AttachedCredentials                                    map[string]bool
@@ -204,6 +206,9 @@ func (a *VaultProvidersAPI) ListVaultProviderCredentials(
 	_ ...kkOps.Option,
 ) (*kkOps.ListVaultProviderCredentialsResponse, error) {
 	values := make([]any, 0)
+	for _, value := range a.Credentials[request.ProviderID] {
+		values = append(values, value)
+	}
 	if a.AttachedCredentials[request.ProviderID] {
 		values = append(values, map[string]any{"id": "attached"})
 	}

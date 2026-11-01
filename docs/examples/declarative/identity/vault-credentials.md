@@ -58,8 +58,9 @@ These metadata commands select through the collection, so reading one pending
 credential does not issue a new enrollment capability. A pending record still
 needs OAuth consent; inspection does not complete that flow.
 
-Credential declarations, explicit rotation/enrollment and user revocation are
-subsequent implementation work. Static PUT requires secret material again;
+[Static shared credential declarations](vault-shared-credentials.md) support
+explicit material replacement and scoped retirement. OAuth enrollment and user
+revocation are separate implementation work. Static PUT requires material again;
 omitting its routing fields selects the default slot. OAuth PUT issues a fresh
 enrollment URL. Ordinary configuration changes therefore cannot assume secret
 preservation. See [API questions](../../../kong-identity-api-questions.md),
@@ -68,12 +69,11 @@ Q30/Q45/Q46, for runtime prerequisites and update/cardinality contracts.
 Static credential writes also need a registered public encryption key in the
 directory. See [Vault keys](vault-keys.md) for key registration and private-key
 retention. Enabling Vault or creating a provider alone does not supply a key.
-Guarded static write helpers have been verified internally, including explicit
-material replacement that preserves routing; they are not exposed as commands
-or declarations yet.
+Static declarations use guarded writes, including explicit material replacement
+that preserves routing. Public observations cannot verify stored material.
 
 No `labels` or `managed_by` storage exists on provider credentials. This
-inspection slice stamps no metadata and grants no sync or deletion authority
+inspection stamps no metadata and grants no sync or deletion authority
 over either shared credentials or user authorizations. Actual user enrollment
 and revocation still need verification in a supported runtime context; empty
 administrative collections do not establish that behavior.
