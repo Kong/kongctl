@@ -1,5 +1,9 @@
 # Kong Identity administration
 
+[Generated principal and group API keys](generated-api-keys.md) demonstrates
+declarative issuance, private capture, inherited parent authority, expiration
+updates and scoped retirement using the existing default directory.
+
 [Organization-chart imports and ownership](org-chart.md) explains explicit CSV
 preview/execution, private complete reports, safe diagnostic output, imported
 users/teams and ordinary declarative boundaries. The CSV workflow does not

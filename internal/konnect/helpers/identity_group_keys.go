@@ -10,12 +10,15 @@ import (
 	"github.com/kong/kongctl/internal/util"
 )
 
-type IdentityGroupKeysReader interface {
+type IdentityGroupKeysLister interface {
 	ListGroupKeys(context.Context, kkOps.ListGroupKeysRequest, ...kkOps.Option) (*kkOps.ListGroupKeysResponse, error)
+}
+type IdentityGroupKeysReader interface {
+	IdentityGroupKeysLister
 	GetGroupKey(context.Context, kkOps.GetGroupKeyRequest, ...kkOps.Option) (*kkOps.GetGroupKeyResponse, error)
 }
 
-func ListIdentityGroupAPIKeys(ctx context.Context, api IdentityGroupKeysReader,
+func ListIdentityGroupAPIKeys(ctx context.Context, api IdentityGroupKeysLister,
 	directoryID, groupID string, pageSize int64,
 ) ([]IdentityAPIKey, error) {
 	if api == nil {

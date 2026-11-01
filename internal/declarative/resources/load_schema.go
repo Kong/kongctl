@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 )
 
 const loadSchemaID = "kongctl://declarative/load"
@@ -196,6 +197,9 @@ func loadSchemaFieldExistsInEveryBranch(name string, branches []*ExplainNode) bo
 func reflectLoadSchema(typ reflect.Type, stack []reflect.Type) *JSONSchema {
 	nullable := typ.Kind() == reflect.Pointer
 	typ = derefExplainType(typ)
+	if typ == reflect.TypeFor[time.Time]() {
+		return &JSONSchema{}
+	}
 
 	if typ.Kind() == reflect.Struct {
 		if resourceType, ok := registeredResourceType(typ); ok {

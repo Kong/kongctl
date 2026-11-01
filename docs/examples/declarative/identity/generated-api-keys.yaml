@@ -1,0 +1,29 @@
+_defaults:
+  kongctl:
+    namespace: identity-keys-demo
+
+identity:
+  directories:
+    - ref: default-directory
+      _external:
+        selector:
+          matchFields:
+            name: default
+      principals:
+        - ref: fulfillment-worker
+          display_name: Order fulfillment worker
+          type: agent
+          api_keys:
+            - ref: worker-primary-key
+              type: v1
+              name: Worker primary
+              expires_at: null
+      groups:
+        - ref: fulfillment-workers
+          name: Fulfillment workers
+          type: group
+          api_keys:
+            - ref: workers-primary-key
+              type: v1
+              name: Workers primary
+              expires_at: "2030-01-01T00:00:00Z"

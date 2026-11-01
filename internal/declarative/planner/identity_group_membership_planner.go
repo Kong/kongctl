@@ -210,7 +210,7 @@ func (p *Planner) resolveIdentityMembershipDeletes(ctx context.Context, plan *Pl
 				return fmt.Errorf("group disappeared while planning deletion")
 			}
 			groups = []state.IdentityGroup{*current}
-			if err := p.client.VerifyIdentityGroupKeysEmpty(ctx, directoryID, parent.ResourceID); err != nil {
+			if err := p.verifyOrAuthorizeIdentityAPIKeys(ctx, plan, parent); err != nil {
 				return err
 			}
 		} else {

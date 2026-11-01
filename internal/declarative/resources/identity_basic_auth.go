@@ -30,7 +30,7 @@ func init() {
 		),
 		ExternalResolutionRegistration{
 			Selectors: []string{SchemaFieldUsername}, ParentType: ResourceTypeIdentityPrincipal,
-			ParentFieldPath: "principal",
+			ParentFieldPath: SchemaFieldPrincipal,
 		},
 		WithNamespace(213, basicAuthNamespaceParticipant),
 		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]IdentityBasicAuthResource {

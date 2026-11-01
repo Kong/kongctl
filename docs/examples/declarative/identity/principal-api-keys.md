@@ -7,7 +7,10 @@ imported keys accept material supplied by the creator. Metadata reads cannot
 recover either key's material or establish its creation method.
 
 The preview branch provides scoped metadata inspection and explicit credential
-lifecycle commands. Create parents under the existing default directory:
+lifecycle commands. For generated keys managed through plan/apply/sync/dump,
+use the [declarative key tutorial](generated-api-keys.md). The explicit workflow
+below also supports imported keys, which have no declarative adoption path.
+Create parents under the existing default directory:
 
 ```sh
 kongctl plan --mode apply -f api-key-parents.yaml

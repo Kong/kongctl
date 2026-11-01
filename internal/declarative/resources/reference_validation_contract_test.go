@@ -36,6 +36,8 @@ func TestReferenceValidationEnrollment(t *testing.T) {
 		{ResourceTypeIdentityTrustedIDP, ""},
 		{ResourceTypeIdentityVaultProviderCredential, ""},
 		{ResourceTypeIdentityAuthServerScope, ""},
+		{ResourceTypeIdentityPrincipalAPIKey, ""},
+		{ResourceTypeIdentityGroupAPIKey, ""},
 		{ResourceTypeIdentityAuthServerClaim, ""},
 		{ResourceTypeIdentityAuthServerClient, ""},
 	}, got)

@@ -136,6 +136,7 @@ func NewWithOptions(client *state.Client, reporter ProgressReporter, dryRun bool
 	e.registerIdentityBasicAuthExecutor()
 	e.registerIdentityGroupExecutor()
 	e.registerIdentityGroupMembershipExecutor()
+	e.registerIdentityAPIKeyExecutors()
 	e.registerIdentityPrincipalIdentityExecutor()
 	e.registerCatalogServiceExecutor()
 	e.registerAIGatewayExecutors()

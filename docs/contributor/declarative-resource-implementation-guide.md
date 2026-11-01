@@ -102,6 +102,18 @@ Registering a declaration does not complete those steps automatically.
   Team/importer writes remain deferred. These groups use the existing
   directory root planner and child dump inventory.
 
+  Generated principal/group API keys inherit current managed-parent authority.
+  Their four immutable `managed_by` entries record tool, creator version, ref
+  and explicit generated creation intent. No child namespace/protection copies
+  or key adoption are exposed. Both scopes require complete duplicate/ref and
+  parent authority checks, including saved writes. Whole-plan preflight
+  reserves private capture files; issuance is captured before public read-back.
+  Sync distinguishes omitted/empty collections and orders replacement capture
+  before old-key retirement. Parent deletion requires explicitly authorized
+  key deletes followed by fresh empty checks. Imported/legacy keys are outside
+  this convention. See the Identity compatibility tracker and generated-key
+  example for supported public updates and creation-only group names.
+
   Basic-auth username records use independent four-entry managed_by metadata
   under principals, with exact directory-wide unique usernames and local refs.
   Their shared parent-scope builder handles principal aliases and namespace

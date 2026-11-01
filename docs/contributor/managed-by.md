@@ -118,8 +118,14 @@ managed parents, current provisioning/namespace/protection checks, exact key
 identity, duplicate and incompatible-marker handling, explicit sync scopes,
 saved-plan validation and authorized child-before-parent retirement. A tool/ref
 marker alone does not authorize a mutation. Imported or legacy ownership shapes
-must not be silently adopted. The Kong Identity generated-key preparation uses
-this contract; no key declaration is exposed until its integration is complete.
+must not be silently adopted. Generated Kong Identity principal/group keys use
+this contract with four immutable entries: tool, creator version, persisted
+ref and `kongctl-create-type: v1`. Their full implementation verifies current
+parent authority on saved writes, hydrates omitted expiration, captures each
+new key privately and orders replacement capture before old-key retirement.
+The [generated-key tutorial](../examples/declarative/identity/generated-api-keys.md)
+and [compatibility tracker](kong-identity-compatibility.md) describe supported
+updates, explicit collection authority and imported/legacy boundaries.
 
 ## Stage two: migrate lifecycle authority
 

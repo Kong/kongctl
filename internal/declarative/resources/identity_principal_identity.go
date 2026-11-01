@@ -58,7 +58,7 @@ func init() {
 		),
 		ExternalResolutionRegistration{
 			Selectors: []string{SchemaFieldID}, ParentType: ResourceTypeIdentityPrincipal,
-			ParentFieldPath: "principal",
+			ParentFieldPath: SchemaFieldPrincipal,
 		},
 		WithNamespace(211, principalIdentityNamespaceParticipant),
 		WithNestedNamespaceGroups(func(rs *ResourceSet) [][]IdentityPrincipalIdentityResource {

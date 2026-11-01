@@ -24,9 +24,10 @@ ledger current as each resource is implemented.
 | Principal Vault credential inspection | None | None; read-only | Provider/template/status/expiry metadata is projected without tokens. Empty collection is live verified; populated user enrollment/revocation still needs Q30's runtime setup. #2663. |
 | Token Vault keys | None | Managed directory | Verified live lifecycle. |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Deletion requires enabled Vault, exact explicitly authorized child retirements and then fresh empty key/provider/Trusted IdP inventories. A directory-only declaration grants no child retirement authority (Q37). |
-| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
+| Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicitly authorized identity, username-record, membership and generated-key retirements, followed by fresh empty checks. Unmanaged keys block deletion (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
-| Principal/group API-key commands | `managed_by`; no labels | Explicit operations preserve existing maps; no ownership stamp | Generated/imported private capture, complete public reads, expiration updates, principal scalar rename and scoped retirement. Generated create can retain a management map, but imported create rejects it and PATCH ignores changes. No declaration/adoption is exposed (Q4/Q28–Q30). #1417/#2659. |
+| Generated principal/group API-key declarations | `managed_by`; no labels | Four immutable creation markers; current managed parent supplies namespace/protection | Declarative generated creation/private capture, updates, scoped sync/delete, saved plans, dump/explain/scaffold and live lifecycle pass. No independent key adoption/protection. Imported create rejects metadata and PATCH ignores map changes (Q4/Q28–Q30). #1417/#2659. |
+| Principal/group API-key commands | `managed_by`; no labels | Explicit operations preserve existing maps; no ownership stamp | Generated/imported private capture, complete public reads, expiration updates, principal scalar rename and explicit scoped retirement. Imported/legacy keys stay outside declarative ownership. #1417/#2659. |
 | Basic-auth username record | `managed_by`; no labels | Four-entry `managed_by`; unique username matching | Declarative lifecycle, adoption, protection, scoped sync/delete, dump and external UUID/username lookup are implemented. Ref stays local. Full PUT never sends password values; deletion requires empty passwords. #1418. |
 | Basic-auth passwords | `managed_by`; no labels | Explicit imperative operations preserve maps; no ownership stamping | Public-only reads, private generated/imported capture, expiration/material changes and explicit deletion. No declarative password ownership/adoption is exposed. Q35 governs metadata-only writes; SDK expiration is corrected (Q36). #1418. |
 | Ordinary Principal Groups | `labels`, `managed_by`, runtime `metadata` | Four-entry `managed_by`; unique directory/name matching | Declarative lifecycle, PUT hydration, adoption, protection and dump are implemented. Group metadata stays independent of directory ownership. Members/keys must be removed before deletion. #2657. |
@@ -65,21 +66,18 @@ contract for auth servers and OAuth clients, or `managed_by` is planned.
 
 These rows describe available API fields, not completed implementations.
 
-Generated-key declarations are being built around ordinary-parent authority.
-The planned key map stores `tool`, creator `version`, `kongctl-ref` and
-`kongctl-create-type: v1`; namespace/protection come from the current managed
-principal/group. A native US `.tech` probe verifies marker retention and parent
-transitions without key-map changes. These immutable markers are distinct from
-the five-entry independent principal/identity ownership maps. No key
-declaration is exposed yet; legacy/unrecognized management shapes must not be
-silently adopted through this policy.
+Generated-key declarations use ordinary-parent authority. Their map stores
+`tool`, creator `version`, `kongctl-ref` and `kongctl-create-type: v1`;
+namespace/protection come from the current managed principal/group. Native and
+CLI US `.tech` checks verify marker retention, current parent authority and
+scope/deletion guards. These immutable markers differ from the five-entry
+independent principal/identity maps. Legacy/unrecognized maps are not adopted.
 
 | Resource | API storage | Planned direction and unresolved limits |
 | --- | --- | --- |
 | Importer-managed teams | `labels`, `managed_by`, runtime `metadata` | Schema availability does not grant importer mutation authority. Ordinary group management is implemented; team/importer contracts remain deferred (Q32). #2657. |
-| Generated principal API-key declarations | `managed_by`; no labels | Direct create retains all five ref/ownership entries. Explicit lifecycle commands are implemented, but declarative integration is pending. PATCH ignores changes (Q28); adoption and mutable ownership remain unavailable. #1417 stays open until merge. |
 | Imported principal API keys | Read/update schemas expose `managed_by`; imported create lacks it | Direct create rejects management metadata, and later PATCH ignores it. Q4/Q28 rule out a verified ownership stamp or adoption workaround. #1417. |
-| Group API-key declarations | `managed_by`; no labels | Explicit commands are implemented. Generated create retains the supplied map, but imported create rejects it and PATCH ignores changes/removal on both kinds. Declarative identity/ownership integration remains separate work. #2659, Q28/Q33. |
+| Imported group API keys | `managed_by`; no labels | Explicit commands are implemented. Imported create rejects the map and PATCH ignores changes/removal; declarative ownership/adoption is unavailable. Generated declarations use parent authority as described above. #2659, Q28/Q33. |
 | Password declarative ownership | `managed_by`; no labels | Generated/imported create retain supplied metadata. PATCH ignores map changes and clears omitted expiration. Full PUT retains the map but requires explicit material. Explicit commands preserve maps without stamping ownership. Metadata-only adoption and declarative password management remain unavailable (Q35). #1418. |
 
 Presence in a response does not establish that every create/update variant can
@@ -154,6 +152,15 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- November 1, generated principal/group key declarations: immutable four-entry
+  provenance/ref/creation-intent maps, parent-derived namespace/protection,
+  whole-plan private capture, supported public updates, exact duplicate/ref
+  guards, scoped sync and explicit retirement ordering. Dump exports no
+  material, capture paths or map. The new live scenario verifies default-style
+  external directory lookup, both parent kinds, saved ownership guards,
+  expiration omission/null, principal rename, group create-only names,
+  foreign/imported/legacy preservation, replacement ordering and parent delete.
 
 - November 1, generated-key declarative preparation: create-only provenance
   and inherited persisted refs are now supported by the metadata engine.

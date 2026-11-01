@@ -29,6 +29,8 @@ func (p *Planner) applyInheritedProtection(ctx context.Context, plan *Plan) erro
 		// Memberships check their independently owned, directory-scoped group in
 		// their planner and executor, rather than inheriting directory protection.
 		if change.ResourceType == ResourceTypeIdentityGroupMembership ||
+			change.ResourceType == ResourceTypeIdentityPrincipalAPIKey ||
+			change.ResourceType == ResourceTypeIdentityGroupAPIKey ||
 			resources.HasIndependentChildOwnership(resources.ResourceType(change.ResourceType)) {
 			continue
 		}
