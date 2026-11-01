@@ -96,7 +96,7 @@ or protection metadata on them.
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
 | Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
-| Shared provider credentials | Generated ID; observed default/routing-priority slot under provider | Public inspection is implemented. Multiple static/OAuth shared credentials exist; selectors can repeat but duplicate priorities/defaults return 409. Candidate declaration matching must preserve the Q45/Q46 cardinality/material boundaries. No ownership stamping or declarative writes yet. #2662. |
+| Shared provider credentials | Generated ID; observed default/routing-priority slot under provider | Public inspection and guarded internal static write helpers are implemented. Selectors can repeat but duplicate priorities/defaults return 409. Helpers stamp no metadata or authority; inherited directory protection and deferred secret selection still need declarative integration. No declarative writes yet. Q45/Q46, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Public provider/principal inspection is implemented without adopting authorizations. Actual enrollment/revocation needs supported runtime context; it is not established by empty lists. Q30, #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
@@ -140,6 +140,13 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31 US Central, static credential write foundations: fresh static/shared
+  provider and complete routing inventories guard single-attempt create,
+  explicit material replacement and delete. No metadata is stamped. Three
+  creates/replacements/deletes and three pre-write guards pass through actual
+  helpers in `.tech`, with no credential detail GET. Explicit inherited parent
+  authority and deferred secret selection remain declarative integration work.
 
 - October 31 US Central, credential observation: provider/principal get/list
   expose public metadata only, without enrollment-producing detail GET or

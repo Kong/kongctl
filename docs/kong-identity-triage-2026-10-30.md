@@ -3807,3 +3807,64 @@ scenario is live-only. Evidence also includes credential-inspection-all/
 credential-inspection-stopped.log, credential-inspection-replay-check.log and
 credential-inspection-final-inventory.json. #2662/#2663 stay open/In Progress
 until main merge; declarations/enrollment/revocation are subsequent work.
+
+## 57. Static shared credential write foundations
+
+The next #2662 slice implements guarded static credential create, explicit
+material replacement and deletion. The narrow write interface excludes
+credential detail GET. Fresh provider reads verify exact directory/provider
+UUIDs, name and static_secret/shared mode. Complete list observations reject
+duplicate priority/default slots, user/pending variants, missing UUIDs and
+stale routing before writing. Unrelated slots remain intact. These helpers
+do not establish management ownership/protection; those checks belong to the
+declarative execution integration that follows this foundation.
+
+Replacement always receives explicit material. A nil requested routing object
+preserves freshly observed selector/priority, avoiding the native PUT reset.
+An explicit empty routing object requests the default slot; a nonempty pair
+can change the selector/priority. The expected pre-write routing is checked
+against fresh state, and occupied destination slots block before PUT. Each
+mutation makes one attempt through both HTTP and SDK retry layers. Public
+receipt and full collection readback must agree; delete requires the target
+UUID to disappear. No stored-material or runtime-continuity claim is inferred.
+
+Actual helper calls in US .tech verify three creates, three replacements and
+three deletions, with three conflicts rejected before mutation. Coverage
+includes a default, priority zero, repeated selectors at distinct priorities,
+material-only replacement preserving routing, selector replacement and a
+priority move. The helper performs 34 reads and nine writes, with no credential
+detail GET. Initial probe setup omitted an encryption key and received HTTP
+400 on creation; adding the public-key fixture makes the lifecycle pass. This
+is a fixture correction, not evidence of a new API defect. The public
+credential guide now calls out that prerequisite.
+
+Wire regressions exercise both enabled retry layers, secret/capability
+exclusion, wrong provider name/directory/template/mode, later-page failures,
+duplicate default/priority slots, stale routing, collisions, unexpected
+variants, receipt/readback disagreement, retained-after-delete responses and
+invalid local IDs/routing. Failed observations return no success result and
+no credential material. Actual live fixtures are removed, and an independent
+inventory confirms the original unmanaged default settings and empty
+principal/group/IdP/provider/key/auth-server inventories.
+
+Evidence is static-vault-credential-write-live.json and
+static-vault-write-foundation-final-inventory.json under the local evidence
+cache. The metadata ledger and compatibility tracker distinguish internal
+write foundations from exposed declarative support. SDK 90596b498bcb already
+provides the mutation methods, so no SDK change, release or PR is needed.
+
+The next integration must include nested/grouped declarations, the observed
+default/priority identity, deferred !secret sources and explicit replacement
+selection, fresh inherited directory ownership/protection, encryption-key
+dependencies, scoped sync/parent retirement ordering, dump/explain/scaffold,
+examples and a live CLI lifecycle. No credential declaration or new imperative
+write command is exposed yet. OAuth enrollment/user revocation remain separate
+under Q30/Q45/Q46. #2662 stays open/In Progress until main merge.
+
+Modernization, stable formatting, CGO-disabled build and make test-all pass:
+zero-issue lint, full race unit/integration/harness checks, nine SDK patch
+tests, 140 metrics tests and installer checks. The ordered log is
+static-vault-write-foundation-gates.log. No existing E2E scenario or replay
+membership/cassette is changed. The actual-helper lifecycle above verifies the
+new writes; the previous twenty-four CLI scenarios are not rerun for this
+internal-only foundation.

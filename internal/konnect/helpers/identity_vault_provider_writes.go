@@ -192,10 +192,10 @@ func verifyIdentityVaultProviderPatch(
 	return nil
 }
 
-// RequireEmptyIdentityVaultProviderCredentials requests an unfiltered first page
-// without the SDK's currently incorrect credential cursor serialization. Only a
-// complete, terminal empty response authorizes deletion. It never calls detail
-// GET, which can issue enrollment capabilities.
+// RequireEmptyIdentityVaultProviderCredentials requests an unfiltered first page.
+// Only a complete, terminal empty response authorizes deletion. A nonempty page
+// already blocks it without further traversal. It never calls detail GET, which
+// can issue enrollment capabilities.
 func RequireEmptyIdentityVaultProviderCredentials(ctx context.Context, api IdentityVaultProviderCredentialsLister,
 	directory, id string,
 ) error {

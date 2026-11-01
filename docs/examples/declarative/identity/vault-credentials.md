@@ -65,6 +65,13 @@ enrollment URL. Ordinary configuration changes therefore cannot assume secret
 preservation. See [API questions](../../../kong-identity-api-questions.md),
 Q30/Q45/Q46, for runtime prerequisites and update/cardinality contracts.
 
+Static credential writes also need a registered public encryption key in the
+directory. See [Vault keys](vault-keys.md) for key registration and private-key
+retention. Enabling Vault or creating a provider alone does not supply a key.
+Guarded static write helpers have been verified internally, including explicit
+material replacement that preserves routing; they are not exposed as commands
+or declarations yet.
+
 No `labels` or `managed_by` storage exists on provider credentials. This
 inspection slice stamps no metadata and grants no sync or deletion authority
 over either shared credentials or user authorizations. Actual user enrollment

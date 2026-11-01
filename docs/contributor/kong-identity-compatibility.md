@@ -1150,3 +1150,37 @@ are limited to their three Page query tags. Snapshot/provenance and tests are
 updated from KongCTL patch source `c775a9c4`. Native provider/group inventories
 traverse five/three records at page size one. Empty principal Vault queries
 honor size one; populated user pagination has not been live exercised.
+
+## Static shared Vault credential write foundations
+
+Guarded helpers now support create, explicit material replacement and deletion
+for verified `static_secret`/`shared` providers. They recheck directory/provider
+UUIDs, exact provider name and mode, then observe every credential page before
+writing. Duplicate priority/default slots, unexpected user/pending records,
+missing targets and stale routing block mutation. No credential detail GET is
+used. These helpers do not establish directory ownership or protection; the
+declarative executor must supply that separate authority before calling them.
+
+Replacement always receives explicitly supplied material. Omitted routing in
+the helper call preserves the freshly observed selector/priority; an explicit
+empty routing pair requests the default slot. Both the planned routing and
+target UUID must still match. Routing collisions fail before PUT. Every
+mutation makes one attempt through both retry layers; public receipt and
+collection readback must agree. Deletion verifies the UUID is absent afterward.
+Public observations cannot prove the value of stored material or its runtime
+usability, and no such guarantee is reported.
+
+Actual helper calls in US `.tech` pass three creates, three replacements and
+three deletions, with three conflicts rejected before mutation. This includes
+default and priority-zero slots, repeated selectors at different priorities,
+secret-only routing preservation, selector changes and a priority move. No
+credential detail GET occurs. A registered encryption key is required for this
+fixture: creation returned HTTP 400 without one, and succeeded after adding
+it. All fixtures are removed and original default-directory settings restored.
+
+No declarations or new imperative write commands are exposed by this slice.
+Remaining integration includes deferred `!secret` sources, explicit replacement
+selection, fresh inherited directory authority/protection, key dependencies,
+scoped sync/parent retirement ordering, dump and examples/live E2E. SDK
+`90596b498bcb` already supplies these mutation methods; no SDK change is needed.
+Q45/Q46 still ask for the formal routing and material-preserving API contracts.
