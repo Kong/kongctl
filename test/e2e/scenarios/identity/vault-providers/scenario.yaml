@@ -1,0 +1,52 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_VAULT_PROVIDERS_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+  info: Requires Token Vault availability and capacity for a temporary directory. Inspect the global eight-template catalog and five providers spanning static credentials, static OAuth clients and DCR. Verify actual cursor pagination, all public fields, UUID/name selection, JSON/YAML/text, disabled-Vault behavior and unchanged configuration/ownership. No enrollment capability is requested or exposed by inspection. Native providers are removed only after observing empty credential collections; declarations remain separate implementation work.
+steps:
+  - name: 001-vault-provider-inspection
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: verify-provider-inspection
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/inspection.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                templates: 8
+                providers: 5
+                output_formats: 3
+                complete_public_configuration: true
+                real_template_pagination: true
+                real_provider_pagination: true
+                exact_name_and_uuid_selection: true
+                templates_without_enabled_vault: true
+                inspection_preserves_configuration: true
+                secret_and_enrollment_values_excluded: true
+                fixtures_removed: true
