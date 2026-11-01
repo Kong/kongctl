@@ -4243,3 +4243,92 @@ saved plan. This completes an operational importer slice, not general CSV
 import #1419, chart CRUD or a public org-root read. SDK stays 90596b498bcb;
 no SDK revision/release or PR is needed. #2665 remains open/In Progress until
 main merge. Q48–Q51 retain API contract/schema boundaries.
+
+## 62. Principal and group API-key lifecycle
+
+Work under #1417/#2659 verifies direct US .tech contracts using three principal
+types and two ordinary groups. Generated creation retains the five ownership
+entries and expiration; duplicate management tuples are accepted and detected
+across three pages. Imported creation rejects managed_by, and full replacement
+or per-key null PATCH leaves existing maps unchanged. Omitted expiration clears
+it; explicit dates/null work. Wrong existing parent GET/PATCH/DELETE return 404
+without changing the original key. All keys and parents are retired, leaving
+default directory settings and timestamp unchanged. Evidence is
+api-key-lifecycle-contracts.json in the local cache.
+
+Principal generated/imported scalar names work, while null clearing returns
+200 and retains the previous value. Generated group creation retains a name;
+imported group naming and all group name PATCH changes are ignored. Q28/Q29
+now include November 1 observations and short HTTP routes. Questions remain
+API-centered and do not presume the API enforces opaque management markers.
+
+Shared SDK-backed helpers and explicit create/patch/delete commands now cover
+both parents, with public get/list and full cursor traversal. Creation requires
+a new exclusive 0600 capture, reserves it before POST, disables both retry
+layers and saves generated/imported material before public verification.
+Public response/read-back mismatch, missing material and uncertain errors
+never replay creation or delete issued credentials. Captures record the
+directory, principal/group and known key UUIDs. Imported material uses the
+existing secret-env/file source pattern. No ownership stamp is added.
+
+PATCH only supports expiration and scalar principal names. Fresh observations
+hydrate omitted expiration; requests always send a timestamp/null to preserve
+the intended state. Public receipts and fresh read-back must retain management
+metadata and creation identity. Unsupported group naming is rejected before
+mutation. Explicit deletion requires confirmation, scoped collection membership
+and observed absence. Key route bodies/read/transport diagnostics are wholly
+redacted, including arbitrary error bodies. Text detail now honors text output.
+
+The first new lifecycle scenario failed local group-name validation because
+its fixture names contained spaces. Correct alphanumeric names pass the full
+scenario in 19.61s. It covers generated/imported capture, environment/file
+sources, three actual pages under both parent types, supported updates,
+wrong-parent rejection, rotation/retirement, arbitrary map preservation,
+declarative parent no-op/deletion guards, output formats and private workspace
+removal. Fixtures and captures are retired before publishing checked outputs.
+The default directory is restored unmanaged after isolated verification.
+
+api-key-parents.yaml supplies ordinary group/principal declarations under the
+external default directory. The expanded tutorial describes explicit key
+lifecycle and cleanup. Generated-key declarations, inherited/fixed ownership
+policy, saved plans, dump and authorized parent ordering remain integration
+work; imported ownership/adoption remains unavailable. No runtime continuity
+or revocation claim is made without Q30's supported setup. SDK remains
+90596b498bcb; no SDK change/release or PR is required for these commands.
+
+Review also found that the older key reader could treat missing pagination
+metadata as a terminal page through generated zero values. Shared key reads now
+parse the public raw collection and require data, meta/page, positive size and
+an explicit next cursor/null before accepting it. Missing components fail the
+whole observation. This is a client observation guard, not a new API defect.
+Focused actual-SDK tests cover missing data/meta/page/size/next, invalid IDs,
+failed pages, duplicate IDs/cursors, capture/uncertainty and scoped mutation.
+
+Full Identity regression passes all twenty-nine live scenarios together in
+563.529s, including the new lifecycle in 19.82s. Final isolated verification
+after the strict pagination change passes in 25.83s. Independent checks confirm
+all outcomes, eight existing private capture directories and five private
+workspaces removed, no copied key sources/captures and no administrative token
+or its base64 form in artifacts. Both parent collections actually traverse
+three pages with bracketed size/after parameters. Final isolated privacy
+verification independently checks the same key workflow and removed workspace.
+
+Early stop after directory creation passes guarded cleanup in 0.94s. The
+published api-key-parents.yaml plans exactly one principal and one ordinary
+group through the external default directory. Independent final inventory
+confirms the unmanaged default settings restored, with empty principal, group,
+Trusted IdP, provider, Vault-key and auth-server collections. Evidence under the
+local cache includes api-key-writes-all/20261101-004959,
+api-key-writes-final/20261101-005933, api-key-writes-stopped.log,
+api-key-writes-all-artifact-verification.json,
+api-key-writes-final-artifact-verification.json,
+api-key-writes-example-plan.json and api-key-writes-final-inventory.json.
+
+Final ordered modernization, stable formatting, CGO-disabled build and full
+make test-all pass, including zero-issue lint, unit/integration/harness race
+checks, nine SDK patch tests, 140 metrics tests and installer checks. Final
+results/log are api-key-writes-final-gates.json/.log. Default replay validation
+passes for control-plane/get; all twenty enabled memberships/cassettes are
+unchanged and the new scenario is live-only. #1417/#2659 remain open and
+project 79 In Progress until merge to main. No implementation PR or SDK
+release is created.

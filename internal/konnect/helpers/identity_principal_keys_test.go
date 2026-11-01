@@ -48,7 +48,7 @@ func TestPrincipalAPIKeyMetadataReadsDoNotExposeMaterial(t *testing.T) {
 func TestPrincipalAPIKeyPaginationRejectsIncompleteObservations(t *testing.T) {
 	for _, mode := range []string{
 		"complete", "empty", "failed-page", "repeated-id", "repeated-cursor", "bad-cursor",
-		"missing-data", "invalid-id",
+		"missing-data", "invalid-id", "missing-meta", "missing-page", "missing-next", "missing-size",
 	} {
 		t.Run(mode, func(t *testing.T) {
 			calls := 0
@@ -60,6 +60,18 @@ func TestPrincipalAPIKeyPaginationRejectsIncompleteObservations(t *testing.T) {
 				}
 				if mode == "missing-data" {
 					return secretResponse(request, 200, `{"meta":{"page":{"next":null,"size":1}}}`), nil
+				}
+				if mode == "missing-meta" {
+					return secretResponse(request, 200, `{"data":[]}`), nil
+				}
+				if mode == "missing-page" {
+					return secretResponse(request, 200, `{"data":[],"meta":{}}`), nil
+				}
+				if mode == "missing-next" {
+					return secretResponse(request, 200, `{"data":[],"meta":{"page":{"size":1}}}`), nil
+				}
+				if mode == "missing-size" {
+					return secretResponse(request, 200, `{"data":[],"meta":{"page":{"next":null}}}`), nil
 				}
 				if calls > 1 {
 					require.Equal(t, "next-cursor", request.URL.Query().Get("page[after]"))

@@ -18,6 +18,8 @@ type Metadata struct {
 	SecretID      string `json:"secret_id,omitempty"`
 	DirectoryID   string `json:"directory_id,omitempty"`
 	PrincipalID   string `json:"principal_id,omitempty"`
+	GroupID       string `json:"group_id,omitempty"`
+	APIKeyID      string `json:"api_key_id,omitempty"`
 	BasicAuthID   string `json:"basic_auth_id,omitempty"`
 	PasswordID    string `json:"password_id,omitempty"`
 	ProviderID    string `json:"provider_id,omitempty"`
