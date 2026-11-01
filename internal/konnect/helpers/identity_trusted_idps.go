@@ -16,10 +16,14 @@ import (
 	"github.com/kong/kongctl/internal/util/pagination"
 )
 
-type IdentityTrustedIDPsReader interface {
+type IdentityTrustedIDPsLister interface {
 	ListTrustedIdps(context.Context, string, *kkComps.CursorPageParameters, ...kkOps.Option) (
 		*kkOps.ListTrustedIdpsResponse, error,
 	)
+}
+
+type IdentityTrustedIDPsReader interface {
+	IdentityTrustedIDPsLister
 	GetTrustedIdp(context.Context, string, string, ...kkOps.Option) (*kkOps.GetTrustedIdpResponse, error)
 	ListTrustedIdpPrincipals(context.Context, kkOps.ListTrustedIdpPrincipalsRequest, ...kkOps.Option) (
 		*kkOps.ListTrustedIdpPrincipalsResponse, error,
@@ -142,7 +146,7 @@ func listIdentityTrustedIDPCollection[T any](pageSize int64,
 	}
 }
 
-func ListIdentityTrustedIDPs(ctx context.Context, api IdentityTrustedIDPsReader, directoryID string,
+func ListIdentityTrustedIDPs(ctx context.Context, api IdentityTrustedIDPsLister, directoryID string,
 	pageSize int64,
 ) ([]IdentityTrustedIDP, error) {
 	if api == nil {

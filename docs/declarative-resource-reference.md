@@ -272,6 +272,31 @@ managed, enabled parent. See the [Vault key tutorial][identity-vault-keys].
 
 [identity-vault-keys]: examples/declarative/identity/vault-keys.md
 
+## Kong Identity directory Trusted IdPs
+
+Nest `trusted_idps` under a managed directory, or use grouped
+`identity.trusted_idps` with a `directory` ref. Each entry requires `ref` and
+`issuer_url`. The exact issuer URL is unique per directory; display names are
+nonunique and refs stay local. Optional public settings are `display_name`,
+`jwks_uri`, `jit_provisioning_enabled`, `vault_access_enabled` and `jit.mapping`
+(claim names for `email`, `groups`, `display_name` and a metadata map).
+
+Authority comes from an explicitly managed directory, with no independent
+metadata or child adoption. External directories are read-only for trust
+configuration. Existing Vault must be enabled before observation. Omission
+preserves collections/settings. Explicit collections scope sync; empty lists
+select all trust records under that parent. Full PUT hydrates omitted public
+settings; explicit nullable display/JWKS values and `jit: {}` clear them.
+
+Plan/diff/apply, saved execution, scoped sync/delete, public dump/reload,
+explain/scaffold and get/list are supported. Issuer changes create before
+retiring the old trust during sync. Every retirement requires empty principal
+associations after any independently authorized OIDC detachments. Trust
+configuration never grants principal/identity ownership or executes runtime
+JIT provisioning. Directory deletion orders selected retirements before fresh
+empty checks. See the
+[trust tutorial](examples/declarative/identity/trusted-idps.md).
+
 ## Kong Identity principals
 
 Declare principals under `identity.directories[].principals`, or in

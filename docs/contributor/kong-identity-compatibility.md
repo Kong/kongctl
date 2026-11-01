@@ -1090,3 +1090,33 @@ Evidence consists of 47 native requests and a separate 36-request probe using
 the actual SDK-backed helpers. Fixtures were removed and the original default
 directory settings restored. SDK version remains `2597fe249e26`; full trust
 declarations, examples and lifecycle E2E remain the next integration work.
+
+## Trusted IdP declarative lifecycle
+
+Trust configurations now use nested `identity.directories[].trusted_idps` or
+grouped `identity.trusted_idps`. Exact directory/issuer matching and explicit
+managed-directory authority follow the Vault child pattern. No child metadata
+is invented; external directories grant no write authority. Parent protection
+blocks updates/deletion, and omitted collections grant no sync authority.
+
+Public full PUT hydrates omitted settings from a fresh read. Nullable display
+and JWKS declarations retain explicit-null presence through loading and saved
+execution; `jit: {}` clears mapping and normalizes to no mapping. Supplied
+mapping objects replace their entries. Fresh membership/issuer and directory
+ownership/Vault checks repeat before writes; uncertain mutations are not
+retried automatically. Q38 is handled through verified PUT, not PATCH clearing.
+
+Final plans can order independently authorized OIDC issuer retargeting or
+identity deletion before trust retirement, including across namespaces.
+Principal deletion also counts only when explicitly authorized in its own
+plan. Every matching identity must detach; ownership-only changes, unknown
+associations or new attachments do not prove detachment. Saved execution
+requires actual terminal empty associations, including inactive principals.
+The root's final deletion requires actual empty Vault collections after exact
+authorized key/provider/trust retirements. Q37/Q44 retain atomicity limits.
+
+Dump exports public trust settings only under enabled managed directories,
+including explicit nullable overrides and empty mappings. Examples cover
+default-directory adoption/enablement and missing-default bootstrap. Runtime
+JIT provisioning, token exchange and principal/group ownership remain separate
+from administrative trust configuration. SDK remains `2597fe249e26`.

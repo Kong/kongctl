@@ -38,11 +38,15 @@ adoption use `groups.yaml`. [Direct principal memberships](memberships.md)
 use `memberships.yaml`, with authority inherited from the managed ordinary
 group. Inspection alone grants no importer authority.
 
-[Directory Trusted IdP inspection](trusted-idps.md) covers issuer URL lookup,
-JIT/Vault configuration and associated-principal reads. The companion
+[Directory Trusted IdPs](trusted-idps.md) covers declarative trust settings,
+issuer URL lookup, JIT/Vault mapping and associated-principal reads.
+`trusted-idps.yaml` manages configuration under a managed default directory;
+missing-default bootstrap and existing-directory adoption are documented.
+The companion
 `trusted-idp-principals.yaml` manages a principal and OIDC association under
 the external default directory; it uses an already configured Trusted IdP.
-Trust configuration declarations are pending their ownership/deletion policy.
+Trust configuration inherits directory protection and never grants ownership
+of associated principals. Explicit detachments precede guarded retirement.
 
 The demos center on a directory named `default`, whether platform-provided or
 bootstrapped with KongCTL. First inspect the organization:

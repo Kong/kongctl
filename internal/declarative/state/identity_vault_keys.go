@@ -60,10 +60,3 @@ func (c *Client) DeleteIdentityVaultKey(ctx context.Context, directory, id strin
 	}
 	return err
 }
-
-func (c *Client) CheckIdentityDirectoryVaultRetirements(ctx context.Context, directory IdentityDirectory,
-	keysToRemove map[string]string,
-) error {
-	return helpers.RequireIdentityDirectoryVaultRetirements(ctx, c.identityDirectoryDependenciesAPI,
-		directory.ID, directory.VaultEnabled, keysToRemove)
-}

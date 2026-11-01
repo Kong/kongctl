@@ -377,6 +377,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	if err := p.resolvePrincipalIdentityTargetDeletes(basePlan); err != nil {
 		return nil, err
 	}
+	if err := p.resolveIdentityTrustedIDPDeletes(ctx, basePlan); err != nil {
+		return nil, err
+	}
 	depResult, err := p.depResolver.ResolveDependenciesWithGroups(basePlan.Changes)
 	if err != nil {
 		var paths []string

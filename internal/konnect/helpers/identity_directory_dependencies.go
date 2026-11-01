@@ -79,13 +79,20 @@ func RequireEmptyIdentityDirectoryVault(ctx context.Context, api IdentityDirecto
 func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityDirectoryDependenciesAPI,
 	directory string, vaultEnabled *bool, keysToRemove map[string]string,
 ) error {
-	return RequireIdentityDirectoryVaultResourceRetirements(ctx, api, directory, vaultEnabled, keysToRemove, nil)
+	return RequireIdentityDirectoryVaultResourceRetirements(ctx, api, directory, vaultEnabled,
+		IdentityDirectoryVaultRetirements{Keys: keysToRemove})
+}
+
+type IdentityDirectoryVaultRetirements struct {
+	Keys        map[string]string
+	Providers   map[string]string
+	TrustedIDPs map[string]string
 }
 
 // RequireIdentityDirectoryVaultResourceRetirements permits exact authorized
 // planned child deletions. Final directory execution still requires emptiness.
 func RequireIdentityDirectoryVaultResourceRetirements(ctx context.Context, api IdentityDirectoryDependenciesAPI,
-	directory string, vaultEnabled *bool, keysToRemove, providersToRemove map[string]string,
+	directory string, vaultEnabled *bool, removals IdentityDirectoryVaultRetirements,
 ) error {
 	if !util.IsValidUUID(directory) {
 		return fmt.Errorf("directory ID must be a UUID")
@@ -97,13 +104,13 @@ func RequireIdentityDirectoryVaultResourceRetirements(ctx context.Context, api I
 	if api == nil {
 		return fmt.Errorf("directory Vault dependency APIs are not configured; deletion is blocked")
 	}
-	if len(keysToRemove) > 0 {
+	if len(removals.Keys) > 0 {
 		keys, err := ListIdentityVaultKeys(ctx, api, directory, 100)
 		if err != nil {
 			return err
 		}
 		for _, key := range keys {
-			if keysToRemove[key.ID] != key.Kid {
+			if removals.Keys[key.ID] != key.Kid {
 				return fmt.Errorf("directory has attached Vault keys without explicit planned deletion")
 			}
 		}
@@ -119,13 +126,13 @@ func RequireIdentityDirectoryVaultResourceRetirements(ctx context.Context, api I
 			return err
 		}
 	}
-	if len(providersToRemove) > 0 {
+	if len(removals.Providers) > 0 {
 		providers, err := ListIdentityVaultProviders(ctx, api, directory, 100)
 		if err != nil {
 			return err
 		}
 		for _, provider := range providers {
-			if providersToRemove[provider.ID] != provider.Name {
+			if removals.Providers[provider.ID] != provider.Name {
 				return fmt.Errorf("directory has attached Vault providers without explicit planned deletion")
 			}
 		}
@@ -140,6 +147,18 @@ func RequireIdentityDirectoryVaultResourceRetirements(ctx context.Context, api I
 		if err := requireEmptyIdentityCollection(providers.RawResponse, "directory", "Vault providers"); err != nil {
 			return err
 		}
+	}
+	if len(removals.TrustedIDPs) > 0 {
+		idps, err := ListIdentityTrustedIDPs(ctx, api, directory, 100)
+		if err != nil {
+			return err
+		}
+		for _, idp := range idps {
+			if removals.TrustedIDPs[idp.ID] != idp.IssuerURL {
+				return fmt.Errorf("directory has attached Trusted IdPs without explicit planned deletion")
+			}
+		}
+		return nil
 	}
 	idps, err := api.ListTrustedIdps(ctx, directory, nil)
 	if err != nil {

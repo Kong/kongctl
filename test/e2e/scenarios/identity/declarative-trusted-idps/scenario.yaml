@@ -1,0 +1,67 @@
+defaults:
+  retry:
+    attempts: 1
+log-level: trace
+test:
+  cleanupResources:
+    - resource: identity_directory
+      nameVar: directory_name
+      nameEnv: KONGCTL_E2E_TRUST_DECLARATIVE_DIRECTORY_NAME
+      requireEmptyVaultDependencies: true
+    - resource: identity_auth_server
+      nameVar: server_name
+      nameEnv: KONGCTL_E2E_TRUST_DECLARATIVE_SERVER_NAME
+  info: Verify managed-directory authority for Trusted IdP declarations, all public settings, hydrated PUT, explicit null and empty mapping clears, exact issuer identity, saved ownership and association guards, independent OIDC detachments, scoped sync/delete, dump/reload and missing-default bootstrap. A disposable authorization server supplies reachable discovery/JWKS. Runtime JIT provisioning and token exchange are separate contracts.
+steps:
+  - name: 001-trust-declarative-lifecycle
+    skipInputs: true
+    commands:
+      - name: create-directory
+        create:
+          resource: identity_directory
+          payload:
+            inline:
+              name: '{{ .vars.directory_name }}'
+              allow_all_control_planes: true
+              vault_enabled: true
+          recordVar:
+            name: directory_id
+            responsePath: id
+      - name: create-issuer
+        create:
+          resource: identity_auth_server
+          payload:
+            inline:
+              name: '{{ .vars.server_name }}'
+              audience: https://identity-trust-declarative.example.test
+          recordVar:
+            name: server_id
+            responsePath: id
+      - name: verify-trust-declarative-lifecycle
+        exec:
+          - python3
+          - '{{ .scenario_dir }}/lifecycle.py'
+          - '{{ .bin }}'
+          - '{{ .workdir }}'
+          - '{{ .vars.directory_id }}'
+          - '{{ .vars.directory_name }}'
+          - '{{ .vars.server_id }}'
+          - '{{ .vars.server_name }}'
+        env:
+          KONGCTL_PROFILE: e2e
+        parseAs: json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                trust_records: 3
+                all_public_fields: true
+                parent_adoption_and_protection: true
+                fresh_put_hydration_and_clears: true
+                issuer_replacement_ordered: true
+                independent_detachments_ordered: true
+                saved_association_and_parent_guards: true
+                scoped_sync_and_delete: true
+                dump_reload: true
+                bootstrap_default: true
+                fixtures_removed: true

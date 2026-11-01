@@ -7,13 +7,23 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Latest verification: October 31, 2026 (US Central).
+
+Directory Trusted IdPs now have nested/grouped declarative lifecycle, public
+hydrated PUT, nullable override/empty mapping clears, scoped sync/delete and
+dump/reload. They inherit explicit managed-directory authority without owning
+associated principals. Proven independent OIDC detachments can precede trust
+retirement. All twenty-three Identity live scenarios pass in US `.tech`;
+the final trust lifecycle, early-stop cleanup and repository gates also pass.
+Section 55 records the contract and evidence. #2664 stays In Progress until
+main merge; SDK remains `2597fe249e26`.
+
 Credential Providers now have nested/grouped declarative lifecycle under
 explicitly managed directories: create/PATCH, selected deferred secret writes,
 scoped sync/delete, adoption through the parent and public dump. The first live
 US `.tech` scenario passes, including saved authority/credential guards and
-missing-directory bootstrap. All twenty-two Identity live scenarios and final
-repository gates pass. Section 53 records its contract and evidence; #2660
-stays In Progress until main merge. Sections 51–52 record the read and write
+missing-directory bootstrap. Section 53 records its contract and evidence.
+#2660 stays In Progress until main merge. Sections 51–52 record the read and write
 prerequisites.
 
 Credential Provider configuration and the built-in provider-template catalog
@@ -31,15 +41,9 @@ Directory deletion now requires explicitly enabled Vault and fresh empty
 key/provider/Trusted IdP collections during planning and saved execution.
 Disabled/unknown/incomplete observations block deletion without automatic
 enablement or implicit child retirement. Section 49 records this boundary,
-examples and verification. Explicit key deletions can now precede the fresh
-empty checks as described in section 50; other attachments cannot cascade.
-
-Trusted IdP configuration and associated-principal inspection now support
-complete pagination, exact issuer lookup and all output formats. An example
-connects an externally configured IdP to declaratively managed principals
-under the external default directory. Section 45 records this slice. Trust
-configuration declarations remain pending the Q37 ownership/deletion policy;
-there is no independent metadata store on an IdP.
+examples and verification. Exact authorized key/provider/trust retirements
+can precede the fresh empty checks as described in sections 50, 53 and 55;
+other attachments cannot cascade.
 
 Basic-auth username records now support declarative lifecycle, independent
 four-entry managed_by ownership, adoption, external UUID/username lookup,
@@ -3617,3 +3621,81 @@ trusted-idp-write-foundation-final-inventory.json: one unmanaged default with
 original settings restored and empty principal/group/IdP/provider/key/
 auth-server inventories. No E2E scenario or replay membership changed in this
 foundation slice; the native and actual-helper probes verify its write paths.
+
+## 55. Trusted IdP declarative lifecycle
+
+Trusted IdP declarations are integrated through registration/schema,
+nested/grouped loading, namespace/collection scope, planning/state access,
+saved execution and public dump. Required fields are ref and issuer_url.
+Matching uses exact issuer per directory; display names may be duplicated,
+and local refs are not persisted. Authority/protection comes from an explicitly
+managed directory, without inventing labels or managed_by. External directory
+references remain read-only for trust configuration. Existing Vault must be
+enabled before its complete collection can be observed.
+
+Create accepts all public settings. Hydrated full PUT preserves omitted
+settings from a fresh detail read, including both booleans, nullable overrides
+and JIT mapping. Explicit display_name/jwks_uri null and jit:{} clear those
+settings; a supplied mapping replaces its entries. Nonnullable booleans,
+mapping objects and claim names reject null rather than silently dropping it.
+Helpers verify full public receipts/readback and do not retry uncertain writes.
+Q38 is handled through verified PUT instead of relying on PATCH null clearing.
+
+Explicit collections scope sync and omission preserves them. Issuer changes
+create a separate trust record; scoped sync creates the replacement before
+retiring the old configuration. It never retargets identities automatically.
+Full final plans may order independently authorized OIDC retargeting/deletion
+or principal deletion before retirement, including across namespaces. Every
+matching identity must detach; ownership-only changes, unknown associations
+and planned new attachments do not count. Execution repeats exact directory
+membership/issuer and parent ownership/protection/Vault checks, then requires
+actual terminal empty associations. Inactive principals still count.
+
+Directory retirement can authorize exact key/provider/trust deletions before
+its final actual-empty checks. A late unplanned trust blocks the parent; a
+late association blocks its trust. Native trust deletion leaves principals
+and identities readable, and client observations cannot close the final
+attachment/DELETE race (Q37/Q44). Administrative configuration does not prove
+runtime token exchange/JIT behavior or grant ownership over provisioned output.
+
+Dump exports complete public configuration under enabled managed parents,
+including explicit nullable overrides/empty mappings. Examples and the guide
+cover existing-default adoption/enablement, missing-default bootstrap, saved
+plans, diff, public reads, omission, scoped sync and retirement. They explain
+the existing source-default namespace rule for explicitly empty independently
+owned identity collections. Ref and issuer roles remain distinct.
+
+The first complete live lifecycle passes in US .tech. It covers three trust
+records, duplicate display names, all public settings, fresh-state hydration,
+clears, parent adoption/protection, saved association/parent guards,
+replacement ordering, cross-namespace OIDC retargeting and deletion, dump,
+scoped deletion/repeat and bootstrap. Initial scenario attempts exposed test
+namespace setup errors; guarded recovery removed only the verified fixture
+records and restored original default settings. No API defect was inferred
+from those test setup errors. All twenty-three Identity live scenarios pass
+together (445.191s), including this scenario in 30.17s and an actual default
+bootstrap. The final isolated lifecycle passes in 33.48s after strict null
+schema/validation checks; early stop after issuer creation passes in 3.41s.
+
+Modernization, stable formatting, CGO-disabled build and make test-all pass:
+zero-issue lint, full race unit/integration and harness checks, nine SDK patch
+tests, 140 metrics tests and installer checks. The default cassette check
+passes; no existing replay membership/cassette changes. The new scenario is
+live-only. Artifact verification confirms twenty-three passing outcomes,
+removal of eight private capture directories, actual default bootstrap and
+absence of the administrative token in artifacts. Independent final inventory
+confirms an unmanaged default with restored original settings and empty
+principal/group/IdP/provider/key/auth-server inventories.
+
+Evidence under the local cache includes trusted-idp-declarative-all/
+20261031-205835, trusted-idp-declarative-final/20261031-210659,
+trusted-idp-declarative-final-gates.log,
+trusted-idp-declarative-artifact-verification.json,
+trusted-idp-declarative-stopped.log, trusted-idp-declarative-replay-check.log
+and trusted-idp-declarative-final-inventory.json. #2664 stays open/In Progress
+until main merge.
+
+SDK remains 2597fe249e26. No SDK generation/revision, release or PR is required
+for this resource. Shared/user provider credentials and importer/team work
+remain separate implementations. Ownership tracking #2656 and directory epic
+#1132 stay open/In Progress, as does #2664.
