@@ -21,10 +21,11 @@ func membershipPlanFixture() (*Planner, *resources.ResourceSet, *fixture.GroupAP
 		ManagedBy: resources.BuildPrincipalManagedBy("principal-team", "alice", false, "old"),
 	}
 	client := state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
-		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-		IdentityGroupsAPI:           api,
+		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+		IdentityDirectoriesAPI:        &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:             api,
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
 			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
 		},
@@ -200,11 +201,12 @@ func TestMembershipCreationDependsOnNewParentsAcrossNamespaces(t *testing.T) {
 	rs.Identity.Groups[0].Kongctl.Namespace = new("a-group")
 	rs.Identity.Principals[0].Kongctl.Namespace = new("y-principal")
 	client := state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{},
-		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-		IdentityGroupsAPI:           &fixture.GroupAPI{},
-		IdentityPrincipalsAPI:       &fixture.PrincipalAPI{},
+		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+		IdentityDirectoriesAPI:        &fixture.DirectoryAPI{},
+		IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:             &fixture.GroupAPI{},
+		IdentityPrincipalsAPI:         &fixture.PrincipalAPI{},
 	})
 	plan, err := NewPlanner(client, slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)

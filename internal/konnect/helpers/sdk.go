@@ -25,6 +25,7 @@ type SDKAPI interface {
 	GetIdentityAuthServerClientsAPI() IdentityAuthServerClientsAPI
 	GetIdentityDirectoriesAPI() IdentityDirectoriesAPI
 	GetIdentityDirectoryDependenciesAPI() IdentityDirectoryDependenciesAPI
+	GetRegistryAgentReferencesReader() RegistryAgentReferencesReader
 	GetIdentityPrincipalsAPI() IdentityPrincipalsAPI
 	GetIdentityPrincipalIdentitiesAPI() IdentityPrincipalIdentitiesAPI
 	GetIdentityPrincipalKeysReader() IdentityPrincipalKeysReader
@@ -130,6 +131,13 @@ type KonnectSDK struct {
 	TokenSource apiutil.TokenSource
 	HTTPClient  kkSDK.HTTPClient
 	portalImpl  *PortalAPIImpl
+}
+
+func (k *KonnectSDK) GetRegistryAgentReferencesReader() RegistryAgentReferencesReader {
+	if k.SDK == nil || k.SDK.RegistryAgentReferences == nil {
+		return nil
+	}
+	return &registryAgentReferencesReader{api: k.SDK.RegistryAgentReferences, baseURL: k.BaseURL}
 }
 
 func (k *KonnectSDK) GetIdentityDirectoryDependenciesAPI() IdentityDirectoryDependenciesAPI {

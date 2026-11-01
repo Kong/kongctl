@@ -18,26 +18,32 @@ shared OAuth enrollment and complete-file organization-chart import.
 
 General principal CSV declarations, offline inspection, optional UUID
 assertions and public metadata merge/sync policies are delivered under #1419
-(section 65). The latest increment completes principal-group inspection under
+(section 65). The preceding increment delivered principal-group inspection under
 #2658: ordinary direct and imported direct/inherited groups, nullable entry IDs
 and manager/provisioning fields (section 67). All thirty-two Identity live
-scenarios and current repository gates pass. Privacy/cleanup checks pass and
-default settings are restored. Replay membership/cassettes are unchanged;
+scenarios passed at that checkpoint. All thirty-three Identity live scenarios
+and current repository gates now pass with the Registry guards (section 69).
+Privacy/cleanup checks pass and default settings are restored. Replay
+membership/cassettes are unchanged;
 all twenty enabled replays passed at the preceding CSV checkpoint.
 
-The public SDK preview is now 37580cf8cdf5, from patch source 5680da0f. The
-generated delta is one principal-group cursor query tag, with no component or
-unrelated API changes. All seventeen cursor-wire methods pass without skips.
-The new [per-operation coverage matrix](contributor/kong-identity-api-sdk-coverage.md)
-records 112 generated operations, 97 consumer methods with positive deployed
-evidence, unused alternatives/follow-ons and the remaining runtime boundary.
+The public SDK preview is now 2f51ede0670e, retaining patch source 5680da0f.
+It adds two Registry inventory GETs while preserving all pre-existing public
+declarations and wire tags. All seventeen cursor-wire methods pass without
+skips. The
+[per-operation coverage matrix](contributor/kong-identity-api-sdk-coverage.md)
+records 112 Identity operations plus two Registry dependency reads, 99 consumer
+methods with positive deployed evidence, unused alternatives/follow-ons and
+the remaining runtime boundary.
 
 The main unfinished implementation is populated principal Vault authorization
 revocation (#2663), which needs Q30's supported runtime enrollment fixture.
 The acceptance audit also found the Registry Agent incoming-reference
 requirement in #1414/#1415/#2419. A native principal deletion leaves its Registry
-association present (Q53). Read-only SDK support and retirement guards are being
-prepared; the existing child guards do not cover these cross-service links.
+association present (Q53). Read-only SDK support and retirement guards are
+implemented and verified by all thirty-three live scenarios (section 69).
+Repository checks pass. This is a verified stopping point for manual review;
+it does not complete the pending runtime revocation work.
 Compatibility restrictions remain tied to their API questions; successful
 administrative writes do not establish runtime authentication or revocation.
 Q52 records one identity POST/list visibility discrepancy, with twenty native
@@ -4775,3 +4781,70 @@ local branch kongctl/identity-registry-guard-sdk, based on the clean verified
 37580cf8cdf5 preview. Existing public SDK shapes must stay unchanged. The
 consumer still uses the verified 37580cf8cdf5 pin while this guard work is
 prepared. No PR or SDK release is opened.
+
+## 69. Registry reference retirement guards
+
+The SDK preview branch now includes two typed GETs: /v1/agents and
+/v1/agents/{agentId}/principals. They come from Agent Registry v1 at
+platform-api 79a35a9a281b. Frozen selected inputs, an additive transform,
+namespaced schemas, reference anchors and source hashes are included. Real
+preparation is idempotent. Generation initially exposed shared inline Name/Meta
+collisions; direct references to explicitly named new components resolve those
+without changing any existing public model. An AST comparison preserves all
+61,406 pre-existing declarations, signatures and wire tags. SDK package/model/
+internal/pkg tests, root/internal race tests, six preparation tests and all
+seventeen cursor cases pass. The SDK is pushed at 2f51ede0670e and the consumer
+pin is v0.79.1-0.20261101101317-2f51ede0670e. No release is published.
+
+Direct US .tech probes verify three-Agent numbered pagination, linked and
+empty association pages, terminal empty pages, exact target tuples and retained
+page parameters. Fixtures are removed and the original default object is
+unchanged. Only counts and boolean checks are saved.
+
+KongCTL inventories every Agent and association before producing a final
+principal/directory deletion plan, including scoped sync. It does not restrict
+the observations by namespace or ownership. Fresh execution repeats the guard
+immediately before target retirement. Matching uses directory/principal UUIDs;
+a directory match blocks deletion even if its linked principal no longer
+exists. Missing readers, denied/unavailable APIs and incomplete/malformed/
+repeated/changing page observations block retirement. The configured regional
+origin is supplied explicitly for both SDK reads. No Registry write, automatic
+unlinking, adoption or new ownership convention is added. This is still a
+client observation, not an atomic backend deletion guarantee (Q53).
+
+The focused live Registry guard scenario passes in 17.18s, with ten outcomes,
+13 CLI invocations and 45 Registry GETs. It covers principal delete/scoped sync,
+late-link saved principal/directory execution, a dangling principal association,
+preserved updates/no-op planning and successful retirement after explicit
+unlinking. All HTTP requests use the configured .tech host; consumer Registry
+requests are GET-only. The private workspace is removed and only count/host/
+method receipts are saved. Cleanup removes fixture Agents/links/principals/
+directory and the runner restores the unmanaged default settings.
+
+Evidence is in registry-pagination-contract.json,
+registry-sdk-public-api-comparison.json, registry-sdk-tests.log,
+registry-sdk-race-tests.log and registry-guards-first/20261101-041722 under the
+local cache. Focused planner/executor/helper tests pass, including missing
+readers and failed observations. All thirty-three Identity live scenarios pass
+together in 633.61s on this pin; the new Registry scenario takes 12.16s. Final
+modernization, stable formatting, CGO-disabled build and full make test-all
+pass, including zero-issue lint, unit/integration/harness race checks, patch
+tests, metrics and installer checks.
+
+Independent artifact checks verify ten Registry outcomes, 13 CLI invocations,
+45 Registry GETs, configured hosts, preserved group cursor queries, all eight
+removed capture directories and nine removed private workspaces. No private
+sources/credential captures are copied and no administrative token or base64
+form is present. Default public settings are restored unmanaged; principal,
+group, Trusted IdP, provider, Vault-key, auth-server and Registry Agent
+inventories are empty. Full evidence is registry-guards-all/20261101-042019,
+its artifact/key/CSV/Registry verification receipts, the final inventory and
+registry-guard-final-gates.log under the local cache.
+
+All twenty replay inputs/cassettes remain unchanged; they are not claimed as
+rerun on this new pin. The examples explain the Registry read-permission/
+deployment requirement and explicit unlinking; compatibility and metadata
+ledgers record its boundary. #2663 remains unverified pending Q30's runtime
+fixture. This checkpoint is a stopping point for manual review, not completion
+of unverified runtime behavior. Issues stay open/In Progress until main merge;
+no PR or SDK release is opened and no next feature is started.

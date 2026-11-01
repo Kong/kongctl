@@ -272,6 +272,9 @@ func (a *IdentityPrincipalAdapter) Delete(ctx context.Context, id string, execCt
 	if err := a.client.VerifyPrincipalCredentialsEmpty(ctx, directoryID, id); err != nil {
 		return err
 	}
+	if err := a.client.VerifyIdentityRegistryReferencesEmpty(ctx, directoryID, id); err != nil {
+		return err
+	}
 	return a.client.DeleteIdentityPrincipal(ctx, directoryID, id)
 }
 

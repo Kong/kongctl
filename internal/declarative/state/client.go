@@ -44,6 +44,7 @@ type ClientConfig struct {
 	IdentityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
 	IdentityDirectoriesAPI           helpers.IdentityDirectoriesAPI
 	IdentityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
+	RegistryAgentReferencesReader    helpers.RegistryAgentReferencesReader
 	// Core APIs
 	PortalAPI                         helpers.PortalAPI
 	APIAPI                            helpers.APIAPI
@@ -143,6 +144,7 @@ type Client struct {
 	identityPrincipalIdentitiesAPI   helpers.IdentityPrincipalIdentitiesAPI
 	identityDirectoriesAPI           helpers.IdentityDirectoriesAPI
 	identityDirectoryDependenciesAPI helpers.IdentityDirectoryDependenciesAPI
+	registryAgentReferencesReader    helpers.RegistryAgentReferencesReader
 	// Core APIs
 	portalAPI                         helpers.PortalAPI
 	apiAPI                            helpers.APIAPI
@@ -236,6 +238,7 @@ func NewClient(config ClientConfig) *Client {
 		identityAuthServerClientsAPI:     config.IdentityAuthServerClientsAPI,
 		identityDirectoriesAPI:           config.IdentityDirectoriesAPI,
 		identityDirectoryDependenciesAPI: config.IdentityDirectoryDependenciesAPI,
+		registryAgentReferencesReader:    config.RegistryAgentReferencesReader,
 		identityVaultKeysAPI:             config.IdentityVaultKeysAPI,
 		identityVaultProvidersAPI:        config.IdentityVaultProvidersAPI,
 		identityTrustedIDPsAPI:           config.IdentityTrustedIDPsAPI,

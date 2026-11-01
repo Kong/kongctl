@@ -120,6 +120,7 @@ func principalPlan(t *testing.T, api *fixture.PrincipalAPI, desired []resources.
 	return NewPlanner(
 		state.NewClient(
 			state.ClientConfig{
+				RegistryAgentReferencesReader:  &fixture.RegistryReferencesAPI{},
 				IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 				IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
 				IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
@@ -255,11 +256,12 @@ func TestPrincipalParentCreationAcrossNamespaces(t *testing.T) {
 		Directories: []resources.IdentityDirectoryResource{d}, Principals: []resources.IdentityPrincipalResource{p},
 	}}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{},
-		IdentityBasicAuthAPI:        &fixture.BasicAuthAPI{},
-		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
-		IdentityGroupsAPI:           &fixture.GroupAPI{},
-		IdentityPrincipalsAPI:       &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)},
+		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+		IdentityDirectoriesAPI:        &fixture.DirectoryAPI{},
+		IdentityBasicAuthAPI:          &fixture.BasicAuthAPI{},
+		IdentityPrincipalKeysReader:   &fixture.BasicAuthAPI{},
+		IdentityGroupsAPI:             &fixture.GroupAPI{},
+		IdentityPrincipalsAPI:         &fixture.PrincipalAPI{Directories: make(map[string][]kkComps.KongPrincipal)},
 	}), slog.Default()).GeneratePlan(t.Context(), rs, Options{Mode: PlanModeApply})
 	require.NoError(t, err)
 	require.Len(t, plan.Changes, 2)
@@ -293,6 +295,7 @@ func TestPrincipalEmptyScopeSelectsNamespaceWithoutPruningDirectories(t *testing
 		directory.ID: {principalObserved("alice", "principal-team")},
 	}}
 	plan, err := NewPlanner(state.NewClient(state.ClientConfig{
+		RegistryAgentReferencesReader:  &fixture.RegistryReferencesAPI{},
 		IdentityDirectoriesAPI:         &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory, other}},
 		IdentityBasicAuthAPI:           &fixture.BasicAuthAPI{},
 		IdentityPrincipalKeysReader:    &fixture.BasicAuthAPI{},
