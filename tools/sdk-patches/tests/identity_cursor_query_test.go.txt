@@ -29,6 +29,7 @@ func TestKongctlIdentityCursorQueryWireNames(t *testing.T) {
 	}{
 		{"KongIdentityDirectories", "ListKongDirectories", true, false},
 		{"KongPrincipal", "ListPrincipals", false, false},
+		{"KongPrincipal", "ListPrincipalGroups", false, false},
 		{"KongPrincipalIdentity", "ListIdentities", false, false},
 		{"KongPrincipalCredential", "ListPrincipalKeys", false, false},
 		{"KongPrincipalCredential", "ListPrincipalBasicAuths", false, false},
