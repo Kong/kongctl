@@ -1280,6 +1280,30 @@ absent from the inspected report schema and generated typed report.
 import endpoint, and should its description and adoption count be included in
 the published response schema?
 
+### Q51 Returning imported users remain inactive
+
+**Observed (November 1, 2026, US Central, direct US `.tech` HTTP):** Omitting
+an imported user from a later complete file makes the user inactive. Adding
+the same external ID/email back preserves the UUID and restores membership,
+but leaves `active:false` and `provisioned_by: konnect_user`. The report counts
+the user as unchanged and includes an `inactive_not_reactivated` warning with
+the detail that import did not reactivate the person.
+
+```http
+POST /v2/directories/{directoryId}/org-chart/import
+GET /v2/directories/{directoryId}/principals/{principalId}
+```
+
+**Question:** Is inactive state intentionally preserved for a returning user,
+including when the earlier import caused deactivation? What explicit action
+should restore active/imported state, and which state should later imports
+preserve after that action?
+
+The completed 73-request native lifecycle and CLI scenario verify the observed
+behavior without automatically changing active state. The local evidence is
+org-chart-lifecycle-contracts.json; returned-row values are omitted from saved
+diagnostic text, and all fixtures are removed.
+
 ## Recorded answers
 
 No team answers have been recorded yet.
