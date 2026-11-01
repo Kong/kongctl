@@ -17,6 +17,7 @@ ledger current as each resource is implemented.
 
 | Resource | API metadata fields | KongCTL storage | Verification |
 | --- | --- | --- | --- |
+| Vault providers | None | Read-only | Public configuration/catalog reads. |
 | Token Vault keys | None | Managed directory | Verified live lifecycle. |
 | Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Declarative deletion requires enabled Vault and fresh empty key/provider/Trusted IdP inventories; it never grants child ownership or retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
@@ -92,7 +93,7 @@ or protection metadata on them.
 | Auth-server client secrets | Generated secret ID under client | Explicit lifecycle with private file capture; metadata-only reads, enable/disable and confirmed delete. No declarative secret-slot name. #1404. |
 | Group memberships | Generated entry ID; member type/ID under group | Direct principal declarations inherit managed ordinary-group authority, including protection/adoption and explicit collection sync. No independent ownership field. Group-to-group creation is rejected (Q32); team/imported mutations are deferred. #2658. |
 | Token Vault keys | Directory + `kid` | Parent ownership; see below. |
-| Token Vault Credential Providers | Unique name per directory | Direct US `.tech` create/name-update conflicts confirm uniqueness. No independent tool/namespace/protection stamp exists. Directory force=false cascades while Vault-disabled inspection fails (Q37). Custom DCR PUT and initial enabled state need Q39/Q40; stored-secret preservation is unverified. Q6, #2660. |
+| Vault providers | Directory + name | Public inspection; writes pending. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
 | Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
@@ -110,6 +111,15 @@ key/provider/IdP inventories at execution. Q6 asks about future API ownership
 fields; Q37's native cascade/visibility and atomicity limitations still apply.
 See [the key tutorial](../examples/declarative/identity/vault-keys.md), #2661.
 
+Credential Provider configuration and the global template catalog now support
+public get/list without ownership writes. Providers have no metadata store;
+templates are built-in definitions rather than writable resources. A provider
+name does not authorize deletion. Native provider DELETE removes an attached
+shared credential (Q41), so declarations need credential guards as well as
+explicit parent/collection authority. Secret preservation is unverified while
+runtime enrollment requires mTLS context (Q30); Q39/Q40/Q42 record replacement,
+enablement and clearing behavior. See #2660 and the provider inspection guide.
+
 Inherited ownership is not metadata persisted on a child. Scopes and claims
 require a declared managed server; its namespace and update/delete protection
 apply to child writes. An explicit collection is authoritative for sync;
@@ -119,6 +129,11 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31, Credential Provider inspection: complete provider/template
+  pagination, exact scoped names and public formats are implemented without
+  metadata stamping or adoption. No credential/enrollment endpoint is called
+  by ordinary inspection. Declarations remain in progress under #2660.
 
 - October 31, Token Vault public keys: declarative lifecycle and public
   inspection use fingerprint identity and explicitly managed directory

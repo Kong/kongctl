@@ -957,3 +957,34 @@ guards merely because a server returns success: require documented and live
 verified conditional deletion across all dependent families and non-mutating
 visibility of disabled-Vault state. Any alternate explicit cascade policy
 needs separate ownership/deletion semantics and coverage.
+
+## Credential Provider public inspection
+
+Public provider get/list and global template discovery use the existing SDK
+`2597fe249e26` cursor correction. Provider UUID/name resolution is directory
+scoped, fully paginated and duplicate checked. Custom public response models
+preserve false/empty values and reject missing required identity, settings or
+pagination rather than synthesizing SDK defaults. Client secrets, credential
+values and enrollment/state capabilities cannot enter these output models.
+Ordinary inspection calls no credential or enrollment endpoint.
+
+Direct `.tech` provider DELETE succeeds with an active shared credential, whose
+following GET returns 404. Declarations must check that dependency before
+mutation (Q41). The tested public PATCH response retains visible DCR
+registration configuration, but client-secret retention requires
+runtime enrollment verification. The signed enrollment resolve route returns
+400 without mTLS context in this session (Q30). No internal context headers
+were fabricated. Configuration inspection does not prove stored-secret state.
+
+Q42 records scope/endpoint clearing boundaries: create scopes:[] expands to
+template defaults, PATCH scopes:[] fails, endpoint null fails, and endpoint
+empty strings become actual empty effective endpoints. Do not interpret these
+values as a verified reset-to-template operation. Q39/Q40 retain replacement
+and initial-disable limits. Public provider declarations remain implementation
+work under #2660; no lifecycle writer or independent ownership is enabled by
+these commands.
+
+ListVaultProviderCredentials still has flat SDK Page serialization. Its
+complete cursor traversal needs a targeted correction before product credential
+pagination can rely on it. A deletion guard can use the first unfiltered page
+without pagination arguments, requiring explicitly terminal empty observations.

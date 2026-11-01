@@ -7,6 +7,11 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Credential Provider configuration and the built-in provider-template catalog
+now have public get/list support. Section 51 records the read surface and
+new direct API findings. Provider declarations remain in progress under #2660;
+inspection does not adopt resources or call credential/enrollment endpoints.
+
 Token Vault public keys now have declarative lifecycle and public get/list
 support under explicitly managed directories. Fingerprints identify keys,
 names can repeat, and key material changes create another record. Section 50
@@ -3292,3 +3297,89 @@ Evidence is `vault-key-build.log`, `vault-key-gates.log`,
 
 #2661 stays open/In Progress until main merge. Providers, shared/enrolled
 credentials, Trusted IdP declarations and importer work remain separate slices.
+
+## 51. Credential Provider template catalog and public inspection
+
+Added `get/list identity vault-provider` and `credential-provider-template`,
+including plural aliases and public JSON/YAML/text. Providers accept UUID or
+exact directory-scoped names; `--provider-name` disambiguates UUID-shaped names.
+Global templates require no directory selector and remain visible when a
+directory's Vault is disabled. Providers expose public configuration and
+effective endpoint values, not stored override metadata or secret material.
+The tutorial explains how upstream Credential Providers differ from Kong
+auth-server OAuth clients and how shared versus user credentials relate to
+them. Templates are a built-in catalog, not writable desired-state resources.
+
+Both collections traverse actual cursors through SDK `2597fe249e26`, with raw
+response validation to avoid synthesized defaults. Required identity, boolean,
+array, timestamp and pagination fields must be observable. Repeated IDs/names,
+wrong directory responses, incomplete pages, malformed values and read failures
+return no partial collection. False/empty values and optional unknown PKCE
+requirements retain their meanings. Public models cannot carry unexpected
+client secrets, credential values, enrollment URLs or state tokens. Ordinary
+inspection issues GET requests to directory/provider/template configuration
+routes, without ownership, enablement or enrollment side effects.
+
+A 51-request native `.tech` follow-up establishes three further boundaries.
+An active static shared credential survives a public provider PATCH with the
+same visible ID/status, but deleting its provider returns 204 and its own GET
+then returns 404. Q41 asks for dependency/conditional deletion contracts;
+user-enrolled cascade behavior is not inferred. The custom DCR public PATCH
+response keeps the effective registration endpoint and DCR mode. Stored-secret
+retention requires runtime verification. The documented enrollment
+resolve-state route could expose the stored client secret to its gateway, but
+signed enrollment
+resolve with an administrative bearer returns 400 for missing mTLS context.
+Q30 now includes that integration requirement; no internal headers were forged.
+
+Q42 records that OAuth create scopes:[] selects template defaults and PATCH
+scopes:[] fails. Null endpoint PATCH fails; empty endpoint strings succeed and
+become actual empty effective endpoints rather than returning to template
+defaults. These are direct API observations. Supplied secrets and signed
+capabilities existed only in memory; evidence stores selected public fields,
+statuses and booleans. All fixtures were removed and default settings restored.
+Evidence is provider-preservation-contracts.json and
+provider-preservation-summary.json in the local cache. Platform PR 3877 is
+still open at inspected head 98137d7be3772b67693cc1ceb0469e77f8ecf0f5.
+
+The new inspection scenario passes in US `.tech` in 14.626 seconds:
+provider-inspection-live-v1/20261031-185322. It checks all eight templates and
+five providers spanning static/shared, static OAuth, custom DCR and template
+DCR defaults. Real page-size-one traversals, exact name/UUID lookup including
+UUID-shaped names, every public field, all formats, unchanged configuration,
+unchanged management metadata and disabled-Vault/catalog behavior pass. It
+asserts that every product request is GET against `.tech` and no credential
+route is called. Cleanup observes empty credential collections before removing
+the known native providers; guarded parent cleanup then restores the default.
+
+Final validation passes modernization, stable formatting, CGO-disabled build
+and make test-all: zero-issue lint, full unit/integration/harness race tests,
+nine SDK patch tests, installer checks and 140 metrics tests. Default cassette
+validation passes; the twenty existing replay memberships and cassettes are
+unchanged. No claim of twenty isolated replay executions is made. A first gate
+run stopped on a synthetic response-only G101 warning; the fixture now uses the
+repository's narrow rule-specific annotation for its intentional exclusion
+sentinel. No global linter configuration or production protection was weakened.
+
+All twenty-one Identity live scenarios pass together in US `.tech` in 388.684
+seconds: provider-reader-all-identity/20261031-190115. Every diagnostic reports
+passed, and all eight referenced private capture directories are absent. A
+separate early stop after the single directory-create command passes guarded
+cleanup in 2.172 seconds: provider-reader-stopped/20261031-190923. Fresh native
+inventory verifies empty principal/group/key/provider/IdP/auth-server
+collections; the unmanaged default is restored with saved settings and Vault
+false, ID 01a19470-8c80-7988-826b-0fa8e2f45206. Evidence is
+provider-reader-gates-v2.log, provider-reader-replay.log,
+provider-reader-artifact-verification.json and
+provider-reader-final-inventory.json
+under the local cache. The SDK stays 2597fe249e26; no release or PR is created.
+
+The next writable provider slice must reuse explicit managed-directory/collection
+authority, add fresh credential-dependency guards in planning and execution,
+compare configured endpoint literals to effective values without inventing
+stored overrides, and use verified PATCH semantics instead of unsafe PUT
+hydration. Deferred client-secret sources and explicit update selection must
+follow #1748, without claiming read-based secret drift or runtime preservation.
+Create-only configuration changes and clearing need explicit supported
+boundaries until Q39/Q40/Q42 are resolved. #2660 remains open/In Progress until
+main merge; this checkpoint does not complete its declarative acceptance.
