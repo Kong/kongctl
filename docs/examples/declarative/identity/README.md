@@ -41,9 +41,11 @@ custom associations, independent managed_by ownership, scoped sync and adoption.
 Workspace configuration remains deferred under Q25. #1416 stays In Progress
 until merge.
 
-[Principal API-key inspection](principal-api-keys.md) covers scoped get/list,
-public credential metadata and the API contracts still preventing declarative
-ownership updates and adoption. It does not expose credential material.
+[Principal and group API keys](principal-api-keys.md) covers scoped get/list,
+private generated/imported capture, expiration, principal-name changes and
+explicit rotation/retirement. `api-key-parents.yaml` supplies declarative
+parents under the external default directory. Key declarations/adoption remain
+separate work; normal command output contains public metadata only.
 
 [Basic-auth username records](basic-auth.md) covers `basic-auth.yaml`,
 independent managed_by ownership, lifecycle/adoption/dump and password metadata

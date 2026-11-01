@@ -633,6 +633,17 @@ entries. This comparison used the same directory and administration token.
 
 ### Q28 API-key PATCH metadata and expiration omission
 
+**Observed (November 1, 2026, direct US `.tech` HTTP):** Generated and imported
+keys under three principal types and two ordinary groups still ignore complete
+map replacement and per-key null removal. An omitted expiration clears it;
+explicit timestamps and null work. Generated creation accepts duplicate
+management tuples, so list results must allow callers to detect every match.
+
+```http
+PATCH /v2/directories/{directoryId}/principals/{principalId}/api-keys/{keyId}
+PATCH /v2/directories/{directoryId}/groups/{groupId}/api-keys/{keyId}
+```
+
 **US .tech retest (October 31, 2026):** Principal and group key PATCH still
 ignore partial/full ownership maps and null removal. Omitting expiration clears
 it; explicit future expiration and null work. This remains a live `.tech`
@@ -655,6 +666,20 @@ should reject unsupported metadata changes instead of ignoring them.
 
 ### Q29 API-key name availability
 
+**Observed (November 1, 2026, direct US `.tech` HTTP):** Principal generated and
+imported names can be set and renamed, but `name:null` returns 200 and retains
+the previous name. Group generated creation accepts a name; imported creation
+ignores the supplied name and returns null. Group PATCH ignores both scalar
+renames and null. These responses were checked with fresh GETs. Supplied
+expiration was retained during these comparisons.
+
+```http
+POST /v2/directories/{directoryId}/principals/{principalId}/api-keys
+PATCH /v2/directories/{directoryId}/principals/{principalId}/api-keys/{keyId}
+POST /v2/directories/{directoryId}/groups/{groupId}/api-keys
+PATCH /v2/directories/{directoryId}/groups/{groupId}/api-keys/{keyId}
+```
+
 **US .tech retest (October 31, 2026):** Principal generated/imported names are
 accepted and returned; PATCH renames both. Duplicate names under one principal
 are accepted, so names do not supply uniqueness. Group generated create accepts
@@ -662,8 +687,13 @@ a name, but rename PATCH leaves it unchanged; group imported create ignores name
 and reads null, and rename is ignored. Availability is
 parent/operation-specific.
 
-**Question:** When will API-key `name` be supported consistently on create,
-read and update? Until then, should PATCH reject the field explicitly?
+**Question:** What are the intended name create/update rules for principal
+and group keys, including clearing with null? Can unsupported fields be
+rejected instead of returning success without changing the value?
+
+The November evidence is `api-key-lifecycle-contracts.json` in the local cache.
+The probe verifies three-page duplicate detection and wrong-parent 404s, then
+removes all keys and parent fixtures without changing directory settings.
 
 **Observed (October 31, 2026 UTC, US `.com`):** The inspected upcoming schema
 includes nullable names. Generated create with a nonempty name returns 400

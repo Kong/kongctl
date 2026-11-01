@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/http"
 	"time"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
@@ -29,6 +30,8 @@ type PrincipalAPIKey struct {
 	CreatedAt time.Time         `json:"created_at"           yaml:"created_at"`
 	UpdatedAt time.Time         `json:"updated_at"           yaml:"updated_at"`
 }
+
+type IdentityAPIKey = PrincipalAPIKey
 
 func principalAPIKey(value kkComps.KongPrincipalKey) (PrincipalAPIKey, error) {
 	if !util.IsValidUUID(value.ID) {
@@ -56,43 +59,63 @@ func ListPrincipalAPIKeys(ctx context.Context, api IdentityPrincipalKeysReader,
 	if err := validatePrincipalKeyReader(api, directoryID, principalID); err != nil {
 		return nil, err
 	}
+	return listIdentityAPIKeys(pageSize, "principal", func(page *kkComps.CursorPageParameters) (
+		*http.Response, error,
+	) {
+		response, err := api.ListPrincipalKeys(ctx, kkOps.ListPrincipalKeysRequest{
+			DirectoryID: directoryID, PrincipalID: principalID, Page: page,
+		})
+		if err != nil {
+			return nil, identitySecretAPIError("list principal API keys", err)
+		}
+		if response == nil {
+			return nil, fmt.Errorf("missing principal API-key collection response")
+		}
+		return response.RawResponse, nil
+	})
+}
+
+func listIdentityAPIKeys(pageSize int64, kind string,
+	read func(*kkComps.CursorPageParameters) (*http.Response, error),
+) ([]IdentityAPIKey, error) {
 	if pageSize < 1 {
 		pageSize = 100
 	}
-	request := kkOps.ListPrincipalKeysRequest{
-		DirectoryID: directoryID, PrincipalID: principalID,
-		Page: &kkComps.CursorPageParameters{Size: &pageSize},
-	}
+	page := &kkComps.CursorPageParameters{Size: &pageSize}
 	result := make([]PrincipalAPIKey, 0)
 	seen := make(map[string]bool)
 	var tracker pagination.CursorTracker
 	for {
-		response, err := api.ListPrincipalKeys(ctx, request)
+		response, err := read(page)
 		if err != nil {
-			return nil, identitySecretAPIError("list principal API keys", err)
+			return nil, err
 		}
-		if response == nil || response.ListKongPrincipalKeys == nil || response.ListKongPrincipalKeys.Data == nil {
-			return nil, fmt.Errorf("missing principal API-key collection data")
+		var observed identityCredentialPage[IdentityAPIKey]
+		if err := decodeIdentityCredentialResponse(response, &observed); err != nil {
+			return nil, err
 		}
-		for _, raw := range response.ListKongPrincipalKeys.Data {
-			value, err := principalAPIKey(raw)
-			if err != nil {
-				return nil, err
+		next, err := observed.next()
+		if err != nil {
+			return nil, err
+		}
+		for _, value := range observed.Data {
+			if !util.IsValidUUID(value.ID) {
+				return nil, fmt.Errorf("%s API-key collection contains an invalid ID", kind)
 			}
 			if seen[value.ID] {
-				return nil, fmt.Errorf("principal API-key collection repeats an ID")
+				return nil, fmt.Errorf("%s API-key collection repeats an ID", kind)
 			}
 			seen[value.ID] = true
 			result = append(result, value)
 		}
-		cursor, err := tracker.Next(response.ListKongPrincipalKeys.Meta.Page.Next)
+		cursor, err := tracker.Next(next)
 		if err != nil {
-			return nil, fmt.Errorf("cannot paginate principal API keys: %w", err)
+			return nil, fmt.Errorf("cannot paginate %s API keys: %w", kind, err)
 		}
 		if cursor == "" {
 			return result, nil
 		}
-		request.Page.After = &cursor
+		page.After = &cursor
 	}
 }
 
