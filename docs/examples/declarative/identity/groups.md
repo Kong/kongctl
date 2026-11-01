@@ -99,6 +99,11 @@ the entry ID and proves it belongs to the selected group before returning it.
 The text list shows `ID`, `MEMBER_ID`, `MEMBER_TYPE` and `DISPLAY_NAME`.
 These commands inspect direct entries without expanding inherited membership.
 
+For the groups a principal belongs to, including inherited ancestor teams,
+use [principal group inspection](principal-groups.md). Its `direct` and nullable
+`membership_id` fields distinguish the two relationships without granting
+authority over importer-managed links.
+
 Ordinary group lifecycle and adoption are implemented under #2657. Direct
 membership declarations inherit managed ordinary-group authority under #2658;
 memberships have no independent ownership field. Inspection does not assign
