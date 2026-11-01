@@ -7,6 +7,13 @@ KongCTL commit inspected: `2beef7be`
 
 ## Current branch status
 
+Credential Provider write foundations now provide validated create/PATCH and
+credential-aware deletion for the next declarative slice. Public PATCH
+persistence is verified by fresh GET, including omitted DCR registration
+settings. Section 52 records this prerequisite; loader/planner/executor/dump
+integration and provider lifecycle examples/E2E are still in progress under
+#2660. No declaration support is inferred from these internal helpers.
+
 Credential Provider configuration and the built-in provider-template catalog
 now have public get/list support. Section 51 records the read surface and
 new direct API findings. Provider declarations remain in progress under #2660;
@@ -3383,3 +3390,88 @@ follow #1748, without claiming read-based secret drift or runtime preservation.
 Create-only configuration changes and clearing need explicit supported
 boundaries until Q39/Q40/Q42 are resolved. #2660 remains open/In Progress until
 main merge; this checkpoint does not complete its declarative acceptance.
+
+## 52. Credential Provider write foundations and persistence verification
+
+The next #2660 prerequisite supplies internal create, PATCH and guarded DELETE
+helpers with SDK/mock accessors. This checkpoint does not register a resource
+kind, add CLI mutation commands or complete declarative acceptance. Parent
+ownership/protection and explicit collection authority remain responsibilities
+of the upcoming planner/executor integration.
+
+Create requires the API name and template explicitly, validates static-secret
+credential scope and incompatible client/DCR settings, and checks supplied
+public configuration against its response. Names use the provider schema's
+ASCII pattern, without borrowing the unrelated Vault key length constraint.
+Explicit empty scopes and endpoint strings fail before mutation because their
+observed API meanings cannot represent declarative clearing (Q42). Secret
+values may be supplied to the typed helper but are absent from its public
+return model. Both SDK and HTTP-client write retries are disabled; an uncertain
+create must be inspected rather than automatically repeated.
+
+PATCH reads fresh directory/provider identity and expected name before writing.
+It verifies requested public fields and preservation of omitted public fields
+in both the PATCH response and a separate GET. This covers DCR registration,
+static client ID, credential type, PKCE, scopes, enabled/refresh values and
+effective endpoints. Only explicit client-secret writes send client_secret;
+ordinary public updates omit it. This proves request omission and public
+persistence, not the actual stored-secret value or runtime enrollment.
+Replacement PUT remains outside the verified path under Q39/Q40.
+
+DELETE repeats a fresh name/UUID observation and requires an unfiltered,
+terminal empty credential collection. Missing, malformed, nonterminal and
+failed observations block mutation. The request omits page/sort arguments,
+so it does not depend on the unfixed credential cursor annotation. It never
+reads credential detail or mints enrollment capabilities. A shared terminal
+empty-collection predicate also retains existing directory deletion behavior
+with the correct parent context in errors. The guard cannot atomically
+exclude a concurrent attachment; Q41 asks for that API contract.
+
+A focused 49-request direct US `.tech` probe verifies fresh GET persistence of
+custom OAuth DCR settings after public PATCH. It also finds that static-secret
+POST persists scopes, PKCE, refresh and endpoint settings despite narrower
+template guidance. PATCH persists scopes/PKCE/token/authorization settings;
+enabling DCR fails. Q43 asks which static-secret settings affect runtime.
+No runtime effect or successful dynamic registration is inferred from these
+configuration observations.
+
+A separate 31-request probe invokes the actual new SDK-backed helpers in US
+`.tech`: DCR creation and public PATCH persist, explicit refresh zero persists,
+and an active shared credential prevents any provider DELETE request. Guarded
+cleanup succeeds after explicit credential removal. No credential detail GET
+is made. All providers, credentials and the public RSA fixture are removed;
+the unmanaged default directory's settings are restored. The standalone probe
+rewrites both URL host and HTTP request host to `.tech` and rejects other
+destinations; it does not rely on a global SDK server setting overriding
+operation-specific server URLs.
+
+Public evidence is provider-write-persistence-contracts.json and
+provider-sdk-writes-summary.json under the local evidence cache. Test secret
+material is generated in memory and is not written to evidence. The SDK stays
+2597fe249e26; no SDK revision, release or PR is required for this foundation.
+
+Next: register the complete provider declaration contract, inherit explicit
+managed-directory namespace/protection, integrate create/PATCH and fresh
+credential guards with saved execution, and add scoped sync/delete, dump,
+deferred secret-source handling, examples and lifecycle E2E. Provider PUT and
+clearing limits must remain explicit rather than silently discarding fields.
+#2660 remains open/In Progress until merge to main.
+
+The secret-only integration needs explicit context work: current
+secretResourceNamespace handles selected roots but not IdentityDirectory, and
+applyInheritedProtection runs on namespace plans before secret-write synthesis.
+A synthesized provider update therefore needs verified directory ID,
+namespace and protecting-parent context even when there is no public drift.
+Tests must cover that case and ensure create-only fields supplied as secret
+context are validated rather than silently discarded by PATCH translation.
+
+Verification passes: Go modernization, stable formatting, CGO-disabled build
+and make test-all, including zero-issue lint, full race unit/integration tests,
+E2E harness race checks, nine SDK patch tests, 140 metrics tests and installer
+checks. The final log is provider-write-foundation-final-gates.log. No E2E
+scenario, enabled replay membership or cassette is changed; this slice uses
+targeted SDK wire tests and the native/live helper probes rather than claiming
+provider declaration E2E coverage. Final inventory evidence is
+provider-write-foundation-final-inventory.json: one unmanaged default
+directory, original settings restored and empty principal/group/IdP/provider/
+key/auth-server inventories.

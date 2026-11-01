@@ -45,24 +45,24 @@ func (a *identityDirectoryDependenciesAPI) ListTrustedIdps(ctx context.Context, 
 	return a.sdk.TrustedIDPs.ListTrustedIdps(ctx, directory, page, opts...)
 }
 
-func requireEmptyIdentityDirectoryCollection(response *http.Response, resource string) error {
+func requireEmptyIdentityCollection(response *http.Response, owner, resource string) error {
 	var page identityCredentialPage[json.RawMessage]
 	if err := decodeIdentityCredentialResponse(response, &page); err != nil {
-		return fmt.Errorf("cannot observe directory %s: %w", resource, err)
+		return fmt.Errorf("cannot observe %s %s: %w", owner, resource, err)
 	}
 	if len(page.Data) != 0 {
-		return fmt.Errorf("directory has attached %s; remove them explicitly before deleting the directory", resource)
+		return fmt.Errorf("%s has attached %s; remove them explicitly before deleting the %s", owner, resource, owner)
 	}
 	if page.Meta == nil || page.Meta.Page == nil || page.Meta.Page.Size == nil ||
 		math.Trunc(*page.Meta.Page.Size) != *page.Meta.Page.Size {
-		return fmt.Errorf("cannot prove an empty directory %s collection: invalid pagination", resource)
+		return fmt.Errorf("cannot prove an empty %s %s collection: invalid pagination", owner, resource)
 	}
 	next, err := page.next()
 	if err != nil {
-		return fmt.Errorf("cannot prove an empty directory %s collection: %w", resource, err)
+		return fmt.Errorf("cannot prove an empty %s %s collection: %w", owner, resource, err)
 	}
 	if next != nil && *next != "" {
-		return fmt.Errorf("cannot prove an empty directory %s collection: observation is not terminal", resource)
+		return fmt.Errorf("cannot prove an empty %s %s collection: observation is not terminal", owner, resource)
 	}
 	return nil
 }
@@ -107,7 +107,7 @@ func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityD
 		if keys == nil {
 			return fmt.Errorf("missing directory Vault key collection response; deletion is blocked")
 		}
-		if err := requireEmptyIdentityDirectoryCollection(keys.RawResponse, "Vault keys"); err != nil {
+		if err := requireEmptyIdentityCollection(keys.RawResponse, "directory", "Vault keys"); err != nil {
 			return err
 		}
 	}
@@ -118,7 +118,7 @@ func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityD
 	if providers == nil {
 		return fmt.Errorf("missing directory Vault provider collection response; deletion is blocked")
 	}
-	if err := requireEmptyIdentityDirectoryCollection(providers.RawResponse, "Vault providers"); err != nil {
+	if err := requireEmptyIdentityCollection(providers.RawResponse, "directory", "Vault providers"); err != nil {
 		return err
 	}
 	idps, err := api.ListTrustedIdps(ctx, directory, nil)
@@ -128,5 +128,5 @@ func RequireIdentityDirectoryVaultRetirements(ctx context.Context, api IdentityD
 	if idps == nil {
 		return fmt.Errorf("missing directory Trusted IdP collection response; deletion is blocked")
 	}
-	return requireEmptyIdentityDirectoryCollection(idps.RawResponse, "Trusted IdPs")
+	return requireEmptyIdentityCollection(idps.RawResponse, "directory", "Trusted IdPs")
 }

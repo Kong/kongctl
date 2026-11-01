@@ -954,6 +954,13 @@ preserving its registration configuration? Are those properties intentionally
 create-only, and should PUT preserve them or expose writable counterparts?
 Which supported operation clears scopes on such a provider?
 
+**Additional observation (October 31, 2026, US `.tech`, direct HTTP):**
+PATCH of enabled/scopes/refresh buffer followed by a separate GET preserves
+the custom provider's DCR flag, registration endpoint, other effective
+endpoints, PKCE state and credential type. This establishes public-setting
+persistence for that PATCH; it does not establish stored-secret preservation
+or successful runtime registration.
+
 ### Q40 Provider initial enabled state and PUT omission
 
 **Observed (October 31, 2026, US `.tech`, direct HTTP):** POST of a static_secret
@@ -1030,6 +1037,39 @@ enrollment/state capabilities and supplied secret values were kept in memory;
 the evidence contains only selected public configuration, statuses and outcome
 booleans. All probe fixtures were removed and default directory settings
 restored.
+
+### Q43 Settings accepted by static-secret providers
+
+**Observed (October 31, 2026, US `.tech`, direct HTTP):** The static_secret
+template guidance says to provide only name and credential_type: shared.
+Separate POST requests also accept refresh_buffer_seconds, scopes,
+pkce_enabled, token_endpoint, authorization_endpoint and registration_endpoint.
+Fresh GETs return those supplied values. PATCH also accepts and persists
+scopes, PKCE and token/authorization endpoint settings. Enabling DCR returns
+400. These probes establish public configuration persistence only; the effect
+of OAuth-related fields on static-secret retrieval was not tested.
+
+```http
+POST /v2/directories/{directoryId}/vault/providers
+Content-Type: application/json
+
+{
+  "name": "static-provider",
+  "template_name": "static_secret",
+  "credential_type": "shared",
+  "pkce_enabled": true
+}
+```
+
+**Question:** Which of these settings are supported for static_secret
+providers? Are OAuth-related values intended to affect runtime behavior,
+ignored at runtime, or expected to be rejected? Can the template guidance and
+request schemas state the applicable fields consistently?
+
+The 49-request public-setting probe is recorded in
+`provider-write-persistence-contracts.json` in the local evidence cache. It
+contains no supplied secrets or enrollment capabilities. All fixtures were
+removed and the original default directory settings restored.
 
 ## Recorded answers
 

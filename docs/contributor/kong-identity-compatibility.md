@@ -970,11 +970,11 @@ Ordinary inspection calls no credential or enrollment endpoint.
 
 Direct `.tech` provider DELETE succeeds with an active shared credential, whose
 following GET returns 404. Declarations must check that dependency before
-mutation (Q41). The tested public PATCH response retains visible DCR
-registration configuration, but client-secret retention requires
-runtime enrollment verification. The signed enrollment resolve route returns
-400 without mTLS context in this session (Q30). No internal context headers
-were fabricated. Configuration inspection does not prove stored-secret state.
+mutation (Q41). The tested public PATCH response and a subsequent fresh GET
+retain visible DCR registration configuration, but client-secret retention
+requires runtime enrollment verification. The signed enrollment resolve route
+returns 400 without mTLS context (Q30). No internal context headers were
+fabricated. Configuration inspection does not prove stored-secret state.
 
 Q42 records scope/endpoint clearing boundaries: create scopes:[] expands to
 template defaults, PATCH scopes:[] fails, endpoint null fails, and endpoint
@@ -988,3 +988,36 @@ ListVaultProviderCredentials still has flat SDK Page serialization. Its
 complete cursor traversal needs a targeted correction before product credential
 pagination can rely on it. A deletion guard can use the first unfiltered page
 without pagination arguments, requiring explicitly terminal empty observations.
+
+## Credential Provider write foundations
+
+Internal helpers now supply validated create, PATCH and guarded DELETE for
+declarative integration. They do not add declaration loading or new CLI write
+commands. Create and writes disable both SDK and HTTP-client retries. Errors
+omit backend bodies, and response projections contain public configuration
+only. Create validates supplied public fields against the response; PATCH
+checks fresh identity, requested settings and preservation of omitted public
+fields in both its response and a subsequent GET. No PUT hydration is used.
+
+The deletion helper repeats a fresh name/UUID observation and requires a
+terminal empty credential collection. Its request has no filters, page or sort
+arguments; missing, malformed, nonterminal or failed observations block the
+write. It never reads credential detail or issues enrollment capabilities.
+This is an observation guard, not an atomic guarantee against concurrent
+attachments (Q41). The future executor must separately enforce directory
+ownership, namespace, protection and collection authority.
+
+Direct SDK-backed `.tech` verification covers persisted DCR/public PATCH,
+explicit refresh zero, blocking deletion with an active shared credential and
+successful guarded fixture cleanup. The public RSA fixture and all providers/
+credentials were removed and default directory settings restored. A separate
+49-request native probe verifies static-secret optional-setting persistence;
+Q43 asks which settings have runtime meaning. Neither probe proves runtime
+OAuth enrollment or stored-secret continuity.
+
+Empty explicit scopes and endpoint strings are rejected rather than silently
+interpreted as inheritance or clearing. `enabled: false` at creation still
+needs a separately documented PATCH step; no atomic disabled create is
+claimed. Full provider declarations, write-only secret-source integration,
+collection pruning, dump, examples and lifecycle E2E coverage remain #2660
+implementation work. SDK version remains `2597fe249e26`.

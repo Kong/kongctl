@@ -34,6 +34,7 @@ type SDKAPI interface {
 	GetIdentityTrustedIDPsAPI() IdentityTrustedIDPsAPI
 	GetIdentityVaultKeysAPI() IdentityVaultKeysAPI
 	GetIdentityVaultProvidersReader() IdentityVaultProvidersReader
+	GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI
 	GetIdentityGroupsReader() IdentityGroupsReader
 	GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader
 	GetControlPlaneAPI() ControlPlaneAPI
@@ -194,6 +195,13 @@ func (k *KonnectSDK) GetIdentityVaultKeysAPI() IdentityVaultKeysAPI {
 
 func (k *KonnectSDK) GetIdentityVaultProvidersReader() IdentityVaultProvidersReader {
 	if k.SDK == nil || k.SDK.TokenVaultProviders == nil {
+		return nil
+	}
+	return k.SDK.TokenVaultProviders
+}
+
+func (k *KonnectSDK) GetIdentityVaultProvidersAPI() IdentityVaultProvidersAPI {
+	if k == nil || k.SDK == nil || k.SDK.TokenVaultProviders == nil {
 		return nil
 	}
 	return k.SDK.TokenVaultProviders
