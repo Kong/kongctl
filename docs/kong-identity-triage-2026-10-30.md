@@ -4152,3 +4152,94 @@ Evidence in the local cache: org-chart-dry-run-contracts.jsonl,
 org-chart-lifecycle-contracts.json, org-chart-probe-recovery.json and
 org-chart-boundary-second/20261031-233508. Keep issues open/In Progress until
 main merge. No SDK release or PR.
+
+## 61. Explicit full-file organization-chart import
+
+Create identity org-chart-import now calls the native multipart import
+operation through the existing public SDK preview. Exactly one of --dry-run
+and --execute is required, with explicit directory name/UUID, a regular CSV
+file and a new private report path. Local preflight checks UTF-8, CSV syntax
+and the observed 1–50000 data-row bound. Canonical column, identity and hierarchy
+validation stays with the native full-file endpoint. The client does not loop
+over rows through principal CRUD or invent an automatically reconciled import
+resource. Existing default directories need no adoption; missing-default
+bootstrap remains a separate step.
+
+Both SDK and transport retries are disabled for preview and execution. A new
+exclusive 0600 report file is reserved before the POST, with directory UUID,
+mode and an exact-byte SHA-256 for local correlation. Complete native reports
+are captured before interpretation, preserving unknown fields and the observed
+adoption count missing from the typed SDK. Available SDK API-error bodies or
+transport diagnostics stay private; unexpected non-JSON bodies are retained
+as base64. Incomplete/unrecoverable reads may leave only request context.
+Uncertainty never triggers another upload, rollback or automatic resource
+retirement. The hash is not remote ownership, local resource state or a
+transaction guarantee.
+
+Public JSON/YAML/text contains counts and value-free diagnostic rows/types/
+fields. Native warning codes principal_adopted, email_changed, quota_shortfall
+and inactive_not_reactivated are exposed without detailed text. Error fields
+are restricted to canonical CSV columns; unknown types/fields become other and
+invalid/out-of-range row numbers are omitted. Native report messages and extra
+fields remain private. Import request/response bodies and read/transport
+diagnostics are wholly redacted in traces, including error responses.
+HTTP 200 with row errors still prints a safe summary and exits unsuccessfully
+after capture. No general runtime rollback guarantee is inferred.
+
+The first CLI lifecycle passes in 13.730s. It verifies a nonmutating preview,
+adoption with retained foreign managed_by/metadata, complete private warnings,
+text/JSON/YAML and explicit product selection, stable re-import IDs, manager
+moves/team pruning, cost-center omission/clearing, departures, inactive returns,
+full-file row errors, UTF-8 and intent/file guards. Input files and reports are
+outside artifact inputs and deleted before checked public logs/output are
+copied. Fixtures are explicitly reconciled/released/retired; no product force
+delete or automatic active change is introduced.
+
+Full Identity regression passes all twenty-eight live scenarios together in
+540.760s, with the new workflow in 12.98s. Final isolated verification passes in
+16.388s after preserving available raw SDK error bodies rather than only their
+formatted message; a real HTTP 400 report is checked privately. Unknown/non-JSON
+bodies and uncertain transport failures are covered by actual SDK wire tests,
+including both retry layers enabled outside the operation and exactly one
+attempt. Error captures with no recoverable body retain their request context.
+Early stop immediately after directory creation passes cleanup in 2.291s.
+
+Independent artifact checks confirm all twenty-eight successful outcomes,
+removal of eight existing private capture directories and four private
+workspaces, no copied private HR sources/reports and no administrative token
+in artifacts. The workflow checks its synthetic cell values and base64 forms
+before copying public traces/output; final isolated verification checks its
+absent workspace, safe notices and 114 public files for the administration
+token. Independent final inventory confirms original unmanaged default public
+settings restored and empty principal/group/IdP/provider/key/auth-server
+collections.
+
+Ordered modernization, stable formatting, CGO-disabled build and full
+make test-all pass: zero-issue lint, race unit/integration/harness checks,
+nine SDK patch tests, 140 metrics tests and installer checks. Default cassette
+validation passes for control-plane/get; existing replay membership/cassettes
+are unchanged and the new scenario is live-only. The initial gate attempt
+corrected a test EOF comparison and two long test lines; these were local
+implementation issues, not API defects. Evidence is org-import-all/
+20261101-001050, org-import-final/20261101-002422, org-import-gates.log,
+org-import-artifact-verification.json,
+org-import-final-artifact-verification.json, org-import-stopped.log and
+org-import-final-inventory.json under the local cache.
+
+A 73-request native extension establishes that reintroducing a departed user
+preserves the UUID and restores membership, but retains active:false and
+konnect_user provisioning. The API emits inactive_not_reactivated and counts
+the person as unchanged. Q51 asks for the intended return/reactivation contract;
+the command surfaces the warning without patching active automatically. The
+native probe removes all fixtures individually and leaves directory settings
+and timestamp unchanged.
+
+The example/tutorial, metadata ledger and compatibility conditions describe
+full-file authority, private reports, explicit intent and uncertainty. The
+operation stamps no KongCTL metadata and does not enforce declarative parent
+namespace/protection. Earlier principal guards remain: current imported state
+overrides retained markers, while dump uses external UUIDs. Preview is not a
+saved plan. This completes an operational importer slice, not general CSV
+import #1419, chart CRUD or a public org-root read. SDK stays 90596b498bcb;
+no SDK revision/release or PR is needed. #2665 remains open/In Progress until
+main merge. Q48–Q51 retain API contract/schema boundaries.

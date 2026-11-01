@@ -1294,5 +1294,47 @@ required for this guard.
 Revisit the restriction only with a documented, verified administrative
 ownership-transfer contract. Do not turn rejection into an automatic active
 change or treat retained managed_by as permission to release imported users.
-This foundation does not expose an import command, define an import declaration
-or complete the broader arbitrary-principal CSV request #1419.
+The explicit import workflow below does not define an import declaration or
+complete the broader arbitrary-principal CSV request #1419.
+
+## Explicit organization-chart import and private reports
+
+Create identity org-chart-import uploads one complete CSV through the existing
+SDK operation. Exactly one dry-run or execute flag is required, with explicit
+directory selection and a new private report file. UTF-8, CSV syntax and the
+observed 1–50000 data-row bound are checked locally; native canonical/hierarchy
+validation remains authoritative. The bytes are read once and hashed for local
+correlation. The operation does not expand declarative tags or upsert rows
+through an unrelated client loop.
+
+Reports reserve an exclusive 0600 path before the POST. Complete successful
+native reports, including unknown fields and counts.users.adopted missing from
+the typed SDK, are captured before interpretation. Available API error bodies
+or SDK/transport diagnostics are also private. Unexpected non-JSON bodies are
+stored as base64; unrecoverable/read failures may leave only request context.
+The reserved file is retained on uncertainty. Capture never triggers a second
+upload, rollback, directory cascade or automatic resource retirement.
+
+Both retry layers are disabled for preview and execution. Public output shows
+counts and value-free diagnostic rows/types/fields. Only canonical column names
+and known warning codes are exposed; unknown values become other. Arbitrary
+diagnostic messages stay in the private file. Import request/response bodies
+and body-read/transport error text are redacted in traces. HTTP 200 with row
+errors returns a safe summary and nonzero exit status after capture; no general
+runtime rollback guarantee is inferred from those reports.
+
+Preview is not a saved plan or transaction reservation. Each execution applies
+its complete file to current state. Imports may adopt existing users and
+deactivate absent imported users without changing their opaque managed_by maps.
+They use explicit API authorization rather than declarative ownership rules.
+Normal principal guards continue to reject current imported provisioning.
+
+Q51 records a verified return behavior: a previously omitted user keeps its ID
+and remains inactive/konnect_user when reintroduced. The API emits
+inactive_not_reactivated and counts that record as unchanged. The command
+surfaces the warning without automatically setting active or claiming that a
+completed report means every user can authenticate. Revisit only with a
+documented and verified API contract. Q48/Q49 still cover source isolation and
+ownership transfer; Q50 covers the public enum/adoption-count schema gaps.
+No SDK revision is needed: the existing multipart operation is wire-tested and
+the complete response is projected from raw JSON.

@@ -9,6 +9,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPrivateReportCapturePreservesCompleteOrNonJSONResponses(t *testing.T) {
+	for _, body := range [][]byte{[]byte(`{"warnings":[{"detail":"private employee"}],"future":true}`), {0xff, '<'}} {
+		path := filepath.Join(t.TempDir(), "report.json")
+		metadata := Metadata{DirectoryID: "directory", DryRun: new(false), RequestSHA256: "digest"}
+		file, err := ReserveReport(path, metadata)
+		require.NoError(t, err)
+		pending, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.Contains(t, string(pending), "request_not_confirmed")
+		_, err = ReserveReport(path, metadata)
+		require.Error(t, err)
+		err = file.CaptureReport(metadata, body)
+		require.NoError(t, err)
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		var value record
+		require.NoError(t, json.Unmarshal(data, &value))
+		require.Equal(t, metadata, value.Metadata)
+		if json.Valid(body) {
+			require.JSONEq(t, string(body), string(value.Report))
+		} else {
+			require.Equal(t, body, value.ResponseBody)
+			require.Equal(t, "response_not_json", value.Status)
+		}
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+		require.NoError(t, file.Close())
+	}
+}
+
 func TestReservedOutputIsPrivateExclusiveAndTracksCapture(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "issued.json")
 	metadata := Metadata{AuthServerID: "server", ClientID: "client"}
