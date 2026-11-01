@@ -30,12 +30,15 @@ open at `98137d7be3772b67693cc1ceb0469e77f8ecf0f5`.
 | Identity parent scoping (Q21) | GET/DELETE accept another existing principal's path. | Still reproducible; scoped collection proof required. |
 | Auth-server behavior (Q12–Q13, Q15–Q18) | Duplicate claims, inflated totals, PATCH method reset, two total secret slots and rejected interactive grants persist. | Still reproducible in tested org. |
 | Runtime prerequisites (Q30) | Administrative bearer plus a valid key still gets mTLS-context error. | Supported runtime context still required. |
-| Unverified contracts | Provisioning lifecycle, importer/user enrollment, workspace fixtures, cross-resource deletion variants and recovery guarantees. | Do not present these as resolved or as reproduced `.tech` defects. |
+| Unverified contracts | Provisioning lifecycle, independent import-source scopes, user enrollment, workspace fixtures, cross-resource deletion variants and recovery guarantees. | Do not present these as resolved or as reproduced `.tech` defects. |
 | Cursor query (Q22) | Shared source annotation and SDK wire mismatch remain established separately. | Keep upstream spec correction and SDK tests. |
 | Credential expiration schema (Q36) | Native timestamp/null writes work; combined SDK spec selects a read-only component for writable requests. | Correct the component-name collision in specification composition; this is separate from backend PATCH behavior. |
 | Trusted IdPs (Q37–Q38) | Directory force=false removes attached IdPs; disabled Vault hides them. PATCH jwks_uri null retains an override, while PUT omission clears it. | Clarify deletion dependencies, disabled-Vault inspection and nullable PATCH clearing. |
 | Vault keys/providers (Q37, Q39–Q40) | Directory force=false also removes attached keys/providers in either Vault state. Custom DCR provider PUT fails; POST enabled:false is ignored. | Clarify deletion dependencies, preserving DCR replacement, initial disabling and PUT omission. |
 | Provider follow-up | See Q41/Q42. | Dependency deletion and clearing. |
+| Org-chart imports (Q48) | Canonical five-column CSV, dry-run, stable re-import, manager moves and departure deactivation work. | Document canonical validation, whole-file scope and separate-source behavior. |
+| Import adoption/release (Q49) | Email adoption retains UUID/maps but changes provisioning; ordinary PUT/DELETE return 409. Explicit deactivation permits deletion. | Document matching and ownership/re-import transitions. |
+| Import response schema (Q50) | Native imported enum/adoption count differ from the public schema. | Align public response descriptions and enum/count visibility. |
 
 Sanitized request/response evidence is saved locally under
 `/home/rspurgeon/.cache/kong-identity-public-sdk/tech-revalidation/`:
@@ -1194,6 +1197,88 @@ Evidence is shared-oauth-enrollment-contracts.json in the local cache. Supplied
 material and seven issued capabilities were kept in memory and excluded from
 the evidence. Fixtures were removed and original default settings restored.
 Q30 separately requests a supported runtime integration fixture.
+
+### Q48 Canonical organization-chart CSV contract
+
+**Observed (October 31, 2026, US Central, direct US `.tech` HTTP):** The import
+endpoint requires `external_id`, `email`, `given_name`, `family_name` and
+`manager_external_id` headers. An empty manager cell selects the root in the
+tested hierarchy. Optional `cost_center` omission preserves existing values;
+a blank cell removes the metadata key. A three-user hierarchy creates two
+teams and three memberships; identical re-import preserves IDs and reports
+three unchanged users. Moving a worker to another manager updates memberships
+and removes the emptied team. A missing imported user becomes inactive, while
+an unrelated manually created user is unchanged.
+
+```http
+POST /v2/directories/{directoryId}/org-chart/import
+Content-Type: multipart/form-data
+```
+
+The multipart `dry_run=true` field returns counts without changing user/group
+inventories. A file containing a duplicate email/external ID returns HTTP 200
+with row errors and zero counts; the complete inventory is unchanged. A
+header-only file returns 400 stating that between 1 and 50000 principals are
+required. The inspected specification calls this a canonical CSV without
+listing its required columns or these validation/reporting rules.
+
+**Question:** Can the canonical columns, normalization/uniqueness rules,
+manager/root/cycle validation and whole-file synchronization scope be
+documented, including HTTP 200 reports containing errors? Are all previously
+imported users in the directory subject to deactivation when absent from a
+file, or can separate import sources have independent scopes?
+
+Evidence: org-chart-dry-run-contracts.jsonl and
+org-chart-lifecycle-contracts.json in the local cache. Only synthetic HR rows
+were used; fixture values are removed from saved diagnostic text.
+
+### Q49 Import adoption and provisioning transitions
+
+**Observed (October 31, 2026, direct US `.tech` HTTP):** A CSV row matches an
+existing API-created user through its `kong:email` custom identity. Import
+retains the UUID, existing `managed_by` map and unrelated metadata, changes the
+display name and sets `provisioned_by` to `imported`. The report includes an
+adoption count and warning. Ordinary PUT and DELETE then return 409, while
+attempting to delete an importer-reserved identity returns 400.
+
+```http
+PUT /v2/directories/{directoryId}/principals/{principalId}
+DELETE /v2/directories/{directoryId}/principals/{principalId}
+PATCH /v2/directories/{directoryId}/principals/{principalId}
+```
+
+Explicit PATCH with `active:false` changes the principal to
+`provisioned_by: konnect_user`; a fresh GET confirms that transition and
+ordinary DELETE then succeeds. The same directory settings remain unchanged.
+An initial disposable-probe cleanup did not know this release path; scoped
+recovery instead used an explicitly authorized native directory cascade and
+restored the original default settings. The completed probe uses deactivation
+and individual retirement without a directory cascade.
+
+**Question:** Is email-based adoption of API-created users intentional when
+`managed_by` is nonempty? What is the matching precedence between external ID
+and email, which existing fields are preserved, and can callers exclude
+already managed users? Can the supported ownership/release lifecycle be
+documented, including whether a later import reclaims a deactivated user?
+
+The opaque map is not assumed to be an API-enforced protection policy. The
+question concerns the provisioning transition despite retained ownership
+metadata. Evidence: org-chart-lifecycle-contracts.json and
+org-chart-probe-recovery.json in the local cache.
+
+### Q50 Public import response schema
+
+**Observed (October 31, 2026, direct US `.tech` HTTP and local source):** Imported
+principals and teams return `provisioned_by: imported`. The shared
+`ProvisionedBy` schema lists that value under `x-enum-dev`, so the public SDK
+preview omits its constant. Its string-backed Go type still preserves the
+returned value. The import description instead says principals are tagged
+`hris_import`. Import reports also return `counts.users.adopted`, which is
+absent from the inspected report schema and generated typed report.
+
+**Question:** Should `imported` be a public provisioning value for the public
+import endpoint, and should its description and adoption count be included in
+the published response schema?
 
 ## Recorded answers
 

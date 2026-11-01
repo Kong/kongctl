@@ -110,6 +110,28 @@ func TestPrincipalMatchingAndSyncAuthority(t *testing.T) {
 	require.ErrorContains(t, err, "multiple principals match")
 }
 
+func TestImportedPrincipalsWithRetainedOwnershipCannotBeManagedOrPruned(t *testing.T) {
+	id := fixture.Directory("people", "directory-team", false).ID
+	current := principalObserved("alice", "principal-team")
+	current.ProvisionedBy = new(kkComps.ProvisionedBy("imported"))
+	api := &fixture.PrincipalAPI{Directories: map[string][]kkComps.KongPrincipal{id: {current}}}
+	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync, PlanModeDelete} {
+		_, err := principalPlan(t, api, []resources.IdentityPrincipalResource{principalDesired()}, mode, true)
+		require.ErrorContains(t, err, "organization-chart importer")
+	}
+	_, err := principalPlan(t, api, nil, PlanModeSync, true)
+	require.ErrorContains(t, err, "organization-chart importer")
+	for _, mode := range []PlanMode{PlanModeApply, PlanModeSync} {
+		plan, err := principalPlan(t, api, nil, mode, false)
+		require.NoError(t, err)
+		require.Empty(t, plan.Changes, "omission without collection authority leaves imported state alone")
+	}
+	api.Directories[id][0].ManagedBy = nil
+	plan, err := principalPlan(t, api, nil, PlanModeSync, true)
+	require.NoError(t, err)
+	require.Empty(t, plan.Changes, "ordinary importer records are never enrolled through visibility")
+}
+
 func TestPrincipalTypeCompatibilityAndProtection(t *testing.T) {
 	id := fixture.Directory("people", "directory-team", false).ID
 	api := &fixture.PrincipalAPI{

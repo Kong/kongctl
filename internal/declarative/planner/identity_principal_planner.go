@@ -126,6 +126,9 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 		var desired []managedRoot[resources.IdentityPrincipalResource]
 		for _, value := range parent.desired {
 			if current, found := currentByRef[value.Ref]; found {
+				if err := helpers.ValidateIdentityPrincipalManagement(current.IdentityPrincipal); err != nil {
+					return fmt.Errorf("principal %q: %w", value.Ref, err)
+				}
 				if plan.Metadata.Mode != PlanModeDelete {
 					if err := helpers.ValidatePrincipalActiveUpdate(current.IdentityPrincipal, value.Active); err != nil {
 						return fmt.Errorf("principal %q: %w", value.Ref, err)
@@ -145,6 +148,13 @@ func (p *identityDirectoryPlanner) planPrincipals(ctx context.Context, config *C
 					protected: value.Protected(),
 				},
 			)
+		}
+		if plan.Metadata.Mode == PlanModeSync && parent.scoped {
+			for _, value := range currentByRef {
+				if err := helpers.ValidateIdentityPrincipalManagement(value.IdentityPrincipal); err != nil {
+					return fmt.Errorf("principal %q: %w", value.GetName(), err)
+				}
+			}
 		}
 		var current []managedRoot[state.IdentityPrincipal]
 		for _, value := range all {

@@ -200,6 +200,25 @@ func TestPrincipalSavedMutationRejectsNewDuplicate(t *testing.T) {
 	}
 }
 
+func TestPrincipalSavedWritesRejectLateImporterAdoption(t *testing.T) {
+	for _, action := range []planner.ActionType{planner.ActionUpdate, planner.ActionDelete} {
+		a, api, execCtx := principalExecutorFixture()
+		api.Directories["directory-id"][0].ProvisionedBy = new(kkComps.ProvisionedBy("imported"))
+		execCtx.PlannedChange.Action = action
+		var err error
+		if action == planner.ActionDelete {
+			err = a.Delete(t.Context(), "principal-id", execCtx)
+		} else {
+			var request kkComps.ReplacePrincipalBody
+			require.NoError(t, a.MapUpdateFields(t.Context(), execCtx, execCtx.PlannedChange.Fields, &request, nil))
+			_, err = a.Update(t.Context(), "principal-id", request, execCtx.Namespace, execCtx)
+		}
+		require.ErrorContains(t, err, "organization-chart importer")
+		require.Empty(t, api.Writes)
+		require.Zero(t, api.Deletes)
+	}
+}
+
 func TestPrincipalRejectsChangedOwnershipTypeAndProtection(t *testing.T) {
 	for _, field := range []string{
 		resources.ManagedByToolKey, resources.ChildNamespaceKey,

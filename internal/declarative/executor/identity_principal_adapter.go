@@ -116,6 +116,9 @@ func validatePrincipalWrite(metadata map[string]string, namespace string, execCt
 }
 
 func validateObservedPrincipal(current *state.IdentityPrincipal, execCtx *ExecutionContext) error {
+	if err := helpers.ValidateIdentityPrincipalManagement(current.IdentityPrincipal); err != nil {
+		return err
+	}
 	if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool ||
 		current.GetName() != execCtx.PlannedChange.ResourceRef {
 		return fmt.Errorf("principal ownership identity changed; regenerate the plan or explicitly adopt it")
