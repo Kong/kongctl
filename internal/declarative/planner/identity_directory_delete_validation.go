@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/identitykeys"
 )
 
@@ -24,8 +25,19 @@ func (p *Planner) validateIdentityDirectoryDeletes(ctx context.Context, plan *Pl
 		}
 		removals := make(map[string]string)
 		providers := make(map[string]string)
+		idps := make(map[string]string)
 		for _, child := range plan.Changes {
-			if child.ResourceType == ResourceTypeIdentityVaultProvider && child.Action == ActionDelete && child.Parent != nil &&
+			if child.ResourceType == ResourceTypeIdentityTrustedIDP && child.Action == ActionDelete && child.Parent != nil &&
+				child.Parent.ID == current.ID &&
+				child.Namespace == change.Namespace {
+				issuer, ok := child.Fields[FieldIssuerURL].(string)
+				if !ok || issuer == "" {
+					return fmt.Errorf("planned Trusted IdP deletion requires an issuer")
+				}
+				idps[child.ResourceID] = issuer
+			}
+			if child.ResourceType == ResourceTypeIdentityVaultProvider && child.Action == ActionDelete &&
+				child.Parent != nil &&
 				child.Parent.ID == current.ID &&
 				child.Namespace == change.Namespace {
 				name, ok := child.Fields[FieldName].(string)
@@ -45,7 +57,9 @@ func (p *Planner) validateIdentityDirectoryDeletes(ctx context.Context, plan *Pl
 			}
 			removals[child.ResourceID] = key.Kid
 		}
-		if err := p.client.CheckIdentityDirectoryVaultProviderRetirements(ctx, *current, removals, providers); err != nil {
+		if err := p.client.CheckIdentityDirectoryVaultRetirements(ctx, *current, helpers.IdentityDirectoryVaultRetirements{
+			Keys: removals, Providers: providers, TrustedIDPs: idps,
+		}); err != nil {
 			return fmt.Errorf("cannot delete directory %q: %w", current.Name, err)
 		}
 	}

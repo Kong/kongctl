@@ -131,6 +131,7 @@ func IsManagedResourceProtected(
 		resources.ResourceTypeIdentityBasicAuth,
 		resources.ResourceTypeIdentityVaultKey,
 		resources.ResourceTypeIdentityVaultProvider,
+		resources.ResourceTypeIdentityTrustedIDP,
 		resources.ResourceTypeAPIVersion,
 		resources.ResourceTypeAPIPublication,
 		resources.ResourceTypeAPIImplementation,

@@ -34,6 +34,7 @@ func TestVaultPublicKeyDumpReloadAndExternalDirectoryBoundary(t *testing.T) {
 			roots := &fixture.DirectoryAPI{Current: root, Directories: []kkComps.KongDirectory{root}}
 			keys := &fixture.VaultKeysAPI{}
 			client := state.NewClient(state.ClientConfig{
+				IdentityTrustedIDPsAPI: &fixture.TrustedIDPsAPI{},
 				IdentityDirectoriesAPI: roots, IdentityVaultKeysAPI: keys,
 				IdentityVaultProvidersAPI: &fixture.VaultProvidersAPI{},
 				IdentityPrincipalsAPI:     &fixture.PrincipalAPI{}, IdentityGroupsAPI: &fixture.GroupAPI{},

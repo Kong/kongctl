@@ -3,55 +3,21 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"maps"
 	"net/http"
-	"net/url"
 	"reflect"
-	"unicode/utf8"
 
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/Kong/sdk-konnect-go/retry"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/konnect/identitytrust"
 	"github.com/kong/kongctl/internal/util"
 )
 
 // NormalizeIdentityTrustedIDPJIT follows the API's empty-mapping semantics.
 // It returns a copy and preserves explicitly configured claim names.
 func NormalizeIdentityTrustedIDPJIT(value *kkComps.TrustedIdpJit) *kkComps.TrustedIdpJit {
-	if value == nil || value.Mapping == nil {
-		return nil
-	}
-	mapping := *value.Mapping
-	if len(mapping.Metadata) == 0 {
-		mapping.Metadata = nil
-	} else {
-		mapping.Metadata = maps.Clone(mapping.Metadata)
-	}
-	if mapping.Metadata == nil && mapping.Email == nil && mapping.Groups == nil && mapping.DisplayName == nil {
-		return nil
-	}
-	return &kkComps.TrustedIdpJit{Mapping: &mapping}
-}
-
-func validateIdentityTrustedIDPPublic(issuer string, display, jwks *string, jit *kkComps.TrustedIdpJit) error {
-	parsed, err := url.Parse(issuer)
-	if err != nil || !parsed.IsAbs() {
-		return fmt.Errorf("trusted IdP issuer_url must be an absolute URI")
-	}
-	if display != nil && utf8.RuneCountInString(*display) > 255 {
-		return fmt.Errorf("trusted IdP display_name must be at most 255 characters")
-	}
-	if jwks != nil {
-		parsed, err := url.Parse(*jwks)
-		if err != nil || !parsed.IsAbs() {
-			return fmt.Errorf("trusted IdP jwks_uri must be an absolute URI")
-		}
-	}
-	if jit != nil && jit.Mapping != nil && len(jit.Mapping.Metadata) > 64 {
-		return fmt.Errorf("trusted IdP JIT metadata mapping allows at most 64 entries")
-	}
-	return nil
+	return identitytrust.NormalizeJIT(value)
 }
 
 func validateIdentityTrustedIDPWriteScope(api IdentityTrustedIDPsReader, directory string) error {
@@ -72,7 +38,7 @@ func CreateIdentityTrustedIDP(ctx context.Context, api IdentityTrustedIDPsAPI, d
 	if err := validateIdentityTrustedIDPWriteScope(api, directory); err != nil {
 		return nil, err
 	}
-	if err := validateIdentityTrustedIDPPublic(
+	if err := identitytrust.ValidatePublic(
 		request.IssuerURL, request.DisplayName, request.JwksURI, request.Jit,
 	); err != nil {
 		return nil, err
@@ -154,7 +120,7 @@ func ObserveIdentityTrustedIDPScope(
 func ReplaceIdentityTrustedIDP(ctx context.Context, api IdentityTrustedIDPsAPI, directory, id, issuer string,
 	request kkComps.ReplaceTrustedIdpBody,
 ) (*IdentityTrustedIDP, error) {
-	if err := validateIdentityTrustedIDPPublic(
+	if err := identitytrust.ValidatePublic(
 		request.IssuerURL, request.DisplayName, request.JwksURI, request.Jit,
 	); err != nil {
 		return nil, err

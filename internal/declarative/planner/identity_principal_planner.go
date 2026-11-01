@@ -347,7 +347,8 @@ func adjustIdentityDirectoryDeleteDependencies(changes []PlannedChange) {
 		}
 		for _, child := range changes {
 			if (child.ResourceType == ResourceTypeIdentityPrincipal || child.ResourceType == ResourceTypeIdentityGroup ||
-				child.ResourceType == ResourceTypeIdentityVaultKey || child.ResourceType == ResourceTypeIdentityVaultProvider) &&
+				child.ResourceType == ResourceTypeIdentityVaultKey || child.ResourceType == ResourceTypeIdentityVaultProvider ||
+				child.ResourceType == ResourceTypeIdentityTrustedIDP) &&
 				child.Action == ActionDelete &&
 				child.Parent != nil &&
 				(child.Parent.ID == parent.ResourceID || child.Parent.Ref == parent.ResourceRef) &&

@@ -19,7 +19,7 @@ ledger current as each resource is implemented.
 | --- | --- | --- | --- |
 | Vault providers | None | Managed directory | Declarative create/PATCH, scoped sync/delete and public dump are implemented; credential guards and inherited parent protection apply. |
 | Token Vault keys | None | Managed directory | Verified live lifecycle. |
-| Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Declarative deletion requires enabled Vault and fresh empty key/provider/Trusted IdP inventories; it never grants child ownership or retirement authority (Q37). |
+| Directory | `labels`, `managed_by` | `managed_by` | Create, GET, list, PUT and live lifecycle pass. Deletion requires enabled Vault, exact explicitly authorized child retirements and then fresh empty key/provider/Trusted IdP inventories. A directory-only declaration grants no child retirement authority (Q37). |
 | Principal | `labels`, `managed_by`, runtime `metadata` | `managed_by`, including local ref | Create, GET, list, PUT, adoption and live lifecycle pass. PATCH metadata gap is Q11. Deletion requires explicit authorized identity, username-record and direct-membership deletions, with fresh empty checks; any API key blocks deletion (Q24). |
 | Principal identities, all four variants | `labels`, `managed_by` | `managed_by`, including local ref | Declarative lifecycle, scoped get/list, adoption and dump pass live verification. Parent ownership is independent. Q21 requires collection membership proof. Workspace writes/adoption are deferred under Q25; Q26 governs associated-resource deletion effects. |
 | Principal API-key inspection | `managed_by`; no labels | Read-only in KongCTL | Generated create retention is verified by direct probes, but PATCH ignores management changes. Scoped get/list exposes public metadata only. No ownership writes/adoption are exposed (Q4/Q27–Q30). |
@@ -96,7 +96,7 @@ or protection metadata on them.
 | Vault providers | Directory + unique name | Declarative lifecycle inherits managed-directory namespace/protection. Explicit collection authorizes sync; fresh empty credential observations guard deletion. No independent metadata. #2660. |
 | Shared provider credentials | Generated ID under provider | Secret/enrollment lifecycle and multiplicity need verification. Q6–Q7, #2662. |
 | User-enrolled provider credentials | Principal/provider association | Inspect and explicitly revoke where supported; do not treat visibility as administrative ownership. #2663. |
-| Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Public configuration get/list and associated-principal inspection are implemented without ownership writes. Multiple issuers can share a display name. No ownership stamp exists; inherited managed-directory ownership is under evaluation. Q37 governs parent deletion and disabled-Vault visibility; Q38 covers PATCH clearing. Q6, #2664. |
+| Directory Trusted IdPs | Unique issuer URL per directory; generated ID | Declarative lifecycle inherits explicit managed-directory authority/protection, with no child metadata. Public full PUT preserves omitted settings and supports nullable/empty clears. Explicit collections scope sync; associated principals remain independently owned and require proven detachment before retirement. Q37/Q38/Q44, #2664. |
 | Org-chart import operation | Directory plus CSV import contract | The import request has no metadata field. Its output principals/groups can expose metadata, but remain subject to importer ownership. Q8, #2665. |
 | Runtime authentication and lookup responses | Authenticated principal/credential | Runtime data, not a new declarative resource or ownership store. |
 
@@ -139,7 +139,15 @@ authority for another resource family.
 
 ## Change log
 
-- October 31 UTC, Trusted IdP write foundations: create, hydrated public PUT
+- October 31 US Central, Trusted IdP declarations: inherited directory ownership,
+  exact issuer matching, public hydrated PUT, scoped sync/delete, saved guards
+  and public dump/reload are integrated. Cross-namespace independent OIDC
+  retargeting/deletion can precede retirement. No principal metadata is
+  stamped by trust configuration. All twenty-three Identity live scenarios and
+  final isolated lifecycle/early-stop cleanup pass in `.tech`. Repository gates
+  pass; #2664 stays open/In Progress until main merge.
+
+- October 31 US Central, Trusted IdP write foundations: create, hydrated public PUT
   and guarded delete are verified in `.tech`. No metadata is stamped and no
   principal ownership is implied. Full declarative integration is in progress
   under #2664, using explicit managed-directory authority. Q44 records native

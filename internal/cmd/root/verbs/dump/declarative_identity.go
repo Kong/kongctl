@@ -72,6 +72,9 @@ func identityDirectoryCollector() declarativeCollector {
 				// Vault cannot be inspected; omit the collection without claiming
 				// emptiness or granting sync authority over hidden children.
 				if !values[i].IsExternal() && values[i].VaultEnabled != nil && *values[i].VaultEnabled {
+					if err := collectIdentityTrustedIDPs(ctx, d, &values[i]); err != nil {
+						return err
+					}
 					if err := collectIdentityVaultProviders(ctx, d, &values[i]); err != nil {
 						return err
 					}
@@ -302,5 +305,6 @@ func identityDirectoryCollector() declarativeCollector {
 		resources.ResourceTypeIdentityBasicAuth,
 		resources.ResourceTypeIdentityVaultKey,
 		resources.ResourceTypeIdentityVaultProvider,
+		resources.ResourceTypeIdentityTrustedIDP,
 	)
 }

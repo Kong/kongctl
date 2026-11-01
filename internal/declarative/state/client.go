@@ -25,6 +25,7 @@ import (
 
 // ClientConfig contains all the API interfaces needed by the state client
 type ClientConfig struct {
+	IdentityTrustedIDPsAPI           helpers.IdentityTrustedIDPsAPI
 	IdentityVaultKeysAPI             helpers.IdentityVaultKeysAPI
 	IdentityVaultProvidersAPI        helpers.IdentityVaultProvidersAPI
 	IdentityAuthServerClientAPI      helpers.IdentityAuthServerClientsAPI
@@ -121,6 +122,7 @@ type ClientConfig struct {
 type Client struct {
 	identityVaultKeysAPI             helpers.IdentityVaultKeysAPI
 	identityVaultProvidersAPI        helpers.IdentityVaultProvidersAPI
+	identityTrustedIDPsAPI           helpers.IdentityTrustedIDPsAPI
 	identityAuthServersAPI           helpers.IdentityAuthServersAPI
 	identityAuthServerScopesAPI      helpers.IdentityAuthServerScopesAPI
 	identityAuthServerClaimsAPI      helpers.IdentityAuthServerClaimsAPI
@@ -226,6 +228,7 @@ func NewClient(config ClientConfig) *Client {
 		identityDirectoryDependenciesAPI: config.IdentityDirectoryDependenciesAPI,
 		identityVaultKeysAPI:             config.IdentityVaultKeysAPI,
 		identityVaultProvidersAPI:        config.IdentityVaultProvidersAPI,
+		identityTrustedIDPsAPI:           config.IdentityTrustedIDPsAPI,
 		identityBasicAuthAPI:             config.IdentityBasicAuthAPI,
 		identityPrincipalKeysReader:      config.IdentityPrincipalKeysReader,
 		identityGroupsAPI:                config.IdentityGroupsAPI,
