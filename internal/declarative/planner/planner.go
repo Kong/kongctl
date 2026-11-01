@@ -269,6 +269,9 @@ func (p *Planner) GeneratePlan(ctx context.Context, rs *resources.ResourceSet, o
 	}
 
 	p.resolveMatchedPayloadIdentities(basePlan, rs)
+	if err := p.resolveIdentityAPIKeyDependencies(basePlan); err != nil {
+		return nil, err
+	}
 	if err := p.resolvePrincipalIdentityDeletes(ctx, basePlan); err != nil {
 		return nil, err
 	}

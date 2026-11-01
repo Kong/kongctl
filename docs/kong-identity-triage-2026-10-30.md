@@ -4414,3 +4414,74 @@ generated-key-preparation-final-inventory.json and
 generated-key-preparation-gates.json/.log under the local cache. The native
 parent-authority proof is separate from the existing command E2E; full
 declarative-key lifecycle proof is still required before exposing those kinds.
+
+## 64. Generated principal and group API-key declarations
+
+Both generated key kinds are integrated through registration, nested/top-level
+loading, namespace selection, reference/sync scope, planning, state, saved
+execution, dump and explain/scaffold. The example and tutorial are
+docs/examples/declarative/identity/generated-api-keys.yaml and
+generated-api-keys.md. They use an external lookup for the existing default
+directory and manage the principal/group parents.
+
+Required type:v1 records generated creation intent. The key's canonical map
+contains tool, creator version, kongctl-ref and kongctl-create-type:v1. Current
+managed-parent namespace and update/delete protection supply authority; no
+independent key namespace/protection is stored or exposed. Imported and legacy
+keys are not silently adopted. Complete parent-scoped scans reject duplicate
+refs, incompatible marker shapes and legacy collisions before mutation.
+
+Saved writes repeat parent provisioning, tool/ref/name, namespace/protection
+and scoped key UUID/ref checks. The generic executor has an optional scoped-ID
+lookup contract so these resources retain duplicate/authority errors instead
+of falling back to names that cannot identify them. Existing resource lookup
+policies are unchanged. Key creation depends on new parent/directory creates.
+
+Whole-plan preflight reserves exclusive private captures before any mutation.
+Resolved parent IDs are bound before one generated POST; material is captured
+before public read-back. Uncertain creation is never automatically replayed or
+retired. Supported principal scalar names and expiration updates preserve all
+immutable markers. Omitted expiration is hydrated because native PATCH clears
+it; explicit null clears it. Group names stay creation-only and null name
+clearing is rejected under Q29.
+
+Omitted collections preserve keys. Explicit empty sync scopes retire only the
+recognized generated convention. Foreign/imported/legacy records are retained
+and prevent parent retirement. Final plans require explicitly authorized
+attached-key deletes before parent deletion, followed by fresh empty checks.
+During replacement sync, retirement depends on successful replacement creation
+and capture. Failed replacement preserves the old keys. Q24's lack of an
+atomic API conditional-delete precondition is still an engineering question.
+
+Dump exports recognized generated keys only beneath verified managed parents,
+including nullable expiration and explicit creation intent. It omits material,
+capture paths and management maps. Reloading a dump produces no changes.
+The reflection schema treats time.Time as a scalar, matching its JSON form;
+the loader tests caught and corrected the initial object-shape description.
+
+Focused actual-SDK tests cover both kinds, new-parent resolution, capture
+preflight/failure, stale creates, expiration hydration/null, stable creator
+version, inherited authority, duplicate/legacy refs, wrong UUIDs and importer
+ownership, scoped pruning, replacement/retirement ordering and dump/reload.
+Modernization, stable formatting, the CGO-disabled build and full make test-all
+pass with zero lint issues, unit/integration/harness race checks, nine SDK patch
+tests, 140 metrics tests and installer checks. All thirty Identity live
+scenarios pass together. Independent inspection confirms eight private capture
+directories and six workspaces removed, no copied key sources/captures and no
+administrative token/base64 in artifacts. Default settings are restored.
+
+The final focused live scenario additionally verifies duplicate and legacy-ref
+conflicts in both planning and saved updates after the scoped-ID refinement.
+Its work and captures stay outside artifacts; only sanitized outputs, traces
+and a removed-workspace receipt are published. Evidence lives under the local
+cache in generated-key-declarative-all, generated-key-declarative-final and
+generated-key-declarative-final-gates.log, with independent artifact receipts.
+Replay membership/cassettes are unchanged and control-plane/get input/schema
+validation passes. SDK remains 90596b498bcb; no SDK changes, release or PR.
+
+API follow-up remains Q28 management-map writes/imported adoption, Q29 group
+name updates/null clearing and Q30 supported runtime mTLS integration. These
+are API behavior questions in docs/kong-identity-api-questions.md; this slice
+does not claim runtime authentication/revocation proof. #1417/#2659 stay open
+and In Progress until main merge. General CSV import #1419 and populated
+principal Vault authorization/revocation #2663 remain separate work.

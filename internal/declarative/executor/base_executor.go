@@ -356,6 +356,9 @@ func (b *BaseExecutor[TCreate, TUpdate]) Delete(ctx context.Context, change plan
 func (b *BaseExecutor[TCreate, TUpdate]) validateResourceForUpdate(
 	ctx context.Context, resourceName string, change planner.PlannedChange,
 ) (ResourceInfo, error) {
+	if scoped, ok := b.ops.(interface{ RequiresScopedIDLookup() bool }); ok && scoped.RequiresScopedIDLookup() {
+		return b.ops.GetByID(ctx, change.ResourceID, NewExecutionContext(&change))
+	}
 	if resources.UsesManagedByOwnership(resources.ResourceType(b.ops.ResourceType())) {
 		return b.ops.GetByID(ctx, change.ResourceID, NewExecutionContext(&change))
 	}

@@ -221,6 +221,32 @@ func identityDirectoryCollector() declarativeCollector {
 					slices.SortFunc(principal.BasicAuths, func(a, b resources.IdentityBasicAuthResource) int {
 						return cmp.Compare(a.Ref, b.Ref)
 					})
+					if !principal.IsExternal() {
+						keys, err := collectIdentityAPIKeys(
+							ctx,
+							d,
+							resources.ResourceTypeIdentityPrincipalAPIKey,
+							values[i].Ref,
+							current.ID,
+							seen,
+						)
+						if err != nil {
+							return err
+						}
+						if len(keys) > 0 {
+							if _, err := d.stateClient.VerifyIdentityAPIKeyParent(ctx,
+								resources.ResourceTypeIdentityPrincipalAPIKey, values[i].Ref, current.ID,
+								resources.GetNamespace(principal.Kongctl), principal.Ref); err != nil {
+								return err
+							}
+						}
+						for _, key := range keys {
+							principal.APIKeys = append(
+								principal.APIKeys,
+								resources.IdentityPrincipalAPIKeyResource{IdentityAPIKeyFields: key},
+							)
+						}
+					}
 					values[i].Principals = append(values[i].Principals, principal)
 				}
 				groups, err := d.stateClient.ListIdentityGroups(ctx, values[i].Ref)
@@ -290,6 +316,32 @@ func identityDirectoryCollector() declarativeCollector {
 							func(a, b resources.IdentityGroupMembershipResource) int { return cmp.Compare(a.Ref, b.Ref) },
 						)
 					}
+					if !group.IsExternal() {
+						keys, err := collectIdentityAPIKeys(
+							ctx,
+							d,
+							resources.ResourceTypeIdentityGroupAPIKey,
+							values[i].Ref,
+							current.ID,
+							seen,
+						)
+						if err != nil {
+							return err
+						}
+						if len(keys) > 0 {
+							if _, err := d.stateClient.VerifyIdentityAPIKeyParent(ctx,
+								resources.ResourceTypeIdentityGroupAPIKey, values[i].Ref, current.ID,
+								resources.GetNamespace(group.Kongctl), group.Name); err != nil {
+								return err
+							}
+						}
+						for _, key := range keys {
+							group.APIKeys = append(
+								group.APIKeys,
+								resources.IdentityGroupAPIKeyResource{IdentityAPIKeyFields: key},
+							)
+						}
+					}
 					values[i].Groups = append(values[i].Groups, group)
 				}
 				slices.SortFunc(
@@ -305,6 +357,7 @@ func identityDirectoryCollector() declarativeCollector {
 		}, resources.ResourceTypeIdentityPrincipal, resources.ResourceTypeIdentityPrincipalIdentity,
 		resources.ResourceTypeIdentityGroup, resources.ResourceTypeIdentityGroupMembership,
 		resources.ResourceTypeIdentityBasicAuth,
+		resources.ResourceTypeIdentityPrincipalAPIKey, resources.ResourceTypeIdentityGroupAPIKey,
 		resources.ResourceTypeIdentityVaultKey,
 		resources.ResourceTypeIdentityVaultProvider,
 		resources.ResourceTypeIdentityVaultProviderCredential,

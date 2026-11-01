@@ -56,7 +56,8 @@ func TestUnmanagedDefaultDirectoryDumpRetainsManagedBasicAuthChildren(t *testing
 	}
 	basic := fixture.BasicAuth("worker", "credentials", true)
 	client := state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI: &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
+		IdentityPrincipalKeysReader: &fixture.BasicAuthAPI{},
+		IdentityDirectoriesAPI:      &fixture.DirectoryAPI{Directories: []kkComps.KongDirectory{directory}},
 		IdentityPrincipalsAPI: &fixture.PrincipalAPI{
 			Directories: map[string][]kkComps.KongPrincipal{directory.ID: {principal}},
 		},

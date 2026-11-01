@@ -550,17 +550,17 @@ expiration-omission restrictions are still reproduced there.
   Generated/imported authentication returned "mTLS headers missing"; this
   establishes no credential continuity or revocation guarantee.
 
-Generated declarative enrollment still needs duplicate/ref matching, immutable
-ownership/protection handling, capture integration, saved plans, dump and
-explicit child-before-parent retirement authority. Imported ownership/adoption
-has no verified atomic creation or metadata-transfer path. Do not match by
-name or material, and do not claim generated/imported creation method from a
-metadata GET. No API-key declaration or adoption command is exposed yet.
+Generated principal/group key declarations are implemented through resource
+loading, plan/diff/apply/sync/delete, state/execution, dump and explain/scaffold.
+Imported ownership/adoption has no verified atomic creation or metadata-transfer
+path. Neither names nor material supply matching identity. The generated
+creation marker records explicit declared intent; it is not inferred from
+arbitrary public key metadata. Key adoption remains unavailable.
 
-The next generated-key slice follows ordinary-child authority rather than
+The generated-key implementation follows ordinary-child authority rather than
 independent key protection. A managed principal or ordinary group supplies the
 current namespace/protection; an external directory remains valid. External
-principal/group declarations do not grant that authority. The proposed immutable
+principal/group declarations do not grant that authority. The immutable
 key map contains tool, creator version, persisted ref and kongctl-create-type:v1.
 The final marker records explicit generated creation intent, which public key
 reads do not otherwise reveal. It does not identify imported or unowned keys.
@@ -572,23 +572,31 @@ parent namespace/protection changes without key-map changes, expiration updates
 preserving markers and duplicate-ref detection across two pages. Every fixture
 is retired and the default directory object is unchanged. Evidence is
 generated-key-parent-authority.json in the local cache. This establishes API
-storage behavior, not completed declarative authority/ordering enforcement.
+storage behavior. The separate live declarative scenario verifies the client
+authority/ordering implementation against the same API contract.
 
 The metadata engine now permits inherited-namespace resources to persist a ref,
 record fixed creation intent and opt out of management-map stamping on updates.
 Existing mutable resource policies are unchanged. Key creation can also accept
 a capture file reserved before other planned creates; resolved parent IDs replace
 pending context before the single POST. Closed/replaced/completed reservations
-cannot issue another key. Full resource/planner/executor/dump integration,
-parent protection, collision rejection, explicit sync scopes and saved-plan
-checks must land before exposing the new declarative kinds.
+cannot issue another key. Full integration repeats fresh parent provisioning,
+tool/ref/name, namespace/protection and key UUID/ref checks on saved writes.
+Duplicate refs and legacy/incompatible map collisions fail before mutation.
+Omitted collections grant no pruning authority; explicit empty scopes retire
+only recognized generated keys. Foreign/imported/legacy keys are preserved.
+Replacement key issuance and capture must succeed before old-key retirement.
+Group names are create-only; principal scalar names and expiration updates
+retain immutable markers and hydrate omitted expiration. Null expiration
+survives manifests, saved plans and dump/reload.
 
 Principal declarative delete/sync now observes basic-auth and API-key
-descendants as well as identity associations. Any API key blocks deletion;
-none is automatically revoked. Failed observations, including a legacy
-user-type 404, fail closed. Future declarative key enrollment must add explicit
-authorized key deletions and child-before-parent ordering. The fixture cleanup
-checks below do not extend production deletion authority.
+descendants as well as identity associations. Every attached key must have an
+explicitly authorized deletion in the final plan before parent retirement.
+Unmanaged keys block deletion. Authorized key deletes become parent dependencies;
+execution repeats complete empty checks. Failed observations, including a
+legacy user-type 404, fail closed. Fixture cleanup does not extend production
+deletion authority.
 Q24 records the API's native descendant deletion; public metadata alone does
 not provide independent protection against that operation.
 

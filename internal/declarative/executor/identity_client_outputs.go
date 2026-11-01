@@ -29,12 +29,14 @@ func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr err
 		return nil
 	}
 	for _, change := range plan.Changes {
-		if change.ResourceType != planner.ResourceTypeIdentityAuthServerClient ||
+		key := change.ResourceType == planner.ResourceTypeIdentityPrincipalAPIKey ||
+			change.ResourceType == planner.ResourceTypeIdentityGroupAPIKey
+		if (change.ResourceType != planner.ResourceTypeIdentityAuthServerClient && !key) ||
 			change.Action != planner.ActionCreate {
 			continue
 		}
 		if e.secretOutputDir == "" {
-			return fmt.Errorf("creating OAuth clients requires --secret-output-dir for initial generated secrets")
+			return fmt.Errorf("creating OAuth clients or generated Identity API keys requires --secret-output-dir")
 		}
 		if err := os.MkdirAll(e.secretOutputDir, 0o700); err != nil {
 			return fmt.Errorf("prepare initial-secret output directory: %w", err)
@@ -51,17 +53,36 @@ func (e *Executor) prepareClientSecretOutputs(plan *planner.Plan) (resultErr err
 		digest := sha256.Sum256(
 			[]byte(change.Namespace + "\x00" + parent + "\x00" + change.ResourceRef + "\x00" + name),
 		)
-		path := filepath.Join(directory, fmt.Sprintf("identity-client-%x.json", digest[:12]))
+		prefix := "identity-client"
+		if change.ResourceType == planner.ResourceTypeIdentityPrincipalAPIKey {
+			prefix = "identity-principal-key"
+		}
+		if change.ResourceType == planner.ResourceTypeIdentityGroupAPIKey {
+			prefix = "identity-group-key"
+		}
+		path := filepath.Join(directory, fmt.Sprintf("%s-%x.json", prefix, digest[:12]))
 		metadata := secretoutput.Metadata{
 			ResourceType: change.ResourceType, ResourceRef: change.ResourceRef,
 			Namespace: change.Namespace, ParentRef: parent,
 		}
-		if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
+		if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) && !key {
 			metadata.AuthServerID = change.Parent.ID
+		}
+		if key {
+			if id := change.References[planner.FieldDirectoryID].ID; !unresolvedReferenceID(id) {
+				metadata.DirectoryID = id
+			}
+			if change.Parent != nil && !unresolvedReferenceID(change.Parent.ID) {
+				if change.ResourceType == planner.ResourceTypeIdentityPrincipalAPIKey {
+					metadata.PrincipalID = change.Parent.ID
+				} else {
+					metadata.GroupID = change.Parent.ID
+				}
+			}
 		}
 		file, err := secretoutput.Reserve(path, metadata)
 		if err != nil {
-			return fmt.Errorf("reserve initial secret for client %q: %w", change.ResourceRef, err)
+			return fmt.Errorf("reserve initial secret for resource %q: %w", change.ResourceRef, err)
 		}
 		e.generatedOutputs[change.ID] = &generatedClientOutput{file: file, path: path, metadata: metadata}
 	}
@@ -80,13 +101,13 @@ func (e *Executor) discardUnattemptedClientOutputs() {
 
 func (e *Executor) initialClientOutput(change *planner.PlannedChange) (*generatedClientOutput, error) {
 	if change == nil {
-		return nil, fmt.Errorf("client creation requires an execution context")
+		return nil, fmt.Errorf("generated secret creation requires an execution context")
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	output := e.generatedOutputs[change.ID]
 	if output == nil {
-		return nil, fmt.Errorf("client %q has no reserved initial-secret output", change.ResourceRef)
+		return nil, fmt.Errorf("resource %q has no reserved initial-secret output", change.ResourceRef)
 	}
 	output.attempted = true
 	return output, nil

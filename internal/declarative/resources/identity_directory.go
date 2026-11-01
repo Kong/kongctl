@@ -50,6 +50,8 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
+	PrincipalAPIKeys         []IdentityPrincipalAPIKeyResource         `yaml:"principal_api_keys,omitempty"         json:"principal_api_keys,omitempty"`         //nolint:lll
+	GroupAPIKeys             []IdentityGroupAPIKeyResource             `yaml:"group_api_keys,omitempty"             json:"group_api_keys,omitempty"`             //nolint:lll
 	VaultProviderCredentials []IdentityVaultProviderCredentialResource `yaml:"vault_provider_credentials,omitempty" json:"vault_provider_credentials,omitempty"` //nolint:lll
 
 	TrustedIDPs    []IdentityTrustedIDPResource        `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`

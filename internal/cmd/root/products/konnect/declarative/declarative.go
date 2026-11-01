@@ -1788,8 +1788,8 @@ Konnect is the default target for this command, so "kongctl sync" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	cmd.Flags().
-		String(secretOutputDirFlagName, "", "Directory for private initial credentials when creating OAuth clients")
+	cmd.Flags().String(secretOutputDirFlagName, "",
+		"Directory for private initial credentials when creating OAuth clients or Identity API keys")
 	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
@@ -2457,8 +2457,8 @@ Konnect is the default target for this command, so "kongctl apply" and
 	cmd.Flags().Bool("auto-approve", false, "Skip confirmation prompt")
 	cmd.Flags().StringP("output", "o", textOutputFormat, "Output format (text|json|yaml)")
 	cmd.Flags().String("execution-report-file", "", "Save execution report as JSON to file")
-	cmd.Flags().
-		String(secretOutputDirFlagName, "", "Directory for private initial credentials when creating OAuth clients")
+	cmd.Flags().String(secretOutputDirFlagName, "",
+		"Directory for private initial credentials when creating OAuth clients or Identity API keys")
 	addSecretWriteFlags(cmd)
 	addMaxConcurrencyFlag(cmd)
 	addRequireNamespaceFlags(cmd)
@@ -2775,6 +2775,8 @@ func createStateClient(kkClient helpers.SDKAPI) *state.Client {
 		IdentityAuthServerClientAPI:       kkClient.GetIdentityAuthServerClientsAPI(),
 		IdentityBasicAuthAPI:              kkClient.GetIdentityBasicAuthAPI(),
 		IdentityPrincipalKeysReader:       kkClient.GetIdentityPrincipalKeysReader(),
+		IdentityPrincipalKeysAPI:          kkClient.GetIdentityPrincipalKeysAPI(),
+		IdentityGroupKeysAPI:              kkClient.GetIdentityGroupKeysAPI(),
 		IdentityGroupsAPI:                 kkClient.GetIdentityGroupsAPI(),
 		IdentityPrincipalsAPI:             kkClient.GetIdentityPrincipalsAPI(),
 		IdentityPrincipalIdentitiesAPI:    kkClient.GetIdentityPrincipalIdentitiesAPI(),

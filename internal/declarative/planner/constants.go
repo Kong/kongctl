@@ -108,6 +108,7 @@ const (
 	FieldStatus                = "status"
 	FieldAttributes            = fieldcontracts.FieldAttributes
 	FieldType                  = "type"
+	FieldExpiresAt             = "expires_at"
 	FieldConfig                = "config"
 	FieldDatastores            = "datastores"
 	FieldCertificates          = "certificates"
@@ -309,6 +310,8 @@ const (
 	ResourceTypeIdentityVaultProviderCredential  = string(resources.ResourceTypeIdentityVaultProviderCredential)
 	ResourceTypeIdentityTrustedIDP               = string(resources.ResourceTypeIdentityTrustedIDP)
 	ResourceTypeIdentityGroupMembership          = string(resources.ResourceTypeIdentityGroupMembership)
+	ResourceTypeIdentityPrincipalAPIKey          = string(resources.ResourceTypeIdentityPrincipalAPIKey)
+	ResourceTypeIdentityGroupAPIKey              = string(resources.ResourceTypeIdentityGroupAPIKey)
 	ResourceTypeIdentityBasicAuth                = string(resources.ResourceTypeIdentityBasicAuth)
 	ResourceTypeIdentityGroup                    = string(resources.ResourceTypeIdentityGroup)
 	ResourceTypeIdentityPrincipal                = string(resources.ResourceTypeIdentityPrincipal)
