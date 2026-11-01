@@ -10,7 +10,9 @@ untested guarantees are identified as contract clarifications.
 
 ## Runtime integration
 
-### Q30 Runtime authentication prerequisites
+<a id="q30-runtime-authentication-prerequisites"></a>
+
+### Q1 Runtime authentication prerequisites
 
 `POST /{directoryName}/v2/authenticate`
 `POST /{directoryName}/v2/vault/enrollment/resolve`
@@ -25,7 +27,9 @@ working request example for authentication and OAuth enrollment.
 
 ## Principals and credentials
 
-### Q9 Principal type changes
+<a id="q9-principal-type-changes"></a>
+
+### Q2 Principal type changes
 
 `PUT /v2/directories/D/principals/P`
 
@@ -35,7 +39,9 @@ Setting `type: null` returns 200 but retains the original type.
 **Question:** Should all attempted type changes, including null, return an
 immutable-field error?
 
-### Q11 Principal PATCH ignores ownership updates
+<a id="q11-principal-patch-ignores-ownership-updates"></a>
+
+### Q3 Principal PATCH ignores ownership updates
 
 `PATCH /v2/directories/D/principals/P`
 
@@ -56,7 +62,9 @@ PATCH does not attach the map afterward. Generated-key creation accepts it.
 **Question:** Can imported keys accept management metadata atomically during
 creation, or is another operation intended for this?
 
-### Q28 API-key PATCH metadata and expiration omission
+<a id="q28-api-key-patch-metadata-and-expiration-omission"></a>
+
+### Q5 API-key PATCH metadata and expiration omission
 
 `PATCH /v2/directories/D/principals/P/api-keys/K`
 `PATCH /v2/directories/D/groups/G/api-keys/K`
@@ -67,7 +75,9 @@ removal. Omitting `expires_at` clears expiration; explicit dates and null work.
 **Question:** Should PATCH apply management-map changes and preserve omitted
 expiration? Which operation can update metadata without changing key material?
 
-### Q29 API-key name availability
+<a id="q29-api-key-name-availability"></a>
+
+### Q6 API-key name availability
 
 Principal keys support names and renames, but `name: null` returns 200 without
 clearing the name. Generated group keys accept a name at creation; imported
@@ -76,7 +86,9 @@ group keys ignore it. Group-key PATCH ignores both renames and null.
 **Question:** What name-setting and clearing rules apply to each key type?
 Should unsupported changes return an error instead of success?
 
-### Q35 Basic-auth and password metadata updates
+<a id="q35-basic-auth-and-password-metadata-updates"></a>
+
+### Q7 Basic-auth and password metadata updates
 
 `PATCH /v2/directories/D/principals/P/basic-auths/B/passwords/W`
 
@@ -88,7 +100,9 @@ a basic-auth username record can update its map through PUT without passwords.
 preserving its existing secret and expiration? Should PATCH preserve omitted
 expiration and apply the supplied map changes?
 
-### Q31 Integer precision in principal and group metadata
+<a id="q31-integer-precision-in-principal-and-group-metadata"></a>
+
+### Q8 Integer precision in principal and group metadata
 
 Principal PUT and group creation accept `9007199254740993` but return and
 store `9007199254740992`. Negative values and integer arrays also lose digits.
@@ -98,7 +112,9 @@ rejected rather than silently rounded, including during data-plane propagation?
 
 ## Resource relationships and deletion
 
-### Q21 Principal-identity detail and delete parent scoping
+<a id="q21-principal-identity-detail-and-delete-parent-scoping"></a>
+
+### Q9 Principal-identity detail and delete parent scoping
 
 `GET /v2/directories/D/principals/B/identities/I`
 `DELETE /v2/directories/D/principals/B/identities/I`
@@ -110,7 +126,9 @@ removes A's identity.
 **Question:** Should these operations verify that the identity belongs to the
 principal in the path?
 
-### Q24 Principal deletion with attached resources
+<a id="q24-principal-deletion-with-attached-resources"></a>
+
+### Q10 Principal deletion with attached resources
 
 `DELETE /v2/directories/D/principals/P`
 `DELETE /v2/directories/D/groups/G`
@@ -123,7 +141,11 @@ These observations do not establish runtime credential revocation.
 **Question:** Which descendants are deleted, detached or retained? Is there a
 conditional delete that atomically rejects a parent with attached resources?
 
-### Q37 Directory deletion with Trusted IdPs and disabled Vault visibility
+<a
+  id="q37-directory-deletion-with-trusted-idps-and-disabled-vault-visibility"
+></a>
+
+### Q11 Directory deletion with Trusted IdPs and disabled Vault visibility
 
 `DELETE /v2/directories/D?force=false`
 
@@ -135,7 +157,9 @@ state. Disabling Vault hides those resources behind 403 responses.
 they be inspected without enabling Vault? Is an atomic nonempty-dependency
 precondition available?
 
-### Q41 Provider deletion with an attached shared credential
+<a id="q41-provider-deletion-with-an-attached-shared-credential"></a>
+
+### Q12 Provider deletion with an attached shared credential
 
 `DELETE /v2/directories/D/vault/providers/V`
 
@@ -146,7 +170,9 @@ not tested.
 **Question:** Is this cascade intentional, and does it also affect user
 authorizations? Can deletion atomically reject providers with credentials?
 
-### Q44 Trusted IdP deletion and existing principal associations
+<a id="q44-trusted-idp-deletion-and-existing-principal-associations"></a>
+
+### Q13 Trusted IdP deletion and existing principal associations
 
 `DELETE /v2/directories/D/trusted-idps/T`
 
@@ -157,7 +183,9 @@ Runtime authentication after trust removal was not tested.
 **Question:** What authentication or Vault access is invalidated by trust
 deletion? Is a conditional delete available while associations exist?
 
-### Q53 Principal deletion leaves a Registry Agent association
+<a id="q53-principal-deletion-leaves-a-registry-agent-association"></a>
+
+### Q14 Principal deletion leaves a Registry Agent association
 
 `DELETE /v2/directories/D/principals/P`
 `GET /v1/agents/A/principals`
@@ -169,7 +197,9 @@ principal IDs.
 **Question:** Should deletion reject the reference, remove the association,
 or retain it? Is an atomic deletion precondition available?
 
-### Q52 Principal-identity read-after-create visibility
+<a id="q52-principal-identity-read-after-create-visibility"></a>
+
+### Q15 Principal-identity read-after-create visibility
 
 `POST /v2/directories/D/principals/P/identities`
 `GET /v2/directories/D/principals/P/identities`
@@ -181,7 +211,9 @@ returned the new identity in the first list; the incident was not reproduced.
 **Question:** What read-after-write visibility guarantee follows a successful
 create? If visibility can lag, what verification interval is recommended?
 
-### Q14 Creation retry contracts
+<a id="q14-creation-retry-contracts"></a>
+
+### Q16 Creation retry contracts
 
 Principal display names and auth-server claim names are non-unique. A
 successful create can therefore be difficult to identify after a lost response.
@@ -191,7 +223,9 @@ Timeout and server-error outcomes were not injected into the service.
 or request-outcome lookup? What recovery procedure is supported after an
 uncertain creation result?
 
-### Q19 Recovery after uncertain generated-secret creation
+<a id="q19-recovery-after-uncertain-generated-secret-creation"></a>
+
+### Q17 Recovery after uncertain generated-secret creation
 
 OAuth client, client-secret and password creation return secret material;
 later reads omit it. Successful creation was verified; lost-response recovery
@@ -203,7 +237,9 @@ identified and revoked before issuing a replacement?
 
 ## Authorization servers
 
-### Q12 Duplicate claim names
+<a id="q12-duplicate-claim-names"></a>
+
+### Q18 Duplicate claim names
 
 `POST /v1/auth-servers/A/claims`
 
@@ -212,7 +248,9 @@ Two claims with the same name and different values are accepted.
 **Question:** Are duplicate claim names intentional? If multiple enabled
 claims with that name apply, which value appears in tokens or userinfo?
 
-### Q13 Claim pagination total exceeds result count
+<a id="q13-claim-pagination-total-exceeds-result-count"></a>
+
+### Q19 Claim pagination total exceeds result count
 
 `GET /v1/auth-servers/A/claims?page[size]=1&page[number]=1`
 
@@ -221,7 +259,9 @@ Only two claims are returned across the pages; subsequent pages are empty.
 
 **Question:** Should the total count claims rather than scope associations?
 
-### Q18 Client pagination total exceeds result count
+<a id="q18-client-pagination-total-exceeds-result-count"></a>
+
+### Q20 Client pagination total exceeds result count
 
 `GET /v1/auth-servers/A/clients?page[size]=1&page[number]=1`
 
@@ -231,7 +271,9 @@ Only two clients are returned across the pages.
 **Question:** Should the total count clients rather than allowed-scope
 associations?
 
-### Q15 Client PATCH resets omitted authentication method
+<a id="q15-client-patch-resets-omitted-authentication-method"></a>
+
+### Q21 Client PATCH resets omitted authentication method
 
 `PATCH /v1/auth-servers/A/clients/C`
 
@@ -241,7 +283,9 @@ explicitly preserves it.
 
 **Question:** Should PATCH preserve the authentication method when omitted?
 
-### Q16 Client secret limit counts disabled records
+<a id="q16-client-secret-limit-counts-disabled-records"></a>
+
+### Q22 Client secret limit counts disabled records
 
 Creating a third client secret returns 403, maximum two, even when both
 existing records are disabled.
@@ -249,7 +293,9 @@ existing records are disabled.
 **Question:** Is the limit two total records rather than two active secrets?
 What rotation sequence is supported when both slots are occupied?
 
-### Q17 Authorization-code grants unavailable
+<a id="q17-authorization-code-grants-unavailable"></a>
+
+### Q23 Authorization-code grants unavailable
 
 A client PATCH requesting `["authorization_code","refresh_token"]` returns
 400, "authorization code grant type is not allowed". Client-credentials
@@ -258,7 +304,9 @@ creation and authentication work.
 **Question:** What enables authorization-code and refresh-token grants?
 Are they controlled by configuration or entitlement?
 
-### Q34 Auth-server and OAuth-client management metadata
+<a id="q34-auth-server-and-oauth-client-management-metadata"></a>
+
+### Q24 Auth-server and OAuth-client management metadata
 
 Auth-server and OAuth-client POST accept an extra `managed_by` property, but
 responses and subsequent reads do not include it. Their schemas expose labels.
@@ -268,7 +316,9 @@ responses and subsequent reads do not include it. Their schemas expose labels.
 
 ## Vault providers and credentials
 
-### Q6 Vault and trusted IdP ownership
+<a id="q6-vault-and-trusted-idp-ownership"></a>
+
+### Q25 Vault and trusted IdP ownership
 
 Vault keys, providers, provider credentials and Trusted IdPs do not expose
 labels or `managed_by` in the inspected responses.
@@ -276,7 +326,9 @@ labels or `managed_by` in the inspected responses.
 **Question:** Is there a supported creator or external identifier for
 distinguishing records managed by different administrative systems?
 
-### Q38 Trusted IdP JWKS override clearing through PATCH
+<a id="q38-trusted-idp-jwks-override-clearing-through-patch"></a>
+
+### Q26 Trusted IdP JWKS override clearing through PATCH
 
 `PATCH /v2/directories/D/trusted-idps/T`
 
@@ -286,7 +338,9 @@ the field clears it. PATCH with `display_name: null` does clear that field.
 **Question:** Should null clear the JWKS override through PATCH and restore
 issuer discovery?
 
-### Q39 Replacing a custom OAuth DCR provider
+<a id="q39-replacing-a-custom-oauth-dcr-provider"></a>
+
+### Q27 Replacing a custom OAuth DCR provider
 
 `PUT /v2/directories/D/vault/providers/V`
 
@@ -297,7 +351,9 @@ schema exposes neither `dcr_enabled` nor `registration_endpoint`.
 **Question:** How can an existing DCR provider be replaced while preserving
 registration configuration? Are these fields intentionally create-only?
 
-### Q40 Provider initial enabled state and PUT omission
+<a id="q40-provider-initial-enabled-state-and-put-omission"></a>
+
+### Q28 Provider initial enabled state and PUT omission
 
 Provider POST with `enabled: false` creates an enabled provider; the create
 schema has no enabled field. PATCH can disable it. PUT preserves an omitted
@@ -306,7 +362,9 @@ enabled value but resets an omitted `refresh_buffer_seconds` to zero.
 **Question:** Is atomic disabled creation supported? Which PUT fields
 preserve omitted values, and which reset to defaults?
 
-### Q42 Clearing provider scopes and endpoint overrides
+<a id="q42-clearing-provider-scopes-and-endpoint-overrides"></a>
+
+### Q29 Clearing provider scopes and endpoint overrides
 
 `PATCH /v2/directories/D/vault/providers/V`
 
@@ -317,7 +375,9 @@ strings return 200 and persist as empty effective endpoints.
 **Question:** How can an override be removed to inherit template endpoints?
 How can an explicitly empty scope list be distinguished from template defaults?
 
-### Q43 Settings accepted by static-secret providers
+<a id="q43-settings-accepted-by-static-secret-providers"></a>
+
+### Q30 Settings accepted by static-secret providers
 
 Static-secret provider POST/PATCH accept and persist OAuth-related settings,
 including scopes, PKCE and endpoint URLs. The template guidance instead says
@@ -326,7 +386,9 @@ to supply only name and shared credential type. Runtime effects were not tested.
 **Question:** Which settings apply to static-secret providers? Should
 inapplicable OAuth settings be rejected or documented as having no effect?
 
-### Q45 Shared credential cardinality and routing uniqueness
+<a id="q45-shared-credential-cardinality-and-routing-uniqueness"></a>
+
+### Q31 Shared credential cardinality and routing uniqueness
 
 `POST /v2/directories/D/vault/providers/V/credentials`
 
@@ -338,7 +400,9 @@ says static-secret providers hold at most one credential.
 **Question:** Can the per-provider cardinality, priority uniqueness and default
 slot rules be documented for both credential types?
 
-### Q46 Credential PUT routing and material-preservation behavior
+<a id="q46-credential-put-routing-and-material-preservation-behavior"></a>
+
+### Q32 Credential PUT routing and material-preservation behavior
 
 `PUT /v2/directories/D/vault/providers/V/credentials/C`
 
@@ -350,7 +414,9 @@ records were pending.
 **Question:** Which operation changes routing while preserving static secret
 material or an active OAuth authorization? What triggers re-enrollment?
 
-### Q47 Shared OAuth enrollment URL lifetime and invalidation
+<a id="q47-shared-oauth-enrollment-url-lifetime-and-invalidation"></a>
+
+### Q33 Shared OAuth enrollment URL lifetime and invalidation
 
 `GET /v2/directories/D/vault/providers/V/credentials/C`
 
@@ -364,7 +430,9 @@ What encryption-key setup is required to complete enrollment?
 
 ## Directories and groups
 
-### Q2 Default directory lifecycle
+<a id="q2-default-directory-lifecycle"></a>
+
+### Q34 Default directory lifecycle
 
 One test organization initially returned no directories.
 
@@ -372,14 +440,18 @@ One test organization initially returned no directories.
 every organization? Does it have special behavior beyond its name, and may
 it be renamed or deleted?
 
-### Q3 Directory quota and control plane access
+<a id="q3-directory-quota-and-control-plane-access"></a>
+
+### Q35 Directory quota and control plane access
 
 The test organization rejects a second directory with 403, maximum one.
 
 **Question:** How can an organization discover its directory quota? Which
 organizations can restrict directory access to a control-plane allowlist?
 
-### Q32 Group membership types and team removal
+<a id="q32-group-membership-types-and-team-removal"></a>
+
+### Q36 Group membership types and team removal
 
 Direct team creation returns 400, allowing only `group`; organization-chart
 imports do create teams. Ordinary groups accept principal members, while
@@ -391,7 +463,9 @@ relationships identified?
 
 ## Organization-chart import
 
-### Q48 Canonical organization-chart CSV contract
+<a id="q48-canonical-organization-chart-csv-contract"></a>
+
+### Q37 Canonical organization-chart CSV contract
 
 `POST /v2/directories/D/org-chart/import`
 
@@ -404,7 +478,9 @@ can return HTTP 200 with row errors.
 whole-file synchronization rules be documented? Can separate import sources
 have independent scopes?
 
-### Q49 Import adoption and provisioning transitions
+<a id="q49-import-adoption-and-provisioning-transitions"></a>
+
+### Q38 Import adoption and provisioning transitions
 
 Import matches an API-created user by email, retains its UUID and
 `managed_by`, and changes provisioning to `imported`. Ordinary PUT/DELETE
@@ -415,7 +491,9 @@ and allows deletion.
 Can existing managed users be excluded from adoption? What is the supported
 release/re-import lifecycle?
 
-### Q51 Returning imported users remain inactive
+<a id="q51-returning-imported-users-remain-inactive"></a>
+
+### Q39 Returning imported users remain inactive
 
 Adding a previously omitted user back to an import restores membership and
 keeps the UUID, but leaves `active:false` and `provisioned_by: konnect_user`.
@@ -427,7 +505,9 @@ treat that action?
 
 ## Public API specification
 
-### Q20 Client Basic authentication availability and enum annotation
+<a id="q20-client-basic-authentication-availability-and-enum-annotation"></a>
+
+### Q40 Client Basic authentication availability and enum annotation
 
 HTTP Basic client-credentials authentication works with
 `token_endpoint_auth_method: client_secret_basic`, but the method is marked
@@ -436,7 +516,9 @@ HTTP Basic client-credentials authentication works with
 **Question:** Should this working method be included in the public enum?
 What availability restriction, if any, does the annotation represent?
 
-### Q22 Cursor-page query serialization
+<a id="q22-cursor-page-query-serialization"></a>
+
+### Q41 Cursor-page query serialization
 
 List endpoints honor `page[size]` and `page[after]`. A flat `size=1` is ignored
 and returns the default page size 20. The shared `CursorPageQuery` parameter
@@ -445,7 +527,10 @@ does not declare its object style.
 **Question:** Should it specify `style: deepObject` and `explode: true` so the
 published query contract describes the bracketed parameter names?
 
-### Q36 Writable credential expiration in the combined SDK specification
+<a
+  id="q36-writable-credential-expiration-in-the-combined-sdk-specification"></a>
+
+### Q42 Writable credential expiration in the combined SDK specification
 
 API-key/password requests accept writable, nullable `expires_at`.
 The inspected combined OpenAPI resolves those request references to a read-only
@@ -455,7 +540,9 @@ requires expiration as well as secret material.
 **Question:** Can the writable request schema be kept distinct from read-only
 response timestamps, preserving nullability and required request fields?
 
-### Q50 Public import response schema
+<a id="q50-public-import-response-schema"></a>
+
+### Q43 Public import response schema
 
 Import-created principals/teams return `provisioned_by: imported`, but that
 value is marked `x-enum-dev`; the import description instead says
