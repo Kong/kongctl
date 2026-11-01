@@ -24,6 +24,7 @@ type MockKonnectSDK struct {
 	IdentityBasicAuthFactory                func() IdentityBasicAuthAPI
 	IdentityGroupsAPIFactory                func() IdentityGroupsAPI
 	IdentityGroupsFactory                   func() IdentityGroupsReader
+	IdentityPrincipalGroupsFactory          func() IdentityPrincipalGroupsReader
 	IdentityGroupMembershipsFactory         func() IdentityGroupMembershipsReader
 	IdentityPrincipalKeysFactory            func() IdentityPrincipalKeysReader
 	IdentityPrincipalIdentitiesFactory      func() IdentityPrincipalIdentitiesAPI
@@ -255,6 +256,13 @@ func (m *MockKonnectSDK) GetIdentityGroupsReader() IdentityGroupsReader {
 		return nil
 	}
 	return m.IdentityGroupsFactory()
+}
+
+func (m *MockKonnectSDK) GetIdentityPrincipalGroupsReader() IdentityPrincipalGroupsReader {
+	if m.IdentityPrincipalGroupsFactory == nil {
+		return nil
+	}
+	return m.IdentityPrincipalGroupsFactory()
 }
 
 func (m *MockKonnectSDK) GetIdentityGroupMembershipsReader() IdentityGroupMembershipsReader {

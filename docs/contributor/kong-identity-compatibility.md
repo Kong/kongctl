@@ -515,8 +515,20 @@ The principal-group collection is the seventeenth operation in the canonical
 cursor patch. Native page-size-one reads verify disjoint pages and next-link
 cursor extraction; flat size is ignored. The expanded actual-SDK regression
 fails only ListPrincipalGroups against the previous preview, then passes all
-seventeen methods after correction. Its dedicated CLI reader and consumer pin
-are being implemented under #2658. Response models do not change.
+seventeen methods after correction. The consumer now uses preview 37580cf8cdf5;
+only one generated request tag changes, with no response-model differences.
+Its dedicated CLI reader is implemented under #2658. The focused live scenario
+verifies ordinary direct and imported direct/inherited memberships, nullable
+entry IDs, manager/provisioning fields, text/JSON/YAML and read-only behavior.
+
+The projection uses the selected principal's complete group collection.
+Group UUID/exact-name selection cannot fall back to the directory's global
+group collection. It rejects repeated IDs/cursors, malformed or contradictory
+direct/entry-ID shapes and failed later pages without partial results.
+Missing optional provisioning fields are not defaulted by SDK decoding.
+Inherited membership has no direct entry ID; reading a direct imported team
+entry still grants no mutation or adoption authority. The ordinary declarative
+membership and native org-chart workflows retain their separate boundaries.
 
 The principal API-key reader is now included in the cursor correction under
 Q22, in preview SDK `70a2818dde13` from patch bundle `0103edc5`. Actual SDK wire

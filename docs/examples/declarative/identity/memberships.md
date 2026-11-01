@@ -1,5 +1,9 @@
 # Manage a group's direct principal memberships
 
+[Principal group inspection](principal-groups.md) shows the groups a principal
+belongs to, including inherited imported teams. Its direct/entry-ID projection
+is read-only; these declarations manage explicitly owned ordinary groups.
+
 Use [memberships.yaml](memberships.yaml) with the organization's existing
 directory named `default`. If it is missing, first bootstrap it with
 [directories.yaml](directories.yaml). The external directory lookup never
