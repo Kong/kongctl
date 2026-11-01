@@ -119,6 +119,11 @@ shared credential (Q41), so declarations need credential guards as well as
 explicit parent/collection authority. Secret preservation is unverified while
 runtime enrollment requires mTLS context (Q30); Q39/Q40/Q42 record replacement,
 enablement and clearing behavior. See #2660 and the provider inspection guide.
+Internal write helpers now provide validated create/PATCH and a fresh empty
+credential deletion guard, without stamping metadata or authorizing any
+directory/collection. Declarative enrollment must still establish that
+authority explicitly. Q43 distinguishes persisted static-secret settings from
+unverified runtime effects.
 
 Inherited ownership is not metadata persisted on a child. Scopes and claims
 require a declared managed server; its namespace and update/delete protection
@@ -129,6 +134,11 @@ noted. A parent with ownership fields alone does not establish collection
 authority for another resource family.
 
 ## Change log
+
+- October 31, Credential Provider write foundations: internal create/PATCH/
+  guarded-delete helpers add no child metadata, adoption or declaration
+  authority. Public DCR settings persist through fresh GET verification.
+  Parent ownership and collection enrollment remain implementation work.
 
 - October 31, Credential Provider inspection: complete provider/template
   pagination, exact scoped names and public formats are implemented without

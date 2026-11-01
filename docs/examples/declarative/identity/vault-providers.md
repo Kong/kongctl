@@ -94,5 +94,12 @@ deletion and user-enrolled dependencies. Q39/Q40/Q42 cover replacement,
 initial enablement and scope/endpoint clearing. Runtime enrollment requires
 supported mTLS context (Q30). Stored client-secret preservation is unverified.
 
+Public PATCH settings, including DCR registration configuration omitted from
+the request, persist in a subsequent GET. This does not prove runtime OAuth
+enrollment. Some OAuth-related settings also persist on static-secret
+providers; Q43 asks which have runtime meaning. Internal write helpers now
+check these public contracts and block deletion with attached credentials,
+but provider declarations are not available yet.
+
 See the [API questions](../../../kong-identity-api-questions.md) and
 [metadata ledger](../../../contributor/kong-identity-metadata-storage.md).
