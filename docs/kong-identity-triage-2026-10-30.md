@@ -4332,3 +4332,85 @@ passes for control-plane/get; all twenty enabled memberships/cassettes are
 unchanged and the new scenario is live-only. #1417/#2659 remain open and
 project 79 In Progress until merge to main. No implementation PR or SDK
 release is created.
+
+## 63. Generated-key declarative authority and capture preparation
+
+The explicit key workflow is committed and pushed as 83a98b1d. The next feasible
+declarative design uses the existing ordinary-child rule: current namespace and
+update/delete protection come from a declared managed principal or ordinary
+group. The default directory may remain external. Key-level adoption and
+independent protection changes are not invented over an immutable map.
+
+The key map will contain tool, creator version, kongctl-ref and
+kongctl-create-type:v1. The first three provide provenance/local lookup;
+creation intent must be recorded explicitly because key metadata does not
+reveal generated versus imported creation. Namespace/protection are resolved
+through the parent rather than storing stale copies. Version records issuance
+for these immutable maps, while existing mutable resources retain last-write
+provenance. Required manifest type:v1 remains explicit. Imported bodies are
+outside this generated declaration; normal inspection still infers no type.
+
+A native US .tech probe verifies four-entry retention under both parent types,
+mutable parent namespace/protection without key-map changes, expiration changes
+preserving markers and duplicate-ref detection across two pages. It removes
+every key/parent individually and leaves the entire original default directory
+object unchanged. Evidence: generated-key-parent-authority.json in the cache.
+This is a convention stored in the API, not API-enforced ownership or uniqueness.
+
+Metadata registration now supports persisted refs for inherited-namespace
+resources, fixed creation markers and create-only stamping. Reserved ownership
+keys cannot be overridden by fixed markers, capacity includes all generated
+entries, and marker maps are cloned. Plan updates skip immutable map stamping;
+existing mutable policies keep their behavior. No resource is enrolled into the
+new policy until its full integration is ready.
+
+The existing key helper now accepts a private file reserved by whole-plan
+preflight. Before POST it binds resolved directory/parent IDs while preserving
+local ref/namespace/parent-ref capture context and discarding unrelated IDs.
+Material is captured before read-back. Nil, closed, replaced or completed files
+fail before another create; unsupported input leaves a reservation available
+for the caller to discard. Explicit CLI creation reuses the same path and still
+reserves its own new 0600 file. No SDK change is required.
+
+Remaining enrollment must deliver both key kinds through resource registration,
+loading, planning, state, execution, dump, explain/scaffold, examples and E2E.
+Exact parent/tool/ref/creation-marker matching must reject duplicate candidates
+and collisions with incompatible management shapes. Scope authority must
+distinguish omitted versus empty key collections and preserve all foreign or
+unrecognized keys. Every saved mutation must repeat parent management,
+provisioning, namespace/protection and key identity checks. Explicitly
+authorized child retirements must run before fresh parent-empty checks.
+Uncertain issuance must never replay creation, match material or automatically
+delete the issued key. This preparation does not expose key declarations yet.
+
+When a sync adds replacement refs and retires old refs under one parent, old
+key retirement must depend on successful replacement issuance/capture. A
+failed create must preserve the existing key rather than relying on incidental
+change order. Explicitly empty collections remain deliberate retirement intent.
+
+Focused actual-SDK tests verify pre-reserved capture under both parents,
+resolved ID binding, public-only results and capture before read-back. Closed,
+replaced, nil and already completed captures issue no new key; unused
+unsupported-input reservations can still be discarded. Metadata tests verify
+inherited ref retention, fixed intent, creator-version behavior, capacity,
+reserved-key rejection, caller-map isolation and unchanged mutable policies.
+The initial lint pass required a tagged switch in a new test; no API change
+was needed.
+
+Modernization, stable formatting, CGO-disabled build and full make test-all
+pass, including zero-issue lint, unit/integration/harness race checks, nine SDK
+patch tests, 140 metrics tests and installer checks. All twenty-nine Identity
+live scenarios pass together on the frozen build in 542.312s; the existing key
+workflow passes in 21.45s. Independent checks confirm all outcomes, eight
+private capture directories and five workspaces removed, no copied private key
+sources/captures and no administrative token or base64 form in artifacts.
+Default settings are restored unmanaged and principal/group/IdP/provider/key/
+auth-server inventories are empty. Replay membership/cassettes are unchanged;
+the default control-plane/get validation passes. No new scenario or SDK pin.
+
+Evidence: generated-key-preparation-all/20261101-011923,
+generated-key-preparation-all-artifact-verification.json,
+generated-key-preparation-final-inventory.json and
+generated-key-preparation-gates.json/.log under the local cache. The native
+parent-authority proof is separate from the existing command E2E; full
+declarative-key lifecycle proof is still required before exposing those kinds.

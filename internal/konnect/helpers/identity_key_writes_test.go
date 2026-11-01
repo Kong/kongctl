@@ -16,6 +16,7 @@ import (
 	"github.com/Kong/sdk-konnect-go/retry"
 	"github.com/kong/kongctl/internal/konnect/helpers"
 	"github.com/kong/kongctl/internal/konnect/httpclient"
+	"github.com/kong/kongctl/internal/secretoutput"
 	"github.com/stretchr/testify/require"
 )
 
@@ -271,6 +272,106 @@ func TestAPIKeyUnsupportedCreatesDoNotReserveOrIssue(t *testing.T) {
 		require.Nil(t, value)
 		_, err = os.Stat(path)
 		require.True(t, os.IsNotExist(err))
+	}
+}
+
+func TestAPIKeyCreationAcceptsWholePlanCaptureReservation(t *testing.T) {
+	for _, group := range []bool{false, true} {
+		for _, mode := range []string{"captured", "closed", "replaced", "unsupported-import", "missing-output"} {
+			t.Run(keyWritePath(group)+"/"+mode, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "key.json")
+				local := secretoutput.Metadata{
+					ResourceRef: "primary", Namespace: "parent-namespace", ParentRef: "worker",
+					DirectoryID: "unresolved", PrincipalID: "unresolved", GroupID: "unresolved",
+					APIKeyID: "unresolved", AuthServerID: "must-not-persist",
+				}
+				output, err := secretoutput.Reserve(path, local)
+				require.NoError(t, err)
+				defer func() { _ = output.Close() }()
+				if mode == "closed" {
+					require.NoError(t, output.Close())
+				}
+				if mode == "replaced" {
+					require.NoError(t, os.Rename(path, path+".original"))
+					require.NoError(t, os.WriteFile(path, []byte("leave-unrelated"), 0o600))
+				}
+				posts := 0
+				metadata := map[string]string{
+					"tool": "kongctl", "version": "creator", "kongctl-ref": "primary", "kongctl-create-type": "v1",
+				}
+				client := keyWriteClient(t, group, func(request *http.Request) (*http.Response, error) {
+					public := passwordPublicBody(nil)
+					public["managed_by"] = metadata
+					if request.Method == http.MethodPost {
+						posts++
+						pending, err := os.ReadFile(path)
+						require.NoError(t, err)
+						var observed map[string]any
+						require.NoError(t, json.Unmarshal(pending, &observed))
+						require.Equal(t, "creation_not_confirmed", observed["status"])
+						require.Equal(t, writeFixtureDirectory, observed["directory_id"])
+						require.Equal(t, "primary", observed["resource_ref"])
+						require.Equal(t, "parent-namespace", observed["namespace"])
+						require.Equal(t, "worker", observed["parent_ref"])
+						require.NotContains(t, observed, "api_key_id")
+						require.NotContains(t, observed, "auth_server_id")
+						parent, other := "principal_id", "group_id"
+						if group {
+							parent, other = other, parent
+						}
+						require.Equal(t, writeFixturePrincipal, observed[parent])
+						require.NotContains(t, observed, other)
+						public["secret"] = "reserved-private"
+					} else {
+						require.Equal(t, http.MethodGet, request.Method)
+						captured, err := os.ReadFile(path)
+						require.NoError(t, err)
+						require.Contains(t, string(captured), "reserved-private", "capture must precede read-back")
+					}
+					body, err := json.Marshal(public)
+					require.NoError(t, err)
+					status := 200
+					if request.Method == http.MethodPost {
+						status = 201
+					}
+					return secretResponse(request, status, string(body)), nil
+				})
+				options := helpers.IdentityAPIKeyCreate{ManagedBy: metadata}
+				if mode == "unsupported-import" {
+					options.Secret = new("supplied")
+				}
+				capture := output
+				if mode == "missing-output" {
+					capture = nil
+				}
+				value, err := client.CreateWithReservedCapture(t.Context(), options, capture, local)
+				if mode == "captured" {
+					require.NoError(t, err)
+					require.Equal(t, writeFixtureID, value.ID)
+					require.Equal(t, metadata, value.ManagedBy)
+					data, err := json.Marshal(value)
+					require.NoError(t, err)
+					require.NotContains(t, string(data), "reserved-private")
+					_, err = client.CreateWithReservedCapture(t.Context(), options, capture, local)
+					require.Error(t, err, "a completed reservation cannot issue another key")
+					require.Equal(t, 1, posts)
+					return
+				}
+				require.Error(t, err)
+				require.Nil(t, value)
+				require.Zero(t, posts)
+				switch mode {
+				case "replaced":
+					data, err := os.ReadFile(path)
+					require.NoError(t, err)
+					require.Equal(t, "leave-unrelated", string(data))
+				case "unsupported-import", "missing-output":
+					require.NoError(t, output.Discard(), "unused reservations remain owned by preflight")
+					_, err = os.Stat(path)
+					require.True(t, os.IsNotExist(err))
+				}
+			})
+		}
 	}
 }
 

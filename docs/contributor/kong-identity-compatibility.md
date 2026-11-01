@@ -557,6 +557,32 @@ has no verified atomic creation or metadata-transfer path. Do not match by
 name or material, and do not claim generated/imported creation method from a
 metadata GET. No API-key declaration or adoption command is exposed yet.
 
+The next generated-key slice follows ordinary-child authority rather than
+independent key protection. A managed principal or ordinary group supplies the
+current namespace/protection; an external directory remains valid. External
+principal/group declarations do not grant that authority. The proposed immutable
+key map contains tool, creator version, persisted ref and kongctl-create-type:v1.
+The final marker records explicit generated creation intent, which public key
+reads do not otherwise reveal. It does not identify imported or unowned keys.
+Child namespace/protection copies are deliberately absent: parent transitions
+must not require an API operation known to ignore management-map changes.
+
+A November 1 native probe verifies all four markers under both parent types,
+parent namespace/protection changes without key-map changes, expiration updates
+preserving markers and duplicate-ref detection across two pages. Every fixture
+is retired and the default directory object is unchanged. Evidence is
+generated-key-parent-authority.json in the local cache. This establishes API
+storage behavior, not completed declarative authority/ordering enforcement.
+
+The metadata engine now permits inherited-namespace resources to persist a ref,
+record fixed creation intent and opt out of management-map stamping on updates.
+Existing mutable resource policies are unchanged. Key creation can also accept
+a capture file reserved before other planned creates; resolved parent IDs replace
+pending context before the single POST. Closed/replaced/completed reservations
+cannot issue another key. Full resource/planner/executor/dump integration,
+parent protection, collision rejection, explicit sync scopes and saved-plan
+checks must land before exposing the new declarative kinds.
+
 Principal declarative delete/sync now observes basic-auth and API-key
 descendants as well as identity associations. Any API key blocks deletion;
 none is automatically revoked. Failed observations, including a legacy

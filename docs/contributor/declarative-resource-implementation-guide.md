@@ -214,6 +214,9 @@ For write-only enrollment and the later migration of label ownership, use
 on each verified resource with its own `ManagedByPolicy`, and use the shared
 state request stamper. This capability alone does not change label behavior
 or enable independent ownership.
+For APIs with immutable maps, the same guide documents create-only provenance,
+inherited persisted refs and the required execution-time parent checks. Do not
+send metadata on an unsupported update or treat provenance as child authority.
 
 Call `CaptureOwnedChildCollection` per source after defaults and before nested
 extraction. Supply actual key presence and each child's independent namespace.
