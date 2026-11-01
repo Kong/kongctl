@@ -124,6 +124,14 @@ Registering a declaration does not complete those steps automatically.
   all client/claim references, orders proven detachments first, and rechecks
   after those writes. Claim pagination uses terminal pages under API question
   Q13. See the [metadata ledger](kong-identity-metadata-storage.md).
+  Directory Trusted IdPs inherit explicitly managed-directory authority, like
+  Vault keys/providers. Exact issuer URL is their directory-scoped identity.
+  They have no ownership metadata. Full PUT hydrates omitted public settings
+  from fresh detail; explicit nullable display/JWKS values and empty JIT mapping
+  are preserved through declaration/saved-plan serialization. Associated
+  principals retain independent ownership. Final plans may order proven OIDC
+  identity retargeting/deletion or independently authorized principal deletion
+  before trust retirement; execution still requires actual empty associations.
   OAuth clients use independent label ownership, enrolled through
   `WithIndependentChildLabelOwnership`, rather than `managed_by`. Client
   namespaces and auth-server pruning namespaces are captured separately.

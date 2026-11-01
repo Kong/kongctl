@@ -50,6 +50,7 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
+	TrustedIDPs    []IdentityTrustedIDPResource        `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
 	VaultProviders []IdentityVaultProviderResource     `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"`
 	VaultKeys      []IdentityVaultKeyResource          `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
 	BasicAuths     []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"     json:"basic_auths,omitempty"`
@@ -80,6 +81,7 @@ func ensureIdentityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource 
 
 // IdentityDirectoryResource declares one regional Kong Identity directory.
 type IdentityDirectoryResource struct {
+	TrustedIDPs           []IdentityTrustedIDPResource    `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
 	VaultProviders        []IdentityVaultProviderResource `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"` //nolint:lll
 	VaultKeys             []IdentityVaultKeyResource      `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
 	Groups                []IdentityGroupResource         `yaml:"groups,omitempty" json:"groups,omitempty"`

@@ -35,6 +35,10 @@ type RelationshipDescriptor struct {
 }
 
 var relationshipDescriptors = map[ResourceType][]RelationshipDescriptor{
+	ResourceTypeIdentityTrustedIDP: {{
+		FieldPath: SchemaFieldDirectory, TargetType: ResourceTypeIdentityDirectory,
+		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,
+	}},
 	ResourceTypeIdentityVaultProvider: {{
 		FieldPath: SchemaFieldDirectory, TargetType: ResourceTypeIdentityDirectory,
 		Kind: RelationshipKindKongctlParentSelector, RootOnly: true,

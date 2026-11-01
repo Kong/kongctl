@@ -331,6 +331,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		kind := ResourceTypeIdentityDirectory
 		switch segments[1] {
 		case "directory", "directories":
+		case "trusted_idp", "trusted_idps", "trusted-idp", "trusted-idps":
+			kind = ResourceTypeIdentityTrustedIDP
 		case "vault_provider", "vault_providers", "vault-provider", "vault-providers":
 			kind = ResourceTypeIdentityVaultProvider
 		case "vault_key", "vault_keys", "vault-key", "vault-keys":
@@ -396,7 +398,8 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			Node: doc.Schema.clone(),
 		}}
 	}
-	if doc.ResourceType == ResourceTypeIdentityVaultProvider || doc.ResourceType == ResourceTypeIdentityVaultKey ||
+	if doc.ResourceType == ResourceTypeIdentityTrustedIDP ||
+		doc.ResourceType == ResourceTypeIdentityVaultProvider || doc.ResourceType == ResourceTypeIdentityVaultKey ||
 		doc.ResourceType == ResourceTypeIdentityDirectory ||
 		doc.ResourceType == ResourceTypeIdentityPrincipal ||
 		doc.ResourceType == ResourceTypeIdentityPrincipalIdentity || doc.ResourceType == ResourceTypeIdentityGroup ||
@@ -411,6 +414,9 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, err
 		}
 		collection := "directories"
+		if doc.ResourceType == ResourceTypeIdentityTrustedIDP {
+			collection = "trusted_idps"
+		}
 		if doc.ResourceType == ResourceTypeIdentityVaultProvider {
 			collection = "vault_providers"
 		}
@@ -945,6 +951,8 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 		return "identity.directories"
 	case ResourceTypeIdentityVaultProvider:
 		return "identity.vault_providers"
+	case ResourceTypeIdentityTrustedIDP:
+		return "identity.trusted_idps"
 	case ResourceTypeIdentityVaultKey:
 		return "identity.vault_keys"
 	case ResourceTypeIdentityGroupMembership:
@@ -1051,6 +1059,9 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 	}
 	if rt == ResourceTypeIdentityVaultProvider {
 		rootKey = "identity.vault_providers"
+	}
+	if rt == ResourceTypeIdentityTrustedIDP {
+		rootKey = "identity.trusted_idps"
 	}
 	if rt == ResourceTypeIdentityVaultKey {
 		rootKey = "identity.vault_keys"

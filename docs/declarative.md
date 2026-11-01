@@ -833,6 +833,16 @@ nonunique. Explicit collections scope sync; omission preserves keys. See the
 [Vault key example](examples/declarative/identity/vault-keys.md) for enablement,
 parent adoption, five-key rotation limits, public export and guarded deletion.
 
+Directory Trusted IdPs use nested `trusted_idps` or grouped
+`identity.trusted_idps`. These configurations inherit explicit managed-directory
+authority and protection; they have no ownership metadata. Exact issuer URLs
+identify them, while nonunique display names are public settings. Hydrated PUT
+preserves omitted configuration and supports nullable override/empty mapping
+clears. Scoped retirement orders independently authorized OIDC detachments
+before fresh empty association checks. It never adopts associated principals
+or executes JIT provisioning. See the
+[Trusted IdP tutorial](examples/declarative/identity/trusted-idps.md).
+
 The separate `identity.auth_servers` collection manages authorization servers.
 Each server requires an explicit unique `name` and `audience`. It uses
 conventional ownership/protection labels because this API has no `managed_by`

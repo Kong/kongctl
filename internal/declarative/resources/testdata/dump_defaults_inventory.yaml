@@ -2065,6 +2065,10 @@ resources:
     defaults: []
     overrides: []
     exclusions: []
+  - resource_type: identity_trusted_idp
+    defaults: []
+    overrides: []
+    exclusions: []
   - resource_type: identity_vault_key
     defaults: []
     overrides: []

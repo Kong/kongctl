@@ -26,6 +26,7 @@ func TestVaultProviderDumpReloadAndUnmanagedDirectoryBoundary(t *testing.T) {
 			}
 			providers := &fixture.VaultProvidersAPI{}
 			client := state.NewClient(state.ClientConfig{
+				IdentityTrustedIDPsAPI: &fixture.TrustedIDPsAPI{},
 				IdentityDirectoriesAPI: &fixture.DirectoryAPI{
 					Current:     root,
 					Directories: []kkComps.KongDirectory{root},
