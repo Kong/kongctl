@@ -21,6 +21,7 @@ func apiKeyPlanFixture() (*Planner, *resources.ResourceSet, *fixture.GroupAPI, *
 	keys := &fixture.APIKeyHTTP{PageSize: 1}
 	sdk := keys.SDK()
 	client := state.NewClient(state.ClientConfig{
+		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
 		IdentityDirectoriesAPI: &fixture.DirectoryAPI{
 			Directories: []kkComps.KongDirectory{{ID: directory, Name: "people"}},
 		},

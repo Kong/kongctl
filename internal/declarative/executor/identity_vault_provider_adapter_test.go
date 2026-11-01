@@ -27,8 +27,9 @@ func TestVaultProviderSavedLifecycleSecretContextAndParentAuthority(t *testing.T
 	roots := &fixture.DirectoryAPI{Current: root, Directories: []kkComps.KongDirectory{root}, Lifecycle: true}
 	providers := &fixture.VaultProvidersAPI{AttachedCredentials: make(map[string]bool)}
 	client := state.NewClient(state.ClientConfig{
-		IdentityDirectoriesAPI:    roots,
-		IdentityVaultProvidersAPI: providers, IdentityDirectoryDependenciesAPI: providers,
+		RegistryAgentReferencesReader: &fixture.RegistryReferencesAPI{},
+		IdentityDirectoriesAPI:        roots,
+		IdentityVaultProvidersAPI:     providers, IdentityDirectoryDependenciesAPI: providers,
 	})
 	file := filepath.Join(t.TempDir(), "manifest.yaml")
 	generate := func(values []map[string]any, present bool, mode planner.PlanMode, write bool) (*planner.Plan, error) {

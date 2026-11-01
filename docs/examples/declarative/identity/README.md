@@ -1,5 +1,9 @@
 # Kong Identity administration
 
+[Registry reference guards](registry-references.md) explain why an independent
+Agent association blocks principal/directory retirement, how saved deletion
+checks fresh links, and how to inspect and explicitly unlink an association.
+
 [Principal group inspection](principal-groups.md) explains direct versus
 inherited memberships, group versus relationship-entry IDs, imported teams
 and manager/provisioning fields. It complements ordinary membership
