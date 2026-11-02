@@ -29,7 +29,6 @@ func TestPasswordMutationCommandsRequireExplicitParentScope(t *testing.T) {
 			command, _, err := root.Find([]string{"principal-basic-auth-passwords"})
 			require.NoError(t, err)
 			require.NotNil(t, command.RunE)
-			require.ErrorContains(t, command.Args(command, nil), "directory")
 			require.NoError(t, command.Flags().Set("directory-name", "default"))
 			require.ErrorContains(t, command.Args(command, nil), "principal-id")
 			require.NoError(t, command.Flags().Set("principal-id", fixtureCommandID))

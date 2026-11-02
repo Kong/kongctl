@@ -46,12 +46,9 @@ func newVaultCredentialMutationCommand(verb verbs.VerbValue, enrollment bool,
 	} else if verb != verbs.Create {
 		return nil, fmt.Errorf("unsupported shared credential operation")
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("provider-id", "", "Parent provider UUID")
 	command.Flags().String("provider-name", "", "Exact parent provider name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	command.MarkFlagsOneRequired("provider-id", "provider-name")
 	command.MarkFlagsMutuallyExclusive("provider-id", "provider-name")
 	if verb == verbs.Create {

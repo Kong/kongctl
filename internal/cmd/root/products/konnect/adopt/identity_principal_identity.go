@@ -6,6 +6,7 @@ import (
 
 	"github.com/kong/kongctl/internal/build"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -18,16 +19,13 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 ) (*cobra.Command, error) {
 	cmd := &cobra.Command{
 		Use: "principal-identity <id>", Aliases: []string{"principal-identities"},
-		Short:   "Adopt a principal identity with explicit parent UUIDs and a local ref",
+		Short:   "Adopt a principal identity with a parent principal UUID and a local ref",
 		Args:    cobra.ExactArgs(1),
 		PreRunE: parentPreRun,
 	}
-	cmd.Flags().String("directory-id", "", "Parent directory UUID")
-	cmd.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(cmd)
 	cmd.Flags().String("principal-id", "", "Parent principal UUID")
 	cmd.Flags().String("ref", "", "Declarative ref to persist on this identity")
-	cmd.MarkFlagsOneRequired("directory-id", "directory-name")
-	cmd.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	for _, flag := range []string{"ref", "principal-id"} {
 		if err := cmd.MarkFlagRequired(flag); err != nil {
 			return nil, err
@@ -41,11 +39,7 @@ func NewIdentityPrincipalIdentityCmd(verb verbs.VerbValue,
 		if err != nil {
 			return err
 		}
-		directory, err := cmd.Flags().GetString("directory-id")
-		if err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("directory-name")
+		directory, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
 		}

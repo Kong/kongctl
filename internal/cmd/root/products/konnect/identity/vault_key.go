@@ -28,11 +28,8 @@ func newVaultKeyReadCommand(verb verbs.VerbValue,
 			"JSON and YAML output include public key material; no private key is returned.",
 		PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("kid", "", "Exact RFC 7638 public-key fingerprint")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	command.Args = func(cmd *cobra.Command, args []string) error {
 		if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
 			return err

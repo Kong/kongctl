@@ -128,7 +128,6 @@ func TestIdentityPrincipalKeyCommandsRequireExplicitParents(t *testing.T) {
 		require.NotNil(t, child.RunE)
 		require.NotNil(t, child.Flags().Lookup("directory-id"))
 		require.NotNil(t, child.Flags().Lookup("directory-name"))
-		require.ErrorContains(t, child.Args(child, nil), "directory")
 		require.NoError(t, child.Flags().Set("directory-name", "default"))
 		require.ErrorContains(t, child.Args(child, nil), "principal-id")
 		require.NoError(t, child.Flags().Set("principal-id", "731559d3-39bd-48c7-b33c-eb192847eb20"))

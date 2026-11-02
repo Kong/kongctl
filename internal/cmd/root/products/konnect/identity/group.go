@@ -22,14 +22,11 @@ func newGroupReadCommand(verb verbs.VerbValue, memberships bool,
 ) *cobra.Command {
 	command := &cobra.Command{
 		Use: "group [id|name]", Aliases: []string{"groups"}, PreRunE: parentPreRun,
-		Short: "List or get Kong Identity groups in an explicit directory",
+		Short: "List or get Kong Identity groups in a directory",
 		Long: "Inspect ordinary groups and organization-chart teams. " +
 			"Select one by UUID or exact name within the selected directory.",
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
+	common.AddIdentityDirectoryFlags(command)
 	if memberships {
 		command.Use = "group-membership [membership-id]"
 		command.Aliases = []string{"group-memberships", "group_memberships"}
@@ -191,6 +188,12 @@ func groupParentSelector(cmd *cobra.Command, parent string) (string, error) {
 	name, err := cmd.Flags().GetString(parent + "-name")
 	if err != nil {
 		return "", err
+	}
+	if parent == "directory" {
+		id, name, err = common.IdentityDirectorySelector(cmd)
+		if err != nil {
+			return "", err
+		}
 	}
 	if (id == "") == (name == "") {
 		return "", fmt.Errorf("provide exactly one of --%s-id or --%s-name", parent, parent)

@@ -26,11 +26,8 @@ func newPrincipalGroupReadCommand(verb verbs.VerbValue, addParentFlags func(verb
 			"membership_id identifies a direct entry; inherited entries have no membership_id. " +
 			"Inspection does not grant authority to remove imported or inherited memberships.",
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID; display names are not unique")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired("principal-id"); err != nil {
 		return nil, err
 	}

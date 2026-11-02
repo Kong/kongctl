@@ -28,10 +28,7 @@ func newOrgChartImportCommand(addParentFlags func(verbs.VerbValue, *cobra.Comman
 			"Imports follow the API's matching/provisioning rules and do not stamp KongCTL ownership metadata.",
 		PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Target directory UUID")
-	command.Flags().String("directory-name", "", "Exact target directory name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().StringP("file", "f", "", "Complete canonical UTF-8 CSV file")
 	command.Flags().String("report-output-file", "", "New private report file (0600; never overwritten)")
 	for _, flag := range []string{"file", "report-output-file"} {

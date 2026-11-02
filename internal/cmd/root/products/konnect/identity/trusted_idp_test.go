@@ -24,7 +24,6 @@ func TestTrustedIDPReadCommandsRequireExplicitScopes(t *testing.T) {
 				command, _, err := root.Find([]string{name})
 				require.NoError(t, err)
 				require.NotNil(t, command.RunE)
-				require.ErrorContains(t, command.Args(command, nil), "directory")
 				require.NoError(t, command.Flags().Set("directory-name", "default"))
 				if principals {
 					require.ErrorContains(t, command.Args(command, nil), "exactly one")

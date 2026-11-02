@@ -38,11 +38,8 @@ func newVaultProviderReadCommand(verb verbs.VerbValue, templates bool,
 			"Templates describe OAuth/static-secret behavior, endpoint defaults, scopes and PKCE requirements. " +
 			"This catalog does not require a directory selector or enabled Token Vault and is not desired state."
 	} else {
-		command.Flags().String("directory-id", "", "Parent directory UUID")
-		command.Flags().String("directory-name", "", "Exact parent directory name")
+		common.AddIdentityDirectoryFlags(command)
 		command.Flags().String("provider-name", "", "Exact provider name, including names shaped like UUIDs")
-		command.MarkFlagsOneRequired("directory-id", "directory-name")
-		command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	}
 	command.Args = func(cmd *cobra.Command, args []string) error {
 		if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {

@@ -2109,14 +2109,21 @@ review and commit.
 
 ## 32. Manual demonstration follow-ups
 
-These are implementation follow-ups, separate from API-only questions. No
-command behavior is changed while the user manually tests the current slice.
+These are implementation follow-ups, separate from API-only questions.
+Completed items are marked below as manual review identifies improvements.
 
-- [ ] Default directory selection: directory-scoped imperative commands should
-  imply `--directory-name default` when neither directory flag is supplied.
-  Preserve explicit name/ID overrides and mutual exclusion. Missing default
-  must fail lookup without automatic creation/adoption. Auth-server commands
-  have their own parent selectors and do not acquire a directory dependency.
+- [x] Default directory selection: directory-scoped imperative commands imply
+  `--directory-name default` when neither directory flag is supplied.
+  Explicit name/ID overrides and mutual exclusion are preserved. Missing
+  default fails lookup without automatic creation/adoption. Auth-server
+  commands retain their own parent selectors without a directory dependency.
+- [ ] Configurable directory selection: bind `--directory-id` and
+  `--directory-name` to profile configuration paths using the existing flag
+  binding conventions, with environment-variable support. Document the config
+  paths in command help. Explicit directory flags must override configured
+  selectors, including a selector of the other kind; reject conflicting
+  effective selectors. Use `default` only when neither flags nor configuration
+  select a directory. Choose the exact config paths during implementation.
 - [ ] Text detail rendering: an individual `auth-server-client` requested with
   `-o text` currently goes through a branch that JSON-formats the detail
   object. Replace that shortcut with the normal text/detail presentation and
@@ -4889,3 +4896,28 @@ The password guide, metadata ledger, compatibility tracker and #1418 record
 this distinction. No new engineering question is needed for an unimplemented
 client design; Q35's API-only question remains accurate. No next feature is
 started while the manual-testing pause preference is pending.
+
+## 71. Default directory selection during the manual walkthrough
+
+Directory-scoped imperative reads, adoption and credential/import commands
+now select the directory named `default` when both directory flags are
+omitted. Explicit names and IDs override the fallback; supplying both flags
+or an explicitly empty selector is rejected. Help displays the default.
+Auth-server selectors and declarative directory declarations are unchanged.
+Configuration-path and environment bindings remain a separate TODO beside
+the completed default-selection item in section 32.
+
+Shared selector tests cover the fallback, explicit overrides, conflicts and
+empty values. Directory lookup tests prove missing-default failure without
+creation/adoption and prove that ID selection does not perform name lookup.
+The rebuilt binary returns identical US `.tech` principal collections with
+the implicit default, explicit default name and explicit directory UUID.
+No live resources were changed for this verification.
+
+Modernization, stable formatting, CGO-disabled build and `make test-all` pass,
+including zero-issue lint, unit/integration checks and E2E harness tests.
+Build/check invocations use `GOFLAGS=-buildvcs=false` because automatic Go VCS
+stamping tries Git in `/home/rspurgeon` rather than this linked worktree; the
+Makefile still supplies version/commit/date linker values. Local check output:
+`.cache/identity-feature-walkthrough/default-directory-checks.log`.
+The 33 Identity live scenarios were not rerun for this selector-only patch.

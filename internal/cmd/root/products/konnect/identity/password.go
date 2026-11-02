@@ -26,13 +26,10 @@ func newPasswordMutationCommand(verb verbs.VerbValue,
 			"Choose the parent with --basic-auth-id or exact --username. " +
 			"Values never appear in normal output. These explicit operations preserve management metadata.",
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
 	command.Flags().String("basic-auth-id", "", "Parent basic-auth record UUID")
 	command.Flags().String("username", "", "Exact parent basic-auth username")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	command.MarkFlagsOneRequired("basic-auth-id", "username")
 	command.MarkFlagsMutuallyExclusive("basic-auth-id", "username")
 	if err := command.MarkFlagRequired("principal-id"); err != nil {

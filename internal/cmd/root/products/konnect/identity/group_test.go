@@ -16,7 +16,6 @@ func TestGroupReadCommandsRequireExplicitScope(t *testing.T) {
 			command, _, err := root.Find([]string{name})
 			require.NoError(t, err)
 			require.NotNil(t, command.RunE)
-			require.ErrorContains(t, command.Args(command, nil), "directory")
 			require.NoError(t, command.Flags().Set("directory-id", "invalid"))
 			require.ErrorContains(t, command.Args(command, nil), "UUID")
 			require.NoError(t, command.Flags().Set("directory-id", "731559d3-39bd-48c7-b33c-eb192847eb20"))
