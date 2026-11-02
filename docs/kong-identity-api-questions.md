@@ -320,11 +320,11 @@ responses and subsequent reads do not include it. Their schemas expose labels.
 
 ### Q25 Vault and trusted IdP ownership
 
-Vault keys, providers, provider credentials and Trusted IdPs do not expose
-labels or `managed_by` in the inspected responses.
+Vault keys, providers, provider credentials and Trusted IdPs have no `labels`
+or `managed_by` field in the inspected schemas or US `.tech` responses.
 
-**Question:** Is there a supported creator or external identifier for
-distinguishing records managed by different administrative systems?
+**Question:** Is this omission intentional? Is support for a writable
+`managed_by` field planned for these resources?
 
 <a id="q38-trusted-idp-jwks-override-clearing-through-patch"></a>
 

@@ -117,7 +117,7 @@ def main():
         user = create_provider("user", "github", "user")
         static_provider = create_provider("static", "static_secret", "shared")
         first_path = private / "created.json"
-        first = invoke("create-default", ["create", "identity", "vault-provider-credential", *scope(shared),
+        first = invoke("create-default", ["create", "identity", "vault", "provider", "credential", *scope(shared),
             "--secret-output-file", str(first_path)])
         assert first["credential_type"] == "shared" and first["status"] == "pending"
         assert first["priority"] is None and first["selector"] is None
@@ -125,7 +125,7 @@ def main():
         assert capture(first_path, first["id"])["provider_id"] == shared["id"]
         original_file = first_path.read_bytes()
         second_path = private / "rule.json"
-        second = invoke("create-rule-text", ["create", "identity", "vault-provider-credential", *scope(shared, True),
+        second = invoke("create-rule-text", ["create", "identity", "vault", "provider", "credential", *scope(shared, True),
             "--selector", "true", "--priority", "0", "--secret-output-file", str(second_path)], output="text")
         assert "pending" in second and "{" not in second
         values = credentials(shared["id"])
@@ -140,39 +140,39 @@ def main():
             ("duplicate-priority-blocked", shared, ["--selector", "false", "--priority", "0"], "occupied"),
         ):
             path = private / (label + ".json")
-            invoke(label, ["create", "identity", "vault-provider-credential", *scope(selected), *extra,
+            invoke(label, ["create", "identity", "vault", "provider", "credential", *scope(selected), *extra,
                 "--secret-output-file", str(path)], failure=failure)
             assert not path.exists()
-        invoke("existing-capture-blocked", ["create", "identity", "vault-provider-enrollment", first["id"],
+        invoke("existing-capture-blocked", ["create", "identity", "vault", "provider", "enrollment", first["id"],
             *scope(shared), "--secret-output-file", str(first_path)], failure="reserve secret output")
         assert first_path.read_bytes() == original_file
-        invoke("wrong-provider-issuance-blocked", ["create", "identity", "vault-provider-enrollment", first["id"],
+        invoke("wrong-provider-issuance-blocked", ["create", "identity", "vault", "provider", "enrollment", first["id"],
             *scope(other_shared), "--secret-output-file", str(private / "wrong.json")], failure="absent")
         assert credentials(shared["id"]) == before
         renewed_path = private / "renewed.json"
-        renewed = invoke("explicit-reissue-yaml", ["create", "identity", "vault-provider-enrollment", first["id"],
+        renewed = invoke("explicit-reissue-yaml", ["create", "identity", "vault", "provider", "enrollment", first["id"],
             *scope(shared, True), "--secret-output-file", str(renewed_path)], output="yaml")
         assert "pending" in renewed and "enrollment_url:" not in renewed
         capture(renewed_path, first["id"])
         assert first_path.read_bytes() == original_file and credentials(shared["id"]) == before
-        one = invoke("public-get", ["get", "identity", "vault-provider-credential", first["id"], *scope(shared)])
+        one = invoke("public-get", ["get", "identity", "vault", "provider", "credential", first["id"], *scope(shared)])
         assert one["status"] == "pending" and "enrollment_url" not in one
-        listed = invoke("public-list", ["list", "identity", "vault-provider-credentials", *scope(shared), "--page-size", "1"])
+        listed = invoke("public-list", ["list", "identity", "vault", "provider", "credentials", *scope(shared), "--page-size", "1"])
         assert {c["id"] for c in listed} == {first["id"], rule["id"]}
-        invoke("wrong-provider-delete-blocked", ["delete", "identity", "vault-provider-credential", first["id"],
+        invoke("wrong-provider-delete-blocked", ["delete", "identity", "vault", "provider", "credential", first["id"],
             *scope(other_shared), "--auto-approve"], failure="absent")
-        invoke("delete-default", ["delete", "identity", "vault-provider-credential", first["id"],
+        invoke("delete-default", ["delete", "identity", "vault", "provider", "credential", first["id"],
             *scope(shared, True), "--auto-approve"])
-        invoke("deleted-issuance-blocked", ["create", "identity", "vault-provider-enrollment", first["id"],
+        invoke("deleted-issuance-blocked", ["create", "identity", "vault", "provider", "enrollment", first["id"],
             *scope(shared), "--secret-output-file", str(private / "deleted.json")], failure="absent")
-        invoke("delete-rule", ["delete", "identity", "vault-provider-credential", rule["id"],
+        invoke("delete-rule", ["delete", "identity", "vault", "provider", "credential", rule["id"],
             *scope(shared), "--auto-approve"], output="text")
         assert credentials(shared["id"]) == []
         public = json.loads((Path(__file__).parent.parent / "vault-keys/public-keys.json").read_text())[0]["public_key"]
         key = request("POST", root + "/vault/keys", {"name": "enrollment-key", "public_key": public}, 201)
         static = request("POST", root + "/vault/providers/" + static_provider["id"] + "/credentials",
             {"secret": hidden[2]}, 201)
-        invoke("delete-static", ["delete", "identity", "vault-provider-credential", static["id"],
+        invoke("delete-static", ["delete", "identity", "vault", "provider", "credential", static["id"],
             *scope(static_provider), "--auto-approve"])
         assert credentials(static_provider["id"]) == []
         assert request("GET", root)["managed_by"] == before_directory["managed_by"]

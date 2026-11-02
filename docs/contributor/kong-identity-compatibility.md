@@ -1173,8 +1173,8 @@ remains `2597fe249e26`.
 
 ## Credential Provider declarative lifecycle
 
-The write foundation above now backs nested directory.vault_providers and
-grouped identity.vault_providers declarations. Providers inherit a declared
+The write foundation above now backs nested directory `vault.providers` and
+grouped `identity.vault.providers` declarations. Providers inherit a declared
 managed directory's namespace and protection; external parent references do
 not authorize writes. A complete directory-scoped name inventory determines
 matching. Ref is local, names must be explicit, and no independent metadata is
@@ -1338,7 +1338,7 @@ Q45/Q46 still ask for the formal routing and material-preserving API contracts.
 ## Static shared Vault credential declarative lifecycle
 
 The write foundations above are now integrated as
-`identity.vault_provider_credentials` or nested provider `shared_credentials`.
+`identity.vault.provider_credentials` or nested provider `shared_credentials`.
 They accept only explicitly declared static_secret/shared providers beneath a
 managed directory. Matching uses the default or nonnegative priority slot;
 selectors may repeat and refs are local. Duplicate observed slots or unexpected

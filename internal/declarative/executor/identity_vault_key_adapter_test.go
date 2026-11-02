@@ -53,7 +53,7 @@ func TestVaultKeySavedLifecycleFingerprintMatchingAndParentAuthority(t *testing.
 			"ref":                      "people",
 			"name":                     "default",
 			"allow_all_control_planes": true,
-			"vault_enabled":            true,
+			"vault":                    map[string]any{"enabled": true},
 		}
 		if present {
 			values := make([]any, 0, len(names))
@@ -63,7 +63,7 @@ func TestVaultKeySavedLifecycleFingerprintMatchingAndParentAuthority(t *testing.
 					map[string]any{"ref": "key-" + string(rune('a'+i)), "name": name, "public_key": materials[i]},
 				)
 			}
-			parent["vault_keys"] = values
+			parent["vault"].(map[string]any)["keys"] = values
 		}
 		data, err := json.Marshal(map[string]any{
 			"_defaults": map[string]any{"kongctl": map[string]any{"namespace": "vault-team"}},

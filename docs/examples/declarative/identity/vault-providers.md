@@ -48,7 +48,7 @@ kongctl plan --mode apply \
   -f docs/examples/declarative/identity/vault-providers.yaml \
   --output-file providers-plan.json
 kongctl apply --plan providers-plan.json --auto-approve
-kongctl get identity vault-providers --directory-name default -o yaml
+kongctl get identity vault providers --directory-name default -o yaml
 ```
 
 `VAULT_GITHUB_CLIENT_ID` is public configuration and is read when loading the
@@ -91,7 +91,7 @@ sync because it also selects other omitted providers for deletion.
 
 ## Sync, dump and delete
 
-Omitting `vault_providers` preserves existing providers. Declaring the
+Omitting `vault.providers` preserves existing providers. Declaring the
 collection authorizes sync to prune providers omitted from it. An explicit
 empty list selects all providers for retirement under that managed directory.
 Provider updates/deletion inherit directory protection. A provider with any
@@ -148,10 +148,10 @@ An organization normally has a directory named `default`. Reads do not adopt
 it, change its management metadata or enable its Vault:
 
 ```sh
-kongctl get identity vault-providers --directory-name default -o text
-kongctl get identity vault-provider github-production \
+kongctl get identity vault providers --directory-name default -o text
+kongctl get identity vault provider github-production \
   --directory-name default -o json
-kongctl get identity vault-provider PROVIDER_UUID \
+kongctl get identity vault provider PROVIDER_UUID \
   --directory-name default -o yaml
 ```
 
@@ -160,7 +160,7 @@ route ID; `--provider-name` explicitly selects a name, including one shaped
 like a UUID:
 
 ```sh
-kongctl get identity vault-provider --provider-name PROVIDER_NAME \
+kongctl get identity vault provider --provider-name PROVIDER_NAME \
   --directory-name default -o json
 ```
 

@@ -306,7 +306,7 @@ application_auth_strategies:
 Directory declarations use the `identity.directories` collection. Each managed
 entry requires `ref` and an explicit unique API `name`. Optional settings are
 `description`, `allowed_control_planes`, `allow_all_control_planes`, `ttl_secs`,
-`negative_ttl_secs`, `vault_enabled`, `labels`, and `kongctl` metadata.
+`negative_ttl_secs`, `vault.enabled`, `labels`, and `kongctl` metadata.
 
 KongCTL stores namespace, protection, tool, and version in `managed_by` and
 performs local filtering after listing all pages. Public labels remain
@@ -326,8 +326,8 @@ this implementation covers directory configuration and principals.
 
 ## Kong Identity Token Vault public keys
 
-Nest `vault_keys` under a managed `identity.directories` entry, or declare
-`identity.vault_keys` with a `directory` ref. Required fields are `ref`, `name`
+Nest `vault.keys` under a managed `identity.directories` entry, or declare
+`identity.vault.keys` with a `directory` ref. Required fields are `ref`, `name`
 and `public_key`. PKIX PEM RSA >= 2048 bits and EC P-256/P-384/P-521 are
 supported.
 RFC 7638 `kid`, computed from public material, identifies the resource; names

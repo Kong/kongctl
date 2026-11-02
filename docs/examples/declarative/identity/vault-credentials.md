@@ -12,9 +12,9 @@ missing-default bootstrap. Reading credentials does not adopt the directory,
 provider or credential.
 
 ```sh
-./kongctl get identity vault-providers --directory-name default -o text
+./kongctl get identity vault providers --directory-name default -o text
 
-./kongctl get identity vault-provider-credentials \
+./kongctl get identity vault provider credentials \
   --directory-name default --provider-name billing-service -o yaml
 ```
 
@@ -22,10 +22,10 @@ Provider selection accepts `--provider-id` or exact `--provider-name`.
 Credential selection uses its UUID from that collection:
 
 ```sh
-./kongctl get identity vault-provider-credential CREDENTIAL_UUID \
+./kongctl get identity vault provider credential CREDENTIAL_UUID \
   --directory-name default --provider-name billing-service -o json
 
-./kongctl list identity vault-provider-credentials \
+./kongctl list identity vault provider credentials \
   --directory-name default --provider-name billing-service --page-size 1
 ```
 
@@ -40,10 +40,10 @@ User entries include principal ID/display name, active status and nullable
 expiration. A principal's own collection shows the provider and template:
 
 ```sh
-./kongctl get identity principal-vault-credentials \
+./kongctl get identity principal vault-credentials \
   --directory-name default --principal-id PRINCIPAL_UUID -o text
 
-./kongctl get identity principal-vault-credential CREDENTIAL_UUID \
+./kongctl get identity principal vault-credential CREDENTIAL_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID -o yaml
 ```
 

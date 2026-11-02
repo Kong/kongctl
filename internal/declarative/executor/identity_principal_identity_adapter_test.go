@@ -27,7 +27,8 @@ identity:
     - ref: people
       name: people
       allow_all_control_planes: true
-      vault_enabled: true
+      vault:
+        enabled: true
       kongctl: {namespace: a-directory-team}
       principals:
         - ref: person

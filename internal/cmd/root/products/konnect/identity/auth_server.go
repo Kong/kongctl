@@ -6,6 +6,7 @@ import (
 
 	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	cmdCommon "github.com/kong/kongctl/internal/cmd/common"
+	"github.com/kong/kongctl/internal/cmd/output/tableview"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -82,8 +83,7 @@ func newAuthServerCommand(verb verbs.VerbValue, addParentFlags func(verbs.VerbVa
 			return err
 		}
 		defer printer.Flush()
-		printer.Print(data)
-		return nil
+		return tableview.RenderForFormat(helper, false, format, printer, helper.GetStreams(), data, data, "")
 	}
 	return command
 }

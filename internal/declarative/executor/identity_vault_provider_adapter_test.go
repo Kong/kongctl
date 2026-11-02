@@ -36,13 +36,13 @@ func TestVaultProviderSavedLifecycleSecretContextAndParentAuthority(t *testing.T
 		t.Helper()
 		parent := map[string]any{
 			"ref": "people", "name": "default", "allow_all_control_planes": true,
-			"vault_enabled": true, "ttl_secs": 900, "negative_ttl_secs": 450,
+			"vault": map[string]any{"enabled": true}, "ttl_secs": 900, "negative_ttl_secs": 450,
 		}
 		if present {
 			if values == nil {
 				values = []map[string]any{}
 			}
-			parent["vault_providers"] = values
+			parent["vault"].(map[string]any)["providers"] = values
 		}
 		data, err := yaml.Marshal(map[string]any{
 			"_defaults": map[string]any{"kongctl": map[string]any{"namespace": namespace}},

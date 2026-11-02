@@ -75,6 +75,24 @@ func principalFromSDK(value kkComps.KongPrincipal) IdentityPrincipal {
 func ListIdentityPrincipals(ctx context.Context, api IdentityPrincipalsAPI, directoryID string,
 	pageSize int64,
 ) ([]IdentityPrincipal, error) {
+	return listIdentityPrincipals(ctx, api, directoryID, pageSize, nil)
+}
+
+// ListIdentityPrincipalsByDisplayName returns all exact matches across the filtered collection.
+func ListIdentityPrincipalsByDisplayName(ctx context.Context, api IdentityPrincipalsAPI, directoryID string,
+	pageSize int64, displayName string,
+) ([]IdentityPrincipal, error) {
+	if displayName == "" {
+		return nil, fmt.Errorf("display-name must not be empty")
+	}
+	return listIdentityPrincipals(ctx, api, directoryID, pageSize, &kkOps.ListPrincipalsFilter{
+		DisplayName: &kkComps.LegacyStringFieldFilter{Eq: &displayName},
+	})
+}
+
+func listIdentityPrincipals(ctx context.Context, api IdentityPrincipalsAPI, directoryID string,
+	pageSize int64, filter *kkOps.ListPrincipalsFilter,
+) ([]IdentityPrincipal, error) {
 	if api == nil {
 		return nil, fmt.Errorf("identity principals API is not configured")
 	}
@@ -84,6 +102,7 @@ func ListIdentityPrincipals(ctx context.Context, api IdentityPrincipalsAPI, dire
 	request := kkOps.ListPrincipalsRequest{
 		DirectoryID: directoryID,
 		Page:        &kkComps.CursorPageParameters{Size: &pageSize},
+		Filter:      filter,
 	}
 	result := make([]IdentityPrincipal, 0)
 	var tracker pagination.CursorTracker

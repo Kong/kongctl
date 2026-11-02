@@ -56,12 +56,12 @@ func TestVaultCredentialNestedGroupedValidationAndDeferredSources(t *testing.T) 
 				if invalid == "duplicate" {
 					values = append(values, map[string]any{"ref": "another", "selector": "false", "priority": 0})
 				}
-				identity := map[string]any{"directories": []any{parent}, "vault_providers": []any{provider}}
+				identity := map[string]any{"directories": []any{parent}, "vault": map[string]any{"providers": []any{provider}}}
 				if grouped {
 					for _, value := range values {
 						value.(map[string]any)["provider"] = "billing"
 					}
-					identity["vault_provider_credentials"] = values
+					identity["vault"].(map[string]any)["provider_credentials"] = values
 				} else {
 					provider["shared_credentials"] = values
 				}
@@ -101,8 +101,8 @@ func TestVaultCredentialNestedGroupedValidationAndDeferredSources(t *testing.T) 
 func TestVaultCredentialCollectionPresenceAndLocalRefIdentity(t *testing.T) {
 	for _, presence := range []string{"", `,"shared_credentials":[]`} {
 		input := `{"identity":{"directories":[{"ref":"people","name":"default","allow_all_control_planes":true}],` +
-			`"vault_providers":[{"ref":"billing","directory":"people","name":"billing",` +
-			`"template_name":"static_secret","credential_type":"shared"` + presence + `}]}}`
+			`"vault":{"providers":[{"ref":"billing","directory":"people","name":"billing",` +
+			`"template_name":"static_secret","credential_type":"shared"` + presence + `}]}}}`
 		rs, err := New().LoadFile(writeLoaderTestFile(t, input))
 		require.NoError(t, err)
 		require.Equal(

@@ -28,7 +28,7 @@ def main():
         def manifest(group=None, principal_value=None, managed=False, empty=False):
             directory = {"ref": "people"}
             if managed:
-                directory.update(name=name, allow_all_control_planes=True, vault_enabled=False,
+                directory.update(name=name, allow_all_control_planes=True, vault={"enabled": False},
                                  kongctl={"namespace": "identity-group-directory-e2e", "protected": True})
             else:
                 directory["_external"] = {"selector": {"matchFields": {"name": name}}}

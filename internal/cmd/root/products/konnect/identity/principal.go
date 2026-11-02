@@ -19,10 +19,33 @@ func newPrincipalCommand(verb verbs.VerbValue,
 	command := &cobra.Command{
 		Use: "principal [id]", Aliases: []string{"principals"},
 		Short: "List or get principals in a Kong Identity directory",
-		Long:  "List principals or get one by UUID. Display names are not unique and cannot select a principal.",
-		Args:  cobra.MaximumNArgs(1), PreRunE: parentPreRun,
+		Long: "List principals or get one by UUID. Use --display-name to list every exact display-name match. " +
+			"Display names are not unique and cannot select a single principal.",
+		PreRunE: parentPreRun,
 	}
 	common.AddIdentityDirectoryFlags(command)
+	command.Flags().String("display-name", "", "Filter the principal list by exact display name; returns all matches")
+	command.Args = func(cmd *cobra.Command, args []string) error {
+		if err := cobra.MaximumNArgs(1)(cmd, args); err != nil {
+			return err
+		}
+		if cmd.Flags().Changed("display-name") {
+			name, err := cmd.Flags().GetString("display-name")
+			if err != nil {
+				return err
+			}
+			if name == "" {
+				return fmt.Errorf("display-name must not be empty")
+			}
+			if len(args) != 0 {
+				return fmt.Errorf("provide a principal UUID or --display-name, not both")
+			}
+		}
+		if len(args) == 1 && !util.IsValidUUID(args[0]) {
+			return fmt.Errorf("principal identifier must be a UUID; display names are not unique")
+		}
+		return nil
+	}
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
@@ -67,9 +90,6 @@ func newPrincipalCommand(verb verbs.VerbValue,
 		}
 		defer printer.Flush()
 		if len(args) == 1 {
-			if !util.IsValidUUID(args[0]) {
-				return fmt.Errorf("principal identifier must be a UUID; display names are not unique")
-			}
 			value, err := helpers.GetIdentityPrincipal(
 				helper.GetContext(),
 				sdk.GetIdentityPrincipalsAPI(),
@@ -82,9 +102,17 @@ func newPrincipalCommand(verb verbs.VerbValue,
 			return tableview.RenderForFormat(helper, false, format, printer, helper.GetStreams(),
 				principalDisplay(*value), value, "")
 		}
-		values, err := helpers.ListIdentityPrincipals(
-			helper.GetContext(), sdk.GetIdentityPrincipalsAPI(), directoryID, pageSize,
-		)
+		var values []helpers.IdentityPrincipal
+		if cmd.Flags().Changed("display-name") {
+			name, _ := cmd.Flags().GetString("display-name")
+			values, err = helpers.ListIdentityPrincipalsByDisplayName(
+				helper.GetContext(), sdk.GetIdentityPrincipalsAPI(), directoryID, pageSize, name,
+			)
+		} else {
+			values, err = helpers.ListIdentityPrincipals(
+				helper.GetContext(), sdk.GetIdentityPrincipalsAPI(), directoryID, pageSize,
+			)
+		}
 		if err != nil {
 			return err
 		}

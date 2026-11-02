@@ -95,11 +95,12 @@ def main():
         path.chmod(0o600)
         return path
 
-    def invoke(label, source, mode="--dry-run", output="json", failure=None, capture_path=None, explicit=False):
+    def invoke(label, source, mode="--dry-run", output="json", failure=None, capture_path=None, explicit=False, legacy=False):
         nonlocal phase, attempted_execution
         phase = label
         capture_path = capture_path or private / (label + ".json")
-        args = [binary, "create", *(["konnect"] if explicit else []), "identity", "org-chart-import",
+        verb, noun = ("create", "org-chart-import") if legacy else ("import", "org-chart")
+        args = [binary, verb, *(["konnect"] if explicit else []), "identity", noun,
             "--directory-name", name, "--file", str(source), "--report-output-file", str(capture_path),
             "-o", output, "--log-level", "trace", "--log-file", str(work / (label + ".log")), *config]
         if mode:
@@ -162,6 +163,10 @@ def main():
         assert worker[1] in report(saved, original, True)["warnings"][0]["detail"]
         assert snapshot() == before
         old_bytes = saved.read_bytes()
+        legacy, legacy_report = invoke("legacy-preview", original, legacy=True)
+        assert legacy == preview
+        assert report(legacy_report, original, True)["counts"] == report(saved, original, True)["counts"]
+        assert snapshot() == before
         invoke("existing-report", original, failure="reserve report output", capture_path=saved)
         assert saved.read_bytes() == old_bytes
         _, unused = invoke("missing-intent", original, mode=None, failure="choose exactly one")

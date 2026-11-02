@@ -7,4 +7,5 @@ identity:
     - ref: default-directory
       name: default
       allow_all_control_planes: true
-      vault_enabled: true
+      vault:
+        enabled: true

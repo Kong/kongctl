@@ -132,7 +132,7 @@ def main():
     try:
         initial = {"_defaults": {"kongctl": {"namespace": namespace}}, "identity": {"directories": [{
             "ref": "people", "name": name, "labels": marker,
-            "allow_all_control_planes": True, "allowed_control_planes": [], "vault_enabled": False,
+            "allow_all_control_planes": True, "allowed_control_planes": [], "vault": {"enabled": False},
             "kongctl": {"namespace": directory_namespace, "protected": True},
             "principals": [{"ref": "worker", "display_name": "Basic-auth worker", "type": "agent", "labels": marker,
                             "kongctl": {"namespace": parent_namespace, "protected": True},

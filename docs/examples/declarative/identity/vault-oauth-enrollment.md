@@ -43,7 +43,7 @@ writes. It is independent of the enrollment URL and subsequent account tokens.
 Choose a new capture filename in an existing private directory:
 
 ```sh
-./kongctl create identity vault-provider-credential \
+./kongctl create identity vault provider credential \
   --directory-name default --provider-name github-shared \
   --secret-output-file /path/to/private/github-enrollment.json
 ```
@@ -65,7 +65,7 @@ Omitting routing flags selects the provider's default slot. To create a routed
 credential, supply both a CEL selector and a distinct nonnegative priority:
 
 ```sh
-./kongctl create identity vault-provider-credential \
+./kongctl create identity vault provider credential \
   --directory-name default --provider-name github-shared \
   --selector true --priority 0 \
   --secret-output-file /path/to/private/github-priority-enrollment.json
@@ -81,9 +81,9 @@ slots fail before creation. These commands accept shared OAuth providers;
 Ordinary reads use the collection and never mint enrollment URLs:
 
 ```sh
-./kongctl get identity vault-provider-credentials \
+./kongctl get identity vault provider credentials \
   --directory-name default --provider-name github-shared -o yaml
-./kongctl get identity vault-provider-credential CREDENTIAL_UUID \
+./kongctl get identity vault provider credential CREDENTIAL_UUID \
   --directory-name default --provider-name github-shared -o json
 ```
 
@@ -91,7 +91,7 @@ To issue another URL for an existing credential, explicitly create an enrollment
 capture with a new output filename:
 
 ```sh
-./kongctl create identity vault-provider-enrollment CREDENTIAL_UUID \
+./kongctl create identity vault provider enrollment CREDENTIAL_UUID \
   --directory-name default --provider-name github-shared \
   --secret-output-file /path/to/private/github-new-enrollment.json
 ```
@@ -109,7 +109,7 @@ issuance by its UUID avoids creating a second credential.
 ## Retire a shared record
 
 ```sh
-./kongctl delete identity vault-provider-credential CREDENTIAL_UUID \
+./kongctl delete identity vault provider credential CREDENTIAL_UUID \
   --directory-name default --provider-name github-shared
 ```
 

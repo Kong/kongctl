@@ -74,6 +74,13 @@ func replaceLoadSchemaProperty(schema *JSONSchema, name string, replacement *JSO
 	if schema == nil {
 		return
 	}
+	if group, remaining, nested := strings.Cut(name, "."); nested {
+		replaceLoadSchemaProperty(schema.Properties[group], remaining, replacement)
+		for _, branch := range slices.Concat(schema.OneOf, schema.AnyOf) {
+			replaceLoadSchemaProperty(branch, name, replacement)
+		}
+		return
+	}
 	if _, ok := schema.Properties[name]; ok {
 		schema.Properties[name] = replacement
 	}

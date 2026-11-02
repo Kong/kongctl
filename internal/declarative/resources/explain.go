@@ -330,8 +330,24 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 			return nil, fmt.Errorf("unsupported resource path %q", path)
 		}
 		kind := ResourceTypeIdentityDirectory
+		resourceStart := 2
 		switch segments[1] {
 		case "directory", "directories":
+		case "vault":
+			if len(segments) < 3 {
+				return nil, fmt.Errorf("use identity.vault.keys, providers or provider_credentials")
+			}
+			resourceStart = 3
+			switch segments[2] {
+			case "key", "keys":
+				kind = ResourceTypeIdentityVaultKey
+			case "provider", "providers":
+				kind = ResourceTypeIdentityVaultProvider
+			case "provider_credential", "provider_credentials":
+				kind = ResourceTypeIdentityVaultProviderCredential
+			default:
+				return nil, fmt.Errorf("unsupported resource path %q", path)
+			}
 		case "trusted_idp", "trusted_idps", "trusted-idp", "trusted-idps":
 			kind = ResourceTypeIdentityTrustedIDP
 		case "vault_provider", "vault_providers", "vault-provider", "vault-providers":
@@ -366,7 +382,7 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		default:
 			return nil, fmt.Errorf("unsupported resource path %q", path)
 		}
-		canonical := append([]string{string(kind)}, segments[2:]...)
+		canonical := append([]string{string(kind)}, segments[resourceStart:]...)
 		subject, err := ResolveExplainSubject(strings.Join(canonical, "."))
 		if err != nil {
 			return nil, err
@@ -425,16 +441,16 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		}
 		collection := "directories"
 		if doc.ResourceType == ResourceTypeIdentityVaultProviderCredential {
-			collection = "vault_provider_credentials"
+			collection = "vault.provider_credentials"
 		}
 		if doc.ResourceType == ResourceTypeIdentityTrustedIDP {
 			collection = "trusted_idps"
 		}
 		if doc.ResourceType == ResourceTypeIdentityVaultProvider {
-			collection = "vault_providers"
+			collection = "vault.providers"
 		}
 		if doc.ResourceType == ResourceTypeIdentityVaultKey {
-			collection = "vault_keys"
+			collection = "vault.keys"
 		}
 		if doc.ResourceType == ResourceTypeIdentityBasicAuth {
 			collection = "basic_auths"
@@ -469,10 +485,19 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		if doc.ResourceType == ResourceTypeIdentityAuthServerClient {
 			collection = "clients"
 		}
-		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}, {Name: collection, Array: true}}
-		subject.ScaffoldTrail = []ExplainScaffoldNode{
-			{Step: subject.ScaffoldSteps[0], Node: groupNode},
-			{Step: subject.ScaffoldSteps[1], Node: doc.Schema.clone()},
+		subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: "identity"}}
+		subject.ScaffoldTrail = []ExplainScaffoldNode{{Step: subject.ScaffoldSteps[0], Node: groupNode}}
+		parts := strings.Split(collection, ".")
+		for i, part := range parts {
+			step := ExplainScaffoldStep{Name: part, Array: i == len(parts)-1}
+			node := doc.Schema.clone()
+			if !step.Array {
+				field, _ := groupNode.property(part)
+				groupNode = field.Node
+				node = groupNode.clone()
+			}
+			subject.ScaffoldSteps = append(subject.ScaffoldSteps, step)
+			subject.ScaffoldTrail = append(subject.ScaffoldTrail, ExplainScaffoldNode{Step: step, Node: node})
 		}
 	}
 
@@ -539,12 +564,21 @@ func ResolveExplainSubject(path string) (*ExplainSubject, error) {
 		subject.FieldRecommended = field.Recommended
 		currentNode = nextNode
 
-		if childType, ok := currentDoc.nestedFields[segment]; ok {
+		if childType, ok := currentDoc.nestedFields[strings.Join(relativePath, ".")]; ok {
 			if childDoc, ok := explainDocByType(childType); ok {
 				if len(subject.ScaffoldSteps) == 0 {
 					subject.ScaffoldSteps = []ExplainScaffoldStep{{Name: currentDoc.RootKey, Array: true}}
 				}
 				isArray := field.Node.Kind == explainKindArray
+				groupNode := currentDoc.Schema
+				for _, part := range relativePath[:len(relativePath)-1] {
+					groupField, _ := groupNode.property(part)
+					groupNode = groupField.Node
+					step := ExplainScaffoldStep{Name: part}
+					subject.ScaffoldSteps = append(subject.ScaffoldSteps, step)
+					subject.ScaffoldTrail = append(subject.ScaffoldTrail,
+						ExplainScaffoldNode{Step: step, Node: groupNode.clone()})
+				}
 				subject.ScaffoldSteps = append(
 					subject.ScaffoldSteps,
 					ExplainScaffoldStep{Name: segment, Array: isArray},
@@ -969,13 +1003,13 @@ func preferredExplainResourcePath(doc *ExplainDoc, visiting map[ResourceType]str
 	case ResourceTypeIdentityDirectory:
 		return "identity.directories"
 	case ResourceTypeIdentityVaultProvider:
-		return "identity.vault_providers"
+		return "identity.vault.providers"
 	case ResourceTypeIdentityVaultProviderCredential:
-		return "identity.vault_provider_credentials"
+		return "identity.vault.provider_credentials"
 	case ResourceTypeIdentityTrustedIDP:
 		return "identity.trusted_idps"
 	case ResourceTypeIdentityVaultKey:
-		return "identity.vault_keys"
+		return "identity.vault.keys"
 	case ResourceTypeIdentityGroupMembership:
 		return "identity.memberships"
 	case ResourceTypeIdentityPrincipalAPIKey:
@@ -1083,16 +1117,16 @@ func buildExplainDoc(rt ResourceType) (*ExplainDoc, error) {
 		rootKey = "identity.directories"
 	}
 	if rt == ResourceTypeIdentityVaultProvider {
-		rootKey = "identity.vault_providers"
+		rootKey = "identity.vault.providers"
 	}
 	if rt == ResourceTypeIdentityVaultProviderCredential {
-		rootKey = "identity.vault_provider_credentials"
+		rootKey = "identity.vault.provider_credentials"
 	}
 	if rt == ResourceTypeIdentityTrustedIDP {
 		rootKey = "identity.trusted_idps"
 	}
 	if rt == ResourceTypeIdentityVaultKey {
-		rootKey = "identity.vault_keys"
+		rootKey = "identity.vault.keys"
 	}
 	if rt == ResourceTypeIdentityGroupMembership {
 		rootKey = "identity.memberships"
@@ -2045,7 +2079,11 @@ func renderNestedTrail(write scaffoldWriter, trail []ExplainScaffoldNode, depth 
 		renderScaffoldObject(write, current.Node, depth+1, omit, false)
 	}
 	if len(trail) > 1 {
-		renderNestedTrail(write, trail[1:], depth+2)
+		nextDepth := depth + 2
+		if !current.Step.Array {
+			nextDepth = depth + 1
+		}
+		renderNestedTrail(write, trail[1:], nextDepth)
 	}
 }
 
@@ -2374,6 +2412,19 @@ func (n *ExplainNode) property(name string) (*ExplainField, bool) {
 func (n *ExplainNode) propertyExists(name string) bool {
 	_, ok := n.property(name)
 	return ok
+}
+
+func (n *ExplainNode) propertyAtPath(path string) (*ExplainField, bool) {
+	var field *ExplainField
+	for segment := range strings.SplitSeq(path, ".") {
+		var ok bool
+		field, ok = n.property(segment)
+		if !ok {
+			return nil, false
+		}
+		n = field.Node
+	}
+	return field, true
 }
 
 func (n *ExplainNode) addField(field *ExplainField) {

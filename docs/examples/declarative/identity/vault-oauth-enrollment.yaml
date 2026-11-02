@@ -7,21 +7,22 @@ identity:
     - ref: default-directory
       name: default
       allow_all_control_planes: true
-      vault_enabled: true
-      vault_keys:
-        # Replace this sample public key; retain its matching private key.
-        - ref: encryption-key
-          name: shared-oauth-encryption
-          public_key: !file vault-public-key.pem
-      vault_providers:
-        # Register this OAuth application with the upstream service first.
-        - ref: shared-github
-          name: github-shared
-          template_name: github
-          client_id: !env VAULT_SHARED_GITHUB_CLIENT_ID
-          client_secret: !secret {source: !env VAULT_SHARED_GITHUB_CLIENT_SECRET}
-          credential_type: shared
-          scopes: [repo]
-          enabled: true
-          pkce_enabled: true
-          refresh_buffer_seconds: 60
+      vault:
+        enabled: true
+        keys:
+          # Replace this sample public key; retain its matching private key.
+          - ref: encryption-key
+            name: shared-oauth-encryption
+            public_key: !file vault-public-key.pem
+        providers:
+          # Register this OAuth application with the upstream service first.
+          - ref: shared-github
+            name: github-shared
+            template_name: github
+            client_id: !env VAULT_SHARED_GITHUB_CLIENT_ID
+            client_secret: !secret {source: !env VAULT_SHARED_GITHUB_CLIENT_SECRET}
+            credential_type: shared
+            scopes: [repo]
+            enabled: true
+            pkce_enabled: true
+            refresh_buffer_seconds: 60

@@ -14,6 +14,7 @@ identity:
         - !ref identity-gateway#id
       ttl_secs: 900
       negative_ttl_secs: 450
-      vault_enabled: false
+      vault:
+        enabled: false
       labels:
         team: identity

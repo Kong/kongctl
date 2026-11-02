@@ -88,7 +88,7 @@ func (p *identityDirectoryPlanner) planTrustedIDPs(ctx context.Context, config *
 				return err
 			}
 		} else if directory.VaultEnabled == nil || !*directory.VaultEnabled {
-			return fmt.Errorf("new directory %q requires explicit vault_enabled: true for Trusted IdPs", directory.Name)
+			return fmt.Errorf("new directory %q requires explicit vault.enabled: true for Trusted IdPs", directory.Name)
 		}
 		if directory.VaultEnabled != nil && !*directory.VaultEnabled && plan.Metadata.Mode != PlanModeDelete {
 			return fmt.Errorf("cannot manage Trusted IdPs while disabling directory %q Vault", directory.Name)

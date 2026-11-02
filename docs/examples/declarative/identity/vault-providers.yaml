@@ -7,38 +7,39 @@ identity:
     - ref: default-directory
       name: default
       allow_all_control_planes: true
-      vault_enabled: true
-      vault_providers:
-        # Provider configuration only; provision credentials separately.
-        - ref: billing-token
-          name: billing-service
-          template_name: static_secret
-          credential_type: shared
-          enabled: false
-          refresh_buffer_seconds: 0
+      vault:
+        enabled: true
+        providers:
+          # Provider configuration only; provision credentials separately.
+          - ref: billing-token
+            name: billing-service
+            template_name: static_secret
+            credential_type: shared
+            enabled: false
+            refresh_buffer_seconds: 0
 
-        # The OAuth application is registered with the upstream service.
-        - ref: github
-          name: github-work
-          template_name: github
-          client_id: !env VAULT_GITHUB_CLIENT_ID
-          client_secret: !secret {source: !env VAULT_GITHUB_CLIENT_SECRET}
-          credential_type: user
-          enabled: true
-          scopes: [repo, "read:org"]
-          pkce_enabled: true
-          refresh_buffer_seconds: 60
+          # The OAuth application is registered with the upstream service.
+          - ref: github
+            name: github-work
+            template_name: github
+            client_id: !env VAULT_GITHUB_CLIENT_ID
+            client_secret: !secret {source: !env VAULT_GITHUB_CLIENT_SECRET}
+            credential_type: user
+            enabled: true
+            scopes: [repo, "read:org"]
+            pkce_enabled: true
+            refresh_buffer_seconds: 60
 
-        # Replace these example endpoints with your upstream OAuth service.
-        - ref: partner-oauth
-          name: partner-service
-          template_name: custom-oauth
-          credential_type: user
-          dcr_enabled: true
-          enabled: false
-          scopes: [read]
-          token_endpoint: https://upstream.example.test/oauth/token
-          authorization_endpoint: https://upstream.example.test/oauth/authorize
-          registration_endpoint: https://upstream.example.test/oauth/register
-          pkce_enabled: true
-          refresh_buffer_seconds: 120
+          # Replace these example endpoints with your upstream OAuth service.
+          - ref: partner-oauth
+            name: partner-service
+            template_name: custom-oauth
+            credential_type: user
+            dcr_enabled: true
+            enabled: false
+            scopes: [read]
+            token_endpoint: https://upstream.example.test/oauth/token
+            authorization_endpoint: https://upstream.example.test/oauth/authorize
+            registration_endpoint: https://upstream.example.test/oauth/register
+            pkce_enabled: true
+            refresh_buffer_seconds: 120

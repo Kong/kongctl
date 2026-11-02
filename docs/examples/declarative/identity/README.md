@@ -1,5 +1,127 @@
 # Kong Identity administration
 
+Use `kongctl import id org-chart` for the native full-roster organization-chart
+CSV import. It requires explicit preview/execution intent and a private report
+file; see the [organization-chart guide](org-chart.md). This operation follows
+the API importer's provisioning rules and does not take declarative ownership.
+
+`identity` has the alias `id`: `kongctl get id groups` lists Identity groups.
+Use `kongctl get id group memberships --group-name MyGroup` to inspect a
+group's direct memberships. The flat `group-memberships` form remains
+supported. Nesting describes the resource relationship; the parent group
+still needs an explicit name or ID selector.
+
+Use `kongctl get id trusted-idp principals --issuer-url ISSUER_URL` to inspect
+principals associated with a Trusted IdP. The same path works with `list`.
+Singular/plural aliases work for both nouns. Select the parent using either
+`--issuer-url` or `--trusted-idp-id`; the directory defaults to `default`.
+The flat `trusted-idp-principals` form remains supported. Association does
+not imply that the IdP provisioned or owns those principals.
+
+Use the Vault command group to inspect its keys and providers:
+
+```sh
+kongctl get id vault keys
+kongctl get id vault providers
+kongctl get id vault key --kid PUBLIC_KEY_FINGERPRINT
+kongctl get id vault provider --provider-name support-vendor
+kongctl get id vault provider credentials --provider-name support-vendor
+kongctl get id vault provider credential CREDENTIAL_UUID \
+  --provider-name support-vendor
+```
+
+These paths also work with `list`. Vault is a command namespace for the
+selected directory's capability, with no independent Vault resource or ID.
+Directory selectors default to `default` and support explicit overrides.
+The flat `vault-key` and `vault-provider` forms remain supported.
+
+Provider credentials are children of the provider command. Use
+`get|list id vault provider credential[s]` with an explicit provider name or
+ID. Existing mutations use `create|delete id vault provider credential`;
+explicit OAuth enrollment URL capture uses
+`create id vault provider enrollment`. These commands keep their existing
+private-capture and mutation requirements. The flat `vault-provider-credential`
+and `vault-provider-enrollment` forms remain supported.
+
+Declare Vault configuration inside a directory's `vault:` grouping:
+
+```yaml
+vault:
+  enabled: true
+  keys:
+    - ref: encryption
+      name: application-encryption
+      public_key: !file ./vault-public-key.pem
+  providers:
+    - ref: upstream
+      name: upstream-service
+      template_name: static_secret
+      credential_type: shared
+```
+
+The group has no independent ref, ID, namespace or protection. Its children
+inherit directory ownership. `vault.enabled` maps to the directory API field
+`vault_enabled`; imperative API responses still use that API field name.
+Trusted IdPs remain directly beneath the directory.
+
+Omit `vault` or use `vault: {}` to leave its settings and collections alone.
+An explicit `enabled` changes only enablement. Omit `keys` or `providers` to
+preserve that collection during sync; an explicit empty list selects it for
+retirement under existing protection and dependency checks. Apply does not
+prune omitted resources. Disabling Vault does not delete its children, and
+cannot be combined with managing its child collections in the same operation.
+`vault: null` is rejected. An existing disabled Vault still needs a separate
+enablement before planning its children because their API lists are hidden.
+
+Grouped declarations use `identity.vault.keys`, `identity.vault.providers`
+and `identity.vault.provider_credentials`, with explicit directory/provider
+selectors on entries. Enablement belongs only to a declared directory.
+Use a nested empty collection to identify the parent when retiring children;
+an empty grouped root list has no parent selector and sync rejects it.
+The earlier preview `vault_enabled`, `vault_keys`, `vault_providers` and
+`vault_provider_credentials` input keys are replaced by this structure;
+mixing old and new input shapes is rejected.
+
+Principal child commands follow the API hierarchy:
+
+```sh
+kongctl get id principal identities --principal-id PRINCIPAL_UUID
+kongctl get id principal api-keys --principal-id PRINCIPAL_UUID
+kongctl get id principal basic-auths --principal-id PRINCIPAL_UUID
+kongctl get id principal basic-auth passwords \
+  --principal-id PRINCIPAL_UUID --username example
+kongctl get id principal groups --principal-id PRINCIPAL_UUID
+kongctl get id principal vault-credentials --principal-id PRINCIPAL_UUID
+kongctl get id group api-keys --group-id GROUP_UUID
+```
+
+Identity associations and authentication credentials are siblings under a
+principal. Passwords belong to basic-auth username records. Each leaf command
+still requires its parent selectors; nesting does not select a principal by
+display name. Singular/plural aliases work at each level. Existing flat
+forms, such as `principal-api-keys`, remain supported.
+
+The same paths work for existing credential mutations and adoption operations:
+`create|patch|delete id principal api-key`,
+`create|patch|delete id group api-key`,
+`create|patch|delete id principal basic-auth password`,
+`adopt id principal identity` and `adopt id principal basic-auth`.
+Those operations retain their existing selector, private-capture and explicit
+mutation requirements. Nesting does not add unsupported lifecycle operations.
+
+Filter the principal list by an exact display name:
+
+```sh
+kongctl get id principals --display-name "On-call engineer"
+```
+
+`--display-name` is local to the principal get/list command, not global or
+inherited by child commands. The API filters the collection, and kongctl
+follows every matching page. Display names are not unique: all matches are
+returned as a list, and no matches produce an empty list. The filter cannot
+be combined with a positional principal UUID and does not select a parent
+for commands such as `principal api-keys`.
+
 Directory-scoped imperative commands use the directory named `default` when
 neither `--directory-name` nor `--directory-id` is supplied. For example,
 `kongctl get identity principals` lists principals in `default`. Supply one
@@ -66,6 +188,13 @@ covers `principal-identities.yaml`, OIDC, OAuth-client, Gateway-consumer and
 custom associations, independent managed_by ownership, scoped sync and adoption.
 Workspace configuration remains deferred under Q25. #1416 stays In Progress
 until merge.
+
+[principal-consumer-link.yaml](principal-consumer-link.yaml) is a focused
+example creating one principal and its Gateway Consumer association beneath
+the external default directory. Set `KONGCTL_IDENTITY_CONTROL_PLANE_ID` and
+`KONGCTL_IDENTITY_CONSUMER_ID` to an existing control plane and its Consumer,
+then apply the file. The control plane and directory stay external; the
+principal and association store their own kongctl metadata in `managed_by`.
 
 [Principal and group API keys](principal-api-keys.md) covers scoped get/list,
 private generated/imported capture, expiration, principal-name changes and
@@ -380,21 +509,19 @@ independent of ownership metadata.
 
 All mutable API settings are supported: `description`,
 `allow_all_control_planes`, `allowed_control_planes`, `ttl_secs`,
-`negative_ttl_secs`, `vault_enabled`, and `labels`. Cache TTLs range from 300
+`negative_ttl_secs`, `vault_enabled` (declared as `vault.enabled`), and
+`labels`. Cache TTLs range from 300
 through 86400 seconds. Omitted settings are preserved during updates; an
 explicit empty description, labels map, or control-plane list clears that
 setting. Omitted settings on creation use the documented API defaults.
 Updates use a fresh read and full replacement because PATCH cannot update
 `description` or `managed_by`.
 
-The preview specification exposes `vault_enabled`. Original US `.com`
-probes accepted `true` and returned `false`. KongCTL reports that mismatch as
-an error. Keep it false until Token Vault is available in your environment;
-the directory lifecycle scenario verifies false, while unit coverage verifies
-that a true request is sent and an ignored value is reported.
-Native `.tech` revalidation confirms true persists and enables Vault
-provider/key lists there. The common bootstrap still uses false to match a
-new organization's default settings; availability is environment-specific.
+The API exposes `vault_enabled`; declare it as `vault.enabled` in YAML.
+US `.tech` retains true and enables Vault provider/key lists. The common
+bootstrap uses false to match a new organization's default settings.
+Availability is environment-specific; KongCTL reports an error if the API
+does not retain the requested enablement value.
 
 `scoped-control-plane.yaml` shows restricted access with a control plane
 reference. Use UUIDs or `!ref gateway#id`, including references to external

@@ -85,11 +85,11 @@ provisioning/team-manager values do not gain defaults from the SDK.
 Read direct relationships with either a group name or UUID:
 
 ```sh
-kongctl get identity group-memberships \
+kongctl get identity group memberships \
   --directory-name default --group-name Platform
-kongctl get identity group-memberships \
+kongctl get identity group memberships \
   --directory-id <directory-id> --group-id <group-id> -o yaml
-kongctl get identity group-membership <membership-entry-id> \
+kongctl get identity group membership <membership-entry-id> \
   --directory-name default --group-name Platform -o json
 ```
 

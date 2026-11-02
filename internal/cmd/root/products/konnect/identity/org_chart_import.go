@@ -15,11 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newOrgChartImportCommand(addParentFlags func(verbs.VerbValue, *cobra.Command),
+func newOrgChartImportCommand(verb verbs.VerbValue, addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) (*cobra.Command, error) {
+	if verb != verbs.Import && verb != verbs.Create {
+		return nil, fmt.Errorf("unsupported organization-chart import verb %q", verb)
+	}
 	command := &cobra.Command{
-		Use: "org-chart-import", Aliases: []string{"org-chart-imports"},
+		Use: "org-chart", Aliases: []string{"org-charts"},
 		Short: "Upload a complete organization-chart CSV and privately capture its report",
 		Long: "Validate or execute the native full-file organization-chart import. " +
 			"Choose --dry-run to preview, or --execute to apply the complete file. " +
@@ -27,6 +30,10 @@ func newOrgChartImportCommand(addParentFlags func(verbs.VerbValue, *cobra.Comman
 			"A required new 0600 report file preserves detailed diagnostics; normal output omits employee values. " +
 			"Imports follow the API's matching/provisioning rules and do not stamp KongCTL ownership metadata.",
 		PreRunE: parentPreRun,
+	}
+	if verb == verbs.Create {
+		command.Use = "org-chart-import"
+		command.Aliases = []string{"org-chart-imports"}
 	}
 	common.AddIdentityDirectoryFlags(command)
 	command.Flags().StringP("file", "f", "", "Complete canonical UTF-8 CSV file")
@@ -61,7 +68,7 @@ func newOrgChartImportCommand(addParentFlags func(verbs.VerbValue, *cobra.Comman
 		return nil
 	}
 	if addParentFlags != nil {
-		addParentFlags(verbs.Create, command)
+		addParentFlags(verb, command)
 	}
 	command.RunE = runOrgChartImport
 	return command, nil

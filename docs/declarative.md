@@ -842,12 +842,23 @@ structure locally without contacting Konnect. This workflow is separate from
 the platform's organization-chart uploader.
 
 Token Vault public keys can be declared under a managed directory's
-`vault_keys`, or in grouped `identity.vault_keys`. They have no ownership
+`vault.keys`, or in grouped `identity.vault.keys`. They have no ownership
 metadata, so they inherit the explicitly managed directory's authority.
 Required public material determines the RFC 7638 `kid`; names are mutable and
 nonunique. Explicit collections scope sync; omission preserves keys. See the
 [Vault key example](examples/declarative/identity/vault-keys.md) for enablement,
 parent adoption, five-key rotation limits, public export and guarded deletion.
+
+The directory's `vault:` object groups `enabled`, `keys` and `providers`.
+`vault.enabled` maps to the API's `vault_enabled` field. The grouping has no
+independent lifecycle or ownership metadata. Omission or `vault: {}` preserves
+enablement and leaves child collections outside sync scope. An explicit empty
+`keys` or `providers` list selects that directory's collection for guarded
+retirement during sync; apply does not prune. `vault: null` is rejected.
+Providers can also use grouped `identity.vault.providers`, and shared
+credentials use provider `shared_credentials` or grouped
+`identity.vault.provider_credentials`, with explicit parent selectors.
+The earlier preview `vault_*` input fields are replaced by this structure.
 
 Directory Trusted IdPs use nested `trusted_idps` or grouped
 `identity.trusted_idps`. These configurations inherit explicit managed-directory

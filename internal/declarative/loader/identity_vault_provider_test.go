@@ -19,7 +19,7 @@ func TestVaultProviderDeclarationsRequireExplicitFieldsAndManagedParent(t *testi
 					"ref":                      "people",
 					"name":                     "default",
 					"allow_all_control_planes": true,
-					"vault_enabled":            true,
+					"vault":                    map[string]any{"enabled": true},
 				}
 				provider := map[string]any{
 					"ref":             "billing",
@@ -60,9 +60,9 @@ func TestVaultProviderDeclarationsRequireExplicitFieldsAndManagedParent(t *testi
 					for _, value := range providers {
 						value.(map[string]any)["directory"] = "people"
 					}
-					identity["vault_providers"] = providers
+					identity["vault"] = map[string]any{"providers": providers}
 				} else {
-					parent["vault_providers"] = providers
+					parent["vault"].(map[string]any)["providers"] = providers
 				}
 				data, err := json.Marshal(map[string]any{"identity": identity})
 				require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestVaultProviderDeclarationsRequireExplicitFieldsAndManagedParent(t *testi
 }
 
 func TestVaultProviderCollectionPresenceAndDeferredSecret(t *testing.T) {
-	for _, presence := range []string{"", ",\"vault_providers\":[]"} {
+	for _, presence := range []string{"", `,"vault":{"providers":[]}`} {
 		input := `{"identity":{"directories":[{"ref":"people","name":"default",` +
 			`"allow_all_control_planes":true` + presence + `}]}}`
 		rs, err := New().LoadFile(writeLoaderTestFile(t, input))
@@ -109,12 +109,13 @@ func TestVaultProviderCollectionPresenceAndDeferredSecret(t *testing.T) {
     - ref: people
       name: default
       allow_all_control_planes: true
-      vault_providers:
-        - ref: github
-          name: github-provider
-          template_name: github
-          client_id: upstream-client
-          client_secret: !secret {source: !env UNREAD_IDENTITY_PROVIDER_SECRET}
+      vault:
+        providers:
+          - ref: github
+            name: github-provider
+            template_name: github
+            client_id: upstream-client
+            client_secret: !secret {source: !env UNREAD_IDENTITY_PROVIDER_SECRET}
 `
 	rs, err := New().LoadFile(writeLoaderTestFile(t, input))
 	require.NoError(t, err)

@@ -77,7 +77,7 @@ Identity type changes require a separate association. Moving an existing
 identity to another local ref or namespace requires explicit adoption:
 
 ```sh
-kongctl adopt identity principal-identity IDENTITY_UUID \
+kongctl adopt identity principal identity IDENTITY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --ref employee-number --namespace identity-example
 ```
@@ -118,14 +118,14 @@ kongctl get identity principals --directory-name default
 Then list its identities or get one by its generated UUID:
 
 ```sh
-kongctl get identity principal-identities \
+kongctl get identity principal identities \
   --directory-name default --principal-id PRINCIPAL_UUID --page-size 1
-kongctl get identity principal-identity IDENTITY_UUID \
+kongctl get identity principal identity IDENTITY_UUID \
   --directory-id DIRECTORY_UUID --principal-id PRINCIPAL_UUID -o yaml
 ```
 
 The explicit product form is also supported, for example
-`kongctl get konnect identity principal-identities ...`. JSON/YAML includes
+`kongctl get konnect identity principal identities ...`. JSON/YAML includes
 the relevant type fields, labels, management metadata and timestamps. Text
 lists show ID/type; text details show the public configuration. Read-only
 `control_plane_type` distinguishes `api_gateway` and `ai_gateway` where the

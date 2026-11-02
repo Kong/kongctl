@@ -19,7 +19,7 @@ func TestVaultKeysRequireExplicitPublicConfigurationAndManagedDirectory(t *testi
 			t.Run(invalid+map[bool]string{false: "/nested", true: "/grouped"}[grouped], func(t *testing.T) {
 				parent := map[string]any{
 					"ref": "people", "name": "default", "allow_all_control_planes": true,
-					"vault_enabled": true,
+					"vault": map[string]any{"enabled": true},
 				}
 				key := map[string]any{
 					"ref":        "encryption",
@@ -54,9 +54,9 @@ func TestVaultKeysRequireExplicitPublicConfigurationAndManagedDirectory(t *testi
 					for _, value := range keys {
 						value.(map[string]any)["directory"] = "people"
 					}
-					identity["vault_keys"] = keys
+					identity["vault"] = map[string]any{"keys": keys}
 				} else {
-					parent["vault_keys"] = keys
+					parent["vault"].(map[string]any)["keys"] = keys
 				}
 				document, err := json.Marshal(map[string]any{"identity": identity})
 				require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestVaultKeysRequireExplicitPublicConfigurationAndManagedDirectory(t *testi
 			})
 		}
 	}
-	for _, presence := range []string{"", ",\"vault_keys\":[]"} {
+	for _, presence := range []string{"", `,"vault":{"keys":[]}`} {
 		input := `{"identity":{"directories":[{"ref":"people","name":"default",` +
 			`"allow_all_control_planes":true` + presence + `}]}}`
 		rs, err := New().LoadFile(writeLoaderTestFile(t, input))

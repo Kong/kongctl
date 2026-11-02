@@ -20,7 +20,7 @@ func TestTrustedIDPDeclarationsManagedParentPresenceAndNullableRoundTrip(t *test
 					"ref":                      "people",
 					"name":                     "default",
 					"allow_all_control_planes": true,
-					"vault_enabled":            true,
+					"vault":                    map[string]any{"enabled": true},
 				}
 				value := map[string]any{
 					"ref":          "workforce",
