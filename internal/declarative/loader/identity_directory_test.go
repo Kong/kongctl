@@ -25,7 +25,8 @@ identity:
       allow_all_control_planes: false
       ttl_secs: 300
       negative_ttl_secs: 86400
-      vault_enabled: false
+      vault:
+        enabled: false
       labels: {owner: identity-team}
       kongctl: {protected: true}
     - ref: existing-default

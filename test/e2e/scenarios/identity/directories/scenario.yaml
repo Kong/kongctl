@@ -674,7 +674,7 @@ steps:
                 managed_by: null
                 name: '{{ .vars.directory_name }}'
                 ttl_secs: 1200
-                vault_enabled: false
+                vault.enabled: false
             select: identity.directories[0]
         name: dump
         outputFormat: none

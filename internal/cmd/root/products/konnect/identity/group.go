@@ -152,6 +152,12 @@ func newGroupReadCommand(verb verbs.VerbValue, memberships bool,
 		printer.Print(data)
 		return nil
 	}
+	if !memberships {
+		child := newGroupReadCommand(verb, true, addParentFlags, parentPreRun)
+		child.Use = "membership [membership-id]"
+		child.Aliases = []string{"memberships"}
+		command.AddCommand(child)
+	}
 	return command
 }
 

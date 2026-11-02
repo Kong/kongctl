@@ -30,7 +30,7 @@ def main():
                 group["memberships"] = [membership(ref) for ref in members]
             directory = {"ref": "people", "groups": [group]}
             if managed_directory:
-                directory.update(name=name, allow_all_control_planes=True, vault_enabled=False,
+                directory.update(name=name, allow_all_control_planes=True, vault={"enabled": False},
                                  kongctl={"namespace": "identity-membership-directory-e2e", "protected": True})
             else:
                 directory["_external"] = {"selector": {"matchFields": {"name": name}}}

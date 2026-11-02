@@ -75,7 +75,8 @@ def main():
         return json.loads(result.stdout) if output == "json" else result.stdout.decode()
 
     def get(label, noun, args, **options):
-        return invoke(label, ["get", "identity", noun, *args], **options)
+        path = [noun] if isinstance(noun, str) else noun
+        return invoke(label, ["get", "identity", *path, *args], **options)
 
     def traversed(label, suffix):
         lines = (work / (label + ".log")).read_text().splitlines()
@@ -136,22 +137,26 @@ def main():
         explicit = invoke("list-explicit-product", ["list", "konnect", "identity", "trusted-idps", *namescope])
         assert {v["id"] for v in explicit} == set(before)
         principal_args = [*scope, "--trusted-idp-id", first["id"]]
-        principals = get("principals-page-one", "trusted-idp-principals", [*principal_args, "--page-size", "1"])
+        principals = get("principals-page-one", ["trusted-idp", "principals"], [*principal_args, "--page-size", "1"])
         assert len(principals) == 2 and all(owned_principal(value) for value in principals)
-        selected = get("principals-issuer", "trusted-idp-principals", [*namescope, "--issuer-url", issuer])
+        selected = get("principals-issuer", ["trusted-idps", "principal"], [*namescope, "--issuer-url", issuer])
         assert {v["id"] for v in selected} == {v["id"] for v in principals}
-        assert get("empty-principals", "trusted-idp-principals", [*scope, "--trusted-idp-id", empty["id"]]) == []
+        flat = get("principals-flat", "trusted-idp-principals", principal_args)
+        assert {v["id"] for v in flat} == {v["id"] for v in principals}
+        listed = invoke("principals-list", ["list", "identity", "trusted-idp", "principals", *principal_args])
+        assert {v["id"] for v in listed} == {v["id"] for v in principals}
+        assert get("empty-principals", ["trusted-idp", "principals"], [*scope, "--trusted-idp-id", empty["id"]]) == []
         for label, noun, args in (
             ("idp-text", "trusted-idp", [first["id"], *scope]),
             ("idp-list-text", "trusted-idps", namescope),
-            ("principals-text", "trusted-idp-principals", principal_args),
+            ("principals-text", ["trusted-idp", "principals"], principal_args),
         ):
             output = get(label, noun, args, output="text")
             assert "ID" in output and "{" not in output
             assert (issuer if "principals" not in noun else "staff-one") in output
         for label, noun, args in (
             ("idp-yaml", "trusted-idp", [first["id"], *scope]),
-            ("principals-yaml", "trusted-idp-principals", principal_args),
+            ("principals-yaml", ["trusted-idp", "principals"], principal_args),
         ):
             output = get(label, noun, args, output="yaml")
             assert ("issuer_url:" if "principals" not in noun else "managed_by:") in output

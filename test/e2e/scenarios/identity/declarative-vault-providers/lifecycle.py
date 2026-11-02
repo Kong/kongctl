@@ -75,7 +75,7 @@ def main():
         return json.loads(result.stdout) if output == "json" else result.stdout.decode()
 
     def manifest(label, providers=None, grouped=False, external=False):
-        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault_enabled": True}
+        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault": {"enabled": True}}
         if external:
             parent = {"ref": "people", "_external": {"id": directory}}
         identity = {"directories": [parent]}
@@ -84,9 +84,9 @@ def main():
             if grouped:
                 for provider in providers:
                     provider["directory"] = "people"
-                identity["vault_providers"] = providers
+                identity["vault"] = {"providers": providers}
             else:
-                parent["vault_providers"] = providers
+                parent.setdefault("vault", {})["providers"] = providers
         data = json.dumps({"_defaults": {"kongctl": {"namespace": namespace}}, "identity": identity})
         data = data.replace('"DEFER_PROVIDER_SECRET"', '!secret {source: !env KONGCTL_E2E_VAULT_PROVIDER_SECRET}')
         path = work / (label + ".yaml")
@@ -130,10 +130,10 @@ def main():
         current = request("GET", root)
         assert current["name"] == name and current["managed_by"] == {} and current["vault_enabled"] is True
         assert collection() == []
-        schema = invoke("explain", ["explain", "identity.vault_providers"])
+        schema = invoke("explain", ["explain", "identity.vault.providers"])
         assert schema["type"] == "object"
-        scaffold = invoke("scaffold", ["scaffold", "identity.vault_providers"], output="text")
-        assert "vault_providers:" in scaffold and "template_name:" in scaffold
+        scaffold = invoke("scaffold", ["scaffold", "identity.vault.providers"], output="text")
+        assert "providers:" in scaffold and "template_name:" in scaffold
         initial = manifest("initial", [static, oauth, dcr])
         plan("unowned-parent-blocked", initial, failure="explicitly adopt")
         plan("external-parent-blocked", manifest("external", [static], external=True), failure="external parents are read-only")
@@ -192,7 +192,7 @@ def main():
         dump = work / "providers-dump.yaml"
         invoke("dump", ["dump", "declarative", "--resources", "identity.directories", "--include-child-resources",
             "--output-file", str(dump)], output="yaml")
-        assert "vault_providers:" in dump.read_text() and "client_secret:" not in dump.read_text()
+        assert "providers:" in dump.read_text() and "client_secret:" not in dump.read_text()
         assert "registration_endpoint:" in dump.read_text()
         assert plan("dump-noop", str(dump))["summary"]["total_changes"] == 0
         apply("apply-dump", str(dump))

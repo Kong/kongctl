@@ -11,7 +11,7 @@ Read the worker's principal UUID and use it below:
 ```sh
 kongctl get identity principals --directory-name default
 export PRINCIPAL_ID=REPLACE_WITH_WORKER_UUID
-kongctl get identity principal-basic-auth \
+kongctl get identity principal basic-auth \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker -o json
 ```
@@ -28,7 +28,7 @@ are refused before issuing a password.
 
 ```sh
 mkdir -m 700 "$HOME/identity-orders-secrets"
-kongctl create identity principal-basic-auth-password \
+kongctl create identity principal basic-auth password \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker \
   --expires-at 2031-01-01T00:00:00Z \
@@ -45,13 +45,13 @@ Import a value from a private file, or name an environment variable using
 `--secret-env VARIABLE_NAME`. The value is never a positional argument.
 
 ```sh
-kongctl create identity principal-basic-auth-password \
+kongctl create identity principal basic-auth password \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker \
   --secret-file "$HOME/identity-orders-secrets/import-source.txt" \
   --no-expiration \
   --secret-output-file "$HOME/identity-orders-secrets/worker-second.json"
-kongctl get identity principal-basic-auth-passwords \
+kongctl get identity principal basic-auth passwords \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker -o json
 ```
@@ -74,10 +74,10 @@ Use a password UUID from get/list or the capture's public `password_id`:
 
 ```sh
 export PASSWORD_ID=REPLACE_WITH_PASSWORD_UUID
-kongctl patch identity principal-basic-auth-password "$PASSWORD_ID" \
+kongctl patch identity principal basic-auth password "$PASSWORD_ID" \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker --no-expiration
-kongctl patch identity principal-basic-auth-password "$PASSWORD_ID" \
+kongctl patch identity principal basic-auth password "$PASSWORD_ID" \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker --expires-at 2031-06-01T00:00:00Z
 ```
@@ -89,7 +89,7 @@ There is no enable/disable flag on this resource.
 Supplying a secret source replaces material in the same record through PUT:
 
 ```sh
-kongctl patch identity principal-basic-auth-password "$PASSWORD_ID" \
+kongctl patch identity principal basic-auth password "$PASSWORD_ID" \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker \
   --secret-file "$HOME/identity-orders-secrets/replacement.txt"
@@ -110,10 +110,10 @@ authentication: the tested runtime API requires an mTLS integration (Q30).
 ## Retire passwords before declarative teardown
 
 ```sh
-kongctl delete identity principal-basic-auth-password "$PASSWORD_ID" \
+kongctl delete identity principal basic-auth password "$PASSWORD_ID" \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker
-kongctl delete identity principal-basic-auth-password \
+kongctl delete identity principal basic-auth password \
   --directory-name default --principal-id "$PRINCIPAL_ID" \
   --username kongctl-example-order-worker --all
 kongctl delete -f basic-auth.yaml

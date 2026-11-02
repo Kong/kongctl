@@ -50,23 +50,21 @@ func init() {
 
 // IdentityResource groups Kong Identity management declarations.
 type IdentityResource struct {
-	PrincipalAPIKeys         []IdentityPrincipalAPIKeyResource         `yaml:"principal_api_keys,omitempty"         json:"principal_api_keys,omitempty"`         //nolint:lll
-	GroupAPIKeys             []IdentityGroupAPIKeyResource             `yaml:"group_api_keys,omitempty"             json:"group_api_keys,omitempty"`             //nolint:lll
-	VaultProviderCredentials []IdentityVaultProviderCredentialResource `yaml:"vault_provider_credentials,omitempty" json:"vault_provider_credentials,omitempty"` //nolint:lll
+	IdentityVaultResources `yaml:"vault,omitempty" json:"vault,omitzero"`
+	PrincipalAPIKeys       []IdentityPrincipalAPIKeyResource `yaml:"principal_api_keys,omitempty" json:"principal_api_keys,omitempty"` //nolint:lll
+	GroupAPIKeys           []IdentityGroupAPIKeyResource     `yaml:"group_api_keys,omitempty" json:"group_api_keys,omitempty"`         //nolint:lll
 
-	TrustedIDPs    []IdentityTrustedIDPResource        `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
-	VaultProviders []IdentityVaultProviderResource     `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"`
-	VaultKeys      []IdentityVaultKeyResource          `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
-	BasicAuths     []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"     json:"basic_auths,omitempty"`
-	Memberships    []IdentityGroupMembershipResource   `yaml:"memberships,omitempty"     json:"memberships,omitempty"`
-	Groups         []IdentityGroupResource             `yaml:"groups,omitempty" json:"groups,omitempty"`
-	Identities     []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"      json:"identities,omitempty"`
-	Clients        []IdentityAuthServerClientResource  `yaml:"clients,omitempty"         json:"clients,omitempty"`
-	Scopes         []IdentityAuthServerScopeResource   `yaml:"scopes,omitempty"          json:"scopes,omitempty"`
-	Claims         []IdentityAuthServerClaimResource   `yaml:"claims,omitempty"          json:"claims,omitempty"`
-	AuthServers    []IdentityAuthServerResource        `yaml:"auth_servers,omitempty"    json:"auth_servers,omitempty"`
-	Principals     []IdentityPrincipalResource         `yaml:"principals,omitempty"      json:"principals,omitempty"`
-	Directories    []IdentityDirectoryResource         `yaml:"directories,omitempty"     json:"directories,omitempty"`
+	TrustedIDPs []IdentityTrustedIDPResource        `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
+	BasicAuths  []IdentityBasicAuthResource         `yaml:"basic_auths,omitempty"     json:"basic_auths,omitempty"`
+	Memberships []IdentityGroupMembershipResource   `yaml:"memberships,omitempty"     json:"memberships,omitempty"`
+	Groups      []IdentityGroupResource             `yaml:"groups,omitempty" json:"groups,omitempty"`
+	Identities  []IdentityPrincipalIdentityResource `yaml:"identities,omitempty"      json:"identities,omitempty"`
+	Clients     []IdentityAuthServerClientResource  `yaml:"clients,omitempty"         json:"clients,omitempty"`
+	Scopes      []IdentityAuthServerScopeResource   `yaml:"scopes,omitempty"          json:"scopes,omitempty"`
+	Claims      []IdentityAuthServerClaimResource   `yaml:"claims,omitempty"          json:"claims,omitempty"`
+	AuthServers []IdentityAuthServerResource        `yaml:"auth_servers,omitempty"    json:"auth_servers,omitempty"`
+	Principals  []IdentityPrincipalResource         `yaml:"principals,omitempty"      json:"principals,omitempty"`
+	Directories []IdentityDirectoryResource         `yaml:"directories,omitempty"     json:"directories,omitempty"`
 }
 
 func identityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource {
@@ -85,21 +83,34 @@ func ensureIdentityDirectorySlice(rs *ResourceSet) *[]IdentityDirectoryResource 
 
 // IdentityDirectoryResource declares one regional Kong Identity directory.
 type IdentityDirectoryResource struct {
-	TrustedIDPs           []IdentityTrustedIDPResource    `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
-	VaultProviders        []IdentityVaultProviderResource `yaml:"vault_providers,omitempty" json:"vault_providers,omitempty"` //nolint:lll
-	VaultKeys             []IdentityVaultKeyResource      `yaml:"vault_keys,omitempty" json:"vault_keys,omitempty"`
-	Groups                []IdentityGroupResource         `yaml:"groups,omitempty" json:"groups,omitempty"`
-	BaseResource          `                                yaml:",inline"                            json:",inline"`
-	Principals            []IdentityPrincipalResource `yaml:"principals,omitempty"               json:"principals,omitempty"` //nolint:lll
-	Name                  string                      `yaml:"name"                               json:"name"`
-	Description           *string                     `yaml:"description,omitempty"              json:"description,omitempty"`                              //nolint:lll
-	AllowedControlPlanes  []string                    `yaml:"allowed_control_planes,omitempty"   json:"allowed_control_planes,omitempty"`                   //nolint:lll
-	AllowAllControlPlanes *bool                       `yaml:"allow_all_control_planes,omitempty" json:"allow_all_control_planes,omitempty" default:"false"` //nolint:lll
-	TTLSecs               *int64                      `yaml:"ttl_secs,omitempty"                 json:"ttl_secs,omitempty"                 default:"600"`   //nolint:lll
-	NegativeTTLSecs       *int64                      `yaml:"negative_ttl_secs,omitempty"        json:"negative_ttl_secs,omitempty"        default:"600"`   //nolint:lll
-	VaultEnabled          *bool                       `yaml:"vault_enabled,omitempty"            json:"vault_enabled,omitempty"`                            //nolint:lll
-	Labels                map[string]string           `yaml:"labels,omitempty"                   json:"labels,omitempty"`                                   //nolint:lll
-	External              *ExternalBlock              `yaml:"_external,omitempty"                json:"_external,omitempty"`                                //nolint:lll
+	IdentityDirectoryVault `yaml:"vault,omitempty" json:"vault,omitzero"`
+	TrustedIDPs            []IdentityTrustedIDPResource `yaml:"trusted_idps,omitempty" json:"trusted_idps,omitempty"`
+	Groups                 []IdentityGroupResource      `yaml:"groups,omitempty" json:"groups,omitempty"`
+	BaseResource           `                                yaml:",inline"                            json:",inline"`
+	Principals             []IdentityPrincipalResource `yaml:"principals,omitempty"               json:"principals,omitempty"` //nolint:lll
+	Name                   string                      `yaml:"name"                               json:"name"`
+	Description            *string                     `yaml:"description,omitempty"              json:"description,omitempty"`                              //nolint:lll
+	AllowedControlPlanes   []string                    `yaml:"allowed_control_planes,omitempty"   json:"allowed_control_planes,omitempty"`                   //nolint:lll
+	AllowAllControlPlanes  *bool                       `yaml:"allow_all_control_planes,omitempty" json:"allow_all_control_planes,omitempty" default:"false"` //nolint:lll
+	TTLSecs                *int64                      `yaml:"ttl_secs,omitempty"                 json:"ttl_secs,omitempty"                 default:"600"`   //nolint:lll
+	NegativeTTLSecs        *int64                      `yaml:"negative_ttl_secs,omitempty"        json:"negative_ttl_secs,omitempty"        default:"600"`   //nolint:lll
+	Labels                 map[string]string           `yaml:"labels,omitempty"                   json:"labels,omitempty"`                                   //nolint:lll
+	External               *ExternalBlock              `yaml:"_external,omitempty"                json:"_external,omitempty"`                                //nolint:lll
+}
+
+// IdentityDirectoryVault groups configuration without adding a resource or owner.
+type IdentityDirectoryVault struct {
+	VaultEnabled   *bool                           `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	VaultKeys      []IdentityVaultKeyResource      `yaml:"keys,omitempty" json:"keys,omitempty"`
+	VaultProviders []IdentityVaultProviderResource `yaml:"providers,omitempty" json:"providers,omitempty"`
+}
+
+// IdentityVaultResources holds grouped children with explicit parent selectors.
+// Enablement belongs to a directory and cannot be declared on this root group.
+type IdentityVaultResources struct {
+	VaultKeys                []IdentityVaultKeyResource                `yaml:"keys,omitempty" json:"keys,omitempty"`
+	VaultProviders           []IdentityVaultProviderResource           `yaml:"providers,omitempty" json:"providers,omitempty"`                       //nolint:lll
+	VaultProviderCredentials []IdentityVaultProviderCredentialResource `yaml:"provider_credentials,omitempty" json:"provider_credentials,omitempty"` //nolint:lll
 }
 
 func (d IdentityDirectoryResource) GetType() ResourceType              { return ResourceTypeIdentityDirectory }

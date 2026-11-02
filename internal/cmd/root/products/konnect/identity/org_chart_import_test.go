@@ -6,12 +6,13 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
 
 func TestOrgChartImportRequiresExplicitIntentScopeAndPrivateReport(t *testing.T) {
 	for _, dryRun := range []bool{false, true} {
-		command, err := newOrgChartImportCommand(nil, nil)
+		command, err := newOrgChartImportCommand(verbs.Create, nil, nil)
 		require.NoError(t, err)
 		require.NoError(t, command.Flags().Set("directory-name", "default"))
 		require.ErrorContains(t, command.Args(command, nil), "choose exactly one")
@@ -33,7 +34,7 @@ func TestOrgChartImportRequiresExplicitIntentScopeAndPrivateReport(t *testing.T)
 		require.NoError(t, command.Flags().Set("directory-id", fixtureCommandID))
 		require.Error(t, command.Args(command, nil))
 	}
-	command, err := newOrgChartImportCommand(nil, nil)
+	command, err := newOrgChartImportCommand(verbs.Create, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, command.Flags().Set("directory-id", fixtureCommandID))
 	require.NoError(t, command.Flags().Set("dry-run", "true"))
@@ -66,4 +67,35 @@ func TestOrgChartImportTextIsCountsOnly(t *testing.T) {
 	require.Contains(t, buffer.String(), "reported_errors")
 	require.Contains(t, buffer.String(), "warning_count")
 	require.NotContains(t, buffer.String(), "{")
+}
+
+func TestOrgChartImportVerbUsesTheResourceNoun(t *testing.T) {
+	var callbackVerb verbs.VerbValue
+	command, err := newOrgChartImportCommand(verbs.Import, func(verb verbs.VerbValue, _ *cobra.Command) {
+		callbackVerb = verb
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, verbs.Import, callbackVerb)
+	require.Equal(t, "org-chart", command.Name())
+	require.Contains(t, command.Aliases, "org-charts")
+	require.ErrorContains(t, command.Args(command, nil), "choose exactly one")
+	require.NoError(t, command.Flags().Set("dry-run", "true"))
+	require.NoError(t, command.Flags().Set("file", "org.csv"))
+	require.NoError(t, command.Flags().Set("report-output-file", "private-report.json"))
+	require.NoError(t, command.Args(command, nil))
+	require.NoError(t, command.ValidateRequiredFlags())
+	require.NoError(t, command.ValidateFlagGroups())
+	require.NoError(t, command.Flags().Set("execute", "true"))
+	require.ErrorContains(t, command.Args(command, nil), "choose exactly one")
+	_, err = newOrgChartImportCommand(verbs.Get, nil, nil)
+	require.Error(t, err)
+	root, err := NewIdentityCmd(verbs.Import, nil, nil)
+	require.NoError(t, err)
+	require.Len(t, root.Commands(), 1)
+	for _, name := range []string{"org-chart", "org-charts"} {
+		found, remaining, err := root.Find([]string{name})
+		require.NoError(t, err)
+		require.Empty(t, remaining)
+		require.Equal(t, "org-chart", found.Name())
+	}
 }

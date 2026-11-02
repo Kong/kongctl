@@ -36,7 +36,7 @@ func TestTrustedIDPSavedLifecycleHydrationClearsAndDirectoryAuthority(t *testing
 		t.Helper()
 		parent := map[string]any{
 			"ref": "people", "name": "default", "allow_all_control_planes": true,
-			"vault_enabled": true, "ttl_secs": 900, "negative_ttl_secs": 450,
+			"vault": map[string]any{"enabled": true}, "ttl_secs": 900, "negative_ttl_secs": 450,
 		}
 		if present {
 			if values == nil {

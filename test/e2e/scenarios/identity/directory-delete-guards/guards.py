@@ -66,7 +66,7 @@ def main():
     def document(vault=None, empty=False):
         parent = {"ref": "people", "name": name}
         if vault is not None:
-            parent["vault_enabled"] = vault
+            parent["vault"] = {"enabled": vault}
         return {"_defaults": {"kongctl": {"namespace": namespace}},
                 "identity": {"directories": [] if empty else [parent]}}
 

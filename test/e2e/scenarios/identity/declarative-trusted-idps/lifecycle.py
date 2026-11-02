@@ -71,7 +71,7 @@ def main():
         return json.loads(result.stdout) if output == "json" else result.stdout.decode()
 
     def manifest(label, trusts=None, grouped=False, external=False, principals=None):
-        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault_enabled": True,
+        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault": {"enabled": True},
             "kongctl": {"namespace": namespace}}
         if external:
             parent = {"ref": "people", "_external": {"id": directory}}

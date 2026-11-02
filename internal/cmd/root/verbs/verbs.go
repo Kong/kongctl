@@ -19,6 +19,7 @@ const (
 	API       = VerbValue("api")
 	Get       = VerbValue("get")
 	Inspect   = VerbValue("inspect")
+	Import    = VerbValue("import")
 	Create    = VerbValue("create")
 	Dump      = VerbValue("dump")
 	Update    = VerbValue("update")

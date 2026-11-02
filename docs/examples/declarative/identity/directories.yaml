@@ -14,7 +14,8 @@ identity:
       allowed_control_planes: []
       ttl_secs: 600
       negative_ttl_secs: 600
-      vault_enabled: false
+      vault:
+        enabled: false
       labels: {}
       kongctl:
         protected: true

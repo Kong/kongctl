@@ -43,7 +43,7 @@ remain within the plan directory's permitted file boundary. See the
   --output-file billing-plan.json
 ./kongctl diff --plan billing-plan.json
 ./kongctl apply --plan billing-plan.json --auto-approve
-./kongctl get identity vault-provider-credentials \
+./kongctl get identity vault provider credentials \
   --directory-name default --provider-name billing-service -o yaml
 ```
 
@@ -94,7 +94,7 @@ collection scopes sync to the declared static provider; `shared_credentials:
 do not authorize credential retirement. User/OAuth credentials are not adopted
 or pruned through this declaration.
 
-Grouped declarations use `identity.vault_provider_credentials` with a
+Grouped declarations use `identity.vault.provider_credentials` with a
 `provider` selector referencing a declared static/shared provider. The same
 managed directory must be declared. Grouped empty lists have no provider
 selector; use a nested empty collection for provider-specific retirement.

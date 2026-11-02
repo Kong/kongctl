@@ -48,7 +48,7 @@ func (p *identityDirectoryPlanner) planVaultKeys(ctx context.Context, config *Co
 				return err
 			}
 		} else if directory.VaultEnabled == nil || !*directory.VaultEnabled {
-			return fmt.Errorf("new directory %q requires explicit vault_enabled: true to create Vault keys", directory.Name)
+			return fmt.Errorf("new directory %q requires explicit vault.enabled: true to create Vault keys", directory.Name)
 		}
 		if directory.VaultEnabled != nil && !*directory.VaultEnabled && plan.Metadata.Mode != PlanModeDelete {
 			return fmt.Errorf("cannot manage Vault keys while disabling directory %q Vault", directory.Name)

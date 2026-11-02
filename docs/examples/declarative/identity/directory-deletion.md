@@ -33,7 +33,8 @@ identity:
   directories:
   - ref: default-directory
     name: default
-    vault_enabled: true
+    vault:
+      enabled: true
 ```
 
 Use the actual managed directory name and namespace. Applying this to an

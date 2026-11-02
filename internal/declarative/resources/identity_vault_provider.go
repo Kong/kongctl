@@ -133,8 +133,8 @@ func init() {
 		ensureIdentityVaultProviderSlice,
 		AutoExplain[IdentityVaultProviderResource](
 			WithExplainAliases(
-				"identity.vault_providers",
-				"identity.directories.vault_providers",
+				"identity.vault.providers",
+				"identity.directories.vault.providers",
 				"vault-provider",
 				"vault-providers",
 			),

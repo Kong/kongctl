@@ -73,7 +73,7 @@ def main():
         return str(path)
 
     def manifest(label, indices=None, renamed=False, grouped=False, external=False, crlf=False):
-        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault_enabled": True}
+        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault": {"enabled": True}}
         if external:
             parent = {"ref": "people", "_external": {"id": directory}}
         identity = {"directories": [parent]}
@@ -84,9 +84,9 @@ def main():
             if grouped:
                 for key in keys:
                     key["directory"] = "people"
-                identity["vault_keys"] = keys
+                identity["vault"] = {"keys": keys}
             else:
-                parent["vault_keys"] = keys
+                parent.setdefault("vault", {})["keys"] = keys
         return file(label, {"_defaults": {"kongctl": {"namespace": namespace}}, "identity": identity})
 
     def plan(label, source, mode="apply", failure=None):
@@ -117,10 +117,10 @@ def main():
         assert original["name"] == name and original["managed_by"] == {} and original["vault_enabled"] is True
         assert collection() == []
         # Schema commands need no credential or remote ownership.
-        schema = invoke("explain", ["explain", "identity.vault_keys"])
+        schema = invoke("explain", ["explain", "identity.vault.keys"])
         assert schema["type"] == "object"
-        scaffold = invoke("scaffold", ["scaffold", "identity.vault_keys"], output="text")
-        assert "identity:" in scaffold and "vault_keys:" in scaffold and "public_key:" in scaffold
+        scaffold = invoke("scaffold", ["scaffold", "identity.vault.keys"], output="text")
+        assert "identity:" in scaffold and "keys:" in scaffold and "public_key:" in scaffold
         assert invoke("empty-read", ["get", "identity", "vault-keys", "--directory-id", directory]) == []
         native_create(0)
         initial = manifest("initial", [0, 1, 2])
@@ -189,10 +189,28 @@ def main():
         dump = work / "dump.yaml"
         invoke("dump", ["dump", "declarative", "--resources", "identity.directories", "--include-child-resources",
             "--output-file", str(dump)], output="yaml")
-        assert "vault_keys:" in dump.read_text() and "BEGIN PUBLIC KEY" in dump.read_text()
+        assert "keys:" in dump.read_text() and "BEGIN PUBLIC KEY" in dump.read_text()
         assert plan("dump-noop", str(dump))["summary"]["total_changes"] == 0
         apply("reload-dump", str(dump))
         assert plan("omitted-preserves", manifest("omitted"), "sync")["summary"]["total_changes"] == 0
+        # A plain grouping object cannot acquire its own lifecycle or select
+        # omitted child collections. Native API payloads still use vault_enabled.
+        for label, group in (("group-omitted", None), ("empty-group", {})):
+            source = json.loads(Path(manifest(label)).read_text())
+            parent = source["identity"]["directories"][0]
+            if group is None:
+                del parent["vault"]
+            else:
+                parent["vault"] = group
+            assert plan(label + "-sync", file(label, source), "sync")["summary"]["total_changes"] == 0
+        for label, fields in (
+            ("null-group", {"vault": None}),
+            ("null-keys", {"vault": {"keys": None}}),
+            ("legacy-key", {"vault_keys": []}),
+            ("mixed-format", {"vault": {}, "vault_enabled": True}),
+        ):
+            source = {"identity": {"directories": [{"ref": "people", "name": name, **fields}]}}
+            plan(label + "-rejected", file(label, source), failure="failed to load configuration")
         native_create(3)
         sync = plan("explicit-sync-plan", renamed, "sync")
         assert sync["summary"]["by_action"] == {"DELETE": 1}

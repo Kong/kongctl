@@ -107,7 +107,7 @@ func (p *identityDirectoryPlanner) planVaultProviders(ctx context.Context, confi
 				root.(*resources.IdentityDirectoryResource).SetKonnectID(current.ID)
 			}
 		} else if directory.VaultEnabled == nil || !*directory.VaultEnabled {
-			return fmt.Errorf("new directory %q requires explicit vault_enabled: true for Vault providers", directory.Name)
+			return fmt.Errorf("new directory %q requires explicit vault.enabled: true for Vault providers", directory.Name)
 		}
 		if directory.VaultEnabled != nil && !*directory.VaultEnabled && plan.Metadata.Mode != PlanModeDelete {
 			return fmt.Errorf("cannot manage Vault providers while disabling directory %q Vault", directory.Name)

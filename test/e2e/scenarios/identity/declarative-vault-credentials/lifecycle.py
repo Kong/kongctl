@@ -84,22 +84,22 @@ def main():
         return json.loads(result.stdout) if output == "json" else result.stdout.decode()
 
     def manifest(label, values=None, grouped=False, keys=True, external=False):
-        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault_enabled": True}
+        parent = {"ref": "people", "name": name, "allow_all_control_planes": True, "vault": {"enabled": True}}
         if external:
             parent = {"ref": "people", "_external": {"id": directory}}
         if keys:
-            parent["vault_keys"] = [{"ref": "encryption", "name": "encryption", "public_key": public_key}]
+            parent.setdefault("vault", {})["keys"] = [{"ref": "encryption", "name": "encryption", "public_key": public_key}]
         provider = {"ref": "billing", "name": "billing-static", "template_name": "static_secret", "credential_type": "shared"}
         identity = {"directories": [parent]}
         if grouped:
             provider["directory"] = "people"
-            identity["vault_providers"] = [provider]
+            identity["vault"] = {"providers": [provider]}
             if values is not None:
-                identity["vault_provider_credentials"] = [{**v, "provider": "billing"} for v in values]
+                identity["vault"]["provider_credentials"] = [{**v, "provider": "billing"} for v in values]
         else:
             if values is not None:
                 provider["shared_credentials"] = values
-            parent["vault_providers"] = [provider]
+            parent.setdefault("vault", {})["providers"] = [provider]
         text = json.dumps({"_defaults": {"kongctl": {"namespace": namespace}}, "identity": identity})
         text = text.replace('"ENV_SOURCE"', '!secret {source: !env KONGCTL_E2E_STATIC_VAULT_SECRET}')
         text = text.replace('"FILE_SOURCE"', '!secret {source: !file ./private-static-credential-source/value}')
@@ -137,9 +137,9 @@ def main():
     values = [fallback, standard, priority]
     try:
         assert request("GET", root)["name"] == name and collection("vault/providers") == []
-        schema = invoke("explain", ["explain", "identity.vault_provider_credentials"])
+        schema = invoke("explain", ["explain", "identity.vault.provider_credentials"])
         assert schema["type"] == "object"
-        assert "vault_provider_credentials:" in invoke("scaffold", ["scaffold", "identity.vault_provider_credentials"], output="text")
+        assert "provider_credentials:" in invoke("scaffold", ["scaffold", "identity.vault.provider_credentials"], output="text")
         source = manifest("initial", values)
         plan("unowned-parent-blocked", source, failure="explicitly adopt")
         plan("external-parent-blocked", manifest("external", values, external=True, keys=False), failure="external")

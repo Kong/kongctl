@@ -26,12 +26,12 @@ context (Q30); this example does not establish authentication success.
 Use the returned principal UUID to inspect the credential:
 
 ```sh
-kongctl get identity principal-basic-auths \
+kongctl get identity principal basic-auths \
   --directory-name default --principal-id PRINCIPAL_UUID --page-size 1
-kongctl get identity principal-basic-auth \
+kongctl get identity principal basic-auth \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --username kongctl-example-order-worker -o yaml
-kongctl get identity principal-basic-auth-passwords \
+kongctl get identity principal basic-auth passwords \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --username kongctl-example-order-worker
 ```
@@ -76,7 +76,7 @@ deletion; client checks cannot prevent concurrent attachment atomically.
 Adopt an unowned username before managing it:
 
 ```sh
-kongctl adopt identity principal-basic-auth \
+kongctl adopt identity principal basic-auth \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --username kongctl-example-order-worker --namespace identity-credentials
 ```

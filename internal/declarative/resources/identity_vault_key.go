@@ -111,7 +111,7 @@ func init() {
 		identityVaultKeySlice,
 		ensureIdentityVaultKeySlice,
 		AutoExplain[IdentityVaultKeyResource](
-			WithExplainAliases("identity.vault_keys", "identity.directories.vault_keys", "vault-key", "vault-keys"),
+			WithExplainAliases("identity.vault.keys", "identity.directories.vault.keys", "vault-key", "vault-keys"),
 			WithExplainRecommendedFields("ref", "directory", "name", "public_key"),
 			WithExplainFieldHint(
 				"public_key",

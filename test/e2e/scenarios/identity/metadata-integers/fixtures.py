@@ -30,7 +30,7 @@ def main():
         }
         directory = {
             "ref": "people", "name": sys.argv[3],
-            "allow_all_control_planes": True, "vault_enabled": False,
+            "allow_all_control_planes": True, "vault": {"enabled": False},
             "principals": [principal],
         }
         value = {

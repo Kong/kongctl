@@ -49,7 +49,7 @@ def main():
                 "auth_servers": [{"ref": "issuer", "name": server, "audience": "https://api.example.test",
                                   "kongctl": {"namespace": "identity-auth-server-e2e"}, "clients": clients}],
                 "directories": [{
-                    "ref": "people", "name": directory, "allow_all_control_planes": True, "vault_enabled": False,
+                    "ref": "people", "name": directory, "allow_all_control_planes": True, "vault": {"enabled": False},
                     "kongctl": {"namespace": "identity-directory-e2e"},
                     "principals": [{"ref": "person", "display_name": "Directory user", "type": "user",
                                     "labels": {"e2e-fixture": "REF:people#id"},
