@@ -7,6 +7,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/build"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -19,14 +20,11 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 ) (*cobra.Command, error) {
 	command := &cobra.Command{
 		Use: "principal <id>", Aliases: []string{"principals"},
-		Short: "Adopt a principal by UUID with an explicit directory and local ref",
+		Short: "Adopt a principal by UUID with a local ref",
 		Args:  cobra.ExactArgs(1), PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("ref", "", "Declarative ref to persist on this principal")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired("ref"); err != nil {
 		return nil, err
 	}
@@ -38,11 +36,7 @@ func NewIdentityPrincipalCmd(verb verbs.VerbValue,
 		if err != nil {
 			return err
 		}
-		directoryID, err := cmd.Flags().GetString("directory-id")
-		if err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("directory-name")
+		directoryID, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
 		}

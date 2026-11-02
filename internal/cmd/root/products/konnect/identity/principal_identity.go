@@ -22,13 +22,10 @@ func newPrincipalIdentityCommand(verb verbs.VerbValue, addParentFlags func(verbs
 		Use: "principal-identity [identity-id]", Aliases: []string{"principal-identities", "principal_identities"},
 		Short: "List or get external identities under an explicit directory principal", PreRunE: parentPreRun,
 		Long: "Inspect OIDC, OAuth client, control-plane consumer and custom identity associations. " +
-			"Select a directory and principal UUID explicitly; display names are not unique.",
+			"Select a principal UUID; display names are not unique. The directory defaults to default.",
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired("principal-id"); err != nil {
 		return nil, err
 	}
@@ -65,11 +62,7 @@ func newPrincipalIdentityCommand(verb verbs.VerbValue, addParentFlags func(verbs
 		if err != nil {
 			return err
 		}
-		directory, err := cmd.Flags().GetString("directory-id")
-		if err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("directory-name")
+		directory, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
 		}

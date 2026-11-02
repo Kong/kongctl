@@ -26,12 +26,9 @@ func newBasicAuthReadCommand(verb verbs.VerbValue, passwords bool,
 			"Positional selectors are UUIDs; use --username for an exact username lookup, including UUID-shaped usernames.",
 		PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
 	command.Flags().String("username", "", "Exact basic-auth username")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired("principal-id"); err != nil {
 		return nil, err
 	}

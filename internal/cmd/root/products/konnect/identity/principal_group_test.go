@@ -17,7 +17,6 @@ func TestPrincipalGroupCommandsRequireExplicitPrincipalAndDirectory(t *testing.T
 		command, _, err := root.Find([]string{"principal-groups"})
 		require.NoError(t, err)
 		require.Equal(t, "principal-group", command.Name())
-		require.ErrorContains(t, command.Args(command, nil), "directory")
 		require.NoError(t, command.Flags().Set("directory-name", "default"))
 		require.ErrorContains(t, command.Args(command, nil), "principal-id")
 		require.NoError(t, command.Flags().Set("principal-id", "731559d3-39bd-48c7-b33c-eb192847eb21"))

@@ -13,7 +13,6 @@ func TestOrgChartImportRequiresExplicitIntentScopeAndPrivateReport(t *testing.T)
 	for _, dryRun := range []bool{false, true} {
 		command, err := newOrgChartImportCommand(nil, nil)
 		require.NoError(t, err)
-		require.ErrorContains(t, command.Args(command, nil), "directory")
 		require.NoError(t, command.Flags().Set("directory-name", "default"))
 		require.ErrorContains(t, command.Args(command, nil), "choose exactly one")
 		mode := "execute"

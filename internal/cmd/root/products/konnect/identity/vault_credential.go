@@ -27,10 +27,7 @@ func newVaultCredentialReadCommand(verb verbs.VerbValue, principal bool,
 			"Credential values and enrollment URLs are excluded. Inspection does not issue OAuth enrollment URLs.",
 		PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
+	common.AddIdentityDirectoryFlags(command)
 	if principal {
 		command.Use = "principal-vault-credential [credential-id]"
 		command.Aliases = []string{"principal-vault-credentials", "vault-credential", "vault-credentials"}

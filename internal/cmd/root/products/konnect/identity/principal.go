@@ -18,14 +18,11 @@ func newPrincipalCommand(verb verbs.VerbValue,
 ) *cobra.Command {
 	command := &cobra.Command{
 		Use: "principal [id]", Aliases: []string{"principals"},
-		Short: "List or get principals in an explicitly selected Kong Identity directory",
+		Short: "List or get principals in a Kong Identity directory",
 		Long:  "List principals or get one by UUID. Display names are not unique and cannot select a principal.",
 		Args:  cobra.MaximumNArgs(1), PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
+	common.AddIdentityDirectoryFlags(command)
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
@@ -47,11 +44,7 @@ func newPrincipalCommand(verb verbs.VerbValue,
 		if err != nil {
 			return err
 		}
-		directoryID, err := cmd.Flags().GetString("directory-id")
-		if err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("directory-name")
+		directoryID, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
 		}

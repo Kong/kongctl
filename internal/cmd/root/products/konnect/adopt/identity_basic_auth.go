@@ -6,6 +6,7 @@ import (
 
 	"github.com/kong/kongctl/internal/build"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -20,12 +21,9 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 		Use: "principal-basic-auth [basic-auth-id]", Aliases: []string{"principal-basic-auths"},
 		Short: "Adopt a basic-auth username record using managed_by ownership", PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("principal-id", "", "Parent principal UUID")
 	command.Flags().String("username", "", "Exact basic-auth username, including UUID-shaped usernames")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired("principal-id"); err != nil {
 		return nil, err
 	}
@@ -55,8 +53,10 @@ func NewIdentityBasicAuthCmd(verb verbs.VerbValue, addParentFlags func(verbs.Ver
 			return err
 		}
 		ctx := setup.Helper.GetContext()
-		directory, _ := cmd.Flags().GetString("directory-id")
-		name, _ := cmd.Flags().GetString("directory-name")
+		directory, name, err := common.IdentityDirectorySelector(cmd)
+		if err != nil {
+			return err
+		}
 		principal, _ := cmd.Flags().GetString("principal-id")
 		username, _ := cmd.Flags().GetString("username")
 		if name != "" {

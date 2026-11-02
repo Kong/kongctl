@@ -15,7 +15,6 @@ func TestVaultEnrollmentCommandsRequireScopeIDsAndPrivateOutput(t *testing.T) {
 		}
 		command, err := newVaultCredentialMutationCommand(verb, mode == "enrollment", nil, nil)
 		require.NoError(t, err)
-		require.ErrorContains(t, command.Args(command, nil), "directory")
 		require.NoError(t, command.Flags().Set("directory-name", "default"))
 		require.ErrorContains(t, command.Args(command, nil), "provider")
 		require.NoError(t, command.Flags().Set("provider-id", fixtureCommandID))

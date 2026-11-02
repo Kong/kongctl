@@ -20,7 +20,6 @@ func TestVaultKeyReadCommandScopesAndFingerprintSelection(t *testing.T) {
 				command, _, err := root.Find([]string{name})
 				require.NoError(t, err)
 				require.NotNil(t, command.RunE)
-				require.ErrorContains(t, command.Args(command, nil), "directory")
 				require.NoError(t, command.Flags().Set("directory-name", "default"))
 				require.NoError(t, command.Args(command, nil))
 				require.NoError(t, command.Args(command, []string{id}))
