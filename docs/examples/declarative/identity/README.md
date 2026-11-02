@@ -1,5 +1,13 @@
 # Kong Identity administration
 
+Directory-scoped imperative commands use the directory named `default` when
+neither `--directory-name` nor `--directory-id` is supplied. For example,
+`kongctl get identity principals` lists principals in `default`. Supply one
+of those flags to select another directory; supplying both is an error.
+A missing `default` directory causes a lookup error and is not created or
+adopted automatically. Auth-server commands have separate parent selectors.
+Declarative manifests still select or declare their directories explicitly.
+
 [Registry reference guards](registry-references.md) explain why an independent
 Agent association blocks principal/directory retirement, how saved deletion
 checks fresh links, and how to inspect and explicitly unlink an association.

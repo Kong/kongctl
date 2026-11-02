@@ -26,15 +26,12 @@ func newIdentityAPIKeyCommand(verb verbs.VerbValue, group bool,
 	command := &cobra.Command{
 		Use: parent + "-api-key [key-id]", Aliases: []string{parent + "-api-keys", parent + "_api_keys"},
 		Short: fmt.Sprintf("%s %s API-key metadata", verb, parent), PreRunE: parentPreRun,
-		Long: "Select an explicit directory and parent UUID. Names are not unique key identifiers. " +
+		Long: "Select a parent UUID; the directory defaults to default. Names are not unique key identifiers. " +
 			"Material is captured only at creation in a new private file. Rotation creates a new key. " +
 			"Explicit mutations preserve management metadata and do not stamp ownership.",
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String(parent+"-id", "", "Parent "+parent+" UUID")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if err := command.MarkFlagRequired(parent + "-id"); err != nil {
 		return nil, err
 	}

@@ -34,9 +34,9 @@ func TestAdoptGroupPreservesPublicSettingsAndProtection(t *testing.T) {
 	require.Len(t, api.Writes, 1)
 }
 
-func TestAdoptGroupRequiresExplicitDirectory(t *testing.T) {
+func TestAdoptGroupRejectsConflictingDirectorySelectors(t *testing.T) {
 	for _, flags := range [][]string{
-		nil, {"--directory-id", "4078f559-063b-4f10-9098-9e6553b21d9b", "--directory-name", "default"},
+		{"--directory-id", "4078f559-063b-4f10-9098-9e6553b21d9b", "--directory-name", "default"},
 	} {
 		cmd, err := NewIdentityGroupCmd(verbs.Adopt, nil, nil)
 		require.NoError(t, err)

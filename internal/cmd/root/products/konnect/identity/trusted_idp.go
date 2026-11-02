@@ -27,11 +27,8 @@ func newTrustedIDPReadCommand(verb verbs.VerbValue, principals bool,
 			"This is directory trust configuration, separate from auth-server identity providers.",
 		PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
+	common.AddIdentityDirectoryFlags(command)
 	command.Flags().String("issuer-url", "", "Exact issuer URL of the Trusted IdP")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
 	if principals {
 		command.Use = "trusted-idp-principals"
 		command.Aliases = []string{"trusted-idp-principal", "trusted_idp_principals"}

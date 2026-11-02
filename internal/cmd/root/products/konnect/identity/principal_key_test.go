@@ -20,7 +20,6 @@ func TestAPIKeyCommandsRequireExplicitScopeAndIntent(t *testing.T) {
 				cmd, _, err := root.Find([]string{parent + "-api-keys"})
 				require.NoError(t, err)
 				require.NotNil(t, cmd.RunE)
-				require.ErrorContains(t, cmd.Args(cmd, nil), "directory")
 				require.NoError(t, cmd.Flags().Set("directory-name", "default"))
 				require.ErrorContains(t, cmd.Args(cmd, nil), parent+"-id")
 				require.NoError(t, cmd.Flags().Set(parent+"-id", fixtureCommandID))

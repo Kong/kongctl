@@ -8,6 +8,7 @@ import (
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 	"github.com/kong/kongctl/internal/build"
 	adoptCommon "github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt/common"
+	"github.com/kong/kongctl/internal/cmd/root/products/konnect/common"
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/declarative/resources"
 	"github.com/kong/kongctl/internal/konnect/helpers"
@@ -22,10 +23,7 @@ func NewIdentityGroupCmd(verb verbs.VerbValue,
 		Short: "Adopt an ordinary Kong Identity group using managed_by ownership",
 		Args:  cobra.ExactArgs(1), PreRunE: parentPreRun,
 	}
-	command.Flags().String("directory-id", "", "Parent directory UUID")
-	command.Flags().String("directory-name", "", "Exact parent directory name")
-	command.MarkFlagsOneRequired("directory-id", "directory-name")
-	command.MarkFlagsMutuallyExclusive("directory-id", "directory-name")
+	common.AddIdentityDirectoryFlags(command)
 	if addParentFlags != nil {
 		addParentFlags(verb, command)
 	}
@@ -34,11 +32,7 @@ func NewIdentityGroupCmd(verb verbs.VerbValue,
 		if err != nil {
 			return err
 		}
-		directoryID, err := cmd.Flags().GetString("directory-id")
-		if err != nil {
-			return err
-		}
-		name, err := cmd.Flags().GetString("directory-name")
+		directoryID, name, err := common.IdentityDirectorySelector(cmd)
 		if err != nil {
 			return err
 		}
