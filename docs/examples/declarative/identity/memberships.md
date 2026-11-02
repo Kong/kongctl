@@ -16,12 +16,14 @@ kongctl plan --mode apply -f docs/examples/declarative/identity/memberships.yaml
 kongctl apply -f docs/examples/declarative/identity/memberships.yaml \
   --auto-approve
 kongctl get identity groups --directory-name default
-kongctl get identity group-memberships \
+kongctl get identity group memberships \
   --directory-name default --group-name OrderOperators
 ```
 
 The membership response has two identifiers: `id` selects the relationship
 entry for API requests, while `member.id` identifies the principal.
+`identity` can be shortened to `id`, and the flat `group-memberships` command
+remains supported. The nested form still requires a group name or ID.
 Configuration accepts a principal UUID or `!ref dispatcher#id`. The principal
 must belong to the group's directory. New groups and principals can be
 created in the same saved plan; execution orders the relationship last.

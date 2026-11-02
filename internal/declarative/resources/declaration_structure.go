@@ -15,24 +15,36 @@ type nestedResourceField struct {
 // lifecycle or sync ownership semantics.
 func nestedResourceFields(parent reflect.Type) []nestedResourceField {
 	var fields []nestedResourceField
-	for field := range derefExplainType(parent).Fields() {
-		if !field.IsExported() {
-			continue
+	visiting := make(map[reflect.Type]bool)
+	var walk func(reflect.Type, string)
+	walk = func(container reflect.Type, prefix string) {
+		container = derefExplainType(container)
+		if container.Kind() != reflect.Struct || visiting[container] {
+			return
 		}
-		name, _, _, skip := explainFieldName(field, "yaml")
-		if skip || name == "" {
-			continue
+		visiting[container] = true
+		defer delete(visiting, container)
+		for field := range container.Fields() {
+			if !field.IsExported() {
+				continue
+			}
+			name, _, _, skip := explainFieldName(field, "yaml")
+			if skip || name == "" {
+				continue
+			}
+			kind, ok := registeredResourceType(field.Type)
+			if !ok {
+				walk(field.Type, prefix+name+".")
+				continue
+			}
+			fields = append(fields, nestedResourceField{
+				name:         prefix + name,
+				resourceType: kind,
+				array:        derefExplainType(field.Type).Kind() == reflect.Slice,
+			})
 		}
-		kind, ok := registeredResourceType(field.Type)
-		if !ok {
-			continue
-		}
-		fields = append(fields, nestedResourceField{
-			name:         name,
-			resourceType: kind,
-			array:        derefExplainType(field.Type).Kind() == reflect.Slice,
-		})
 	}
+	walk(parent, "")
 	return fields
 }
 

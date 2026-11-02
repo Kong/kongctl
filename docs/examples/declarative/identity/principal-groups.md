@@ -20,10 +20,10 @@ Find the principal's UUID; display names are not unique:
 Supply that UUID explicitly to inspect all its groups:
 
 ```sh
-./kongctl get identity principal-groups \
+./kongctl get identity principal groups \
   --directory-name default --principal-id PRINCIPAL_UUID -o text
 
-./kongctl list konnect identity principal-groups \
+./kongctl list konnect identity principal groups \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --page-size 1 -o json
 ```
@@ -45,10 +45,10 @@ without partial results.
 Select one result by **group UUID or exact group name**:
 
 ```sh
-./kongctl get identity principal-group GROUP_UUID \
+./kongctl get identity principal group GROUP_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID -o yaml
 
-./kongctl get identity principal-group 'Engineering' \
+./kongctl get identity principal group 'Engineering' \
   --directory-name default --principal-id PRINCIPAL_UUID -o text
 ```
 

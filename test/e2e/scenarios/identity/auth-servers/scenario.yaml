@@ -97,6 +97,44 @@ steps:
     - identity
     - auth-server
     - '{{ .vars.auth_server_id }}'
+  - name: issuer-raw-projection
+    outputFormat: disable
+    parseAs: raw
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_id }}'
+    - -o
+    - json
+    - --jq
+    - .issuer
+    - -r
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          starts_with(stdout, 'https://'): true
+          contains(stdout, '"issuer"'): false
+  - name: jwks-raw-projection
+    outputFormat: disable
+    parseAs: raw
+    run:
+    - get
+    - identity
+    - auth-server
+    - '{{ .vars.auth_server_name }}'
+    - -o
+    - json
+    - --jq
+    - .jwks_uri
+    - -r
+    assertions:
+    - select: '@'
+      expect:
+        fields:
+          starts_with(stdout, 'https://'): true
+          contains(stdout, '"jwks_uri"'): false
   - assertions:
     - expect:
         fields:

@@ -32,9 +32,9 @@ Inspect public metadata without printing key material:
 ```sh
 kongctl get identity principals --directory-name default
 kongctl get identity groups --directory-name default
-kongctl get identity principal-api-keys \
+kongctl get identity principal api-keys \
   --directory-name default --principal-id PRINCIPAL_UUID
-kongctl get identity group-api-keys \
+kongctl get identity group api-keys \
   --directory-name default --group-id GROUP_UUID
 ```
 

@@ -92,11 +92,11 @@ def main():
     namespace = "identity-registry-guard-e2e"
     defaults = {"kongctl": {"namespace": namespace}}
     initial = manifest("initial.yaml", {"_defaults": defaults, "identity": {"directories": [{
-        "ref": "registry-directory", "name": name, "allow_all_control_planes": True, "vault_enabled": True,
+        "ref": "registry-directory", "name": name, "allow_all_control_planes": True, "vault": {"enabled": True},
         "principals": [{"ref": "registry-principal", "display_name": "Registry retirement subject", "type": "agent"}],
     }]}})
     root_only = manifest("directory.yaml", {"_defaults": defaults, "identity": {"directories": [{
-        "ref": "registry-directory", "name": name, "vault_enabled": True,
+        "ref": "registry-directory", "name": name, "vault": {"enabled": True},
     }]}})
     principal_doc = {"_defaults": defaults, "identity": {"directories": [{
         "ref": "registry-directory", "_external": {"selector": {"matchFields": {"name": name}}},

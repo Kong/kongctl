@@ -5,8 +5,25 @@ import (
 
 	"github.com/kong/kongctl/internal/cmd/root/verbs"
 	"github.com/kong/kongctl/internal/konnect/helpers"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
+
+func TestIdentityAlias(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{
+		verbs.Get, verbs.List, verbs.Adopt, verbs.Create, verbs.Patch, verbs.Delete, verbs.Inspect,
+	} {
+		t.Run(string(verb), func(t *testing.T) {
+			command, err := NewIdentityCmd(verb, nil, nil)
+			require.NoError(t, err)
+			root := &cobra.Command{Use: string(verb)}
+			root.AddCommand(command)
+			found, _, err := root.Find([]string{"id"})
+			require.NoError(t, err)
+			require.Same(t, command, found)
+		})
+	}
+}
 
 func TestIdentityDirectoryCommands(t *testing.T) {
 	for _, verb := range []verbs.VerbValue{verbs.Get, verbs.List, verbs.Adopt} {

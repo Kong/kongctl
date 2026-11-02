@@ -137,8 +137,8 @@ func init() {
 		ensureIdentityVaultProviderCredentialSlice,
 		AutoExplain[IdentityVaultProviderCredentialResource](
 			WithExplainAliases(
-				"identity.vault_provider_credentials",
-				"identity.directories.vault_providers.shared_credentials",
+				"identity.vault.provider_credentials",
+				"identity.directories.vault.providers.shared_credentials",
 				"vault-provider-credential",
 			),
 			WithExplainRecommendedFields("ref", "provider"),

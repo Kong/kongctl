@@ -55,13 +55,35 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	addParentFlags func(verbs.VerbValue, *cobra.Command),
 	parentPreRun func(*cobra.Command, []string) error,
 ) (*cobra.Command, error) {
-	group := &cobra.Command{Use: "identity", Short: "Manage Kong Identity resources"}
+	group, err := newIdentityCmd(verb, addParentFlags, parentPreRun)
+	if err != nil {
+		return nil, err
+	}
+	if err := addNestedIdentityCommands(group, verb, addParentFlags, parentPreRun); err != nil {
+		return nil, err
+	}
+	return group, nil
+}
+
+func newIdentityCmd(verb verbs.VerbValue,
+	addParentFlags func(verbs.VerbValue, *cobra.Command),
+	parentPreRun func(*cobra.Command, []string) error,
+) (*cobra.Command, error) {
+	group := &cobra.Command{Use: "identity", Aliases: []string{"id"}, Short: "Manage Kong Identity resources"}
 	cmdpkg.ConfigureRequiresSubcommand(group)
 	if err := maturity.AnnotateCommand(group, maturity.Metadata{
 		Level:   maturity.LevelTechPreview,
 		Message: "Requires the Kong Identity SDK preview and regional management API access.",
 	}); err != nil {
 		return nil, err
+	}
+	if verb == verbs.Import {
+		chart, err := newOrgChartImportCommand(verb, addParentFlags, parentPreRun)
+		if err != nil {
+			return nil, err
+		}
+		group.AddCommand(chart)
+		return group, nil
 	}
 	if verb == verbs.Inspect {
 		csv, err := newPrincipalCSVInspectCommand(addParentFlags, parentPreRun)
@@ -107,7 +129,7 @@ func NewIdentityCmd(verb verbs.VerbValue,
 	}
 	if verb != verbs.Get && verb != verbs.List {
 		if verb == verbs.Create {
-			chart, err := newOrgChartImportCommand(addParentFlags, parentPreRun)
+			chart, err := newOrgChartImportCommand(verb, addParentFlags, parentPreRun)
 			if err != nil {
 				return nil, err
 			}

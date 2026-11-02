@@ -5,6 +5,11 @@ creates user principals, teams and manager relationships. It is distinct from
 ordinary declarative principal/group configuration and from the broader planned
 arbitrary-principal CSV importer.
 
+Use `kongctl import id org-chart`, or the explicit product form
+`kongctl import konnect identity org-chart`. `identity` and `id` are aliases;
+`org-charts` is also accepted. The older
+`kongctl create id org-chart-import` form remains supported for compatibility.
+
 ## Prepare the roster and directory
 
 The [synthetic CSV example](org-chart.csv) has these required headers:
@@ -39,7 +44,7 @@ Choose an existing private directory for report files. Every invocation needs
 a new report filename; existing files and symlinks are never overwritten.
 
 ```sh
-./kongctl create identity org-chart-import \
+./kongctl import identity org-chart \
   --directory-name default \
   --file docs/examples/declarative/identity/org-chart.csv \
   --dry-run \
@@ -70,7 +75,7 @@ uploads its file again against the then-current directory state.
 ## Execute and inspect
 
 ```sh
-./kongctl create identity org-chart-import \
+./kongctl import identity org-chart \
   --directory-name default \
   --file docs/examples/declarative/identity/org-chart.csv \
   --execute \
@@ -78,7 +83,7 @@ uploads its file again against the then-current directory state.
 
 ./kongctl get identity principals --directory-name default -o json
 ./kongctl get identity groups --directory-name default -o json
-./kongctl get identity group-memberships \
+./kongctl get identity group memberships \
   --directory-name default --group-id TEAM_UUID -o json
 ```
 

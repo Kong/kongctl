@@ -50,11 +50,12 @@ func TestVaultCredentialSavedLifecycleExplicitSecretsAndAuthority(t *testing.T) 
 			provider["shared_credentials"] = credentials
 		}
 		parent := map[string]any{
-			"ref": "people", "name": "default", "allow_all_control_planes": true, "vault_enabled": true,
+			"ref": "people", "name": "default", "allow_all_control_planes": true,
 			"ttl_secs": 900, "negative_ttl_secs": 450,
-			"vault_providers": []any{
-				provider,
-			}, "vault_keys": []any{map[string]any{"ref": "encryption", "name": "encryption", "public_key": public}},
+			"vault": map[string]any{
+				"enabled": true, "providers": []any{provider},
+				"keys": []any{map[string]any{"ref": "encryption", "name": "encryption", "public_key": public}},
+			},
 		}
 		data, err := json.Marshal(
 			map[string]any{

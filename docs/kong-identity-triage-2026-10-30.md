@@ -4921,3 +4921,352 @@ stamping tries Git in `/home/rspurgeon` rather than this linked worktree; the
 Makefile still supplies version/commit/date linker values. Local check output:
 `.cache/identity-feature-walkthrough/default-directory-checks.log`.
 The 33 Identity live scenarios were not rerun for this selector-only patch.
+
+## 72. Identity command hierarchy during the manual walkthrough
+
+`identity` now accepts `id`. Read commands expose principal identities,
+API keys, basic-auth records, group associations and Vault authorizations
+under `principal`; passwords sit beneath `principal basic-auth`. Groups
+expose `group memberships` and `group api-keys`. Singular/plural aliases work
+at each resource level. The existing flat forms retain separate command
+instances and continue to work with their existing flags and paths.
+
+Existing API-key/password create, patch and delete operations use the same
+nested paths. Principal identity/basic-auth adoption also has nested forms.
+These are additional routes to existing handlers, not new lifecycle support.
+Directory defaults, explicit parent selectors, private capture requirements,
+mutation intent and ownership/deletion guards are preserved. Identities do
+not gain credential children. The examples and local walkthrough use the
+nested paths.
+
+Routing tests cover read and mutation verbs, adoption, aliases, parent hooks,
+required selectors, private capture and mutation intent. Modernization,
+stable formatting, CGO-disabled build and full `make test-all` pass using the
+worktree VCS-stamping setting described in section 71. Read-only US `.tech`
+comparisons return identical collections through the flat and nested forms
+for principal identities, API keys, basic-auth records, principal groups and
+group keys. Vault is disabled; the principal Vault-authorization endpoint
+returns HTTP 403 through both forms, so no positive Vault read is claimed.
+No live resources were changed. The 33 live Identity scenarios were not rerun;
+replay scenarios and recordings are unchanged. Local check output:
+`.cache/identity-feature-walkthrough/principal-command-tree-checks.log`.
+
+## 73. Principal display-name list filtering
+
+`get/list id principal[s] --display-name NAME` now sends an exact-match
+display-name filter to the API and follows all filtered pages. All matching
+principals are retained because display names are not unique. No matches
+produce an empty list. An explicitly empty name or combination with a
+positional UUID is rejected. The flag is command-local, not persistent,
+global, configuration-bound or inherited by principal child commands.
+Declarative inventory reads retain their existing unfiltered behavior.
+
+Tests verify filter serialization, special-character encoding, pagination,
+multiple matches, no matches, local flag scope and argument validation.
+Read-only US `.tech` checks return one result for `On-call engineer`, zero
+for `On-call` and zero for a nonexistent name. Explicit Konnect get/list
+routing works; a principal API-key command rejects the flag as unknown.
+Modernization, formatting, CGO-disabled build and full `make test-all` pass
+with the section 71 VCS-stamping setting. No live resources were changed,
+and no SDK modification was required. Local check output:
+`.cache/identity-feature-walkthrough/display-name-checks.log`.
+
+## 74. Vault read-command grouping
+
+Get/list now support `id vault keys` and `id vault providers`, with singular
+forms for detail selection. The existing flat commands remain supported.
+Vault is a command namespace with no independent resource ID, lifecycle or
+ownership. Directory selectors retain their default and explicit overrides.
+Trusted IdP paths and declarative YAML fields are unchanged.
+
+Routing tests cover aliases, hooks, directory fallback, key/provider selector
+validation and independent flat-command flags. Modernization, stable
+formatting, CGO-disabled build and full `make test-all` pass with the section
+71 VCS-stamping setting. Read-only US `.tech` comparisons return the same
+registered key and empty provider collection through old and new paths.
+Key detail lookup by UUID and fingerprint and explicit Konnect list routing
+also pass. No live resources were changed and no SDK changes were needed.
+Local check output:
+`.cache/identity-feature-walkthrough/vault-command-tree-checks.log`.
+
+## 75. Proposed Vault YAML grouping — design analysis only
+
+This section records the design before implementation. Section 76 documents
+the implemented format.
+
+The manual walkthrough is paused while evaluating a directory-level `vault:`
+object. No configuration-format change has been implemented. Repository
+evidence supports this direction: `identity:`, `analytics:` and
+`organization:` are declaration grouping objects without their own remote
+lifecycle. `portals[].assets` is a closer example of a non-resource object
+nested beneath a managed resource, with explicit presence handling for its
+logo/favicon children.
+
+The proposed directory block groups `enabled`, `keys` and `providers`.
+`enabled` maps to the existing directory API field `vault_enabled`. Keys,
+providers and static shared credentials remain their current resource kinds,
+with the directory as their existing ownership ancestor. The grouping has no
+ref, remote ID, independent namespace/protection or lifecycle. Trusted IdPs
+remain directory-level declarations. Provider `shared_credentials` retains
+its current meaning and ownership policy.
+
+Recommended presence contract, preserving the existing collection policy:
+
+| Declaration | Recommended behavior |
+| --- | --- |
+| `vault` omitted | Preserve enablement and omit its child collections from sync scope. |
+| `vault: {}` | Same intent as omission; no implicit enablement or collection pruning. |
+| `vault: null` | Reject; use omission to preserve or an object to declare intent. |
+| `vault.enabled: true` | Set directory enablement; omitted child collections remain unselected. |
+| `vault.enabled: false` | Disable the capability; do not interpret this as deleting children. |
+| `vault.keys` omitted | Preserve keys during apply and sync. |
+| `vault.keys: []` | In sync, select that directory's key collection for guarded retirement; apply does not prune. |
+| `vault.providers` omitted | Preserve providers during apply and sync. |
+| `vault.providers: []` | In sync, select provider retirement under the existing credential/dependency guards. |
+
+An explicit collection selects existing directory-wide authority, including
+resources created outside the tool: these Vault children have no metadata to
+divide their collections between administrative systems. Directory adoption
+and protection remain required. A grouping object does not solve Q25's
+missing metadata capability. Provider removal must not implicitly authorize
+deletion of its undeclared credentials or user authorizations.
+
+The backend's disabled-Vault visibility behavior is unchanged. An existing
+disabled directory must still be enabled separately before its children can
+be safely observed and planned. The current planner rejects managing a child
+collection while disabling Vault; the proposed format should preserve that
+guard. Declaring the directory still selects it in `delete -f`; use scoped
+collection sync to retire children while retaining the directory.
+
+Implementation is more than changing YAML tags. Current declaration discovery
+finds direct registered child fields on a resource. The source-scope walk
+also takes the parent ref from the map containing the leaf collection; a
+`vault` grouping map would not carry the directory's ref. Both need support
+for a non-resource grouping between the directory and its children, or an
+explicit existing-style capture policy. Portal asset handling provides prior
+art for specialized presence policies. Root grouping discovery already walks
+non-resource objects, so the problem is narrower than a new lifecycle type.
+
+Typed child extraction, validation, aggregation, namespace inheritance,
+deferred secret/file handling and references need to see the same normalized
+resources. Dump must emit the chosen canonical shape. Explain/scaffold/load
+schema, error paths, examples and relevant E2E manifests must agree with it.
+Existing resource kinds and API request fields can remain stable; preserving
+the normalized saved-plan representation should avoid a gratuitous plan
+format change, subject to round-trip verification. No SDK changes are implied.
+
+Migration needs an explicit choice for both nested `directories[].vault_*`
+and grouped `identity.vault_*` inputs. A single canonical preview format is
+preferable to indefinite parallel syntaxes. If temporary aliases are kept,
+reject mixed old/new declarations rather than silently merging them. A
+grouped root collection still needs an explicit directory selector; it must
+not acquire an implicit directory named default. Global `enabled` at such a
+root would be ambiguous across directories.
+
+Verification should cover omitted/empty/null grouping and collections,
+enablement omission/false, disabled-Vault guards, sibling preservation,
+parent/protection checks, undeclared-credential deletion blockers, grouped
+forms and mixed-format errors, multi-file aggregation, secret/reference
+resolution, saved plans and dump/reload/no-op. Existing enabled replay
+coverage must be preserved and refreshed under the repository replay policy
+if any covered scenario inputs change. This analysis changes no code, SDK,
+configuration acceptance or remote resources.
+
+## 76. Canonical Vault YAML grouping implemented
+
+The directory-level `vault:` grouping is now implemented:
+
+```yaml
+identity:
+  directories:
+    - ref: default-directory
+      name: default
+      vault:
+        enabled: true
+        keys:
+          - ref: encryption
+            name: application-encryption
+            public_key: !file ./vault-public.pem
+        providers:
+          - ref: upstream
+            name: upstream-service
+            template_name: static_secret
+            credential_type: shared
+```
+
+Grouped declarations use `identity.vault.keys`, `identity.vault.providers`
+and `identity.vault.provider_credentials`. They retain explicit parent
+selectors. Directory enablement is declared only as
+`identity.directories[].vault.enabled`.
+
+This replaces the earlier preview input keys `vault_enabled`, `vault_keys`,
+`vault_providers` and `vault_provider_credentials`; old or mixed input forms
+are rejected. Examples, generated explain/scaffold paths, relevant Identity
+scenario manifests and local walkthrough files use the canonical format.
+Native API fixture payloads and response assertions retain `vault_enabled`.
+The SDK, HTTP wire fields, normalized resource kinds and saved-plan field
+names are unchanged.
+
+There is no independent Vault resource or ownership metadata. Directory
+adoption, inherited protection and existing retirement/dependency guards
+continue to apply. Trusted IdPs remain directory siblings. The presence
+contract in section 75 is implemented: omission and an empty grouping do not
+select child collections; explicit empty child lists select that directory's
+corresponding sync collection. Null groupings and null child collections are
+rejected. Apply does not prune. An existing disabled Vault still needs a
+separate enablement before its children can be observed and planned.
+
+Typed grouping objects preserve existing internal resource access. Shared
+declaration discovery recognizes children beneath non-resource objects.
+Source-scope capture retains the owning resource ref through those objects,
+so one directory's empty key list cannot scope another directory's children.
+Schema validation and reserved-metadata validation follow the same paths.
+Dump emits nested enablement, keys and providers; fixture tests reload the
+output and produce no changes. Existing saved-plan lifecycle tests continue
+to exercise key/provider/credential execution and ownership checks.
+
+The local walkthrough's registered public key, private-key location and
+existing remote resources are unchanged. Read-only US `.tech` checks show
+zero-change diffs for the migrated Vault key manifest, the principal-identity
+manifest and a freshly dumped default directory with children. Invalid null,
+legacy and mixed input examples fail at loading. No live mutations were
+performed for this format change. Updated Identity E2E scenarios still need
+their next live run; the prior live checkpoint does not validate these new
+inputs.
+
+Final validation passed: Go modernization, stable formatting, CGO-disabled
+build, lint, race-enabled unit tests, integration tests, installer tests,
+SDK-patch tests, E2E harness tests and replay-metrics tests through
+`GOFLAGS=-buildvcs=false make test-all`. All 20 enabled cassette scenarios
+passed local replay, covering 2,609 recorded exchanges; their inputs,
+recordings and eligibility registry were unchanged. Identity Python helpers
+and YAML files parse successfully, and 21 native directory fixture payloads
+retain the API's flat enablement field. The final binary is rebuilt locally.
+
+Logs are under `.cache/identity-feature-walkthrough/`:
+`vault-format-final-gates.log`, `vault-format-all-replays.log` and per-scenario
+logs in `vault-replays/`. The changes are local and uncommitted.
+
+## 77. Vault provider credential commands nested
+
+Provider credential inspection now uses
+`get|list id vault provider credential[s]`, with the existing explicit
+provider selector and default-directory behavior. Singular/plural provider
+aliases both work. The same hierarchy exposes the existing imperative
+`create|delete id vault provider credential` operations and
+`create id vault provider enrollment` URL capture. Static shared credential
+creation continues to use declarative configuration. These are command-path
+changes; API operations, private capture requirements, mutation validation
+and read sanitization remain the same. Existing flat aliases are retained.
+
+Examples and the prepared walkthrough use the nested paths. The Identity
+credential inspection and OAuth enrollment E2E helpers exercise the new
+paths while retaining flat-form compatibility checks. Neither scenario is
+replay-enabled; no replay registry or cassette changes were required.
+
+The rebuilt binary successfully lists the walkthrough provider's active
+shared credential in US `.tech` through the nested command. This was a
+read-only check; no enrollment URLs or credentials were created or changed.
+
+Validation passed: modernization, stable formatting, CGO-disabled build and
+`GOFLAGS=-buildvcs=false make test-all` (lint, race-enabled unit and harness
+tests, integration, installer, SDK-patch and replay-metrics checks). Nested
+list and single-record reads both returned the expected active credential.
+Updated live Identity scenarios have not been rerun for this command change.
+The gate log is
+`.cache/identity-feature-walkthrough/nested-vault-credentials-gates.log`.
+Changes remain local and uncommitted.
+
+## 78. Auth-server scalar extraction corrected
+
+The Trusted IdP walkthrough exposed a CLI output bug: auth-server get/list
+formatted JSON/YAML directly instead of using the shared output renderer.
+Consequently, `--jq .issuer -r` and `--jq .jwks_uri -r` were accepted but
+ignored. Shell command substitution captured the entire JSON object. Loading
+the trust declaration then failed URI validation before any trust API write.
+This was a client output defect, not an API behavior or engineering question.
+
+Auth-server JSON/YAML output now uses the shared renderer. Command-level
+regression tests run the actual command with fixture API responses, covering
+issuer/JWKS extraction, name/UUID selection, quoted scalar output, get/list
+collection projections and invalid expressions. The tests reproduced the
+ignored-filter behavior before the fix. The auth-server E2E scenario also
+checks plain issuer/JWKS extraction; it is not replay-enabled, so no cassette
+or registry changes are required.
+
+The binary is rebuilt locally. Users must rerun both export commands because
+previously exported JSON objects remain in their shell environment. No
+Trusted IdP or other remote resource was created or changed by this fix.
+
+Final modernization, stable formatting, CGO-disabled build and
+`GOFLAGS=-buildvcs=false make test-all` passed. The original live extraction
+commands now return exactly the public issuer/JWKS strings. With those
+values, the walkthrough trust manifest loads and proposes one creation.
+The user subsequently applied it and confirmed matching URLs, false JIT and
+Vault-access controls, and the configured claim mapping. The API's trust
+creation succeeded without a backend workaround for this failure.
+The gate log is `.cache/identity-feature-walkthrough/auth-server-jq-gates.log`.
+The updated auth-server live E2E scenario has not been rerun. Changes are
+local and uncommitted.
+
+## 79. Trusted IdP associated-principal reads nested
+
+Associated-principal reads now use
+`get|list id trusted-idp principal[s]`, including singular/plural parent
+aliases. The existing Trusted IdP get/list command retains its own reads,
+selectors and aliases. Child reads still require exactly one of
+`--issuer-url` or `--trusted-idp-id` and default their directory to `default`.
+Selectors remain command-local; parent and flat-command flag state are not
+shared. Existing flat `trusted-idp-principals` aliases remain supported.
+
+No API operation, ownership rule or principal mutation was added. Examples,
+walkthrough text and the Trusted IdP inspection E2E helper use nested paths.
+The scenario retains an explicit flat compatibility check and exercises
+issuer/UUID selectors, get/list, empty results, pagination and text/YAML
+output. It is not replay-enabled; no registry or cassette changes are needed.
+
+The binary is rebuilt locally. Read-only US `.tech` checks compared nested
+get by issuer, nested list by UUID and the flat alias: all returned the same
+existing On-call engineer. No remote resource was modified.
+
+Modernization, stable formatting, CGO-disabled build and
+`GOFLAGS=-buildvcs=false make test-all` passed. The updated inspection helper
+parses successfully; its full live scenario has not been rerun. The gate log
+is `.cache/identity-feature-walkthrough/nested-trusted-idp-gates.log`.
+Changes remain local and uncommitted.
+
+## 80. Organization-chart import moved under the import verb
+
+The canonical command is now `kongctl import id org-chart`. Explicit product
+selection works as `kongctl import konnect identity org-chart`; identity/id
+and org-chart/org-charts aliases are supported. The earlier
+`kongctl create id org-chart-import` path remains available for compatibility.
+
+The new root verb and Konnect product route use the existing profile, API
+origin, region and token configuration. Both implicit and explicit product
+paths carry the import verb/product context into SDK construction. The
+Identity import subtree exposes only the organization-chart operation.
+
+Both command forms reuse the existing import runner: a whole-file upload,
+explicit dry-run/execute choice, new private report file, no automatic write
+retry and unchanged native provisioning/ownership rules. No principal
+ownership metadata is added, and no CSV schema or SDK/API operation changed.
+
+Focused command tests execute the real runner against fixture directory and
+import APIs for both preview and execution, checking uploaded bytes,
+directory defaulting, verb/product context, base URL/region/token flag
+binding, counts output and private report capture. The existing create form
+retains its argument validation and aliases. Examples, the manual walkthrough
+and the import E2E helper use the new form; the E2E helper also performs a
+legacy preview comparison. This scenario is not replay-enabled, and no
+replay eligibility or recordings changed. No live import was executed by
+the agent for this command reorganization.
+
+Modernization, stable formatting, CGO-disabled build and
+`GOFLAGS=-buildvcs=false make test-all` passed, including lint, race-enabled
+unit/harness tests, integration, installer, SDK-patch and replay-metrics
+checks. The updated live E2E helper parses successfully but has not been
+rerun against Konnect. Built CLI help verifies both new paths and the legacy
+path with the existing intent/report flags. The gate log is
+`.cache/identity-feature-walkthrough/import-verb-gates.log`.
+Changes remain local and uncommitted.

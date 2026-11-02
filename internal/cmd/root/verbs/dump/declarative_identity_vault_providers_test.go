@@ -60,6 +60,11 @@ func TestVaultProviderDumpReloadAndUnmanagedDirectoryBoundary(t *testing.T) {
 			require.Len(t, rs.Identity.Directories[0].VaultProviders, 2)
 			encoded, err := yaml.Marshal(rs)
 			require.NoError(t, err)
+			var dumped map[string]any
+			require.NoError(t, yaml.Unmarshal(encoded, &dumped))
+			directory := dumped["identity"].(map[string]any)["directories"].([]any)[0].(map[string]any)
+			require.Len(t, directory["vault"].(map[string]any)["providers"], 2)
+			require.NotContains(t, directory, "vault_providers")
 			require.Contains(t, string(encoded), "registration_endpoint:")
 			require.NotContains(t, string(encoded), "client_secret:")
 			require.NotContains(t, string(encoded), "scopes: []")

@@ -26,9 +26,9 @@ Find the principal and group UUIDs:
 ```sh
 kongctl get identity principals --directory-name default
 kongctl get identity groups --directory-name default
-kongctl get identity principal-api-keys \
+kongctl get identity principal api-keys \
   --directory-name default --principal-id PRINCIPAL_UUID --page-size 1
-kongctl get identity principal-api-key KEY_UUID \
+kongctl get identity principal api-key KEY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID -o yaml
 ```
 
@@ -56,7 +56,7 @@ Use the UUID of the worker from `api-key-parents.yaml`. Omit a secret source
 to generate a key. Choose a new capture path outside the checkout:
 
 ```sh
-kongctl create identity principal-api-key \
+kongctl create identity principal api-key \
   --directory-name default --principal-id PRINCIPAL_UUID \
   --name primary --expires-at 2031-01-01T00:00:00Z \
   --secret-output-file ~/worker-key.private.json
@@ -75,11 +75,11 @@ For rotation, create a second key, distribute it, then explicitly retire the
 old UUID. Administrative metadata checks do not prove runtime authentication.
 
 ```sh
-kongctl patch identity principal-api-key KEY_UUID \
+kongctl patch identity principal api-key KEY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID --name replacement
-kongctl patch identity principal-api-key KEY_UUID \
+kongctl patch identity principal api-key KEY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID --no-expiration
-kongctl delete identity principal-api-key KEY_UUID \
+kongctl delete identity principal api-key KEY_UUID \
   --directory-name default --principal-id PRINCIPAL_UUID --auto-approve
 ```
 

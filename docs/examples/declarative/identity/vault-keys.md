@@ -1,7 +1,8 @@
 # Token Vault public encryption keys
 
-A directory has one Token Vault, enabled by `vault_enabled`. Its public keys
-encrypt Vault data. They are separate from API keys used to authenticate a
+A directory has one Token Vault, configured with `vault.enabled` in YAML
+(the API field is `vault_enabled`). Its public keys encrypt Vault data.
+They are separate from API keys used to authenticate a
 principal or group. This example configures public keys; it does not perform
 runtime encryption or store the corresponding private keys.
 
@@ -47,7 +48,7 @@ kongctl apply -f docs/examples/declarative/identity/vault-directory.yaml
 Existing disabled Vaults must be enabled in this separate step. The API hides
 their children, so a plan cannot safely observe keys while proposing to enable
 Vault in the same operation. A new directory can be created with explicit
-`vault_enabled: true` and its keys in one plan.
+`vault.enabled: true` and its keys in one plan.
 
 ## Register and inspect public keys
 
@@ -58,7 +59,7 @@ Keep the actual private key with the application that needs it.
 ```sh
 kongctl plan -f docs/examples/declarative/identity/vault-keys.yaml
 kongctl apply -f docs/examples/declarative/identity/vault-keys.yaml
-kongctl get identity vault-keys --directory-name default -o json
+kongctl get identity vault keys --directory-name default -o json
 ```
 
 Required fields are `ref`, `name`, and `public_key`. Supported material is one
@@ -73,8 +74,8 @@ can be changed. The local `ref` is not stored remotely. Select a key by UUID or
 exact fingerprint, including with an externally managed directory:
 
 ```sh
-kongctl get identity vault-key KEY_UUID --directory-name default -o text
-kongctl get identity vault-key --kid FINGERPRINT \
+kongctl get identity vault key KEY_UUID --directory-name default -o text
+kongctl get identity vault key --kid FINGERPRINT \
   --directory-name default -o yaml
 ```
 
@@ -89,12 +90,12 @@ a different fingerprint and creates another key; the old key is preserved by
 `apply`. `diff` shows the intended changes. Repeating an unchanged plan yields
 zero changes.
 
-`sync` prunes only an explicitly declared key collection. Omitting `vault_keys`
-preserves existing keys; `vault_keys: []` explicitly retires all keys under that
-managed directory. Grouped `identity.vault_keys` entries use a `directory`
+`sync` prunes only an explicitly declared key collection. Omitting `vault.keys`
+preserves existing keys; `vault.keys: []` explicitly retires all keys under that
+managed directory. Grouped `identity.vault.keys` entries use a `directory`
 selector referencing the declared managed directory. External directory
 references never authorize key writes or sync.
-A grouped `identity.vault_keys: []` has no directory selector; use a nested
+A grouped `identity.vault.keys: []` has no directory selector; use a nested
 empty collection to retire a directory's keys.
 
 At most five keys can be registered. A rotation with space registers new
@@ -113,8 +114,8 @@ administrative E2E scenario does not prove runtime encryption behavior.
 kongctl dump declarative --resources identity.directories \
   --include-child-resources --output-file directory-dump.yaml
 kongctl plan -f directory-dump.yaml
-kongctl scaffold identity.vault_keys
-kongctl explain identity.directories.vault_keys
+kongctl scaffold identity.vault.keys
+kongctl explain identity.directories.vault.keys
 ```
 
 Public keys are exported only beneath an explicitly managed, enabled directory.

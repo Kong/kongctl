@@ -261,6 +261,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			if ctx == nil {
 				ctx = context.Background()
 			}
+			ctx = context.WithValue(ctx, verbs.Verb, verb)
 			ctx = context.WithValue(ctx, products.Product, Product)
 			ctx = context.WithValue(ctx, helpers.SDKAPIFactoryKey, common.GetSDKFactoryForVerb(verb))
 			c.SetContext(ctx)
@@ -272,7 +273,7 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		cmd.Example = konnectExamples(verb)
 	}
 
-	if verb == verbs.Inspect {
+	if verb == verbs.Inspect || verb == verbs.Import {
 		identityCmd, err := identity.NewIdentityCmd(verb, addFlags, preRunE)
 		if err != nil {
 			return nil, err
@@ -282,6 +283,9 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 			return nil, err
 		}
 		addFlags(verb, cmd)
+		if verb == verbs.Import {
+			cmdpkg.ConfigureRequiresSubcommand(cmd)
+		}
 		return cmd, nil
 	}
 

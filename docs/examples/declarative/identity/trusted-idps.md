@@ -5,9 +5,9 @@ trusts. Its configuration controls JIT principal provisioning, claim mapping
 and Token Vault access. It is separate from an OAuth client or an auth-server
 identity provider.
 
-Use a directory with Token Vault
-enabled (`vault_enabled: true`) and an existing Trusted IdP. The API returns
-403 while Vault is disabled, including when trust records already exist.
+Use a directory with Token Vault enabled (`vault.enabled: true` in YAML) and
+an existing Trusted IdP. The API returns 403 while Vault is disabled,
+including when trust records already exist.
 See [directory examples](README.md) for using or managing `default`.
 Reading a directory or IdP does not adopt it.
 
@@ -25,7 +25,7 @@ export KONGCTL_IDENTITY_TRUSTED_ISSUER='https://your-issuer.example.com'
   --directory-name default \
   --issuer-url "$KONGCTL_IDENTITY_TRUSTED_ISSUER" -o yaml
 
-./kongctl get identity trusted-idp-principals \
+./kongctl get identity trusted-idp principals \
   --directory-name default \
   --issuer-url "$KONGCTL_IDENTITY_TRUSTED_ISSUER" -o text
 ```
@@ -50,7 +50,7 @@ issuer variable above to an existing IdP's exact issuer, then run:
 ./kongctl apply \
   -f docs/examples/declarative/identity/trusted-idp-principals.yaml
 
-./kongctl get identity trusted-idp-principals \
+./kongctl get identity trusted-idp principals \
   --directory-name default \
   --issuer-url "$KONGCTL_IDENTITY_TRUSTED_ISSUER" -o json
 ```

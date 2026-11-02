@@ -115,15 +115,15 @@ def main():
         scope = ["--directory-id", directory]
         namescope = ["--directory-name", name]
         static_scope = [*scope, "--provider-id", static["id"]]
-        values = invoke("static-pages", ["get", "identity", "vault-provider-credentials", *static_scope, "--page-size", "1"])
+        values = invoke("static-pages", ["get", "identity", "vault", "provider", "credentials", *static_scope, "--page-size", "1"])
         assert values == snapshots[static["id"]]
-        selected = invoke("static-detail", ["get", "identity", "vault-provider-credential", default["id"], *static_scope])
+        selected = invoke("static-detail", ["get", "identity", "vault", "provider", "credential", default["id"], *static_scope])
         assert selected == next(v for v in values if v["id"] == default["id"])
         assert selected["selector"] is None and selected["priority"] is None
         values = invoke("oauth-pages", ["list", "konnect", "identity", "provider-credentials", *namescope,
             "--provider-name", oauth["name"], "--page-size", "1"])
         assert values == snapshots[oauth["id"]]
-        selected = invoke("oauth-detail", ["get", "identity", "vault-provider-credential", pending["id"],
+        selected = invoke("oauth-detail", ["get", "identity", "vault", "provider", "credential", pending["id"],
             *namescope, "--provider-name", oauth["name"]])
         assert selected["status"] == "pending" and "enrollment_url" not in selected
         for noun, parent in (("vault-provider-credentials", [*scope, "--provider-id", empty["id"]]),
@@ -137,11 +137,11 @@ def main():
             assert "ID" in text and "{" not in text
             yaml = invoke(label + "-yaml", ["get", "identity", noun, *parent], output="yaml")
             assert ("pending" in yaml) if label == "provider" else yaml.strip() == "[]"
-        invoke("wrong-provider", ["get", "identity", "vault-provider-credential", default["id"], *scope,
+        invoke("wrong-provider", ["get", "identity", "vault", "provider", "credential", default["id"], *scope,
             "--provider-id", empty["id"]], failure="not found")
         invoke("missing-principal-credential", ["get", "identity", "principal-vault-credential", default["id"], *scope,
             "--principal-id", principal["id"]], failure="not found")
-        invoke("missing-parent", ["get", "identity", "vault-provider-credentials", *scope,
+        invoke("missing-parent", ["get", "identity", "vault", "provider", "credentials", *scope,
             "--provider-id", "731559d3-39bd-48c7-b33c-eb192847eb20"], failure="HTTP 404")
         for provider_id, expected in snapshots.items():
             assert collection("vault/providers/" + provider_id + "/credentials") == expected

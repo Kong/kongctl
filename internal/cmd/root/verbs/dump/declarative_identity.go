@@ -40,8 +40,9 @@ func identityDirectoryCollector() declarativeCollector {
 					Name: current.Name, Description: &current.Description,
 					AllowedControlPlanes:  slices.Clone(current.AllowedControlPlanes),
 					AllowAllControlPlanes: current.AllowAllControlPlanes, TTLSecs: current.TTLSecs,
-					NegativeTTLSecs: current.NegativeTTLSecs, VaultEnabled: current.VaultEnabled,
-					Labels: labels.GetUserLabels(current.Labels),
+					NegativeTTLSecs:        current.NegativeTTLSecs,
+					IdentityDirectoryVault: resources.IdentityDirectoryVault{VaultEnabled: current.VaultEnabled},
+					Labels:                 labels.GetUserLabels(current.Labels),
 				}
 				if current.ManagedBy[resources.ManagedByToolKey] != resources.ManagedByTool {
 					declaration.Kongctl = nil
