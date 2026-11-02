@@ -699,7 +699,7 @@ func portalIDFromParent(parent any) (string, error) {
 	}
 
 	switch p := parent.(type) {
-	case *kkComps.Portal:
+	case *kkComps.APIRegistrationPortal:
 		id := strings.TrimSpace(p.ID)
 		if id == "" {
 			return "", fmt.Errorf("portal identifier is missing")

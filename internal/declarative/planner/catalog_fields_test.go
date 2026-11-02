@@ -162,7 +162,7 @@ func TestBackendOrdinaryUpdateStripsDeferredPasswords(t *testing.T) {
 					} else {
 						current.Authentication = kkComps.CreateBackendClusterAuthenticationSensitiveDataAwareSchemeSaslScram(
 							kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAware{
-								Username: "user", Algorithm: kkComps.AlgorithmSha256,
+								Username: "user", Algorithm: kkComps.BackendClusterAuthenticationSaslScramSensitiveDataAwareAlgorithmSha256,
 							},
 						)
 						desired.Authentication = kkComps.CreateBackendClusterAuthenticationSchemeSaslScram(
