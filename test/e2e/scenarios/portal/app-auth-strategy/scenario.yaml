@@ -178,7 +178,52 @@ steps:
     inputOverlayDirs:
       - overlays/003-update-key-names
     commands:
-      - name: 000-plan
+      - name: 000-diff-update
+        run:
+          - diff
+          - -f
+          - '{{ .workdir }}/app-auth-strategy.yaml'
+          - --mode
+          - apply
+          - -o
+          - json
+        assertions:
+          - select: metadata
+            expect:
+              fields:
+                mode: apply
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.UPDATE: 1
+          - select: changes[?resource_type=='application_auth_strategy' && resource_ref=='key-auth-strategy-e2e'] | [0]
+            expect:
+              fields:
+                action: UPDATE
+                changed_fields.configs.old."key-auth".key_names:
+                  - X-API-Key
+                  - Api-Key
+                changed_fields.configs.new."key-auth".key_names:
+                  - X-API-Key
+                  - Api-Key
+                  - X-Custom-Key
+      - name: 001-verify-diff-unchanged
+        run:
+          - get
+          - auth-strategy
+          - key-auth-strategy-e2e
+          - -o
+          - json
+        assertions:
+          - select: '@'
+            expect:
+              fields:
+                name: key-auth-strategy-e2e
+                configs."key-auth".key_names:
+                  - X-API-Key
+                  - Api-Key
+      - name: 002-plan
         outputFormat: disable
         stdoutFile: "{{ .workdir }}/plan-update.json"
         run:
@@ -207,7 +252,7 @@ steps:
             expect:
               file: expect/003-update-key-names/auth-strategy-fields.json
 
-      - name: 001-apply
+      - name: 003-apply
         outputFormat: json
         run:
           - apply
