@@ -9,7 +9,6 @@ import (
 	commoncmd "github.com/kong/kongctl/internal/cmd/common"
 	"github.com/kong/kongctl/internal/cmd/root/products"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/adopt"
-	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aicostmanagement"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/aigateway"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/analytics"
 	"github.com/kong/kongctl/internal/cmd/root/products/konnect/api"
@@ -439,7 +438,6 @@ func NewKonnectCmd(verb verbs.VerbValue) (*cobra.Command, error) {
 		return nil, e
 	}
 	cmd.AddCommand(aigwCmd)
-	cmd.AddCommand(aicostmanagement.NewCommand(verb, addFlags, preRunE))
 
 	// Add auth strategy command
 	asc, e := authstrategy.NewAuthStrategyCmd(verb, addFlags, preRunE)

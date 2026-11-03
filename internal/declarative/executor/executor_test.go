@@ -54,6 +54,27 @@ func (m *MockProgressReporter) FinishExecution(result *ExecutionResult) {
 	m.Called(result)
 }
 
+func TestExecutorRejectsRemovedAICostManagementPlansBeforeExecution(t *testing.T) {
+	for _, action := range []planner.ActionType{planner.ActionCreate, planner.ActionUpdate, planner.ActionDelete} {
+		t.Run(string(action), func(t *testing.T) {
+			plan := planner.NewPlan(planner.CurrentPlanVersion, "test", planner.PlanModeApply)
+			plan.AddChange(planner.PlannedChange{
+				ID: "portal", ResourceType: planner.ResourceTypePortal, ResourceRef: "portal",
+				Action: planner.ActionCreate, Fields: map[string]any{planner.FieldName: "portal"},
+			})
+			plan.AddChange(planner.PlannedChange{
+				ID: "removed", ResourceType: "ai_cost_management_tags", ResourceRef: "capture", Action: action,
+			})
+			// No client is needed: compatibility validation must stop all execution.
+			result := New(nil, nil, false).Execute(t.Context(), plan)
+			require.Equal(t, 1, result.FailureCount)
+			require.Zero(t, result.SuccessCount)
+			require.Len(t, result.Errors, 1)
+			require.Contains(t, result.Errors[0].Error, `resource type "ai_cost_management_tags" is no longer supported`)
+		})
+	}
+}
+
 func TestExecutor_New(t *testing.T) {
 	reporter := &MockProgressReporter{}
 

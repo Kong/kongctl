@@ -61,6 +61,14 @@ func (runDumpOrganizationTeamAPIStub) DeleteOrganizationTeam(
 	return nil, nil
 }
 
+func TestDeclarativeDumpRejectsRemovedAICostManagementSelector(t *testing.T) {
+	// A nil helper ensures selector validation happens before client setup.
+	err := RunDeclarativeDump(nil, DeclarativeDumpOptions{Resources: []string{"ai_cost_management_tags"}})
+	if err == nil || !strings.Contains(err.Error(), "ai_cost_management_tags") {
+		t.Fatalf("expected unsupported selector error, got %v", err)
+	}
+}
+
 func TestDeclarativeDumpHasSkipDefaultsFlag(t *testing.T) {
 	flag := newDeclarativeCmd().Flags().Lookup("skip-defaults")
 	if flag == nil {

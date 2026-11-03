@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestLoaderRejectsRemovedAICostManagementCollection(t *testing.T) {
+	for _, value := range []string{"[]", "null", "\n  - ref: capture\n    headers: []\n    prefixes: []"} {
+		_, err := New().LoadFile(writeLoaderTestFile(t, "ai_cost_management_tags: "+value+"\n"))
+		require.ErrorContains(t, err, "unknown field 'ai_cost_management_tags'")
+	}
+}
+
 func TestNew(t *testing.T) {
 	loader := New()
 	assert.NotNil(t, loader)

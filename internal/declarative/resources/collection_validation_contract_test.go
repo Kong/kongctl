@@ -36,7 +36,6 @@ func TestCollectionValidationStepOrder(t *testing.T) {
 		ResourceTypeAIGatewayCACertificate,
 		ResourceTypeAIGatewaySNI,
 		ResourceTypeDashboard,
-		ResourceTypeAICostManagementTags,
 		ResourceTypeGatewayService,
 		ResourceTypeAuditLogWebhookDestination,
 		ResourceTypeControlPlaneDataPlaneCertificate,

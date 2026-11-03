@@ -59,6 +59,9 @@ func validateChangeCompatibility(change *PlannedChange) error {
 	if strings.TrimSpace(change.ResourceType) == "" {
 		return fmt.Errorf("missing resource type")
 	}
+	if change.ResourceType == "ai_cost_management_tags" {
+		return fmt.Errorf("resource type %q is no longer supported", change.ResourceType)
+	}
 	switch change.Action {
 	case ActionCreate, ActionUpdate, ActionDelete:
 		if change.ResourceType == ResourceTypeDeck && change.Action != ActionCreate {

@@ -23,11 +23,6 @@ func (p *Planner) rootPlanners() []rootPlanner {
 	base := NewBasePlanner(p)
 	roots := []rootPlanner{
 		{
-			resourceType: resources.ResourceTypeAICostManagementTags,
-			displayName:  "AI cost management tags",
-			planner:      &aiCostManagementTagsPlanner{BasePlanner: base},
-		},
-		{
 			resourceType: resources.ResourceTypeDCRProvider,
 			displayName:  "DCR provider",
 			planner:      NewDCRProviderPlanner(base),

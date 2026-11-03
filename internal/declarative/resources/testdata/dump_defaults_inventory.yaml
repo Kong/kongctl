@@ -1,10 +1,6 @@
 sdk_version: v0.80.0
 schema_version: 1
 resources:
-  - resource_type: ai_cost_management_tags
-    defaults: []
-    overrides: []
-    exclusions: []
   - resource_type: ai_gateway
     defaults:
       - path: agents.config.logging.max_payload_size

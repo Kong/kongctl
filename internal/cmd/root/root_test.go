@@ -28,6 +28,34 @@ import (
 	"github.com/spf13/viper"
 )
 
+func TestRemovedAICostManagementCommands(t *testing.T) {
+	for _, verb := range []string{"get", "list", "create", "update", "delete"} {
+		for _, product := range []string{"", "konnect "} {
+			path := verb + " " + product
+			t.Run(path, func(t *testing.T) {
+				help := executeRootForTest(t, append(strings.Fields(path), "--help")...)
+				if help.exitCode != 0 || strings.Contains(help.stdout, "ai-cost-management") {
+					t.Fatalf("unexpected help: %s%s", help.stdout, help.stderr)
+				}
+				completionArgs := append([]string{"__complete"}, strings.Fields(path)...)
+				completion := executeRootForTest(t, append(completionArgs, "")...)
+				if completion.exitCode != 0 || strings.Contains(completion.stdout, "ai-cost-management") {
+					t.Fatalf("unexpected completion: %+v", completion)
+				}
+				if verb != "get" && verb != "list" {
+					return
+				}
+				for _, suffix := range []string{"ai-cost-management", "ai-cost-management tag-capture"} {
+					result := executeRootForTest(t, strings.Fields(path+suffix)...)
+					if result.exitCode == 0 || !strings.Contains(result.stderr, "unknown command") {
+						t.Fatalf("expected unknown command for %s%s: %+v", path, suffix, result)
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestMergedFlagUsagesUsesCommandSpecificOutputFormats(t *testing.T) {
 	output := cmdpkg.NewDeferredEnum([]string{
 		common.JSON.String(),
