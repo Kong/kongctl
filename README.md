@@ -470,6 +470,15 @@ default:
   color-theme: tokyo_night
 ```
 
+Run `kongctl list themes` to list the available themes. The bubbletint v2.0.4
+update refreshes the theme catalog. Verified theme renames remain supported
+as aliases. Removed themes without a verified replacement produce a warning
+on STDERR and use `auto`, so commands can continue. Unknown theme names
+produce an error. These rules apply to flags, profile configuration, and
+environment settings; kongctl does not rewrite your configuration file.
+See [theme migration guidance](docs/color-themes.md) for renamed and removed
+theme IDs.
+
 ## Command Structure
 
 Commands generally follow a verb->product->resource->args pattern with `konnect` as the default product.

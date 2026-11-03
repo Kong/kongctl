@@ -855,7 +855,7 @@ func TestRenderForFormat_ExactCustomTablePreservesColumns(t *testing.T) {
 	require.Equal(t, "NAME     ACTIVE  PRIMARY  SECONDARY\nkonnect  true    blue     green\n", outBuf.String())
 }
 
-func newMinimalBubbleModel(t *testing.T) *bubbleModel {
+func newMinimalBubbleModel(t *testing.T, opts ...Option) *bubbleModel {
 	t.Helper()
 	columns := []table.Column{{Title: "NAME", Width: 12}}
 	rows := []table.Row{{"alpha"}, {"beta"}}
@@ -865,9 +865,13 @@ func newMinimalBubbleModel(t *testing.T) *bubbleModel {
 		table.WithFocused(true),
 	)
 	palette := theme.Current()
+	cfg := config{rootLabel: "Root"}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
 	return newBubbleModel(
 		tbl,
-		config{rootLabel: "Root"},
+		cfg,
 		lipgloss.NewStyle(),
 		lipgloss.NewStyle(),
 		lipgloss.NewStyle(),
@@ -976,6 +980,40 @@ func TestThemeCycling_AdvancesPaletteAndSetsStatus(t *testing.T) {
 	}
 	require.Contains(t, model.statusMessage, expectedName)
 	require.Contains(t, model.statusMessage, "color-theme")
+}
+
+func TestRemovedThemeWarningAppearsInStatus(t *testing.T) {
+	command := &cobra.Command{}
+	command.SetContext(theme.ContextWithFallback(t.Context(), "kanagawa"))
+	model := newMinimalBubbleModel(t, WithDetailHelper(cmd.BuildHelper(command, nil)))
+
+	status := ansi.Strip(model.renderStatusArea(120))
+	require.Contains(t, status, `Theme "kanagawa" was removed`)
+	require.Contains(t, status, "using auto")
+	require.Contains(t, status, "t / T")
+
+	model.setStatus("Resources loaded")
+	status = ansi.Strip(model.renderStatusArea(120))
+	require.Contains(t, status, `Theme "kanagawa" was removed`)
+	require.Contains(t, status, "Resources loaded")
+
+	model.clearStatus()
+	status = ansi.Strip(model.renderStatusArea(40))
+	require.Contains(t, status, `Theme "kanagawa" was removed`)
+	require.Contains(t, status, "color-theme")
+	for line := range strings.SplitSeq(status, "\n") {
+		require.LessOrEqual(t, lipgloss.Width(line), 40)
+	}
+
+	for _, key := range []string{"t", "T"} {
+		t.Run(key, func(t *testing.T) {
+			model := newMinimalBubbleModel(t, WithDetailHelper(cmd.BuildHelper(command, nil)))
+			model = sendKey(t, model, key)
+			status := ansi.Strip(model.renderStatusArea(120))
+			require.NotContains(t, status, "was removed")
+			require.Contains(t, status, "set 'color-theme:")
+		})
+	}
 }
 
 func TestThemeCycling_ReversesWithShiftT(t *testing.T) {

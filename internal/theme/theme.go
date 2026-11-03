@@ -283,7 +283,7 @@ func SetCurrent(name string) error {
 
 	p, ok := palettes[name]
 	if !ok {
-		return fmt.Errorf("unknown color theme %q", name)
+		return fmt.Errorf("unknown color theme %q; run 'kongctl list themes --color-theme auto' for available themes", name)
 	}
 	current = p
 	return nil
@@ -360,8 +360,8 @@ func (f *Flag) Set(v string) error {
 	if name == "" {
 		name = AutoName
 	}
-	if !Exists(name) {
-		return fmt.Errorf("invalid color theme %q", v)
+	if !Exists(name) && !IsRemoved(name) {
+		return fmt.Errorf("invalid color theme %q; run 'kongctl list themes --color-theme auto' for available themes", v)
 	}
 	f.value = name
 	return nil
@@ -447,6 +447,9 @@ func resolveName(name string) string {
 	case LegacyName:
 		return DefaultName
 	default:
+		if replacement := legacyTintNames[normalized]; replacement != "" {
+			return replacement
+		}
 		return normalized
 	}
 }
@@ -531,15 +534,8 @@ func aboutFromTint(t *tint.Tint) string {
 			continue
 		}
 
-		sourceName := strings.TrimSpace(source.Name)
-		sourceLink := strings.TrimSpace(source.Link)
-		switch {
-		case sourceName != "" && sourceLink != "":
-			credits = append(credits, fmt.Sprintf("%s (%s)", sourceName, sourceLink))
-		case sourceName != "":
+		if sourceName := strings.TrimSpace(source.Name); sourceName != "" {
 			credits = append(credits, sourceName)
-		case sourceLink != "":
-			credits = append(credits, sourceLink)
 		}
 	}
 

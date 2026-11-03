@@ -222,6 +222,10 @@ func newRootCmd() *cobra.Command {
 			return renderRootOverview(cmd.OutOrStdout(), cmd)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			fallbackTheme, err := configureColorTheme()
+			if err != nil {
+				return &cmdpkg.ConfigurationError{Err: err}
+			}
 			if err := konnectcommon.ApplyEnvironmentDefaults(cmd.Root(), currConfig); err != nil {
 				return &cmdpkg.ConfigurationError{Err: err}
 			}
@@ -243,6 +247,7 @@ func newRootCmd() *cobra.Command {
 			ctx = context.WithValue(ctx, build.InfoKey, buildInfo)
 			ctx = context.WithValue(ctx, log.LoggerKey, logger)
 			ctx = theme.ContextWithPalette(ctx, theme.Current())
+			ctx = theme.ContextWithFallback(ctx, fallbackTheme)
 
 			if telemetryRecorder == nil {
 				telemetryRecorder = telemetry.NewRecorder(
@@ -318,7 +323,7 @@ func newRootCmd() *cobra.Command {
 		fmt.Sprintf(`Configures the CLI UI/theme (prompt, tables, TUI elements).
 - Config path: [ %s ]
 - Examples   : [ %s ]
-- Reference  : [ https://github.com/lrstanley/bubbletint/blob/master/DEFAULT_TINTS.md ]`,
+- List       : [ kongctl list themes ]`,
 			common.ColorThemeConfigPath, strings.Join(sampleThemeNames(), ", ")))
 
 	// -------------------------------------------------------------------------
@@ -703,24 +708,6 @@ func initConfig() {
 	bindFlags(currConfig)
 	applyExtensionRuntimeDefaults(runtimeCtx, currConfig)
 
-	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
-	if themeName == "" {
-		themeName = common.DefaultColorTheme
-	}
-	if err := theme.SetCurrent(themeName); err != nil {
-		if streams != nil && streams.ErrOut != nil {
-			fmt.Fprintf(streams.ErrOut,
-				"warning: %v; falling back to %q theme\n",
-				err, common.DefaultColorTheme)
-		}
-		_ = theme.SetCurrent(common.DefaultColorTheme)
-		currConfig.SetString(common.ColorThemeConfigPath, common.DefaultColorTheme)
-		themeName = common.DefaultColorTheme
-	}
-	// Show the hint when automatic theme selection is active. Users who have
-	// chosen a fixed theme have already discovered the feature.
-	theme.SetConfiguredExplicitly(themeName != common.DefaultColorTheme)
-
 	loggerOpts := &slog.HandlerOptions{
 		Level: log.ConfigLevelStringToSlogLevel(cfg.GetString(common.LogLevelConfigPath)),
 	}
@@ -761,6 +748,33 @@ func initConfig() {
 	}
 
 	logger = slog.New(handler)
+}
+
+func configureColorTheme() (string, error) {
+	var fallbackTheme string
+	themeName := strings.TrimSpace(currConfig.GetString(common.ColorThemeConfigPath))
+	if themeName == "" {
+		themeName = common.DefaultColorTheme
+	}
+	if theme.IsRemoved(themeName) {
+		fallbackTheme = themeName
+		if streams != nil && streams.ErrOut != nil {
+			fmt.Fprintf(streams.ErrOut,
+				"warning: color theme %q is no longer available after the theme catalog update; using %q. "+
+					"Set color-theme in your profile or pass --color-theme <name>. "+
+					"Run 'kongctl list themes --color-theme auto' to list available themes.\n",
+				themeName, common.DefaultColorTheme)
+		}
+		themeName = common.DefaultColorTheme
+		currConfig.SetString(common.ColorThemeConfigPath, themeName)
+	}
+	if err := theme.SetCurrent(themeName); err != nil {
+		return "", err
+	}
+	// Show the hint when automatic theme selection is active. Users who have
+	// chosen a fixed theme have already discovered the feature.
+	theme.SetConfiguredExplicitly(themeName != common.DefaultColorTheme)
+	return fallbackTheme, nil
 }
 
 func Execute(ctx context.Context, s *iostreams.IOStreams, bi *build.Info) {
