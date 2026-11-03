@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +30,15 @@ import (
 )
 
 func TestRemovedAICostManagementCommands(t *testing.T) {
-	for _, verb := range []string{"get", "list", "create", "update", "delete"} {
+	root := newRootCmd()
+	requireNoError(t, addCommandsWithRootForTest(root))
+	walkCommandsForTest(root, nil, func(command *cobra.Command, _ []string) {
+		if command.Name() == "ai-cost-management" || slices.Contains(command.Aliases, "ai-cost-management") {
+			t.Errorf("removed namespace registered at %s", command.CommandPath())
+		}
+	})
+
+	for _, verb := range []string{"get", "list"} {
 		for _, product := range []string{"", "konnect "} {
 			path := verb + " " + product
 			t.Run(path, func(t *testing.T) {
@@ -41,9 +50,6 @@ func TestRemovedAICostManagementCommands(t *testing.T) {
 				completion := executeRootForTest(t, append(completionArgs, "")...)
 				if completion.exitCode != 0 || strings.Contains(completion.stdout, "ai-cost-management") {
 					t.Fatalf("unexpected completion: %+v", completion)
-				}
-				if verb != "get" && verb != "list" {
-					return
 				}
 				for _, suffix := range []string{"ai-cost-management", "ai-cost-management tag-capture"} {
 					result := executeRootForTest(t, strings.Fields(path+suffix)...)

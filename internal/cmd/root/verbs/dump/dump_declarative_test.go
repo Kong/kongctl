@@ -3,6 +3,7 @@ package dump
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	kkComps "github.com/Kong/sdk-konnect-go/models/components"
 	kkOps "github.com/Kong/sdk-konnect-go/models/operations"
 
+	cmdpkg "github.com/kong/kongctl/internal/cmd"
 	"github.com/kong/kongctl/internal/config"
 	decllabels "github.com/kong/kongctl/internal/declarative/labels"
 	declresources "github.com/kong/kongctl/internal/declarative/resources"
@@ -64,7 +66,9 @@ func (runDumpOrganizationTeamAPIStub) DeleteOrganizationTeam(
 func TestDeclarativeDumpRejectsRemovedAICostManagementSelector(t *testing.T) {
 	// A nil helper ensures selector validation happens before client setup.
 	err := RunDeclarativeDump(nil, DeclarativeDumpOptions{Resources: []string{"ai_cost_management_tags"}})
-	if err == nil || !strings.Contains(err.Error(), "ai_cost_management_tags") {
+	var configurationError *cmdpkg.ConfigurationError
+	if !errors.As(err, &configurationError) ||
+		!strings.HasPrefix(err.Error(), "unsupported resource type: ai_cost_management_tags. Supported types:") {
 		t.Fatalf("expected unsupported selector error, got %v", err)
 	}
 }

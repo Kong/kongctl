@@ -11,6 +11,9 @@ import (
 // remain readable; older executors reject 1.1 rather than ignore its bindings.
 const CurrentPlanVersion = "1.1"
 
+// Keep retired identifiers out of the supported resource registry.
+const removedResourceTypeAICostManagementTags = "ai_cost_management_tags"
+
 // ValidatePlanCompatibility validates the portion of the serialized plan
 // contract that is independent of executor SDK request types.
 func ValidatePlanCompatibility(plan *Plan) error {
@@ -59,7 +62,7 @@ func validateChangeCompatibility(change *PlannedChange) error {
 	if strings.TrimSpace(change.ResourceType) == "" {
 		return fmt.Errorf("missing resource type")
 	}
-	if change.ResourceType == "ai_cost_management_tags" {
+	if change.ResourceType == removedResourceTypeAICostManagementTags {
 		return fmt.Errorf("resource type %q is no longer supported", change.ResourceType)
 	}
 	switch change.Action {

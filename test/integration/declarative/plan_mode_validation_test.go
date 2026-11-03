@@ -117,6 +117,46 @@ func TestDiffAcceptsSavedPlansFromEveryMode(t *testing.T) {
 	}
 }
 
+func TestCommandsRejectSavedPlansWithRemovedAICostManagement(t *testing.T) {
+	for _, verb := range []verbs.VerbValue{verbs.Apply, verbs.Sync, verbs.Delete, verbs.Diff} {
+		for _, source := range []string{"file", "stdin"} {
+			t.Run(verb.String()+"/"+source, func(t *testing.T) {
+				mode := planner.PlanMode(verb)
+				if verb == verbs.Diff {
+					mode = planner.PlanModeApply
+				}
+				plan := planner.NewPlan(planner.CurrentPlanVersion, "kongctl/integration-test", mode)
+				plan.AddChange(planner.PlannedChange{
+					ID: "removed", ResourceType: "ai_cost_management_tags", ResourceRef: "capture",
+					Action: planner.ActionUpdate,
+				})
+				data, err := json.Marshal(plan)
+				require.NoError(t, err)
+				planFile := filepath.Join(t.TempDir(), "removed-plan.json")
+				require.NoError(t, os.WriteFile(planFile, data, 0o600))
+				cmd, err := declarative.NewDeclarativeCmd(verb)
+				require.NoError(t, err)
+				cmd.SetContext(SetupTestContext(t))
+				var output bytes.Buffer
+				cmd.SetOut(&output)
+				cmd.SetErr(&output)
+				if source == "stdin" {
+					planFile = "-"
+					cmd.SetIn(bytes.NewReader(data))
+				}
+				args := []string{"--plan", planFile}
+				if verb != verbs.Diff {
+					args = append(args, "--auto-approve")
+				}
+				cmd.SetArgs(args)
+				err = cmd.Execute()
+				require.ErrorContains(t, err, `resource type "ai_cost_management_tags" is no longer supported`)
+				require.ErrorContains(t, err, "regenerate the plan")
+			})
+		}
+	}
+}
+
 func writePlanArtifact(t *testing.T, mode planner.PlanMode) string {
 	t.Helper()
 
