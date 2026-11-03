@@ -175,7 +175,7 @@ class ReplayTest(unittest.TestCase):
 
     def test_round_trip_cassette_phases_preserve_dependencies_and_exact_matching(self):
         hosts = {endpoint: host for host, endpoint in MODULE.HOSTS.items()}
-        for scenario in (*MODULE.USER_SCENARIOS, "dump/portal-owned"):
+        for scenario in (*MODULE.USER_SCENARIOS, "dump/portal-owned", "event-gateway/consume-policy"):
             with self.subTest(scenario=scenario):
                 cassette = MODULE.load_cassette(MODULE.ROOT / "test/e2e/scenarios" / scenario / "replay/cassette.json")
                 engine = MODULE.Replay(cassette)
