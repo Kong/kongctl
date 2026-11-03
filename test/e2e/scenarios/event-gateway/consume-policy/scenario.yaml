@@ -1104,7 +1104,359 @@ steps:
                 name: "{{ .vars.consumePolicyName }}"
                 type: schema_validation
 
-  - name: 016-sync-delete-decrypt-fields-prerequisites
+  - name: 016-mask-fields-create
+    inputOverlayDirs:
+      - overlays/011-mask-fields
+    commands:
+      - name: plan-create
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/create.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.CREATE: 1
+          - select: changes[?resource_ref=='mask_fields-consume-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply-create
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/create.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: verify-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 2
+          - select: '[?type==''schema_validation''] | [0]'
+            expect:
+              fields:
+                name: '{{ .vars.consumePolicyName }}'
+                type: schema_validation
+          - select: '[?name==''mask_fields-consume-policy''] | [0]'
+            expect:
+              fields:
+                name: mask_fields-consume-policy
+                type: mask_fields
+                enabled: true
+                parent_policy_id: '{{ .vars.decryptFieldsParentID }}'
+                config.failure_mode: error
+                length(config.mask_fields): 1
+                config.mask_fields[0].paths: record.value.content["customer.ssn"]
+                config.mask_fields[0].strategy.type: replace
+                config.mask_fields[0].strategy.phrase: '[REDACTED]'
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 017-mask-fields-delete
+    inputOverlayDirs:
+      - overlays/008-decrypt-fields-prerequisites
+    commands:
+      - name: plan-delete
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/delete.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 1
+                by_action.DELETE: 1
+          - select: changes[?resource_ref=='mask_fields-consume-policy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync-delete
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/delete.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 1
+                failed: 0
+      - name: verify-parent-preserved
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: '{{ .vars.consumePolicyName }}'
+                type: schema_validation
+          - select: '[0].id'
+            expect:
+              fields:
+                '@': '{{ .vars.decryptFieldsParentID }}'
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 018-transcode-create
+    inputOverlayDirs:
+      - overlays/012-transcode
+    commands:
+      - name: plan-create
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/create.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.CREATE: 2
+          - select: changes[?resource_ref=='transcode-consume-policy'] | [0]
+            expect:
+              fields:
+                action: CREATE
+      - name: apply-create
+        run:
+          - apply
+          - --plan
+          - '{{ .workdir }}/create.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: get-registry
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - -o
+          - json
+        recordVar:
+          name: consumeTranscodeRegistryID
+          responsePath: '[0].id'
+        assertions:
+          - select: '[0]'
+            expect:
+              fields:
+                name: consume-transcode-registry
+                config.schema_type: avro
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+      - name: verify-create
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 2
+          - select: '[?type==''schema_validation''] | [0]'
+            expect:
+              fields:
+                name: '{{ .vars.consumePolicyName }}'
+                type: schema_validation
+          - select: '[?name==''transcode-consume-policy''] | [0]'
+            expect:
+              fields:
+                name: transcode-consume-policy
+                type: transcode
+                enabled: true
+                parent_policy_id: '{{ .vars.decryptFieldsParentID }}'
+                config.failure_mode: error
+                config.output_format: avro
+                config.schema_source.type: reference
+                config.schema_source.subject: '''orders-value'''
+                config.schema_source.version: '''latest'''
+          - select: '[?name==''transcode-consume-policy''] | [0].config.schema_source.schema_registry.id'
+            expect:
+              fields:
+                '@': '{{ .vars.consumeTranscodeRegistryID }}'
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - apply
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 019-transcode-delete
+    inputOverlayDirs:
+      - overlays/013-transcode-delete
+    commands:
+      - name: plan-delete
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        stdoutFile: "{{ .workdir }}/delete.json"
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 2
+                by_action.DELETE: 2
+          - select: changes[?resource_ref=='transcode-consume-policy'] | [0]
+            expect:
+              fields:
+                action: DELETE
+      - name: sync-delete
+        run:
+          - sync
+          - --plan
+          - '{{ .workdir }}/delete.json'
+          - --auto-approve
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                applied: 2
+                failed: 0
+      - name: verify-parent-preserved
+        run:
+          - get
+          - event-gateway
+          - virtual-cluster
+          - consume-policies
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - --virtual-cluster-name
+          - '{{ .vars.virtualClusterName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 1
+          - select: '[0]'
+            expect:
+              fields:
+                name: '{{ .vars.consumePolicyName }}'
+                type: schema_validation
+          - select: '[0].id'
+            expect:
+              fields:
+                '@': '{{ .vars.decryptFieldsParentID }}'
+      - name: verify-registry-deleted
+        run:
+          - get
+          - event-gateway
+          - schema-registries
+          - --gateway-name
+          - '{{ .vars.egwName }}'
+          - -o
+          - json
+        assertions:
+          - select: length(@)
+            expect:
+              fields:
+                '@': 0
+      - name: idempotency
+        run:
+          - plan
+          - -f
+          - '{{ .workdir }}/config.yaml'
+          - --mode
+          - sync
+        outputFormat: disable
+        assertions:
+          - select: summary
+            expect:
+              fields:
+                total_changes: 0
+  - name: 020-sync-delete-decrypt-fields-prerequisites
     inputOverlayDirs:
       - overlays/010-sync-delete-decrypt-fields-prerequisites
     commands:

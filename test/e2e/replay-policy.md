@@ -42,8 +42,8 @@ The enabled subset is `control-plane/get`, `control-plane/apply`,
 [plan]: https://github.com/Kong/kongctl/actions/runs/34428189915
 [sync]: https://github.com/Kong/kongctl/actions/runs/39666956462
 [sync-replay]: https://github.com/Kong/kongctl/actions/runs/39670010464
-[consume-record]: https://github.com/Kong/kongctl/actions/runs/35115143565
-[consume-replay]: https://github.com/Kong/kongctl/actions/runs/35116004092
+[consume-record]: https://github.com/Kong/kongctl/actions/runs/41658862645
+[consume-replay]: https://github.com/Kong/kongctl/actions/runs/41661424390
 [portal-record]: https://github.com/Kong/kongctl/actions/runs/34517553668
 [portal-replay]: https://github.com/Kong/kongctl/actions/runs/34521886789
 [visibility-record]: https://github.com/Kong/kongctl/actions/runs/39667015919
