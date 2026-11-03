@@ -56,7 +56,7 @@ func TestPaletteFromTintPreservesAbout(t *testing.T) {
 		ID:          "example",
 		DisplayName: "Example Theme",
 		CreditSources: []*tint.CreditSource{
-			{Name: "Alice", Link: "https://example.com"},
+			{Name: "Alice (https://example.com)"},
 		},
 	})
 

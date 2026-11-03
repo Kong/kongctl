@@ -2980,6 +2980,7 @@ type bubbleModel struct {
 	detailContext    DetailContextProvider
 	helper           cmdpkg.Helper
 	statusMessage    string
+	fallbackTheme    string
 	rowLoader        RowLoader
 	searchActive     bool
 	searchBuffer     []rune
@@ -3056,6 +3057,9 @@ func newBubbleModel(
 		availableThemes:  availableThemeNames,
 		themeIndex:       themeIndexOf(availableThemeNames, palette.Name),
 		selectionActions: append([]SelectionAction(nil), cfg.selectionActions...),
+	}
+	if m.helper != nil && m.helper.GetCmd() != nil {
+		m.fallbackTheme = theme.FallbackFromContext(m.helper.GetCmd().Context())
 	}
 
 	if cfg.hasDetail && cfg.detailViewport != nil {
@@ -4148,6 +4152,16 @@ func (m *bubbleModel) buildStatusRows(innerWidth int) []string {
 	left := strings.TrimSpace(m.renderBreadcrumb())
 	right := m.renderStatusHint()
 	rows = append(rows, renderStatusRow(left, right, innerWidth))
+	if m.fallbackTheme != "" {
+		warning := fmt.Sprintf(
+			"Theme %q was removed; using auto. Press t / T to choose a theme; update color-theme in config to persist.",
+			m.fallbackTheme,
+		)
+		style := m.palette.ForegroundStyle(theme.ColorWarning).Bold(true)
+		for line := range strings.SplitSeq(ansi.Wrap(warning, innerWidth, ""), "\n") {
+			rows = append(rows, renderStatusRow(style.Render(line), "", innerWidth))
+		}
+	}
 
 	profile := m.renderProfileLabel()
 
@@ -4832,6 +4846,7 @@ func (m *bubbleModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:iretur
 			nextName := m.availableThemes[m.themeIndex]
 			if p, ok := theme.Get(nextName); ok {
 				m.applyPalette(p)
+				m.fallbackTheme = ""
 				m.setStatus(
 					fmt.Sprintf("Theme: %s (set 'color-theme: %s' in config to persist)", p.DisplayName, nextName),
 				)
