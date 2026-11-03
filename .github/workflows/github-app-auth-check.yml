@@ -1,0 +1,91 @@
+name: Verify GitHub App authentication
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - .github/workflows/github-app-auth-check.yml
+
+permissions: {}
+
+jobs:
+  verify:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+
+      - name: Create private SDK read token
+        id: sdk-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
+      - name: Create dependency PR token
+        id: pr-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: kongctl
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Create installer publication token
+        id: installer-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: get.konghq.com
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Create Homebrew publication token
+        id: tap-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: homebrew-kongctl
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: write
+          permission-checks: read
+          permission-statuses: read
+
+      - name: Verify token repository scopes and private SDK read access
+        shell: bash
+        env:
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
+          PR_TOKEN: ${{ steps.pr-token.outputs.token }}
+          INSTALLER_TOKEN: ${{ steps.installer-token.outputs.token }}
+          TAP_TOKEN: ${{ steps.tap-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          verify_scope() {
+            local token="$1" repository="$2"
+            GH_TOKEN="$token" gh api /installation/repositories |
+              jq -e --arg repo "$repository" '
+                .total_count == 1 and (.repositories | length) == 1 and
+                .repositories[0].full_name == $repo
+              ' > /dev/null
+            echo "Verified token scope: $repository"
+          }
+          verify_scope "$SDK_TOKEN" Kong/sdk-konnect-go-internal
+          verify_scope "$PR_TOKEN" Kong/kongctl
+          verify_scope "$INSTALLER_TOKEN" Kong/get.konghq.com
+          verify_scope "$TAP_TOKEN" Kong/homebrew-kongctl
+          GH_TOKEN="$SDK_TOKEN" gh api repos/Kong/sdk-konnect-go-internal/contents/go.mod > /dev/null
+          echo "Verified private SDK contents access; no publication performed."

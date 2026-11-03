@@ -514,10 +514,30 @@ jobs:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
 
+      - name: Detect private SDK dependency
+        id: sdk-auth
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
       - name: Configure private module access
+        if: steps.sdk-auth.outputs.required == 'true'
         shell: bash
         env:
-          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
         run: |
           set -euo pipefail
 
@@ -525,14 +545,14 @@ jobs:
             exit 0
           fi
 
-          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
-            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+          if [ -z "${SDK_TOKEN:-}" ]; then
+            echo "::error::SDK App token is required for sdk-konnect-go-internal"
             exit 1
           fi
 
           git config --global \
-            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
-            "https://github.com/"
+            url."https://x-access-token:${SDK_TOKEN}@github.com/Kong/sdk-konnect-go-internal".insteadOf \
+            "https://github.com/Kong/sdk-konnect-go-internal"
           echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
 
       - name: Setup Go
@@ -587,10 +607,30 @@ jobs:
           repository: ${{ needs.e2e-needed.outputs.checkout_repository }}
           ref: ${{ needs.e2e-needed.outputs.checkout_ref }}
 
+      - name: Detect private SDK dependency
+        id: sdk-auth
+        shell: bash
+        run: |
+          if grep -q 'sdk-konnect-go-internal' go.mod; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create private SDK read token
+        id: sdk-token
+        if: steps.sdk-auth.outputs.required == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.API_OPS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.API_OPS_APP_SECRET }}
+          owner: Kong
+          repositories: sdk-konnect-go-internal
+          permission-contents: read
+
       - name: Configure private module access
+        if: steps.sdk-auth.outputs.required == 'true'
         shell: bash
         env:
-          GH_TOKEN_PRIVATE_READ: ${{ secrets.GH_TOKEN_PRIVATE_READ }}
+          SDK_TOKEN: ${{ steps.sdk-token.outputs.token }}
         run: |
           set -euo pipefail
 
@@ -598,14 +638,14 @@ jobs:
             exit 0
           fi
 
-          if [ -z "${GH_TOKEN_PRIVATE_READ:-}" ]; then
-            echo "::error::GH_TOKEN_PRIVATE_READ is required for sdk-konnect-go-internal"
+          if [ -z "${SDK_TOKEN:-}" ]; then
+            echo "::error::SDK App token is required for sdk-konnect-go-internal"
             exit 1
           fi
 
           git config --global \
-            url."https://x-access-token:${GH_TOKEN_PRIVATE_READ}@github.com/".insteadOf \
-            "https://github.com/"
+            url."https://x-access-token:${SDK_TOKEN}@github.com/Kong/sdk-konnect-go-internal".insteadOf \
+            "https://github.com/Kong/sdk-konnect-go-internal"
           echo "GOPRIVATE=github.com/Kong/sdk-konnect-go-internal" >> "${GITHUB_ENV}"
 
       - name: Setup Go

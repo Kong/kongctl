@@ -46,10 +46,42 @@ recipe only installs the downloaded binary.
 The public registry must be readable anonymously. Its existing package must
 grant `Kong/kongctl` Actions write access; that is a GitHub package setting,
 not permission to copy Apple credentials into the tap. The upstream workflow
-uses its own `GITHUB_TOKEN` for packages and attestations. The existing
-`TAP_GITHUB_TOKEN` remains scoped to tap contents, pull requests and Actions
-dispatch. No new cross-repository Apple signing service or artifact handoff
-is required.
+uses its own `GITHUB_TOKEN` for packages and attestations. Tap publication
+uses installation tokens minted from the Kong-owned publisher App. Configure
+`KONGCTL_RELEASE_APP_CLIENT_ID` as an Actions variable and
+`KONGCTL_RELEASE_APP_PRIVATE_KEY` as an Actions secret in `Kong/kongctl`.
+The publisher client ID is `Iv23liu4PaoyT9gUAjLj` (App ID `5596327`).
+
+Each publication job mints its token immediately before use, restricted to
+`Kong/homebrew-kongctl`. Cask publication requests only Contents write.
+Formula publication also requests Pull requests write, Actions write,
+Checks read, and Commit statuses read to create the PR, await validation,
+and dispatch the tap publisher. Tokens expire after one hour and are revoked
+when the job finishes. The formula publication job is bounded to 55 minutes.
+No cross-repository Apple signing service or artifact handoff is required.
+
+Installer synchronization uses the same App credentials but requests a
+separate token for `Kong/get.konghq.com`, with only Contents write and Pull
+requests write. The App must be installed on both destination repositories.
+
+Private SDK consumers use `API_OPS_APP_CLIENT_ID` and `API_OPS_APP_SECRET`
+to mint tokens restricted to `Kong/sdk-konnect-go-internal` with Contents
+read. Public SDK builds skip token creation. The SDK prerelease preview uses
+a separate API Ops token scoped to `Kong/kongctl`, with Contents write and
+Pull requests write, so PR and label events can start downstream checks.
+The preview schedule remains disabled.
+
+Keep the previous PAT secrets until the migrated workflows have succeeded.
+Once both App credentials are available, manually dispatch
+`github-app-auth-check.yml` to validate token issuance for all four repository
+scopes and private SDK reads without publishing or modifying repositories.
+The check also runs for same-repository PRs that change its definition;
+fork PRs skip it.
+Then validate SDK preview PR checks, run installer sync, and
+verify cask and formula publication during the next approved release. Then
+remove `PAT`, `GH_TOKEN_PRIVATE_READ`, `GET_KONGHQ_COM_TOKEN`, and
+`TAP_GITHUB_TOKEN` from Actions after checking for other consumers. Removing
+an Actions secret does not revoke the underlying personal token.
 
 ## Validation and rollout
 

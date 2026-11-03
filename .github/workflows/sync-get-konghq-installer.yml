@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   sync:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
@@ -26,12 +27,23 @@ jobs:
           path: kongctl
           persist-credentials: false
 
+      - name: Create installer publication token
+        id: installer-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.KONGCTL_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.KONGCTL_RELEASE_APP_PRIVATE_KEY }}
+          owner: Kong
+          repositories: get.konghq.com
+          permission-contents: write
+          permission-pull-requests: write
+
       - name: Checkout get.konghq.com
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Kong/get.konghq.com
           path: get-konghq-com
-          token: ${{ secrets.GET_KONGHQ_COM_TOKEN }}
+          token: ${{ steps.installer-token.outputs.token }}
 
       - name: Stage installer
         id: stage
@@ -77,7 +89,7 @@ jobs:
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           path: get-konghq-com
-          token: ${{ secrets.GET_KONGHQ_COM_TOKEN }}
+          token: ${{ steps.installer-token.outputs.token }}
           base: main
           branch: kongctl/update-installer
           delete-branch: true
